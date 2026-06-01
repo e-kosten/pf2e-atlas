@@ -27,7 +27,9 @@ Rust should keep the writer lifecycle separate from runtime artifact reads. `atl
 
 Public path-based runtime operation helpers are not durable API. Passing a path to a concrete index reader constructor such as `SqliteIndexReader::open_*` is the correct boundary for opening an artifact. Passing paths to validation, inspection, search, or record-loading helpers that then open their own connections is a migration convenience that should be removed as the index boundary is consolidated.
 
-`atlas-search::AtlasRetrievalService` is the durable product-facing retrieval boundary. CLI and future TUI surfaces should route retrieval use cases through this service rather than constructing separate lookup, list, lexical, semantic, or hybrid services as peer public surfaces. The service owns retrieval orchestration and result assembly over the `SearchIndex` read trait and embedding components, while direct SQLite interaction remains inside `SqliteIndexReader`.
+`atlas-search::AtlasRetrievalService` is the durable product-facing retrieval boundary. CLI and future TUI surfaces should route retrieval use cases through this service rather than constructing separate lookup, list, lexical, semantic, or hybrid services as peer public surfaces. The service owns retrieval orchestration and result assembly over crate-private index read seams and embedding components, while direct SQLite interaction remains inside `SqliteIndexReader`.
+
+Consumers should depend on narrow `atlas-search` capability traits when they only need a subset of retrieval behavior: `RecordRetrieval`, `TextRetrieval`, `SemanticRetrieval`, `SimilarRetrieval`, `GraphRetrieval`, `VariantRetrieval`, and `RemasterRetrieval`. These traits expose search-owned request/result DTOs and keep index-owned rows, SQL details, vector errors, and filter compiler internals out of product callers.
 
 `SemanticSearchService` is an internal migration component for the semantic-only embedding/sqlite-vec validation loop. It may remain as an implementation detail under `AtlasRetrievalService`, but it is not the long-term public retrieval boundary.
 
@@ -43,7 +45,7 @@ Runtime vector rebuild is not part of the target architecture. If semantic vecto
 
 CLI and future runtime surfaces should request artifact paths and readiness through `atlas-runtime`. Surface code should not independently derive default artifact locations or require users to provide path overrides for normal operation.
 
-The search crate should consolidate public retrieval behavior behind `AtlasRetrievalService`. Internal modules and smaller components are still appropriate for lexical execution, semantic execution, record resolution, filter compilation, ranking, or result shaping, but they should not become separate product-facing service entrypoints unless a future ADR changes this boundary.
+The search crate should consolidate public retrieval behavior behind `AtlasRetrievalService` plus narrow capability traits implemented by that service. Internal modules and smaller components are still appropriate for lexical execution, semantic execution, record resolution, filter compilation, ranking, or result shaping, but they should not become separate product-facing service entrypoints unless a future ADR changes this boundary.
 
 Architecture diagrams should show:
 

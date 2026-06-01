@@ -152,12 +152,11 @@ fn select_seed_embedding_requires_parent_unit() {
 
     let error = select_seed_embedding_unit(&units).expect_err("child-only seed should be rejected");
 
-    assert!(matches!(
-        error,
-        SearchError::UnsupportedRetrievalPattern(
-            "similar records require a stored parent seed embedding"
-        )
-    ));
+    assert!(error.is_vector_readiness_required());
+    assert_eq!(
+        error.to_string(),
+        "retrieval pattern is not implemented yet: similar records require a stored parent seed embedding"
+    );
 }
 
 #[test]

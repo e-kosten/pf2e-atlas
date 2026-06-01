@@ -1,10 +1,10 @@
 use atlas_domain::{DetailLevel, SearchFilterNode};
-use atlas_index::FilteredRecordSort;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    AtlasSearchRequest, AtlasSearchResult, DEFAULT_FTS_FUSION_POLICY_NAME, FusionOptions,
-    RetrievalMode, SearchError, TextSearchExplain, TextSearchMatch, TextSearchRequest,
+    BrowseRecordsRequest, DEFAULT_FTS_FUSION_POLICY_NAME, FusionOptions, RecordBrowseSort,
+    RecordRetrieval, RetrievalMode, SearchError, SearchErrorKind, TextRetrieval, TextSearchExplain,
+    TextSearchMatch, TextSearchRequest,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -111,7 +111,20 @@ struct SearchMatchJson {
 struct SearchExplainJson {
     rank: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
+    fusion: Option<SearchFusionExplainJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts: Option<SearchFtsExplainJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector: Option<SearchVectorExplainJson>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchFusionExplainJson {
     fused_score: Option<f64>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchFtsExplainJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     fts_rank: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -120,6 +133,10 @@ struct SearchExplainJson {
     fts_lane: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     fts_confidence: Option<&'static str>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchVectorExplainJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     vector_rank: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -158,7 +175,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     }
 
     if let Some(query) = options.query.clone() {
-        return run_ranked_text_search(options, &query, filter.as_ref(), filter_value, limit);
+        return run_ranked_search_text(options, &query, filter.as_ref(), filter_value, limit);
     }
 
     let (sort, sort_json) = match parse_sort(options.sort, options.seed) {
@@ -196,7 +213,12 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let page = match service.filter_only_records(filter.as_ref(), sort, limit, options.offset) {
+    let page = match service.browse_records(BrowseRecordsRequest {
+        filter: filter.as_ref(),
+        sort,
+        limit,
+        offset: options.offset,
+    }) {
         Ok(page) => page,
         Err(error) if options.json => {
             write_json_error(search_error_code(&error), error.to_string())?;
@@ -257,7 +279,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn run_ranked_text_search(
+fn run_ranked_search_text(
     options: SearchOptions,
     query: &str,
     filter: Option<&SearchFilterNode>,
@@ -367,7 +389,7 @@ fn run_ranked_text_search(
     search_progress("Searching records", "search");
     let fts_top_k = options.fts_top_k.max(ranked_window);
     let vector_top_k = options.vector_top_k.max(ranked_window);
-    let result = match search.search(AtlasSearchRequest::Text(TextSearchRequest {
+    let result = match search.search_text(TextSearchRequest {
         query,
         exclude: options.exclude.as_deref(),
         filter,
@@ -378,12 +400,8 @@ fn run_ranked_text_search(
         fts_top_k,
         vector_top_k,
         explain: options.explain,
-    })) {
-        Ok(AtlasSearchResult::Text(result)) => result,
-        Ok(AtlasSearchResult::Semantic(_)) => {
-            complete_search_progress();
-            return Err("search returned an unexpected semantic result".to_string());
-        }
+    }) {
+        Ok(result) => result,
         Err(error) if options.json => {
             complete_search_progress();
             let message = if retrieval != RetrievalMode::Fts && vector_readiness_error(&error) {
@@ -476,45 +494,45 @@ fn complete_search_progress() {
 fn parse_sort(
     value: CliSearchSort,
     seed: Option<u64>,
-) -> Result<(FilteredRecordSort, SearchSortJson), String> {
+) -> Result<(RecordBrowseSort, SearchSortJson), String> {
     match value {
         CliSearchSort::Alphabetical => Ok((
-            FilteredRecordSort::Alphabetical,
+            RecordBrowseSort::Alphabetical,
             SearchSortJson {
                 kind: "alphabetical",
                 seed: None,
             },
         )),
         CliSearchSort::LevelAsc => Ok((
-            FilteredRecordSort::LevelAsc,
+            RecordBrowseSort::LevelAsc,
             SearchSortJson {
                 kind: "level_asc",
                 seed: None,
             },
         )),
         CliSearchSort::LevelDesc => Ok((
-            FilteredRecordSort::LevelDesc,
+            RecordBrowseSort::LevelDesc,
             SearchSortJson {
                 kind: "level_desc",
                 seed: None,
             },
         )),
         CliSearchSort::PriceAsc => Ok((
-            FilteredRecordSort::PriceAsc,
+            RecordBrowseSort::PriceAsc,
             SearchSortJson {
                 kind: "price_asc",
                 seed: None,
             },
         )),
         CliSearchSort::PriceDesc => Ok((
-            FilteredRecordSort::PriceDesc,
+            RecordBrowseSort::PriceDesc,
             SearchSortJson {
                 kind: "price_desc",
                 seed: None,
             },
         )),
         CliSearchSort::RecordKey => Ok((
-            FilteredRecordSort::RecordKey,
+            RecordBrowseSort::RecordKey,
             SearchSortJson {
                 kind: "record_key",
                 seed: None,
@@ -523,7 +541,7 @@ fn parse_sort(
         CliSearchSort::Random => {
             let seed = seed.unwrap_or_else(generated_seed);
             Ok((
-                FilteredRecordSort::Random { seed },
+                RecordBrowseSort::Random { seed },
                 SearchSortJson {
                     kind: "random",
                     seed: Some(seed),
@@ -618,35 +636,49 @@ fn search_match_json(match_info: TextSearchMatch) -> SearchMatchJson {
 }
 
 fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
-    SearchExplainJson {
-        rank: explain.rank,
-        fused_score: explain.fused_score,
+    let fusion = explain
+        .fused_score
+        .map(|fused_score| SearchFusionExplainJson {
+            fused_score: Some(fused_score),
+        });
+    let fts = (explain.fts_rank.is_some()
+        || explain.fts_score.is_some()
+        || explain.fts_lane.is_some()
+        || explain.fts_confidence.is_some())
+    .then_some(SearchFtsExplainJson {
         fts_rank: explain.fts_rank,
         fts_score: explain.fts_score,
         fts_lane: explain.fts_lane.map(|lane| lane.as_str()),
         fts_confidence: explain.fts_confidence.map(|confidence| confidence.as_str()),
+    });
+    let vector = (explain.vector_rank.is_some()
+        || explain.vector_distance.is_some()
+        || explain.vector_rank_distance.is_some()
+        || explain.vector_unit_kind.is_some()
+        || explain.vector_label.is_some())
+    .then_some(SearchVectorExplainJson {
         vector_rank: explain.vector_rank,
         vector_distance: explain.vector_distance,
         vector_rank_distance: explain.vector_rank_distance,
         vector_unit_kind: explain.vector_unit_kind,
         vector_label: explain.vector_label,
+    });
+    SearchExplainJson {
+        rank: explain.rank,
+        fusion,
+        fts,
+        vector,
     }
 }
 
 fn search_error_code(error: &atlas_search::SearchError) -> &'static str {
-    match error {
-        atlas_search::SearchError::Index(atlas_index::IndexValidationError::Unavailable(_)) => {
-            "index_unavailable"
-        }
-        atlas_search::SearchError::Index(atlas_index::IndexValidationError::InvalidArtifact(_)) => {
-            "artifact_contract_violation"
-        }
-        atlas_search::SearchError::InvalidSearchOptions(_) => "invalid_option",
-        atlas_search::SearchError::Vector(atlas_index::VectorQueryError::Filter(_)) => {
-            "invalid_filter"
-        }
-        atlas_search::SearchError::Filter(_) => "invalid_filter",
-        _ => "query_failed",
+    match error.kind() {
+        SearchErrorKind::IndexUnavailable => "index_unavailable",
+        SearchErrorKind::ArtifactContractViolation => "artifact_contract_violation",
+        SearchErrorKind::InvalidFilter => "invalid_filter",
+        SearchErrorKind::InvalidOptions => "invalid_option",
+        SearchErrorKind::VectorReadinessRequired => "vector_readiness_required",
+        SearchErrorKind::EmbeddingUnavailable | SearchErrorKind::QueryFailed => "query_failed",
     }
 }
 
@@ -658,13 +690,7 @@ fn search_error_code_for_retrieval(error: &SearchError, retrieval: RetrievalMode
 }
 
 fn vector_readiness_error(error: &SearchError) -> bool {
-    matches!(
-        error,
-        SearchError::InvalidEmbeddingModel { .. }
-            | SearchError::Embedding(_)
-            | SearchError::Vector(atlas_index::VectorQueryError::QueryFailed(_))
-            | SearchError::UnsupportedRetrievalPattern(_)
-    )
+    error.is_vector_readiness_required()
 }
 
 fn vector_readiness_message(error: &SearchError) -> String {
@@ -675,24 +701,20 @@ fn vector_readiness_message(error: &SearchError) -> String {
 
 #[cfg(test)]
 mod tests {
-    use atlas_index::{FilterCompileError, VectorQueryError};
     use atlas_search::SearchError;
 
     use super::vector_readiness_error;
 
     #[test]
-    fn vector_filter_errors_are_not_vector_readiness_errors() {
-        let error =
-            SearchError::Vector(VectorQueryError::Filter(FilterCompileError::Unsupported {
-                filter: "fixture".to_string(),
-            }));
+    fn invalid_search_options_are_not_vector_readiness_errors() {
+        let error = SearchError::query_failed("fixture");
 
         assert!(!vector_readiness_error(&error));
     }
 
     #[test]
-    fn vector_query_failures_are_vector_readiness_errors() {
-        let error = SearchError::Vector(VectorQueryError::QueryFailed("missing table".to_string()));
+    fn embedding_failures_are_vector_readiness_errors() {
+        let error = SearchError::vector_readiness_required("missing model");
 
         assert!(vector_readiness_error(&error));
     }

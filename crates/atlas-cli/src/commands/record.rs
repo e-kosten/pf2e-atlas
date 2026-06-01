@@ -4,7 +4,10 @@ use std::process::ExitCode;
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordBlockJson, RecordJsonOptions, RecordSectionJson, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
-use atlas_search::{RecordResolutionResult, SearchError};
+use atlas_search::{
+    GetRecordsRequest, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest, SearchError,
+    SearchErrorKind,
+};
 use serde::Serialize;
 
 use crate::output::{CliError, write_json_data, write_json_error, write_json_error_data};
@@ -136,7 +139,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
         }
         Err(error) => return Err(error),
     };
-    let records = match service.get_records(&keys) {
+    let records = match service.get_records(GetRecordsRequest { record_keys: &keys }) {
         Ok(records) => records,
         Err(error) if options.json => {
             write_json_error(search_error_code(&error), error.to_string())?;
@@ -264,7 +267,10 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     let mut failed = 0;
     let mut results = Vec::new();
     for query in &options.queries {
-        let matches = match service.resolve_record(query, filter.as_ref()) {
+        let matches = match service.resolve_record(ResolveRecordRequest {
+            query,
+            filter: filter.as_ref(),
+        }) {
             Ok(matches) => matches,
             Err(error) if options.json => {
                 write_json_error(search_error_code(&error), error.to_string())?;
@@ -697,14 +703,12 @@ pub(crate) fn search_error(error: SearchError) -> String {
 }
 
 pub(crate) fn search_error_code(error: &SearchError) -> &'static str {
-    match error {
-        SearchError::Index(atlas_index::IndexValidationError::Unavailable(_)) => {
-            "index_unavailable"
-        }
-        SearchError::Index(atlas_index::IndexValidationError::InvalidArtifact(_)) => {
-            "artifact_contract_violation"
-        }
-        SearchError::Filter(_) => "invalid_filter",
-        _ => "query_failed",
+    match error.kind() {
+        SearchErrorKind::IndexUnavailable => "index_unavailable",
+        SearchErrorKind::ArtifactContractViolation => "artifact_contract_violation",
+        SearchErrorKind::InvalidFilter => "invalid_filter",
+        SearchErrorKind::InvalidOptions => "invalid_option",
+        SearchErrorKind::VectorReadinessRequired => "vector_readiness_required",
+        SearchErrorKind::EmbeddingUnavailable | SearchErrorKind::QueryFailed => "query_failed",
     }
 }

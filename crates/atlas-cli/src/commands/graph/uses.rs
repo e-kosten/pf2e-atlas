@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use atlas_search::GraphContextRequest;
+use atlas_search::{GraphContextRequest, GraphRetrieval};
 
 use crate::output::{write_json_data, write_json_error};
 

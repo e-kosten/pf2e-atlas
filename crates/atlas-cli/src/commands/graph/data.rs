@@ -1,8 +1,8 @@
 use atlas_domain::DetailLevel;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_search::{
-    GraphContextEdge, GraphContextResult, GraphContextSection, GraphRemasterLinksResult,
-    GraphVariantGroupResult,
+    GraphContextEdge, GraphContextResult, GraphContextSection, RemasterLinksResult,
+    VariantGroupResult,
 };
 use serde::Serialize;
 
@@ -122,7 +122,7 @@ pub(super) fn graph_uses_data(result: &GraphContextResult, detail: DetailLevel) 
 }
 
 pub(super) fn graph_variants_data(
-    result: &GraphVariantGroupResult,
+    result: &VariantGroupResult,
     detail: DetailLevel,
 ) -> GraphVariantsData {
     let options = RecordJsonOptions {
@@ -153,7 +153,7 @@ pub(super) fn graph_variants_data(
 }
 
 pub(super) fn graph_remaster_data(
-    result: &GraphRemasterLinksResult,
+    result: &RemasterLinksResult,
     detail: DetailLevel,
 ) -> GraphRemasterData {
     let options = RecordJsonOptions {

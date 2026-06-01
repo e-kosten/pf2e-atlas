@@ -4,24 +4,56 @@ use atlas_domain::RecordKey;
 use atlas_record::PersistedRecord;
 
 use crate::query::normalize_record_query;
-use crate::{
-    AtlasRetrievalService, GraphRemasterLinkResult, GraphRemasterLinksResult,
-    GraphVariantGroupResult, SearchError,
-};
+use crate::{AtlasRetrievalService, GetRecordsRequest, RecordRetrieval, SearchError};
 
-impl AtlasRetrievalService {
-    pub fn variant_group(
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantGroupRequest<'a> {
+    pub record_key: &'a RecordKey,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantBaseNameRequest<'a> {
+    pub base_name: &'a str,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantGroupResult {
+    pub seed: Option<PersistedRecord>,
+    pub variant_group_key: Option<String>,
+    pub variants: Vec<PersistedRecord>,
+}
+
+pub trait VariantRetrieval {
+    fn variant_group(
         &self,
-        record_key: &RecordKey,
-    ) -> Result<Option<GraphVariantGroupResult>, SearchError> {
+        request: VariantGroupRequest<'_>,
+    ) -> Result<Option<VariantGroupResult>, SearchError>;
+
+    fn variant_groups_by_base_name(
+        &self,
+        request: VariantBaseNameRequest<'_>,
+    ) -> Result<Vec<VariantGroupResult>, SearchError>;
+}
+
+impl VariantRetrieval for AtlasRetrievalService {
+    fn variant_group(
+        &self,
+        request: VariantGroupRequest<'_>,
+    ) -> Result<Option<VariantGroupResult>, SearchError> {
+        let record_key = request.record_key;
         let Some(seed) = self
-            .get_records(std::slice::from_ref(record_key))?
+            .get_records(GetRecordsRequest {
+                record_keys: std::slice::from_ref(record_key),
+            })?
             .into_iter()
             .next()
         else {
             return Ok(None);
         };
-        let group = self.index.variant_group_for_record(record_key)?;
+        let group = self
+            .index
+            .variant_group_for_record(record_key)
+            .map_err(SearchError::from_record_load)?;
         let (variant_group_key, variants) = group
             .map(|group| {
                 self.load_records_preserving_order(&group.record_keys)
@@ -29,24 +61,25 @@ impl AtlasRetrievalService {
             })
             .transpose()?
             .unwrap_or((None, Vec::new()));
-        Ok(Some(GraphVariantGroupResult {
+        Ok(Some(VariantGroupResult {
             seed: Some(seed),
             variant_group_key,
             variants,
         }))
     }
 
-    pub fn variant_groups_by_base_name(
+    fn variant_groups_by_base_name(
         &self,
-        base_name: &str,
-    ) -> Result<Vec<GraphVariantGroupResult>, SearchError> {
-        let normalized_base_name = normalize_record_query(base_name);
+        request: VariantBaseNameRequest<'_>,
+    ) -> Result<Vec<VariantGroupResult>, SearchError> {
+        let normalized_base_name = normalize_record_query(request.base_name);
         self.index
-            .variant_groups_by_base_name(&normalized_base_name)?
+            .variant_groups_by_base_name(&normalized_base_name)
+            .map_err(SearchError::from_record_load)?
             .into_iter()
             .map(|group| {
                 let variants = self.load_records_preserving_order(&group.record_keys)?;
-                Ok(GraphVariantGroupResult {
+                Ok(VariantGroupResult {
                     seed: None,
                     variant_group_key: group.variant_group_key,
                     variants,
@@ -54,90 +87,22 @@ impl AtlasRetrievalService {
             })
             .collect()
     }
+}
 
-    pub fn remaster_links(
-        &self,
-        record_key: &RecordKey,
-    ) -> Result<Option<GraphRemasterLinksResult>, SearchError> {
-        let Some(seed) = self
-            .get_records(std::slice::from_ref(record_key))?
-            .into_iter()
-            .next()
-        else {
-            return Ok(None);
-        };
-        let links = self
-            .index
-            .remaster_links_for_record(record_key)?
-            .map(|links| -> Result<_, SearchError> {
-                let record_keys = links
-                    .links
-                    .iter()
-                    .flat_map(|link| {
-                        [
-                            link.remaster_record_key.clone(),
-                            link.legacy_record_key.clone(),
-                        ]
-                    })
-                    .collect::<Vec<_>>();
-                let records_by_key = self
-                    .get_records(&record_keys)?
-                    .into_iter()
-                    .map(|record| (record.key.clone(), record))
-                    .collect::<BTreeMap<_, _>>();
-                links
-                    .links
-                    .into_iter()
-                    .map(|link| {
-                        let remaster_record = records_by_key
-                            .get(&link.remaster_record_key)
-                            .cloned()
-                            .ok_or_else(|| {
-                                SearchError::RecordLoad(atlas_index::RecordLoadError::InvalidData(
-                                    format!(
-                                        "remaster link target `{}` was not found",
-                                        link.remaster_record_key
-                                    ),
-                                ))
-                            })?;
-                        let legacy_record = records_by_key
-                            .get(&link.legacy_record_key)
-                            .cloned()
-                            .ok_or_else(|| {
-                                SearchError::RecordLoad(atlas_index::RecordLoadError::InvalidData(
-                                    format!(
-                                        "remaster link target `{}` was not found",
-                                        link.legacy_record_key
-                                    ),
-                                ))
-                            })?;
-                        Ok(GraphRemasterLinkResult {
-                            remaster_record,
-                            legacy_record,
-                            source: link.source,
-                            source_ref: link.source_ref,
-                        })
-                    })
-                    .collect()
-            })
-            .transpose()?
-            .unwrap_or_default();
-        Ok(Some(GraphRemasterLinksResult { seed, links }))
-    }
-
+impl AtlasRetrievalService {
     fn load_records_preserving_order(
         &self,
         record_keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, SearchError> {
         let mut by_key = self
-            .get_records(record_keys)?
+            .get_records(GetRecordsRequest { record_keys })?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let mut records = Vec::with_capacity(record_keys.len());
         for key in record_keys {
             let Some(record) = by_key.remove(key) else {
-                return Err(SearchError::RecordLoad(
+                return Err(SearchError::from_record_load(
                     atlas_index::RecordLoadError::InvalidData(format!(
                         "graph relation target `{key}` was not found"
                     )),
@@ -169,7 +134,9 @@ mod tests {
             AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
 
         let result = service
-            .variant_group(&RecordKey::parse("actions:testAction1")?)?
+            .variant_group(VariantGroupRequest {
+                record_key: &RecordKey::parse("actions:testAction1")?,
+            })?
             .expect("seed record should exist");
 
         assert_eq!(
@@ -187,41 +154,13 @@ mod tests {
         let service =
             AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
 
-        let results = service.variant_groups_by_base_name("Test Action")?;
+        let results = service.variant_groups_by_base_name(VariantBaseNameRequest {
+            base_name: "Test Action",
+        })?;
 
         assert_eq!(results.len(), 1);
         assert!(results[0].seed.is_none());
         assert_eq!(results[0].variant_group_key.as_deref(), Some("test-action"));
-        Ok(())
-    }
-
-    #[test]
-    fn graph_product_service_uses_index_remaster_seam() -> Result<(), Box<dyn std::error::Error>> {
-        let service =
-            AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
-
-        let result = service
-            .remaster_links(&RecordKey::parse("actions:testAction1")?)?
-            .expect("seed record should exist");
-
-        assert_eq!(result.seed.key.to_string(), "actions:testAction1");
-        assert_eq!(result.links.len(), 1);
-        assert_eq!(
-            result.links[0].remaster_record.key.to_string(),
-            "actions:testAction2"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn graph_product_service_returns_none_for_missing_seed()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let service =
-            AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
-
-        let result = service.remaster_links(&RecordKey::parse("actions:missing")?)?;
-
-        assert!(result.is_none());
         Ok(())
     }
 
@@ -233,10 +172,12 @@ mod tests {
         ));
 
         let error = service
-            .variant_group(&RecordKey::parse("actions:testAction1")?)
+            .variant_group(VariantGroupRequest {
+                record_key: &RecordKey::parse("actions:testAction1")?,
+            })
             .expect_err("graph read error should propagate");
 
-        assert!(matches!(error, SearchError::RecordLoad(_)));
+        assert_eq!(error.kind(), crate::SearchErrorKind::QueryFailed);
         assert_eq!(
             error.to_string(),
             "record query failed: fixture graph error"
@@ -252,32 +193,15 @@ mod tests {
         ));
 
         let error = service
-            .variant_group(&RecordKey::parse("actions:testAction1")?)
+            .variant_group(VariantGroupRequest {
+                record_key: &RecordKey::parse("actions:testAction1")?,
+            })
             .expect_err("missing variant target should be invalid artifact data");
 
-        assert!(matches!(error, SearchError::RecordLoad(_)));
+        assert_eq!(error.kind(), crate::SearchErrorKind::QueryFailed);
         assert_eq!(
             error.to_string(),
             "record data is invalid: graph relation target `actions:missing` was not found"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn graph_product_service_reports_missing_remaster_relation_targets()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
-            FakeIndex::with_mode(FakeGraphMode::MissingTarget),
-        ));
-
-        let error = service
-            .remaster_links(&RecordKey::parse("actions:testAction1")?)
-            .expect_err("missing remaster target should be invalid artifact data");
-
-        assert!(matches!(error, SearchError::RecordLoad(_)));
-        assert_eq!(
-            error.to_string(),
-            "record data is invalid: remaster link target `actions:missing` was not found"
         );
         Ok(())
     }

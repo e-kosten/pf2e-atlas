@@ -634,15 +634,15 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert_eq!(fts_search_data["results"][0]["match"]["kind"], "ranked");
     assert_eq!(fts_search_data["results"][0]["match"]["retrieval"], "fts");
     assert_eq!(
-        fts_search_data["results"][0]["match"]["explain"]["fts_rank"],
+        fts_search_data["results"][0]["match"]["explain"]["fts"]["fts_rank"],
         1
     );
     assert_eq!(
-        fts_search_data["results"][0]["match"]["explain"]["fts_lane"],
+        fts_search_data["results"][0]["match"]["explain"]["fts"]["fts_lane"],
         "facet"
     );
     assert_eq!(
-        fts_search_data["results"][0]["match"]["explain"]["fts_confidence"],
+        fts_search_data["results"][0]["match"]["explain"]["fts"]["fts_confidence"],
         "strong-lexical"
     );
 

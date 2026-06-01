@@ -8,7 +8,7 @@ fn test_record_key(value: &str) -> RecordKey {
 
 fn semantic_hit(record: &str, distance: f64) -> SemanticSearchHit {
     SemanticSearchHit::new(
-        record.to_string(),
+        test_record_key(record),
         "parent".to_string(),
         None,
         distance,
@@ -442,6 +442,6 @@ fn lane_and_confidence_weights_affect_fused_order() {
     );
     assert_eq!(
         fused[3].explain.as_ref().unwrap().fts_lane,
-        Some(FtsSearchLane::Facet)
+        Some(FtsLane::Facet)
     );
 }

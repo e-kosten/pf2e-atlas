@@ -4,8 +4,8 @@ use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    RecordResolutionResult, SearchError, SimilarRecordRequest, SimilarRecordResult,
-    SimilarScoreWeights,
+    RecordResolutionResult, RecordRetrieval, ResolveRecordRequest, SearchError,
+    SimilarRecordRequest, SimilarRecordResult, SimilarRetrieval, SimilarScoreWeights,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -225,7 +225,10 @@ fn resolve_seed(
     if let Ok(key) = RecordKey::parse(record_ref) {
         return Ok(SeedResolution::Resolved(key));
     }
-    let matches = service.resolve_record(record_ref, None)?;
+    let matches = service.resolve_record(ResolveRecordRequest {
+        query: record_ref,
+        filter: None,
+    })?;
     match matches.as_slice() {
         [] => Ok(SeedResolution::Missing),
         [resolution] => Ok(SeedResolution::Resolved(resolution.record.key.clone())),

@@ -4,128 +4,98 @@ use atlas_index::{
     RecordLoadError,
 };
 use atlas_record::{PersistedRecord, RecordAlias};
-use serde::{Deserialize, Serialize};
 
 use crate::query::normalize_record_query;
 use crate::{AtlasRetrievalService, SearchError};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct RecordResolutionResult {
-    pub query: String,
-    pub normalized_query: String,
-    pub match_kind: RecordResolutionMatchKind,
-    pub matched_text: String,
-    pub alias_source: Option<String>,
-    pub alias_source_ref: Option<String>,
-    pub record: PersistedRecord,
-}
+use super::{RecordResolutionMatchKind, RecordResolutionResult};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RecordResolutionMatchKind {
-    Name,
-    NormalizedName,
-    Alias,
-    VariantName,
-}
-
-impl RecordResolutionMatchKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Name => "name",
-            Self::NormalizedName => "normalized_name",
-            Self::Alias => "alias",
-            Self::VariantName => "variant_name",
-        }
+pub(crate) fn resolve_record(
+    service: &AtlasRetrievalService,
+    query: &str,
+    filter: Option<&SearchFilterNode>,
+) -> Result<Vec<RecordResolutionResult>, SearchError> {
+    let resolved_filter = service
+        .index
+        .resolve_metric_filters(filter)
+        .map_err(SearchError::from_filter)?;
+    let filter = resolved_filter.as_ref().or(filter);
+    let normalized_query = normalize_record_query(query);
+    if let Some(mut matches) =
+        service.resolve_record_with_index(query, &normalized_query, filter)?
+    {
+        service.enrich_resolution_reference_labels(&mut matches)?;
+        return Ok(matches);
     }
-}
 
-impl AtlasRetrievalService {
-    pub fn resolve_record(
-        &self,
-        query: &str,
-        filter: Option<&SearchFilterNode>,
-    ) -> Result<Vec<RecordResolutionResult>, SearchError> {
-        let resolved_filter = self.index.resolve_metric_filters(filter)?;
-        let filter = resolved_filter.as_ref().or(filter);
-        let normalized_query = normalize_record_query(query);
-        if let Some(mut matches) =
-            self.resolve_record_with_index(query, &normalized_query, filter)?
-        {
-            self.enrich_resolution_reference_labels(&mut matches)?;
-            return Ok(matches);
-        }
-
-        let mut record_set = self.index.load_record_set()?;
-        record_set
-            .records
-            .retain(|record| record.is_default_visible);
-        let default_visible_keys = record_set
-            .records
-            .iter()
-            .map(|record| record.key.clone())
+    let mut record_set = service
+        .index
+        .load_record_set()
+        .map_err(SearchError::from_record_load)?;
+    record_set
+        .records
+        .retain(|record| record.is_default_visible);
+    let default_visible_keys = record_set
+        .records
+        .iter()
+        .map(|record| record.key.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    record_set
+        .aliases
+        .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
+    if let Some(filter) = filter {
+        let allowed = service
+            .index
+            .list_filtered_record_keys(Some(filter), FilteredRecordSort::RecordKey, u32::MAX, 0)
+            .map_err(SearchError::from_filter)?
+            .record_keys
+            .into_iter()
             .collect::<std::collections::BTreeSet<_>>();
         record_set
+            .records
+            .retain(|record| allowed.contains(&record.key));
+        record_set
             .aliases
-            .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
-        if let Some(filter) = filter {
-            let allowed = self
-                .index
-                .list_filtered_record_keys(
-                    Some(filter),
-                    FilteredRecordSort::RecordKey,
-                    u32::MAX,
-                    0,
-                )?
-                .record_keys
-                .into_iter()
-                .collect::<std::collections::BTreeSet<_>>();
-            record_set
-                .records
-                .retain(|record| allowed.contains(&record.key));
-            record_set
-                .aliases
-                .retain(|alias| allowed.contains(&alias.canonical_record_key));
-        }
+            .retain(|alias| allowed.contains(&alias.canonical_record_key));
+    }
 
-        let mut matches = resolution_matches_for_kind(
+    let mut matches = resolution_matches_for_kind(
+        query,
+        &normalized_query,
+        RecordResolutionMatchKind::Name,
+        &record_set.records,
+        &record_set.aliases,
+    );
+    if matches.is_empty() {
+        matches = resolution_matches_for_kind(
             query,
             &normalized_query,
-            RecordResolutionMatchKind::Name,
+            RecordResolutionMatchKind::NormalizedName,
             &record_set.records,
             &record_set.aliases,
         );
-        if matches.is_empty() {
-            matches = resolution_matches_for_kind(
-                query,
-                &normalized_query,
-                RecordResolutionMatchKind::NormalizedName,
-                &record_set.records,
-                &record_set.aliases,
-            );
-        }
-        if matches.is_empty() {
-            matches = resolution_matches_for_kind(
-                query,
-                &normalized_query,
-                RecordResolutionMatchKind::Alias,
-                &record_set.records,
-                &record_set.aliases,
-            );
-        }
-        if matches.is_empty() {
-            matches = resolution_matches_for_kind(
-                query,
-                &normalized_query,
-                RecordResolutionMatchKind::VariantName,
-                &record_set.records,
-                &record_set.aliases,
-            );
-        }
-
-        self.enrich_resolution_reference_labels(&mut matches)?;
-        Ok(matches)
     }
+    if matches.is_empty() {
+        matches = resolution_matches_for_kind(
+            query,
+            &normalized_query,
+            RecordResolutionMatchKind::Alias,
+            &record_set.records,
+            &record_set.aliases,
+        );
+    }
+    if matches.is_empty() {
+        matches = resolution_matches_for_kind(
+            query,
+            &normalized_query,
+            RecordResolutionMatchKind::VariantName,
+            &record_set.records,
+            &record_set.aliases,
+        );
+    }
+
+    service.enrich_resolution_reference_labels(&mut matches)?;
+    Ok(matches)
 }
 
 impl AtlasRetrievalService {
@@ -143,16 +113,16 @@ impl AtlasRetrievalService {
                 Ok(Some(matches)) => matches,
                 Ok(None) => return Ok(None),
                 Err(FilterCompileError::QueryFailed(message)) => {
-                    return Err(SearchError::RecordLoad(RecordLoadError::QueryFailed(
+                    return Err(SearchError::from_record_load(RecordLoadError::QueryFailed(
                         message,
                     )));
                 }
                 Err(FilterCompileError::InvalidValue(message)) => {
-                    return Err(SearchError::RecordLoad(RecordLoadError::InvalidData(
+                    return Err(SearchError::from_record_load(RecordLoadError::InvalidData(
                         message,
                     )));
                 }
-                Err(error) => return Err(SearchError::Filter(error)),
+                Err(error) => return Err(SearchError::from_filter(error)),
             };
         if identity_matches.is_empty() {
             return Ok(Some(Vec::new()));
@@ -164,7 +134,8 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         let records = self
             .index
-            .load_records_by_key(&record_keys)?
+            .load_records_by_key(&record_keys)
+            .map_err(SearchError::from_record_load)?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<std::collections::BTreeMap<_, _>>();

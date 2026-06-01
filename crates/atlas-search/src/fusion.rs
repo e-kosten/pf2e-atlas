@@ -21,6 +21,34 @@ use fts::{
 pub const DEFAULT_FTS_FUSION_POLICY_NAME: &str = DEFAULT_FTS_FUSION_POLICY_LABEL;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FtsLane {
+    TitleAlias,
+    Facet,
+    Mixed,
+}
+
+impl FtsLane {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::TitleAlias => "title_alias",
+            Self::Facet => "facet",
+            Self::Mixed => "mixed",
+        }
+    }
+}
+
+impl From<FtsSearchLane> for FtsLane {
+    fn from(value: FtsSearchLane) -> Self {
+        match value {
+            FtsSearchLane::TitleAlias => Self::TitleAlias,
+            FtsSearchLane::Facet => Self::Facet,
+            FtsSearchLane::Mixed => Self::Mixed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FusionMethod {
     Rrf,
@@ -61,7 +89,7 @@ pub struct TextSearchExplain {
     pub fused_score: Option<f64>,
     pub fts_rank: Option<u32>,
     pub fts_score: Option<f64>,
-    pub fts_lane: Option<FtsSearchLane>,
+    pub fts_lane: Option<FtsLane>,
     pub fts_confidence: Option<FtsMatchConfidence>,
     pub vector_rank: Option<u32>,
     pub vector_distance: Option<f64>,
@@ -136,10 +164,7 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
     }
     if input.retrieval.uses_vector() {
         for (index, hit) in input.vector_hits.iter().enumerate() {
-            let record_key = match RecordKey::parse(&hit.record_key) {
-                Ok(record_key) => record_key,
-                Err(_) => continue,
-            };
+            let record_key = hit.record_key.clone();
             if input.identity_keys.contains(&record_key)
                 || input.excluded_keys.contains(&record_key)
             {
@@ -174,7 +199,7 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 fused_score: Some(hit.fused_score),
                 fts_rank: hit.fts_rank,
                 fts_score: hit.fts_score,
-                fts_lane: hit.fts_lane,
+                fts_lane: hit.fts_lane.map(FtsLane::from),
                 fts_confidence: hit.fts_confidence,
                 vector_rank: hit.vector_rank,
                 vector_distance: hit.vector_distance,

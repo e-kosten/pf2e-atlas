@@ -159,17 +159,21 @@ impl AtlasRuntime {
 
     pub fn open_record_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {
         Ok(AtlasRetrievalService::without_embeddings(
-            self.open_index()?,
+            self.open_index().map_err(search_error_from_index)?,
         ))
     }
 
     pub fn open_vector_record_retrieval_service(
         &self,
     ) -> Result<AtlasRetrievalService, SearchError> {
-        let index = self.open_search_index()?;
-        let report = index.validate_embedding_readiness()?;
+        let index = self.open_search_index().map_err(search_error_from_index)?;
+        let report = index
+            .validate_embedding_readiness()
+            .map_err(search_error_from_index)?;
         if report.status != atlas_index::ValidationStatus::Ok {
-            return Err(atlas_index::IndexValidationError::InvalidArtifact(report.message).into());
+            return Err(SearchError::artifact_contract_violation(
+                atlas_index::IndexValidationError::InvalidArtifact(report.message).to_string(),
+            ));
         }
         Ok(AtlasRetrievalService::without_embeddings(index))
     }
@@ -178,12 +182,26 @@ impl AtlasRuntime {
         &self,
         model_id: impl Into<String>,
     ) -> Result<AtlasRetrievalService, SearchError> {
-        let index = self.open_search_index()?;
+        let index = self.open_search_index().map_err(search_error_from_index)?;
         let config = SearchEmbeddingConfig {
             model_id: model_id.into(),
             cache_root: self.paths.embedding_cache_root.clone(),
         };
         AtlasRetrievalService::new(index, &config)
+    }
+}
+
+fn search_error_from_index(error: atlas_index::IndexValidationError) -> SearchError {
+    match error {
+        atlas_index::IndexValidationError::Unavailable(_) => {
+            SearchError::index_unavailable(error.to_string())
+        }
+        atlas_index::IndexValidationError::InvalidArtifact(_) => {
+            SearchError::artifact_contract_violation(error.to_string())
+        }
+        atlas_index::IndexValidationError::QueryFailed(_) => {
+            SearchError::query_failed(error.to_string())
+        }
     }
 }
 

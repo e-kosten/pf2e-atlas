@@ -1,5 +1,7 @@
 use std::process::ExitCode;
 
+use atlas_search::{RemasterLinksRequest, RemasterRetrieval};
+
 use crate::output::{write_json_data, write_json_error};
 
 use super::super::record::{open_record_service, record_runtime, search_error, search_error_code};
@@ -29,7 +31,7 @@ pub(crate) fn run_graph_remaster(options: GraphRemasterOptions) -> Result<ExitCo
         GraphCommandOutcome::Value(key) => key,
         GraphCommandOutcome::Exit(code) => return Ok(code),
     };
-    let result = match service.remaster_links(&key) {
+    let result = match service.remaster_links(RemasterLinksRequest { record_key: &key }) {
         Ok(Some(result)) => result,
         Ok(None) => return record_not_found(&key, options.json),
         Err(error) if options.json => {
