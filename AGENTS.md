@@ -66,6 +66,12 @@ Prefer descriptive module names and explicit ownership:
 
 Use `cargo fmt` for formatting. Keep Clippy clean under the workspace gate.
 
+Keep crate entry points focused on composition:
+
+- `lib.rs` should declare modules, expose the crate's intentional public API with explicit re-exports, and carry only small crate-level glue that has no clearer module owner. Put public model definitions, parsing, projection, storage, and behavior logic in named modules such as `model.rs`, `reader.rs`, `presentation.rs`, or domain-specific submodules, then re-export the public surface from `lib.rs`.
+- `main.rs` should wire CLI/runtime entry behavior and delegate command logic to modules. Avoid accumulating command implementations, business logic, or reusable helpers in `main.rs`.
+- When a crate root grows large, inspect whether it is large because of public API exports or because it owns real definitions/logic. Prefer moving definitions and logic to cohesive modules while preserving a clear public API at the root.
+
 ## Testing Guidelines
 
 Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation.
