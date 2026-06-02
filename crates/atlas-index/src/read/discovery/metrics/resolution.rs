@@ -134,22 +134,22 @@ fn ambiguous_metric_error(
 }
 
 fn metric_resolution_scope(filter: &SearchFilterNode) -> Option<MetricCatalogScope> {
-    let mut families = Vec::new();
-    collect_record_families(filter, &mut families);
-    families.sort();
-    families.dedup();
-    match families.as_slice() {
-        [family] => Some(MetricCatalogScope::Family(*family)),
+    let mut kinds = Vec::new();
+    collect_record_kinds(filter, &mut kinds);
+    kinds.sort();
+    kinds.dedup();
+    match kinds.as_slice() {
+        [kind] => Some(MetricCatalogScope::Kind(*kind)),
         _ => None,
     }
 }
 
-fn collect_record_families(filter: &SearchFilterNode, families: &mut Vec<RecordKind>) {
+fn collect_record_kinds(filter: &SearchFilterNode, kinds: &mut Vec<RecordKind>) {
     match filter {
-        SearchFilterNode::RecordKind { value } => families.push(*value),
+        SearchFilterNode::RecordKind { value } => kinds.push(*value),
         SearchFilterNode::AllOf { children } => {
             for child in children {
-                collect_record_families(child, families);
+                collect_record_kinds(child, kinds);
             }
         }
         SearchFilterNode::AnyOf { .. }

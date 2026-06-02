@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn preview_record_json_includes_family_fact_sections_without_full_detail_sections() {
+    fn preview_record_json_includes_kind_fact_sections_without_full_detail_sections() {
         let record = fixture_creature_record();
         let json = record_json(
             &record,

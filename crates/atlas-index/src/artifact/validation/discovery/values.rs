@@ -46,7 +46,7 @@ fn validate_value_catalog_uniqueness(
         connection,
         "SELECT COUNT(*)
          FROM (
-           SELECT field, COALESCE(record_family, '<global>') AS scope, value
+           SELECT field, COALESCE(record_kind, '<global>') AS scope, value
            FROM filter_value_catalog
            GROUP BY field, scope, value
            HAVING COUNT(*) > 1
@@ -79,7 +79,7 @@ pub(super) fn value_catalog_diff(
     let sql = format!(
         "WITH field_values(record_key, value) AS ({value_sql}),
               counted AS (
-                SELECT NULL AS record_family, value, COUNT(*) AS catalog_count
+                SELECT NULL AS record_kind, value, COUNT(*) AS catalog_count
                 FROM field_values fv
                 JOIN records r ON r.record_key = fv.record_key
                 WHERE r.is_default_visible = 1
@@ -87,20 +87,20 @@ pub(super) fn value_catalog_diff(
                   AND CAST(value AS TEXT) <> ''
                 GROUP BY value
                 UNION ALL
-                SELECT r.record_family, value, COUNT(*) AS catalog_count
+                SELECT r.record_kind, value, COUNT(*) AS catalog_count
                 FROM field_values fv
                 JOIN records r ON r.record_key = fv.record_key
                 WHERE r.is_default_visible = 1
                   AND value IS NOT NULL
                   AND CAST(value AS TEXT) <> ''
-                GROUP BY r.record_family, value
+                GROUP BY r.record_kind, value
               ),
               expected AS (
-                SELECT record_family, value, catalog_count, {expected_rank_column}
+                SELECT record_kind, value, catalog_count, {expected_rank_column}
                 FROM (
-                  SELECT record_family, value, catalog_count,
+                  SELECT record_kind, value, catalog_count,
                          ROW_NUMBER() OVER (
-                           PARTITION BY record_family
+                           PARTITION BY record_kind
                            ORDER BY catalog_count DESC, value ASC
                          ) AS sample_rank
                   FROM counted
@@ -108,7 +108,7 @@ pub(super) fn value_catalog_diff(
                 {limit_predicate}
               ),
               actual AS (
-                SELECT record_family, value, catalog_count, {actual_rank_column}
+                SELECT record_kind, value, catalog_count, {actual_rank_column}
                 FROM {table}
                 WHERE field = ?1
               )
@@ -116,15 +116,15 @@ pub(super) fn value_catalog_diff(
            (SELECT COUNT(*)
             FROM expected e
             LEFT JOIN actual a
-              ON ((a.record_family IS NULL AND e.record_family IS NULL)
-                  OR a.record_family = e.record_family)
+              ON ((a.record_kind IS NULL AND e.record_kind IS NULL)
+                  OR a.record_kind = e.record_kind)
              AND a.value = e.value
             WHERE a.value IS NULL) AS missing_count,
            (SELECT COUNT(*)
             FROM actual a
             LEFT JOIN expected e
-             ON ((a.record_family IS NULL AND e.record_family IS NULL)
-                  OR a.record_family = e.record_family)
+             ON ((a.record_kind IS NULL AND e.record_kind IS NULL)
+                  OR a.record_kind = e.record_kind)
              AND a.value = e.value
             WHERE e.value IS NULL
                OR a.catalog_count <> e.catalog_count

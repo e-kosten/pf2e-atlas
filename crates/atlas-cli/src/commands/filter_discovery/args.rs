@@ -20,7 +20,7 @@ pub(crate) enum FiltersCommand {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas filters fields\n  atlas filters fields --family spell\n  atlas filters fields --family creature --json"
+    after_help = "Examples:\n  atlas filters fields\n  atlas filters fields --kind spell\n  atlas filters fields --kind creature --json"
 )]
 pub(crate) struct FiltersFieldsOptions {
     #[arg(
@@ -40,7 +40,7 @@ pub(crate) struct FiltersFieldsOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n  atlas filters values --field metric --family creature --metric ac.value --json"
+    after_help = "Examples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field metric --kind creature --metric-query armor\n  atlas filters values --field metric --kind creature --metric ac.value --json"
 )]
 pub(crate) struct FiltersValuesOptions {
     #[arg(
@@ -104,10 +104,10 @@ pub(crate) enum CliFilterValueSort {
 #[derive(Debug, Clone, Default, Args)]
 pub(crate) struct DiscoveryFilterOptions {
     #[arg(
-        long = "family",
-        help = "Filter to records in this family; repeat for any of several families"
+        long = "kind",
+        help = "Filter to records in this kind; repeat for any of several kinds"
     )]
-    pub(crate) families: Vec<String>,
+    pub(crate) kinds: Vec<String>,
     #[arg(
         long = "pack-name",
         help = "Filter to this stable source pack name; repeat for any of several packs"
@@ -177,7 +177,7 @@ pub(crate) struct DiscoveryFilterOptions {
 impl From<DiscoveryFilterOptions> for FilterOptions {
     fn from(options: DiscoveryFilterOptions) -> Self {
         Self {
-            families: options.families,
+            kinds: options.kinds,
             pack_names: options.pack_names,
             pack_labels: options.pack_labels,
             rarities: options.rarities,

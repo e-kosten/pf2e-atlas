@@ -41,7 +41,7 @@ pub(crate) struct RecordGetOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family rule"
+    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --kind rule"
 )]
 pub(crate) struct RecordResolveOptions {
     #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]

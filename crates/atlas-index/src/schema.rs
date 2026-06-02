@@ -22,7 +22,7 @@ diesel::table! {
         id -> Text,
         name -> Text,
         normalized_name -> Text,
-        record_family -> Text,
+        record_kind -> Text,
         pack_name -> Text,
         pack_label -> Text,
         foundry_document_type -> Text,
@@ -146,9 +146,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    metric_key_catalog (metric_domain, record_family, metric_key) {
+    metric_key_catalog (metric_domain, record_kind, metric_key) {
         metric_domain -> Text,
-        record_family -> Nullable<Text>,
+        record_kind -> Nullable<Text>,
         namespace_prefix -> Text,
         metric_key -> Text,
         value_type -> Text,
@@ -159,9 +159,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    metric_value_catalog (metric_domain, record_family, metric_key, value) {
+    metric_value_catalog (metric_domain, record_kind, metric_key, value) {
         metric_domain -> Text,
-        record_family -> Nullable<Text>,
+        record_kind -> Nullable<Text>,
         metric_key -> Text,
         value -> Text,
         catalog_count -> BigInt,
@@ -169,15 +169,15 @@ diesel::table! {
 }
 
 diesel::table! {
-    filter_field_catalog (field, record_family) {
+    filter_field_catalog (field, record_kind) {
         field -> Text,
-        record_family -> Nullable<Text>,
+        record_kind -> Nullable<Text>,
         field_type -> Text,
         field_group -> Text,
         value_policy -> Text,
         operators_json -> Text,
         cli_flags_json -> Text,
-        applicable_families_json -> Text,
+        applicable_kinds_json -> Text,
         value_count -> BigInt,
         matching_record_count -> BigInt,
         null_count -> BigInt,
@@ -190,18 +190,18 @@ diesel::table! {
 }
 
 diesel::table! {
-    filter_value_catalog (field, record_family, value) {
+    filter_value_catalog (field, record_kind, value) {
         field -> Text,
-        record_family -> Nullable<Text>,
+        record_kind -> Nullable<Text>,
         value -> Text,
         catalog_count -> BigInt,
     }
 }
 
 diesel::table! {
-    filter_sample_catalog (field, record_family, value) {
+    filter_sample_catalog (field, record_kind, value) {
         field -> Text,
-        record_family -> Nullable<Text>,
+        record_kind -> Nullable<Text>,
         value -> Text,
         catalog_count -> BigInt,
         sample_rank -> BigInt,
@@ -209,9 +209,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    filter_numeric_catalog (field, record_family, metric_domain, metric_key) {
+    filter_numeric_catalog (field, record_kind, metric_domain, metric_key) {
         field -> Text,
-        record_family -> Nullable<Text>,
+        record_kind -> Nullable<Text>,
         metric_domain -> Nullable<Text>,
         metric_key -> Nullable<Text>,
         catalog_count -> BigInt,

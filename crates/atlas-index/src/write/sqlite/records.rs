@@ -55,7 +55,7 @@ pub(super) fn write_records(
             id: record.identity.id().as_str().to_string(),
             name: record.identity.name.clone(),
             normalized_name: record.identity.normalized_name(),
-            record_family: record.classification.kind.as_str().to_string(),
+            record_kind: record.classification.kind.as_str().to_string(),
             pack_name: record.identity.pack().as_str().to_string(),
             pack_label: record.foundry.pack_label.clone(),
             foundry_document_type: record.foundry.document_type.as_str().to_string(),

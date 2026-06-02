@@ -5,14 +5,14 @@ use diesel::{QueryableByName, SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
 use crate::discovery::definitions::{
-    DISCOVERY_ALL_FAMILIES as ALL_FAMILIES, DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS,
+    DISCOVERY_ALL_KINDS as ALL_KINDS, DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS,
     DiscoveryFieldDefinition as FieldCatalogSeed,
 };
 
 use super::super::models::{
     FilterNumericCatalogRow, FilterSampleCatalogRow, FilterValueCatalogRow,
 };
-use super::fields::{count_to_i64, known_family, non_negative_u64};
+use super::fields::{count_to_i64, known_kind, non_negative_u64};
 
 const SAMPLE_LIMIT: usize = 100;
 
@@ -90,7 +90,7 @@ fn discrete_value_rows(
         .map(|row| {
             Ok(FilterValueCatalogRow {
                 field: seed.field.to_string(),
-                record_family: row.record_family.map(str::to_string),
+                record_kind: row.record_kind.map(str::to_string),
                 value: row.value,
                 catalog_count: count_to_i64(row.count, "filter_value_catalog.catalog_count")?,
             })
@@ -104,8 +104,8 @@ fn sample_value_rows(
 ) -> Result<Vec<FilterSampleCatalogRow>, IndexWriteError> {
     let mut counts = collect_counts(connection, seed.field)?;
     counts.sort_by(|left, right| {
-        left.record_family
-            .cmp(&right.record_family)
+        left.record_kind
+            .cmp(&right.record_kind)
             .then_with(|| right.count.cmp(&left.count))
             .then_with(|| left.value.cmp(&right.value))
     });
@@ -113,8 +113,8 @@ fn sample_value_rows(
     let mut rank = 0_u64;
     let mut rows = Vec::new();
     for row in counts {
-        if current_scope != Some(row.record_family) {
-            current_scope = Some(row.record_family);
+        if current_scope != Some(row.record_kind) {
+            current_scope = Some(row.record_kind);
             rank = 0;
         }
         if rank >= SAMPLE_LIMIT as u64 {
@@ -123,7 +123,7 @@ fn sample_value_rows(
         rank += 1;
         rows.push(FilterSampleCatalogRow {
             field: seed.field.to_string(),
-            record_family: row.record_family.map(str::to_string),
+            record_kind: row.record_kind.map(str::to_string),
             value: row.value,
             catalog_count: count_to_i64(row.count, "filter_sample_catalog.catalog_count")?,
             sample_rank: count_to_i64(rank, "filter_sample_catalog.sample_rank")?,
@@ -141,7 +141,7 @@ fn numeric_value_rows(
         .map(|row| {
             Ok(FilterNumericCatalogRow {
                 field: seed.field.to_string(),
-                record_family: row.record_family.map(str::to_string),
+                record_kind: row.record_kind.map(str::to_string),
                 metric_domain: None,
                 metric_key: None,
                 catalog_count: count_to_i64(row.count, "filter_numeric_catalog.catalog_count")?,
@@ -183,7 +183,7 @@ fn metric_numeric_value_rows(
         for row in collect_metric_numeric_stats(connection, metric_domain, metric_key)? {
             rows.push(FilterNumericCatalogRow {
                 field: "metric".to_string(),
-                record_family: row.record_family.map(str::to_string),
+                record_kind: row.record_kind.map(str::to_string),
                 metric_domain: Some(metric_domain.clone()),
                 metric_key: Some(metric_key.clone()),
                 catalog_count: count_to_i64(row.count, "filter_numeric_catalog.catalog_count")?,
@@ -210,7 +210,7 @@ fn metric_numeric_value_rows(
 
 #[derive(Debug)]
 struct CountRow {
-    record_family: Option<&'static str>,
+    record_kind: Option<&'static str>,
     value: String,
     count: u64,
 }
@@ -220,16 +220,16 @@ fn collect_counts(
     field: &str,
 ) -> Result<Vec<CountRow>, IndexWriteError> {
     sql_query(
-        "SELECT NULL AS record_family, value, COUNT(*) AS catalog_count
+        "SELECT NULL AS record_kind, value, COUNT(*) AS catalog_count
          FROM temp_discovery_values
          WHERE field = ? AND value IS NOT NULL AND CAST(value AS TEXT) <> ''
          GROUP BY value
          UNION ALL
-         SELECT record_family, value, COUNT(*) AS catalog_count
+         SELECT record_kind, value, COUNT(*) AS catalog_count
          FROM temp_discovery_values
          WHERE field = ? AND value IS NOT NULL AND CAST(value AS TEXT) <> ''
-         GROUP BY record_family, value
-         ORDER BY record_family, catalog_count DESC, value ASC",
+         GROUP BY record_kind, value
+         ORDER BY record_kind, catalog_count DESC, value ASC",
     )
     .bind::<Text, _>(field)
     .bind::<Text, _>(field)
@@ -238,7 +238,7 @@ fn collect_counts(
     .into_iter()
     .map(|row| {
         Ok(CountRow {
-            record_family: row.record_family.as_deref().and_then(known_family),
+            record_kind: row.record_kind.as_deref().and_then(known_kind),
             value: row.value,
             count: non_negative_u64(row.catalog_count, "catalog_count")?,
         })
@@ -249,7 +249,7 @@ fn collect_counts(
 #[derive(QueryableByName)]
 struct CountQueryRow {
     #[diesel(sql_type = Nullable<Text>)]
-    record_family: Option<String>,
+    record_kind: Option<String>,
     #[diesel(sql_type = Text)]
     value: String,
     #[diesel(sql_type = BigInt)]
@@ -258,7 +258,7 @@ struct CountQueryRow {
 
 #[derive(Debug)]
 struct NumericRow {
-    record_family: Option<&'static str>,
+    record_kind: Option<&'static str>,
     count: u64,
     null_count: u64,
     min: Option<f64>,
@@ -277,8 +277,8 @@ fn collect_numeric_stats(
 ) -> Result<Vec<NumericRow>, IndexWriteError> {
     let mut rows = Vec::new();
     rows.push(numeric_scope(connection, field, None)?);
-    for family in ALL_FAMILIES {
-        rows.push(numeric_scope(connection, field, Some(*family))?);
+    for kind in ALL_KINDS {
+        rows.push(numeric_scope(connection, field, Some(*kind))?);
     }
     Ok(rows.into_iter().flatten().collect())
 }
@@ -295,12 +295,12 @@ fn collect_metric_numeric_stats(
         metric_key,
         None,
     )?);
-    for family in ALL_FAMILIES {
+    for kind in ALL_KINDS {
         rows.push(metric_numeric_scope(
             connection,
             metric_domain,
             metric_key,
-            Some(*family),
+            Some(*kind),
         )?);
     }
     Ok(rows.into_iter().flatten().collect())
@@ -310,7 +310,7 @@ fn metric_numeric_scope(
     connection: &mut SqliteConnection,
     metric_domain: &str,
     metric_key: &str,
-    family: Option<&'static str>,
+    kind: Option<&'static str>,
 ) -> Result<Option<NumericRow>, IndexWriteError> {
     let mut query =
         crate::schema::record_metrics::table
@@ -325,8 +325,8 @@ fn metric_numeric_scope(
             .select(crate::schema::record_metrics::number_value)
             .order(crate::schema::record_metrics::number_value.asc())
             .into_boxed();
-    if let Some(family) = family {
-        query = query.filter(crate::schema::records::record_family.eq(family));
+    if let Some(kind) = kind {
+        query = query.filter(crate::schema::records::record_kind.eq(kind));
     }
     let values = query
         .load::<Option<f64>>(connection)
@@ -334,25 +334,25 @@ fn metric_numeric_scope(
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
-    numeric_row_from_values(connection, family, values)
+    numeric_row_from_values(connection, kind, values)
 }
 
 fn numeric_scope(
     connection: &mut SqliteConnection,
     field: &str,
-    family: Option<&'static str>,
+    kind: Option<&'static str>,
 ) -> Result<Option<NumericRow>, IndexWriteError> {
-    let values = if let Some(family) = family {
+    let values = if let Some(kind) = kind {
         sql_query(
             "SELECT numeric_value AS value
              FROM temp_discovery_values
              WHERE field = ?
-               AND record_family = ?
+               AND record_kind = ?
                AND value IS NOT NULL
              ORDER BY numeric_value ASC",
         )
         .bind::<Text, _>(field)
-        .bind::<Text, _>(family)
+        .bind::<Text, _>(kind)
         .load::<NumericValueRow>(connection)
     } else {
         sql_query(
@@ -369,7 +369,7 @@ fn numeric_scope(
     .into_iter()
     .map(|row| row.value)
     .collect::<Vec<_>>();
-    numeric_row_from_values(connection, family, values)
+    numeric_row_from_values(connection, kind, values)
 }
 
 #[derive(QueryableByName)]
@@ -380,15 +380,15 @@ struct NumericValueRow {
 
 fn numeric_row_from_values(
     connection: &mut SqliteConnection,
-    family: Option<&'static str>,
+    kind: Option<&'static str>,
     values: Vec<f64>,
 ) -> Result<Option<NumericRow>, IndexWriteError> {
     if values.is_empty() {
         return Ok(None);
     }
-    let matching_count = matching_count(connection, family)?;
+    let matching_count = matching_count(connection, kind)?;
     Ok(Some(NumericRow {
-        record_family: family,
+        record_kind: kind,
         count: values.len() as u64,
         null_count: matching_count.saturating_sub(values.len() as u64),
         min: values.first().copied(),
@@ -404,16 +404,16 @@ fn numeric_row_from_values(
 
 fn matching_count(
     connection: &mut SqliteConnection,
-    family: Option<&str>,
+    kind: Option<&str>,
 ) -> Result<u64, IndexWriteError> {
     use crate::schema::records;
 
     let query = records::table
         .filter(records::is_default_visible.eq(true))
         .into_boxed();
-    let count = if let Some(family) = family {
+    let count = if let Some(kind) = kind {
         query
-            .filter(records::record_family.eq(family))
+            .filter(records::record_kind.eq(kind))
             .count()
             .get_result::<i64>(connection)
     } else {

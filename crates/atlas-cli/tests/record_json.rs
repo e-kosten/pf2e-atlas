@@ -464,7 +464,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     let text_search_stdout = String::from_utf8(text_search_output.stdout)?;
     assert!(text_search_stdout.contains("showing 1 of 1 records"));
     assert!(text_search_stdout.contains("key"));
-    assert!(text_search_stdout.contains("family"));
+    assert!(text_search_stdout.contains("kind"));
     assert!(text_search_stdout.contains("name"));
     assert!(text_search_stdout.contains("actions:testAction0001  rule  Treat Wounds"));
     assert!(!text_search_stdout.contains("\"status\""));
@@ -626,7 +626,7 @@ fn tooling_records_are_hidden_from_default_resolution_and_search_but_gettable_by
     let filtered_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "--family",
+            "--kind",
             "rule",
             "--pack-name",
             "actions",

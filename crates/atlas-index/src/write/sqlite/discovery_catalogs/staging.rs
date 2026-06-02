@@ -17,7 +17,7 @@ pub(super) fn stage_discovery_values(
          CREATE TEMP TABLE temp_discovery_values (
            field TEXT NOT NULL,
            record_key TEXT NOT NULL,
-           record_family TEXT NOT NULL,
+           record_kind TEXT NOT NULL,
            value TEXT,
            numeric_value REAL
          );",
@@ -36,10 +36,10 @@ pub(super) fn stage_discovery_values(
         let sql = format!(
             "WITH field_values(record_key, value) AS ({value_sql})
              INSERT INTO {TEMP_DISCOVERY_VALUES}
-                 (field, record_key, record_family, value, numeric_value)
+                 (field, record_key, record_kind, value, numeric_value)
              SELECT ?,
                     fv.record_key,
-                    r.record_family,
+                    r.record_kind,
                     CAST(fv.value AS TEXT),
                     CAST(fv.value AS REAL)
              FROM field_values fv
@@ -56,15 +56,15 @@ pub(super) fn stage_discovery_values(
     connection
         .batch_execute(
             "CREATE INDEX temp_discovery_values_field_scope_value_idx
-           ON temp_discovery_values(field, record_family, value);
+           ON temp_discovery_values(field, record_kind, value);
          CREATE INDEX temp_discovery_values_field_value_idx
            ON temp_discovery_values(field, value);
          CREATE INDEX temp_discovery_values_field_scope_numeric_idx
-           ON temp_discovery_values(field, record_family, numeric_value);
+           ON temp_discovery_values(field, record_kind, numeric_value);
          CREATE INDEX temp_discovery_values_field_record_idx
            ON temp_discovery_values(field, record_key);
          CREATE INDEX temp_discovery_values_field_scope_record_idx
-           ON temp_discovery_values(field, record_family, record_key);",
+           ON temp_discovery_values(field, record_kind, record_key);",
         )
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     super::progress(

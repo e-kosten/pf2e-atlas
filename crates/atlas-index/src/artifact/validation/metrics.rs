@@ -71,11 +71,11 @@ fn validate_metric_catalog_uniqueness(
     for (table, key_columns) in [
         (
             "metric_key_catalog",
-            "metric_domain, COALESCE(record_family, '<global>'), metric_key",
+            "metric_domain, COALESCE(record_kind, '<global>'), metric_key",
         ),
         (
             "metric_value_catalog",
-            "metric_domain, COALESCE(record_family, '<global>'), metric_key, value",
+            "metric_domain, COALESCE(record_kind, '<global>'), metric_key, value",
         ),
     ] {
         let sql = format!(
@@ -106,39 +106,39 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
         "metric_key_catalog.missing_keys",
         "SELECT COUNT(*)
          FROM (
-           SELECT rm.metric_domain, NULL AS record_family, rm.metric_key
+           SELECT rm.metric_domain, NULL AS record_kind, rm.metric_key
            FROM record_metrics rm
            JOIN records r ON r.record_key = rm.record_key
            WHERE r.is_default_visible = 1
            GROUP BY rm.metric_domain, rm.metric_key
            UNION ALL
-           SELECT rm.metric_domain, r.record_family, rm.metric_key
+           SELECT rm.metric_domain, r.record_kind, rm.metric_key
            FROM record_metrics rm
            JOIN records r ON r.record_key = rm.record_key
            WHERE r.is_default_visible = 1
-           GROUP BY rm.metric_domain, r.record_family, rm.metric_key
+           GROUP BY rm.metric_domain, r.record_kind, rm.metric_key
            EXCEPT
-           SELECT metric_domain, record_family, metric_key FROM metric_key_catalog
+           SELECT metric_domain, record_kind, metric_key FROM metric_key_catalog
          )",
     ),
     (
         "metric_key_catalog.stale_keys",
         "SELECT COUNT(*)
          FROM (
-           SELECT metric_domain, record_family, metric_key FROM metric_key_catalog
+           SELECT metric_domain, record_kind, metric_key FROM metric_key_catalog
            EXCEPT
            SELECT * FROM (
-             SELECT rm.metric_domain, NULL AS record_family, rm.metric_key
+             SELECT rm.metric_domain, NULL AS record_kind, rm.metric_key
              FROM record_metrics rm
              JOIN records r ON r.record_key = rm.record_key
              WHERE r.is_default_visible = 1
              GROUP BY rm.metric_domain, rm.metric_key
              UNION ALL
-             SELECT rm.metric_domain, r.record_family, rm.metric_key
+             SELECT rm.metric_domain, r.record_kind, rm.metric_key
              FROM record_metrics rm
              JOIN records r ON r.record_key = rm.record_key
              WHERE r.is_default_visible = 1
-             GROUP BY rm.metric_domain, r.record_family, rm.metric_key
+             GROUP BY rm.metric_domain, r.record_kind, rm.metric_key
            )
          )",
     ),
@@ -148,7 +148,7 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
          FROM (
            SELECT
              rm.metric_domain,
-             NULL AS record_family,
+             NULL AS record_kind,
              rm.metric_key,
              CASE
                WHEN rm.value_type = 'text' THEN rm.text_value
@@ -164,7 +164,7 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
            UNION ALL
            SELECT
              rm.metric_domain,
-             r.record_family,
+             r.record_kind,
              rm.metric_key,
              CASE
                WHEN rm.value_type = 'text' THEN rm.text_value
@@ -176,21 +176,21 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
            WHERE r.is_default_visible = 1
              AND rm.value_type IN ('text', 'boolean')
              AND value IS NOT NULL
-           GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value
+           GROUP BY rm.metric_domain, r.record_kind, rm.metric_key, value
            EXCEPT
-           SELECT metric_domain, record_family, metric_key, value FROM metric_value_catalog
+           SELECT metric_domain, record_kind, metric_key, value FROM metric_value_catalog
          )",
     ),
     (
         "metric_value_catalog.stale_values",
         "SELECT COUNT(*)
          FROM (
-           SELECT metric_domain, record_family, metric_key, value FROM metric_value_catalog
+           SELECT metric_domain, record_kind, metric_key, value FROM metric_value_catalog
            EXCEPT
            SELECT * FROM (
              SELECT
                rm.metric_domain,
-               NULL AS record_family,
+               NULL AS record_kind,
                rm.metric_key,
                CASE
                  WHEN rm.value_type = 'text' THEN rm.text_value
@@ -206,7 +206,7 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
              UNION ALL
              SELECT
                rm.metric_domain,
-               r.record_family,
+               r.record_kind,
                rm.metric_key,
                CASE
                  WHEN rm.value_type = 'text' THEN rm.text_value
@@ -218,7 +218,7 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
              WHERE r.is_default_visible = 1
                AND rm.value_type IN ('text', 'boolean')
                AND value IS NOT NULL
-             GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value
+             GROUP BY rm.metric_domain, r.record_kind, rm.metric_key, value
            )
          )",
     ),

@@ -15,7 +15,7 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 use super::RecordLoadError;
 use super::parse::{
     content_document, json_string_array, normalized_time, parse_publication_family, parse_rarity,
-    parse_record_family, parse_record_key, parse_variant_source,
+    parse_record_key, parse_record_kind, parse_variant_source,
 };
 
 pub(super) fn read_record_rows(
@@ -52,7 +52,7 @@ pub(super) fn read_record_rows_by_keys(
 struct RecordRow {
     record_key: String,
     name: String,
-    record_family: String,
+    record_kind: String,
     pack_label: String,
     foundry_document_type: String,
     foundry_record_type: String,
@@ -150,7 +150,7 @@ fn record_from_row(row: RecordRow) -> Result<AtlasRecord, RecordLoadError> {
             name: row.name,
         },
         classification: RecordClassification {
-            kind: parse_record_family(&row.record_family)?,
+            kind: parse_record_kind(&row.record_kind)?,
             level: row.level,
             rarity: row.rarity.as_deref().map(parse_rarity).transpose()?,
             traits: json_string_array("records.traits_json", &row.traits_json)?,

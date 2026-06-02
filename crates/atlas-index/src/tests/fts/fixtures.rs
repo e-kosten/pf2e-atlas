@@ -144,7 +144,7 @@ pub(crate) fn weights_for_column(column: &str) -> FtsColumnWeights {
 pub(crate) fn insert_fixture_record(
     connection: &Connection,
     record_key: &str,
-    record_family: &str,
+    record_kind: &str,
     foundry_record_type: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let id = record_key
@@ -155,7 +155,7 @@ pub(crate) fn insert_fixture_record(
     let source_path = format!("packs/actions/{id}.json");
     connection.execute(
         "INSERT INTO records (
-          record_key, id, name, normalized_name, record_family, pack_name, pack_label,
+          record_key, id, name, normalized_name, record_kind, pack_name, pack_label,
           foundry_document_type, foundry_record_type, traits_json, prerequisites_json,
           publication_remaster, publication_family, taxonomy_families_json, variant_axes_json,
           variant_source, source_path, is_default_visible, raw_json
@@ -166,7 +166,7 @@ pub(crate) fn insert_fixture_record(
             id,
             name.as_str(),
             name.to_lowercase(),
-            record_family,
+            record_kind,
             foundry_record_type,
             source_path,
         ),

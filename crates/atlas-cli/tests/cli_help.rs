@@ -60,11 +60,10 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
 
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
-    assert!(search_help.contains("atlas search --family creature --metric 'ac.value>=25'"));
+    assert!(search_help.contains("atlas search --kind creature --metric 'ac.value>=25'"));
     assert!(
-        search_help.contains(
-            "atlas search --family creature --metric 'hp.value:40' --print-filter --json"
-        )
+        search_help
+            .contains("atlas search --kind creature --metric 'hp.value:40' --print-filter --json")
     );
     assert!(search_help.contains("atlas filters fields"));
     assert!(search_help.contains("atlas filters values --field traits"));
@@ -88,8 +87,8 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filters_help.contains("values"));
 
     let filter_fields_help = help_output(&["filters", "fields"])?;
-    assert!(filter_fields_help.contains("atlas filters fields --family spell"));
-    assert!(filter_fields_help.contains("atlas filters fields --family creature --json"));
+    assert!(filter_fields_help.contains("atlas filters fields --kind spell"));
+    assert!(filter_fields_help.contains("atlas filters fields --kind creature --json"));
     assert!(filter_fields_help.contains("--json"));
 
     let filter_values_help = help_output(&["filters", "values"])?;
@@ -101,7 +100,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filter_values_help.contains("--json"));
     assert!(
         filter_values_help
-            .contains("atlas filters values --field metric --family creature --metric-query armor")
+            .contains("atlas filters values --field metric --kind creature --metric-query armor")
     );
 
     let agent_skills_help = help_output(&["agent", "skills"])?;

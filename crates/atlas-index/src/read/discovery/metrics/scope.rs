@@ -8,7 +8,7 @@ use crate::read::sql::{CountRow, SqlBindValue, bind_sql_query};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum MetricCatalogScope {
     Global,
-    Family(RecordKind),
+    Kind(RecordKind),
 }
 
 pub(super) fn metric_catalog_scope(
@@ -16,7 +16,7 @@ pub(super) fn metric_catalog_scope(
 ) -> Option<MetricCatalogScope> {
     match filter {
         None => Some(MetricCatalogScope::Global),
-        Some(SearchFilterNode::RecordKind { value }) => Some(MetricCatalogScope::Family(*value)),
+        Some(SearchFilterNode::RecordKind { value }) => Some(MetricCatalogScope::Kind(*value)),
         _ => None,
     }
 }
@@ -29,8 +29,8 @@ pub(super) fn push_catalog_scope_predicate(
 ) {
     match scope {
         MetricCatalogScope::Global => sql.push_str(&format!(" AND {column} IS NULL")),
-        MetricCatalogScope::Family(family) => {
-            parameters.push(SqlBindValue::Text(record_family_string(family)));
+        MetricCatalogScope::Kind(kind) => {
+            parameters.push(SqlBindValue::Text(record_kind_string(kind)));
             sql.push_str(&format!(" AND {column} = ?{}", parameters.len()));
         }
     }
@@ -48,10 +48,10 @@ pub(super) fn matching_count_for_catalog_scope(
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)
         .map_err(query_error),
-        MetricCatalogScope::Family(family) => bind_sql_query(
-            "SELECT COUNT(*) AS count FROM records WHERE is_default_visible = 1 AND record_family = ?1"
+        MetricCatalogScope::Kind(kind) => bind_sql_query(
+            "SELECT COUNT(*) AS count FROM records WHERE is_default_visible = 1 AND record_kind = ?1"
                 .to_string(),
-            &[SqlBindValue::Text(record_family_string(family))],
+            &[SqlBindValue::Text(record_kind_string(kind))],
         )
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)
@@ -59,7 +59,7 @@ pub(super) fn matching_count_for_catalog_scope(
     }
 }
 
-fn record_family_string(value: RecordKind) -> String {
+fn record_kind_string(value: RecordKind) -> String {
     serde_json::to_value(value)
         .ok()
         .and_then(|value| value.as_str().map(str::to_string))

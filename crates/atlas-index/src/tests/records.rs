@@ -255,22 +255,21 @@ fn load_search_candidate_records_rejects_invalid_json() -> Result<(), Box<dyn st
 }
 
 #[test]
-fn load_search_candidate_records_rejects_invalid_family() -> Result<(), Box<dyn std::error::Error>>
-{
-    let path = temp_db_path("load-search-candidates-invalid-family");
+fn load_search_candidate_records_rejects_invalid_kind() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-search-candidates-invalid-kind");
     create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "UPDATE records SET record_family = 'not-a-family' WHERE record_key = 'actions:testAction1'",
+        "UPDATE records SET record_kind = 'not-a-kind' WHERE record_key = 'actions:testAction1'",
         [],
     )?;
     drop(connection);
 
     let error = SqliteIndexReader::open_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])
-        .expect_err("invalid candidate family should be rejected");
+        .expect_err("invalid candidate kind should be rejected");
 
-    assert!(error.to_string().contains("record_family"));
+    assert!(error.to_string().contains("record_kind"));
     fs::remove_file(path)?;
     Ok(())
 }

@@ -19,7 +19,7 @@ PF2e Atlas is a Rust CLI and first-party skill product.
 - `atlas` is the primary user and agent interface.
 - The first-party skill package is the agent guidance surface and is installed by `atlas agent skills`.
 - Future interactive terminal work should be a Ratatui workbench over the Rust runtime crates.
-- Future derived-tag work should be a Rust-owned redesign against record families, explicit metadata axes, typed discovery, and artifact ownership.
+- Future derived-tag work should be a Rust-owned redesign against record kinds, explicit metadata axes, typed discovery, and artifact ownership.
 - Transport compatibility is not a planned product surface.
 
 ## Consequences

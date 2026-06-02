@@ -299,7 +299,7 @@ fn query_fts_documents(
                 f.facts,
                 f.reference_terms,
                 f.embedded_content,
-                r.record_family,
+                r.record_kind,
                 r.foundry_record_type
          FROM {fts_table} f
          JOIN records r ON r.record_key = f.record_key
@@ -350,7 +350,7 @@ fn query_fts_documents(
                     facts: row.facts,
                     reference_terms: row.reference_terms,
                     embedded_content: row.embedded_content,
-                    record_family: row.record_family,
+                    record_kind: row.record_kind,
                     foundry_record_type: row.foundry_record_type,
                 },
             })
@@ -407,7 +407,7 @@ struct FtsDocumentRow {
     #[diesel(sql_type = Text)]
     embedded_content: String,
     #[diesel(sql_type = Text)]
-    record_family: String,
+    record_kind: String,
     #[diesel(sql_type = Text)]
     foundry_record_type: String,
 }

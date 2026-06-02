@@ -26,13 +26,13 @@ pub(super) fn validate_field_catalog(
             stale = stale.saturating_sub(1);
             mismatched += mismatched_field_row(connection, definition, &value_sql, None)?;
         }
-        for family in definition.applicable_families {
-            let family_expected = field_observation_count(connection, &value_sql, Some(*family))?;
-            if family_expected > 0 {
-                missing += missing_field_row(connection, definition.field, Some(*family))?;
+        for kind in definition.applicable_kinds {
+            let kind_expected = field_observation_count(connection, &value_sql, Some(*kind))?;
+            if kind_expected > 0 {
+                missing += missing_field_row(connection, definition.field, Some(*kind))?;
                 stale = stale.saturating_sub(1);
                 mismatched +=
-                    mismatched_field_row(connection, definition, &value_sql, Some(*family))?;
+                    mismatched_field_row(connection, definition, &value_sql, Some(*kind))?;
             }
         }
     }
@@ -65,7 +65,7 @@ fn validate_field_catalog_uniqueness(
         connection,
         "SELECT COUNT(*)
          FROM (
-           SELECT field, COALESCE(record_family, '<global>') AS scope
+           SELECT field, COALESCE(record_kind, '<global>') AS scope
            FROM filter_field_catalog
            GROUP BY field, scope
            HAVING COUNT(*) > 1
@@ -78,10 +78,10 @@ fn validate_field_catalog_uniqueness(
 fn field_observation_count(
     connection: &Connection,
     value_sql: &str,
-    family: Option<&str>,
+    kind: Option<&str>,
 ) -> Result<u64, IndexValidationError> {
-    let family_predicate = if family.is_some() {
-        "AND r.record_family = ?1"
+    let kind_predicate = if kind.is_some() {
+        "AND r.record_kind = ?1"
     } else {
         ""
     };
@@ -91,13 +91,13 @@ fn field_observation_count(
          FROM field_values fv
          JOIN records r ON r.record_key = fv.record_key
          WHERE r.is_default_visible = 1
-           {family_predicate}
+           {kind_predicate}
            AND value IS NOT NULL
            AND CAST(value AS TEXT) <> ''"
     );
-    match family {
-        Some(family) => connection
-            .query_row(&sql, params![family], |row| row.get(0))
+    match kind {
+        Some(kind) => connection
+            .query_row(&sql, params![kind], |row| row.get(0))
             .map_err(|error| IndexValidationError::QueryFailed(error.to_string())),
         None => connection
             .query_row(&sql, [], |row| row.get(0))
@@ -108,20 +108,20 @@ fn field_observation_count(
 fn missing_field_row(
     connection: &Connection,
     field: &str,
-    family: Option<&str>,
+    kind: Option<&str>,
 ) -> Result<u64, IndexValidationError> {
-    let count = match family {
-        Some(family) => connection.query_row(
+    let count = match kind {
+        Some(kind) => connection.query_row(
             "SELECT COUNT(*)
              FROM filter_field_catalog
-             WHERE field = ?1 AND record_family = ?2",
-            params![field, family],
+             WHERE field = ?1 AND record_kind = ?2",
+            params![field, kind],
             |row| row.get::<_, u64>(0),
         ),
         None => connection.query_row(
             "SELECT COUNT(*)
              FROM filter_field_catalog
-             WHERE field = ?1 AND record_family IS NULL",
+             WHERE field = ?1 AND record_kind IS NULL",
             params![field],
             |row| row.get::<_, u64>(0),
         ),
@@ -134,24 +134,24 @@ fn mismatched_field_row(
     connection: &Connection,
     definition: &DiscoveryFieldDefinition,
     value_sql: &str,
-    family: Option<&str>,
+    kind: Option<&str>,
 ) -> Result<u64, IndexValidationError> {
-    let stats = expected_field_stats(connection, value_sql, family)?;
+    let stats = expected_field_stats(connection, value_sql, kind)?;
     let operators_json = serde_json::to_string(definition.operators)
         .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
     let cli_flags_json = serde_json::to_string(definition.cli_flags)
         .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
-    let applicable_families_json = serde_json::to_string(definition.applicable_families)
+    let applicable_kinds_json = serde_json::to_string(definition.applicable_kinds)
         .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
-    let count = match family {
-        Some(family) => connection.query_row(
+    let count = match kind {
+        Some(kind) => connection.query_row(
             "SELECT COUNT(*)
              FROM filter_field_catalog
-             WHERE field = ?1 AND record_family = ?2
+             WHERE field = ?1 AND record_kind = ?2
                AND (
                  field_type <> ?3 OR field_group <> ?4 OR value_policy <> ?5
                  OR operators_json <> ?6 OR cli_flags_json <> ?7
-                 OR applicable_families_json <> ?8
+                 OR applicable_kinds_json <> ?8
                  OR value_count <> ?9 OR matching_record_count <> ?10
                  OR null_count <> ?11 OR distinct_count <> ?12
                  OR singleton_count <> ?13
@@ -161,13 +161,13 @@ fn mismatched_field_row(
                )",
             params![
                 definition.field,
-                family,
+                kind,
                 serde_json_string(definition.field_type)?,
                 serde_json_string(definition.group)?,
                 serde_json_string(definition.value_policy)?,
                 operators_json,
                 cli_flags_json,
-                applicable_families_json,
+                applicable_kinds_json,
                 stats.value_count,
                 stats.matching_record_count,
                 stats.null_count,
@@ -182,11 +182,11 @@ fn mismatched_field_row(
         None => connection.query_row(
             "SELECT COUNT(*)
              FROM filter_field_catalog
-             WHERE field = ?1 AND record_family IS NULL
+             WHERE field = ?1 AND record_kind IS NULL
                AND (
                  field_type <> ?2 OR field_group <> ?3 OR value_policy <> ?4
                  OR operators_json <> ?5 OR cli_flags_json <> ?6
-                 OR applicable_families_json <> ?7
+                 OR applicable_kinds_json <> ?7
                  OR value_count <> ?8 OR matching_record_count <> ?9
                  OR null_count <> ?10 OR distinct_count <> ?11
                  OR singleton_count <> ?12
@@ -201,7 +201,7 @@ fn mismatched_field_row(
                 serde_json_string(definition.value_policy)?,
                 operators_json,
                 cli_flags_json,
-                applicable_families_json,
+                applicable_kinds_json,
                 stats.value_count,
                 stats.matching_record_count,
                 stats.null_count,
@@ -230,10 +230,10 @@ struct FieldStats {
 fn expected_field_stats(
     connection: &Connection,
     value_sql: &str,
-    family: Option<&str>,
+    kind: Option<&str>,
 ) -> Result<FieldStats, IndexValidationError> {
-    let family_predicate = if family.is_some() {
-        "AND r.record_family = ?1"
+    let kind_predicate = if kind.is_some() {
+        "AND r.record_kind = ?1"
     } else {
         ""
     };
@@ -244,7 +244,7 @@ fn expected_field_stats(
                 FROM field_values fv
                 JOIN records r ON r.record_key = fv.record_key
                 WHERE r.is_default_visible = 1
-                  {family_predicate}
+                  {kind_predicate}
                   AND value IS NOT NULL
                   AND CAST(value AS TEXT) <> ''
                 GROUP BY value
@@ -254,7 +254,7 @@ fn expected_field_stats(
                 FROM field_values fv
                 JOIN records r ON r.record_key = fv.record_key
                 WHERE r.is_default_visible = 1
-                  {family_predicate}
+                  {kind_predicate}
                   AND value IS NOT NULL
                   AND CAST(value AS TEXT) <> ''
               ),
@@ -262,7 +262,7 @@ fn expected_field_stats(
                 SELECT COUNT(*) AS matching_record_count
                 FROM records r
                 WHERE r.is_default_visible = 1
-                  {family_predicate}
+                  {kind_predicate}
               )
          SELECT COALESCE(SUM(value_count), 0) AS value_count,
                 (SELECT matching_record_count FROM matching) AS matching_record_count,
@@ -281,9 +281,9 @@ fn expected_field_stats(
             singleton_count: row.get("singleton_count")?,
         })
     };
-    match family {
-        Some(family) => connection
-            .query_row(&sql, params![family], map_row)
+    match kind {
+        Some(kind) => connection
+            .query_row(&sql, params![kind], map_row)
             .map_err(|error| IndexValidationError::QueryFailed(error.to_string())),
         None => connection
             .query_row(&sql, [], map_row)

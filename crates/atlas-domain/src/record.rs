@@ -239,7 +239,6 @@ pub struct SourceProvenance {
 pub struct RecordSummary {
     pub key: RecordKey,
     pub name: String,
-    #[serde(alias = "record_family")]
     pub kind: RecordKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<Level>,

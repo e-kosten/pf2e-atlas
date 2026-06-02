@@ -9,7 +9,7 @@ use crate::IndexWriteError;
 #[derive(Debug, Clone, Queryable)]
 struct MetricSourceRow {
     metric_domain: String,
-    record_family: String,
+    record_kind: String,
     metric_key: String,
     value_type: String,
     number_value: Option<f64>,
@@ -50,7 +50,7 @@ fn load_metric_source_rows(
         .filter(r::is_default_visible.eq(true))
         .select((
             rm::metric_domain,
-            r::record_family,
+            r::record_kind,
             rm::metric_key,
             rm::value_type,
             rm::number_value,
@@ -74,7 +74,7 @@ fn metric_key_catalog_rows(
     let mut aggregates =
         BTreeMap::<(String, Option<String>, String, String, String), Aggregate>::new();
     for row in source_rows {
-        for scope in [None, Some(row.record_family.clone())] {
+        for scope in [None, Some(row.record_kind.clone())] {
             let key = (
                 row.metric_domain.clone(),
                 scope,
@@ -105,12 +105,12 @@ fn metric_key_catalog_rows(
         .into_iter()
         .map(
             |(
-                (metric_domain, record_family, namespace_prefix, metric_key, value_type),
+                (metric_domain, record_kind, namespace_prefix, metric_key, value_type),
                 aggregate,
             )| {
                 Ok(MetricKeyCatalogRow {
                     metric_domain,
-                    record_family,
+                    record_kind,
                     namespace_prefix,
                     metric_key,
                     value_type,
@@ -134,7 +134,7 @@ fn metric_value_catalog_rows(
         let Some(value) = metric_catalog_value(row) else {
             continue;
         };
-        for scope in [None, Some(row.record_family.clone())] {
+        for scope in [None, Some(row.record_kind.clone())] {
             let key = (
                 row.metric_domain.clone(),
                 scope,
@@ -147,17 +147,15 @@ fn metric_value_catalog_rows(
 
     aggregates
         .into_iter()
-        .map(
-            |((metric_domain, record_family, metric_key, value), count)| {
-                Ok(MetricValueCatalogRow {
-                    metric_domain,
-                    record_family,
-                    metric_key,
-                    value,
-                    catalog_count: count_to_i64(count, "metric_value_catalog.catalog_count")?,
-                })
-            },
-        )
+        .map(|((metric_domain, record_kind, metric_key, value), count)| {
+            Ok(MetricValueCatalogRow {
+                metric_domain,
+                record_kind,
+                metric_key,
+                value,
+                catalog_count: count_to_i64(count, "metric_value_catalog.catalog_count")?,
+            })
+        })
         .collect()
 }
 

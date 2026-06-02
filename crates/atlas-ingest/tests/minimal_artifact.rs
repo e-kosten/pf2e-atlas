@@ -66,7 +66,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         treat_wounds_prerequisites,
         treat_wounds_description,
     ): (String, String, String, String, String, String, String) = connection.query_row(
-        "SELECT name, normalized_name, record_family, foundry_record_type, traits_json, prerequisites_json,
+        "SELECT name, normalized_name, record_kind, foundry_record_type, traits_json, prerequisites_json,
                 json_extract(description_json, '$.blocks[0].content[0].text')
          FROM records WHERE record_key = 'actions:testAction0001'",
         [],
@@ -108,7 +108,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     let creature_level_catalog_count: u64 = connection.query_row(
         "SELECT value_count
          FROM filter_field_catalog
-         WHERE field = 'level' AND record_family = 'creature'",
+         WHERE field = 'level' AND record_kind = 'creature'",
         [],
         |row| row.get(0),
     )?;
@@ -757,7 +757,7 @@ fn generates_affliction_records_from_staged_embedded_items()
          WHERE pack_name = 'derived-afflictions'
            AND name = 'Ghoul Fever'
            AND foundry_record_type = 'affliction'
-           AND record_family = 'affliction'
+           AND record_kind = 'affliction'
            AND is_default_visible = 1",
         [],
         |row| row.get(0),
@@ -856,8 +856,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| row.get(0),
     )?;
-    let spell_record_family: String = connection.query_row(
-        "SELECT record_family FROM records WHERE record_key = 'spells:testSpell0001'",
+    let spell_record_kind: String = connection.query_row(
+        "SELECT record_kind FROM records WHERE record_key = 'spells:testSpell0001'",
         [],
         |row| row.get(0),
     )?;
@@ -946,7 +946,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     let actor_catalog_count: usize = connection.query_row(
         "SELECT catalog_count FROM metric_key_catalog
          WHERE metric_domain = 'actor'
-           AND record_family = 'creature'
+           AND record_kind = 'creature'
            AND metric_key = 'ac.value'",
         [],
         |row| row.get(0),
@@ -954,7 +954,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     let save_best_catalog_value: String = connection.query_row(
         "SELECT value FROM metric_value_catalog
          WHERE metric_domain = 'actor'
-           AND record_family = 'creature'
+           AND record_kind = 'creature'
            AND metric_key = 'save.best'",
         [],
         |row| row.get(0),
@@ -1027,7 +1027,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(!actor_metric_terms.contains("17"));
     assert!(equipment_mechanic_terms.contains("held-in-two-hands"));
     assert!(equipment_mechanic_terms.contains("piercing"));
-    assert_eq!(spell_record_family, "spell");
+    assert_eq!(spell_record_kind, "spell");
     assert_eq!(spell_level, 1);
     assert_eq!(spell_rarity, "common");
     assert_eq!(spell_publication_family, "core");

@@ -210,7 +210,7 @@ fn similar_resolves_seed_name_before_applying_candidate_filter()
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "Test Action 1", "--index"])
         .arg(&path)
-        .args(["--family", "spell", "--json"])
+        .args(["--kind", "spell", "--json"])
         .output()?;
 
     assert!(output.status.success());

@@ -48,7 +48,7 @@ The default FTS lane is intentionally precision-oriented rather than full-body l
 - title/name and verified alias text
 - high-signal facets such as traits and taxonomy terms
 
-`atlas-search` classifies those FTS hits as direct-title, strong-lexical, medium-lexical, or weak-lexical evidence using title/alias token coverage and high-value record tokens. That classification can adjust effective FTS rank and FTS contribution before hybrid fusion. Semantic retrieval owns broad natural-language intent, while FTS primarily supplies deterministic precision evidence for names, aliases, traits, families, and record types. Custom synonym maps, PF2E domain token rewrites, typo correction, stemming, and broader body/reference FTS are follow-up tuning topics, not the default product path.
+`atlas-search` classifies those FTS hits as direct-title, strong-lexical, medium-lexical, or weak-lexical evidence using title/alias token coverage and high-value record tokens. That classification can adjust effective FTS rank and FTS contribution before hybrid fusion. Semantic retrieval owns broad natural-language intent, while FTS primarily supplies deterministic precision evidence for names, aliases, traits, record kinds, and Foundry record types. Custom synonym maps, PF2E domain token rewrites, typo correction, stemming, and broader body/reference FTS are follow-up tuning topics, not the default product path.
 
 The Rust CLI should not expose Node-era `balanced` or `concept` profiles as normal product language. If any compatibility mapping is ever needed, it belongs at an explicit edge and must not become the Rust runtime's primary search model.
 

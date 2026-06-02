@@ -18,11 +18,11 @@ pub(super) fn fields(
     connection: &mut SqliteConnection,
     scope: Option<RecordKind>,
 ) -> Result<Vec<FilterFieldInfo>, DiscoveryError> {
-    let scope = scope.map(record_family_string);
+    let scope = scope.map(record_kind_string);
     let mut query = filter_field_catalog::table.into_boxed();
     query = match scope.as_deref() {
-        Some(scope) => query.filter(filter_field_catalog::record_family.eq(scope)),
-        None => query.filter(filter_field_catalog::record_family.is_null()),
+        Some(scope) => query.filter(filter_field_catalog::record_kind.eq(scope)),
+        None => query.filter(filter_field_catalog::record_kind.is_null()),
     };
     query
         .select(FilterFieldInfoRow::as_select())
@@ -71,13 +71,13 @@ fn enumerable_values(
     scope: Option<RecordKind>,
     sort: DiscoveryValueSort,
 ) -> Result<Vec<FilterValueCount>, DiscoveryError> {
-    let scope = scope.map(record_family_string);
+    let scope = scope.map(record_kind_string);
     let mut query = filter_value_catalog::table
         .filter(filter_value_catalog::field.eq(field))
         .into_boxed();
     query = match scope.as_deref() {
-        Some(scope) => query.filter(filter_value_catalog::record_family.eq(scope)),
-        None => query.filter(filter_value_catalog::record_family.is_null()),
+        Some(scope) => query.filter(filter_value_catalog::record_kind.eq(scope)),
+        None => query.filter(filter_value_catalog::record_kind.is_null()),
     };
     let rows = match sort {
         DiscoveryValueSort::Alpha | DiscoveryValueSort::Canonical => query
@@ -114,14 +114,14 @@ fn sample_values(
     scope: Option<RecordKind>,
     sample_limit: usize,
 ) -> Result<FilterValuePayload, DiscoveryError> {
-    let scope = scope.map(record_family_string);
+    let scope = scope.map(record_kind_string);
     let stats = field_stats(connection, field, scope.as_deref())?;
     let mut query = filter_sample_catalog::table
         .filter(filter_sample_catalog::field.eq(field))
         .into_boxed();
     query = match scope.as_deref() {
-        Some(scope) => query.filter(filter_sample_catalog::record_family.eq(scope)),
-        None => query.filter(filter_sample_catalog::record_family.is_null()),
+        Some(scope) => query.filter(filter_sample_catalog::record_kind.eq(scope)),
+        None => query.filter(filter_sample_catalog::record_kind.is_null()),
     };
     let examples = query
         .select((
@@ -159,15 +159,15 @@ fn numeric_stats(
     field: &str,
     scope: Option<RecordKind>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
-    let scope = scope.map(record_family_string);
+    let scope = scope.map(record_kind_string);
     let mut query = filter_numeric_catalog::table
         .filter(filter_numeric_catalog::field.eq(field))
         .filter(filter_numeric_catalog::metric_domain.is_null())
         .filter(filter_numeric_catalog::metric_key.is_null())
         .into_boxed();
     query = match scope.as_deref() {
-        Some(scope) => query.filter(filter_numeric_catalog::record_family.eq(scope)),
-        None => query.filter(filter_numeric_catalog::record_family.is_null()),
+        Some(scope) => query.filter(filter_numeric_catalog::record_kind.eq(scope)),
+        None => query.filter(filter_numeric_catalog::record_kind.is_null()),
     };
     query
         .select(NumericStatsRow::as_select())
@@ -191,8 +191,8 @@ fn field_stats(
         .filter(filter_field_catalog::field.eq(field))
         .into_boxed();
     query = match scope {
-        Some(scope) => query.filter(filter_field_catalog::record_family.eq(scope)),
-        None => query.filter(filter_field_catalog::record_family.is_null()),
+        Some(scope) => query.filter(filter_field_catalog::record_kind.eq(scope)),
+        None => query.filter(filter_field_catalog::record_kind.is_null()),
     };
     query
         .select(FilterFieldStatsRow::as_select())
@@ -206,13 +206,13 @@ fn field_null_count(
     field: &str,
     scope: Option<RecordKind>,
 ) -> Result<u64, DiscoveryError> {
-    let scope = scope.map(record_family_string);
+    let scope = scope.map(record_kind_string);
     let mut query = filter_field_catalog::table
         .filter(filter_field_catalog::field.eq(field))
         .into_boxed();
     query = match scope.as_deref() {
-        Some(scope) => query.filter(filter_field_catalog::record_family.eq(scope)),
-        None => query.filter(filter_field_catalog::record_family.is_null()),
+        Some(scope) => query.filter(filter_field_catalog::record_kind.eq(scope)),
+        None => query.filter(filter_field_catalog::record_kind.is_null()),
     };
     query
         .select(filter_field_catalog::null_count)
@@ -229,8 +229,7 @@ fn filter_field_info_from_row(row: FilterFieldInfoRow) -> Result<FilterFieldInfo
         value_policy: parse_value_policy(&row.value_policy),
         operators: parse_json_operators(&row.operators_json),
         cli_flags: serde_json::from_str(&row.cli_flags_json).unwrap_or_default(),
-        applicable_families: serde_json::from_str(&row.applicable_families_json)
-            .unwrap_or_default(),
+        applicable_kinds: serde_json::from_str(&row.applicable_kinds_json).unwrap_or_default(),
         catalog_available: true,
     })
 }
@@ -290,7 +289,7 @@ fn parse_value_policy(value: &str) -> FilterValuePolicy {
     }
 }
 
-fn record_family_string(value: RecordKind) -> String {
+fn record_kind_string(value: RecordKind) -> String {
     serde_json::to_value(value)
         .ok()
         .and_then(|value| value.as_str().map(str::to_string))
@@ -333,7 +332,7 @@ struct FilterFieldInfoRow {
     value_policy: String,
     operators_json: String,
     cli_flags_json: String,
-    applicable_families_json: String,
+    applicable_kinds_json: String,
 }
 
 #[derive(Queryable)]

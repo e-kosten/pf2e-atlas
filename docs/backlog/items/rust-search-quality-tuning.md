@@ -18,7 +18,7 @@ Evaluate and choose Rust search defaults from measured search-quality runs after
 The tuning pass should cover:
 
 - Whether the broad weighted FTS path should be removed entirely or retained only as a diagnostic/tuning primitive now that precision FTS is the product default.
-- Precision FTS lane tuning, including whether family/type/source facets should join the current title/alias and trait/taxonomy lanes.
+- Precision FTS lane tuning, including whether kind/type/source facets should join the current title/alias and trait/taxonomy lanes.
 - FTS confidence policy tuning, including the current `demote-weak` default and whether weak/medium lexical evidence should be discounted differently in hybrid fusion.
 - Candidate hydration cost in ranked search. Precision FTS confidence currently hydrates bounded FTS/vector candidates before final fusion; if larger candidate windows become necessary, consider a lighter ranking-facts load instead of full record hydration.
 - FTS column and BM25 weights for any retained broad weighted FTS diagnostic path.

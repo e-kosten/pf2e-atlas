@@ -341,7 +341,7 @@ mod tests {
         )?;
         assert_eq!(metric_count, 2);
         let discovery_count: i64 = connection.query_row(
-            "SELECT COUNT(*) FROM filter_value_catalog WHERE field = 'record_family' AND value = 'rule'",
+            "SELECT COUNT(*) FROM filter_value_catalog WHERE field = 'record_kind' AND value = 'rule'",
             [],
             |row| row.get(0),
         )?;

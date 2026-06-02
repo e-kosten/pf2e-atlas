@@ -72,7 +72,7 @@ pub struct FilterFieldInfo {
     pub group: FilterFieldGroup,
     pub value_policy: FilterValuePolicy,
     pub operators: Vec<FilterOperator>,
-    pub applicable_families: Vec<String>,
+    pub applicable_kinds: Vec<String>,
     pub cli_flags: Vec<String>,
     pub catalog_available: bool,
 }
@@ -189,7 +189,6 @@ pub struct BooleanFieldCounts {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetricKeyDiscovery {
     pub metric_domain: String,
-    #[serde(alias = "record_family")]
     pub kind: String,
     pub namespace_prefix: String,
     pub metric_key: String,

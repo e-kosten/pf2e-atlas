@@ -51,9 +51,9 @@ pub(super) fn parse_record_key(value: &str) -> Result<RecordKey, RecordLoadError
     RecordKey::parse(value).map_err(invalid_parse("record_key"))
 }
 
-pub(super) fn parse_record_family(value: &str) -> Result<RecordKind, RecordLoadError> {
+pub(super) fn parse_record_kind(value: &str) -> Result<RecordKind, RecordLoadError> {
     RecordKind::from_canonical(value)
-        .ok_or_else(|| invalid_value("records.record_family", value.to_string()))
+        .ok_or_else(|| invalid_value("records.record_kind", value.to_string()))
 }
 
 pub(super) fn parse_rarity(value: &str) -> Result<Rarity, RecordLoadError> {

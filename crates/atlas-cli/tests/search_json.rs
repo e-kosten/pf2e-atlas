@@ -66,7 +66,7 @@ fn filter_search_reports_pagination_and_random_seed() -> Result<(), Box<dyn std:
 }
 
 #[test]
-fn search_preview_prints_family_metric_facts() -> Result<(), Box<dyn std::error::Error>> {
+fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-search-preview-facts");
     write_creature_preview_source(&root)?;
     let index_path = root.join("artifact.sqlite");
@@ -83,7 +83,7 @@ fn search_preview_prints_family_metric_facts() -> Result<(), Box<dyn std::error:
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "--family",
+            "--kind",
             "creature",
             "--metric",
             "ac.value>=25",
@@ -105,7 +105,7 @@ fn search_preview_prints_family_metric_facts() -> Result<(), Box<dyn std::error:
     let json_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "--family",
+            "--kind",
             "creature",
             "--metric",
             "ac.value>=25",
@@ -164,8 +164,8 @@ fn search_rejects_filter_json_with_convenience_flags_before_runtime_loading()
             "--index",
             "missing.sqlite",
             "--filter-json",
-            r#"{"kind":"record_family","value":"rule"}"#,
-            "--family",
+            r#"{"kind":"record_kind","value":"rule"}"#,
+            "--kind",
             "rule",
             "--json",
         ])
@@ -184,7 +184,7 @@ fn search_print_filter_lowers_convenience_flags_before_runtime_loading()
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "--family",
+            "--kind",
             "spell",
             "--references",
             "spells:fireball",

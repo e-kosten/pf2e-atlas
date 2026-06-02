@@ -21,7 +21,7 @@ fn reports_fields_values_and_dynamic_refinements() -> Result<(), Box<dyn std::er
     let fields_output = atlas(&[
         "filters",
         "fields",
-        "--family",
+        "--kind",
         "rule",
         "--index",
         index_path.to_str().unwrap(),
@@ -55,7 +55,7 @@ fn reports_fields_values_and_dynamic_refinements() -> Result<(), Box<dyn std::er
         "values",
         "--field",
         "traits",
-        "--family",
+        "--kind",
         "rule",
         "--sort",
         "alpha",
@@ -80,7 +80,7 @@ fn reports_fields_values_and_dynamic_refinements() -> Result<(), Box<dyn std::er
         "values",
         "--field",
         "traits",
-        "--family",
+        "--kind",
         "rule",
         "--trait",
         "healing",
@@ -139,7 +139,7 @@ fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn st
     let fields_output = atlas_raw(&[
         "filters",
         "fields",
-        "--family",
+        "--kind",
         "rule",
         "--index",
         index_path.to_str().unwrap(),
@@ -159,7 +159,7 @@ fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn st
         "values",
         "--field",
         "traits",
-        "--family",
+        "--kind",
         "rule",
         "--sort",
         "alpha",
@@ -190,7 +190,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
         "values",
         "--field",
         "metric",
-        "--family",
+        "--kind",
         "creature",
         "--metric-prefix",
         "save.",
@@ -217,7 +217,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
         "values",
         "--field",
         "metric",
-        "--family",
+        "--kind",
         "creature",
         "--metric",
         "Best save",
@@ -240,7 +240,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
         "values",
         "--field",
         "metric",
-        "--family",
+        "--kind",
         "creature",
         "--metric",
         "ac.value",
@@ -260,7 +260,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
         "values",
         "--field",
         "target_text",
-        "--family",
+        "--kind",
         "spell",
         "--sample-limit",
         "50",
@@ -282,7 +282,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
         "values",
         "--field",
         "target_text",
-        "--family",
+        "--kind",
         "spell",
         "--limit",
         "25",
@@ -299,7 +299,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
         "values",
         "--field",
         "basic_save",
-        "--family",
+        "--kind",
         "spell",
         "--index",
         index_path.to_str().unwrap(),
@@ -324,7 +324,7 @@ fn catalog_validation_rejects_missing_rows() -> Result<(), Box<dyn std::error::E
 
     let connection = Connection::open(&index_path)?;
     connection.execute(
-        "DELETE FROM filter_field_catalog WHERE field = 'traits' AND record_family = 'rule'",
+        "DELETE FROM filter_field_catalog WHERE field = 'traits' AND record_kind = 'rule'",
         [],
     )?;
     drop(connection);
@@ -348,12 +348,12 @@ fn catalog_validation_rejects_missing_payload_rows() -> Result<(), Box<dyn std::
         [],
     )?;
     connection.execute(
-        "DELETE FROM filter_sample_catalog WHERE field = 'target_text' AND record_family = 'spell'",
+        "DELETE FROM filter_sample_catalog WHERE field = 'target_text' AND record_kind = 'spell'",
         [],
     )?;
     connection.execute(
         "DELETE FROM filter_numeric_catalog
-         WHERE field = 'metric' AND metric_key = 'ac.value' AND record_family = 'creature'",
+         WHERE field = 'metric' AND metric_key = 'ac.value' AND record_kind = 'creature'",
         [],
     )?;
     drop(connection);
@@ -381,25 +381,25 @@ fn catalog_validation_rejects_stale_payload_rows() -> Result<(), Box<dyn std::er
     connection.execute(
         "UPDATE filter_field_catalog
          SET value_policy = 'sample'
-         WHERE field = 'traits' AND record_family = 'spell'",
+         WHERE field = 'traits' AND record_kind = 'spell'",
         [],
     )?;
     connection.execute(
         "UPDATE filter_value_catalog
          SET catalog_count = catalog_count + 1
-         WHERE field = 'traits' AND record_family = 'spell' AND value = 'healing'",
+         WHERE field = 'traits' AND record_kind = 'spell' AND value = 'healing'",
         [],
     )?;
     connection.execute(
         "UPDATE filter_sample_catalog
          SET sample_rank = sample_rank + 1
-         WHERE field = 'target_text' AND record_family = 'spell'",
+         WHERE field = 'target_text' AND record_kind = 'spell'",
         [],
     )?;
     connection.execute(
         "UPDATE filter_numeric_catalog
          SET p50 = p50 + 1
-         WHERE field = 'metric' AND metric_key = 'ac.value' AND record_family = 'creature'",
+         WHERE field = 'metric' AND metric_key = 'ac.value' AND record_kind = 'creature'",
         [],
     )?;
     drop(connection);
@@ -428,23 +428,23 @@ fn catalog_validation_rejects_duplicate_global_rows() -> Result<(), Box<dyn std:
     for sql in [
         "INSERT INTO filter_field_catalog
          SELECT * FROM filter_field_catalog
-         WHERE field = 'traits' AND record_family IS NULL",
+         WHERE field = 'traits' AND record_kind IS NULL",
         "INSERT INTO filter_value_catalog
          SELECT * FROM filter_value_catalog
-         WHERE field = 'traits' AND record_family IS NULL AND value = 'healing'",
+         WHERE field = 'traits' AND record_kind IS NULL AND value = 'healing'",
         "INSERT INTO filter_sample_catalog
          SELECT * FROM filter_sample_catalog
-         WHERE field = 'target_text' AND record_family IS NULL
+         WHERE field = 'target_text' AND record_kind IS NULL
          LIMIT 1",
         "INSERT INTO filter_numeric_catalog
          SELECT * FROM filter_numeric_catalog
-         WHERE field = 'metric' AND record_family IS NULL AND metric_key = 'ac.value'",
+         WHERE field = 'metric' AND record_kind IS NULL AND metric_key = 'ac.value'",
         "INSERT INTO metric_key_catalog
          SELECT * FROM metric_key_catalog
-         WHERE record_family IS NULL AND metric_key = 'ac.value'",
+         WHERE record_kind IS NULL AND metric_key = 'ac.value'",
         "INSERT INTO metric_value_catalog
          SELECT * FROM metric_value_catalog
-         WHERE record_family IS NULL AND metric_key = 'save.best'",
+         WHERE record_kind IS NULL AND metric_key = 'save.best'",
     ] {
         connection.execute(sql, [])?;
     }

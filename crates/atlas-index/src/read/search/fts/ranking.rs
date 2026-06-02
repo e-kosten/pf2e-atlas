@@ -32,7 +32,7 @@ pub(crate) struct FtsDocument {
     pub(crate) facts: String,
     pub(crate) reference_terms: String,
     pub(crate) embedded_content: String,
-    pub(crate) record_family: String,
+    pub(crate) record_kind: String,
     pub(crate) foundry_record_type: String,
 }
 
@@ -353,63 +353,63 @@ fn type_intent_boost(tokens: &[String], document: &FtsDocument) -> f64 {
     for token in tokens {
         boost += match token.as_str() {
             "spell" | "spells" | "cantrip" | "cantrips" => {
-                family_boost(document, "spell", 55.0)
+                record_kind_boost(document, "spell", 55.0)
                     + foundry_record_type_boost(document, "spell", 12.0)
             }
             "feat" | "feats" => {
-                family_boost(document, "feat", 55.0)
+                record_kind_boost(document, "feat", 55.0)
                     + foundry_record_type_boost(document, "feat", 12.0)
             }
             "creature" | "creatures" | "monster" | "monsters" | "npc" | "npcs" => {
-                family_boost(document, "creature", 55.0)
+                record_kind_boost(document, "creature", 55.0)
                     + foundry_record_type_boost(document, "npc", 12.0)
             }
-            "item" | "items" | "equipment" => family_boost(document, "equipment", 45.0),
+            "item" | "items" | "equipment" => record_kind_boost(document, "equipment", 45.0),
             "weapon" | "weapons" => {
-                family_boost(document, "equipment", 35.0)
+                record_kind_boost(document, "equipment", 35.0)
                     + foundry_record_type_boost(document, "weapon", 18.0)
             }
             "armor" | "armour" => {
-                family_boost(document, "equipment", 35.0)
+                record_kind_boost(document, "equipment", 35.0)
                     + foundry_record_type_boost(document, "armor", 18.0)
             }
             "shield" | "shields" => {
-                family_boost(document, "equipment", 35.0)
+                record_kind_boost(document, "equipment", 35.0)
                     + foundry_record_type_boost(document, "shield", 18.0)
             }
             "potion" | "potions" | "wand" | "wands" | "rune" | "runes" => {
-                family_boost(document, "equipment", 35.0)
+                record_kind_boost(document, "equipment", 35.0)
             }
             "condition" | "conditions" => {
-                family_boost(document, "rule", 35.0)
+                record_kind_boost(document, "rule", 35.0)
                     + foundry_record_type_boost(document, "condition", 35.0)
             }
             "hazard" | "hazards" => {
-                family_boost(document, "hazard", 55.0)
+                record_kind_boost(document, "hazard", 55.0)
                     + foundry_record_type_boost(document, "hazard", 12.0)
             }
             "vehicle" | "vehicles" => {
-                family_boost(document, "vehicle", 55.0)
+                record_kind_boost(document, "vehicle", 55.0)
                     + foundry_record_type_boost(document, "vehicle", 12.0)
             }
             "ancestry" | "ancestries" => {
-                family_boost(document, "character_option", 35.0)
+                record_kind_boost(document, "character_option", 35.0)
                     + foundry_record_type_boost(document, "ancestry", 35.0)
             }
-            "companion" | "companions" => family_boost(document, "companion", 55.0),
+            "companion" | "companions" => record_kind_boost(document, "companion", 55.0),
             "familiar" | "familiars" => {
-                family_boost(document, "companion", 35.0)
+                record_kind_boost(document, "companion", 35.0)
                     + foundry_record_type_boost(document, "familiar", 35.0)
             }
-            "affliction" | "afflictions" => family_boost(document, "affliction", 55.0),
+            "affliction" | "afflictions" => record_kind_boost(document, "affliction", 55.0),
             _ => 0.0,
         };
     }
     boost
 }
 
-fn family_boost(document: &FtsDocument, family: &str, boost: f64) -> f64 {
-    if document.record_family == family {
+fn record_kind_boost(document: &FtsDocument, record_kind: &str, boost: f64) -> f64 {
+    if document.record_kind == record_kind {
         boost
     } else {
         0.0
