@@ -83,7 +83,7 @@ Docs-only or instruction-only changes do not require the Rust verification gate 
 
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line.
 
-Agents should not commit automatically just because an implementation task appears complete. Treat commits as an explicit milestone. When the user asks to prepare a commit, use the `$prepare-commit` skill, run the required validators, fix reported issues through the same validation loop, and only then create the commit.
+Agents should not commit automatically just because an implementation task appears complete. Treat commits as an explicit milestone. When the user asks for a commit, inspect the scoped diff, run the validation appropriate to the change, fix blocking issues, and then create the commit. Do not assume commit preparation must invoke a separate validation skill unless the user explicitly asks for that validation.
 
 Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for the completed unit of work, or explicitly tell the user why a clean commit boundary is blocked.
 
