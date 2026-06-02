@@ -1,6 +1,6 @@
 use atlas_domain::{
-    MetricDomain, MetricValueType, PublicationFamily, RecordFamily, RecordKey, RemasterLinkSource,
-    TimeKind, TimeUnit,
+    MetricDomain, MetricValueType, PublicationCategory, Rarity, RecordKey, RecordKind,
+    RemasterLinkSource, TimeKind, TimeUnit,
 };
 use atlas_record::{
     AliasSource, ContentDocument, ContentSourceKind, ContentVisibility, NormalizedTime,
@@ -50,13 +50,19 @@ pub(super) fn parse_record_key(value: &str) -> Result<RecordKey, RecordLoadError
     RecordKey::parse(value).map_err(invalid_parse("record_key"))
 }
 
-pub(super) fn parse_record_family(value: &str) -> Result<RecordFamily, RecordLoadError> {
-    RecordFamily::from_canonical(value)
+pub(super) fn parse_record_family(value: &str) -> Result<RecordKind, RecordLoadError> {
+    RecordKind::from_canonical(value)
         .ok_or_else(|| invalid_value("records.record_family", value.to_string()))
 }
 
-pub(super) fn parse_publication_family(value: &str) -> Result<PublicationFamily, RecordLoadError> {
-    PublicationFamily::from_canonical(value)
+pub(super) fn parse_rarity(value: &str) -> Result<Rarity, RecordLoadError> {
+    Rarity::from_canonical(value).ok_or_else(|| invalid_value("records.rarity", value.to_string()))
+}
+
+pub(super) fn parse_publication_family(
+    value: &str,
+) -> Result<PublicationCategory, RecordLoadError> {
+    PublicationCategory::from_canonical(value)
         .ok_or_else(|| invalid_value("records.publication_family", value.to_string()))
 }
 

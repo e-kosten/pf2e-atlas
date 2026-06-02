@@ -16,7 +16,7 @@ impl FilterCompiler {
         filter: &SearchFilterNode,
     ) -> Result<String, FilterCompileError> {
         match filter {
-            SearchFilterNode::RecordFamily { value } => Ok(format!(
+            SearchFilterNode::RecordKind { value } => Ok(format!(
                 "{} = {}",
                 record_column(records::columns::RECORD_FAMILY),
                 self.text(value.as_str())

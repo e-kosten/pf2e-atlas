@@ -1,4 +1,4 @@
-use atlas_domain::RecordFamily;
+use atlas_domain::RecordKind;
 use atlas_domain::metadata::{MetadataPredicate, MetadataSetField, MetadataSetMatch};
 
 use crate::VectorQueryError;
@@ -9,7 +9,7 @@ use crate::read::sql::SqlBindValue;
 #[test]
 fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::error::Error>> {
     let filter = atlas_domain::SearchFilterNode::all_of(vec![
-        atlas_domain::SearchFilterNode::record_family(RecordFamily::Rule),
+        atlas_domain::SearchFilterNode::record_kind(RecordKind::Rule),
         atlas_domain::SearchFilterNode::pack("actions"),
     ]);
 

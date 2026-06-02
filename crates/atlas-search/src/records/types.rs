@@ -1,6 +1,6 @@
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_index::FilteredRecordSort;
-use atlas_record::PersistedRecord;
+use atlas_record::AtlasRecord;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,7 +55,7 @@ pub struct BrowseRecordsRequest<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BrowseRecordsResult {
     pub record_keys: Vec<RecordKey>,
-    pub records: Vec<PersistedRecord>,
+    pub records: Vec<AtlasRecord>,
     pub total: u64,
 }
 
@@ -67,7 +67,7 @@ pub struct RecordResolutionResult {
     pub matched_text: String,
     pub alias_source: Option<String>,
     pub alias_source_ref: Option<String>,
-    pub record: PersistedRecord,
+    pub record: AtlasRecord,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

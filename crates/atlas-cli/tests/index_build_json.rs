@@ -99,9 +99,9 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     let inspect_json = parse_ok_data(&inspect_output)?;
     assert_eq!(inspect_json["records"]["total_records"], 1);
     assert_eq!(inspect_json["records"]["default_visible_records"], 1);
-    assert_eq!(inspect_json["records"]["by_record_family"]["rule"], 1);
+    assert_eq!(inspect_json["records"]["by_kind"]["rule"], 1);
     assert_eq!(
-        inspect_json["records"]["by_publication_family"]["unknown"],
+        inspect_json["records"]["by_publication_category"]["unknown"],
         1
     );
     assert_eq!(inspect_json["tables"]["records"], 1);
@@ -160,9 +160,9 @@ fn analyze_index_json_reports_source_without_writing_artifact()
     assert_eq!(analyze_json["generated_record_count"], 0);
     assert_eq!(analyze_json["default_visible_record_count"], 1);
     assert_eq!(analyze_json["hidden_record_count"], 0);
-    assert_eq!(analyze_json["by_record_family"]["rule"], 1);
+    assert_eq!(analyze_json["by_kind"]["rule"], 1);
     assert_eq!(analyze_json["by_foundry_taxonomy"]["Item|action"], 1);
-    assert_eq!(analyze_json["by_publication_family"]["unknown"], 1);
+    assert_eq!(analyze_json["by_publication_category"]["unknown"], 1);
     assert_eq!(analyze_json["side_data"]["item_records"], 1);
     assert_eq!(analyze_json["text"]["records_with_description"], 1);
     assert_eq!(analyze_json["embeddings"]["pending_document_embeddings"], 1);

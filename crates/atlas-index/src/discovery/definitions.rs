@@ -733,13 +733,13 @@ pub(crate) fn metric_field_info(catalog_available: bool) -> FilterFieldInfo {
 
 #[cfg(test)]
 mod tests {
-    use atlas_domain::RecordFamily;
+    use atlas_domain::RecordKind;
 
     use super::DISCOVERY_ALL_FAMILIES;
 
     #[test]
     fn discovery_families_match_canonical_record_families() {
-        let expected = RecordFamily::ALL
+        let expected = RecordKind::ALL
             .iter()
             .map(|family| family.as_str())
             .collect::<Vec<_>>();

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
 use atlas_index::{IndexVariantGroup, VariantReadIndex};
-use atlas_record::PersistedRecord;
+use atlas_record::AtlasRecord;
 
 use crate::query::normalize_record_query;
 use crate::{AtlasRetrievalService, GetRecordsRequest, RecordRetrieval, SearchError};
@@ -19,9 +19,9 @@ pub struct VariantBaseNameRequest<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantGroupResult {
-    pub seed: Option<PersistedRecord>,
+    pub seed: Option<AtlasRecord>,
     pub variant_group_key: Option<String>,
-    pub variants: Vec<PersistedRecord>,
+    pub variants: Vec<AtlasRecord>,
 }
 
 pub trait VariantRetrieval {
@@ -113,11 +113,11 @@ impl AtlasRetrievalService {
     fn load_records_preserving_order(
         &self,
         record_keys: &[RecordKey],
-    ) -> Result<Vec<PersistedRecord>, SearchError> {
+    ) -> Result<Vec<AtlasRecord>, SearchError> {
         let mut by_key = self
             .get_records(GetRecordsRequest { record_keys })?
             .into_iter()
-            .map(|record| (record.key.clone(), record))
+            .map(|record| (record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let mut records = Vec::with_capacity(record_keys.len());
         for key in record_keys {
@@ -136,7 +136,7 @@ impl AtlasRetrievalService {
 
 #[cfg(test)]
 mod tests {
-    use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordKey};
+    use atlas_domain::{PublicationCategory, RecordKey, RecordKind};
     use atlas_index::{
         FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery,
         FtsReadIndex, FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinkRecord,
@@ -144,7 +144,12 @@ mod tests {
         RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex,
         VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
     };
-    use atlas_record::PersistedRecordSet;
+    use atlas_record::{
+        AtlasRecordSet, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        RecordClassification, RecordContent, RecordIdentity, RecordMechanics, RecordProvenance,
+        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+        RecordVisibilityReason,
+    };
 
     use super::*;
 
@@ -161,11 +166,17 @@ mod tests {
             .expect("seed record should exist");
 
         assert_eq!(
-            result.seed.as_ref().map(|record| record.key.to_string()),
+            result
+                .seed
+                .as_ref()
+                .map(|record| record.identity.key.to_string()),
             Some("actions:testAction1".to_string())
         );
         assert_eq!(result.variant_group_key.as_deref(), Some("test-action"));
-        assert_eq!(result.variants[0].key.to_string(), "actions:testAction1");
+        assert_eq!(
+            result.variants[0].identity.key.to_string(),
+            "actions:testAction1"
+        );
         Ok(())
     }
 
@@ -228,7 +239,7 @@ mod tests {
     }
 
     struct FakeIndex {
-        records: Vec<PersistedRecord>,
+        records: Vec<AtlasRecord>,
         mode: FakeGraphMode,
     }
 
@@ -259,22 +270,22 @@ mod tests {
         fn load_records_by_key(
             &self,
             keys: &[RecordKey],
-        ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+        ) -> Result<Vec<AtlasRecord>, RecordLoadError> {
             Ok(keys
                 .iter()
                 .filter_map(|key| {
                     self.records
                         .iter()
-                        .find(|record| record.key == *key)
+                        .find(|record| record.identity.key == *key)
                         .cloned()
                 })
                 .collect())
         }
 
-        fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError> {
-            Ok(PersistedRecordSet {
+        fn load_record_set(&self) -> Result<AtlasRecordSet, RecordLoadError> {
+            Ok(AtlasRecordSet {
                 records: self.records.clone(),
-                ..PersistedRecordSet::default()
+                ..AtlasRecordSet::default()
             })
         }
 
@@ -286,14 +297,17 @@ mod tests {
                 .load_records_by_key(keys)?
                 .into_iter()
                 .map(|record| atlas_index::SearchCandidateRecord {
-                    key: record.key,
-                    name: record.name,
-                    traits: record.traits,
-                    record_family: record.record_family,
-                    foundry_record_type: record.foundry_record_type,
-                    taxonomy_families: record.taxonomy_families,
-                    system_category: record.system_category,
-                    system_group: record.system_group,
+                    key: record.identity.key,
+                    name: record.identity.name,
+                    traits: record.classification.traits,
+                    kind: record.classification.kind,
+                    foundry_record_type: record.foundry.record_type.as_str().to_string(),
+                    taxonomy_families: record.classification.taxonomy.inferred_groups,
+                    system_category: record
+                        .mechanics
+                        .item()
+                        .and_then(|item| item.category.clone()),
+                    system_group: record.mechanics.item().and_then(|item| item.group.clone()),
                 })
                 .collect())
         }
@@ -329,7 +343,7 @@ mod tests {
                 record_keys: self
                     .records
                     .iter()
-                    .map(|record| record.key.clone())
+                    .map(|record| record.identity.key.clone())
                     .collect(),
                 total: self.records.len() as u64,
             })
@@ -394,13 +408,13 @@ mod tests {
                     "fixture graph error".to_string(),
                 ));
             }
-            assert_eq!(self.records[0].key, *_seed);
+            assert_eq!(self.records[0].identity.key, *_seed);
             let record_keys = if matches!(self.mode, FakeGraphMode::MissingTarget) {
                 vec![RecordKey::parse("actions:missing").expect("fixture key should parse")]
             } else {
                 self.records
                     .iter()
-                    .map(|record| record.key.clone())
+                    .map(|record| record.identity.key.clone())
                     .collect()
             };
             Ok(Some(IndexVariantGroup {
@@ -424,7 +438,7 @@ mod tests {
                 record_keys: self
                     .records
                     .iter()
-                    .map(|record| record.key.clone())
+                    .map(|record| record.identity.key.clone())
                     .collect(),
             }])
         }
@@ -440,16 +454,16 @@ mod tests {
                     "fixture graph error".to_string(),
                 ));
             }
-            assert_eq!(self.records[0].key, *seed);
+            assert_eq!(self.records[0].identity.key, *seed);
             let remaster_record_key = if matches!(self.mode, FakeGraphMode::MissingTarget) {
                 RecordKey::parse("actions:missing").expect("fixture key should parse")
             } else {
-                self.records[1].key.clone()
+                self.records[1].identity.key.clone()
             };
             Ok(Some(IndexRemasterLinks {
                 links: vec![IndexRemasterLinkRecord {
                     remaster_record_key,
-                    legacy_record_key: self.records[0].key.clone(),
+                    legacy_record_key: self.records[0].identity.key.clone(),
                     source: atlas_domain::RemasterLinkSource::Migration,
                     source_ref: "fixture".to_string(),
                 }],
@@ -457,54 +471,41 @@ mod tests {
         }
     }
 
-    fn fake_record(key: &str, name: &str) -> PersistedRecord {
+    fn fake_record(key: &str, name: &str) -> AtlasRecord {
         let key = RecordKey::parse(key).expect("fixture key should parse");
-        PersistedRecord {
-            id: key.id().clone(),
-            key,
-            name: name.to_string(),
-            normalized_name: name.to_lowercase(),
-            record_family: RecordFamily::Rule,
-            pack_name: PackName::new("actions").expect("fixture pack should parse"),
-            pack_label: "Actions".to_string(),
-            foundry_document_type: "Item".to_string(),
-            foundry_record_type: "action".to_string(),
-            level: None,
-            rarity: None,
-            traits: Vec::new(),
-            prerequisites: Vec::new(),
-            system_category: None,
-            system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: Vec::new(),
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: format!("packs/actions/{name}.json"),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
+        AtlasRecord {
+            identity: RecordIdentity {
+                key,
+                name: name.to_string(),
+            },
+            classification: RecordClassification {
+                kind: RecordKind::Rule,
+                level: None,
+                rarity: None,
+                traits: Vec::new(),
+                taxonomy: RecordTaxonomy::default(),
+            },
+            foundry: FoundryRecordInfo {
+                pack_label: "Actions".to_string(),
+                document_type: FoundryDocumentType::Item,
+                record_type: FoundryRecordType::Action,
+                folder_id: None,
+            },
+            provenance: RecordProvenance {
+                source_path: format!("packs/actions/{name}.json"),
+                raw_json: Some("{}".to_string()),
+            },
+            publication: RecordPublication {
+                title: None,
+                remaster: false,
+                category: PublicationCategory::Unknown,
+            },
+            requirements: RecordRequirements::default(),
+            timing: RecordTiming::default(),
+            mechanics: RecordMechanics::default(),
+            content: RecordContent::default(),
+            variant: None,
+            visibility: RecordVisibility::visible(RecordVisibilityReason::SourceRecord),
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
-use atlas_record::SupplementalContentDocument;
+use atlas_record::{ContentSourceKind, RecordContentDocument};
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
 use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
@@ -13,7 +13,7 @@ use super::parse::{content_document, parse_content_source_kind, parse_content_vi
 
 pub(super) fn read_record_content(
     connection: &mut SqliteConnection,
-) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
+) -> Result<BTreeMap<String, Vec<RecordContentDocument>>, RecordLoadError> {
     let rows = record_content::table
         .select(RecordContentRow::as_select())
         .order((
@@ -28,7 +28,7 @@ pub(super) fn read_record_content(
 pub(super) fn read_record_content_by_keys(
     connection: &mut SqliteConnection,
     keys: &[RecordKey],
-) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
+) -> Result<BTreeMap<String, Vec<RecordContentDocument>>, RecordLoadError> {
     if keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -60,20 +60,51 @@ struct RecordContentRow {
 
 fn content_from_rows(
     rows: Vec<RecordContentRow>,
-) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
-    let mut values: BTreeMap<String, Vec<SupplementalContentDocument>> = BTreeMap::new();
+) -> Result<BTreeMap<String, Vec<RecordContentDocument>>, RecordLoadError> {
+    let mut values: BTreeMap<String, Vec<RecordContentDocument>> = BTreeMap::new();
     for row in rows {
+        let source_kind = parse_content_source_kind(&row.source_kind)?;
+        validate_content_policy(&row, source_kind)?;
         values
             .entry(row.record_key)
             .or_default()
-            .push(SupplementalContentDocument {
-                source_kind: parse_content_source_kind(&row.source_kind)?,
-                visibility: parse_content_visibility(&row.visibility)?,
-                contributes_to_search: row.contributes_to_search,
-                contributes_to_references: row.contributes_to_references,
+            .push(RecordContentDocument {
+                source_kind,
                 label: row.label,
                 document: content_document("record_content.content_json", &row.content_json)?,
             });
     }
     Ok(values)
+}
+
+fn validate_content_policy(
+    row: &RecordContentRow,
+    source_kind: ContentSourceKind,
+) -> Result<(), RecordLoadError> {
+    let visibility = parse_content_visibility(&row.visibility)?;
+    if visibility != source_kind.default_visibility() {
+        return Err(RecordLoadError::InvalidData(format!(
+            "record_content visibility `{}` does not match default `{}` for source kind `{}`",
+            row.visibility,
+            source_kind.default_visibility().as_str(),
+            source_kind.as_str()
+        )));
+    }
+    if row.contributes_to_search != source_kind.default_contributes_to_search() {
+        return Err(RecordLoadError::InvalidData(format!(
+            "record_content contributes_to_search `{}` does not match default `{}` for source kind `{}`",
+            row.contributes_to_search,
+            source_kind.default_contributes_to_search(),
+            source_kind.as_str()
+        )));
+    }
+    if row.contributes_to_references != source_kind.default_contributes_to_references() {
+        return Err(RecordLoadError::InvalidData(format!(
+            "record_content contributes_to_references `{}` does not match default `{}` for source kind `{}`",
+            row.contributes_to_references,
+            source_kind.default_contributes_to_references(),
+            source_kind.as_str()
+        )));
+    }
+    Ok(())
 }

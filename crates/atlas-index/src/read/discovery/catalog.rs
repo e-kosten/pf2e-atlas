@@ -1,6 +1,6 @@
 use atlas_domain::{
     FilterFieldGroup, FilterFieldInfo, FilterFieldStats, FilterFieldType, FilterOperator,
-    FilterSample, FilterValueCount, FilterValuePayload, FilterValuePolicy, RecordFamily,
+    FilterSample, FilterValueCount, FilterValuePayload, FilterValuePolicy, RecordKind,
 };
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -16,7 +16,7 @@ use crate::schema::{
 
 pub(super) fn fields(
     connection: &mut SqliteConnection,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
 ) -> Result<Vec<FilterFieldInfo>, DiscoveryError> {
     let scope = scope.map(record_family_string);
     let mut query = filter_field_catalog::table.into_boxed();
@@ -37,7 +37,7 @@ pub(super) fn fields(
 pub(super) fn values(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
     request: &FilterValueRequest,
 ) -> Result<FilterValuePayload, DiscoveryError> {
     match definition.value_policy {
@@ -68,7 +68,7 @@ pub(super) fn values(
 fn enumerable_values(
     connection: &mut SqliteConnection,
     field: &str,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
     sort: DiscoveryValueSort,
 ) -> Result<Vec<FilterValueCount>, DiscoveryError> {
     let scope = scope.map(record_family_string);
@@ -111,7 +111,7 @@ fn enumerable_values(
 fn sample_values(
     connection: &mut SqliteConnection,
     field: &str,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
     sample_limit: usize,
 ) -> Result<FilterValuePayload, DiscoveryError> {
     let scope = scope.map(record_family_string);
@@ -157,7 +157,7 @@ fn sample_values(
 fn numeric_stats(
     connection: &mut SqliteConnection,
     field: &str,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
     let scope = scope.map(record_family_string);
     let mut query = filter_numeric_catalog::table
@@ -204,7 +204,7 @@ fn field_stats(
 fn field_null_count(
     connection: &mut SqliteConnection,
     field: &str,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
 ) -> Result<u64, DiscoveryError> {
     let scope = scope.map(record_family_string);
     let mut query = filter_field_catalog::table
@@ -290,7 +290,7 @@ fn parse_value_policy(value: &str) -> FilterValuePolicy {
     }
 }
 
-fn record_family_string(value: RecordFamily) -> String {
+fn record_family_string(value: RecordKind) -> String {
     serde_json::to_value(value)
         .ok()
         .and_then(|value| value.as_str().map(str::to_string))

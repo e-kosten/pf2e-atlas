@@ -131,13 +131,24 @@ pub enum ContentReferenceLocator {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SupplementalContentDocument {
+pub struct RecordContentDocument {
     pub source_kind: ContentSourceKind,
-    pub visibility: ContentVisibility,
-    pub contributes_to_search: bool,
-    pub contributes_to_references: bool,
     pub label: Option<String>,
     pub document: ContentDocument,
+}
+
+impl RecordContentDocument {
+    pub const fn visibility(&self) -> ContentVisibility {
+        self.source_kind.default_visibility()
+    }
+
+    pub const fn contributes_to_search(&self) -> bool {
+        self.source_kind.default_contributes_to_search()
+    }
+
+    pub const fn contributes_to_references(&self) -> bool {
+        self.source_kind.default_contributes_to_references()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -149,7 +160,7 @@ pub enum ContentSourceKind {
     Routine,
     Reset,
     StealthDetails,
-    DetailsDescription,
+    DetailsFieldDescription,
     PublicNotes,
     GmNotes,
     PrivateNotes,
@@ -167,7 +178,7 @@ impl ContentSourceKind {
             Self::Routine => "routine",
             Self::Reset => "reset",
             Self::StealthDetails => "stealth_details",
-            Self::DetailsDescription => "details_description",
+            Self::DetailsFieldDescription => "details_field_description",
             Self::PublicNotes => "public_notes",
             Self::GmNotes => "gm_notes",
             Self::PrivateNotes => "private_notes",
@@ -185,7 +196,7 @@ impl ContentSourceKind {
             "routine" => Some(Self::Routine),
             "reset" => Some(Self::Reset),
             "stealth_details" => Some(Self::StealthDetails),
-            "details_description" => Some(Self::DetailsDescription),
+            "details_field_description" => Some(Self::DetailsFieldDescription),
             "public_notes" => Some(Self::PublicNotes),
             "gm_notes" => Some(Self::GmNotes),
             "private_notes" => Some(Self::PrivateNotes),

@@ -143,10 +143,22 @@ pub(super) fn graph_variants_data(
                 is_seed: result
                     .seed
                     .as_ref()
-                    .is_some_and(|seed| record.key == seed.key),
-                variant_label: record.variant_label.clone(),
-                variant_axes: record.variant_axes.clone(),
-                variant_source: record.variant_source.clone(),
+                    .is_some_and(|seed| record.identity.key == seed.identity.key),
+                variant_label: record
+                    .variant
+                    .as_ref()
+                    .and_then(|variant| variant.label.clone()),
+                variant_axes: record
+                    .variant
+                    .as_ref()
+                    .map(|variant| variant.axes.clone())
+                    .unwrap_or_default(),
+                variant_source: record
+                    .variant
+                    .as_ref()
+                    .map(|variant| variant.source.as_str())
+                    .unwrap_or("none")
+                    .to_string(),
             })
             .collect(),
     }
@@ -169,7 +181,7 @@ pub(super) fn graph_remaster_data(
             .links
             .iter()
             .map(|link| {
-                let direction = if result.seed.key == link.legacy_record.key {
+                let direction = if result.seed.identity.key == link.legacy_record.identity.key {
                     "legacy_to_remaster"
                 } else {
                     "remaster_to_legacy"

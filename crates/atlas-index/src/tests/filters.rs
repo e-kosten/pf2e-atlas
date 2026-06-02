@@ -3,7 +3,7 @@ use std::fs;
 use atlas_domain::metadata::{
     MetadataNumberField, MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
 };
-use atlas_domain::{MetricMatch, NumericMatch, RecordFamily, RecordKey};
+use atlas_domain::{MetricMatch, NumericMatch, RecordKey, RecordKind};
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 
@@ -48,7 +48,7 @@ fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error:
 
     let filter = atlas_domain::SearchFilterNode::all_of(vec![
         atlas_domain::SearchFilterNode::pack("actions"),
-        atlas_domain::SearchFilterNode::record_family(RecordFamily::Rule),
+        atlas_domain::SearchFilterNode::record_kind(RecordKind::Rule),
         atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 }),
     ]);
     let compiled = SqliteEligibleRecordKeyset::new(Some(&filter)).compile()?;
@@ -95,7 +95,7 @@ fn composes_filtered_record_key_queries_from_eligible_records()
         [],
     )?;
 
-    let filter = atlas_domain::SearchFilterNode::record_family(RecordFamily::Rule);
+    let filter = atlas_domain::SearchFilterNode::record_kind(RecordKind::Rule);
     let compiled = SqliteEligibleRecordKeyset::new(Some(&filter))
         .compile()?
         .into_record_keys_query(SqliteFilteredRecordSort::LevelDesc, Some(2), Some(0));

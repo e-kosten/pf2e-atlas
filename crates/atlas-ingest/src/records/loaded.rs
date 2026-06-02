@@ -1,11 +1,17 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
+use atlas_record::ContentDocument;
 pub use atlas_record::{
-    ActorSideData, AliasSource, ItemSideData, MetricRow, MetricValue, NormalizedRecord,
-    NormalizedTime, RecordAlias, ReferenceEdge, RemasterLink, SpellSideData,
+    ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, ContentSourceKind,
+    DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
+    FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
+    RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
+    RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
+    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership,
+    RecordVisibility, RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense,
+    SpellMechanics, SpellRange, SpellTarget, VariantSource,
 };
-use atlas_record::{ContentDocument, ContentSourceKind, SupplementalContentDocument};
 use serde_json::Value;
 
 use crate::source::normalize::ContentParseDiagnostics;
@@ -19,12 +25,12 @@ pub(crate) struct ReferenceCandidate {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct LoadedSourceRecord {
-    pub(crate) record: NormalizedRecord,
+    pub(crate) record: AtlasRecord,
     pub(crate) facts: SourceConstructionFacts,
 }
 
 impl LoadedSourceRecord {
-    pub(crate) const fn new(record: NormalizedRecord, facts: SourceConstructionFacts) -> Self {
+    pub(crate) const fn new(record: AtlasRecord, facts: SourceConstructionFacts) -> Self {
         Self { record, facts }
     }
 }
@@ -48,7 +54,7 @@ impl SourceConstructionFacts {
 pub(crate) struct SourceRecordFacts {
     pub(crate) slug: Option<String>,
     pub(crate) compendium_source: Option<String>,
-    pub(crate) source_content: BTreeMap<String, SupplementalContentDocument>,
+    pub(crate) source_content: BTreeMap<String, RecordContentDocument>,
     pub(crate) embedded_items: Vec<EmbeddedItemFact>,
     pub(crate) journal_pages: Vec<JournalPageFact>,
     pub(crate) skipped_journal_pages: Vec<SkippedJournalPageFact>,
@@ -109,7 +115,7 @@ pub(crate) enum JournalPageSkipReason {
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RecordReferenceIndex {
-    pub(crate) by_key: BTreeMap<String, NormalizedRecord>,
+    pub(crate) by_key: BTreeMap<String, AtlasRecord>,
     pub(crate) by_pack_id: BTreeMap<(String, String), RecordKey>,
     pub(crate) by_pack_name: BTreeMap<(String, String), Vec<RecordKey>>,
     pub(crate) by_name: BTreeMap<String, Vec<RecordKey>>,

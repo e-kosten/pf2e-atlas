@@ -1,5 +1,5 @@
 use atlas_domain::RecordKey;
-use atlas_record::{ContentSourceKind, SupplementalContentDocument};
+use atlas_record::{ContentSourceKind, RecordContentDocument};
 use serde_json::Value;
 
 use crate::records::{EmbeddedItemContentRef, EmbeddedItemFact};
@@ -52,7 +52,7 @@ fn embedded_item_fact(
 
 pub(super) fn attach_embedded_content_refs(
     embedded_items: &mut [EmbeddedItemFact],
-    source_content: &std::collections::BTreeMap<String, SupplementalContentDocument>,
+    source_content: &std::collections::BTreeMap<String, RecordContentDocument>,
 ) {
     for item in embedded_items {
         for (source_kind, suffix) in [

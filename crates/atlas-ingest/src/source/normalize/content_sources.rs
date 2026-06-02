@@ -1,4 +1,4 @@
-use atlas_record::{ContentDocument, ContentSourceKind, SupplementalContentDocument};
+use atlas_record::{ContentDocument, ContentSourceKind, RecordContentDocument};
 use serde_json::Value;
 
 use super::{ContentParseDiagnostics, parse_foundry_content, pointer_string, string_field};
@@ -6,7 +6,7 @@ use super::{ContentParseDiagnostics, parse_foundry_content, pointer_string, stri
 pub(super) struct SourceContentProjection {
     pub description: Option<ContentDocument>,
     pub blurb: Option<ContentDocument>,
-    pub supplemental_content: Vec<(Option<String>, SupplementalContentDocument)>,
+    pub supplemental_content: Vec<(Option<String>, RecordContentDocument)>,
     pub diagnostics: Vec<ContentParseDiagnostics>,
 }
 
@@ -49,7 +49,7 @@ fn extract_supplemental_content(
     raw: &Value,
     source_description_raw: Option<&str>,
 ) -> (
-    Vec<(Option<String>, SupplementalContentDocument)>,
+    Vec<(Option<String>, RecordContentDocument)>,
     Vec<ContentParseDiagnostics>,
 ) {
     let mut content = Vec::new();
@@ -90,7 +90,7 @@ fn extract_supplemental_content(
         collect_content_at_pointer(
             raw,
             "/system/details/description",
-            ContentSourceKind::DetailsDescription,
+            ContentSourceKind::DetailsFieldDescription,
             None,
             &mut content,
             &mut diagnostics,
@@ -137,7 +137,7 @@ fn collect_content_at_pointer(
     pointer: &str,
     source_kind: ContentSourceKind,
     label: Option<String>,
-    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
+    content: &mut Vec<(Option<String>, RecordContentDocument)>,
     diagnostics: &mut Vec<ContentParseDiagnostics>,
 ) {
     let Some(markup) = pointer_string(raw, pointer) else {
@@ -156,7 +156,7 @@ fn collect_content_at_pointer(
 
 fn collect_embedded_item_content(
     raw: &Value,
-    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
+    content: &mut Vec<(Option<String>, RecordContentDocument)>,
     diagnostics: &mut Vec<ContentParseDiagnostics>,
 ) {
     let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
@@ -192,7 +192,7 @@ fn collect_embedded_content_at_pointer(
     source_kind: ContentSourceKind,
     label: Option<String>,
     local_key: String,
-    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
+    content: &mut Vec<(Option<String>, RecordContentDocument)>,
     diagnostics: &mut Vec<ContentParseDiagnostics>,
 ) {
     let Some(markup) = pointer_string(raw, pointer) else {
@@ -213,12 +213,9 @@ fn supplemental_content(
     source_kind: ContentSourceKind,
     label: Option<String>,
     document: ContentDocument,
-) -> SupplementalContentDocument {
-    SupplementalContentDocument {
+) -> RecordContentDocument {
+    RecordContentDocument {
         source_kind,
-        visibility: source_kind.default_visibility(),
-        contributes_to_search: source_kind.default_contributes_to_search(),
-        contributes_to_references: source_kind.default_contributes_to_references(),
         label,
         document,
     }

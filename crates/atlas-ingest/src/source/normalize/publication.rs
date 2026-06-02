@@ -1,21 +1,21 @@
-use atlas_domain::PublicationFamily;
+use atlas_domain::PublicationCategory;
 
 use crate::source::normalize::normalize_text;
 
 pub(crate) fn publication_family(
     pack_name: &str,
     publication_title: Option<&str>,
-) -> PublicationFamily {
+) -> PublicationCategory {
     if is_core_publication(publication_title) {
-        return PublicationFamily::Core;
+        return PublicationCategory::Core;
     }
     if is_adventure_publication(publication_title) || is_adventure_pack(pack_name) {
-        return PublicationFamily::Adventure;
+        return PublicationCategory::Adventure;
     }
     if publication_title.is_some_and(|title| !title.trim().is_empty()) {
-        return PublicationFamily::Rules;
+        return PublicationCategory::Rules;
     }
-    PublicationFamily::Unknown
+    PublicationCategory::Unknown
 }
 
 fn is_core_publication(publication_title: Option<&str>) -> bool {

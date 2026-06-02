@@ -217,7 +217,7 @@ fn similar_resolves_seed_name_before_applying_candidate_filter()
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["key"], "actions:testAction1");
-    assert_eq!(data["filter"]["kind"], "record_family");
+    assert_eq!(data["filter"]["kind"], "record_kind");
     assert_eq!(
         data["results"]
             .as_array()

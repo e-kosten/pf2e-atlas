@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RecordFamily {
+pub enum RecordKind {
     Creature,
     Character,
     Companion,
@@ -23,7 +23,7 @@ pub enum RecordFamily {
     CampaignFeature,
 }
 
-impl RecordFamily {
+impl RecordKind {
     pub const ALL: [Self; 15] = [
         Self::Creature,
         Self::Character,
@@ -107,34 +107,34 @@ impl RecordFamily {
     }
 }
 
-impl fmt::Display for RecordFamily {
+impl fmt::Display for RecordKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
     }
 }
 
-impl FromStr for RecordFamily {
-    type Err = RecordFamilyParseError;
+impl FromStr for RecordKind {
+    type Err = RecordKindParseError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Self::from_canonical(value).ok_or_else(|| RecordFamilyParseError {
+        Self::from_canonical(value).ok_or_else(|| RecordKindParseError {
             value: value.to_string(),
         })
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RecordFamilyParseError {
+pub struct RecordKindParseError {
     value: String,
 }
 
-impl fmt::Display for RecordFamilyParseError {
+impl fmt::Display for RecordKindParseError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "unknown record family `{}`", self.value)
+        write!(formatter, "unknown record kind `{}`", self.value)
     }
 }
 
-impl std::error::Error for RecordFamilyParseError {}
+impl std::error::Error for RecordKindParseError {}
 
 fn normalize_input(value: &str) -> String {
     value.trim().to_lowercase()
@@ -145,38 +145,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn record_family_serializes_to_rust_canonical_values() {
+    fn record_kind_serializes_to_rust_canonical_values() {
         assert_eq!(
-            serde_json::to_string(&RecordFamily::CharacterOption)
-                .expect("record family serializes"),
+            serde_json::to_string(&RecordKind::CharacterOption).expect("record kind serializes"),
             "\"character_option\""
         );
     }
 
     #[test]
-    fn record_family_accepts_current_ts_aliases() {
+    fn record_kind_accepts_current_ts_aliases() {
         assert_eq!(
-            RecordFamily::from_input("character creation"),
-            Some(RecordFamily::CharacterOption)
+            RecordKind::from_input("character creation"),
+            Some(RecordKind::CharacterOption)
         );
-        assert_eq!(RecordFamily::from_input("feats"), Some(RecordFamily::Feat));
-        assert_eq!(RecordFamily::from_input("rules"), Some(RecordFamily::Rule));
+        assert_eq!(RecordKind::from_input("feats"), Some(RecordKind::Feat));
+        assert_eq!(RecordKind::from_input("rules"), Some(RecordKind::Rule));
         assert_eq!(
-            RecordFamily::from_input("familiars"),
-            Some(RecordFamily::Companion)
+            RecordKind::from_input("familiars"),
+            Some(RecordKind::Companion)
         );
     }
 
     #[test]
     fn serde_accepts_only_rust_canonical_values() {
-        let record_family: RecordFamily =
+        let record_kind: RecordKind =
             serde_json::from_str("\"character_option\"").expect("canonical value deserializes");
-        assert_eq!(record_family, RecordFamily::CharacterOption);
+        assert_eq!(record_kind, RecordKind::CharacterOption);
         assert_eq!(
-            serde_json::to_string(&record_family).expect("record family serializes"),
+            serde_json::to_string(&record_kind).expect("record kind serializes"),
             "\"character_option\""
         );
-        assert!(serde_json::from_str::<RecordFamily>("\"characterCreation\"").is_err());
-        assert!(serde_json::from_str::<RecordFamily>("\"feats\"").is_err());
+        assert!(serde_json::from_str::<RecordKind>("\"characterCreation\"").is_err());
+        assert!(serde_json::from_str::<RecordKind>("\"feats\"").is_err());
     }
 }

@@ -148,7 +148,7 @@ fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn st
     assert!(serde_json::from_slice::<Value>(&fields_output.stdout).is_err());
     let fields_text = String::from_utf8(fields_output.stdout)?;
     assert!(fields_text.contains("Filter fields"));
-    assert!(fields_text.contains("Filter: family = rule"));
+    assert!(fields_text.contains("Filter: kind = rule"));
     assert!(fields_text.contains("Matching records:"));
     assert!(fields_text.contains("record"));
     assert!(fields_text.contains("traits"));
@@ -170,7 +170,7 @@ fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn st
     assert!(serde_json::from_slice::<Value>(&values_output.stdout).is_err());
     let values_text = String::from_utf8(values_output.stdout)?;
     assert!(values_text.contains("Values for field: traits"));
-    assert!(values_text.contains("Filter: family = rule"));
+    assert!(values_text.contains("Filter: kind = rule"));
     assert!(values_text.contains("exploration"));
     assert!(values_text.contains("healing"));
     assert!(values_text.contains("Null values: 0"));
@@ -492,7 +492,7 @@ fn metric_discovery_uses_global_catalog_and_rejects_conflicting_options()
             .as_array()
             .unwrap()
             .iter()
-            .any(|metric| metric["metric_key"] == "save.best" && metric["record_family"] == "all")
+            .any(|metric| metric["metric_key"] == "save.best" && metric["kind"] == "all")
     );
 
     let global_numeric = atlas(&[

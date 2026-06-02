@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 
-use atlas_domain::{RecordFamily, RecordKey};
+use atlas_domain::{RecordKey, RecordKind};
 use atlas_record::{
     ContentBlock, ContentDocument, ContentInline, PresentationBadge, PresentationBadgeKind,
     PresentationBlock, PresentationFact, PresentationSection, PresentationSectionKind,
@@ -534,7 +534,7 @@ impl PendingEmbeddingTestExt for PendingDocumentEmbedding {
 fn test_document(key: &str, name: &str) -> RecordPresentationDocument {
     RecordPresentationDocument {
         record_key: RecordKey::parse(key).expect("fixture key is valid"),
-        record_family: RecordFamily::Rule,
+        kind: RecordKind::Rule,
         title: name.to_string(),
         identity: vec![
             PresentationFact {

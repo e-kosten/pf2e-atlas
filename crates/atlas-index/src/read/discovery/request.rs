@@ -1,6 +1,6 @@
 use atlas_domain::{
     FilterDiscoveryExecution, FilterFieldDiscovery, FilterValueDiscovery, FilterValuePolicy,
-    FilterValueSort, RecordFamily, SearchFilterNode,
+    FilterValueSort, RecordKind, SearchFilterNode,
 };
 use diesel::SqliteConnection;
 
@@ -100,7 +100,7 @@ pub(super) fn list_filter_values(
 
 fn execution_for(
     filter: Option<&SearchFilterNode>,
-    scope: Option<RecordFamily>,
+    scope: Option<RecordKind>,
 ) -> FilterDiscoveryExecution {
     if scope.is_some() || filter.is_none() {
         FilterDiscoveryExecution::Catalog
@@ -109,9 +109,9 @@ fn execution_for(
     }
 }
 
-fn catalog_scope(filter: Option<&SearchFilterNode>) -> Option<RecordFamily> {
+fn catalog_scope(filter: Option<&SearchFilterNode>) -> Option<RecordKind> {
     match filter {
-        Some(SearchFilterNode::RecordFamily { value }) => Some(*value),
+        Some(SearchFilterNode::RecordKind { value }) => Some(*value),
         _ => None,
     }
 }

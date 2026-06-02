@@ -255,7 +255,7 @@ fn high_value_record_tokens(record: &SearchCandidateRecord) -> Vec<String> {
             .iter()
             .flat_map(|value| tokenize_fts_query(value)),
     );
-    tokens.extend(tokenize_fts_query(record.record_family.as_str()));
+    tokens.extend(tokenize_fts_query(record.kind.as_str()));
     tokens.extend(tokenize_fts_query(&record.foundry_record_type));
     tokens.extend(
         record
@@ -286,7 +286,7 @@ fn token_coverage(query_tokens: &[&str], candidate_tokens: &[&str]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_domain::RecordFamily;
+    use atlas_domain::RecordKind;
 
     fn test_record_key(value: &str) -> atlas_domain::RecordKey {
         atlas_domain::RecordKey::parse(value).expect("fixture record key should parse")
@@ -299,7 +299,7 @@ mod tests {
             name: name.to_string(),
             foundry_record_type: "spell".to_string(),
             traits: traits.iter().map(|value| (*value).to_string()).collect(),
-            record_family: RecordFamily::Spell,
+            kind: RecordKind::Spell,
             taxonomy_families: Vec::new(),
             system_category: None,
             system_group: None,

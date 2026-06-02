@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use atlas_domain::{PackName, RecordId, RecordKey};
+use atlas_domain::{PackName, Rarity, RecordId, RecordKey};
 use serde_json::Value;
 
 mod content;
@@ -43,10 +43,15 @@ pub(crate) use time::{normalize_activation_time, normalize_time_text};
 use crate::error::IngestError;
 use crate::records::metrics;
 use crate::records::{
-    LoadedSourceRecord, NormalizedRecord, SourceConstructionFacts, SourceRecordFacts,
+    ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
+    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+    ItemTypeMechanics, LoadedSourceRecord, RecordActivationTiming, RecordClassification,
+    RecordContent, RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
+    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+    RecordVisibility, SourceConstructionFacts, SourceRecordFacts,
 };
 use crate::source::ManifestPack;
-use crate::source::side_data;
+use crate::source::mechanics;
 
 pub(crate) fn normalize_record(
     manifest_pack: &ManifestPack,
@@ -63,7 +68,6 @@ pub(crate) fn normalize_record(
     let id = RecordId::new(id)
         .map_err(|error| normalization_error(path, &format!("invalid _id: {error}")))?;
     let key = RecordKey::new(pack_name.clone(), id.clone());
-    let normalized_name = normalize_text(&name);
     let record_family =
         classify_record(&manifest_pack.document_type, &record_type).ok_or_else(|| {
             normalization_error(
@@ -79,7 +83,8 @@ pub(crate) fn normalize_record(
             .then(|| pointer_i64(&raw, "/system/details/level/value"))
             .flatten()
     });
-    let rarity = normalized_pointer_string(&raw, "/system/traits/rarity");
+    let rarity = normalized_pointer_string(&raw, "/system/traits/rarity")
+        .and_then(|value| Rarity::from_canonical(&value));
     let traits = extract_traits(&raw);
     let prerequisites = extract_prerequisites(&raw);
     let system_category = normalized_pointer_string(&raw, "/system/category");
@@ -103,19 +108,20 @@ pub(crate) fn normalize_record(
     let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
         .map_err(|message| normalization_error(path, &message))?;
     let actor_data =
-        (manifest_pack.document_type == "Actor").then(|| side_data::extract_actor_side_data(&raw));
+        (manifest_pack.document_type == "Actor").then(|| mechanics::extract_actor_mechanics(&raw));
     let item_data = (manifest_pack.document_type == "Item").then(|| {
-        side_data::extract_item_side_data(
+        mechanics::extract_item_mechanics(
             &raw,
             system_category.clone(),
             system_base_item.clone(),
             system_group.clone(),
             system_usage.clone(),
+            system_price_json.clone(),
             price_cp,
         )
     });
     let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
-        .then(|| side_data::extract_spell_side_data(&raw, &traits));
+        .then(|| mechanics::extract_spell_mechanics(&raw, &traits));
     let publication_title = pointer_string(&raw, "/system/publication/title")
         .or_else(|| pointer_string(&raw, "/system/details/publication/title"));
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster")
@@ -158,53 +164,81 @@ pub(crate) fn normalize_record(
         normalization_error(path, &format!("raw JSON serialization failed: {error}"))
     })?;
     let publication_family = publication_family(pack_name.as_str(), publication_title.as_deref());
+    let activation = activation_time.map(|time| {
+        let source_field = if system_actions_value.is_some() {
+            ActivationTimeSourceField::ActionsValue
+        } else {
+            ActivationTimeSourceField::TimeValue
+        };
+        RecordActivationTiming { time, source_field }
+    });
+    let duration = duration.map(|time| RecordDurationTiming {
+        time,
+        source_field: DurationTimeSourceField::DurationValue,
+    });
+    let mut content_documents = Vec::new();
+    if let Some(document) = content_sources.description {
+        content_documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::Description,
+            label: None,
+            document,
+        });
+    }
+    if let Some(document) = content_sources.blurb {
+        content_documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::Blurb,
+            label: None,
+            document,
+        });
+    }
+    content_documents.extend(std::mem::take(&mut supplemental_content));
+    let document_mechanics = if let Some(actor) = actor_data {
+        FoundryDocumentMechanics::Actor(actor)
+    } else if let Some(mut item) = item_data {
+        item.foundry_type = spell_data.map(ItemTypeMechanics::Spell);
+        FoundryDocumentMechanics::Item(item)
+    } else {
+        FoundryDocumentMechanics::None
+    };
 
-    let record = NormalizedRecord {
-        key,
-        id,
-        name,
-        normalized_name,
-        record_family,
-        pack_name: pack_name.clone(),
-        pack_label: manifest_pack.label.clone(),
-        foundry_document_type: manifest_pack.document_type.clone(),
-        foundry_record_type: record_type,
-        level,
-        rarity,
-        traits,
-        prerequisites,
-        system_category,
-        system_group,
-        system_base_item,
-        system_usage,
-        system_price_json,
-        system_actions_value,
-        system_time_value,
-        system_duration_value,
-        price_cp,
-        activation_time,
-        duration,
-        metrics,
-        actor_data,
-        item_data,
-        spell_data,
-        publication_title,
-        publication_remaster,
-        description: content_sources.description,
-        blurb: content_sources.blurb,
-        supplemental_content: std::mem::take(&mut supplemental_content),
-        publication_family,
-        folder_id,
-        taxonomy_families: Vec::new(),
-        variant_group_key: None,
-        variant_base_name: None,
-        variant_label: None,
-        variant_axes: Vec::new(),
-        variant_confidence: None,
-        variant_source: "none".to_string(),
-        source_path,
-        is_default_visible: true,
-        raw_json,
+    let record = AtlasRecord {
+        identity: RecordIdentity { key, name },
+        classification: RecordClassification {
+            kind: record_family,
+            level,
+            rarity,
+            traits,
+            taxonomy: RecordTaxonomy::default(),
+        },
+        foundry: FoundryRecordInfo {
+            pack_label: manifest_pack.label.clone(),
+            document_type: FoundryDocumentType::from_foundry(&manifest_pack.document_type),
+            record_type: FoundryRecordType::from_foundry(&record_type),
+            folder_id,
+        },
+        provenance: RecordProvenance {
+            source_path,
+            raw_json: Some(raw_json),
+        },
+        publication: RecordPublication {
+            title: publication_title,
+            remaster: publication_remaster,
+            category: publication_family,
+        },
+        requirements: RecordRequirements { prerequisites },
+        timing: RecordTiming {
+            activation,
+            duration,
+        },
+        mechanics: RecordMechanics {
+            metrics,
+            document: document_mechanics,
+        },
+        content: RecordContent {
+            documents: content_documents,
+        },
+        variant: None,
+        visibility: RecordVisibility::default(),
     };
     let facts = SourceConstructionFacts {
         content_parse_diagnostics: content_sources

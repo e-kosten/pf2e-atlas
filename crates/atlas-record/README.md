@@ -1,12 +1,12 @@
 # atlas-record
 
-`atlas-record` owns storage-agnostic normalized record and content models.
+`atlas-record` owns storage-agnostic Atlas record and content models.
 
-This crate defines what a normalized PF2E record is after ingest has interpreted source data, and it owns projections from those models into presentation, rich content traversal, FTS text, section trees, and reference-bearing content.
+This crate defines what an interpreted PF2E Atlas record is after ingest has interpreted source data, and it owns projections from those models into presentation, rich content traversal, FTS text, section trees, and reference-bearing content.
 
 ## Owns
 
-- `NormalizedRecord`, `PersistedRecord`, and related record DTOs.
+- `AtlasRecord` and its identity, classification, Foundry, provenance, publication, mechanics, content, variant, and visibility sections.
 - `ContentDocument` and rich-content traversal/rendering.
 - Content source and visibility semantics.
 - Record presentation documents.

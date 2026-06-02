@@ -5,7 +5,7 @@ use atlas_record::{
 
 use crate::generated::afflictions::AfflictionFamily;
 use crate::records::variants;
-use crate::records::{EmbeddedItemFact, NormalizedRecord, SourceRecordFacts};
+use crate::records::{AtlasRecord, EmbeddedItemFact, SourceRecordFacts};
 use crate::source::normalize::normalize_text;
 
 pub(super) fn detect_affliction_family(
@@ -50,13 +50,14 @@ pub(super) fn has_affliction_shape(document: Option<&ContentDocument>) -> bool {
     normalized.contains("saving throw") && normalized.contains("stage 1")
 }
 
-pub(super) fn record_affliction_document(record: &NormalizedRecord) -> Option<ContentDocument> {
+pub(super) fn record_affliction_document(record: &AtlasRecord) -> Option<ContentDocument> {
     record
-        .description
-        .clone()
-        .or_else(|| supplemental_document(record, ContentSourceKind::DetailsDescription))
+        .content
+        .description()
+        .cloned()
+        .or_else(|| supplemental_document(record, ContentSourceKind::DetailsFieldDescription))
         .or_else(|| supplemental_document(record, ContentSourceKind::PublicNotes))
-        .or_else(|| record.blurb.clone())
+        .or_else(|| record.content.blurb().cloned())
 }
 
 pub(super) fn embedded_item_affliction_document(
@@ -105,11 +106,12 @@ pub(super) fn extract_linked_names(document: Option<&ContentDocument>) -> Vec<St
 }
 
 fn supplemental_document(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     source_kind: ContentSourceKind,
 ) -> Option<ContentDocument> {
     record
-        .supplemental_content
+        .content
+        .documents
         .iter()
         .find(|content| content.source_kind == source_kind)
         .map(|content| content.document.clone())

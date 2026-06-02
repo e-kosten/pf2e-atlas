@@ -3,7 +3,7 @@ pub(crate) mod references;
 pub(crate) mod resolution;
 mod types;
 
-use atlas_record::PersistedRecord;
+use atlas_record::AtlasRecord;
 
 use crate::SearchError;
 
@@ -13,15 +13,10 @@ pub use types::{
 };
 
 pub trait RecordRetrieval {
-    fn get_records(
-        &self,
-        request: GetRecordsRequest<'_>,
-    ) -> Result<Vec<PersistedRecord>, SearchError>;
+    fn get_records(&self, request: GetRecordsRequest<'_>) -> Result<Vec<AtlasRecord>, SearchError>;
 
-    fn get_record(
-        &self,
-        request: GetRecordRequest<'_>,
-    ) -> Result<Option<PersistedRecord>, SearchError>;
+    fn get_record(&self, request: GetRecordRequest<'_>)
+    -> Result<Option<AtlasRecord>, SearchError>;
 
     fn browse_records(
         &self,

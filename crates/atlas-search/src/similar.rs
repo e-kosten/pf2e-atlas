@@ -6,7 +6,7 @@ use atlas_index::{
     FilterReadIndex, RecordEmbeddingVector, ReferenceEdgeDirection, ReferenceReadIndex,
     VectorReadIndex, VectorSearchHit,
 };
-use atlas_record::PersistedRecord;
+use atlas_record::AtlasRecord;
 
 use crate::semantic::collapse_vector_hits;
 use crate::{
@@ -73,13 +73,13 @@ impl SimilarScoreWeights {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimilarRecordResult {
-    pub seed: PersistedRecord,
+    pub seed: AtlasRecord,
     pub records: Vec<SimilarRecord>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimilarRecord {
-    pub record: PersistedRecord,
+    pub record: AtlasRecord,
     pub score: f64,
     pub semantic: SimilarRecordSemanticEvidence,
     pub graph: SimilarRecordGraphEvidence,
@@ -170,12 +170,12 @@ impl SimilarRetrieval for AtlasRetrievalService {
                 record_keys: &candidate_keys,
             })?
             .into_iter()
-            .map(|record| (record.key.clone(), record))
+            .map(|record| (record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
 
         let seed_references = outgoing_reference_keys(self.index.as_ref(), request.seed)?;
         let reference_names = self.reference_names(&seed_references)?;
-        let seed_traits = string_set(&seed.traits);
+        let seed_traits = string_set(&seed.classification.traits);
         let mut ranked = semantic_hits
             .into_iter()
             .filter_map(|hit| {
@@ -203,7 +203,7 @@ impl SimilarRetrieval for AtlasRetrievalService {
                         .rank_distance
                         .total_cmp(&right.semantic.rank_distance)
                 })
-                .then_with(|| left.record.key.cmp(&right.record.key))
+                .then_with(|| left.record.identity.key.cmp(&right.record.identity.key))
         });
         ranked.truncate(request.limit as usize);
 
@@ -262,20 +262,21 @@ impl AtlasRetrievalService {
                 record_keys: &reference_keys.iter().cloned().collect::<Vec<_>>(),
             })?
             .into_iter()
-            .map(|record| (record.key, record.name))
+            .map(|record| (record.identity.key, record.identity.name))
             .collect())
     }
 
     fn similar_record_for_hit(
         &self,
         hit: SemanticSearchHit,
-        record: PersistedRecord,
+        record: AtlasRecord,
         seed_references: &BTreeSet<RecordKey>,
         reference_names: &BTreeMap<RecordKey, String>,
         seed_traits: &BTreeSet<String>,
         weights: SimilarScoreWeights,
     ) -> Result<SimilarRecord, SearchError> {
-        let candidate_references = outgoing_reference_keys(self.index.as_ref(), &record.key)?;
+        let candidate_references =
+            outgoing_reference_keys(self.index.as_ref(), &record.identity.key)?;
         let shared_references = seed_references
             .intersection(&candidate_references)
             .map(|key| SimilarSharedReference {
@@ -286,7 +287,7 @@ impl AtlasRetrievalService {
                     .unwrap_or_else(|| key.to_string()),
             })
             .collect::<Vec<_>>();
-        let candidate_traits = string_set(&record.traits);
+        let candidate_traits = string_set(&record.classification.traits);
         let shared_traits = seed_traits
             .intersection(&candidate_traits)
             .cloned()

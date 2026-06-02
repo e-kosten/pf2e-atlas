@@ -149,7 +149,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
     };
     let by_key = records
         .into_iter()
-        .map(|record| (record.key.to_string(), record))
+        .map(|record| (record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -435,7 +435,7 @@ fn print_single_record(record: &atlas_record::RecordJson, detail: DetailLevel) {
         print_record_for_detail(record, detail);
         return;
     }
-    println!("{}\t{}\t{}", record.key, record.name, record.record_family);
+    println!("{}\t{}\t{}", record.key, record.name, record.kind);
 }
 
 fn print_record_get_batch(batch: &BatchRecordBody, detail: DetailLevel) {
@@ -555,7 +555,7 @@ fn print_record_header(record: &atlas_record::RecordJson, style: TerminalStyle) 
         "{}  {}  {}{}",
         style.metadata(&record.key),
         style.label(&record.name),
-        record.record_family,
+        record.kind,
         level
     );
 }

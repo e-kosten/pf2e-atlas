@@ -96,7 +96,7 @@ pub(crate) fn build_generated_afflictions(
             })?;
             let canonical_key = RecordKey::new(canonical_pack_name.clone(), canonical_record_id);
             let canonical_description = authoritative_record
-                .and_then(|record| record.description.clone())
+                .and_then(|record| record.content.description().cloned())
                 .or_else(|| representative.description.clone());
             let canonical_description_markup = canonical_description
                 .as_ref()
@@ -105,7 +105,7 @@ pub(crate) fn build_generated_afflictions(
             let representative_instance_key = cluster.first().map(|occurrence| {
                 let instance_id = hash_text(&format!(
                     "{}:{}:{}",
-                    identity_key, occurrence.host_record.key, occurrence.occurrence_ref
+                    identity_key, occurrence.host_record.identity.key, occurrence.occurrence_ref
                 ));
                 format!("{DERIVED_AFFLICTION_INSTANCES_PACK_NAME}:{instance_id}")
             });
@@ -141,22 +141,22 @@ pub(crate) fn build_generated_afflictions(
                 family,
                 traits: all_traits.clone(),
                 description: canonical_description,
-                blurb: authoritative_record.and_then(|record| record.blurb.clone()),
+                blurb: authoritative_record.and_then(|record| record.content.blurb().cloned()),
                 level: authoritative_record
-                    .and_then(|record| record.level)
-                    .or(representative.host_record.level),
+                    .and_then(|record| record.classification.level)
+                    .or(representative.host_record.classification.level),
                 rarity: authoritative_record
-                    .and_then(|record| record.rarity.clone())
-                    .or_else(|| representative.host_record.rarity.clone()),
+                    .and_then(|record| record.classification.rarity)
+                    .or(representative.host_record.classification.rarity),
                 publication_title: authoritative_record
-                    .and_then(|record| record.publication_title.clone())
-                    .or_else(|| representative.host_record.publication_title.clone()),
+                    .and_then(|record| record.publication.title.clone())
+                    .or_else(|| representative.host_record.publication.title.clone()),
                 publication_remaster: authoritative_record
-                    .map(|record| record.publication_remaster)
-                    .unwrap_or(representative.host_record.publication_remaster),
-                publication_family: authoritative_record
-                    .map(|record| record.publication_family)
-                    .unwrap_or(representative.host_record.publication_family),
+                    .map(|record| record.publication.remaster)
+                    .unwrap_or(representative.host_record.publication.remaster),
+                category: authoritative_record
+                    .map(|record| record.publication.category)
+                    .unwrap_or(representative.host_record.publication.category),
                 source_path: format!("derived://afflictions/{}", canonical_key.id()),
                 is_default_visible: true,
                 raw: canonical_raw,
@@ -166,7 +166,7 @@ pub(crate) fn build_generated_afflictions(
             for occurrence in &cluster {
                 let instance_id = hash_text(&format!(
                     "{}:{}:{}",
-                    identity_key, occurrence.host_record.key, occurrence.occurrence_ref
+                    identity_key, occurrence.host_record.identity.key, occurrence.occurrence_ref
                 ));
                 let instance_record_id = RecordId::new(instance_id.clone()).map_err(|error| {
                     GeneratedAfflictionError::InvalidRecordId {
@@ -193,24 +193,24 @@ pub(crate) fn build_generated_afflictions(
                     level: occurrence
                         .source_record
                         .as_ref()
-                        .and_then(|record| record.level)
-                        .or(occurrence.host_record.level),
+                        .and_then(|record| record.classification.level)
+                        .or(occurrence.host_record.classification.level),
                     rarity: occurrence
                         .source_record
                         .as_ref()
-                        .and_then(|record| record.rarity.clone())
-                        .or_else(|| occurrence.host_record.rarity.clone()),
+                        .and_then(|record| record.classification.rarity)
+                        .or(occurrence.host_record.classification.rarity),
                     publication_title: occurrence
                         .source_record
                         .as_ref()
-                        .and_then(|record| record.publication_title.clone())
-                        .or_else(|| occurrence.host_record.publication_title.clone()),
+                        .and_then(|record| record.publication.title.clone())
+                        .or_else(|| occurrence.host_record.publication.title.clone()),
                     publication_remaster: occurrence
                         .source_record
                         .as_ref()
-                        .map(|record| record.publication_remaster)
-                        .unwrap_or(occurrence.host_record.publication_remaster),
-                    publication_family: occurrence.host_record.publication_family,
+                        .map(|record| record.publication.remaster)
+                        .unwrap_or(occurrence.host_record.publication.remaster),
+                    category: occurrence.host_record.publication.category,
                     source_path: occurrence.source_path.clone(),
                     is_default_visible: false,
                     raw: instance_raw,
@@ -226,7 +226,7 @@ pub(crate) fn build_generated_afflictions(
         }
     }
 
-    generated_records.sort_by_key(|loaded| loaded.record.key.to_string());
+    generated_records.sort_by_key(|loaded| loaded.record.identity.key.to_string());
     generated_references.sort_by(|left, right| {
         (
             left.from_record_key.to_string(),

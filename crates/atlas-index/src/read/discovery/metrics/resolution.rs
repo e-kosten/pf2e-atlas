@@ -1,4 +1,4 @@
-use atlas_domain::{MetricKeyDiscovery, RecordFamily, SearchFilterNode};
+use atlas_domain::{MetricKeyDiscovery, RecordKind, SearchFilterNode};
 use diesel::SqliteConnection;
 
 use super::catalog::catalog_metric_keys;
@@ -54,7 +54,7 @@ fn resolve_filter_metric_node(
         SearchFilterNode::Not { child } => Ok(SearchFilterNode::not_of(
             resolve_filter_metric_node(child, candidates)?,
         )),
-        SearchFilterNode::RecordFamily { .. }
+        SearchFilterNode::RecordKind { .. }
         | SearchFilterNode::LinksTo { .. }
         | SearchFilterNode::LinkedFrom { .. }
         | SearchFilterNode::MetadataPredicate { .. } => Ok(node.clone()),
@@ -144,9 +144,9 @@ fn metric_resolution_scope(filter: &SearchFilterNode) -> Option<MetricCatalogSco
     }
 }
 
-fn collect_record_families(filter: &SearchFilterNode, families: &mut Vec<RecordFamily>) {
+fn collect_record_families(filter: &SearchFilterNode, families: &mut Vec<RecordKind>) {
     match filter {
-        SearchFilterNode::RecordFamily { value } => families.push(*value),
+        SearchFilterNode::RecordKind { value } => families.push(*value),
         SearchFilterNode::AllOf { children } => {
             for child in children {
                 collect_record_families(child, families);

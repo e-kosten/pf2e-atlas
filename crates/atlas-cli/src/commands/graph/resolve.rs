@@ -47,7 +47,9 @@ pub(super) fn resolve_graph_record_ref(
         write_record_resolution_ambiguity(record_ref, &matches, json)?;
         return Ok(GraphCommandOutcome::Exit(ExitCode::from(1)));
     }
-    Ok(GraphCommandOutcome::Value(matches[0].record.key.clone()))
+    Ok(GraphCommandOutcome::Value(
+        matches[0].record.identity.key.clone(),
+    ))
 }
 
 pub(super) fn resolve_graph_variant_group(
@@ -70,7 +72,7 @@ pub(super) fn resolve_graph_variant_group(
         Err(error) => return graph_search_error(error, json),
     };
     if matches.len() == 1 {
-        let key = &matches[0].record.key;
+        let key = &matches[0].record.identity.key;
         return match service.variant_group(VariantGroupRequest { record_key: key }) {
             Ok(Some(result)) => Ok(GraphCommandOutcome::Value(result)),
             Ok(None) => record_not_found(key, json).map(GraphCommandOutcome::Exit),
@@ -222,7 +224,7 @@ fn write_variant_group_ambiguity(
             let first_name = group
                 .variants
                 .first()
-                .map(|record| record.name.as_str())
+                .map(|record| record.identity.name.as_str())
                 .unwrap_or("<empty>");
             format!("{group_key} ({first_name})")
         })

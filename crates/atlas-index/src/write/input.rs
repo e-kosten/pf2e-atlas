@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use atlas_domain::PackName;
 use atlas_embedding::{GeneratedDocumentEmbedding, PendingDocumentEmbedding};
-use atlas_record::{NormalizedRecord, RecordAlias, ReferenceEdge, RemasterLink};
+use atlas_record::{AtlasRecord, RecordAlias, ReferenceEdge, RemasterLink};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub struct IndexBuildInput {
     pub source_signature: String,
     pub source_record_count: usize,
     pub packs: Vec<IndexBuildPack>,
-    pub records: Vec<NormalizedRecord>,
+    pub records: Vec<AtlasRecord>,
     pub references: Vec<ReferenceEdge>,
     pub aliases: Vec<RecordAlias>,
     pub remaster_links: Vec<RemasterLink>,

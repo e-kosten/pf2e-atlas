@@ -7,7 +7,7 @@ use atlas_record::{
 };
 
 use crate::records::{
-    LoadedSourceRecord, NormalizedRecord, RecordReferenceIndex, ReferenceCandidate, ReferenceEdge,
+    AtlasRecord, LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate, ReferenceEdge,
 };
 use crate::source::normalize::{normalize_text, parse_foundry_content};
 
@@ -15,34 +15,36 @@ pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> Re
     let mut index = RecordReferenceIndex::default();
     for loaded in records {
         let record = &loaded.record;
-        index.by_key.insert(record.key.to_string(), record.clone());
+        index
+            .by_key
+            .insert(record.identity.key.to_string(), record.clone());
         index.by_pack_id.insert(
             (
-                record.pack_name.as_str().to_string(),
-                record.id.as_str().to_string(),
+                record.identity.pack().as_str().to_string(),
+                record.identity.id().as_str().to_string(),
             ),
-            record.key.clone(),
+            record.identity.key.clone(),
         );
         index.by_pack_id.insert(
             (
-                normalize_text(record.pack_name.as_str()),
-                normalize_text(record.id.as_str()),
+                normalize_text(record.identity.pack().as_str()),
+                normalize_text(record.identity.id().as_str()),
             ),
-            record.key.clone(),
+            record.identity.key.clone(),
         );
         index
             .by_pack_name
             .entry((
-                record.pack_name.as_str().to_string(),
-                record.normalized_name.clone(),
+                record.identity.pack().as_str().to_string(),
+                record.identity.normalized_name(),
             ))
             .or_default()
-            .push(record.key.clone());
+            .push(record.identity.key.clone());
         index
             .by_name
-            .entry(record.normalized_name.clone())
+            .entry(record.identity.normalized_name())
             .or_default()
-            .push(record.key.clone());
+            .push(record.identity.key.clone());
     }
     index
 }
@@ -87,14 +89,10 @@ pub(crate) fn resolve_content_references(
 ) {
     for loaded in records {
         let record = &mut loaded.record;
-        if let Some(document) = &mut record.description {
-            resolve_document_references(document, index);
-        }
-        if let Some(document) = &mut record.blurb {
-            resolve_document_references(document, index);
-        }
-        for supplemental in &mut record.supplemental_content {
-            resolve_document_references(&mut supplemental.document, index);
+        for content in &mut record.content.documents {
+            if content.contributes_to_references() {
+                resolve_document_references(&mut content.document, index);
+            }
         }
     }
 }
@@ -106,12 +104,12 @@ fn resolve_document_references(document: &mut ContentDocument, index: &RecordRef
             .resolved_key
             .as_ref()
             .and_then(|record_key| record_by_key(index, record_key))
-            .map(|record| record.name.clone());
+            .map(|record| record.identity.name.clone());
     });
 }
 
 fn collect_document_reference_edges(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     source_kind: ContentSourceKind,
     visibility: ContentVisibility,
     document: &ContentDocument,
@@ -124,14 +122,14 @@ fn collect_document_reference_edges(
         };
         let reference_text = reference_text(reference);
         let dedupe_key = (
-            record.key.to_string(),
+            record.identity.key.to_string(),
             to_record_key.to_string(),
             reference_text.clone(),
             source_kind.as_str().to_string(),
         );
         if seen.insert(dedupe_key) {
             references.push(ReferenceEdge {
-                from_record_key: record.key.clone(),
+                from_record_key: record.identity.key.clone(),
                 to_record_key: to_record_key.clone(),
                 display_text: reference_display_text(reference),
                 reference_text,
@@ -143,31 +141,13 @@ fn collect_document_reference_edges(
 }
 
 fn record_content_documents(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
 ) -> Vec<(ContentSourceKind, ContentVisibility, &ContentDocument)> {
-    let mut documents = Vec::new();
-    if let Some(document) = &record.description {
-        documents.push((
-            ContentSourceKind::Description,
-            ContentVisibility::Public,
-            document,
-        ));
-    }
-    if let Some(document) = &record.blurb {
-        documents.push((
-            ContentSourceKind::Blurb,
-            ContentVisibility::Public,
-            document,
-        ));
-    }
-    documents.extend(
-        record
-            .supplemental_content
-            .iter()
-            .filter(|content| content.contributes_to_references)
-            .map(|content| (content.source_kind, content.visibility, &content.document)),
-    );
-    documents
+    record
+        .content
+        .reference_documents()
+        .map(|content| (content.source_kind, content.visibility(), &content.document))
+        .collect()
 }
 
 fn resolve_content_reference(
@@ -252,7 +232,7 @@ pub(crate) fn resolve_record_key(
 pub(crate) fn record_by_key<'a>(
     index: &'a RecordReferenceIndex,
     record_key: &RecordKey,
-) -> Option<&'a NormalizedRecord> {
+) -> Option<&'a AtlasRecord> {
     index.by_key.get(&record_key.to_string())
 }
 

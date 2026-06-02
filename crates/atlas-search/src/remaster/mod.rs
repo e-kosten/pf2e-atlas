@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
 use atlas_index::{IndexRemasterLinks, RemasterReadIndex};
-use atlas_record::PersistedRecord;
+use atlas_record::AtlasRecord;
 
 use crate::{AtlasRetrievalService, GetRecordsRequest, RecordRetrieval, SearchError};
 
@@ -13,14 +13,14 @@ pub struct RemasterLinksRequest<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemasterLinksResult {
-    pub seed: PersistedRecord,
+    pub seed: AtlasRecord,
     pub links: Vec<RemasterLinkResult>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemasterLinkResult {
-    pub remaster_record: PersistedRecord,
-    pub legacy_record: PersistedRecord,
+    pub remaster_record: AtlasRecord,
+    pub legacy_record: AtlasRecord,
     pub source: RemasterLinkSource,
     pub source_ref: String,
 }
@@ -64,7 +64,7 @@ impl RemasterRetrieval for AtlasRetrievalService {
                         record_keys: &record_keys,
                     })?
                     .into_iter()
-                    .map(|record| (record.key.clone(), record))
+                    .map(|record| (record.identity.key.clone(), record))
                     .collect::<BTreeMap<_, _>>();
                 links
                     .links

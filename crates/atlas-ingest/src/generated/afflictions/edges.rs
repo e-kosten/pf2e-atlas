@@ -11,7 +11,7 @@ pub(super) fn generated_affliction_edges(
 ) -> [ReferenceEdge; 3] {
     [
         ReferenceEdge {
-            from_record_key: occurrence.host_record.key.clone(),
+            from_record_key: occurrence.host_record.identity.key.clone(),
             to_record_key: instance_key.clone(),
             display_text: Some(occurrence.name.clone()),
             reference_text: format!("derived-affliction-instance:{instance_key}"),
@@ -28,11 +28,11 @@ pub(super) fn generated_affliction_edges(
         },
         ReferenceEdge {
             from_record_key: canonical_key.clone(),
-            to_record_key: occurrence.host_record.key.clone(),
-            display_text: Some(occurrence.host_record.name.clone()),
+            to_record_key: occurrence.host_record.identity.key.clone(),
+            display_text: Some(occurrence.host_record.identity.name.clone()),
             reference_text: format!(
                 "derived-affliction-host:{}:{instance_key}",
-                occurrence.host_record.key
+                occurrence.host_record.identity.key
             ),
             source_kind: ContentSourceKind::GeneratedAffliction,
             visibility: ContentVisibility::Public,

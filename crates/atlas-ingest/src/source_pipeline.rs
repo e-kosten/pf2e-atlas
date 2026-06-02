@@ -44,7 +44,7 @@ pub(crate) fn load_foundry_source(
         let canonical_count = generated_afflictions
             .records
             .iter()
-            .filter(|loaded| loaded.record.is_default_visible)
+            .filter(|loaded| loaded.record.visibility.visible_by_default())
             .count();
         let instance_count = generated_afflictions.records.len() - canonical_count;
         source.diagnostics.generated_affliction_canonical_records = canonical_count;
@@ -93,7 +93,7 @@ pub(crate) fn load_foundry_source(
     );
     let reference_index = build_record_reference_index(&source.records);
     resolve_content_references(&mut source.records, &reference_index);
-    taxonomy::assign_taxonomy_families(
+    taxonomy::assign_inferred_taxonomy_groups(
         &mut source.records,
         &source.packs,
         &reference_index,

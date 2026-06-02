@@ -30,7 +30,7 @@ pub(super) fn read_search_candidate_records_by_keys(
                 key: parse_record_key(&row.record_key)?,
                 name: row.name,
                 traits: json_string_array("records.traits_json", &row.traits_json)?,
-                record_family: parse_record_family(&row.record_family)?,
+                kind: parse_record_family(&row.record_family)?,
                 foundry_record_type: row.foundry_record_type,
                 taxonomy_families: json_string_array(
                     "records.taxonomy_families_json",

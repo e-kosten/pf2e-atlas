@@ -20,7 +20,7 @@ use crate::document_units::model::{PendingDocumentEmbedding, PendingDocumentEmbe
 fn child_embedding_sources_are_limited_to_rich_content() {
     assert!(is_child_embedding_source(ContentSourceKind::Description));
     assert!(is_child_embedding_source(
-        ContentSourceKind::DetailsDescription
+        ContentSourceKind::DetailsFieldDescription
     ));
     assert!(is_child_embedding_source(ContentSourceKind::PublicNotes));
     assert!(!is_child_embedding_source(ContentSourceKind::Blurb));

@@ -68,7 +68,7 @@ flowchart LR
     embedPrep --> writer
     writer --> sqlite["Rust SQLite artifact"]
 
-    record["atlas-record<br/>NormalizedRecord + ContentDocument"] -. model .-> normalize
+    record["atlas-record<br/>AtlasRecord + ContentDocument"] -. model .-> normalize
     artifactSchema["atlas-index Diesel schema,<br/>migrations, and discovery policy"] -. schema/catalog policy .-> writer
     embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
     sqliteVec["atlas-sqlite-vec<br/>vector table capability"] -. capability .-> writer
@@ -76,7 +76,7 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
-Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `NormalizedRecord.raw_json`; reference, FTS, and embedding projections continue to consume the normalized `ContentDocument` and supplemental-content outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
+Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections continue to consume the normalized `ContentDocument` and supplemental-content outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
 
 ## Content, Search, And Reference Projections
 

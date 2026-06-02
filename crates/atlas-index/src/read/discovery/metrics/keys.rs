@@ -52,7 +52,7 @@ pub(super) fn metric_candidates(metrics: &[MetricKeyDiscovery]) -> String {
         .map(|metric| {
             format!(
                 "{} ({}, {}, {})",
-                metric.metric_key, metric.metric_domain, metric.record_family, metric.value_type
+                metric.metric_key, metric.metric_domain, metric.kind, metric.value_type
             )
         })
         .collect::<Vec<_>>()
@@ -83,7 +83,7 @@ pub(super) fn metric_key_from_parts(
         .map(|matched| matched.definition.group().as_str().to_string());
     Ok(MetricKeyDiscovery {
         metric_domain: metric_domain_string(domain),
-        record_family,
+        kind: record_family,
         namespace_prefix: metric_key
             .split_once('.')
             .map(|(prefix, _)| format!("{prefix}."))

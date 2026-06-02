@@ -39,7 +39,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert_eq!(get_data["detail"], "standard");
     assert_eq!(get_data["record"]["key"], "actions:testAction0001");
     assert_eq!(get_data["record"]["name"], "Treat Wounds");
-    assert_eq!(get_data["record"]["record_family"], "rule");
+    assert_eq!(get_data["record"]["kind"], "rule");
     assert!(record_sections(&get_data["record"]).contains(&"description"));
     assert!(!record_sections(&get_data["record"]).contains(&"description_preview"));
     assert!(get_data["record"].get("source_json").is_none());
@@ -607,7 +607,7 @@ fn tooling_records_are_hidden_from_default_resolution_and_search_but_gettable_by
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["result"]["record"]["key"], "actions:testAction0001");
-    assert_eq!(data["result"]["record"]["record_family"], "rule");
+    assert_eq!(data["result"]["record"]["kind"], "rule");
 
     let search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["search", "--index"])
@@ -674,7 +674,7 @@ fn tooling_records_are_hidden_from_default_resolution_and_search_but_gettable_by
     let get_json: Value = serde_json::from_slice(&get_output.stdout)?;
     let get_data = ok_data(&get_json);
     assert_eq!(get_data["record"]["key"], "pf2e-macros:macroTreatWounds");
-    assert_eq!(get_data["record"]["record_family"], "tooling");
+    assert_eq!(get_data["record"]["kind"], "tooling");
 
     fs::remove_dir_all(root)?;
     Ok(())
