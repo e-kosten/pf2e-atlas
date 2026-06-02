@@ -8,7 +8,7 @@ pub mod record;
 pub mod record_key;
 pub mod search_request;
 
-pub use categories::RecordFamily;
+pub use categories::RecordKind;
 pub use detail::DetailLevel;
 pub use discovery::{
     BooleanFieldCounts, FilterDiscoveryExecution, FilterFieldDiscovery, FilterFieldGroup,
@@ -22,8 +22,9 @@ pub use metadata::{
     MetadataStringMatch, MetadataTextMatch, MetadataTextStringField, NumericMetricOperator,
 };
 pub use record::{
-    ActionCost, Level, MetricDomain, MetricValueType, Publication, PublicationFamily, Rarity,
+    ActionCost, Level, MetricDomain, MetricValueType, Publication, PublicationCategory, Rarity,
     RecordSummary, RemasterLinkSource, SourceProvenance, TextStatus, TimeKind, TimeUnit,
+    normalize_record_name,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 pub use search_request::{

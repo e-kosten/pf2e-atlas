@@ -109,7 +109,7 @@ fn resolve_journal_targets(cell_html: &str, index: &RecordReferenceIndex) -> Vec
             continue;
         };
         if record_by_key(index, &record_key)
-            .is_some_and(|record| record.foundry_document_type != "JournalEntry")
+            .is_some_and(|record| record.foundry.document_type.as_str() != "JournalEntry")
         {
             targets.push(record_key);
         }
@@ -128,7 +128,7 @@ fn resolve_alias_source_name(cell_html: &str, index: &RecordReferenceIndex) -> O
         .next()?;
     let (pack_name, locator) = reference_pack_and_locator(&candidate.raw_target)?;
     let record_key = resolve_record_key(Some(&pack_name), &locator, index)?;
-    record_by_key(index, &record_key).map(|record| record.name.clone())
+    record_by_key(index, &record_key).map(|record| record.identity.name.clone())
 }
 
 fn split_remaster_intro_alias_segment(plain_text: &str) -> String {

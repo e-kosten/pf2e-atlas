@@ -3,8 +3,8 @@ use diesel::prelude::*;
 
 use crate::IndexWriteError;
 use atlas_record::{
-    ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator, ContentSourceKind,
-    ContentVisibility, NormalizedRecord, RecordAlias, ReferenceEdge, RemasterLink,
+    AtlasRecord, ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator,
+    ContentSourceKind, ContentVisibility, RecordAlias, ReferenceEdge, RemasterLink,
     iter_content_references, render_plain_text,
 };
 
@@ -37,11 +37,11 @@ pub(super) fn write_reference_edges(
 
 pub(super) fn write_reference_occurrences(
     connection: &mut SqliteConnection,
-    records: &[NormalizedRecord],
+    records: &[AtlasRecord],
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
     for record in records {
-        if let Some(document) = &record.description {
+        if let Some(document) = record.content.description() {
             collect_document_reference_occurrences(
                 &mut rows,
                 record,
@@ -51,7 +51,7 @@ pub(super) fn write_reference_occurrences(
                 document,
             )?;
         }
-        if let Some(document) = &record.blurb {
+        if let Some(document) = record.content.blurb() {
             collect_document_reference_occurrences(
                 &mut rows,
                 record,
@@ -61,14 +61,25 @@ pub(super) fn write_reference_occurrences(
                 document,
             )?;
         }
-        for (ordinal, supplemental) in record.supplemental_content.iter().enumerate() {
-            if supplemental.contributes_to_references {
+        for (ordinal, supplemental) in record
+            .content
+            .documents
+            .iter()
+            .filter(|content| {
+                !matches!(
+                    content.source_kind,
+                    ContentSourceKind::Description | ContentSourceKind::Blurb
+                )
+            })
+            .enumerate()
+        {
+            if supplemental.contributes_to_references() {
                 collect_document_reference_occurrences(
                     &mut rows,
                     record,
                     &supplemental_content_key(ordinal),
                     supplemental.source_kind,
-                    supplemental.visibility,
+                    supplemental.visibility(),
                     &supplemental.document,
                 )?;
             }
@@ -85,7 +96,7 @@ pub(super) fn write_reference_occurrences(
 
 fn collect_document_reference_occurrences(
     rows: &mut Vec<ReferenceOccurrenceRow>,
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     content_key: &str,
     source_kind: ContentSourceKind,
     visibility: ContentVisibility,
@@ -97,7 +108,7 @@ fn collect_document_reference_occurrences(
             continue;
         };
         rows.push(ReferenceOccurrenceRow {
-            record_key: record.key.to_string(),
+            record_key: record.identity.key.to_string(),
             content_key: content_key.to_string(),
             occurrence_ordinal,
             target_record_key: target_record_key.to_string(),

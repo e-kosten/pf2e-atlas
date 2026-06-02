@@ -11,7 +11,7 @@ pub(super) fn print_graph_links(
 ) {
     println!(
         "{}\t{}\t{}",
-        data.seed.record.key, data.seed.record.name, data.seed.record.record_family
+        data.seed.record.key, data.seed.record.name, data.seed.record.kind
     );
     print_section("Outgoing", &data.outgoing, outgoing_limit, true);
     print_section("Backlinks", &data.backlinks, backlink_limit, false);
@@ -20,7 +20,7 @@ pub(super) fn print_graph_links(
 pub(super) fn print_graph_uses(data: &GraphUsesData, limit: usize) {
     println!(
         "{}\t{}\t{}",
-        data.seed.record.key, data.seed.record.name, data.seed.record.record_family
+        data.seed.record.key, data.seed.record.name, data.seed.record.kind
     );
     print_section("Uses", &data.uses, limit, false);
 }
@@ -29,7 +29,7 @@ pub(super) fn print_graph_variants(data: &GraphVariantsData) {
     if let Some(seed) = &data.seed {
         println!(
             "{}\t{}\t{}",
-            seed.record.key, seed.record.name, seed.record.record_family
+            seed.record.key, seed.record.name, seed.record.kind
         );
     }
     let Some(group_key) = &data.variant_group_key else {
@@ -55,7 +55,7 @@ pub(super) fn print_graph_variants(data: &GraphVariantsData) {
         };
         println!(
             "-{} {}\t{}\t{}\tlabel={label}\taxes={axes}",
-            current, variant.record.key, variant.record.name, variant.record.record_family
+            current, variant.record.key, variant.record.name, variant.record.kind
         );
     }
 }
@@ -63,7 +63,7 @@ pub(super) fn print_graph_variants(data: &GraphVariantsData) {
 pub(super) fn print_graph_remaster(data: &GraphRemasterData) {
     println!(
         "{}\t{}\t{}",
-        data.seed.record.key, data.seed.record.name, data.seed.record.record_family
+        data.seed.record.key, data.seed.record.name, data.seed.record.kind
     );
     if data.links.is_empty() {
         println!("Remaster links: none");

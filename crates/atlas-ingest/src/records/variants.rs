@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use atlas_domain::RecordFamily;
+use atlas_domain::RecordKind;
 use atlas_record::render_plain_text;
 
 mod labels;
@@ -13,7 +13,9 @@ use labels::{
 use crate::diagnostics::IngestDiagnostics;
 use crate::diagnostics::{VariantCandidate, VariantDiagnosticSource};
 use crate::records::references::record_by_key;
-use crate::records::{LoadedSourceRecord, NormalizedRecord, RecordReferenceIndex};
+use crate::records::{
+    AtlasRecord, LoadedSourceRecord, RecordReferenceIndex, RecordVariantMembership, VariantSource,
+};
 use crate::source::normalize::normalize_text;
 
 pub(crate) fn assign_variant_groups(
@@ -53,7 +55,7 @@ pub(crate) fn assign_variant_groups(
                     base_name: base_name.clone(),
                     label: None,
                     axes: Vec::new(),
-                    source: "composite",
+                    source: VariantSource::ExactBase,
                     diagnostic_source: VariantDiagnosticSource::ExactBase,
                     confidence: 0.62,
                 },
@@ -84,11 +86,13 @@ pub(crate) fn assign_variant_groups(
                 .flat_map(|(_index, candidate)| candidate.axes.clone())
                 .collect(),
         );
-        let source = if members
-            .iter()
-            .any(|(_index, candidate)| candidate.source == "composite")
-        {
-            "composite"
+        let source = if members.iter().any(|(_index, candidate)| {
+            matches!(
+                candidate.source,
+                VariantSource::CreatureBlurb | VariantSource::ExactBase
+            )
+        }) {
+            VariantSource::CreatureBlurb
         } else {
             members[0].1.source
         };
@@ -116,30 +120,32 @@ pub(crate) fn assign_variant_groups(
                 }
             }
             let record = &mut records[member_index].record;
-            record.variant_group_key = Some(group_key.clone());
-            record.variant_base_name = Some(base_name.clone());
-            record.variant_label = candidate.label;
-            record.variant_axes = axes.clone();
-            record.variant_confidence = Some(confidence);
-            record.variant_source = source.to_string();
+            record.variant = Some(RecordVariantMembership {
+                group_key: group_key.clone(),
+                base_name: base_name.clone(),
+                label: candidate.label,
+                axes: axes.clone(),
+                confidence: Some(confidence),
+                source,
+            });
             assigned_indices.insert(member_index);
         }
     }
 }
 
 fn variant_candidate(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     index: &RecordReferenceIndex,
     known_creature_base_names: &BTreeSet<String>,
 ) -> Option<VariantCandidate> {
-    match record.record_family {
-        RecordFamily::Creature => {
+    match record.classification.kind {
+        RecordKind::Creature => {
             parse_creature_variant_candidate(record, index, known_creature_base_names)
-                .or_else(|| parse_parenthetical_variant_candidate(&record.name))
+                .or_else(|| parse_parenthetical_variant_candidate(&record.identity.name))
         }
-        RecordFamily::Equipment | RecordFamily::Spell => {
-            parse_parenthetical_variant_candidate(&record.name)
-                .or_else(|| parse_trailing_suffix_variant_candidate(&record.name))
+        RecordKind::Equipment | RecordKind::Spell => {
+            parse_parenthetical_variant_candidate(&record.identity.name)
+                .or_else(|| parse_trailing_suffix_variant_candidate(&record.identity.name))
         }
         _ => None,
     }
@@ -149,8 +155,8 @@ fn known_creature_variant_base_names(records: &[LoadedSourceRecord]) -> BTreeSet
     records
         .iter()
         .map(|loaded| &loaded.record)
-        .filter(|record| record.record_family == RecordFamily::Creature)
-        .filter_map(|record| parse_parenthetical_variant_candidate(&record.name))
+        .filter(|record| record.classification.kind == RecordKind::Creature)
+        .filter_map(|record| parse_parenthetical_variant_candidate(&record.identity.name))
         .map(|candidate| normalize_text(&candidate.base_name))
         .filter(|base_name| !base_name.is_empty())
         .collect()
@@ -173,7 +179,7 @@ fn parse_parenthetical_variant_candidate(name: &str) -> Option<VariantCandidate>
         base_name: remainder,
         label: Some(labels.join(", ")),
         axes: infer_variant_axes(&labels),
-        source: "namePattern",
+        source: VariantSource::Parenthetical,
         diagnostic_source: VariantDiagnosticSource::Parenthetical,
         confidence: 0.6,
     })
@@ -210,14 +216,14 @@ fn parse_trailing_suffix_variant_candidate(name: &str) -> Option<VariantCandidat
         base_name,
         label: Some(label),
         axes,
-        source: "namePattern",
+        source: VariantSource::NamePattern,
         diagnostic_source: VariantDiagnosticSource::Suffix,
         confidence: 0.74,
     })
 }
 
 fn parse_creature_variant_candidate(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     index: &RecordReferenceIndex,
     known_creature_base_names: &BTreeSet<String>,
 ) -> Option<VariantCandidate> {
@@ -226,11 +232,11 @@ fn parse_creature_variant_candidate(
 }
 
 fn parse_creature_blurb_variant_candidate(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     index: &RecordReferenceIndex,
     known_creature_base_names: &BTreeSet<String>,
 ) -> Option<VariantCandidate> {
-    let blurb = record.blurb.as_ref().map(render_plain_text)?;
+    let blurb = record.content.blurb().map(render_plain_text)?;
     let tokens = normalize_text(&blurb)
         .split_whitespace()
         .map(ToOwned::to_owned)
@@ -264,6 +270,7 @@ fn parse_creature_blurb_variant_candidate(
         if is_gender_only(&label_tokens)
             && base_record.is_some_and(|record| {
                 record
+                    .classification
                     .traits
                     .iter()
                     .any(|trait_value| trait_value == "humanoid")
@@ -280,7 +287,7 @@ fn parse_creature_blurb_variant_candidate(
             base_name,
             label,
             axes: infer_variant_axes(&cleaned_labels),
-            source: "composite",
+            source: VariantSource::CreatureBlurb,
             diagnostic_source: VariantDiagnosticSource::CreatureBlurb,
             confidence: 0.86,
         });
@@ -289,7 +296,7 @@ fn parse_creature_blurb_variant_candidate(
 }
 
 fn parse_creature_suffix_variant_candidate(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     index: &RecordReferenceIndex,
 ) -> Option<VariantCandidate> {
     const ALLOWLIST: &[(&str, &str)] = &[
@@ -298,12 +305,13 @@ fn parse_creature_suffix_variant_candidate(
         ("wight", "wight"),
         ("wraith", "wraith"),
     ];
-    let normalized_name = normalize_text(&record.name);
+    let normalized_name = normalize_text(&record.identity.name);
     for (base, required_trait) in ALLOWLIST {
         if normalized_name == *base || !normalized_name.ends_with(&format!(" {base}")) {
             continue;
         }
         if !record
+            .classification
             .traits
             .iter()
             .any(|trait_value| trait_value == required_trait)
@@ -315,6 +323,7 @@ fn parse_creature_suffix_variant_candidate(
             continue;
         };
         if !base_record
+            .classification
             .traits
             .iter()
             .any(|trait_value| trait_value == required_trait)
@@ -323,9 +332,9 @@ fn parse_creature_suffix_variant_candidate(
         }
         return Some(VariantCandidate {
             base_name,
-            label: Some(record.name.clone()),
+            label: Some(record.identity.name.clone()),
             axes: vec!["other".to_string()],
-            source: "namePattern",
+            source: VariantSource::CreatureSuffix,
             diagnostic_source: VariantDiagnosticSource::CreatureSuffix,
             confidence: 0.68,
         });
@@ -336,12 +345,12 @@ fn parse_creature_suffix_variant_candidate(
 fn exact_creature_base_record<'a>(
     index: &'a RecordReferenceIndex,
     base_name: &str,
-) -> Option<&'a NormalizedRecord> {
+) -> Option<&'a AtlasRecord> {
     let matches = index.by_name.get(&normalize_text(base_name))?;
     matches
         .iter()
         .filter_map(|key| record_by_key(index, key))
-        .find(|record| record.record_family == RecordFamily::Creature)
+        .find(|record| record.classification.kind == RecordKind::Creature)
 }
 
 fn exact_base_index(
@@ -351,25 +360,25 @@ fn exact_base_index(
 ) -> Option<usize> {
     records.iter().position(|loaded| {
         let record = &loaded.record;
-        record.name == base_name && variant_group_key(record, base_name) == group_key
+        record.identity.name == base_name && variant_group_key(record, base_name) == group_key
     })
 }
 
-fn variant_group_key(record: &NormalizedRecord, base_name: &str) -> String {
-    variant_group_key_for_parts(record.record_family, record.pack_name.as_str(), base_name)
+fn variant_group_key(record: &AtlasRecord, base_name: &str) -> String {
+    variant_group_key_for_parts(
+        record.classification.kind,
+        record.identity.pack().as_str(),
+        base_name,
+    )
 }
 
-fn variant_group_key_for_parts(
-    record_family: RecordFamily,
-    pack_name: &str,
-    base_name: &str,
-) -> String {
-    if record_family == RecordFamily::Creature {
+fn variant_group_key_for_parts(kind: RecordKind, pack_name: &str, base_name: &str) -> String {
+    if kind == RecordKind::Creature {
         format!("creature:family:{}", slugify_hyphen(base_name))
     } else {
         format!(
             "{}:{}:{}",
-            record_family.as_str(),
+            kind.as_str(),
             pack_name,
             slugify_hyphen(base_name)
         )
@@ -416,12 +425,12 @@ fn singularize_creature_token(token: &str) -> Option<String> {
 }
 
 fn choose_creature_variant_label(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     base_name: &str,
     labels: &[String],
 ) -> Option<String> {
     let explicit = labels.join(", ");
-    let normalized_name = normalize_text(&record.name);
+    let normalized_name = normalize_text(&record.identity.name);
     let normalized_base_name = normalize_text(base_name);
     if normalized_name.is_empty() || normalized_name == normalized_base_name {
         return (!explicit.is_empty()).then_some(explicit);
@@ -430,12 +439,12 @@ fn choose_creature_variant_label(
         is_specialization_label(&normalize_text(label)) || is_gender_label(&normalize_text(label))
     });
     if generic_only {
-        return Some(record.name.clone());
+        return Some(record.identity.name.clone());
     }
     if normalized_name.contains(&normalized_base_name) && !explicit.is_empty() {
         return Some(explicit);
     }
-    Some(record.name.clone())
+    Some(record.identity.name.clone())
 }
 
 pub(crate) fn sorted_unique(mut values: Vec<String>) -> Vec<String> {
@@ -476,11 +485,11 @@ mod tests {
     #[test]
     fn creature_group_keys_ignore_pack_name() {
         assert_eq!(
-            variant_group_key_for_parts(RecordFamily::Creature, "any-pack", "Young Red Dragon"),
+            variant_group_key_for_parts(RecordKind::Creature, "any-pack", "Young Red Dragon"),
             "creature:family:young-red-dragon"
         );
         assert_eq!(
-            variant_group_key_for_parts(RecordFamily::Spell, "spells", "Ignition"),
+            variant_group_key_for_parts(RecordKind::Spell, "spells", "Ignition"),
             "spell:spells:ignition"
         );
     }

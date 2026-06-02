@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
+use atlas_record::FoundryDocumentType;
 
 mod html;
 mod migrations;
@@ -32,8 +33,8 @@ pub(crate) fn resolve_record_aliases(
     let mut aliases = Vec::new();
     for loaded in records {
         let record = &loaded.record;
-        if record.foundry_document_type == "JournalEntry"
-            && record.normalized_name == "remaster changes"
+        if record.foundry.document_type == FoundryDocumentType::JournalEntry
+            && record.identity.normalized_name() == "remaster changes"
         {
             aliases.extend(extract_remaster_journal_aliases(
                 &loaded.facts.source_facts.journal_pages,
@@ -103,8 +104,8 @@ fn extract_compendium_source_aliases(
             continue;
         };
         if item.publication_remaster
-            || !target_record.publication_remaster
-            || should_ignore_compendium_alias(&item.name, &target_record.name)
+            || !target_record.publication.remaster
+            || should_ignore_compendium_alias(&item.name, &target_record.identity.name)
         {
             continue;
         }
@@ -114,7 +115,7 @@ fn extract_compendium_source_aliases(
             &target_record_key,
             &item.name,
             AliasSource::CompendiumSource,
-            &record.key.to_string(),
+            &record.identity.key.to_string(),
             index,
         );
     }
@@ -136,7 +137,7 @@ fn add_record_alias(
     let Some(canonical_record) = record_by_key(index, canonical_record_key) else {
         return;
     };
-    if normalized_alias == canonical_record.normalized_name {
+    if normalized_alias == canonical_record.identity.normalized_name() {
         return;
     }
 
@@ -230,8 +231,8 @@ pub(crate) fn resolve_remaster_links(
     let mut links = Vec::new();
     for loaded in records {
         let record = &loaded.record;
-        if record.foundry_document_type != "JournalEntry"
-            || record.normalized_name != "remaster changes"
+        if record.foundry.document_type != FoundryDocumentType::JournalEntry
+            || record.identity.normalized_name() != "remaster changes"
         {
             continue;
         }
@@ -307,7 +308,7 @@ fn add_remaster_link(
     let Some(legacy_record) = record_by_key(index, &legacy_record_key) else {
         return;
     };
-    if !remaster_record.publication_remaster || legacy_record.publication_remaster {
+    if !remaster_record.publication.remaster || legacy_record.publication.remaster {
         return;
     }
 

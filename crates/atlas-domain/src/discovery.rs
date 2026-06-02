@@ -189,7 +189,8 @@ pub struct BooleanFieldCounts {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetricKeyDiscovery {
     pub metric_domain: String,
-    pub record_family: String,
+    #[serde(alias = "record_family")]
+    pub kind: String,
     pub namespace_prefix: String,
     pub metric_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]

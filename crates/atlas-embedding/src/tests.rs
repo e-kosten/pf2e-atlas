@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use atlas_domain::RecordFamily;
+use atlas_domain::RecordKind;
 use atlas_record::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
@@ -361,7 +361,7 @@ fn fixture_presentation_document() -> RecordPresentationDocument {
         record_key: "creatures:ShieldWarden"
             .parse()
             .expect("record key should parse"),
-        record_family: RecordFamily::Creature,
+        kind: RecordKind::Creature,
         title: "Shield Warden".to_string(),
         identity: vec![
             PresentationFact {

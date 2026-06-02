@@ -10,11 +10,7 @@ pub struct TextQueryAnalysis {
 }
 
 pub(crate) fn normalize_record_query(value: &str) -> String {
-    value
-        .to_lowercase()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    atlas_domain::normalize_record_name(value)
 }
 
 pub(crate) fn analyze_text_query(query: &str, exclude: Option<&str>) -> TextQueryAnalysis {

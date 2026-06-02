@@ -1,5 +1,5 @@
 use super::*;
-use atlas_domain::{PackName, PublicationFamily, RecordFamily, SearchFilterNode};
+use atlas_domain::{PublicationCategory, RecordKind, SearchFilterNode};
 use atlas_index::{
     FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery,
     FtsReadIndex, FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinks,
@@ -7,7 +7,12 @@ use atlas_index::{
     RemasterReadIndex, SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex,
     VectorSearchHit,
 };
-use atlas_record::{ContentSourceKind, ContentVisibility, PersistedRecordSet};
+use atlas_record::{
+    AtlasRecordSet, ContentSourceKind, ContentVisibility, FoundryDocumentType, FoundryRecordInfo,
+    FoundryRecordType, RecordClassification, RecordContent, RecordIdentity, RecordMechanics,
+    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+    RecordVisibility, RecordVisibilityReason,
+};
 
 #[test]
 fn similar_score_rewards_reference_overlap_when_semantic_distance_is_close() {
@@ -110,14 +115,20 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
         .expect("seed should exist");
 
     assert_eq!(result.records.len(), 2);
-    assert_eq!(result.records[0].record.key.to_string(), "actions:plain");
-    assert_eq!(result.records[1].record.key.to_string(), "actions:graph");
+    assert_eq!(
+        result.records[0].record.identity.key.to_string(),
+        "actions:plain"
+    );
+    assert_eq!(
+        result.records[1].record.identity.key.to_string(),
+        "actions:graph"
+    );
 }
 
 #[test]
 fn similar_records_passes_filter_and_parent_only_scope_to_vector_index() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
-    let filter = SearchFilterNode::record_family(RecordFamily::Rule);
+    let filter = SearchFilterNode::record_kind(RecordKind::Rule);
     let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
         FakeSimilarIndex::new_expecting_filter(),
     ));
@@ -179,10 +190,16 @@ fn similar_records_uses_seed_embedding_and_reranks_with_graph_evidence() {
         .expect("seed should exist");
 
     assert_eq!(result.records.len(), 2);
-    assert_eq!(result.records[0].record.key.to_string(), "actions:graph");
+    assert_eq!(
+        result.records[0].record.identity.key.to_string(),
+        "actions:graph"
+    );
     assert_eq!(result.records[0].graph.shared_references.len(), 1);
     assert_eq!(result.records[0].graph.shared_traits, vec!["auditory"]);
-    assert_eq!(result.records[1].record.key.to_string(), "actions:plain");
+    assert_eq!(
+        result.records[1].record.identity.key.to_string(),
+        "actions:plain"
+    );
 }
 
 fn unit(unit_kind: &str) -> RecordEmbeddingVector {
@@ -195,7 +212,7 @@ fn unit(unit_kind: &str) -> RecordEmbeddingVector {
 }
 
 struct FakeSimilarIndex {
-    records: Vec<PersistedRecord>,
+    records: Vec<AtlasRecord>,
     expect_filter: bool,
 }
 
@@ -221,25 +238,22 @@ impl FakeSimilarIndex {
 }
 
 impl RecordReadIndex for FakeSimilarIndex {
-    fn load_records_by_key(
-        &self,
-        keys: &[RecordKey],
-    ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError> {
         Ok(keys
             .iter()
             .filter_map(|key| {
                 self.records
                     .iter()
-                    .find(|record| record.key == *key)
+                    .find(|record| record.identity.key == *key)
                     .cloned()
             })
             .collect())
     }
 
-    fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError> {
-        Ok(PersistedRecordSet {
+    fn load_record_set(&self) -> Result<AtlasRecordSet, RecordLoadError> {
+        Ok(AtlasRecordSet {
             records: self.records.clone(),
-            ..PersistedRecordSet::default()
+            ..AtlasRecordSet::default()
         })
     }
 
@@ -285,7 +299,7 @@ impl FilterReadIndex for FakeSimilarIndex {
             record_keys: self
                 .records
                 .iter()
-                .map(|record| record.key.clone())
+                .map(|record| record.identity.key.clone())
                 .collect(),
             total: self.records.len() as u64,
         })
@@ -323,7 +337,7 @@ impl VectorReadIndex for FakeSimilarIndex {
         assert_eq!(
             filter,
             self.expect_filter
-                .then(|| SearchFilterNode::record_family(RecordFamily::Rule))
+                .then(|| SearchFilterNode::record_kind(RecordKind::Rule))
                 .as_ref()
         );
         assert!(!include_child_units);
@@ -407,66 +421,56 @@ fn graph_edge(from: &RecordKey, to: &str) -> GraphReferenceEdge {
     }
 }
 
-fn fake_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
+fn fake_record(key: &str, name: &str, traits: &[&str]) -> AtlasRecord {
     let key = RecordKey::parse(key).expect("fixture key should parse");
-    PersistedRecord {
-        id: key.id().clone(),
-        key,
-        name: name.to_string(),
-        normalized_name: name.to_lowercase(),
-        record_family: RecordFamily::Rule,
-        pack_name: PackName::new("actions").expect("fixture pack should parse"),
-        pack_label: "Actions".to_string(),
-        foundry_document_type: "Item".to_string(),
-        foundry_record_type: "action".to_string(),
-        level: None,
-        rarity: None,
-        traits: traits.iter().map(|value| value.to_string()).collect(),
-        prerequisites: Vec::new(),
-        system_category: None,
-        system_group: None,
-        system_base_item: None,
-        system_usage: None,
-        system_price_json: None,
-        system_actions_value: None,
-        system_time_value: None,
-        system_duration_value: None,
-        price_cp: None,
-        activation_time: None,
-        duration: None,
-        metrics: Vec::new(),
-        actor_data: None,
-        item_data: None,
-        spell_data: None,
-        publication_title: None,
-        publication_remaster: false,
-        description: None,
-        blurb: None,
-        supplemental_content: Vec::new(),
-        publication_family: PublicationFamily::Unknown,
-        folder_id: None,
-        taxonomy_families: Vec::new(),
-        variant_group_key: None,
-        variant_base_name: None,
-        variant_label: None,
-        variant_axes: Vec::new(),
-        variant_confidence: None,
-        variant_source: "none".to_string(),
-        source_path: format!("packs/actions/{name}.json"),
-        is_default_visible: true,
-        raw_json: "{}".to_string(),
+    AtlasRecord {
+        identity: RecordIdentity {
+            key,
+            name: name.to_string(),
+        },
+        classification: RecordClassification {
+            kind: RecordKind::Rule,
+            level: None,
+            rarity: None,
+            traits: traits.iter().map(|value| value.to_string()).collect(),
+            taxonomy: RecordTaxonomy::default(),
+        },
+        foundry: FoundryRecordInfo {
+            pack_label: "Actions".to_string(),
+            document_type: FoundryDocumentType::Item,
+            record_type: FoundryRecordType::Action,
+            folder_id: None,
+        },
+        provenance: RecordProvenance {
+            source_path: format!("packs/actions/{name}.json"),
+            raw_json: Some("{}".to_string()),
+        },
+        publication: RecordPublication {
+            title: None,
+            remaster: false,
+            category: PublicationCategory::Unknown,
+        },
+        requirements: RecordRequirements::default(),
+        timing: RecordTiming::default(),
+        mechanics: RecordMechanics::default(),
+        content: RecordContent::default(),
+        variant: None,
+        visibility: RecordVisibility::visible(RecordVisibilityReason::SourceRecord),
     }
 }
 
-fn search_candidate_from_record(record: PersistedRecord) -> SearchCandidateRecord {
+fn search_candidate_from_record(record: AtlasRecord) -> SearchCandidateRecord {
     SearchCandidateRecord {
-        key: record.key,
-        name: record.name,
-        traits: record.traits,
-        record_family: record.record_family,
-        foundry_record_type: record.foundry_record_type,
-        taxonomy_families: record.taxonomy_families,
-        system_category: record.system_category,
-        system_group: record.system_group,
+        key: record.identity.key,
+        name: record.identity.name,
+        traits: record.classification.traits,
+        kind: record.classification.kind,
+        foundry_record_type: record.foundry.record_type.as_str().to_string(),
+        taxonomy_families: record.classification.taxonomy.inferred_groups,
+        system_category: record
+            .mechanics
+            .item()
+            .and_then(|item| item.category.clone()),
+        system_group: record.mechanics.item().and_then(|item| item.group.clone()),
     }
 }

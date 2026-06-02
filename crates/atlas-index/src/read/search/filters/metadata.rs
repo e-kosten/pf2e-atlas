@@ -221,7 +221,7 @@ impl FilterCompiler {
         let column = match field {
             MetadataEnumStringField::PackName => records::columns::PACK_NAME,
             MetadataEnumStringField::PackLabel => records::columns::PACK_LABEL,
-            MetadataEnumStringField::PublicationFamily => records::columns::PUBLICATION_FAMILY,
+            MetadataEnumStringField::PublicationCategory => records::columns::PUBLICATION_FAMILY,
             MetadataEnumStringField::Size => actor_records::columns::SIZE,
             MetadataEnumStringField::Usage => records::columns::SYSTEM_USAGE,
             MetadataEnumStringField::SystemGroup => records::columns::SYSTEM_GROUP,

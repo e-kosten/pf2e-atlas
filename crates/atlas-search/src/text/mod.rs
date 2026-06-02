@@ -78,11 +78,11 @@ impl TextRetrieval for AtlasRetrievalService {
         };
         let identity_matches = identity_matches
             .into_iter()
-            .filter(|identity| !excluded_keys.contains(&identity.record.key))
+            .filter(|identity| !excluded_keys.contains(&identity.record.identity.key))
             .collect::<Vec<_>>();
         let identity_keys = identity_matches
             .iter()
-            .map(|identity| identity.record.key.clone())
+            .map(|identity| identity.record.identity.key.clone())
             .collect::<BTreeSet<_>>();
         let fusion_candidate_keys = candidate_keys(&identity_matches, &fts_hits, &vector_hits)
             .into_iter()
@@ -126,7 +126,7 @@ impl TextRetrieval for AtlasRetrievalService {
             .collect::<Vec<_>>();
         let ranked_page_records = load_records_by_key(self.index.as_ref(), &ranked_page_keys)?
             .into_iter()
-            .map(|record| (record.key.clone(), record))
+            .map(|record| (record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let mut page_records = page_items
             .drain(..)
@@ -163,7 +163,7 @@ mod tests {
 
     use crate::fusion::{FusionMethod, FusionOptions};
     use atlas_domain::{
-        MetricDomain, PackName, PublicationFamily, RecordFamily, RecordKey, SearchFilterNode,
+        MetricDomain, PublicationCategory, RecordKey, RecordKind, SearchFilterNode,
     };
     use atlas_index::{
         FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort,
@@ -173,7 +173,12 @@ mod tests {
         SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex,
         VectorSearchHit,
     };
-    use atlas_record::{MetricRow, MetricValue, PersistedRecord, PersistedRecordSet};
+    use atlas_record::{
+        AtlasRecord, AtlasRecordSet, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        MetricRow, MetricValue, RecordClassification, RecordContent, RecordIdentity,
+        RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
+        RecordTiming, RecordVisibility, RecordVisibilityReason,
+    };
 
     macro_rules! impl_unused_text_index_capabilities {
         ($type:ty) => {
@@ -248,7 +253,7 @@ mod tests {
     fn search_text_uses_candidates_for_fusion_and_hydrates_ranked_page_only() {
         let identity = fake_record("actions:identity", "Identity Action");
         let mut ranked = fake_record("actions:ranked", "Ranked Action");
-        ranked.metrics.push(MetricRow {
+        ranked.mechanics.metrics.push(MetricRow {
             domain: MetricDomain::Actor,
             key: "hp.max".to_string(),
             value: MetricValue::Number(42.0),
@@ -278,11 +283,14 @@ mod tests {
         assert_eq!(
             page.records
                 .iter()
-                .map(|record| record.record.key.to_string())
+                .map(|record| record.record.identity.key.to_string())
                 .collect::<Vec<_>>(),
             vec!["actions:ranked"]
         );
-        assert_eq!(page.records[0].record.metrics, ranked.metrics);
+        assert_eq!(
+            page.records[0].record.mechanics.metrics,
+            ranked.mechanics.metrics
+        );
         assert_eq!(
             candidate_calls.borrow().as_slice(),
             &[vec![
@@ -291,7 +299,10 @@ mod tests {
                 RecordKey::parse("actions:ranked").expect("fixture key should parse"),
             ]]
         );
-        assert_eq!(load_by_key_calls.borrow().as_slice(), &[vec![ranked.key]]);
+        assert_eq!(
+            load_by_key_calls.borrow().as_slice(),
+            &[vec![ranked.identity.key]]
+        );
     }
 
     #[test]
@@ -320,13 +331,13 @@ mod tests {
     }
 
     struct FakeTextIndex {
-        records: Vec<PersistedRecord>,
+        records: Vec<AtlasRecord>,
         candidate_calls: Rc<RefCell<Vec<Vec<RecordKey>>>>,
         load_by_key_calls: Rc<RefCell<Vec<Vec<RecordKey>>>>,
     }
 
     impl FakeTextIndex {
-        fn new(records: Vec<PersistedRecord>) -> Self {
+        fn new(records: Vec<AtlasRecord>) -> Self {
             Self {
                 records,
                 candidate_calls: Rc::new(RefCell::new(Vec::new())),
@@ -334,12 +345,12 @@ mod tests {
             }
         }
 
-        fn records_for_keys(&self, keys: &[RecordKey]) -> Vec<PersistedRecord> {
+        fn records_for_keys(&self, keys: &[RecordKey]) -> Vec<AtlasRecord> {
             keys.iter()
                 .filter_map(|key| {
                     self.records
                         .iter()
-                        .find(|record| record.key == *key)
+                        .find(|record| record.identity.key == *key)
                         .cloned()
                 })
                 .collect()
@@ -350,17 +361,17 @@ mod tests {
         fn load_records_by_key(
             &self,
             keys: &[RecordKey],
-        ) -> Result<Vec<PersistedRecord>, atlas_index::RecordLoadError> {
+        ) -> Result<Vec<AtlasRecord>, atlas_index::RecordLoadError> {
             if !keys.is_empty() {
                 self.load_by_key_calls.borrow_mut().push(keys.to_vec());
             }
             Ok(self.records_for_keys(keys))
         }
 
-        fn load_record_set(&self) -> Result<PersistedRecordSet, atlas_index::RecordLoadError> {
-            Ok(PersistedRecordSet {
+        fn load_record_set(&self) -> Result<AtlasRecordSet, atlas_index::RecordLoadError> {
+            Ok(AtlasRecordSet {
                 records: self.records.clone(),
-                ..PersistedRecordSet::default()
+                ..AtlasRecordSet::default()
             })
         }
 
@@ -396,7 +407,7 @@ mod tests {
                 record_keys: self
                     .records
                     .iter()
-                    .map(|record| record.key.clone())
+                    .map(|record| record.identity.key.clone())
                     .collect(),
                 total: self.records.len() as u64,
             })
@@ -441,67 +452,57 @@ mod tests {
 
     impl_unused_text_index_capabilities!(FakeTextIndex);
 
-    fn fake_record(key: &str, name: &str) -> PersistedRecord {
+    fn fake_record(key: &str, name: &str) -> AtlasRecord {
         let key = RecordKey::parse(key).expect("fixture key should parse");
-        PersistedRecord {
-            id: key.id().clone(),
-            key,
-            name: name.to_string(),
-            normalized_name: name.to_lowercase(),
-            record_family: RecordFamily::Rule,
-            pack_name: PackName::new("actions").expect("fixture pack should parse"),
-            pack_label: "Actions".to_string(),
-            foundry_document_type: "Item".to_string(),
-            foundry_record_type: "action".to_string(),
-            level: None,
-            rarity: None,
-            traits: Vec::new(),
-            prerequisites: Vec::new(),
-            system_category: None,
-            system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: Vec::new(),
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: format!("packs/actions/{name}.json"),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
+        AtlasRecord {
+            identity: RecordIdentity {
+                key,
+                name: name.to_string(),
+            },
+            classification: RecordClassification {
+                kind: RecordKind::Rule,
+                level: None,
+                rarity: None,
+                traits: Vec::new(),
+                taxonomy: RecordTaxonomy::default(),
+            },
+            foundry: FoundryRecordInfo {
+                pack_label: "Actions".to_string(),
+                document_type: FoundryDocumentType::Item,
+                record_type: FoundryRecordType::Action,
+                folder_id: None,
+            },
+            provenance: RecordProvenance {
+                source_path: format!("packs/actions/{name}.json"),
+                raw_json: Some("{}".to_string()),
+            },
+            publication: RecordPublication {
+                title: None,
+                remaster: false,
+                category: PublicationCategory::Unknown,
+            },
+            requirements: RecordRequirements::default(),
+            timing: RecordTiming::default(),
+            mechanics: RecordMechanics::default(),
+            content: RecordContent::default(),
+            variant: None,
+            visibility: RecordVisibility::visible(RecordVisibilityReason::SourceRecord),
         }
     }
 
-    fn search_candidate_from_record(record: PersistedRecord) -> SearchCandidateRecord {
+    fn search_candidate_from_record(record: AtlasRecord) -> SearchCandidateRecord {
         SearchCandidateRecord {
-            key: record.key,
-            name: record.name,
-            traits: record.traits,
-            record_family: record.record_family,
-            foundry_record_type: record.foundry_record_type,
-            taxonomy_families: record.taxonomy_families,
-            system_category: record.system_category,
-            system_group: record.system_group,
+            key: record.identity.key,
+            name: record.identity.name,
+            traits: record.classification.traits,
+            kind: record.classification.kind,
+            foundry_record_type: record.foundry.record_type.as_str().to_string(),
+            taxonomy_families: record.classification.taxonomy.inferred_groups,
+            system_category: record
+                .mechanics
+                .item()
+                .and_then(|item| item.category.clone()),
+            system_group: record.mechanics.item().and_then(|item| item.group.clone()),
         }
     }
 }

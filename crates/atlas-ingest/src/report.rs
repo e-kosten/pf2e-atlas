@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use atlas_domain::{MetricDomain, PublicationFamily};
+use atlas_domain::{MetricDomain, PublicationCategory};
 use atlas_record::{ReferenceEdgeFacts, ReferenceGraphMode, reference_edge_matches_mode};
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -23,9 +23,9 @@ pub struct SourceAnalysisReport {
     pub generated_record_count: usize,
     pub default_visible_record_count: usize,
     pub hidden_record_count: usize,
-    pub by_record_family: BTreeMap<String, usize>,
+    pub by_kind: BTreeMap<String, usize>,
     pub by_foundry_taxonomy: BTreeMap<String, usize>,
-    pub by_publication_family: BTreeMap<String, usize>,
+    pub by_publication_category: BTreeMap<String, usize>,
     pub text: SourceAnalysisTextReport,
     pub embeddings: SourceAnalysisEmbeddingReport,
     pub side_data: SourceAnalysisSideDataReport,
@@ -136,19 +136,19 @@ pub(crate) fn analyze_source_load(
         generated_record_count,
         default_visible_record_count,
         hidden_record_count: source.records.len() - default_visible_record_count,
-        by_record_family: count_by_record_family(&source.records),
+        by_kind: count_by_kind(&source.records),
         by_foundry_taxonomy: count_by_foundry_taxonomy(&source.records),
-        by_publication_family: count_by_publication_family(&source.records),
+        by_publication_category: count_by_publication_category(&source.records),
         text: SourceAnalysisTextReport {
             records_with_description: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.description.is_some())
+                .filter(|loaded| loaded.record.content.description().is_some())
                 .count(),
             records_with_blurb: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.blurb.is_some())
+                .filter(|loaded| loaded.record.content.blurb().is_some())
                 .count(),
         },
         embeddings: embedding_report(&source.pending_document_embeddings),
@@ -156,17 +156,17 @@ pub(crate) fn analyze_source_load(
             actor_records: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.actor_data.is_some())
+                .filter(|loaded| loaded.record.mechanics.actor().is_some())
                 .count(),
             item_records: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.item_data.is_some())
+                .filter(|loaded| loaded.record.mechanics.item().is_some())
                 .count(),
             spell_records: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.spell_data.is_some())
+                .filter(|loaded| loaded.record.mechanics.spell().is_some())
                 .count(),
         },
         metrics: metrics_report(&source.records, &retrieval_visibility),
@@ -262,12 +262,12 @@ fn embedding_report(
     }
 }
 
-fn count_by_record_family(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
+fn count_by_kind(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
     for loaded in records {
         let record = &loaded.record;
         *counts
-            .entry(record.record_family.as_str().to_string())
+            .entry(record.classification.kind.as_str().to_string())
             .or_insert(0) += 1;
     }
     counts
@@ -280,19 +280,20 @@ fn count_by_foundry_taxonomy(records: &[LoadedSourceRecord]) -> BTreeMap<String,
         *counts
             .entry(format!(
                 "{}|{}",
-                record.foundry_document_type, record.foundry_record_type
+                record.foundry.document_type.as_str(),
+                record.foundry.record_type.as_str()
             ))
             .or_insert(0) += 1;
     }
     counts
 }
 
-fn count_by_publication_family(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
+fn count_by_publication_category(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
     for loaded in records {
         let record = &loaded.record;
         *counts
-            .entry(publication_family_label(record.publication_family).to_string())
+            .entry(publication_category_label(record.publication.category).to_string())
             .or_insert(0) += 1;
     }
     counts
@@ -308,7 +309,7 @@ fn metrics_report(
     for loaded in records {
         let record = &loaded.record;
         let is_default_visible = retrieval_visibility.is_default_visible(record);
-        for metric in &record.metrics {
+        for metric in &record.mechanics.metrics {
             let domain = metric_domain_label(metric.domain).to_string();
             *rows_by_domain.entry(domain.clone()).or_insert(0) += 1;
             keys_by_domain
@@ -319,7 +320,7 @@ fn metrics_report(
                 MetricValue::Text(value) if is_default_visible => {
                     text_boolean_values.insert((
                         domain,
-                        record.record_family.as_str().to_string(),
+                        record.classification.kind.as_str().to_string(),
                         metric.key.clone(),
                         value.clone(),
                     ));
@@ -328,7 +329,7 @@ fn metrics_report(
                     if is_default_visible {
                         text_boolean_values.insert((
                             domain,
-                            record.record_family.as_str().to_string(),
+                            record.classification.kind.as_str().to_string(),
                             metric.key.clone(),
                             i64::from(*value).to_string(),
                         ));
@@ -354,13 +355,13 @@ fn metrics_report(
 fn is_generated_record(loaded: &LoadedSourceRecord) -> bool {
     let record = &loaded.record;
     matches!(
-        record.pack_name.as_str(),
+        record.identity.pack().as_str(),
         "derived-afflictions" | "derived-affliction-instances"
     )
 }
 
-fn publication_family_label(family: PublicationFamily) -> &'static str {
-    family.as_str()
+fn publication_category_label(category: PublicationCategory) -> &'static str {
+    category.as_str()
 }
 
 fn metric_domain_label(domain: MetricDomain) -> &'static str {

@@ -7,7 +7,7 @@ use crate::metadata::{
     MetadataEnumStringField, MetadataNumberField, MetadataNumberMatch, MetadataPredicate,
     MetadataStringMatch, NumericMetricOperator,
 };
-use crate::{RecordFamily, RecordKey};
+use crate::{RecordKey, RecordKind};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
@@ -105,8 +105,9 @@ pub enum LookupSortPolicy {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SearchFilterNode {
-    RecordFamily {
-        value: RecordFamily,
+    #[serde(alias = "record_family")]
+    RecordKind {
+        value: RecordKind,
     },
     LinksTo {
         target: RecordKey,
@@ -148,8 +149,8 @@ impl SearchFilterNode {
         })
     }
 
-    pub fn record_family(value: RecordFamily) -> Self {
-        Self::RecordFamily { value }
+    pub fn record_kind(value: RecordKind) -> Self {
+        Self::RecordKind { value }
     }
 
     pub fn level(r#match: NumericMatch) -> Self {
@@ -238,7 +239,7 @@ impl SearchFilterNode {
             Self::AnyOf { children } => validate_children("any_of", children, path),
             Self::AllOf { children } => validate_children("all_of", children, path),
             Self::Not { child } => child.validate_at("not"),
-            Self::RecordFamily { .. }
+            Self::RecordKind { .. }
             | Self::LinksTo { .. }
             | Self::LinkedFrom { .. }
             | Self::MetadataPredicate { .. }
@@ -402,7 +403,7 @@ mod tests {
             retrieval: Some(SearchRetrievalMode::Hybrid),
             fusion: Some(SearchFusionMethod::WeightedRrf),
             filter: Some(SearchFilterNode::all_of(vec![
-                SearchFilterNode::record_family(RecordFamily::Spell),
+                SearchFilterNode::record_kind(RecordKind::Spell),
                 SearchFilterNode::metadata(MetadataPredicate::Set {
                     field: MetadataSetField::Traditions,
                     r#match: MetadataSetMatch::Includes {
@@ -423,7 +424,7 @@ mod tests {
         assert!(json.contains("\"retrieval\":\"hybrid\""));
         assert!(json.contains("\"fusion\":\"weighted-rrf\""));
         assert!(json.contains("\"kind\":\"all_of\""));
-        assert!(json.contains("\"kind\":\"record_family\""));
+        assert!(json.contains("\"kind\":\"record_kind\""));
         assert!(json.contains("\"kind\":\"links_to\""));
         assert!(json.contains("\"field_type\":\"set\""));
 

@@ -4,7 +4,7 @@ use atlas_domain::metadata::{
     MetadataTextStringField,
 };
 use atlas_domain::{
-    MetricMatch, NumericMatch, RecordFamily, RecordKey, ScalarValue, SearchFilterNode,
+    MetricMatch, NumericMatch, RecordKey, RecordKind, ScalarValue, SearchFilterNode,
 };
 use serde_json::Value;
 
@@ -162,15 +162,15 @@ fn push_repeated_family(
         .iter()
         .map(|value| {
             let family = serde_plain_record_family(value)?;
-            Ok(SearchFilterNode::record_family(family))
+            Ok(SearchFilterNode::record_kind(family))
         })
         .collect::<Result<Vec<_>, CliFilterError>>()?;
     push_optional_group(children, nodes);
     Ok(())
 }
 
-fn serde_plain_record_family(value: &str) -> Result<RecordFamily, CliFilterError> {
-    serde_json::from_value::<RecordFamily>(Value::String(value.to_string())).map_err(|error| {
+fn serde_plain_record_family(value: &str) -> Result<RecordKind, CliFilterError> {
+    serde_json::from_value::<RecordKind>(Value::String(value.to_string())).map_err(|error| {
         CliFilterError {
             code: "invalid_filter",
             message: format!("invalid --family value `{value}`: {error}"),
@@ -402,7 +402,7 @@ fn any_or_single(nodes: impl IntoIterator<Item = SearchFilterNode>) -> SearchFil
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_domain::{RecordFamily, ScalarValue};
+    use atlas_domain::{RecordKind, ScalarValue};
 
     #[test]
     fn repeated_scalar_flags_or_within_field_and_and_across_fields() {
@@ -417,8 +417,8 @@ mod tests {
             filter,
             Some(SearchFilterNode::all_of(vec![
                 SearchFilterNode::any_of(vec![
-                    SearchFilterNode::record_family(RecordFamily::Spell),
-                    SearchFilterNode::record_family(RecordFamily::Feat),
+                    SearchFilterNode::record_kind(RecordKind::Spell),
+                    SearchFilterNode::record_kind(RecordKind::Feat),
                 ]),
                 SearchFilterNode::any_of(vec![
                     SearchFilterNode::metadata(MetadataPredicate::EnumString {

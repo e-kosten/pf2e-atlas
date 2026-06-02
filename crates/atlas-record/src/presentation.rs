@@ -1,11 +1,11 @@
-use atlas_domain::{RecordFamily, RecordKey};
+use atlas_domain::{RecordKey, RecordKind};
 
 use crate::ContentDocument;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordPresentationDocument {
     pub record_key: RecordKey,
-    pub record_family: RecordFamily,
+    pub kind: RecordKind,
     pub title: String,
     pub identity: Vec<PresentationFact>,
     pub badges: Vec<PresentationBadge>,
@@ -158,7 +158,7 @@ mod tests {
     fn document_preserves_sectioned_renderer_neutral_content() {
         let document = RecordPresentationDocument {
             record_key: RecordKey::parse("spells:Heal").expect("record key should parse"),
-            record_family: RecordFamily::Spell,
+            kind: RecordKind::Spell,
             title: "Heal".to_string(),
             identity: vec![PresentationFact {
                 key: "level".to_string(),
@@ -201,7 +201,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(document.record_family, RecordFamily::Spell);
+        assert_eq!(document.kind, RecordKind::Spell);
         assert_eq!(document.sections[0].kind, PresentationSectionKind::Summary);
         assert_eq!(document.sections[1].title, "Description");
         assert!(matches!(

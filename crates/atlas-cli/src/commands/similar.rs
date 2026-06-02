@@ -231,7 +231,9 @@ fn resolve_seed(
     })?;
     match matches.as_slice() {
         [] => Ok(SeedResolution::Missing),
-        [resolution] => Ok(SeedResolution::Resolved(resolution.record.key.clone())),
+        [resolution] => Ok(SeedResolution::Resolved(
+            resolution.record.identity.key.clone(),
+        )),
         alternatives => Ok(SeedResolution::Ambiguous(ambiguous_seed_resolution(
             record_ref,
             alternatives,
@@ -321,7 +323,7 @@ fn similar_data(
 fn print_similar(data: &SimilarData, detail: DetailLevel, explain: bool) {
     println!(
         "Seed: {}\t{}\t{}",
-        data.seed.key, data.seed.name, data.seed.record_family
+        data.seed.key, data.seed.name, data.seed.kind
     );
     for result in &data.results {
         if detail_outputs_description(detail) {
@@ -335,10 +337,7 @@ fn print_similar(data: &SimilarData, detail: DetailLevel, explain: bool) {
         } else {
             println!(
                 "{}\t{}\t{}\tscore={:.4}",
-                result.record.key,
-                result.record.name,
-                result.record.record_family,
-                result.similarity.score
+                result.record.key, result.record.name, result.record.kind, result.similarity.score
             );
         }
     }
@@ -349,7 +348,7 @@ fn print_similarity_evidence(result: &SimilarResultJson) {
         "{}\t{}\t{}\tscore={:.4}\tdistance={:.4}\tshared_references={}\tshared_traits={}",
         result.record.key,
         result.record.name,
-        result.record.record_family,
+        result.record.kind,
         result.similarity.score,
         result.similarity.semantic.rank_distance,
         result.similarity.graph.shared_references.len(),

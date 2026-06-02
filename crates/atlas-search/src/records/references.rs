@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
 use atlas_index::RecordReadIndex;
-use atlas_record::{ContentDocument, PersistedRecord, visit_content_references_mut};
+use atlas_record::{AtlasRecord, ContentDocument, visit_content_references_mut};
 
 use crate::text::TextSearchRecord;
 use crate::{AtlasRetrievalService, SearchError};
@@ -12,7 +12,7 @@ use super::RecordResolutionResult;
 impl AtlasRetrievalService {
     pub(crate) fn enrich_reference_labels(
         &self,
-        records: &mut [PersistedRecord],
+        records: &mut [AtlasRecord],
     ) -> Result<(), SearchError> {
         enrich_reference_labels_for_items(
             self.index.as_ref(),
@@ -50,8 +50,8 @@ impl AtlasRetrievalService {
 fn enrich_reference_labels_for_items<I, T>(
     index: &I,
     items: &mut [T],
-    record: fn(&T) -> &PersistedRecord,
-    record_mut: fn(&mut T) -> &mut PersistedRecord,
+    record: fn(&T) -> &AtlasRecord,
+    record_mut: fn(&mut T) -> &mut AtlasRecord,
 ) -> Result<(), SearchError>
 where
     I: RecordReadIndex + ?Sized,
@@ -66,7 +66,7 @@ where
 
     let requested_keys = items
         .iter()
-        .map(|item| record(item).key.clone())
+        .map(|item| record(item).identity.key.clone())
         .collect::<BTreeSet<_>>();
     let keys_to_load = target_keys
         .into_iter()
@@ -79,7 +79,7 @@ where
         .iter()
         .map(record)
         .chain(loaded_targets.iter())
-        .map(|record| (record.key.clone(), record.name.clone()))
+        .map(|record| (record.identity.key.clone(), record.identity.name.clone()))
         .collect::<BTreeMap<_, _>>();
 
     for item in items {
@@ -88,39 +88,33 @@ where
     Ok(())
 }
 
-fn persisted_record(record: &PersistedRecord) -> &PersistedRecord {
+fn persisted_record(record: &AtlasRecord) -> &AtlasRecord {
     record
 }
 
-fn persisted_record_mut(record: &mut PersistedRecord) -> &mut PersistedRecord {
+fn persisted_record_mut(record: &mut AtlasRecord) -> &mut AtlasRecord {
     record
 }
 
-fn resolution_record(result: &RecordResolutionResult) -> &PersistedRecord {
+fn resolution_record(result: &RecordResolutionResult) -> &AtlasRecord {
     &result.record
 }
 
-fn resolution_record_mut(result: &mut RecordResolutionResult) -> &mut PersistedRecord {
+fn resolution_record_mut(result: &mut RecordResolutionResult) -> &mut AtlasRecord {
     &mut result.record
 }
 
-fn text_record(result: &TextSearchRecord) -> &PersistedRecord {
+fn text_record(result: &TextSearchRecord) -> &AtlasRecord {
     &result.record
 }
 
-fn text_record_mut(result: &mut TextSearchRecord) -> &mut PersistedRecord {
+fn text_record_mut(result: &mut TextSearchRecord) -> &mut AtlasRecord {
     &mut result.record
 }
 
-fn collect_reference_target_keys(record: &PersistedRecord, target_keys: &mut BTreeSet<RecordKey>) {
-    if let Some(document) = &record.description {
-        collect_document_reference_target_keys(document, target_keys);
-    }
-    if let Some(document) = &record.blurb {
-        collect_document_reference_target_keys(document, target_keys);
-    }
-    for supplemental in &record.supplemental_content {
-        collect_document_reference_target_keys(&supplemental.document, target_keys);
+fn collect_reference_target_keys(record: &AtlasRecord, target_keys: &mut BTreeSet<RecordKey>) {
+    for content in record.content.reference_documents() {
+        collect_document_reference_target_keys(&content.document, target_keys);
     }
 }
 
@@ -138,17 +132,13 @@ fn collect_document_reference_target_keys(
 }
 
 fn apply_reference_target_names(
-    record: &mut PersistedRecord,
+    record: &mut AtlasRecord,
     names_by_key: &BTreeMap<RecordKey, String>,
 ) {
-    if let Some(document) = &mut record.description {
-        apply_document_reference_target_names(document, names_by_key);
-    }
-    if let Some(document) = &mut record.blurb {
-        apply_document_reference_target_names(document, names_by_key);
-    }
-    for supplemental in &mut record.supplemental_content {
-        apply_document_reference_target_names(&mut supplemental.document, names_by_key);
+    for content in &mut record.content.documents {
+        if content.contributes_to_references() {
+            apply_document_reference_target_names(&mut content.document, names_by_key);
+        }
     }
 }
 

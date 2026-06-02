@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::generated::afflictions::AfflictionOccurrence;
-use crate::records::NormalizedRecord;
+use crate::records::AtlasRecord;
 
 pub(super) fn cluster_affliction_occurrences(
     occurrences: Vec<AfflictionOccurrence>,
@@ -36,7 +36,7 @@ pub(super) fn cluster_affliction_occurrences(
 
 pub(super) fn choose_affliction_authoritative_candidate(
     occurrences: &[AfflictionOccurrence],
-) -> Option<(&AfflictionOccurrence, Option<&NormalizedRecord>)> {
+) -> Option<(&AfflictionOccurrence, Option<&AtlasRecord>)> {
     let representative = occurrences.iter().min_by(|left, right| {
         right
             .source_record
@@ -44,9 +44,10 @@ pub(super) fn choose_affliction_authoritative_candidate(
             .cmp(&left.source_record.is_some())
             .then_with(|| {
                 left.host_record
+                    .identity
                     .key
                     .to_string()
-                    .cmp(&right.host_record.key.to_string())
+                    .cmp(&right.host_record.identity.key.to_string())
             })
             .then_with(|| left.occurrence_ref.cmp(&right.occurrence_ref))
     })?;

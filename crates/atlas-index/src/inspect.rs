@@ -28,9 +28,9 @@ pub struct RecordCoverageReport {
     pub default_visible_records: usize,
     pub records_with_level: usize,
     pub records_with_rarity: usize,
-    pub by_record_family: BTreeMap<String, usize>,
+    pub by_kind: BTreeMap<String, usize>,
     pub by_foundry_taxonomy: BTreeMap<String, usize>,
-    pub by_publication_family: BTreeMap<String, usize>,
+    pub by_publication_category: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -149,7 +149,7 @@ fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, Inde
             connection,
             "SELECT COUNT(*) FROM records WHERE rarity IS NOT NULL AND TRIM(rarity) <> ''",
         )?,
-        by_record_family: count_grouped(
+        by_kind: count_grouped(
             connection,
             "SELECT record_family AS group_key, COUNT(*) AS row_count
              FROM records
@@ -162,7 +162,7 @@ fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, Inde
              FROM records
              GROUP BY foundry_document_type, foundry_record_type",
         )?,
-        by_publication_family: count_grouped(
+        by_publication_category: count_grouped(
             connection,
             "SELECT publication_family AS group_key, COUNT(*) AS row_count
              FROM records

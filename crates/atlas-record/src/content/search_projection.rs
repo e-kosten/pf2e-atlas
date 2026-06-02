@@ -1,6 +1,6 @@
 use atlas_domain::TimeKind;
 
-use crate::{ContentBlock, ContentDocument, ContentFtsField, NormalizedRecord, label_for_row};
+use crate::{AtlasRecord, ContentBlock, ContentDocument, ContentFtsField, label_for_row};
 
 use super::ContentReference;
 use super::render::{render_inlines_plain, render_plain_text};
@@ -23,30 +23,21 @@ pub struct RecordFtsProjection {
 }
 
 pub fn build_record_fts_projection(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     aliases: &[String],
 ) -> RecordFtsProjection {
     let mut projection = RecordFtsProjection {
-        title: record.name.clone(),
+        title: record.identity.name.clone(),
         aliases: aliases.join("\n"),
-        traits: record.traits.join(" "),
+        traits: record.classification.traits.join(" "),
         ..RecordFtsProjection::default()
     };
     append_structured_terms(record, &mut projection);
 
-    if let Some(document) = &record.description {
-        append_document(document, ContentFtsField::Body, &mut projection);
-    }
-    if let Some(document) = &record.blurb {
-        append_document(document, ContentFtsField::Body, &mut projection);
-    }
-    for supplemental in &record.supplemental_content {
-        if !supplemental.contributes_to_search {
-            continue;
-        }
+    for content in record.content.searchable_documents() {
         append_document(
-            &supplemental.document,
-            supplemental.source_kind.fts_field(),
+            &content.document,
+            content.source_kind.fts_field(),
             &mut projection,
         );
     }
@@ -54,70 +45,81 @@ pub fn build_record_fts_projection(
     projection
 }
 
-fn append_structured_terms(record: &NormalizedRecord, projection: &mut RecordFtsProjection) {
+fn append_structured_terms(record: &AtlasRecord, projection: &mut RecordFtsProjection) {
     let mut taxonomy = TermCollector::default();
-    taxonomy.add_slug(record.record_family.as_str());
-    taxonomy.add_slug(&record.foundry_record_type);
-    taxonomy.add_slugs(&record.taxonomy_families);
-    taxonomy.add_optional_slug(record.system_category.as_deref());
-    taxonomy.add_optional_slug(record.system_group.as_deref());
-    taxonomy.add_optional_slug(record.system_base_item.as_deref());
-    if let Some(item) = record.item_data.as_ref() {
-        taxonomy.add_optional_slug(item.system_category.as_deref());
-        taxonomy.add_optional_slug(item.system_group.as_deref());
-        taxonomy.add_optional_slug(item.system_base_item.as_deref());
+    taxonomy.add_slug(record.classification.kind.as_str());
+    taxonomy.add_slug(record.foundry.record_type.as_str());
+    taxonomy.add_slugs(&record.classification.taxonomy.inferred_groups);
+    if let Some(item) = record.mechanics.item() {
+        taxonomy.add_optional_slug(item.category.as_deref());
+        taxonomy.add_optional_slug(item.group.as_deref());
+        taxonomy.add_optional_slug(item.base_item.as_deref());
     }
-    if let Some(spell) = record.spell_data.as_ref() {
-        taxonomy.add_slugs(&spell.spell_kinds);
+    if let Some(spell) = record.mechanics.spell() {
+        taxonomy.add_slugs(&spell.kinds);
     }
-    taxonomy.add_optional_text(record.variant_base_name.as_deref());
-    taxonomy.add_optional_text(record.variant_label.as_deref());
-    taxonomy.add_slugs(&record.variant_axes);
+    if let Some(variant) = record.variant.as_ref() {
+        taxonomy.add_text(&variant.base_name);
+        taxonomy.add_optional_text(variant.label.as_deref());
+        taxonomy.add_slugs(&variant.axes);
+    }
     append_text(&mut projection.taxonomy_terms, &taxonomy.render());
 
     let mut constraints = TermCollector::default();
-    constraints.add_texts(&record.prerequisites);
-    if let Some(time) = record.activation_time.as_ref() {
+    constraints.add_texts(&record.requirements.prerequisites);
+    if let Some(time) = record.timing.activation_time() {
         constraints.add_text(&time.text);
         append_action_cost_terms(time.kind, time.actions, &mut constraints);
     }
-    if let Some(item) = record.item_data.as_ref() {
+    if let Some(item) = record.mechanics.item() {
         constraints.add_optional_text(item.hands_requirement.as_deref());
     }
     append_text(&mut projection.constraint_terms, &constraints.render());
 
     let mut mechanics = TermCollector::default();
-    if let Some(level) = record.level {
+    if let Some(level) = record.classification.level {
         mechanics.add_text(&format!("level {level}"));
         mechanics.add_text(&ordinal_phrase(level, "level"));
-        if record.record_family == atlas_domain::RecordFamily::Spell {
+        if record.classification.kind == atlas_domain::RecordKind::Spell {
             mechanics.add_text(&format!("rank {level}"));
             mechanics.add_text(&ordinal_phrase(level, "rank"));
         }
     }
-    mechanics.add_optional_slug(record.rarity.as_deref());
-    if let Some(duration) = record.duration.as_ref() {
+    mechanics.add_optional_slug(record.classification.rarity.map(|rarity| rarity.as_str()));
+    if let Some(duration) = record.timing.duration_time() {
         mechanics.add_text(&duration.text);
     }
-    if let Some(spell) = record.spell_data.as_ref() {
+    if let Some(spell) = record.mechanics.spell() {
         mechanics.add_slugs(&spell.traditions);
-        mechanics.add_optional_text(spell.range_text.as_deref());
-        mechanics.add_optional_text(spell.target_text.as_deref());
-        mechanics.add_optional_slug(spell.area_type.as_deref());
-        mechanics.add_optional_slug(spell.save_type.as_deref());
+        mechanics.add_optional_text(spell.range.as_ref().map(|range| range.text.as_str()));
+        mechanics.add_optional_text(spell.target.as_ref().map(|target| target.text.as_str()));
+        mechanics.add_optional_slug(
+            spell
+                .area
+                .as_ref()
+                .and_then(|area| area.kind.as_ref())
+                .map(String::as_str),
+        );
+        mechanics.add_optional_slug(
+            spell
+                .defense
+                .as_ref()
+                .and_then(|defense| defense.save.as_ref())
+                .map(String::as_str),
+        );
         mechanics.add_slugs(&spell.damage_types);
         if spell.sustained {
             mechanics.add_text("sustained");
         }
-        if spell.basic_save {
+        if spell.defense.as_ref().is_some_and(|defense| defense.basic) {
             mechanics.add_text("basic save");
         }
     }
-    if let Some(item) = record.item_data.as_ref() {
-        mechanics.add_optional_text(item.system_usage.as_deref());
+    if let Some(item) = record.mechanics.item() {
+        mechanics.add_optional_text(item.usage.as_deref());
         mechanics.add_slugs(&item.damage_types);
     }
-    if let Some(actor) = record.actor_data.as_ref() {
+    if let Some(actor) = record.mechanics.actor() {
         mechanics.add_optional_slug(actor.size.as_deref());
         mechanics.add_slugs(&actor.languages);
         mechanics.add_slugs(&actor.speed_types);
@@ -133,15 +135,15 @@ fn append_structured_terms(record: &NormalizedRecord, projection: &mut RecordFts
     append_text(&mut projection.mechanic_terms, &mechanics.render());
 
     let mut source = TermCollector::default();
-    source.add_optional_text(record.publication_title.as_deref());
-    if record.publication_family != atlas_domain::PublicationFamily::Unknown {
-        source.add_slug(record.publication_family.as_str());
+    source.add_optional_text(record.publication.title.as_deref());
+    if record.publication.category != atlas_domain::PublicationCategory::Unknown {
+        source.add_slug(record.publication.category.as_str());
     }
-    source.add_text(&record.pack_label);
+    source.add_text(&record.foundry.pack_label);
     append_text(&mut projection.source_terms, &source.render());
 
     let mut metrics = TermCollector::default();
-    for metric in &record.metrics {
+    for metric in &record.mechanics.metrics {
         let label = label_for_row(metric);
         metrics.add_text(&label.label);
         if let Some(short_label) = label.short_label.as_deref() {
@@ -343,12 +345,17 @@ fn append_text(target: &mut String, value: &str) {
 #[cfg(test)]
 mod tests {
     use atlas_domain::{
-        MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TimeKind,
+        MetricDomain, PackName, PublicationCategory, RecordId, RecordKey, RecordKind, TimeKind,
     };
 
     use crate::{
-        ActorSideData, ContentInline, ContentSourceKind, ContentVisibility, ItemSideData,
-        MetricRow, MetricValue, NormalizedTime, SpellSideData, SupplementalContentDocument,
+        ActivationTimeSourceField, ContentInline, ContentSourceKind, DurationTimeSourceField,
+        FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
+        RecordActivationTiming, RecordClassification, RecordContent, RecordContentDocument,
+        RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
+        RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, SpellArea,
+        SpellDefense, SpellMechanics, SpellRange, SpellTarget,
     };
 
     use super::*;
@@ -356,39 +363,33 @@ mod tests {
     #[test]
     fn fts_projection_splits_body_facts_and_embedded_content() {
         let mut record = base_record();
-        record.description = Some(ContentDocument::new(vec![
-            ContentBlock::Heading {
-                level: 2,
-                content: vec![ContentInline::Text {
-                    text: "Effect".to_string(),
-                }],
-            },
-            ContentBlock::Paragraph {
-                content: vec![ContentInline::Text {
-                    text: "Main body".to_string(),
-                }],
-            },
-        ]));
-        record
-            .supplemental_content
-            .push(SupplementalContentDocument {
-                source_kind: ContentSourceKind::Disable,
-                visibility: ContentVisibility::Public,
-                contributes_to_search: true,
-                contributes_to_references: true,
-                label: None,
-                document: text_document("Disable text"),
-            });
-        record
-            .supplemental_content
-            .push(SupplementalContentDocument {
-                source_kind: ContentSourceKind::EmbeddedItemDescription,
-                visibility: ContentVisibility::Public,
-                contributes_to_search: true,
-                contributes_to_references: true,
-                label: Some("Jaws".to_string()),
-                document: text_document("Embedded attack text"),
-            });
+        record.content.documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::Description,
+            label: None,
+            document: ContentDocument::new(vec![
+                ContentBlock::Heading {
+                    level: 2,
+                    content: vec![ContentInline::Text {
+                        text: "Effect".to_string(),
+                    }],
+                },
+                ContentBlock::Paragraph {
+                    content: vec![ContentInline::Text {
+                        text: "Main body".to_string(),
+                    }],
+                },
+            ]),
+        });
+        record.content.documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::Disable,
+            label: None,
+            document: text_document("Disable text"),
+        });
+        record.content.documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::EmbeddedItemDescription,
+            label: Some("Jaws".to_string()),
+            document: text_document("Embedded attack text"),
+        });
 
         let projection = build_record_fts_projection(&record, &["Alias".to_string()]);
 
@@ -404,66 +405,72 @@ mod tests {
     #[test]
     fn fts_projection_adds_deterministic_structured_terms_without_duplicating_traits() {
         let mut record = base_record();
-        record.record_family = RecordFamily::Spell;
-        record.foundry_record_type = "spell".to_string();
-        record.level = Some(2);
-        record.rarity = Some("uncommon".to_string());
-        record.prerequisites = vec!["expert in Medicine".to_string()];
-        record.activation_time = Some(NormalizedTime {
-            kind: TimeKind::Actions,
-            actions: Some(2),
-            duration_value: None,
-            duration_unit: None,
-            text: "2".to_string(),
+        record.classification.kind = RecordKind::Spell;
+        record.foundry.record_type = FoundryRecordType::Spell;
+        record.classification.level = Some(2);
+        record.classification.rarity = Some(atlas_domain::Rarity::Uncommon);
+        record.requirements.prerequisites = vec!["expert in Medicine".to_string()];
+        record.timing.activation = Some(RecordActivationTiming {
+            time: NormalizedTime {
+                kind: TimeKind::Actions,
+                actions: Some(2),
+                duration_value: None,
+                duration_unit: None,
+                text: "2".to_string(),
+            },
+            source_field: ActivationTimeSourceField::ActionsValue,
         });
-        record.duration = Some(NormalizedTime {
-            kind: TimeKind::Duration,
-            actions: None,
-            duration_value: None,
-            duration_unit: None,
-            text: "1 minute".to_string(),
+        record.timing.duration = Some(RecordDurationTiming {
+            time: NormalizedTime {
+                kind: TimeKind::Duration,
+                actions: None,
+                duration_value: None,
+                duration_unit: None,
+                text: "1 minute".to_string(),
+            },
+            source_field: DurationTimeSourceField::DurationValue,
         });
-        record.taxonomy_families = vec!["focus_spell".to_string()];
-        record.pack_name = PackName::new("internal-spell-pack").expect("pack parses");
-        record.publication_title = Some("Pathfinder Player Core".to_string());
-        record.publication_family = PublicationFamily::Core;
-        record.pack_label = "Spells".to_string();
-        record.actor_data = Some(ActorSideData {
-            size: Some("medium".to_string()),
-            languages: vec!["common".to_string()],
-            speed_types: vec!["fly".to_string()],
-            senses: vec!["darkvision".to_string()],
-            immunities: vec!["fire".to_string()],
-            resistances: Vec::new(),
-            weaknesses: Vec::new(),
-            disable_text: None,
-            disable_skills: vec!["thievery".to_string()],
-            is_complex: true,
-        });
-        record.item_data = Some(ItemSideData {
-            system_category: Some("weapon".to_string()),
-            system_base_item: Some("longsword".to_string()),
-            system_group: Some("sword".to_string()),
-            system_usage: Some("held in one hand".to_string()),
+        record.classification.taxonomy.inferred_groups = vec!["focus_spell".to_string()];
+        record.identity.key = RecordKey::new(
+            PackName::new("internal-spell-pack").expect("pack parses"),
+            RecordId::new("TestRecord").expect("id parses"),
+        );
+        record.publication.title = Some("Pathfinder Player Core".to_string());
+        record.publication.category = PublicationCategory::Core;
+        record.foundry.pack_label = "Spells".to_string();
+        record.mechanics.document = FoundryDocumentMechanics::Item(ItemMechanics {
+            foundry_type: Some(ItemTypeMechanics::Spell(SpellMechanics {
+                traditions: vec!["divine".to_string()],
+                kinds: vec!["focus".to_string()],
+                range: Some(SpellRange {
+                    text: "30 feet".to_string(),
+                    distance: Some(30.0),
+                }),
+                target: Some(SpellTarget {
+                    text: "1 ally".to_string(),
+                }),
+                area: Some(SpellArea {
+                    kind: Some("burst".to_string()),
+                    value: None,
+                }),
+                defense: Some(SpellDefense {
+                    save: Some("will".to_string()),
+                    basic: true,
+                }),
+                sustained: true,
+                damage_types: vec!["vitality".to_string()],
+            })),
+            category: Some("weapon".to_string()),
+            base_item: Some("longsword".to_string()),
+            group: Some("sword".to_string()),
+            usage: Some("held in one hand".to_string()),
+            price_json: None,
             price_cp: None,
             bulk_value: None,
             hands_requirement: Some("one hand".to_string()),
             damage_types: vec!["slashing".to_string()],
         });
-        record.spell_data = Some(SpellSideData {
-            traditions: vec!["divine".to_string()],
-            spell_kinds: vec!["focus".to_string()],
-            range_text: Some("30 feet".to_string()),
-            range_value: Some(30.0),
-            target_text: Some("1 ally".to_string()),
-            area_type: Some("burst".to_string()),
-            area_value: None,
-            save_type: Some("will".to_string()),
-            sustained: true,
-            basic_save: true,
-            damage_types: vec!["vitality".to_string()],
-        });
-        record.metrics = vec![MetricRow {
+        record.mechanics.metrics = vec![MetricRow {
             domain: MetricDomain::Actor,
             key: "speed.fly.value".to_string(),
             value: MetricValue::Number(60.0),
@@ -489,56 +496,43 @@ mod tests {
         assert!(!projection.taxonomy_terms.contains("healing"));
     }
 
-    fn base_record() -> NormalizedRecord {
-        NormalizedRecord {
-            key: RecordKey::new(
-                PackName::new("test-pack").expect("pack parses"),
-                RecordId::new("TestRecord").expect("id parses"),
-            ),
-            id: RecordId::new("TestRecord").expect("id parses"),
-            name: "Test Record".to_string(),
-            normalized_name: "test record".to_string(),
-            record_family: RecordFamily::Spell,
-            pack_name: PackName::new("test-pack").expect("pack parses"),
-            pack_label: "Test Pack".to_string(),
-            foundry_document_type: "Item".to_string(),
-            foundry_record_type: "spell".to_string(),
-            level: None,
-            rarity: None,
-            traits: vec!["healing".to_string(), "vitality".to_string()],
-            prerequisites: Vec::new(),
-            system_category: None,
-            system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: Vec::new(),
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: "test.json".to_string(),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
+    fn base_record() -> AtlasRecord {
+        AtlasRecord {
+            identity: RecordIdentity {
+                key: RecordKey::new(
+                    PackName::new("test-pack").expect("pack parses"),
+                    RecordId::new("TestRecord").expect("id parses"),
+                ),
+                name: "Test Record".to_string(),
+            },
+            classification: RecordClassification {
+                kind: RecordKind::Spell,
+                level: None,
+                rarity: None,
+                traits: vec!["healing".to_string(), "vitality".to_string()],
+                taxonomy: RecordTaxonomy::default(),
+            },
+            foundry: FoundryRecordInfo {
+                pack_label: "Test Pack".to_string(),
+                document_type: FoundryDocumentType::Item,
+                record_type: FoundryRecordType::Spell,
+                folder_id: None,
+            },
+            provenance: RecordProvenance {
+                source_path: "test.json".to_string(),
+                raw_json: Some("{}".to_string()),
+            },
+            publication: RecordPublication {
+                title: None,
+                remaster: false,
+                category: PublicationCategory::Unknown,
+            },
+            requirements: RecordRequirements::default(),
+            timing: RecordTiming::default(),
+            mechanics: RecordMechanics::default(),
+            content: RecordContent::default(),
+            variant: None,
+            visibility: RecordVisibility::default(),
         }
     }
 

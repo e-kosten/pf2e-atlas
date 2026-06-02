@@ -1,84 +1,106 @@
-use atlas_domain::{MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey};
-
-use crate::{
-    ActorSideData, ContentBlock, ContentDocument, ContentInline, MetricDefinition, MetricRow,
-    MetricValue, NormalizedRecord, PresentationBlock, PresentationSection, PresentationSectionKind,
-    SpellSideData, build_record_presentation_document, metrics,
+use atlas_domain::{
+    MetricDomain, PackName, PublicationCategory, Rarity, RecordId, RecordKey, RecordKind,
 };
 
-fn base_record(record_family: RecordFamily) -> NormalizedRecord {
-    NormalizedRecord {
-        key: RecordKey::new(
-            PackName::new("test-pack").expect("pack should parse"),
-            RecordId::new("TestRecord").expect("id should parse"),
-        ),
-        id: RecordId::new("TestRecord").expect("id should parse"),
-        name: "Test Record".to_string(),
-        normalized_name: "test record".to_string(),
-        record_family,
-        pack_name: PackName::new("test-pack").expect("pack should parse"),
-        pack_label: "Test Pack".to_string(),
-        foundry_document_type: "Item".to_string(),
-        foundry_record_type: record_family.as_str().to_string(),
-        level: Some(3),
-        rarity: Some("uncommon".to_string()),
-        traits: vec!["healing".to_string(), "vitality".to_string()],
-        prerequisites: Vec::new(),
-        system_category: None,
-        system_group: None,
-        system_base_item: None,
-        system_usage: None,
-        system_price_json: None,
-        system_actions_value: Some(2),
-        system_time_value: None,
-        system_duration_value: None,
-        price_cp: None,
-        activation_time: None,
-        duration: None,
-        metrics: Vec::new(),
-        actor_data: None,
-        item_data: None,
-        spell_data: None,
-        publication_title: Some("Player Core".to_string()),
-        publication_remaster: true,
-        description: Some(text_document("Restores vitality to a wounded ally.")),
-        blurb: None,
-        supplemental_content: Vec::new(),
-        publication_family: PublicationFamily::Core,
-        folder_id: None,
-        taxonomy_families: vec!["support".to_string()],
-        variant_group_key: None,
-        variant_base_name: None,
-        variant_label: None,
-        variant_axes: Vec::new(),
-        variant_confidence: None,
-        variant_source: "none".to_string(),
-        source_path: "packs/test-pack/TestRecord.json".to_string(),
-        is_default_visible: true,
-        raw_json: "{}".to_string(),
+use crate::{
+    ActivationTimeSourceField, ActorMechanics, AtlasRecord, ContentBlock, ContentDocument,
+    ContentInline, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
+    FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricDefinition,
+    MetricRow, MetricValue, NormalizedTime, PresentationBlock, PresentationSection,
+    PresentationSectionKind, RecordActivationTiming, RecordClassification, RecordContent,
+    RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
+    RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, SpellDefense,
+    SpellMechanics, SpellRange, SpellTarget, build_record_presentation_document, metrics,
+};
+
+fn base_record(kind: RecordKind) -> AtlasRecord {
+    AtlasRecord {
+        identity: RecordIdentity {
+            key: RecordKey::new(
+                PackName::new("test-pack").expect("pack should parse"),
+                RecordId::new("TestRecord").expect("id should parse"),
+            ),
+            name: "Test Record".to_string(),
+        },
+        classification: RecordClassification {
+            kind,
+            level: Some(3),
+            rarity: Some(Rarity::Uncommon),
+            traits: vec!["healing".to_string(), "vitality".to_string()],
+            taxonomy: RecordTaxonomy {
+                inferred_groups: vec!["support".to_string()],
+            },
+        },
+        foundry: FoundryRecordInfo {
+            pack_label: "Test Pack".to_string(),
+            document_type: FoundryDocumentType::Item,
+            record_type: FoundryRecordType::from_foundry(kind.as_str()),
+            folder_id: None,
+        },
+        provenance: RecordProvenance {
+            source_path: "packs/test-pack/TestRecord.json".to_string(),
+            raw_json: Some("{}".to_string()),
+        },
+        publication: RecordPublication {
+            title: Some("Player Core".to_string()),
+            remaster: true,
+            category: PublicationCategory::Core,
+        },
+        requirements: RecordRequirements::default(),
+        timing: RecordTiming {
+            activation: Some(RecordActivationTiming {
+                time: NormalizedTime {
+                    kind: atlas_domain::TimeKind::Actions,
+                    actions: Some(2),
+                    duration_value: None,
+                    duration_unit: None,
+                    text: "2".to_string(),
+                },
+                source_field: ActivationTimeSourceField::ActionsValue,
+            }),
+            duration: None,
+        },
+        mechanics: RecordMechanics::default(),
+        content: RecordContent {
+            documents: vec![RecordContentDocument {
+                source_kind: ContentSourceKind::Description,
+                label: None,
+                document: text_document("Restores vitality to a wounded ally."),
+            }],
+        },
+        variant: None,
+        visibility: RecordVisibility::default(),
     }
 }
 
 #[test]
 fn spell_recipe_builds_summary_before_description() {
-    let mut record = base_record(RecordFamily::Spell);
-    record.spell_data = Some(SpellSideData {
-        traditions: vec!["divine".to_string(), "primal".to_string()],
-        spell_kinds: vec!["cantrip".to_string()],
-        range_text: Some("30 feet".to_string()),
-        range_value: Some(30.0),
-        target_text: Some("1 creature".to_string()),
-        area_type: None,
-        area_value: None,
-        save_type: Some("fortitude".to_string()),
-        sustained: false,
-        basic_save: true,
-        damage_types: vec!["vitality".to_string()],
+    let mut record = base_record(RecordKind::Spell);
+    record.mechanics.document = FoundryDocumentMechanics::Item(ItemMechanics {
+        foundry_type: Some(ItemTypeMechanics::Spell(SpellMechanics {
+            traditions: vec!["divine".to_string(), "primal".to_string()],
+            kinds: vec!["cantrip".to_string()],
+            range: Some(SpellRange {
+                text: "30 feet".to_string(),
+                distance: Some(30.0),
+            }),
+            target: Some(SpellTarget {
+                text: "1 creature".to_string(),
+            }),
+            area: None,
+            defense: Some(SpellDefense {
+                save: Some("fortitude".to_string()),
+                basic: true,
+            }),
+            sustained: false,
+            damage_types: vec!["vitality".to_string()],
+        })),
+        ..ItemMechanics::default()
     });
 
     let document = build_record_presentation_document(&record);
 
-    assert_eq!(document.record_family, RecordFamily::Spell);
+    assert_eq!(document.kind, RecordKind::Spell);
     assert_eq!(document.identity[0].value, "Spell");
     assert_eq!(document.identity[2].label, "Rank");
     assert_eq!(document.sections[0].kind, PresentationSectionKind::Summary);
@@ -92,8 +114,8 @@ fn spell_recipe_builds_summary_before_description() {
 
 #[test]
 fn feat_recipe_surfaces_prerequisites_in_summary() {
-    let mut record = base_record(RecordFamily::Feat);
-    record.prerequisites = vec![
+    let mut record = base_record(RecordKind::Feat);
+    record.requirements.prerequisites = vec![
         "trained in Medicine".to_string(),
         "Battle Medicine".to_string(),
     ];
@@ -110,8 +132,8 @@ fn feat_recipe_surfaces_prerequisites_in_summary() {
 
 #[test]
 fn creature_recipe_groups_defense_movement_and_offense_sections() {
-    let mut record = base_record(RecordFamily::Creature);
-    record.actor_data = Some(ActorSideData {
+    let mut record = base_record(RecordKind::Creature);
+    record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
         size: Some("medium".to_string()),
         languages: vec!["common".to_string()],
         speed_types: vec!["land".to_string()],
@@ -123,7 +145,7 @@ fn creature_recipe_groups_defense_movement_and_offense_sections() {
         disable_skills: Vec::new(),
         is_complex: false,
     });
-    record.metrics = vec![
+    record.mechanics.metrics = vec![
         defined_metric(metrics::actor::PERCEPTION_MOD, 9.0),
         metric(&metrics::actor::ability::mod_key("str"), 4.0),
         defined_metric(metrics::actor::ARMOR_CLASS, 19.0),
@@ -158,9 +180,9 @@ fn creature_recipe_groups_defense_movement_and_offense_sections() {
 
 #[test]
 fn hazard_recipe_drops_empty_sections_and_keeps_disable_routine() {
-    let mut record = base_record(RecordFamily::Hazard);
-    record.description = None;
-    record.actor_data = Some(ActorSideData {
+    let mut record = base_record(RecordKind::Hazard);
+    record.content.documents.clear();
+    record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
         size: None,
         languages: Vec::new(),
         speed_types: Vec::new(),
@@ -172,7 +194,7 @@ fn hazard_recipe_drops_empty_sections_and_keeps_disable_routine() {
         disable_skills: vec!["thievery".to_string()],
         is_complex: true,
     });
-    record.metrics = vec![
+    record.mechanics.metrics = vec![
         defined_metric(metrics::actor::STEALTH_DC, 22.0),
         defined_metric(metrics::actor::ARMOR_CLASS, 18.0),
     ];

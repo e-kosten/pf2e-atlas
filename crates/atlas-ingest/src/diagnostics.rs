@@ -33,7 +33,7 @@ pub(crate) struct VariantCandidate {
     pub(crate) base_name: String,
     pub(crate) label: Option<String>,
     pub(crate) axes: Vec<String>,
-    pub(crate) source: &'static str,
+    pub(crate) source: VariantSource,
     pub(crate) diagnostic_source: VariantDiagnosticSource,
     pub(crate) confidence: f64,
 }
@@ -54,3 +54,4 @@ pub(crate) struct FolderDefinition {
     pub(crate) name: Option<String>,
     pub(crate) folder: Option<String>,
 }
+use atlas_record::VariantSource;

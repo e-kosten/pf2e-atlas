@@ -5,7 +5,7 @@ use atlas_embedding::{
     PendingDocumentEmbedding, build_document_embedding_units,
 };
 use atlas_record::{
-    ContentSourceKind, NormalizedRecord, build_record_presentation_document_with_content_filter,
+    AtlasRecord, ContentSourceKind, build_record_presentation_document_with_content_filter,
 };
 
 use crate::records::visibility::RetrievalVisibility;
@@ -40,16 +40,16 @@ pub(crate) fn build_pending_document_embeddings(
             if !retrieval_visibility.is_default_visible(record) {
                 return None;
             }
-            let record_key = record.key.to_string();
+            let record_key = record.identity.key.to_string();
             Some(DocumentEmbeddingSource {
                 record_key,
-                record_name: record.name.clone(),
+                record_name: record.identity.name.clone(),
                 document: build_record_presentation_document_with_content_filter(
                     record,
                     |content| !content.source_kind.is_embedded(),
                 ),
                 aliases: aliases_by_key
-                    .get(&record.key.to_string())
+                    .get(&record.identity.key.to_string())
                     .cloned()
                     .unwrap_or_default(),
                 content_documents: embedding_content_documents(record),
@@ -88,37 +88,23 @@ pub(crate) fn summarize_pending_document_embeddings(
     summary
 }
 
-fn embedding_content_documents(record: &NormalizedRecord) -> Vec<DocumentEmbeddingContentSource> {
-    let mut documents = Vec::new();
-    if let Some(document) = &record.description {
-        documents.push(DocumentEmbeddingContentSource {
-            source_kind: ContentSourceKind::Description,
-            label: Some("Description".to_string()),
-            document: document.clone(),
-        });
-    }
-    if let Some(document) = &record.blurb {
-        documents.push(DocumentEmbeddingContentSource {
-            source_kind: ContentSourceKind::Blurb,
-            label: Some("Summary".to_string()),
-            document: document.clone(),
-        });
-    }
-    documents.extend(
-        record
-            .supplemental_content
-            .iter()
-            .filter(|content| content.contributes_to_search && !content.source_kind.is_embedded())
-            .map(|content| DocumentEmbeddingContentSource {
-                source_kind: content.source_kind,
-                label: content
-                    .label
-                    .clone()
-                    .or_else(|| Some(content.source_kind.as_str().to_string())),
-                document: content.document.clone(),
+fn embedding_content_documents(record: &AtlasRecord) -> Vec<DocumentEmbeddingContentSource> {
+    record
+        .content
+        .searchable_documents()
+        .filter(|content| !content.source_kind.is_embedded())
+        .map(|content| DocumentEmbeddingContentSource {
+            source_kind: content.source_kind,
+            label: content.label.clone().or_else(|| {
+                Some(match content.source_kind {
+                    ContentSourceKind::Description => "Description".to_string(),
+                    ContentSourceKind::Blurb => "Summary".to_string(),
+                    other => other.as_str().to_string(),
+                })
             }),
-    );
-    documents
+            document: content.document.clone(),
+        })
+        .collect()
 }
 
 fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String>> {
@@ -138,10 +124,11 @@ fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String
 
 #[cfg(test)]
 mod tests {
-    use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordId, RecordKey};
+    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind};
     use atlas_record::{
-        ContentBlock, ContentDocument, ContentInline, ContentSourceKind, ContentVisibility,
-        NormalizedRecord, SupplementalContentDocument,
+        AtlasRecord, ContentBlock, ContentDocument, ContentInline, ContentSourceKind,
+        FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, RecordClassification,
+        RecordContentDocument, RecordIdentity, RecordProvenance,
     };
 
     use super::{build_pending_document_embeddings, summarize_pending_document_embeddings};
@@ -149,29 +136,28 @@ mod tests {
     #[test]
     fn embedded_content_is_excluded_from_embedding_inputs_until_promoted() {
         let mut record = base_record();
-        record.description = Some(text_document("Primary description"));
-        record
-            .supplemental_content
-            .push(SupplementalContentDocument {
-                source_kind: ContentSourceKind::EmbeddedItemDescription,
-                visibility: ContentVisibility::Public,
-                contributes_to_search: true,
-                contributes_to_references: true,
-                label: Some("Embedded Strike".to_string()),
-                document: ContentDocument::new(vec![
-                    ContentBlock::Heading {
-                        level: 2,
-                        content: vec![ContentInline::Text {
-                            text: "Embedded Strike".to_string(),
-                        }],
-                    },
-                    ContentBlock::Paragraph {
-                        content: vec![ContentInline::Text {
-                            text: "Embedded capability text".to_string(),
-                        }],
-                    },
-                ]),
-            });
+        record.content.documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::Description,
+            label: None,
+            document: text_document("Primary description"),
+        });
+        record.content.documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::EmbeddedItemDescription,
+            label: Some("Embedded Strike".to_string()),
+            document: ContentDocument::new(vec![
+                ContentBlock::Heading {
+                    level: 2,
+                    content: vec![ContentInline::Text {
+                        text: "Embedded Strike".to_string(),
+                    }],
+                },
+                ContentBlock::Paragraph {
+                    content: vec![ContentInline::Text {
+                        text: "Embedded capability text".to_string(),
+                    }],
+                },
+            ]),
+        });
 
         let pending = build_pending_document_embeddings(
             &[crate::records::LoadedSourceRecord::new(
@@ -193,30 +179,34 @@ mod tests {
     #[test]
     fn summarizes_embedding_unit_fanout() {
         let mut record = base_record();
-        record.description = Some(ContentDocument::new(vec![
-            ContentBlock::Heading {
-                level: 2,
-                content: vec![ContentInline::Text {
-                    text: "First".to_string(),
-                }],
-            },
-            ContentBlock::Paragraph {
-                content: vec![ContentInline::Text {
-                    text: "First section text".to_string(),
-                }],
-            },
-            ContentBlock::Heading {
-                level: 2,
-                content: vec![ContentInline::Text {
-                    text: "Second".to_string(),
-                }],
-            },
-            ContentBlock::Paragraph {
-                content: vec![ContentInline::Text {
-                    text: "Second section text".to_string(),
-                }],
-            },
-        ]));
+        record.content.documents.push(RecordContentDocument {
+            source_kind: ContentSourceKind::Description,
+            label: None,
+            document: ContentDocument::new(vec![
+                ContentBlock::Heading {
+                    level: 2,
+                    content: vec![ContentInline::Text {
+                        text: "First".to_string(),
+                    }],
+                },
+                ContentBlock::Paragraph {
+                    content: vec![ContentInline::Text {
+                        text: "First section text".to_string(),
+                    }],
+                },
+                ContentBlock::Heading {
+                    level: 2,
+                    content: vec![ContentInline::Text {
+                        text: "Second".to_string(),
+                    }],
+                },
+                ContentBlock::Paragraph {
+                    content: vec![ContentInline::Text {
+                        text: "Second section text".to_string(),
+                    }],
+                },
+            ]),
+        });
         let pending = build_pending_document_embeddings(
             &[crate::records::LoadedSourceRecord::new(
                 record,
@@ -243,55 +233,18 @@ mod tests {
         }])
     }
 
-    fn base_record() -> NormalizedRecord {
+    fn base_record() -> AtlasRecord {
         let pack_name = PackName::new("test-pack").expect("pack parses");
         let id = RecordId::new("TestRecord").expect("id parses");
-        NormalizedRecord {
-            key: RecordKey::new(pack_name.clone(), id.clone()),
-            id,
-            name: "Test Record".to_string(),
-            normalized_name: "test record".to_string(),
-            record_family: RecordFamily::Rule,
-            pack_name,
-            pack_label: "Test Pack".to_string(),
-            foundry_document_type: "Item".to_string(),
-            foundry_record_type: "action".to_string(),
-            level: None,
-            rarity: None,
-            traits: Vec::new(),
-            prerequisites: Vec::new(),
-            system_category: None,
-            system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: Vec::new(),
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: "test.json".to_string(),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
-        }
+        AtlasRecord::new(
+            RecordIdentity::new(RecordKey::new(pack_name, id), "Test Record"),
+            RecordClassification::new(RecordKind::Rule),
+            FoundryRecordInfo::new(
+                "Test Pack",
+                FoundryDocumentType::Item,
+                FoundryRecordType::Action,
+            ),
+            RecordProvenance::new("test.json").with_raw_json("{}"),
+        )
     }
 }

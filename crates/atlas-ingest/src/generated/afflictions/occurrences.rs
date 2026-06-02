@@ -10,9 +10,7 @@ use crate::generated::afflictions::source_facts::{
 use crate::records::EmbeddedItemFact;
 use crate::records::references::record_by_key;
 use crate::records::variants;
-use crate::records::{
-    LoadedSourceRecord, NormalizedRecord, RecordReferenceIndex, SourceRecordFacts,
-};
+use crate::records::{AtlasRecord, LoadedSourceRecord, RecordReferenceIndex, SourceRecordFacts};
 
 pub(super) fn collect_affliction_occurrences(
     records: &[LoadedSourceRecord],
@@ -35,17 +33,23 @@ pub(super) fn collect_affliction_occurrences(
 }
 
 fn collect_top_level_affliction_occurrence(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     source_facts: &SourceRecordFacts,
 ) -> Option<AfflictionOccurrence> {
-    if record.foundry_record_type == "affliction" {
+    if record.foundry.record_type.as_str() == "affliction" {
         return None;
     }
-    if !can_generate_affliction_from_record_type(&record.foundry_record_type) {
+    if !can_generate_affliction_from_record_type(record.foundry.record_type.as_str()) {
         return None;
     }
     let document = record_affliction_document(record);
-    let family = detect_affliction_family(&record.traits, record.system_category.as_deref())?;
+    let family = detect_affliction_family(
+        &record.classification.traits,
+        record
+            .mechanics
+            .item()
+            .and_then(|item| item.category.as_deref()),
+    )?;
     if !has_affliction_shape(document.as_ref()) {
         return None;
     }
@@ -55,29 +59,29 @@ fn collect_top_level_affliction_occurrence(
         description: document.clone(),
         raw_provenance: None,
         family,
-        name: record.name.clone(),
+        name: record.identity.name.clone(),
         traits: variants::sorted_unique(
             [
                 vec![affliction_family_label(family).to_string()],
-                record.traits.clone(),
+                record.classification.traits.clone(),
             ]
             .concat(),
         ),
         linked_names: extract_linked_names(document.as_ref()),
-        source_path: format!("{}#self", record.source_path),
+        source_path: format!("{}#self", record.provenance.source_path),
         occurrence_ref: "self".to_string(),
         candidate_keys: build_affliction_occurrence_candidate_keys(
             family,
-            &record.name,
+            &record.identity.name,
             source_facts.slug.as_deref(),
             source_facts.compendium_source.as_deref(),
-            Some(&record.key.to_string()),
+            Some(&record.identity.key.to_string()),
         ),
     })
 }
 
 fn collect_embedded_affliction_occurrences(
-    record: &NormalizedRecord,
+    record: &AtlasRecord,
     source_facts: &SourceRecordFacts,
     index: &RecordReferenceIndex,
 ) -> Vec<AfflictionOccurrence> {
@@ -119,7 +123,7 @@ fn collect_embedded_affliction_occurrences(
                 .concat(),
             ),
             linked_names: extract_linked_names(document.as_ref()),
-            source_path: format!("{}#item:{}", record.source_path, item.item_id),
+            source_path: format!("{}#item:{}", record.provenance.source_path, item.item_id),
             occurrence_ref: item.item_id.clone(),
             candidate_keys: build_affliction_occurrence_candidate_keys(
                 family,
@@ -128,7 +132,7 @@ fn collect_embedded_affliction_occurrences(
                 item.compendium_source.as_deref(),
                 source_record
                     .as_ref()
-                    .map(|record| record.key.to_string())
+                    .map(|record| record.identity.key.to_string())
                     .as_deref(),
             ),
         });

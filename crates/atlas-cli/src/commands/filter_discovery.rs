@@ -312,7 +312,7 @@ fn filter_label(filter: &Value) -> String {
         filter.get("kind").and_then(Value::as_str),
         filter.get("value").and_then(Value::as_str),
     ) {
-        (Some("record_family"), Some(value)) => format!("family = {value}"),
+        (Some("record_kind" | "record_family"), Some(value)) => format!("kind = {value}"),
         _ => serde_json::to_string(filter).unwrap_or_else(|_| "<filter>".to_string()),
     }
 }

@@ -1,8 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{PackName, RecordFamily, RecordKey};
+use crate::{PackName, RecordKey, RecordKind};
 
 pub type Level = i16;
+
+pub fn normalize_record_name(value: &str) -> String {
+    value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -11,6 +19,27 @@ pub enum Rarity {
     Uncommon,
     Rare,
     Unique,
+}
+
+impl Rarity {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Common => "common",
+            Self::Uncommon => "uncommon",
+            Self::Rare => "rare",
+            Self::Unique => "unique",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "common" => Some(Self::Common),
+            "uncommon" => Some(Self::Uncommon),
+            "rare" => Some(Self::Rare),
+            "unique" => Some(Self::Unique),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,14 +130,14 @@ impl TimeUnit {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PublicationFamily {
+pub enum PublicationCategory {
     Core,
     Rules,
     Adventure,
     Unknown,
 }
 
-impl PublicationFamily {
+impl PublicationCategory {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Core => "core",
@@ -193,7 +222,8 @@ pub enum TextStatus {
 pub struct Publication {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    pub publication_family: PublicationFamily,
+    #[serde(alias = "category")]
+    pub category: PublicationCategory,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remaster: Option<bool>,
 }
@@ -209,7 +239,8 @@ pub struct SourceProvenance {
 pub struct RecordSummary {
     pub key: RecordKey,
     pub name: String,
-    pub record_family: RecordFamily,
+    #[serde(alias = "record_family")]
+    pub kind: RecordKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<Level>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -258,14 +289,14 @@ mod tests {
         let summary = RecordSummary {
             key: RecordKey::parse("rules:abc123").expect("record key should parse"),
             name: "Treat Wounds".to_string(),
-            record_family: RecordFamily::Rule,
+            kind: RecordKind::Rule,
             level: Some(1),
             rarity: Some(Rarity::Common),
             action_cost: Some(ActionCost::Actions { count: 1 }),
             traits: vec!["exploration".to_string(), "healing".to_string()],
             publication: Publication {
                 title: Some("Player Core".to_string()),
-                publication_family: PublicationFamily::Core,
+                category: PublicationCategory::Core,
                 remaster: Some(true),
             },
             source: SourceProvenance {
@@ -278,9 +309,9 @@ mod tests {
 
         let json = serde_json::to_string(&summary).expect("summary should serialize");
         assert!(json.contains("\"key\":\"rules:abc123\""));
-        assert!(json.contains("\"record_family\":\"rule\""));
+        assert!(json.contains("\"kind\":\"rule\""));
         assert!(json.contains("\"action_cost\":{\"kind\":\"actions\",\"count\":1}"));
-        assert!(json.contains("\"publication_family\":\"core\""));
+        assert!(json.contains("\"category\":\"core\""));
         assert!(json.contains("\"text_status\":\"resolved\""));
 
         let decoded: RecordSummary =

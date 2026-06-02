@@ -24,7 +24,7 @@ pub enum MetadataSetField {
 pub enum MetadataEnumStringField {
     PackName,
     PackLabel,
-    PublicationFamily,
+    PublicationCategory,
     Size,
     Usage,
     SystemGroup,

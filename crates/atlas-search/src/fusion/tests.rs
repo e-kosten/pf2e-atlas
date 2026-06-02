@@ -1,5 +1,5 @@
 use super::*;
-use atlas_domain::RecordFamily;
+use atlas_domain::RecordKind;
 use atlas_index::SearchCandidateRecord;
 
 fn test_record_key(value: &str) -> RecordKey {
@@ -43,7 +43,7 @@ fn test_record(key: &str, name: &str, traits: &[&str]) -> SearchCandidateRecord 
         name: name.to_string(),
         foundry_record_type: "spell".to_string(),
         traits: traits.iter().map(|value| (*value).to_string()).collect(),
-        record_family: RecordFamily::Spell,
+        kind: RecordKind::Spell,
         taxonomy_families: Vec::new(),
         system_category: None,
         system_group: None,

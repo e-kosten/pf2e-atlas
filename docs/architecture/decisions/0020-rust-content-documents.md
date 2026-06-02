@@ -20,15 +20,15 @@ This is the same class of ownership problem the Rust migration is meant to avoid
 
 ## Decision
 
-Rust records will preserve authored rich text as `ContentDocument` values. `ContentDocument` is the canonical Rust model for Foundry-authored rich text, not just descriptions.
+Rust records preserve authored rich text as `ContentDocument` values. `ContentDocument` is the canonical Rust model for Foundry-authored rich text, not just descriptions.
 
-`NormalizedRecord` keeps first-class content fields for core record text:
+`AtlasRecord` stores content as an ordered `RecordContent` document set:
 
-- `description: Option<ContentDocument>`
-- `blurb: Option<ContentDocument>`
-- `supplemental_content: Vec<SupplementalContentDocument>`
+- `ContentSourceKind::Description` for primary descriptions
+- `ContentSourceKind::Blurb` for short summary text
+- additional `RecordContentDocument` entries for details, notes, embedded capability descriptions, and generated/special content sources
 
-Supplemental content represents named rich-text sources such as hazard disable/routine/reset text, public/GM/private notes, stealth details, and embedded actor/item capability descriptions. It carries explicit source kind, visibility, and search/reference participation policy.
+Each content document carries explicit source kind, label, visibility, and search/reference participation policy through `ContentSourceKind`.
 
 Raw source markup is not a runtime source of truth. It may be retained for ingest, provenance, diagnostics, or debug workflows, but runtime presentation, FTS, semantic chunks, and reference extraction derive from `ContentDocument`.
 

@@ -203,7 +203,7 @@ fn search_print_filter_lowers_convenience_flags_before_runtime_loading()
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["filter"]["kind"], "all_of");
-    assert_eq!(data["filter"]["children"][0]["kind"], "record_family");
+    assert_eq!(data["filter"]["children"][0]["kind"], "record_kind");
     assert_eq!(
         data["filter"]["children"][1]["predicate"]["field"],
         "price_cp"

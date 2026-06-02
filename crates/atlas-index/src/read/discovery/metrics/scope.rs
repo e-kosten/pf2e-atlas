@@ -1,4 +1,4 @@
-use atlas_domain::{RecordFamily, SearchFilterNode};
+use atlas_domain::{RecordKind, SearchFilterNode};
 use diesel::RunQueryDsl;
 use diesel::SqliteConnection;
 
@@ -8,7 +8,7 @@ use crate::read::sql::{CountRow, SqlBindValue, bind_sql_query};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum MetricCatalogScope {
     Global,
-    Family(RecordFamily),
+    Family(RecordKind),
 }
 
 pub(super) fn metric_catalog_scope(
@@ -16,7 +16,7 @@ pub(super) fn metric_catalog_scope(
 ) -> Option<MetricCatalogScope> {
     match filter {
         None => Some(MetricCatalogScope::Global),
-        Some(SearchFilterNode::RecordFamily { value }) => Some(MetricCatalogScope::Family(*value)),
+        Some(SearchFilterNode::RecordKind { value }) => Some(MetricCatalogScope::Family(*value)),
         _ => None,
     }
 }
@@ -59,7 +59,7 @@ pub(super) fn matching_count_for_catalog_scope(
     }
 }
 
-fn record_family_string(value: RecordFamily) -> String {
+fn record_family_string(value: RecordKind) -> String {
     serde_json::to_value(value)
         .ok()
         .and_then(|value| value.as_str().map(str::to_string))

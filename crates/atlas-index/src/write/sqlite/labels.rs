@@ -1,4 +1,6 @@
-use atlas_domain::{MetricDomain, MetricValueType, PublicationFamily, TimeKind, TimeUnit};
+use atlas_domain::{
+    MetricDomain, MetricValueType, PublicationCategory, Rarity, TimeKind, TimeUnit,
+};
 use atlas_record::MetricValue;
 
 pub(super) fn metric_value_parts(
@@ -42,6 +44,10 @@ pub(super) fn time_unit_label(unit: TimeUnit) -> &'static str {
     unit.as_str()
 }
 
-pub(super) fn publication_family_label(publication_family: PublicationFamily) -> &'static str {
-    publication_family.as_str()
+pub(super) fn publication_family_label(category: PublicationCategory) -> &'static str {
+    category.as_str()
+}
+
+pub(super) fn rarity_label(rarity: Rarity) -> &'static str {
+    rarity.as_str()
 }

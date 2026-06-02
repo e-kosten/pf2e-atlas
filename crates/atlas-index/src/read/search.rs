@@ -1,5 +1,5 @@
-use atlas_domain::{RecordFamily, RecordKey, SearchFilterNode};
-use atlas_record::{PersistedRecord, PersistedRecordSet};
+use atlas_domain::{RecordKey, RecordKind, SearchFilterNode};
+use atlas_record::{AtlasRecord, AtlasRecordSet};
 
 pub(crate) mod filters;
 pub(crate) mod fts;
@@ -12,12 +12,9 @@ use crate::{
 };
 
 pub trait RecordReadIndex {
-    fn load_records_by_key(
-        &self,
-        keys: &[RecordKey],
-    ) -> Result<Vec<PersistedRecord>, RecordLoadError>;
+    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError>;
 
-    fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError>;
+    fn load_record_set(&self) -> Result<AtlasRecordSet, RecordLoadError>;
 
     fn load_search_candidate_records(
         &self,
@@ -84,7 +81,7 @@ pub struct SearchCandidateRecord {
     pub key: RecordKey,
     pub name: String,
     pub traits: Vec<String>,
-    pub record_family: RecordFamily,
+    pub kind: RecordKind,
     pub foundry_record_type: String,
     pub taxonomy_families: Vec<String>,
     pub system_category: Option<String>,
@@ -109,14 +106,11 @@ pub enum RecordIdentityMatchKind {
 }
 
 impl RecordReadIndex for SqliteIndexReader {
-    fn load_records_by_key(
-        &self,
-        keys: &[RecordKey],
-    ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError> {
         SqliteIndexReader::load_records_by_key(self, keys)
     }
 
-    fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError> {
+    fn load_record_set(&self) -> Result<AtlasRecordSet, RecordLoadError> {
         SqliteIndexReader::load_record_set(self)
     }
 

@@ -3,7 +3,7 @@ use atlas_index::{
     FilterCompileError, FilterReadIndex, FilteredRecordSort, IdentityReadIndex,
     RecordIdentityMatch, RecordIdentityMatchKind, RecordLoadError, RecordReadIndex,
 };
-use atlas_record::{PersistedRecord, RecordAlias};
+use atlas_record::{AtlasRecord, RecordAlias};
 
 use crate::SearchError;
 use crate::query::normalize_record_query;
@@ -33,11 +33,11 @@ where
         .map_err(SearchError::from_record_load)?;
     record_set
         .records
-        .retain(|record| record.is_default_visible);
+        .retain(|record| record.visibility.visible_by_default());
     let default_visible_keys = record_set
         .records
         .iter()
-        .map(|record| record.key.clone())
+        .map(|record| record.identity.key.clone())
         .collect::<std::collections::BTreeSet<_>>();
     record_set
         .aliases
@@ -51,7 +51,7 @@ where
             .collect::<std::collections::BTreeSet<_>>();
         record_set
             .records
-            .retain(|record| allowed.contains(&record.key));
+            .retain(|record| allowed.contains(&record.identity.key));
         record_set
             .aliases
             .retain(|alias| allowed.contains(&alias.canonical_record_key));
@@ -131,7 +131,7 @@ where
         .load_records_by_key(&record_keys)
         .map_err(SearchError::from_record_load)?
         .into_iter()
-        .map(|record| (record.key.clone(), record))
+        .map(|record| (record.identity.key.clone(), record))
         .collect::<std::collections::BTreeMap<_, _>>();
     let mut matches = identity_matches
         .into_iter()
@@ -145,8 +145,8 @@ where
             ))
         })
         .collect::<Vec<_>>();
-    matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
-    matches.dedup_by(|left, right| left.record.key == right.record.key);
+    matches.sort_by(|left, right| left.record.identity.key.cmp(&right.record.identity.key));
+    matches.dedup_by(|left, right| left.record.identity.key == right.record.identity.key);
     Ok(matches)
 }
 
@@ -154,7 +154,7 @@ fn resolution_matches_for_kind(
     query: &str,
     normalized_query: &str,
     kind: RecordResolutionMatchKind,
-    records: &[PersistedRecord],
+    records: &[AtlasRecord],
     aliases: &[RecordAlias],
 ) -> Vec<RecordResolutionResult> {
     let mut matches = Vec::new();
@@ -163,13 +163,13 @@ fn resolution_matches_for_kind(
             matches.extend(
                 records
                     .iter()
-                    .filter(|record| record.name == query)
+                    .filter(|record| record.identity.name == query)
                     .map(|record| {
                         resolution_result(
                             query,
                             normalized_query,
                             kind,
-                            record.name.clone(),
+                            record.identity.name.clone(),
                             None,
                             record,
                         )
@@ -181,14 +181,19 @@ fn resolution_matches_for_kind(
                 records
                     .iter()
                     .filter(|record| {
-                        record.variant_label.is_none() && record.normalized_name == normalized_query
+                        record
+                            .variant
+                            .as_ref()
+                            .and_then(|variant| variant.label.as_ref())
+                            .is_none()
+                            && record.identity.normalized_name() == normalized_query
                     })
                     .map(|record| {
                         resolution_result(
                             query,
                             normalized_query,
                             kind,
-                            record.normalized_name.clone(),
+                            record.identity.normalized_name(),
                             None,
                             record,
                         )
@@ -203,7 +208,7 @@ fn resolution_matches_for_kind(
                 matches.extend(
                     records
                         .iter()
-                        .filter(|record| record.key == alias.canonical_record_key)
+                        .filter(|record| record.identity.key == alias.canonical_record_key)
                         .map(|record| {
                             resolution_result(
                                 query,
@@ -222,14 +227,19 @@ fn resolution_matches_for_kind(
                 records
                     .iter()
                     .filter(|record| {
-                        record.variant_label.is_some() && record.normalized_name == normalized_query
+                        record
+                            .variant
+                            .as_ref()
+                            .and_then(|variant| variant.label.as_ref())
+                            .is_some()
+                            && record.identity.normalized_name() == normalized_query
                     })
                     .map(|record| {
                         resolution_result(
                             query,
                             normalized_query,
                             kind,
-                            record.normalized_name.clone(),
+                            record.identity.normalized_name(),
                             None,
                             record,
                         )
@@ -237,8 +247,8 @@ fn resolution_matches_for_kind(
             );
         }
     }
-    matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
-    matches.dedup_by(|left, right| left.record.key == right.record.key);
+    matches.sort_by(|left, right| left.record.identity.key.cmp(&right.record.identity.key));
+    matches.dedup_by(|left, right| left.record.identity.key == right.record.identity.key);
     matches
 }
 
@@ -248,7 +258,7 @@ fn resolution_result(
     match_kind: RecordResolutionMatchKind,
     matched_text: String,
     alias: Option<&RecordAlias>,
-    record: &PersistedRecord,
+    record: &AtlasRecord,
 ) -> RecordResolutionResult {
     RecordResolutionResult {
         query: query.to_string(),
@@ -265,7 +275,7 @@ fn resolution_result_from_identity(
     query: &str,
     normalized_query: &str,
     identity: RecordIdentityMatch,
-    record: &PersistedRecord,
+    record: &AtlasRecord,
 ) -> RecordResolutionResult {
     RecordResolutionResult {
         query: query.to_string(),
@@ -285,8 +295,13 @@ fn resolution_result_from_identity(
 
 #[cfg(test)]
 mod tests {
-    use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordKey};
-    use atlas_record::{AliasSource, PersistedRecord, RecordAlias};
+    use atlas_domain::{PublicationCategory, RecordKey, RecordKind};
+    use atlas_record::{
+        AliasSource, AtlasRecord, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        RecordAlias, RecordClassification, RecordContent, RecordIdentity, RecordMechanics,
+        RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+        RecordVisibility, RecordVisibilityReason,
+    };
 
     use super::*;
 
@@ -294,8 +309,8 @@ mod tests {
     fn alias_resolution_returns_one_match_per_record_key() {
         let record = fake_record("actions:KAVf7AmRnbCAHrkT", "Reactive Strike");
         let aliases = vec![
-            fake_alias(&record.key, "Attack of Opportunity", "legacy"),
-            fake_alias(&record.key, "Attack of Opportunity", "alternate"),
+            fake_alias(&record.identity.key, "Attack of Opportunity", "legacy"),
+            fake_alias(&record.identity.key, "Attack of Opportunity", "alternate"),
         ];
 
         let matches = resolution_matches_for_kind(
@@ -307,7 +322,7 @@ mod tests {
         );
 
         assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].record.key, record.key);
+        assert_eq!(matches[0].record.identity.key, record.identity.key);
     }
 
     fn fake_alias(record_key: &RecordKey, alias_text: &str, source_ref: &str) -> RecordAlias {
@@ -320,54 +335,41 @@ mod tests {
         }
     }
 
-    fn fake_record(key: &str, name: &str) -> PersistedRecord {
+    fn fake_record(key: &str, name: &str) -> AtlasRecord {
         let key = RecordKey::parse(key).expect("fixture key should parse");
-        PersistedRecord {
-            id: key.id().clone(),
-            key,
-            name: name.to_string(),
-            normalized_name: name.to_lowercase(),
-            record_family: RecordFamily::Rule,
-            pack_name: PackName::new("actions").expect("fixture pack should parse"),
-            pack_label: "Actions".to_string(),
-            foundry_document_type: "Item".to_string(),
-            foundry_record_type: "action".to_string(),
-            level: None,
-            rarity: None,
-            traits: Vec::new(),
-            prerequisites: Vec::new(),
-            system_category: None,
-            system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: Vec::new(),
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: format!("packs/actions/{name}.json"),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
+        AtlasRecord {
+            identity: RecordIdentity {
+                key,
+                name: name.to_string(),
+            },
+            classification: RecordClassification {
+                kind: RecordKind::Rule,
+                level: None,
+                rarity: None,
+                traits: Vec::new(),
+                taxonomy: RecordTaxonomy::default(),
+            },
+            foundry: FoundryRecordInfo {
+                pack_label: "Actions".to_string(),
+                document_type: FoundryDocumentType::Item,
+                record_type: FoundryRecordType::Action,
+                folder_id: None,
+            },
+            provenance: RecordProvenance {
+                source_path: format!("packs/actions/{name}.json"),
+                raw_json: Some("{}".to_string()),
+            },
+            publication: RecordPublication {
+                title: None,
+                remaster: false,
+                category: PublicationCategory::Unknown,
+            },
+            requirements: RecordRequirements::default(),
+            timing: RecordTiming::default(),
+            mechanics: RecordMechanics::default(),
+            content: RecordContent::default(),
+            variant: None,
+            visibility: RecordVisibility::visible(RecordVisibilityReason::SourceRecord),
         }
     }
 }

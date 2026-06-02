@@ -1,7 +1,7 @@
 use atlas_domain::{MetricDomain, TimeKind};
 
 use crate::{
-    MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellSideData, definition_for,
+    MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellMechanics, definition_for,
 };
 
 pub(crate) fn metric_number(metrics: &[MetricRow], domain: MetricDomain, key: &str) -> Option<f64> {
@@ -125,8 +125,9 @@ pub(crate) fn format_list(values: &[String]) -> Option<String> {
     non_empty_join(values.iter().map(|value| humanize(value)).collect())
 }
 
-pub(crate) fn format_area(spell: &SpellSideData) -> Option<String> {
-    match (&spell.area_type, spell.area_value) {
+pub(crate) fn format_area(spell: &SpellMechanics) -> Option<String> {
+    let area = spell.area.as_ref()?;
+    match (&area.kind, area.value) {
         (Some(area_type), Some(area_value)) => Some(format!(
             "{} {}",
             format_number(area_value),
@@ -138,9 +139,10 @@ pub(crate) fn format_area(spell: &SpellSideData) -> Option<String> {
     }
 }
 
-pub(crate) fn format_save(spell: &SpellSideData) -> Option<String> {
-    spell.save_type.as_ref().map(|save_type| {
-        if spell.basic_save {
+pub(crate) fn format_save(spell: &SpellMechanics) -> Option<String> {
+    let defense = spell.defense.as_ref()?;
+    defense.save.as_ref().map(|save_type| {
+        if defense.basic {
             format!("basic {}", humanize(save_type))
         } else {
             humanize(save_type)

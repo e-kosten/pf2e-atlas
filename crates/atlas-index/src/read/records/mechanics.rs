@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
-use atlas_record::{ActorSideData, ItemSideData, SpellSideData};
+use atlas_record::{
+    ActorMechanics, ItemMechanics, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
+};
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
 use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
@@ -11,9 +13,9 @@ use crate::schema::{actor_records, item_records, spell_records};
 use super::RecordLoadError;
 use super::parse::json_string_array;
 
-pub(super) fn read_actor_data(
+pub(super) fn read_actor_mechanics(
     connection: &mut SqliteConnection,
-) -> Result<BTreeMap<String, ActorSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, ActorMechanics>, RecordLoadError> {
     let rows = actor_records::table
         .select(ActorRecordRow::as_select())
         .order(actor_records::record_key.asc())
@@ -22,10 +24,10 @@ pub(super) fn read_actor_data(
     actor_data_from_rows(rows)
 }
 
-pub(super) fn read_actor_data_by_keys(
+pub(super) fn read_actor_mechanics_by_keys(
     connection: &mut SqliteConnection,
     keys: &[RecordKey],
-) -> Result<BTreeMap<String, ActorSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, ActorMechanics>, RecordLoadError> {
     if keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -39,9 +41,9 @@ pub(super) fn read_actor_data_by_keys(
     actor_data_from_rows(rows)
 }
 
-pub(super) fn read_item_data(
+pub(super) fn read_item_mechanics(
     connection: &mut SqliteConnection,
-) -> Result<BTreeMap<String, ItemSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, ItemMechanics>, RecordLoadError> {
     let rows = item_records::table
         .select(ItemRecordRow::as_select())
         .order(item_records::record_key.asc())
@@ -50,10 +52,10 @@ pub(super) fn read_item_data(
     item_data_from_rows(rows)
 }
 
-pub(super) fn read_item_data_by_keys(
+pub(super) fn read_item_mechanics_by_keys(
     connection: &mut SqliteConnection,
     keys: &[RecordKey],
-) -> Result<BTreeMap<String, ItemSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, ItemMechanics>, RecordLoadError> {
     if keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -67,9 +69,9 @@ pub(super) fn read_item_data_by_keys(
     item_data_from_rows(rows)
 }
 
-pub(super) fn read_spell_data(
+pub(super) fn read_spell_mechanics(
     connection: &mut SqliteConnection,
-) -> Result<BTreeMap<String, SpellSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, SpellMechanics>, RecordLoadError> {
     let rows = spell_records::table
         .select(SpellRecordRow::as_select())
         .order(spell_records::record_key.asc())
@@ -78,10 +80,10 @@ pub(super) fn read_spell_data(
     spell_data_from_rows(rows)
 }
 
-pub(super) fn read_spell_data_by_keys(
+pub(super) fn read_spell_mechanics_by_keys(
     connection: &mut SqliteConnection,
     keys: &[RecordKey],
-) -> Result<BTreeMap<String, SpellSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, SpellMechanics>, RecordLoadError> {
     if keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -147,12 +149,12 @@ struct SpellRecordRow {
 
 fn actor_data_from_rows(
     rows: Vec<ActorRecordRow>,
-) -> Result<BTreeMap<String, ActorSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, ActorMechanics>, RecordLoadError> {
     let mut values = BTreeMap::new();
     for row in rows {
         values.insert(
             row.record_key,
-            ActorSideData {
+            ActorMechanics {
                 size: row.size,
                 languages: json_string_array("actor_records.languages_json", &row.languages_json)?,
                 speed_types: json_string_array(
@@ -186,16 +188,18 @@ fn actor_data_from_rows(
 
 fn item_data_from_rows(
     rows: Vec<ItemRecordRow>,
-) -> Result<BTreeMap<String, ItemSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, ItemMechanics>, RecordLoadError> {
     let mut values = BTreeMap::new();
     for row in rows {
         values.insert(
             row.record_key,
-            ItemSideData {
-                system_category: row.system_category,
-                system_base_item: row.system_base_item,
-                system_group: row.system_group,
-                system_usage: row.system_usage,
+            ItemMechanics {
+                foundry_type: None,
+                category: row.system_category,
+                base_item: row.system_base_item,
+                group: row.system_group,
+                usage: row.system_usage,
+                price_json: None,
                 price_cp: row.price_cp,
                 bulk_value: row.bulk_value,
                 hands_requirement: row.hands_requirement,
@@ -211,28 +215,34 @@ fn item_data_from_rows(
 
 fn spell_data_from_rows(
     rows: Vec<SpellRecordRow>,
-) -> Result<BTreeMap<String, SpellSideData>, RecordLoadError> {
+) -> Result<BTreeMap<String, SpellMechanics>, RecordLoadError> {
     let mut values = BTreeMap::new();
     for row in rows {
+        let area = (row.area_type.is_some() || row.area_value.is_some()).then_some(SpellArea {
+            kind: row.area_type,
+            value: row.area_value,
+        });
+        let defense = (row.save_type.is_some() || row.basic_save).then_some(SpellDefense {
+            save: row.save_type,
+            basic: row.basic_save,
+        });
+
         values.insert(
             row.record_key,
-            SpellSideData {
+            SpellMechanics {
                 traditions: json_string_array(
                     "spell_records.traditions_json",
                     &row.traditions_json,
                 )?,
-                spell_kinds: json_string_array(
-                    "spell_records.spell_kinds_json",
-                    &row.spell_kinds_json,
-                )?,
-                range_text: row.range_text,
-                range_value: row.range_value,
-                target_text: row.target_text,
-                area_type: row.area_type,
-                area_value: row.area_value,
-                save_type: row.save_type,
+                kinds: json_string_array("spell_records.spell_kinds_json", &row.spell_kinds_json)?,
+                range: row.range_text.map(|text| SpellRange {
+                    text,
+                    distance: row.range_value,
+                }),
+                target: row.target_text.map(|text| SpellTarget { text }),
+                area,
+                defense,
                 sustained: row.sustained,
-                basic_save: row.basic_save,
                 damage_types: json_string_array(
                     "spell_records.damage_types_json",
                     &row.damage_types_json,

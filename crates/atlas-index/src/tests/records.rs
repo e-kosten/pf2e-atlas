@@ -1,6 +1,6 @@
 use std::fs;
 
-use atlas_domain::{NumericMatch, RecordFamily, RecordKey};
+use atlas_domain::{NumericMatch, RecordKey, RecordKind};
 use rusqlite::Connection;
 
 use super::{create_valid_artifact_database, temp_db_path};
@@ -14,12 +14,15 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
     let records = SqliteIndexReader::open_read_only(&path)?.load_records()?;
 
     assert_eq!(records.len(), 3);
-    assert_eq!(records[0].key.to_string(), "actions:testAction1");
-    assert_eq!(records[0].record_family.as_str(), "rule");
-    assert_eq!(records[0].pack_name.as_str(), "actions");
-    assert_eq!(records[0].traits, Vec::<String>::new());
-    assert!(records[0].is_default_visible);
-    assert_eq!(records[0].source_path, "packs/actions/test-action-1.json");
+    assert_eq!(records[0].identity.key.to_string(), "actions:testAction1");
+    assert_eq!(records[0].classification.kind.as_str(), "rule");
+    assert_eq!(records[0].identity.pack().as_str(), "actions");
+    assert_eq!(records[0].classification.traits, Vec::<String>::new());
+    assert!(records[0].visibility.visible_by_default());
+    assert_eq!(
+        records[0].provenance.source_path,
+        "packs/actions/test-action-1.json"
+    );
     fs::remove_file(path)?;
     Ok(())
 }
@@ -42,16 +45,6 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
            record_key, metric_domain, metric_key, value_type
          ) VALUES (
            'actions:testAction2', 'actor', 'level', 'number'
-         )",
-        [],
-    )?;
-    connection.execute(
-        "INSERT INTO actor_records (
-           record_key, size, languages_json, speed_types_json, senses_json, immunities_json,
-           resistances_json, weaknesses_json, disable_text, disable_skills_json, is_complex
-         ) VALUES (
-           'actions:testAction1', 'med', '[\"Common\"]', '[]', '[]', '[]', '[]', '[]',
-           NULL, '[]', 0
          )",
         [],
     )?;
@@ -129,12 +122,12 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
         .load_records_by_key(&[RecordKey::parse("actions:testAction1")?])?;
 
     assert_eq!(records.len(), 1);
-    assert_eq!(records[0].key.to_string(), "actions:testAction1");
-    assert_eq!(records[0].metrics.len(), 1);
-    assert!(records[0].actor_data.is_some());
-    assert!(records[0].item_data.is_some());
-    assert!(records[0].spell_data.is_some());
-    assert_eq!(records[0].supplemental_content.len(), 1);
+    assert_eq!(records[0].identity.key.to_string(), "actions:testAction1");
+    assert_eq!(records[0].mechanics.metrics.len(), 1);
+    assert!(records[0].mechanics.actor().is_none());
+    assert!(records[0].mechanics.item().is_some());
+    assert!(records[0].mechanics.spell().is_some());
+    assert_eq!(records[0].content.documents.len(), 1);
     fs::remove_file(path)?;
     Ok(())
 }
@@ -172,7 +165,7 @@ fn loads_search_candidate_records_without_detail_hydration()
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].key.to_string(), "actions:testAction1");
     assert_eq!(candidates[0].name, "Test Action 1");
-    assert_eq!(candidates[0].record_family, RecordFamily::Rule);
+    assert_eq!(candidates[0].kind, RecordKind::Rule);
     assert_eq!(candidates[0].foundry_record_type, "action");
     assert_eq!(candidates[0].traits, vec!["attack", "flourish"]);
     assert_eq!(candidates[0].taxonomy_families, vec!["action"]);

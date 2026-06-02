@@ -229,7 +229,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     let by_key = page
         .records
         .into_iter()
-        .map(|record| (record.key.to_string(), record))
+        .map(|record| (record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -584,7 +584,7 @@ fn print_search_results(data: &SearchData) {
     let family_width = data
         .results
         .iter()
-        .map(|result| result.record.record_family.len())
+        .map(|result| result.record.kind.len())
         .max()
         .unwrap_or("family".len());
     println!(
@@ -606,7 +606,7 @@ fn print_search_results(data: &SearchData) {
         println!(
             "{:<key_width$}  {:<family_width$}  {}",
             result.record.key,
-            result.record.record_family,
+            result.record.kind,
             result.record.name,
             key_width = key_width,
             family_width = family_width

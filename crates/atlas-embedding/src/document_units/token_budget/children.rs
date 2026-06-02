@@ -20,7 +20,7 @@ pub(super) fn is_child_embedding_source(source_kind: ContentSourceKind) -> bool 
     matches!(
         source_kind,
         ContentSourceKind::Description
-            | ContentSourceKind::DetailsDescription
+            | ContentSourceKind::DetailsFieldDescription
             | ContentSourceKind::PublicNotes
     )
 }

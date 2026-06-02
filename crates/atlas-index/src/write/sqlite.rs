@@ -168,12 +168,15 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use atlas_domain::{
-        MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
+        MetricDomain, PackName, PublicationCategory, RecordId, RecordKey, RecordKind,
     };
     use atlas_embedding::EmbeddingModelId;
     use atlas_record::{
-        AliasSource, ContentSourceKind, ContentVisibility, MetricRow, MetricValue,
-        NormalizedRecord, RecordAlias, ReferenceEdge, RemasterLink,
+        AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility, FoundryDocumentType,
+        FoundryRecordInfo, FoundryRecordType, MetricRow, MetricValue, RecordAlias,
+        RecordClassification, RecordContent, RecordIdentity, RecordMechanics, RecordProvenance,
+        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+        RecordVisibilityReason, ReferenceEdge, RemasterLink,
     };
     use rusqlite::Connection;
 
@@ -196,10 +199,10 @@ mod tests {
         let references = records
             .windows(2)
             .map(|pair| ReferenceEdge {
-                from_record_key: pair[1].key.clone(),
-                to_record_key: pair[0].key.clone(),
-                display_text: Some(pair[0].name.clone()),
-                reference_text: format!("Compendium.pf2e.actions.{}", pair[0].id.as_str()),
+                from_record_key: pair[1].identity.key.clone(),
+                to_record_key: pair[0].identity.key.clone(),
+                display_text: Some(pair[0].identity.name.clone()),
+                reference_text: format!("Compendium.pf2e.actions.{}", pair[0].identity.id()),
                 source_kind: ContentSourceKind::Description,
                 visibility: ContentVisibility::Public,
             })
@@ -207,16 +210,16 @@ mod tests {
         let aliases = records
             .iter()
             .map(|record| RecordAlias {
-                canonical_record_key: record.key.clone(),
-                alias_text: format!("{} Alias", record.name),
-                normalized_alias: format!("{} alias", record.normalized_name),
+                canonical_record_key: record.identity.key.clone(),
+                alias_text: format!("{} Alias", record.identity.name),
+                normalized_alias: format!("{} alias", record.identity.normalized_name()),
                 source: AliasSource::CompendiumSource,
                 source_ref: "fixture".to_string(),
             })
             .collect::<Vec<_>>();
         let remaster_links = vec![RemasterLink {
-            remaster_record_key: records[1].key.clone(),
-            legacy_record_key: records[0].key.clone(),
+            remaster_record_key: records[1].identity.key.clone(),
+            legacy_record_key: records[0].identity.key.clone(),
             source: atlas_domain::RemasterLinkSource::Migration,
             source_ref: "fixture".to_string(),
         }];
@@ -431,58 +434,48 @@ mod tests {
         std::env::temp_dir().join(OsString::from_vec(file_name))
     }
 
-    fn fixture_record(pack_name: &PackName, id: &str, name: &str) -> NormalizedRecord {
+    fn fixture_record(pack_name: &PackName, id: &str, name: &str) -> AtlasRecord {
         let record_id = RecordId::new(id).expect("record id parses");
-        NormalizedRecord {
-            key: RecordKey::new(pack_name.clone(), record_id.clone()),
-            id: record_id,
-            name: name.to_string(),
-            normalized_name: name.to_lowercase(),
-            record_family: RecordFamily::Rule,
-            pack_name: pack_name.clone(),
-            pack_label: "Actions".to_string(),
-            foundry_document_type: "Item".to_string(),
-            foundry_record_type: "action".to_string(),
-            level: Some(1),
-            rarity: None,
-            traits: vec!["test".to_string()],
-            prerequisites: Vec::new(),
-            system_category: None,
-            system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: vec![MetricRow {
-                domain: MetricDomain::Item,
-                key: "level.value".to_string(),
-                value: MetricValue::Number(1.0),
-            }],
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: format!("packs/actions/{id}.json"),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
+        AtlasRecord {
+            identity: RecordIdentity {
+                key: RecordKey::new(pack_name.clone(), record_id),
+                name: name.to_string(),
+            },
+            classification: RecordClassification {
+                kind: RecordKind::Rule,
+                level: Some(1),
+                rarity: None,
+                traits: vec!["test".to_string()],
+                taxonomy: RecordTaxonomy::default(),
+            },
+            foundry: FoundryRecordInfo {
+                pack_label: "Actions".to_string(),
+                document_type: FoundryDocumentType::Item,
+                record_type: FoundryRecordType::Action,
+                folder_id: None,
+            },
+            provenance: RecordProvenance {
+                source_path: format!("packs/actions/{id}.json"),
+                raw_json: Some("{}".to_string()),
+            },
+            publication: RecordPublication {
+                title: None,
+                remaster: false,
+                category: PublicationCategory::Unknown,
+            },
+            requirements: RecordRequirements::default(),
+            timing: RecordTiming::default(),
+            mechanics: RecordMechanics {
+                metrics: vec![MetricRow {
+                    domain: MetricDomain::Item,
+                    key: "level.value".to_string(),
+                    value: MetricValue::Number(1.0),
+                }],
+                ..RecordMechanics::default()
+            },
+            content: RecordContent::default(),
+            variant: None,
+            visibility: RecordVisibility::visible(RecordVisibilityReason::SourceRecord),
         }
     }
 }

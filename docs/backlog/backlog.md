@@ -54,6 +54,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust side data and metric source fact convergence](./items/rust-side-data-metric-source-fact-convergence.md)
   Track cleanup for overlapping Rust side-table and metric projections. Status: proposed.
 
+- [Rust Foundry type mechanics parsers](./items/rust-foundry-type-mechanics-parsers.md)
+  Evaluate peer Foundry-type mechanics parsers for source facts currently exposed primarily through metrics. Status: proposed.
+
 - [Rust graph context deeper local graph](./items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.
 
