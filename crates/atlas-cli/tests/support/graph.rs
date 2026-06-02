@@ -102,7 +102,7 @@ pub fn insert_variant_group(path: &Path) -> Result<(), Box<dyn std::error::Error
                  variant_label = ?1,
                  variant_axes_json = '[\"grade\"]',
                  variant_confidence = 1.0,
-                 variant_source = 'test',
+                 variant_source = 'parenthetical',
                  level = ?2
              WHERE record_key = ?3",
             (label, level, record_key),
@@ -120,7 +120,7 @@ pub fn insert_second_variant_group(path: &Path) -> Result<(), Box<dyn std::error
              variant_label = 'Alternate',
              variant_axes_json = '[\"grade\"]',
              variant_confidence = 1.0,
-             variant_source = 'test',
+             variant_source = 'parenthetical',
              level = 9
          WHERE record_key = 'actions:testAction3'",
         [],

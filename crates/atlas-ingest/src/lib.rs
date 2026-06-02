@@ -22,8 +22,8 @@ pub use artifact_manifest::{
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
 pub use report::{
-    SourceAnalysisEmbeddingReport, SourceAnalysisMetricReport, SourceAnalysisRelationshipReport,
-    SourceAnalysisReport, SourceAnalysisSideDataReport, SourceAnalysisSourceReport,
+    SourceAnalysisEmbeddingReport, SourceAnalysisMechanicsReport, SourceAnalysisMetricReport,
+    SourceAnalysisRelationshipReport, SourceAnalysisReport, SourceAnalysisSourceReport,
     SourceAnalysisTextReport, analyze_foundry_source,
 };
 pub use source::model::{

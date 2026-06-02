@@ -1,7 +1,7 @@
+use atlas_record::MetricRow;
 use atlas_record::metrics as metric_definitions;
 use serde_json::Value;
 
-use crate::records::MetricRow;
 use crate::source::normalize::pointer_string;
 
 use super::specs::{

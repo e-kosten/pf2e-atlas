@@ -1,4 +1,5 @@
 use atlas_domain::RecordKey;
+use atlas_record::FoundryRecordType;
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
 use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
@@ -31,13 +32,13 @@ pub(super) fn read_search_candidate_records_by_keys(
                 name: row.name,
                 traits: json_string_array("records.traits_json", &row.traits_json)?,
                 kind: parse_record_family(&row.record_family)?,
-                foundry_record_type: row.foundry_record_type,
-                taxonomy_families: json_string_array(
+                foundry_type: FoundryRecordType::from_foundry(&row.foundry_record_type),
+                inferred_groups: json_string_array(
                     "records.taxonomy_families_json",
                     &row.taxonomy_families_json,
                 )?,
-                system_category: row.system_category,
-                system_group: row.system_group,
+                item_category: row.system_category,
+                item_group: row.system_group,
             })
         })
         .collect()

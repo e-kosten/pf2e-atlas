@@ -1,11 +1,11 @@
 use atlas_record::{
-    ContentDocument, ContentInline, ContentReferenceLocator, ContentSourceKind,
+    AtlasRecord, ContentDocument, ContentInline, ContentReferenceLocator, ContentSourceKind,
     iter_content_references, render_plain_text,
 };
 
 use crate::generated::afflictions::AfflictionFamily;
 use crate::records::variants;
-use crate::records::{AtlasRecord, EmbeddedItemFact, SourceRecordFacts};
+use crate::records::{EmbeddedItemFact, SourceRecordFacts};
 use crate::source::normalize::normalize_text;
 
 pub(super) fn detect_affliction_family(

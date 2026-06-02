@@ -2,13 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use atlas_domain::{MetricDomain, PublicationCategory};
-use atlas_record::{ReferenceEdgeFacts, ReferenceGraphMode, reference_edge_matches_mode};
+use atlas_record::{
+    MetricValue, ReferenceEdgeFacts, ReferenceGraphMode, reference_edge_matches_mode,
+};
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::diagnostics::IngestDiagnostics;
 use crate::error::IngestError;
-use crate::records::{LoadedSourceRecord, MetricValue};
+use crate::records::LoadedSourceRecord;
 use crate::source::model::{SkippedRecord, SourceLoad};
 use crate::source_pipeline;
 
@@ -28,7 +30,7 @@ pub struct SourceAnalysisReport {
     pub by_publication_category: BTreeMap<String, usize>,
     pub text: SourceAnalysisTextReport,
     pub embeddings: SourceAnalysisEmbeddingReport,
-    pub side_data: SourceAnalysisSideDataReport,
+    pub mechanics: SourceAnalysisMechanicsReport,
     pub metrics: SourceAnalysisMetricReport,
     pub relationships: SourceAnalysisRelationshipReport,
     pub diagnostics: Value,
@@ -63,7 +65,7 @@ pub struct SourceAnalysisEmbeddingReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SourceAnalysisSideDataReport {
+pub struct SourceAnalysisMechanicsReport {
     pub actor_records: usize,
     pub item_records: usize,
     pub spell_records: usize,
@@ -152,7 +154,7 @@ pub(crate) fn analyze_source_load(
                 .count(),
         },
         embeddings: embedding_report(&source.pending_document_embeddings),
-        side_data: SourceAnalysisSideDataReport {
+        mechanics: SourceAnalysisMechanicsReport {
             actor_records: source
                 .records
                 .iter()

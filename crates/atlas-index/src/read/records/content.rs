@@ -98,11 +98,11 @@ fn validate_content_policy(
             source_kind.as_str()
         )));
     }
-    if row.contributes_to_references != source_kind.default_contributes_to_references() {
+    if row.contributes_to_references != source_kind.default_contributes_to_reference_occurrences() {
         return Err(RecordLoadError::InvalidData(format!(
             "record_content contributes_to_references `{}` does not match default `{}` for source kind `{}`",
             row.contributes_to_references,
-            source_kind.default_contributes_to_references(),
+            source_kind.default_contributes_to_reference_occurrences(),
             source_kind.as_str()
         )));
     }

@@ -465,12 +465,12 @@ fn search_candidate_from_record(record: AtlasRecord) -> SearchCandidateRecord {
         name: record.identity.name,
         traits: record.classification.traits,
         kind: record.classification.kind,
-        foundry_record_type: record.foundry.record_type.as_str().to_string(),
-        taxonomy_families: record.classification.taxonomy.inferred_groups,
-        system_category: record
+        foundry_type: record.foundry.record_type,
+        inferred_groups: record.classification.taxonomy.inferred_groups,
+        item_category: record
             .mechanics
             .item()
             .and_then(|item| item.category.clone()),
-        system_group: record.mechanics.item().and_then(|item| item.group.clone()),
+        item_group: record.mechanics.item().and_then(|item| item.group.clone()),
     }
 }

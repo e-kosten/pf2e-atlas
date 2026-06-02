@@ -64,7 +64,7 @@ fn glossary_reference_targets(loaded: &LoadedSourceRecord) -> Vec<(String, Strin
     if let Some(document) = record.content.blurb() {
         collect_glossary_targets(document, &mut targets);
     }
-    for supplemental in record.content.reference_documents() {
+    for supplemental in record.content.reference_occurrence_documents() {
         collect_glossary_targets(&supplemental.document, &mut targets);
     }
     targets

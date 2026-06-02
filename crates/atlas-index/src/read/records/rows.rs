@@ -15,7 +15,7 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 use super::RecordLoadError;
 use super::parse::{
     content_document, json_string_array, normalized_time, parse_publication_family, parse_rarity,
-    parse_record_family, parse_record_key,
+    parse_record_family, parse_record_key, parse_variant_source,
 };
 
 pub(super) fn read_record_rows(
@@ -200,18 +200,37 @@ fn record_from_row(row: RecordRow) -> Result<AtlasRecord, RecordLoadError> {
 fn variant_group_from_row(
     row: &RecordRow,
 ) -> Result<Option<RecordVariantMembership>, RecordLoadError> {
-    let Some(key) = row.variant_group_key.clone() else {
+    let axes = json_string_array("records.variant_axes_json", &row.variant_axes_json)?;
+    let source = parse_variant_source(&row.variant_source)?;
+    let has_variant_signal = row.variant_group_key.is_some()
+        || row.variant_base_name.is_some()
+        || row.variant_label.is_some()
+        || row.variant_confidence.is_some()
+        || !axes.is_empty()
+        || source != VariantSource::None;
+    if !has_variant_signal {
         return Ok(None);
-    };
-    let Some(base_name) = row.variant_base_name.clone() else {
-        return Ok(None);
-    };
+    }
+    let key = row
+        .variant_group_key
+        .clone()
+        .ok_or_else(|| missing_variant_field("records.variant_group_key"))?;
+    let base_name = row
+        .variant_base_name
+        .clone()
+        .ok_or_else(|| missing_variant_field("records.variant_base_name"))?;
     Ok(Some(RecordVariantMembership {
         group_key: key,
         base_name,
         label: row.variant_label.clone(),
-        axes: json_string_array("records.variant_axes_json", &row.variant_axes_json)?,
+        axes,
         confidence: row.variant_confidence,
-        source: VariantSource::from_canonical(&row.variant_source).unwrap_or(VariantSource::None),
+        source,
     }))
+}
+
+fn missing_variant_field(field: &'static str) -> RecordLoadError {
+    RecordLoadError::InvalidData(format!(
+        "{field} is required when records contain variant membership data"
+    ))
 }

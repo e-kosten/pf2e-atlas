@@ -472,10 +472,16 @@ impl RecordContent {
             .filter(|content| content.contributes_to_search())
     }
 
-    pub fn reference_documents(&self) -> impl Iterator<Item = &RecordContentDocument> {
+    pub fn reference_occurrence_documents(&self) -> impl Iterator<Item = &RecordContentDocument> {
         self.documents
             .iter()
-            .filter(|content| content.contributes_to_references())
+            .filter(|content| content.contributes_to_reference_occurrences())
+    }
+
+    pub fn default_backlink_documents(&self) -> impl Iterator<Item = &RecordContentDocument> {
+        self.documents
+            .iter()
+            .filter(|content| content.contributes_to_default_backlinks())
     }
 }
 

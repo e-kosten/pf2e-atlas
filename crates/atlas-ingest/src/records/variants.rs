@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKind;
-use atlas_record::render_plain_text;
+use atlas_record::{AtlasRecord, RecordVariantMembership, VariantSource, render_plain_text};
 
 mod labels;
 
@@ -13,9 +13,7 @@ use labels::{
 use crate::diagnostics::IngestDiagnostics;
 use crate::diagnostics::{VariantCandidate, VariantDiagnosticSource};
 use crate::records::references::record_by_key;
-use crate::records::{
-    AtlasRecord, LoadedSourceRecord, RecordReferenceIndex, RecordVariantMembership, VariantSource,
-};
+use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
 use crate::source::normalize::normalize_text;
 
 pub(crate) fn assign_variant_groups(

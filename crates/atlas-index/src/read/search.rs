@@ -1,5 +1,5 @@
 use atlas_domain::{RecordKey, RecordKind, SearchFilterNode};
-use atlas_record::{AtlasRecord, AtlasRecordSet};
+use atlas_record::{AtlasRecord, AtlasRecordSet, FoundryRecordType};
 
 pub(crate) mod filters;
 pub(crate) mod fts;
@@ -82,10 +82,10 @@ pub struct SearchCandidateRecord {
     pub name: String,
     pub traits: Vec<String>,
     pub kind: RecordKind,
-    pub foundry_record_type: String,
-    pub taxonomy_families: Vec<String>,
-    pub system_category: Option<String>,
-    pub system_group: Option<String>,
+    pub foundry_type: FoundryRecordType,
+    pub inferred_groups: Vec<String>,
+    pub item_category: Option<String>,
+    pub item_group: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

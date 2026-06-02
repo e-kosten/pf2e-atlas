@@ -1,8 +1,7 @@
 use atlas_domain::RecordKey;
-use atlas_record::{ContentSourceKind, ContentVisibility};
+use atlas_record::{ContentSourceKind, ContentVisibility, ReferenceEdge};
 
 use crate::generated::afflictions::AfflictionOccurrence;
-use crate::records::ReferenceEdge;
 
 pub(super) fn generated_affliction_edges(
     occurrence: &AfflictionOccurrence,

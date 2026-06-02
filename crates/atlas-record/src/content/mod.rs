@@ -146,8 +146,13 @@ impl RecordContentDocument {
         self.source_kind.default_contributes_to_search()
     }
 
-    pub const fn contributes_to_references(&self) -> bool {
-        self.source_kind.default_contributes_to_references()
+    pub const fn contributes_to_reference_occurrences(&self) -> bool {
+        self.source_kind
+            .default_contributes_to_reference_occurrences()
+    }
+
+    pub const fn contributes_to_default_backlinks(&self) -> bool {
+        self.source_kind.contributes_to_default_backlinks()
     }
 }
 
@@ -250,7 +255,7 @@ impl ContentSourceKind {
         self.contributes_to_default_retrieval()
     }
 
-    pub const fn default_contributes_to_references(self) -> bool {
+    pub const fn default_contributes_to_reference_occurrences(self) -> bool {
         self.contributes_to_default_retrieval()
     }
 
@@ -363,6 +368,17 @@ mod tests {
         );
         assert!(!ContentSourceKind::PrivateNotes.contributes_to_default_retrieval());
         assert!(!ContentSourceKind::EmbeddedItemDescription.contributes_to_default_backlinks());
+        assert!(
+            ContentSourceKind::EmbeddedItemDescription
+                .default_contributes_to_reference_occurrences()
+        );
+        let embedded_document = RecordContentDocument {
+            source_kind: ContentSourceKind::EmbeddedSpellDescription,
+            label: None,
+            document: ContentDocument::default(),
+        };
+        assert!(embedded_document.contributes_to_reference_occurrences());
+        assert!(!embedded_document.contributes_to_default_backlinks());
         assert_eq!(
             ContentSourceKind::EmbeddedSpellDescription.fts_field(),
             ContentFtsField::EmbeddedContent

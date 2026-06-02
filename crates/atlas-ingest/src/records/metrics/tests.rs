@@ -1,8 +1,7 @@
 use atlas_domain::MetricDomain;
 use atlas_record::metrics as metric_definitions;
+use atlas_record::{MetricRow, MetricValue};
 use serde_json::Value;
-
-use crate::records::{MetricRow, MetricValue};
 
 use super::actor::extract_actor_metrics;
 use super::specs::{

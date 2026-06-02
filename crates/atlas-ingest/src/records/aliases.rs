@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
-use atlas_record::FoundryDocumentType;
+use atlas_record::{AliasSource, FoundryDocumentType, RecordAlias, RemasterLink};
 
 mod html;
 mod migrations;
@@ -19,10 +19,7 @@ use migrations::migration_rename_pairs;
 use remaster_journal::expand_grouped_alias_text;
 
 use crate::records::references::{record_by_key, reference_pack_and_locator, resolve_record_key};
-use crate::records::{
-    AliasSource, JournalPageFact, LoadedSourceRecord, RecordAlias, RecordReferenceIndex,
-    RemasterLink,
-};
+use crate::records::{JournalPageFact, LoadedSourceRecord, RecordReferenceIndex};
 use crate::source::normalize::normalize_text;
 
 pub(crate) fn resolve_record_aliases(

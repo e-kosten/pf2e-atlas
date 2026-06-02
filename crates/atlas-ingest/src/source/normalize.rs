@@ -1,6 +1,13 @@
 use std::path::Path;
 
 use atlas_domain::{PackName, Rarity, RecordId, RecordKey};
+use atlas_record::{
+    ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
+    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+    ItemTypeMechanics, RecordActivationTiming, RecordClassification, RecordContent,
+    RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
+    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+};
 use serde_json::Value;
 
 mod content;
@@ -42,14 +49,7 @@ pub(crate) use time::{normalize_activation_time, normalize_time_text};
 
 use crate::error::IngestError;
 use crate::records::metrics;
-use crate::records::{
-    ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
-    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-    ItemTypeMechanics, LoadedSourceRecord, RecordActivationTiming, RecordClassification,
-    RecordContent, RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
-    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
-    RecordVisibility, SourceConstructionFacts, SourceRecordFacts,
-};
+use crate::records::{LoadedSourceRecord, SourceConstructionFacts, SourceRecordFacts};
 use crate::source::ManifestPack;
 use crate::source::mechanics;
 
@@ -84,7 +84,15 @@ pub(crate) fn normalize_record(
             .flatten()
     });
     let rarity = normalized_pointer_string(&raw, "/system/traits/rarity")
-        .and_then(|value| Rarity::from_canonical(&value));
+        .map(|value| {
+            Rarity::from_canonical(&value).ok_or_else(|| {
+                normalization_error(
+                    path,
+                    &format!("unsupported rarity `{value}` at /system/traits/rarity"),
+                )
+            })
+        })
+        .transpose()?;
     let traits = extract_traits(&raw);
     let prerequisites = extract_prerequisites(&raw);
     let system_category = normalized_pointer_string(&raw, "/system/category");

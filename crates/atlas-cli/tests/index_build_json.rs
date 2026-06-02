@@ -163,7 +163,7 @@ fn analyze_index_json_reports_source_without_writing_artifact()
     assert_eq!(analyze_json["by_kind"]["rule"], 1);
     assert_eq!(analyze_json["by_foundry_taxonomy"]["Item|action"], 1);
     assert_eq!(analyze_json["by_publication_category"]["unknown"], 1);
-    assert_eq!(analyze_json["side_data"]["item_records"], 1);
+    assert_eq!(analyze_json["mechanics"]["item_records"], 1);
     assert_eq!(analyze_json["text"]["records_with_description"], 1);
     assert_eq!(analyze_json["embeddings"]["pending_document_embeddings"], 1);
     assert_eq!(analyze_json["relationships"]["reference_edges"], 1);

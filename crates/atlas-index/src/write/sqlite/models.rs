@@ -116,6 +116,7 @@ pub(super) struct ItemRecordRow {
     pub system_base_item: Option<String>,
     pub system_group: Option<String>,
     pub system_usage: Option<String>,
+    pub system_price_json: Option<String>,
     pub price_cp: Option<i64>,
     pub bulk_value: Option<f64>,
     pub hands_requirement: Option<String>,
