@@ -104,8 +104,7 @@ pub struct RecordRelationshipJson {
 }
 
 pub fn record_json(record: &PersistedRecord, options: RecordJsonOptions) -> RecordJson {
-    let normalized = record.into();
-    let presentation = build_record_presentation_document(&normalized);
+    let presentation = build_record_presentation_document(record);
     let mut sections = sections_for_detail(record, &presentation.sections, options.detail);
     sections.retain(|section| !section.blocks.is_empty());
     RecordJson {

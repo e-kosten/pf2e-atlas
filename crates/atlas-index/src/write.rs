@@ -28,7 +28,7 @@ pub trait IndexArtifactWriter {
     fn output_path(&self) -> &Path;
     fn write(
         &self,
-        input: &IndexBuildInput<'_>,
+        input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
     ) -> Result<(), IndexWriteError>;
 }

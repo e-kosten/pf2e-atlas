@@ -36,7 +36,10 @@ pub use presentation::{
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
     PresentationSectionKind, PresentationText, RecordPresentationDocument,
 };
-pub use presentation_recipe::build_record_presentation_document;
+pub use presentation_recipe::{
+    RecordPresentationSource, build_record_presentation_document,
+    build_record_presentation_document_with_content_filter,
+};
 pub use reference_policy::{
     DEFAULT_EXCLUDED_SOURCE_KINDS, ReferenceEdgeFacts, ReferenceGraphMode, ReferenceGraphPolicy,
     ReferenceVisibilityPolicy, reference_edge_matches_mode, reference_graph_policy,
@@ -138,58 +141,6 @@ pub struct PersistedRecord {
     pub source_path: String,
     pub is_default_visible: bool,
     pub raw_json: String,
-}
-
-impl From<&PersistedRecord> for NormalizedRecord {
-    fn from(record: &PersistedRecord) -> Self {
-        Self {
-            key: record.key.clone(),
-            id: record.id.clone(),
-            name: record.name.clone(),
-            normalized_name: record.normalized_name.clone(),
-            record_family: record.record_family,
-            pack_name: record.pack_name.clone(),
-            pack_label: record.pack_label.clone(),
-            foundry_document_type: record.foundry_document_type.clone(),
-            foundry_record_type: record.foundry_record_type.clone(),
-            level: record.level,
-            rarity: record.rarity.clone(),
-            traits: record.traits.clone(),
-            prerequisites: record.prerequisites.clone(),
-            system_category: record.system_category.clone(),
-            system_group: record.system_group.clone(),
-            system_base_item: record.system_base_item.clone(),
-            system_usage: record.system_usage.clone(),
-            system_price_json: record.system_price_json.clone(),
-            system_actions_value: record.system_actions_value,
-            system_time_value: record.system_time_value.clone(),
-            system_duration_value: record.system_duration_value.clone(),
-            price_cp: record.price_cp,
-            activation_time: record.activation_time.clone(),
-            duration: record.duration.clone(),
-            metrics: record.metrics.clone(),
-            actor_data: record.actor_data.clone(),
-            item_data: record.item_data.clone(),
-            spell_data: record.spell_data.clone(),
-            publication_title: record.publication_title.clone(),
-            publication_remaster: record.publication_remaster,
-            description: record.description.clone(),
-            blurb: record.blurb.clone(),
-            supplemental_content: record.supplemental_content.clone(),
-            publication_family: record.publication_family,
-            folder_id: record.folder_id.clone(),
-            taxonomy_families: record.taxonomy_families.clone(),
-            variant_group_key: record.variant_group_key.clone(),
-            variant_base_name: record.variant_base_name.clone(),
-            variant_label: record.variant_label.clone(),
-            variant_axes: record.variant_axes.clone(),
-            variant_confidence: record.variant_confidence,
-            variant_source: record.variant_source.clone(),
-            source_path: record.source_path.clone(),
-            is_default_visible: record.is_default_visible,
-            raw_json: record.raw_json.clone(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

@@ -1,8 +1,7 @@
 use atlas_domain::{MetricDomain, TimeKind};
 
 use crate::{
-    MetricDefinition, MetricRow, MetricValue, NormalizedRecord, NormalizedTime, SpellSideData,
-    definition_for,
+    MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellSideData, definition_for,
 };
 
 pub(crate) fn metric_number(metrics: &[MetricRow], domain: MetricDomain, key: &str) -> Option<f64> {
@@ -157,16 +156,17 @@ pub(crate) fn format_save(spell: &SpellSideData) -> Option<String> {
     })
 }
 
-pub(crate) fn activation_text(record: &NormalizedRecord) -> Option<String> {
-    record
-        .activation_time
-        .as_ref()
+pub(crate) fn activation_text(
+    activation_time: Option<&NormalizedTime>,
+    system_actions_value: Option<i64>,
+) -> Option<String> {
+    activation_time
         .map(format_time)
-        .or_else(|| action_count_text(record.system_actions_value))
+        .or_else(|| action_count_text(system_actions_value))
 }
 
-pub(crate) fn duration_text(record: &NormalizedRecord) -> Option<String> {
-    record.duration.as_ref().map(format_time)
+pub(crate) fn duration_text(duration: Option<&NormalizedTime>) -> Option<String> {
+    duration.map(format_time)
 }
 
 pub(crate) fn action_count_text(value: Option<i64>) -> Option<String> {

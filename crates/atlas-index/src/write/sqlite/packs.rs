@@ -8,7 +8,7 @@ use crate::IndexWriteError;
 
 pub(super) fn write_packs(
     connection: &mut SqliteConnection,
-    packs: &[IndexBuildPack<'_>],
+    packs: &[IndexBuildPack],
 ) -> Result<(), IndexWriteError> {
     let rows = packs
         .iter()
@@ -18,7 +18,7 @@ pub(super) fn write_packs(
                 label: pack.label.to_string(),
                 document_type: pack.document_type.to_string(),
                 declared_path: pack.declared_path.to_string(),
-                resolved_path: sqlite_payload_path(pack.resolved_path, "pack resolved")?,
+                resolved_path: sqlite_payload_path(&pack.resolved_path, "pack resolved")?,
                 record_count: i64::try_from(pack.record_count).map_err(|_| {
                     IndexWriteError::WriteFailed(format!(
                         "pack `{}` record count does not fit in SQLite INTEGER",

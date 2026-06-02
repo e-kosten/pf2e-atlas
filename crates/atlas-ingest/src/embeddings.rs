@@ -4,7 +4,9 @@ use atlas_embedding::{
     DocumentEmbeddingContentSource, DocumentEmbeddingSource, EmbeddingUnitKind,
     PendingDocumentEmbedding, build_document_embedding_units,
 };
-use atlas_record::{ContentSourceKind, NormalizedRecord, build_record_presentation_document};
+use atlas_record::{
+    ContentSourceKind, NormalizedRecord, build_record_presentation_document_with_content_filter,
+};
 
 use crate::records::visibility::RetrievalVisibility;
 use crate::records::{LoadedSourceRecord, RecordAlias, RemasterLink};
@@ -42,7 +44,10 @@ pub(crate) fn build_pending_document_embeddings(
             Some(DocumentEmbeddingSource {
                 record_key,
                 record_name: record.name.clone(),
-                document: build_record_presentation_document(&embedding_parent_record(record)),
+                document: build_record_presentation_document_with_content_filter(
+                    record,
+                    |content| !content.source_kind.is_embedded(),
+                ),
                 aliases: aliases_by_key
                     .get(&record.key.to_string())
                     .cloned()
@@ -81,14 +86,6 @@ pub(crate) fn summarize_pending_document_embeddings(
         summary.records_over_100_child_units += usize::from(child_units > 100);
     }
     summary
-}
-
-fn embedding_parent_record(record: &NormalizedRecord) -> NormalizedRecord {
-    let mut record = record.clone();
-    record
-        .supplemental_content
-        .retain(|content| !content.source_kind.is_embedded());
-    record
 }
 
 fn embedding_content_documents(record: &NormalizedRecord) -> Vec<DocumentEmbeddingContentSource> {

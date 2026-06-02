@@ -37,7 +37,7 @@ pub(super) fn write_reference_edges(
 
 pub(super) fn write_reference_occurrences(
     connection: &mut SqliteConnection,
-    records: &[&NormalizedRecord],
+    records: &[NormalizedRecord],
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
     for record in records {

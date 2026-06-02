@@ -16,7 +16,7 @@ use atlas_record::{RecordAlias, RemasterLink};
 
 pub(super) fn write_records(
     connection: &mut SqliteConnection,
-    records: &[&NormalizedRecord],
+    records: &[NormalizedRecord],
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
 ) -> Result<(), IndexWriteError> {

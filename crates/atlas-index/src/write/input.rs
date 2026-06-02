@@ -1,34 +1,34 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use atlas_domain::PackName;
 use atlas_embedding::{GeneratedDocumentEmbedding, PendingDocumentEmbedding};
 use atlas_record::{NormalizedRecord, RecordAlias, ReferenceEdge, RemasterLink};
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy)]
-pub struct IndexBuildPack<'a> {
-    pub name: &'a PackName,
-    pub label: &'a str,
-    pub document_type: &'a str,
-    pub declared_path: &'a str,
-    pub resolved_path: &'a Path,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexBuildPack {
+    pub name: PackName,
+    pub label: String,
+    pub document_type: String,
+    pub declared_path: String,
+    pub resolved_path: PathBuf,
     pub record_count: usize,
 }
 
 #[derive(Debug)]
-pub struct IndexBuildInput<'a> {
-    pub source_signature: &'a str,
+pub struct IndexBuildInput {
+    pub source_signature: String,
     pub source_record_count: usize,
-    pub packs: Vec<IndexBuildPack<'a>>,
-    pub records: Vec<&'a NormalizedRecord>,
-    pub references: &'a [ReferenceEdge],
-    pub aliases: &'a [RecordAlias],
-    pub remaster_links: &'a [RemasterLink],
-    pub pending_document_embeddings: &'a [PendingDocumentEmbedding],
-    pub document_embeddings: &'a [GeneratedDocumentEmbedding],
+    pub packs: Vec<IndexBuildPack>,
+    pub records: Vec<NormalizedRecord>,
+    pub references: Vec<ReferenceEdge>,
+    pub aliases: Vec<RecordAlias>,
+    pub remaster_links: Vec<RemasterLink>,
+    pub pending_document_embeddings: Vec<PendingDocumentEmbedding>,
+    pub document_embeddings: Vec<GeneratedDocumentEmbedding>,
 }
 
-impl IndexBuildInput<'_> {
+impl IndexBuildInput {
     pub fn artifact_record_count(&self) -> usize {
         self.records.len()
     }
@@ -62,15 +62,15 @@ mod tests {
     #[test]
     fn generated_record_count_rejects_inconsistent_counts() {
         let input = IndexBuildInput {
-            source_signature: "fixture",
+            source_signature: "fixture".to_string(),
             source_record_count: 1,
             packs: Vec::new(),
             records: Vec::new(),
-            references: &[],
-            aliases: &[],
-            remaster_links: &[],
-            pending_document_embeddings: &[],
-            document_embeddings: &[],
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links: Vec::new(),
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
         };
 
         let error = input
