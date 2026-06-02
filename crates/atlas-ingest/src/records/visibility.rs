@@ -1,8 +1,7 @@
 use std::collections::BTreeSet;
 
 use atlas_domain::{RecordKey, RecordKind};
-
-use crate::records::{AtlasRecord, RemasterLink};
+use atlas_record::{AtlasRecord, RemasterLink};
 
 pub(crate) struct RetrievalVisibility {
     hidden_record_keys: BTreeSet<RecordKey>,

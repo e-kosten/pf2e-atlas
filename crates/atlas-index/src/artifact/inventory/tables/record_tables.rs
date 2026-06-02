@@ -207,6 +207,7 @@ pub mod item_records {
         pub const SYSTEM_BASE_ITEM: Column = Column::new(TABLE, "system_base_item");
         pub const SYSTEM_GROUP: Column = Column::new(TABLE, "system_group");
         pub const SYSTEM_USAGE: Column = Column::new(TABLE, "system_usage");
+        pub const SYSTEM_PRICE_JSON: Column = Column::new(TABLE, "system_price_json");
         pub const PRICE_CP: Column = Column::new(TABLE, "price_cp");
         pub const BULK_VALUE: Column = Column::new(TABLE, "bulk_value");
         pub const HANDS_REQUIREMENT: Column = Column::new(TABLE, "hands_requirement");
@@ -219,6 +220,7 @@ pub mod item_records {
         columns::SYSTEM_BASE_ITEM,
         columns::SYSTEM_GROUP,
         columns::SYSTEM_USAGE,
+        columns::SYSTEM_PRICE_JSON,
         columns::PRICE_CP,
         columns::BULK_VALUE,
         columns::HANDS_REQUIREMENT,

@@ -1,8 +1,8 @@
 use atlas_domain::{PublicationCategory, Rarity};
-use atlas_record::ContentDocument;
+use atlas_record::{AtlasRecord, ContentDocument, ReferenceEdge};
 use serde_json::Value;
 
-use crate::records::{AtlasRecord, LoadedSourceRecord, ReferenceEdge};
+use crate::records::LoadedSourceRecord;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum GeneratedAfflictionError {

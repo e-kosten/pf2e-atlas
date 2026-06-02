@@ -5,11 +5,12 @@ use atlas_embedding::{
     PendingDocumentEmbedding, build_document_embedding_units,
 };
 use atlas_record::{
-    AtlasRecord, ContentSourceKind, build_record_presentation_document_with_content_filter,
+    AtlasRecord, ContentSourceKind, RecordAlias, RemasterLink,
+    build_record_presentation_document_with_content_filter,
 };
 
+use crate::records::LoadedSourceRecord;
 use crate::records::visibility::RetrievalVisibility;
-use crate::records::{LoadedSourceRecord, RecordAlias, RemasterLink};
 
 pub(crate) mod generation;
 

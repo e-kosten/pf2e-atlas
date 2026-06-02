@@ -1,6 +1,6 @@
 use atlas_domain::{TimeKind, TimeUnit};
+use atlas_record::NormalizedTime;
 
-use crate::records::NormalizedTime;
 use crate::source::normalize::normalize_text;
 
 pub(crate) fn normalize_activation_time(

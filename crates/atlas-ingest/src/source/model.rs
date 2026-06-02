@@ -12,7 +12,8 @@ use serde::Deserialize;
 
 use crate::diagnostics::IngestDiagnostics;
 use crate::error::IngestError;
-use crate::records::{LoadedSourceRecord, RecordAlias, ReferenceEdge, RemasterLink};
+use crate::records::LoadedSourceRecord;
+use atlas_record::{RecordAlias, ReferenceEdge, RemasterLink};
 
 #[derive(Debug, Clone)]
 pub struct BuildArtifactOptions {

@@ -113,7 +113,7 @@ fn text_record_mut(result: &mut TextSearchRecord) -> &mut AtlasRecord {
 }
 
 fn collect_reference_target_keys(record: &AtlasRecord, target_keys: &mut BTreeSet<RecordKey>) {
-    for content in record.content.reference_documents() {
+    for content in record.content.reference_occurrence_documents() {
         collect_document_reference_target_keys(&content.document, target_keys);
     }
 }
@@ -136,7 +136,7 @@ fn apply_reference_target_names(
     names_by_key: &BTreeMap<RecordKey, String>,
 ) {
     for content in &mut record.content.documents {
-        if content.contributes_to_references() {
+        if content.contributes_to_reference_occurrences() {
             apply_document_reference_target_names(&mut content.document, names_by_key);
         }
     }

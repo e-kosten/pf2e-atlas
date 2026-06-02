@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
+use atlas_record::AtlasRecord;
+
 use crate::generated::afflictions::AfflictionOccurrence;
-use crate::records::AtlasRecord;
 
 pub(super) fn cluster_affliction_occurrences(
     occurrences: Vec<AfflictionOccurrence>,

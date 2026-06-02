@@ -1,6 +1,7 @@
 use super::*;
 use atlas_domain::RecordKind;
 use atlas_index::SearchCandidateRecord;
+use atlas_record::FoundryRecordType;
 
 fn test_record_key(value: &str) -> RecordKey {
     RecordKey::parse(value).expect("fixture record key should parse")
@@ -41,12 +42,12 @@ fn test_record(key: &str, name: &str, traits: &[&str]) -> SearchCandidateRecord 
     SearchCandidateRecord {
         key,
         name: name.to_string(),
-        foundry_record_type: "spell".to_string(),
+        foundry_type: FoundryRecordType::Spell,
         traits: traits.iter().map(|value| (*value).to_string()).collect(),
         kind: RecordKind::Spell,
-        taxonomy_families: Vec::new(),
-        system_category: None,
-        system_group: None,
+        inferred_groups: Vec::new(),
+        item_category: None,
+        item_group: None,
     }
 }
 

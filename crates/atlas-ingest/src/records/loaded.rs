@@ -1,17 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
-use atlas_record::ContentDocument;
-pub use atlas_record::{
-    ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, ContentSourceKind,
-    DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
-    FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
-    RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
-    RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
-    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership,
-    RecordVisibility, RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense,
-    SpellMechanics, SpellRange, SpellTarget, VariantSource,
-};
+use atlas_record::{AtlasRecord, ContentDocument, ContentSourceKind, RecordContentDocument};
 use serde_json::Value;
 
 use crate::source::normalize::ContentParseDiagnostics;

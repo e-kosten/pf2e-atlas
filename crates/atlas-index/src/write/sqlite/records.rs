@@ -133,7 +133,7 @@ pub(super) fn write_records(
                 source_kind: supplemental.source_kind.as_str().to_string(),
                 visibility: supplemental.visibility().as_str().to_string(),
                 contributes_to_search: supplemental.contributes_to_search(),
-                contributes_to_references: supplemental.contributes_to_references(),
+                contributes_to_references: supplemental.contributes_to_reference_occurrences(),
                 label: supplemental.label.clone(),
                 content_json,
             });
@@ -166,6 +166,7 @@ pub(super) fn write_records(
                 system_base_item: item_data.base_item.clone(),
                 system_group: item_data.group.clone(),
                 system_usage: item_data.usage.clone(),
+                system_price_json: item_data.price_json.clone(),
                 price_cp: item_data.price_cp,
                 bulk_value: item_data.bulk_value,
                 hands_requirement: item_data.hands_requirement.clone(),

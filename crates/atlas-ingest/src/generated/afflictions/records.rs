@@ -1,16 +1,16 @@
 use atlas_domain::RecordKind;
+use atlas_record::{
+    AtlasRecord, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
+    FoundryRecordInfo, FoundryRecordType, ItemMechanics, RecordClassification, RecordContent,
+    RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
+    RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, RecordVisibilityReason,
+};
 use serde_json::{Value, json};
 
 use crate::diagnostics::{DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_LABEL};
 use crate::generated::afflictions::source_facts::affliction_family_label;
 use crate::generated::afflictions::{AfflictionOccurrence, DerivedAfflictionRecordInput};
-use crate::records::{
-    AtlasRecord, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
-    FoundryRecordInfo, FoundryRecordType, ItemMechanics, LoadedSourceRecord, RecordClassification,
-    RecordContent, RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance,
-    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
-    RecordVisibilityReason, SourceConstructionFacts,
-};
+use crate::records::{LoadedSourceRecord, SourceConstructionFacts};
 
 pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> LoadedSourceRecord {
     let raw_json = input.raw.to_string();

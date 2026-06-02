@@ -1,11 +1,11 @@
 use serde_json::Value;
 
-use atlas_record::render_plain_text;
+use atlas_record::{
+    ActorMechanics, ItemMechanics, SpellArea, SpellDefense, SpellMechanics, SpellRange,
+    SpellTarget, render_plain_text,
+};
 
 use crate::records::metrics::{first_number_like_at_paths, number_like_at_pointer};
-use crate::records::{
-    ActorMechanics, ItemMechanics, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
-};
 use crate::source::normalize::{
     extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
     normalized_pointer_string, parse_bulk_value, parse_foundry_content, parse_hands_requirement,

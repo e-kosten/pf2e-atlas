@@ -250,6 +250,7 @@ diesel::table! {
         system_base_item -> Nullable<Text>,
         system_group -> Nullable<Text>,
         system_usage -> Nullable<Text>,
+        system_price_json -> Nullable<Text>,
         price_cp -> Nullable<BigInt>,
         bulk_value -> Nullable<Double>,
         hands_requirement -> Nullable<Text>,

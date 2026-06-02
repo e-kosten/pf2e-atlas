@@ -282,6 +282,18 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
           "_id": "occurrenceAction1",
           "name": "Occurrence Action",
           "type": "action",
+          "items": [
+            {
+              "_id": "embedded01",
+              "name": "Embedded Reference",
+              "type": "action",
+              "system": {
+                "description": {
+                  "value": "<p>Embedded ref @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Embedded}.</p>"
+                }
+              }
+            }
+          ],
           "system": {
             "description": {
               "value": "<p>Use @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal One}, then @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Two}.</p>"
@@ -320,7 +332,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text
          FROM reference_occurrences
          WHERE record_key = 'actions:occurrenceAction1'
-         ORDER BY CASE content_key WHEN 'description' THEN 0 ELSE 1 END, occurrence_ordinal",
+         ORDER BY CASE content_key WHEN 'description' THEN 0 ELSE 1 END, content_key, occurrence_ordinal",
     )?;
     let rows = statement
         .query_map([], |row| {
@@ -366,10 +378,29 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
                 "Heal Notes".to_string(),
                 "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
             ),
+            (
+                "content:1".to_string(),
+                0,
+                "spells:targetSpell01".to_string(),
+                "embedded_item_description".to_string(),
+                "public".to_string(),
+                "Heal Embedded".to_string(),
+                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
+            ),
         ]
     );
 
     drop(statement);
+    let embedded_edge_count = connection.query_row(
+        "SELECT COUNT(*)
+         FROM reference_edges
+         WHERE from_record_key = 'actions:occurrenceAction1'
+           AND source_kind = 'embedded_item_description'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )?;
+    assert_eq!(embedded_edge_count, 0);
+
     drop(connection);
     fs::remove_dir_all(root)?;
     Ok(())

@@ -73,7 +73,7 @@ pub(super) fn write_reference_occurrences(
             })
             .enumerate()
         {
-            if supplemental.contributes_to_references() {
+            if supplemental.contributes_to_reference_occurrences() {
                 collect_document_reference_occurrences(
                     &mut rows,
                     record,

@@ -238,6 +238,7 @@ CREATE TABLE item_records (
   system_base_item TEXT,
   system_group TEXT,
   system_usage TEXT,
+  system_price_json TEXT,
   price_cp INTEGER,
   bulk_value REAL,
   hands_requirement TEXT,

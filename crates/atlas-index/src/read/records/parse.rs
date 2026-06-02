@@ -4,6 +4,7 @@ use atlas_domain::{
 };
 use atlas_record::{
     AliasSource, ContentDocument, ContentSourceKind, ContentVisibility, NormalizedTime,
+    VariantSource,
 };
 
 use super::RecordLoadError;
@@ -96,6 +97,11 @@ pub(super) fn parse_remaster_link_source(
 ) -> Result<RemasterLinkSource, RecordLoadError> {
     RemasterLinkSource::from_canonical(value)
         .ok_or_else(|| invalid_value("remaster_links.source_kind", value.to_string()))
+}
+
+pub(super) fn parse_variant_source(value: &str) -> Result<VariantSource, RecordLoadError> {
+    VariantSource::from_canonical(value)
+        .ok_or_else(|| invalid_value("records.variant_source", value.to_string()))
 }
 
 fn parse_time_kind(value: &str) -> Result<TimeKind, RecordLoadError> {

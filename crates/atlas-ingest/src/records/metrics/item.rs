@@ -1,6 +1,5 @@
+use atlas_record::MetricRow;
 use serde_json::Value;
-
-use crate::records::MetricRow;
 
 use super::emit::emit_static_specs;
 use super::specs::{ARMOR_STATIC_SPECS, SHIELD_STATIC_SPECS, WEAPON_STATIC_SPECS};

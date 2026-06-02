@@ -2,13 +2,12 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator, ContentSourceKind,
-    ContentVisibility, iter_content_references, render_plain_text, visit_content_references_mut,
+    AtlasRecord, ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator,
+    ContentSourceKind, ContentVisibility, ReferenceEdge, iter_content_references,
+    render_plain_text, visit_content_references_mut,
 };
 
-use crate::records::{
-    AtlasRecord, LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate, ReferenceEdge,
-};
+use crate::records::{LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate};
 use crate::source::normalize::{normalize_text, parse_foundry_content};
 
 pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> RecordReferenceIndex {
@@ -90,7 +89,7 @@ pub(crate) fn resolve_content_references(
     for loaded in records {
         let record = &mut loaded.record;
         for content in &mut record.content.documents {
-            if content.contributes_to_references() {
+            if content.contributes_to_reference_occurrences() {
                 resolve_document_references(&mut content.document, index);
             }
         }
@@ -145,7 +144,7 @@ fn record_content_documents(
 ) -> Vec<(ContentSourceKind, ContentVisibility, &ContentDocument)> {
     record
         .content
-        .reference_documents()
+        .default_backlink_documents()
         .map(|content| (content.source_kind, content.visibility(), &content.document))
         .collect()
 }
@@ -285,4 +284,86 @@ pub(crate) fn next_reference_prefix(text: &str, offset: usize) -> Option<(usize,
                 .map(|position| (offset + position, prefix))
         })
         .min_by_key(|(position, _)| *position)
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_domain::{RecordKey, RecordKind};
+    use atlas_record::{
+        AtlasRecord, ContentBlock, ContentDocument, ContentInline, ContentReference,
+        ContentReferenceLocator, ContentSourceKind, FoundryDocumentType, FoundryRecordInfo,
+        FoundryRecordType, RecordClassification, RecordContentDocument, RecordIdentity,
+        RecordProvenance, iter_content_references,
+    };
+
+    use super::{
+        build_record_reference_index, resolve_content_references, resolve_reference_edges,
+    };
+    use crate::records::{LoadedSourceRecord, SourceConstructionFacts};
+
+    #[test]
+    fn embedded_content_resolves_occurrences_without_default_backlink_edges() {
+        let target = loaded_record("actions:targetAction", "Target Action", Vec::new());
+        let host = loaded_record(
+            "actions:hostAction",
+            "Host Action",
+            vec![RecordContentDocument {
+                source_kind: ContentSourceKind::EmbeddedItemDescription,
+                label: Some("Embedded Item".to_string()),
+                document: ContentDocument::new(vec![ContentBlock::Paragraph {
+                    content: vec![ContentInline::Reference {
+                        reference: ContentReference {
+                            label: None,
+                            locator: ContentReferenceLocator::PackAndLocator {
+                                pack_name: "actions".to_string(),
+                                locator: "Target Action".to_string(),
+                            },
+                            resolved_key: None,
+                            resolved_name: None,
+                        },
+                    }],
+                }]),
+            }],
+        );
+        let mut records = vec![host, target];
+        let index = build_record_reference_index(&records);
+
+        resolve_content_references(&mut records, &index);
+        let embedded_document = &records[0].record.content.documents[0].document;
+        let references = iter_content_references(embedded_document).collect::<Vec<_>>();
+
+        assert_eq!(references.len(), 1);
+        assert_eq!(
+            references[0].resolved_key.as_ref().map(ToString::to_string),
+            Some("actions:targetAction".to_string())
+        );
+        assert_eq!(
+            references[0].resolved_name.as_deref(),
+            Some("Target Action")
+        );
+        assert!(
+            resolve_reference_edges(&records).is_empty(),
+            "embedded content should resolve occurrences but stay out of default backlink edges"
+        );
+    }
+
+    fn loaded_record(
+        key: &str,
+        name: &str,
+        content: Vec<RecordContentDocument>,
+    ) -> LoadedSourceRecord {
+        let key = RecordKey::parse(key).expect("valid test record key");
+        let mut record = AtlasRecord::new(
+            RecordIdentity::new(key, name),
+            RecordClassification::new(RecordKind::Rule),
+            FoundryRecordInfo::new(
+                "Actions",
+                FoundryDocumentType::Item,
+                FoundryRecordType::Action,
+            ),
+            RecordProvenance::new(format!("packs/actions/{name}.json")),
+        );
+        record.content.documents = content;
+        LoadedSourceRecord::new(record, SourceConstructionFacts::empty())
+    }
 }

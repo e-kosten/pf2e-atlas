@@ -1,6 +1,7 @@
 use std::fs;
 
 use atlas_domain::{NumericMatch, RecordKey, RecordKind};
+use atlas_record::{ContentSourceKind, FoundryRecordType, MetricValue};
 use rusqlite::Connection;
 
 use super::{create_valid_artifact_database, temp_db_path};
@@ -60,19 +61,22 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     )?;
     connection.execute(
         "INSERT INTO item_records (
-           record_key, system_category, system_base_item, system_group, system_usage, price_cp,
+           record_key, system_category, system_base_item, system_group, system_usage,
+           system_price_json, price_cp,
            bulk_value, hands_requirement, damage_types_json
          ) VALUES (
-           'actions:testAction1', 'weapon', NULL, 'sword', NULL, 100, 1.0, NULL, '[\"slashing\"]'
+           'actions:testAction1', 'weapon', 'longsword', 'sword', 'held in 1 hand',
+           '{\"gp\":1}', 100, 1.0, '1', '[\"slashing\"]'
          )",
         [],
     )?;
     connection.execute(
         "INSERT INTO item_records (
-           record_key, system_category, system_base_item, system_group, system_usage, price_cp,
+           record_key, system_category, system_base_item, system_group, system_usage,
+           system_price_json, price_cp,
            bulk_value, hands_requirement, damage_types_json
          ) VALUES (
-           'actions:testAction2', 'weapon', NULL, 'sword', NULL, 100, 1.0, NULL, 'not json'
+           'actions:testAction2', 'weapon', NULL, 'sword', NULL, NULL, 100, 1.0, NULL, 'not json'
          )",
         [],
     )?;
@@ -81,8 +85,8 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
            record_key, traditions_json, spell_kinds_json, range_text, range_value, target_text,
            area_type, area_value, save_type, sustained, basic_save, damage_types_json
          ) VALUES (
-           'actions:testAction1', '[\"arcane\"]', '[\"spell\"]', '30 feet', 30.0, NULL,
-           NULL, NULL, 'will', 0, 1, '[\"mental\"]'
+           'actions:testAction1', '[\"arcane\"]', '[\"spell\"]', '30 feet', 30.0, '1 creature',
+           'burst', 10.0, 'will', 0, 1, '[\"mental\"]'
          )",
         [],
     )?;
@@ -122,12 +126,67 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
         .load_records_by_key(&[RecordKey::parse("actions:testAction1")?])?;
 
     assert_eq!(records.len(), 1);
-    assert_eq!(records[0].identity.key.to_string(), "actions:testAction1");
-    assert_eq!(records[0].mechanics.metrics.len(), 1);
-    assert!(records[0].mechanics.actor().is_none());
-    assert!(records[0].mechanics.item().is_some());
-    assert!(records[0].mechanics.spell().is_some());
-    assert_eq!(records[0].content.documents.len(), 1);
+    let record = &records[0];
+    assert_eq!(record.identity.key.to_string(), "actions:testAction1");
+    assert!(record.visibility.visible_by_default());
+    assert_eq!(record.mechanics.metrics.len(), 1);
+    assert_eq!(record.mechanics.metrics[0].key, "level");
+    assert_eq!(record.mechanics.metrics[0].value, MetricValue::Number(2.0));
+    assert!(record.mechanics.actor().is_none());
+
+    let item = record
+        .mechanics
+        .item()
+        .expect("item mechanics should hydrate");
+    assert_eq!(item.category.as_deref(), Some("weapon"));
+    assert_eq!(item.base_item.as_deref(), Some("longsword"));
+    assert_eq!(item.group.as_deref(), Some("sword"));
+    assert_eq!(item.usage.as_deref(), Some("held in 1 hand"));
+    assert_eq!(item.price_json.as_deref(), Some(r#"{"gp":1}"#));
+    assert_eq!(item.price_cp, Some(100));
+    assert_eq!(item.bulk_value, Some(1.0));
+    assert_eq!(item.hands_requirement.as_deref(), Some("1"));
+    assert_eq!(item.damage_types, vec!["slashing"]);
+
+    let spell = record
+        .mechanics
+        .spell()
+        .expect("spell mechanics should hydrate");
+    assert_eq!(spell.traditions, vec!["arcane"]);
+    assert_eq!(spell.kinds, vec!["spell"]);
+    assert_eq!(
+        spell.range.as_ref().map(|range| range.text.as_str()),
+        Some("30 feet")
+    );
+    assert_eq!(
+        spell.range.as_ref().and_then(|range| range.distance),
+        Some(30.0)
+    );
+    assert_eq!(
+        spell.target.as_ref().map(|target| target.text.as_str()),
+        Some("1 creature")
+    );
+    assert_eq!(
+        spell.area.as_ref().and_then(|area| area.kind.as_deref()),
+        Some("burst")
+    );
+    assert_eq!(spell.area.as_ref().and_then(|area| area.value), Some(10.0));
+    assert_eq!(
+        spell
+            .defense
+            .as_ref()
+            .and_then(|defense| defense.save.as_deref()),
+        Some("will")
+    );
+    assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
+    assert_eq!(spell.damage_types, vec!["mental"]);
+
+    assert_eq!(record.content.documents.len(), 1);
+    assert_eq!(
+        record.content.documents[0].source_kind,
+        ContentSourceKind::Description
+    );
+    assert!(record.content.documents[0].contributes_to_reference_occurrences());
     fs::remove_file(path)?;
     Ok(())
 }
@@ -166,11 +225,11 @@ fn loads_search_candidate_records_without_detail_hydration()
     assert_eq!(candidates[0].key.to_string(), "actions:testAction1");
     assert_eq!(candidates[0].name, "Test Action 1");
     assert_eq!(candidates[0].kind, RecordKind::Rule);
-    assert_eq!(candidates[0].foundry_record_type, "action");
+    assert_eq!(candidates[0].foundry_type, FoundryRecordType::Action);
     assert_eq!(candidates[0].traits, vec!["attack", "flourish"]);
-    assert_eq!(candidates[0].taxonomy_families, vec!["action"]);
-    assert_eq!(candidates[0].system_category.as_deref(), Some("skill"));
-    assert_eq!(candidates[0].system_group.as_deref(), Some("athletics"));
+    assert_eq!(candidates[0].inferred_groups, vec!["action"]);
+    assert_eq!(candidates[0].item_category.as_deref(), Some("skill"));
+    assert_eq!(candidates[0].item_group.as_deref(), Some("athletics"));
     fs::remove_file(path)?;
     Ok(())
 }
@@ -212,6 +271,123 @@ fn load_search_candidate_records_rejects_invalid_family() -> Result<(), Box<dyn 
         .expect_err("invalid candidate family should be rejected");
 
     assert!(error.to_string().contains("record_family"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn load_records_rejects_invalid_variant_source() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-invalid-variant-source");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET variant_group_key = 'actions:test',
+             variant_base_name = 'Test',
+             variant_axes_json = '[\"grade\"]',
+             variant_source = 'not-a-source'
+         WHERE record_key = 'actions:testAction1'",
+        [],
+    )?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_records()
+        .expect_err("invalid variant source should be rejected");
+
+    assert!(error.to_string().contains("variant_source"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn load_records_rejects_partial_variant_membership() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-partial-variant");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET variant_group_key = 'actions:test',
+             variant_base_name = NULL
+         WHERE record_key = 'actions:testAction1'",
+        [],
+    )?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_records()
+        .expect_err("partial variant membership should be rejected");
+
+    assert!(error.to_string().contains("variant_base_name"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn load_records_rejects_variant_base_without_group() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-variant-base-without-group");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET variant_group_key = NULL,
+             variant_base_name = 'Test'
+         WHERE record_key = 'actions:testAction1'",
+        [],
+    )?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_records()
+        .expect_err("variant base without group should be rejected");
+
+    assert!(error.to_string().contains("variant_group_key"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn load_records_rejects_invalid_rarity() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-invalid-rarity");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records SET rarity = 'mythic' WHERE record_key = 'actions:testAction1'",
+        [],
+    )?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_records()
+        .expect_err("invalid rarity should be rejected");
+
+    assert!(error.to_string().contains("records.rarity"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn load_records_rejects_content_policy_mismatch() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-content-policy-mismatch");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "INSERT INTO record_content (
+           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
+           contributes_to_references, label, content_json
+         ) VALUES (
+           'actions:testAction1', 'content:policy', 0, 'private_notes', 'public', 0, 0, NULL,
+           '{\"blocks\":[]}'
+         )",
+        [],
+    )?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_records()
+        .expect_err("content policy mismatch should be rejected");
+
+    assert!(error.to_string().contains("record_content visibility"));
     fs::remove_file(path)?;
     Ok(())
 }

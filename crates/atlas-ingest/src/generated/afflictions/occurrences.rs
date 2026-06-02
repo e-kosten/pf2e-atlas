@@ -1,4 +1,5 @@
 use atlas_domain::RecordKey;
+use atlas_record::AtlasRecord;
 
 use crate::generated::afflictions::AfflictionOccurrence;
 use crate::generated::afflictions::identity::build_affliction_occurrence_candidate_keys;
@@ -10,7 +11,7 @@ use crate::generated::afflictions::source_facts::{
 use crate::records::EmbeddedItemFact;
 use crate::records::references::record_by_key;
 use crate::records::variants;
-use crate::records::{AtlasRecord, LoadedSourceRecord, RecordReferenceIndex, SourceRecordFacts};
+use crate::records::{LoadedSourceRecord, RecordReferenceIndex, SourceRecordFacts};
 
 pub(super) fn collect_affliction_occurrences(
     records: &[LoadedSourceRecord],

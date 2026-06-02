@@ -256,17 +256,17 @@ fn high_value_record_tokens(record: &SearchCandidateRecord) -> Vec<String> {
             .flat_map(|value| tokenize_fts_query(value)),
     );
     tokens.extend(tokenize_fts_query(record.kind.as_str()));
-    tokens.extend(tokenize_fts_query(&record.foundry_record_type));
+    tokens.extend(tokenize_fts_query(record.foundry_type.as_str()));
     tokens.extend(
         record
-            .taxonomy_families
+            .inferred_groups
             .iter()
             .flat_map(|value| tokenize_fts_query(value)),
     );
-    if let Some(category) = &record.system_category {
+    if let Some(category) = &record.item_category {
         tokens.extend(tokenize_fts_query(category));
     }
-    if let Some(group) = &record.system_group {
+    if let Some(group) = &record.item_group {
         tokens.extend(tokenize_fts_query(group));
     }
     tokens
@@ -297,12 +297,12 @@ mod tests {
         SearchCandidateRecord {
             key,
             name: name.to_string(),
-            foundry_record_type: "spell".to_string(),
+            foundry_type: atlas_record::FoundryRecordType::Spell,
             traits: traits.iter().map(|value| (*value).to_string()).collect(),
             kind: RecordKind::Spell,
-            taxonomy_families: Vec::new(),
-            system_category: None,
-            system_group: None,
+            inferred_groups: Vec::new(),
+            item_category: None,
+            item_group: None,
         }
     }
 
@@ -312,9 +312,9 @@ mod tests {
         let strong = test_record("records:b", "Battle Medicine", &["healing", "manipulate"]);
         let weak = test_record("records:c", "Shielded Arm", &["metal"]);
         let mut medium = test_record("records:d", "Shielded Arm", &["mental"]);
-        medium.taxonomy_families = vec!["action".to_string()];
-        medium.system_category = Some("consumable".to_string());
-        medium.system_group = Some("alchemical".to_string());
+        medium.inferred_groups = vec!["action".to_string()];
+        medium.item_category = Some("consumable".to_string());
+        medium.item_group = Some("alchemical".to_string());
 
         assert_eq!(
             classify_fts_texts(

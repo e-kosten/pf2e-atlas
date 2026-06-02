@@ -168,15 +168,21 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use atlas_domain::{
-        MetricDomain, PackName, PublicationCategory, RecordId, RecordKey, RecordKind,
+        MetricDomain, PackName, PublicationCategory, Rarity, RecordId, RecordKey, RecordKind,
+        TimeKind, TimeUnit,
     };
     use atlas_embedding::EmbeddingModelId;
     use atlas_record::{
-        AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, MetricRow, MetricValue, RecordAlias,
-        RecordClassification, RecordContent, RecordIdentity, RecordMechanics, RecordProvenance,
-        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
-        RecordVisibilityReason, ReferenceEdge, RemasterLink,
+        ActivationTimeSourceField, AliasSource, AtlasRecord, ContentBlock, ContentDocument,
+        ContentInline, ContentSourceKind, ContentVisibility, DurationTimeSourceField,
+        FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
+        RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
+        RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
+        RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+        RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
+        RemasterLink, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
+        VariantSource,
     };
     use rusqlite::Connection;
 
@@ -258,6 +264,74 @@ mod tests {
         assert_eq!(record_set.reference_edges.len(), references_len);
         assert_eq!(record_set.aliases.len(), aliases_len);
         assert_eq!(record_set.remaster_links, remaster_links_expected);
+        let loaded = record_set
+            .records
+            .iter()
+            .find(|record| record.identity.key.to_string() == "actions:testAction00")
+            .expect("fixture record should load");
+        assert_eq!(loaded.classification.rarity, Some(Rarity::Rare));
+        assert_eq!(loaded.publication.title.as_deref(), Some("Fixture Book"));
+        assert_eq!(loaded.publication.category, PublicationCategory::Core);
+        assert!(loaded.publication.remaster);
+        assert_eq!(loaded.foundry.folder_id.as_deref(), Some("folder-1"));
+        assert_eq!(loaded.requirements.prerequisites, vec!["trained in Arcana"]);
+        assert_eq!(
+            loaded
+                .timing
+                .activation
+                .as_ref()
+                .map(|timing| timing.source_field),
+            Some(ActivationTimeSourceField::TimeValue)
+        );
+        assert_eq!(
+            loaded
+                .timing
+                .duration
+                .as_ref()
+                .map(|timing| timing.source_field),
+            Some(DurationTimeSourceField::DurationValue)
+        );
+        let variant = loaded.variant.as_ref().expect("variant should load");
+        assert_eq!(variant.source, VariantSource::Parenthetical);
+        assert_eq!(variant.axes, vec!["grade"]);
+        assert_eq!(
+            loaded.provenance.raw_json.as_deref(),
+            Some(r#"{"fixture":true}"#)
+        );
+        assert!(loaded.content.description().is_some());
+        assert!(loaded.content.blurb().is_some());
+        assert!(
+            loaded
+                .content
+                .documents
+                .iter()
+                .any(|document| document.source_kind == ContentSourceKind::PublicNotes)
+        );
+        let item = loaded
+            .mechanics
+            .item()
+            .expect("item mechanics should round trip");
+        assert_eq!(item.price_json.as_deref(), Some(r#"{"gp":1}"#));
+        assert_eq!(item.price_cp, Some(100));
+        let spell = loaded
+            .mechanics
+            .spell()
+            .expect("spell mechanics should round trip");
+        assert_eq!(spell.traditions, vec!["arcane"]);
+        assert_eq!(spell.kinds, vec!["spell"]);
+        assert_eq!(
+            spell.range.as_ref().map(|range| range.text.as_str()),
+            Some("30 feet")
+        );
+        assert_eq!(
+            spell.target.as_ref().map(|target| target.text.as_str()),
+            Some("1 creature")
+        );
+        assert_eq!(
+            spell.area.as_ref().and_then(|area| area.kind.as_deref()),
+            Some("burst")
+        );
+        assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
 
         let connection = Connection::open(&target_path)?;
         let metric_count: i64 = connection.query_row(
@@ -444,7 +518,7 @@ mod tests {
             classification: RecordClassification {
                 kind: RecordKind::Rule,
                 level: Some(1),
-                rarity: None,
+                rarity: Some(Rarity::Rare),
                 traits: vec!["test".to_string()],
                 taxonomy: RecordTaxonomy::default(),
             },
@@ -452,30 +526,117 @@ mod tests {
                 pack_label: "Actions".to_string(),
                 document_type: FoundryDocumentType::Item,
                 record_type: FoundryRecordType::Action,
-                folder_id: None,
+                folder_id: Some("folder-1".to_string()),
             },
             provenance: RecordProvenance {
                 source_path: format!("packs/actions/{id}.json"),
-                raw_json: Some("{}".to_string()),
+                raw_json: Some(r#"{"fixture":true}"#.to_string()),
             },
             publication: RecordPublication {
-                title: None,
-                remaster: false,
-                category: PublicationCategory::Unknown,
+                title: Some("Fixture Book".to_string()),
+                remaster: true,
+                category: PublicationCategory::Core,
             },
-            requirements: RecordRequirements::default(),
-            timing: RecordTiming::default(),
+            requirements: RecordRequirements {
+                prerequisites: vec!["trained in Arcana".to_string()],
+            },
+            timing: RecordTiming {
+                activation: Some(RecordActivationTiming {
+                    time: NormalizedTime {
+                        kind: TimeKind::Actions,
+                        actions: Some(2),
+                        duration_value: None,
+                        duration_unit: None,
+                        text: "2 actions".to_string(),
+                    },
+                    source_field: ActivationTimeSourceField::TimeValue,
+                }),
+                duration: Some(RecordDurationTiming {
+                    time: NormalizedTime {
+                        kind: TimeKind::Duration,
+                        actions: None,
+                        duration_value: Some(1),
+                        duration_unit: Some(TimeUnit::Minute),
+                        text: "1 minute".to_string(),
+                    },
+                    source_field: DurationTimeSourceField::DurationValue,
+                }),
+            },
             mechanics: RecordMechanics {
                 metrics: vec![MetricRow {
                     domain: MetricDomain::Item,
                     key: "level.value".to_string(),
                     value: MetricValue::Number(1.0),
                 }],
-                ..RecordMechanics::default()
+                document: FoundryDocumentMechanics::Item(ItemMechanics {
+                    foundry_type: Some(ItemTypeMechanics::Spell(SpellMechanics {
+                        traditions: vec!["arcane".to_string()],
+                        kinds: vec!["spell".to_string()],
+                        range: Some(SpellRange {
+                            text: "30 feet".to_string(),
+                            distance: Some(30.0),
+                        }),
+                        target: Some(SpellTarget {
+                            text: "1 creature".to_string(),
+                        }),
+                        area: Some(SpellArea {
+                            kind: Some("burst".to_string()),
+                            value: Some(10.0),
+                        }),
+                        defense: Some(SpellDefense {
+                            save: Some("will".to_string()),
+                            basic: true,
+                        }),
+                        sustained: true,
+                        damage_types: vec!["mental".to_string()],
+                    })),
+                    category: Some("spell".to_string()),
+                    base_item: Some("test-base".to_string()),
+                    group: Some("test-group".to_string()),
+                    usage: Some("held in 1 hand".to_string()),
+                    price_json: Some(r#"{"gp":1}"#.to_string()),
+                    price_cp: Some(100),
+                    bulk_value: Some(1.0),
+                    hands_requirement: Some("1".to_string()),
+                    damage_types: vec!["mental".to_string()],
+                }),
             },
-            content: RecordContent::default(),
-            variant: None,
+            content: RecordContent {
+                documents: vec![
+                    RecordContentDocument {
+                        source_kind: ContentSourceKind::Description,
+                        label: None,
+                        document: text_document("fixture description"),
+                    },
+                    RecordContentDocument {
+                        source_kind: ContentSourceKind::Blurb,
+                        label: None,
+                        document: text_document("fixture blurb"),
+                    },
+                    RecordContentDocument {
+                        source_kind: ContentSourceKind::PublicNotes,
+                        label: Some("Note".to_string()),
+                        document: text_document("fixture note"),
+                    },
+                ],
+            },
+            variant: Some(RecordVariantMembership {
+                group_key: "actions:test".to_string(),
+                base_name: "Test Action".to_string(),
+                label: Some("Grade 1".to_string()),
+                axes: vec!["grade".to_string()],
+                confidence: Some(0.95),
+                source: VariantSource::Parenthetical,
+            }),
             visibility: RecordVisibility::visible(RecordVisibilityReason::SourceRecord),
         }
+    }
+
+    fn text_document(text: &str) -> ContentDocument {
+        ContentDocument::new(vec![ContentBlock::Paragraph {
+            content: vec![ContentInline::Text {
+                text: text.to_string(),
+            }],
+        }])
     }
 }
