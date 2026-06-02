@@ -17,9 +17,9 @@ mod content_sources;
 #[cfg(test)]
 mod content_tests;
 mod embedded_items;
-mod family;
 mod journal_pages;
 mod json;
+mod kind;
 mod publication;
 #[cfg(test)]
 mod source_facts_tests;
@@ -33,11 +33,11 @@ use journal_pages::extract_journal_page_facts;
 
 pub(crate) use content::parse_foundry_content;
 pub(crate) use content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
-pub(crate) use family::classify_record;
 pub(crate) use json::{
     normalized_pointer_string, pointer_bool, pointer_i64, pointer_string, string_array_at_pointer,
     string_field, typed_collection,
 };
+pub(crate) use kind::classify_record;
 pub(crate) use publication::publication_family;
 pub(crate) use system::{
     extract_damage_types, extract_disable_skills, extract_prerequisites, extract_sense_types,
@@ -68,7 +68,7 @@ pub(crate) fn normalize_record(
     let id = RecordId::new(id)
         .map_err(|error| normalization_error(path, &format!("invalid _id: {error}")))?;
     let key = RecordKey::new(pack_name.clone(), id.clone());
-    let record_family =
+    let record_kind =
         classify_record(&manifest_pack.document_type, &record_type).ok_or_else(|| {
             normalization_error(
                 path,
@@ -212,7 +212,7 @@ pub(crate) fn normalize_record(
     let record = AtlasRecord {
         identity: RecordIdentity { key, name },
         classification: RecordClassification {
-            kind: record_family,
+            kind: record_kind,
             level,
             rarity,
             traits,

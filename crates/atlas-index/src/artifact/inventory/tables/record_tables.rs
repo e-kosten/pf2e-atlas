@@ -12,7 +12,7 @@ pub mod records {
         pub const ID: Column = Column::new(TABLE, "id");
         pub const NAME: Column = Column::new(TABLE, "name");
         pub const NORMALIZED_NAME: Column = Column::new(TABLE, "normalized_name");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const PACK_NAME: Column = Column::new(TABLE, "pack_name");
         pub const PACK_LABEL: Column = Column::new(TABLE, "pack_label");
         pub const FOUNDRY_DOCUMENT_TYPE: Column = Column::new(TABLE, "foundry_document_type");
@@ -64,7 +64,7 @@ pub mod records {
         columns::ID,
         columns::NAME,
         columns::NORMALIZED_NAME,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::PACK_NAME,
         columns::PACK_LABEL,
         columns::FOUNDRY_DOCUMENT_TYPE,

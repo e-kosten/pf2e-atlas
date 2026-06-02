@@ -25,7 +25,7 @@ pub(super) struct RecordRow {
     pub id: String,
     pub name: String,
     pub normalized_name: String,
-    pub record_family: String,
+    pub record_kind: String,
     pub pack_name: String,
     pub pack_label: String,
     pub foundry_document_type: String,
@@ -231,7 +231,7 @@ pub(super) struct DocumentEmbeddingCacheRow {
 #[diesel(table_name = crate::schema::metric_key_catalog)]
 pub(super) struct MetricKeyCatalogRow {
     pub metric_domain: String,
-    pub record_family: Option<String>,
+    pub record_kind: Option<String>,
     pub namespace_prefix: String,
     pub metric_key: String,
     pub value_type: String,
@@ -244,7 +244,7 @@ pub(super) struct MetricKeyCatalogRow {
 #[diesel(table_name = crate::schema::metric_value_catalog)]
 pub(super) struct MetricValueCatalogRow {
     pub metric_domain: String,
-    pub record_family: Option<String>,
+    pub record_kind: Option<String>,
     pub metric_key: String,
     pub value: String,
     pub catalog_count: i64,
@@ -254,13 +254,13 @@ pub(super) struct MetricValueCatalogRow {
 #[diesel(table_name = crate::schema::filter_field_catalog)]
 pub(super) struct FilterFieldCatalogRow {
     pub field: String,
-    pub record_family: Option<String>,
+    pub record_kind: Option<String>,
     pub field_type: String,
     pub field_group: String,
     pub value_policy: String,
     pub operators_json: String,
     pub cli_flags_json: String,
-    pub applicable_families_json: String,
+    pub applicable_kinds_json: String,
     pub value_count: i64,
     pub matching_record_count: i64,
     pub null_count: i64,
@@ -275,7 +275,7 @@ pub(super) struct FilterFieldCatalogRow {
 #[diesel(table_name = crate::schema::filter_value_catalog)]
 pub(super) struct FilterValueCatalogRow {
     pub field: String,
-    pub record_family: Option<String>,
+    pub record_kind: Option<String>,
     pub value: String,
     pub catalog_count: i64,
 }
@@ -284,7 +284,7 @@ pub(super) struct FilterValueCatalogRow {
 #[diesel(table_name = crate::schema::filter_sample_catalog)]
 pub(super) struct FilterSampleCatalogRow {
     pub field: String,
-    pub record_family: Option<String>,
+    pub record_kind: Option<String>,
     pub value: String,
     pub catalog_count: i64,
     pub sample_rank: i64,
@@ -294,7 +294,7 @@ pub(super) struct FilterSampleCatalogRow {
 #[diesel(table_name = crate::schema::filter_numeric_catalog)]
 pub(super) struct FilterNumericCatalogRow {
     pub field: String,
-    pub record_family: Option<String>,
+    pub record_kind: Option<String>,
     pub metric_domain: Option<String>,
     pub metric_key: Option<String>,
     pub catalog_count: i64,

@@ -80,7 +80,7 @@ fn negative_column_weights_do_not_create_negative_boosts() {
         facts: String::new(),
         reference_terms: String::new(),
         embedded_content: String::new(),
-        record_family: "rule".to_string(),
+        record_kind: "rule".to_string(),
         foundry_record_type: "action".to_string(),
     };
     let hit = FtsDocumentHit {
@@ -271,7 +271,7 @@ fn high_value_token_boost_prefers_documents_matching_specific_terms() {
 }
 
 #[test]
-fn type_intent_boost_covers_supported_record_families_and_types() {
+fn type_intent_boost_covers_supported_record_kinds_and_types() {
     let cases = [
         ("spell", "spell", "spell"),
         ("feat", "feat", "feat"),
@@ -290,12 +290,12 @@ fn type_intent_boost_covers_supported_record_families_and_types() {
         ("affliction", "affliction", "affliction"),
     ];
 
-    for (token, family, foundry_type) in cases {
+    for (token, record_kind, foundry_type) in cases {
         let tokens = vec![token.to_string()];
         let boosted = hit_with_document(
             "actions:testAction1",
             FtsDocument {
-                record_family: family.to_string(),
+                record_kind: record_kind.to_string(),
                 foundry_record_type: foundry_type.to_string(),
                 ..empty_document()
             },
@@ -340,12 +340,12 @@ fn type_intent_boost_covers_plural_and_synonym_tokens() {
         ("afflictions", "affliction", "affliction"),
     ];
 
-    for (token, family, foundry_type) in cases {
+    for (token, record_kind, foundry_type) in cases {
         let tokens = vec![token.to_string()];
         let boosted = hit_with_document(
             "actions:testAction1",
             FtsDocument {
-                record_family: family.to_string(),
+                record_kind: record_kind.to_string(),
                 foundry_record_type: foundry_type.to_string(),
                 ..empty_document()
             },
@@ -409,7 +409,7 @@ fn empty_document() -> FtsDocument {
         facts: String::new(),
         reference_terms: String::new(),
         embedded_content: String::new(),
-        record_family: String::new(),
+        record_kind: String::new(),
         foundry_record_type: String::new(),
     }
 }

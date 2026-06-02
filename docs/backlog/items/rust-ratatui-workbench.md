@@ -16,7 +16,7 @@ Build a Ratatui workbench over the Rust runtime crates for search, browse, detai
 The workbench should cover:
 
 - search result list/detail navigation
-- record detail pages with readable family-specific facts
+- record detail pages with readable kind-specific facts
 - reference navigation and back-stack behavior
 - filter/schema exploration and structured query construction
 - action palette or command menu behavior with fast keyboard selection

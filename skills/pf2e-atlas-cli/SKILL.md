@@ -63,27 +63,27 @@ If strict resolution reports ambiguity, inspect the returned alternatives before
 atlas record resolve "Treat Wounds" --pack-name actionspf2e --alternatives 5 --detail preview
 ```
 
-If strict resolution misses, use `search` with a narrow family or pack filter instead of treating `record resolve` as fuzzy search. If the query appears misspelled or malformed, do not rely on Atlas typo tolerance; retry with corrected canonical spelling or nearby known PF2E terms when you can infer them safely from context, then use narrow search only if strict resolution still misses.
+If strict resolution misses, use `search` with a narrow kind or pack filter instead of treating `record resolve` as fuzzy search. If the query appears misspelled or malformed, do not rely on Atlas typo tolerance; retry with corrected canonical spelling or nearby known PF2E terms when you can infer them safely from context, then use narrow search only if strict resolution still misses.
 
 Use `search` when you need a result set. Text queries run ranked retrieval; filter-only invocations return deterministic lists:
 
 ```bash
-atlas search "low level healing spell" --family spell --detail preview
-atlas search --family equipment --rarity uncommon --detail preview
+atlas search "low level healing spell" --kind spell --detail preview
+atlas search --kind equipment --rarity uncommon --detail preview
 ```
 
 Translate clear structured constraints into filters instead of leaving them only in the text query. For example, "low-level" usually means `--max-level`, "level 3" means `--level 3`, "uncommon" means `--rarity uncommon`, "cheap" or a price ceiling means `--max-price`, and known traits should use `--trait` or `--any-trait`. Keep the remaining query text focused on the concept that cannot be expressed structurally:
 
 ```bash
-atlas search "healing spell" --family spell --max-level 2 --detail preview --limit 8
-atlas search "protect an ally" --family feat --trait champion --detail preview --limit 8
+atlas search "healing spell" --kind spell --max-level 2 --detail preview --limit 8
+atlas search "protect an ally" --kind feat --trait champion --detail preview --limit 8
 ```
 
 Use `--limit` for exploratory searches and filter-only lists unless the user needs a broad inventory. Small result sets are easier to judge and reduce context noise:
 
 ```bash
-atlas search "low level healing spell" --family spell --detail preview --limit 8
-atlas search --family equipment --rarity uncommon --detail preview --limit 20
+atlas search "low level healing spell" --kind spell --detail preview --limit 8
+atlas search --kind equipment --rarity uncommon --detail preview --limit 20
 ```
 
 Use `graph links` when you already have a canonical record key or strict resolvable record name and need connected one-hop reference context around that record. This is the right follow-up after `record resolve`, `record get`, or `search` identifies the key. Do not look for a separate rule-context command; the intended workflow is explicit record identification followed by graph context retrieval:
@@ -98,12 +98,12 @@ atlas graph links bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4 --outgoing 0 --
 
 By default, graph links include outgoing references and omit backlinks. Use `--backlinks <count>` only when incoming context is useful, because backlinks can be noisy for common rules, actions, conditions, and traits. Use `graph uses` for backlinks-only context. Graph context is retrieval only; it does not synthesize answers.
 
-PF2e actions such as Treat Wounds are Atlas `rule` records in the `actionspf2e` pack, not a separate `action` record family. Use `--pack-name actionspf2e` or `--family rule` when narrowing action records; do not use `--family action`.
+PF2e actions such as Treat Wounds are Atlas `rule` records in the `actionspf2e` pack, not a separate `action` record kind. Use `--pack-name actionspf2e` or `--kind rule` when narrowing action records; do not use `--kind action`.
 
 Use `similar` when you already have a seed record and want records like it. This uses the seed record's stored embedding, applies normal structured filters to candidate records, and adds modest shared-reference and shared-trait evidence:
 
 ```bash
-atlas similar "Dirge of Doom" --family spell --json
+atlas similar "Dirge of Doom" --kind spell --json
 atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain
 ```
 
@@ -123,7 +123,7 @@ Use `--retrieval fts`, `--retrieval vector`, or `--retrieval hybrid` only when t
 Relationship filters require canonical record keys. Resolve or fetch a record first when correctness matters, then pass the verified key to `--references` or `--referenced-by`. A syntactically valid but nonexistent key can produce an empty result set, so do not treat zero results as proof of no relationship if the key was guessed:
 
 ```bash
-atlas record resolve "Battle Medicine" --family feat --detail standard --json
+atlas record resolve "Battle Medicine" --kind feat --detail standard --json
 atlas search --referenced-by feats-srd:wYerMk6F1RZb0Fwt --detail preview --limit 10
 ```
 
@@ -133,28 +133,28 @@ Use discovery commands before constructing precise filters whose fields or value
 
 ```bash
 atlas filters fields
-atlas filters fields --family spell
-atlas filters values --field traits --family spell
-atlas filters values --field metric --family creature --metric-query save
+atlas filters fields --kind spell
+atlas filters values --field traits --kind spell
+atlas filters values --field metric --kind creature --metric-query save
 ```
 
 Filter discovery defaults to human-readable output for scanning. Add `--json` when you need structured field/value payloads, exact counts, or canonical filter data. For sampled text fields, use `--sample-limit` or its alias `--limit`; ordinary enumerable value lists do not need a limit.
 
-The Rust query model is based on record families, metadata fields, traits, references, metrics, and canonical filter JSON. Use discovered field ids and values with `atlas search`, `atlas record resolve`, or `--filter-json`.
+The Rust query model is based on record kinds, metadata fields, traits, references, metrics, and canonical filter JSON. Use discovered field ids and values with `atlas search`, `atlas record resolve`, or `--filter-json`.
 
-Prefer convenience filters when they express the query clearly: `--family`, `--pack-name`, `--pack-label`, `--rarity`, `--publication-title`, `--level`, `--min-level`, `--max-level`, `--price`, `--min-price`, `--max-price`, `--trait`, `--any-trait`, `--references`, `--referenced-by`, and `--metric`. Use `--filter-json` for canonical filter trees that cannot be expressed cleanly with convenience flags, and do not combine `--filter-json` with convenience filters in the same command.
+Prefer convenience filters when they express the query clearly: `--kind`, `--pack-name`, `--pack-label`, `--rarity`, `--publication-title`, `--level`, `--min-level`, `--max-level`, `--price`, `--min-price`, `--max-price`, `--trait`, `--any-trait`, `--references`, `--referenced-by`, and `--metric`. Use `--filter-json` for canonical filter trees that cannot be expressed cleanly with convenience flags, and do not combine `--filter-json` with convenience filters in the same command.
 
 Discover metric keys before constructing metric predicates unless the exact key is already known. Prefer `--metric-query` for natural metric terms like "save", "armor", "speed", "perception", or "hp"; use `--metric-label`, `--metric-prefix`, or `--metric` when you already know the label, prefix, or key:
 
 ```bash
-atlas filters values --field metric --family creature --metric-query save --json
-atlas filters values --field metric --family creature --metric-label "Armor Class" --json
-atlas filters values --field metric --family creature --metric-prefix speed. --json
+atlas filters values --field metric --kind creature --metric-query save --json
+atlas filters values --field metric --kind creature --metric-label "Armor Class" --json
+atlas filters values --field metric --kind creature --metric-prefix speed. --json
 ```
 
 For numeric or stat-like questions, metric predicates are usually better than natural-language search text. Metric predicates often contain shell metacharacters, so quote them:
 
 ```bash
-atlas search --family creature --metric 'ac.value>=25' --detail preview --limit 8
-atlas search --family creature --metric 'speed.fly.value>=100' --metric 'ac.value>=30' --detail preview --limit 8
+atlas search --kind creature --metric 'ac.value>=25' --detail preview --limit 8
+atlas search --kind creature --metric 'speed.fly.value>=100' --metric 'ac.value>=30' --detail preview --limit 8
 ```

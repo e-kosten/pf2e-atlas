@@ -39,13 +39,13 @@ pub(super) fn metric_keys(
                 format!(" AND {}", predicates.join(" AND "))
             };
             format!(
-                "SELECT rm.metric_domain, r.record_family, rm.metric_key, rm.value_type, COUNT(*) AS catalog_count
+                "SELECT rm.metric_domain, r.record_kind, rm.metric_key, rm.value_type, COUNT(*) AS catalog_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
          JOIN records r ON r.record_key = rm.record_key
          WHERE 1 = 1 {where_extra}
-         GROUP BY rm.metric_domain, r.record_family, rm.metric_key, rm.value_type
-         ORDER BY rm.metric_key ASC, r.record_family ASC",
+         GROUP BY rm.metric_domain, r.record_kind, rm.metric_key, rm.value_type
+         ORDER BY rm.metric_key ASC, r.record_kind ASC",
             )
         });
     let rows = bind_sql_query(query.sql, &query.parameters)
@@ -57,7 +57,7 @@ pub(super) fn metric_keys(
     for row in rows {
         let metric = metric_key_from_parts(
             row.metric_domain,
-            row.record_family,
+            row.record_kind,
             row.metric_key,
             row.value_type,
             row.catalog_count as u64,
@@ -195,7 +195,7 @@ struct MetricKeyRow {
     #[diesel(sql_type = Text)]
     metric_domain: String,
     #[diesel(sql_type = Text)]
-    record_family: String,
+    record_kind: String,
     #[diesel(sql_type = Text)]
     metric_key: String,
     #[diesel(sql_type = Text)]

@@ -38,10 +38,10 @@ impl From<CliProgressMode> for progress::ProgressMode {
 #[derive(Debug, Clone, Default, Args)]
 pub(crate) struct FilterOptions {
     #[arg(
-        long = "family",
-        help = "Filter to records in this family; repeat for any of several families"
+        long = "kind",
+        help = "Filter to records in this kind; repeat for any of several kinds"
     )]
-    pub(crate) families: Vec<String>,
+    pub(crate) kinds: Vec<String>,
     #[arg(
         long = "pack-name",
         help = "Filter to this stable source pack name; repeat for any of several packs"

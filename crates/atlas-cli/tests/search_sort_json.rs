@@ -24,7 +24,7 @@ fn filter_search_supports_price_sorting() -> Result<(), Box<dyn std::error::Erro
     let ascending_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "--family",
+            "--kind",
             "equipment",
             "--sort",
             "price_asc",
@@ -48,7 +48,7 @@ fn filter_search_supports_price_sorting() -> Result<(), Box<dyn std::error::Erro
     let descending_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "--family",
+            "--kind",
             "equipment",
             "--sort",
             "price_desc",

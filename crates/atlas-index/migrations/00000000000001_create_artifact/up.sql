@@ -17,7 +17,7 @@ CREATE TABLE records (
   id TEXT NOT NULL,
   name TEXT NOT NULL,
   normalized_name TEXT NOT NULL,
-  record_family TEXT NOT NULL,
+  record_kind TEXT NOT NULL,
   pack_name TEXT NOT NULL,
   pack_label TEXT NOT NULL,
   foundry_document_type TEXT NOT NULL,
@@ -143,34 +143,34 @@ CREATE TABLE record_metrics (
 
 CREATE TABLE metric_key_catalog (
   metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
-  record_family TEXT,
+  record_kind TEXT,
   namespace_prefix TEXT NOT NULL,
   metric_key TEXT NOT NULL,
   value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
   catalog_count INTEGER NOT NULL,
   numeric_min REAL,
   numeric_max REAL,
-  PRIMARY KEY (metric_domain, record_family, metric_key)
+  PRIMARY KEY (metric_domain, record_kind, metric_key)
 );
 
 CREATE TABLE metric_value_catalog (
   metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
-  record_family TEXT,
+  record_kind TEXT,
   metric_key TEXT NOT NULL,
   value TEXT NOT NULL,
   catalog_count INTEGER NOT NULL,
-  PRIMARY KEY (metric_domain, record_family, metric_key, value)
+  PRIMARY KEY (metric_domain, record_kind, metric_key, value)
 );
 
 CREATE TABLE filter_field_catalog (
   field TEXT NOT NULL,
-  record_family TEXT,
+  record_kind TEXT,
   field_type TEXT NOT NULL,
   field_group TEXT NOT NULL,
   value_policy TEXT NOT NULL,
   operators_json TEXT NOT NULL,
   cli_flags_json TEXT NOT NULL,
-  applicable_families_json TEXT NOT NULL,
+  applicable_kinds_json TEXT NOT NULL,
   value_count INTEGER NOT NULL,
   matching_record_count INTEGER NOT NULL,
   null_count INTEGER NOT NULL,
@@ -179,29 +179,29 @@ CREATE TABLE filter_field_catalog (
   singleton_ratio REAL,
   observation_singleton_ratio REAL,
   policy_reason TEXT NOT NULL,
-  PRIMARY KEY (field, record_family)
+  PRIMARY KEY (field, record_kind)
 );
 
 CREATE TABLE filter_value_catalog (
   field TEXT NOT NULL,
-  record_family TEXT,
+  record_kind TEXT,
   value TEXT NOT NULL,
   catalog_count INTEGER NOT NULL,
-  PRIMARY KEY (field, record_family, value)
+  PRIMARY KEY (field, record_kind, value)
 );
 
 CREATE TABLE filter_sample_catalog (
   field TEXT NOT NULL,
-  record_family TEXT,
+  record_kind TEXT,
   value TEXT NOT NULL,
   catalog_count INTEGER NOT NULL,
   sample_rank INTEGER NOT NULL,
-  PRIMARY KEY (field, record_family, value)
+  PRIMARY KEY (field, record_kind, value)
 );
 
 CREATE TABLE filter_numeric_catalog (
   field TEXT NOT NULL,
-  record_family TEXT,
+  record_kind TEXT,
   metric_domain TEXT,
   metric_key TEXT,
   catalog_count INTEGER NOT NULL,
@@ -214,7 +214,7 @@ CREATE TABLE filter_numeric_catalog (
   p75 REAL,
   p95 REAL,
   max REAL,
-  PRIMARY KEY (field, record_family, metric_domain, metric_key)
+  PRIMARY KEY (field, record_kind, metric_domain, metric_key)
 );
 
 CREATE TABLE actor_records (

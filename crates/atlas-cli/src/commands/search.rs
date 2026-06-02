@@ -581,35 +581,35 @@ fn print_search_results(data: &SearchData) {
         .max()
         .unwrap_or("key".len())
         .max("key".len());
-    let family_width = data
+    let kind_width = data
         .results
         .iter()
         .map(|result| result.record.kind.len())
         .max()
-        .unwrap_or("family".len());
+        .unwrap_or("kind".len());
     println!(
-        "{:<key_width$}  {:<family_width$}  name",
+        "{:<key_width$}  {:<kind_width$}  name",
         "key",
-        "family",
+        "kind",
         key_width = key_width,
-        family_width = family_width
+        kind_width = kind_width
     );
     println!(
-        "{:-<key_width$}  {:-<family_width$}  {:-<4}",
+        "{:-<key_width$}  {:-<kind_width$}  {:-<4}",
         "",
         "",
         "",
         key_width = key_width,
-        family_width = family_width
+        kind_width = kind_width
     );
     for result in &data.results {
         println!(
-            "{:<key_width$}  {:<family_width$}  {}",
+            "{:<key_width$}  {:<kind_width$}  {}",
             result.record.key,
             result.record.kind,
             result.record.name,
             key_width = key_width,
-            family_width = family_width
+            kind_width = kind_width
         );
     }
 }

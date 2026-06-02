@@ -89,7 +89,7 @@ Run the CLI from source:
 ```bash
 cargo run -p atlas-cli -- --help
 cargo run -p atlas-cli -- setup --check --json
-cargo run -p atlas-cli -- search "low level healing spell" --family spell --limit 5
+cargo run -p atlas-cli -- search "low level healing spell" --kind spell --limit 5
 ```
 
 Install the CLI from this clone:

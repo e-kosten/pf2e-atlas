@@ -9,13 +9,13 @@ pub mod filter_field_catalog {
         use super::{Column, TABLE};
 
         pub const FIELD: Column = Column::new(TABLE, "field");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const FIELD_TYPE: Column = Column::new(TABLE, "field_type");
         pub const FIELD_GROUP: Column = Column::new(TABLE, "field_group");
         pub const VALUE_POLICY: Column = Column::new(TABLE, "value_policy");
         pub const OPERATORS_JSON: Column = Column::new(TABLE, "operators_json");
         pub const CLI_FLAGS_JSON: Column = Column::new(TABLE, "cli_flags_json");
-        pub const APPLICABLE_FAMILIES_JSON: Column = Column::new(TABLE, "applicable_families_json");
+        pub const APPLICABLE_KINDS_JSON: Column = Column::new(TABLE, "applicable_kinds_json");
         pub const VALUE_COUNT: Column = Column::new(TABLE, "value_count");
         pub const MATCHING_RECORD_COUNT: Column = Column::new(TABLE, "matching_record_count");
         pub const NULL_COUNT: Column = Column::new(TABLE, "null_count");
@@ -29,13 +29,13 @@ pub mod filter_field_catalog {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::FIELD,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::FIELD_TYPE,
         columns::FIELD_GROUP,
         columns::VALUE_POLICY,
         columns::OPERATORS_JSON,
         columns::CLI_FLAGS_JSON,
-        columns::APPLICABLE_FAMILIES_JSON,
+        columns::APPLICABLE_KINDS_JSON,
         columns::VALUE_COUNT,
         columns::MATCHING_RECORD_COUNT,
         columns::NULL_COUNT,
@@ -56,14 +56,14 @@ pub mod filter_value_catalog {
         use super::{Column, TABLE};
 
         pub const FIELD: Column = Column::new(TABLE, "field");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const VALUE: Column = Column::new(TABLE, "value");
         pub const CATALOG_COUNT: Column = Column::new(TABLE, "catalog_count");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::FIELD,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::VALUE,
         columns::CATALOG_COUNT,
     ];
@@ -78,7 +78,7 @@ pub mod filter_sample_catalog {
         use super::{Column, TABLE};
 
         pub const FIELD: Column = Column::new(TABLE, "field");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const VALUE: Column = Column::new(TABLE, "value");
         pub const CATALOG_COUNT: Column = Column::new(TABLE, "catalog_count");
         pub const SAMPLE_RANK: Column = Column::new(TABLE, "sample_rank");
@@ -86,7 +86,7 @@ pub mod filter_sample_catalog {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::FIELD,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::VALUE,
         columns::CATALOG_COUNT,
         columns::SAMPLE_RANK,
@@ -102,7 +102,7 @@ pub mod filter_numeric_catalog {
         use super::{Column, TABLE};
 
         pub const FIELD: Column = Column::new(TABLE, "field");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const METRIC_DOMAIN: Column = Column::new(TABLE, "metric_domain");
         pub const METRIC_KEY: Column = Column::new(TABLE, "metric_key");
         pub const CATALOG_COUNT: Column = Column::new(TABLE, "catalog_count");
@@ -119,7 +119,7 @@ pub mod filter_numeric_catalog {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::FIELD,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::METRIC_DOMAIN,
         columns::METRIC_KEY,
         columns::CATALOG_COUNT,

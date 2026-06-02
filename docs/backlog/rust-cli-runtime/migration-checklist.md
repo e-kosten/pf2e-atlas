@@ -31,7 +31,7 @@ This checklist tracks the current Rust runtime state and open follow-up work.
 - [ ] [Rust CLI and skill capability follow-through](../items/rust-cli-skill-capability-follow-through.md).
 - [ ] [Rust search quality and retrieval weight tuning](../items/rust-search-quality-tuning.md).
 - [ ] [Rust creature level filtering](../items/rust-creature-level-filtering.md).
-- [ ] [Rust CLI family preview facts](../items/rust-cli-family-preview-facts.md).
+- [ ] [Rust CLI kind preview facts](../items/rust-cli-kind-preview-facts.md).
 - [ ] [Rust CLI typo tolerant discovery](../items/rust-cli-typo-tolerant-discovery.md).
 - [ ] [Rust Foundry JSON field audit](../items/rust-foundry-json-field-audit.md).
 - [ ] [Rust content subdocuments for journal pages and table results](../items/rust-content-subdocuments-journal-table-results.md).

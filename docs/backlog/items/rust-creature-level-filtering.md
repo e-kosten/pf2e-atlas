@@ -7,9 +7,9 @@ Last reviewed: 2026-05-18
 
 ## Problem
 
-The Rust Atlas CLI accepts shared level convenience filters such as `--level`, `--min-level`, and `--max-level`, but creature records currently do not participate correctly in those predicates. A common query such as `atlas search --family creature --max-level 8` can return zero records even though creature level is a core Pathfinder lookup dimension.
+The Rust Atlas CLI accepts shared level convenience filters such as `--level`, `--min-level`, and `--max-level`, but creature records currently do not participate correctly in those predicates. A common query such as `atlas search --kind creature --max-level 8` can return zero records even though creature level is a core Pathfinder lookup dimension.
 
-This is a product correctness problem rather than an agent instruction issue. Agents and users should be able to trust shared level filters across record families where level is meaningful.
+This is a product correctness problem rather than an agent instruction issue. Agents and users should be able to trust shared level filters across record kinds where level is meaningful.
 
 ## Desired Outcome
 
@@ -30,4 +30,4 @@ The fix should cover:
 
 ## Notes
 
-Observed during Atlas CLI skill evaluation: `atlas search --family creature --max-level 8 --detail summary --limit 5 --json` returned an empty result set with a lowered `level <= 8` metadata predicate.
+Observed during Atlas CLI skill evaluation: `atlas search --kind creature --max-level 8 --detail summary --limit 5 --json` returned an empty result set with a lowered `level <= 8` metadata predicate.

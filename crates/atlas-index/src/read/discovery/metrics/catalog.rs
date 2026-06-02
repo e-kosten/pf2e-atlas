@@ -21,21 +21,21 @@ pub(super) fn catalog_metric_keys(
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
     let mut sql = String::from(
-        "SELECT mk.metric_domain, COALESCE(mk.record_family, 'all') AS record_family,
+        "SELECT mk.metric_domain, COALESCE(mk.record_kind, 'all') AS record_kind,
                 mk.metric_key, mk.value_type, mk.catalog_count,
                 ns.catalog_count AS ns_catalog_count, ns.null_count AS ns_null_count,
                 ns.min, ns.p05, ns.p25, ns.p50, ns.mean, ns.p75, ns.p95, ns.max
          FROM metric_key_catalog mk
          LEFT JOIN filter_numeric_catalog ns
            ON ns.field = 'metric'
-          AND ((ns.record_family IS NULL AND mk.record_family IS NULL)
-               OR ns.record_family = mk.record_family)
+          AND ((ns.record_kind IS NULL AND mk.record_kind IS NULL)
+               OR ns.record_kind = mk.record_kind)
           AND ns.metric_domain = mk.metric_domain
           AND ns.metric_key = mk.metric_key
          WHERE 1 = 1",
     );
     let mut parameters = Vec::new();
-    push_catalog_scope_predicate(&mut sql, &mut parameters, "mk.record_family", scope);
+    push_catalog_scope_predicate(&mut sql, &mut parameters, "mk.record_kind", scope);
     if let Some(prefix) = prefix {
         parameters.push(SqlBindValue::Text(format!("{prefix}%")));
         sql.push_str(&format!(" AND mk.metric_key LIKE ?{}", parameters.len()));
@@ -44,7 +44,7 @@ pub(super) fn catalog_metric_keys(
         parameters.push(SqlBindValue::Text(domain.to_string()));
         sql.push_str(&format!(" AND mk.metric_domain = ?{}", parameters.len()));
     }
-    sql.push_str(" ORDER BY mk.metric_key ASC, mk.record_family ASC");
+    sql.push_str(" ORDER BY mk.metric_key ASC, mk.record_kind ASC");
     let rows = bind_sql_query(sql, &parameters)
         .load::<CatalogMetricKeyRow>(connection)
         .map_err(query_error)?;
@@ -66,7 +66,7 @@ pub(super) fn catalog_metric_keys(
         });
         let metric = metric_key_from_parts(
             row.metric_domain,
-            row.record_family,
+            row.record_kind,
             row.metric_key,
             row.value_type,
             row.catalog_count as u64,
@@ -104,7 +104,7 @@ pub(super) fn catalog_metric_numeric_stats(
          WHERE field = 'metric'",
     );
     let mut parameters = Vec::new();
-    push_catalog_scope_predicate(&mut sql, &mut parameters, "record_family", scope);
+    push_catalog_scope_predicate(&mut sql, &mut parameters, "record_kind", scope);
     parameters.push(SqlBindValue::Text(metric.metric_domain.clone()));
     sql.push_str(&format!(" AND metric_domain = ?{}", parameters.len()));
     parameters.push(SqlBindValue::Text(metric.metric_key.clone()));
@@ -131,7 +131,7 @@ pub(super) fn catalog_metric_text_values(
         SqlBindValue::Text(metric.metric_domain.clone()),
         SqlBindValue::Text(metric.metric_key.clone()),
     ];
-    push_catalog_scope_predicate(&mut sql, &mut parameters, "record_family", scope);
+    push_catalog_scope_predicate(&mut sql, &mut parameters, "record_kind", scope);
     sql.push_str(" ORDER BY catalog_count DESC, value ASC");
     bind_sql_query(sql, &parameters)
         .load::<MetricValueCountRow>(connection)
@@ -192,7 +192,7 @@ struct CatalogMetricKeyRow {
     #[diesel(sql_type = Text)]
     metric_domain: String,
     #[diesel(sql_type = Text)]
-    record_family: String,
+    record_kind: String,
     #[diesel(sql_type = Text)]
     metric_key: String,
     #[diesel(sql_type = Text)]

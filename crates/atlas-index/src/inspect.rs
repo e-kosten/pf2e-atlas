@@ -151,9 +151,9 @@ fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, Inde
         )?,
         by_kind: count_grouped(
             connection,
-            "SELECT record_family AS group_key, COUNT(*) AS row_count
+            "SELECT record_kind AS group_key, COUNT(*) AS row_count
              FROM records
-             GROUP BY record_family",
+             GROUP BY record_kind",
         )?,
         by_foundry_taxonomy: count_grouped(
             connection,

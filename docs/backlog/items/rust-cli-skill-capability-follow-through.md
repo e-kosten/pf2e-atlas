@@ -17,7 +17,7 @@ Improve the CLI and skill around real task friction found during use.
 
 Candidate areas:
 
-- richer family-specific preview facts in search results
+- richer kind-specific preview facts in search results
 - typo-tolerant or suggestion-oriented discovery without weakening strict `record resolve`
 - pack/source listing if it proves useful for agents
 - clearer command examples and command-choice rules in the skill package

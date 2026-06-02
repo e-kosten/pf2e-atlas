@@ -61,7 +61,7 @@ pub(super) fn metric_candidates(metrics: &[MetricKeyDiscovery]) -> String {
 
 pub(super) fn metric_key_from_parts(
     domain: String,
-    record_family: String,
+    record_kind: String,
     metric_key: String,
     value_type: String,
     count: u64,
@@ -83,7 +83,7 @@ pub(super) fn metric_key_from_parts(
         .map(|matched| matched.definition.group().as_str().to_string());
     Ok(MetricKeyDiscovery {
         metric_domain: metric_domain_string(domain),
-        kind: record_family,
+        kind: record_kind,
         namespace_prefix: metric_key
             .split_once('.')
             .map(|(prefix, _)| format!("{prefix}."))

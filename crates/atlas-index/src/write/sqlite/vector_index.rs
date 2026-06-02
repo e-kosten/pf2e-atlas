@@ -87,7 +87,7 @@ mod tests {
         connection
             .batch_execute(
                 "INSERT INTO records (
-                  record_key, id, name, normalized_name, record_family, pack_name, pack_label,
+                  record_key, id, name, normalized_name, record_kind, pack_name, pack_label,
                   foundry_document_type, foundry_record_type, traits_json, prerequisites_json, publication_remaster,
                   publication_family, taxonomy_families_json, variant_axes_json, variant_source,
                   source_path, is_default_visible, raw_json

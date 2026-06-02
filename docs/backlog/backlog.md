@@ -31,8 +31,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust Ratatui workbench](./items/rust-ratatui-workbench.md)
   Build the interactive terminal workbench over the Rust runtime for search, browse, detail reading, filter exploration, graph context, and future editorial workflows. Status: planned.
 
-- [Rust CLI family preview facts](./items/rust-cli-family-preview-facts.md)
-  Add concise family-specific scan facts to Atlas search preview output so users can reject or select candidates with fewer follow-up lookups. Status: proposed.
+- [Rust CLI kind preview facts](./items/rust-cli-kind-preview-facts.md)
+  Add concise kind-specific scan facts to Atlas search preview output so users can reject or select candidates with fewer follow-up lookups. Status: proposed.
 
 - [Rust CLI typo tolerant discovery](./items/rust-cli-typo-tolerant-discovery.md)
   Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
@@ -43,7 +43,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 ## Later
 
 - [Rust derived-tag runtime and editorial redesign](./items/rust-derived-tag-redesign.md)
-  Redesign retained derived-tag concepts against record families, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.
+  Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.
 
 - [Rust content subdocuments for journal pages and table results](./items/rust-content-subdocuments-journal-table-results.md)
   Preserve the deferred design question for journal-page and rollable-table-result rich text as child content. Status: deferred.

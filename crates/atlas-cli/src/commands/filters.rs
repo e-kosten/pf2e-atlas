@@ -64,7 +64,7 @@ trait FilterOptionExt {
 
 impl FilterOptionExt for FilterOptions {
     fn has_convenience_filters(&self) -> bool {
-        !self.families.is_empty()
+        !self.kinds.is_empty()
             || !self.pack_names.is_empty()
             || !self.pack_labels.is_empty()
             || !self.rarities.is_empty()
@@ -88,7 +88,7 @@ fn build_convenience_filter(
 ) -> Result<Option<SearchFilterNode>, CliFilterError> {
     let mut children = Vec::new();
 
-    push_repeated_family(&mut children, &options.families)?;
+    push_repeated_kind(&mut children, &options.kinds)?;
     push_enum_string_filter(
         &mut children,
         MetadataEnumStringField::PackName,
@@ -154,26 +154,26 @@ fn build_convenience_filter(
     }
 }
 
-fn push_repeated_family(
+fn push_repeated_kind(
     children: &mut Vec<SearchFilterNode>,
     values: &[String],
 ) -> Result<(), CliFilterError> {
     let nodes = values
         .iter()
         .map(|value| {
-            let family = serde_plain_record_family(value)?;
-            Ok(SearchFilterNode::record_kind(family))
+            let kind = serde_plain_record_kind(value)?;
+            Ok(SearchFilterNode::record_kind(kind))
         })
         .collect::<Result<Vec<_>, CliFilterError>>()?;
     push_optional_group(children, nodes);
     Ok(())
 }
 
-fn serde_plain_record_family(value: &str) -> Result<RecordKind, CliFilterError> {
+fn serde_plain_record_kind(value: &str) -> Result<RecordKind, CliFilterError> {
     serde_json::from_value::<RecordKind>(Value::String(value.to_string())).map_err(|error| {
         CliFilterError {
             code: "invalid_filter",
-            message: format!("invalid --family value `{value}`: {error}"),
+            message: format!("invalid --kind value `{value}`: {error}"),
         }
     })
 }
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn repeated_scalar_flags_or_within_field_and_and_across_fields() {
         let options = FilterOptions {
-            families: vec!["spell".to_string(), "feat".to_string()],
+            kinds: vec!["spell".to_string(), "feat".to_string()],
             rarities: vec!["rare".to_string(), "unique".to_string()],
             ..FilterOptions::default()
         };
@@ -478,7 +478,7 @@ mod tests {
         };
 
         let error =
-            build_filter(Some(r#"{"kind":"record_family","value":"rule"}"#), &options).unwrap_err();
+            build_filter(Some(r#"{"kind":"record_kind","value":"rule"}"#), &options).unwrap_err();
         assert_eq!(error.code, "invalid_filter");
     }
 

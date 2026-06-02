@@ -6,7 +6,7 @@ use diesel::{QueryableByName, SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
 use crate::discovery::definitions::{
-    DISCOVERY_ALL_FAMILIES as ALL_FAMILIES, DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS,
+    DISCOVERY_ALL_KINDS as ALL_KINDS, DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS,
     DiscoveryFieldDefinition as FieldCatalogSeed,
 };
 
@@ -27,13 +27,13 @@ pub(super) fn write_field_catalogs(
             format!("Writing filter field catalog: {}", seed.field),
         );
         let stats_by_scope = all_stats.get(seed.field);
-        for family in seed.applicable_families {
+        for kind in seed.applicable_kinds {
             if let Some(stats) = stats_by_scope
-                .and_then(|stats| stats.get(&Some(*family)))
+                .and_then(|stats| stats.get(&Some(*kind)))
                 .copied()
                 && stats.value_count > 0
             {
-                rows.push(row_with_stats(seed, Some(*family), stats)?);
+                rows.push(row_with_stats(seed, Some(*kind), stats)?);
             }
         }
         if let Some(stats) = stats_by_scope.and_then(|stats| stats.get(&None)).copied()
@@ -59,12 +59,12 @@ pub(super) fn write_field_catalogs(
 
 fn row_with_stats(
     seed: &FieldCatalogSeed,
-    record_family: Option<&str>,
+    record_kind: Option<&str>,
     stats: FieldStats,
 ) -> Result<FilterFieldCatalogRow, IndexWriteError> {
     Ok(FilterFieldCatalogRow {
         field: seed.field.to_string(),
-        record_family: record_family.map(str::to_string),
+        record_kind: record_kind.map(str::to_string),
         field_type: serde_json_string(seed.field_type)?,
         field_group: serde_json_string(seed.group)?,
         value_policy: serde_json_string(seed.value_policy)?,
@@ -72,7 +72,7 @@ fn row_with_stats(
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
         cli_flags_json: serde_json::to_string(seed.cli_flags)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
-        applicable_families_json: serde_json::to_string(seed.applicable_families)
+        applicable_kinds_json: serde_json::to_string(seed.applicable_kinds)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
         value_count: count_to_i64(stats.value_count, "filter_field_catalog.value_count")?,
         matching_record_count: count_to_i64(
@@ -104,7 +104,7 @@ fn collect_all_stats(
     let observed_counts = observed_counts(connection)?;
     let rows = sql_query(
         "SELECT field,
-                NULL AS record_family,
+                NULL AS record_kind,
                 COALESCE(SUM(value_count), 0) AS value_count,
                 COUNT(*) AS distinct_count,
                 SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END) AS singleton_count
@@ -117,23 +117,23 @@ fn collect_all_stats(
          GROUP BY field
          UNION ALL
          SELECT field,
-                record_family,
+                record_kind,
                 COALESCE(SUM(value_count), 0) AS value_count,
                 COUNT(*) AS distinct_count,
                 SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END) AS singleton_count
          FROM (
-            SELECT field, record_family, value, COUNT(*) AS value_count
+            SELECT field, record_kind, value, COUNT(*) AS value_count
             FROM temp_discovery_values
             WHERE value IS NOT NULL AND value <> ''
-            GROUP BY field, record_family, value
+            GROUP BY field, record_kind, value
          )
-         GROUP BY field, record_family",
+         GROUP BY field, record_kind",
     )
     .load::<FieldAggregateRow>(connection)
     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut stats = BTreeMap::<String, BTreeMap<Option<&'static str>, FieldStats>>::new();
     for row in rows {
-        let scope = row.record_family.as_deref().and_then(known_family);
+        let scope = row.record_kind.as_deref().and_then(known_kind);
         let matching_record_count = matching_counts.get(&scope).copied().unwrap_or_default();
         let observed_record_count = observed_counts
             .get(&(row.field.clone(), scope))
@@ -158,7 +158,7 @@ struct FieldAggregateRow {
     #[diesel(sql_type = Text)]
     field: String,
     #[diesel(sql_type = Nullable<Text>)]
-    record_family: Option<String>,
+    record_kind: Option<String>,
     #[diesel(sql_type = BigInt)]
     value_count: i64,
     #[diesel(sql_type = BigInt)]
@@ -171,25 +171,22 @@ fn observed_counts(
     connection: &mut SqliteConnection,
 ) -> Result<BTreeMap<(String, Option<&'static str>), u64>, IndexWriteError> {
     let rows = sql_query(
-        "SELECT field, NULL AS record_family, COUNT(DISTINCT record_key) AS observed_count
+        "SELECT field, NULL AS record_kind, COUNT(DISTINCT record_key) AS observed_count
          FROM temp_discovery_values
          WHERE value IS NOT NULL AND value <> ''
          GROUP BY field
          UNION ALL
-         SELECT field, record_family, COUNT(DISTINCT record_key) AS observed_count
+         SELECT field, record_kind, COUNT(DISTINCT record_key) AS observed_count
          FROM temp_discovery_values
          WHERE value IS NOT NULL AND value <> ''
-         GROUP BY field, record_family",
+         GROUP BY field, record_kind",
     )
     .load::<ObservedCountRow>(connection)
     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut counts = BTreeMap::new();
     for row in rows {
         counts.insert(
-            (
-                row.field,
-                row.record_family.as_deref().and_then(known_family),
-            ),
+            (row.field, row.record_kind.as_deref().and_then(known_kind)),
             non_negative_u64(row.observed_count, "observed_count")?,
         );
     }
@@ -201,7 +198,7 @@ struct ObservedCountRow {
     #[diesel(sql_type = Text)]
     field: String,
     #[diesel(sql_type = Nullable<Text>)]
-    record_family: Option<String>,
+    record_kind: Option<String>,
     #[diesel(sql_type = BigInt)]
     observed_count: i64,
 }
@@ -210,21 +207,21 @@ fn matching_counts(
     connection: &mut SqliteConnection,
 ) -> Result<BTreeMap<Option<&'static str>, u64>, IndexWriteError> {
     let rows = sql_query(
-        "SELECT NULL AS record_family, COUNT(*) AS matching_count
+        "SELECT NULL AS record_kind, COUNT(*) AS matching_count
          FROM records
          WHERE is_default_visible = 1
          UNION ALL
-         SELECT record_family, COUNT(*) AS matching_count
+         SELECT record_kind, COUNT(*) AS matching_count
          FROM records
          WHERE is_default_visible = 1
-         GROUP BY record_family",
+         GROUP BY record_kind",
     )
     .load::<MatchingCountRow>(connection)
     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut counts = BTreeMap::new();
     for row in rows {
         counts.insert(
-            row.record_family.as_deref().and_then(known_family),
+            row.record_kind.as_deref().and_then(known_kind),
             non_negative_u64(row.matching_count, "matching_count")?,
         );
     }
@@ -234,13 +231,13 @@ fn matching_counts(
 #[derive(QueryableByName)]
 struct MatchingCountRow {
     #[diesel(sql_type = Nullable<Text>)]
-    record_family: Option<String>,
+    record_kind: Option<String>,
     #[diesel(sql_type = BigInt)]
     matching_count: i64,
 }
 
-pub(super) fn known_family(value: &str) -> Option<&'static str> {
-    ALL_FAMILIES.iter().copied().find(|family| *family == value)
+pub(super) fn known_kind(value: &str) -> Option<&'static str> {
+    ALL_KINDS.iter().copied().find(|kind| *kind == value)
 }
 
 pub(super) fn count_to_i64(count: u64, field: &'static str) -> Result<i64, IndexWriteError> {

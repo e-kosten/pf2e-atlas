@@ -19,7 +19,7 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
         "values",
         "--field",
         "metric",
-        "--family",
+        "--kind",
         "creature",
         "--metric-query",
         "defense ac",
@@ -43,7 +43,7 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
         "values",
         "--field",
         "metric",
-        "--family",
+        "--kind",
         "creature",
         "--metric",
         "AC",
@@ -60,7 +60,7 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
 
     let metric_filter_search = atlas_json(&[
         "search",
-        "--family",
+        "--kind",
         "creature",
         "--metric",
         "AC>=17",
@@ -77,7 +77,7 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
 
     let unknown_metric_filter = atlas_json(&[
         "search",
-        "--family",
+        "--kind",
         "creature",
         "--metric",
         "armor>=17",

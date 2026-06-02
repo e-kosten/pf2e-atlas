@@ -37,7 +37,7 @@ pub mod metric_key_catalog {
         use super::{Column, TABLE};
 
         pub const METRIC_DOMAIN: Column = Column::new(TABLE, "metric_domain");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const NAMESPACE_PREFIX: Column = Column::new(TABLE, "namespace_prefix");
         pub const METRIC_KEY: Column = Column::new(TABLE, "metric_key");
         pub const VALUE_TYPE: Column = Column::new(TABLE, "value_type");
@@ -48,7 +48,7 @@ pub mod metric_key_catalog {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::METRIC_DOMAIN,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::NAMESPACE_PREFIX,
         columns::METRIC_KEY,
         columns::VALUE_TYPE,
@@ -67,7 +67,7 @@ pub mod metric_value_catalog {
         use super::{Column, TABLE};
 
         pub const METRIC_DOMAIN: Column = Column::new(TABLE, "metric_domain");
-        pub const RECORD_FAMILY: Column = Column::new(TABLE, "record_family");
+        pub const RECORD_KIND: Column = Column::new(TABLE, "record_kind");
         pub const METRIC_KEY: Column = Column::new(TABLE, "metric_key");
         pub const VALUE: Column = Column::new(TABLE, "value");
         pub const CATALOG_COUNT: Column = Column::new(TABLE, "catalog_count");
@@ -75,7 +75,7 @@ pub mod metric_value_catalog {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::METRIC_DOMAIN,
-        columns::RECORD_FAMILY,
+        columns::RECORD_KIND,
         columns::METRIC_KEY,
         columns::VALUE,
         columns::CATALOG_COUNT,

@@ -23,7 +23,7 @@ PF2e Atlas is centered on a Rust local runtime with `atlas` as the command surfa
 ### CLI And Skill Follow-Through
 
 - Improve skill examples as real task friction appears.
-- Add family-specific preview facts where they help users and agents choose results faster.
+- Add kind-specific preview facts where they help users and agents choose results faster.
 - Add typo-tolerant discovery or suggestions without weakening strict record resolution.
 - Keep setup and readiness errors actionable for local agents.
 
@@ -46,7 +46,7 @@ PF2e Atlas is centered on a Rust local runtime with `atlas` as the command surfa
 
 ### Derived Tags
 
-- Redesign retained derived-tag concepts against record families, explicit source axes, typed discovery, and artifact ownership.
+- Redesign retained derived-tag concepts against record kinds, explicit source axes, typed discovery, and artifact ownership.
 - Add Rust-owned runtime/editorial crates only when the accepted model is ready to implement.
 
 ## Non-Goals

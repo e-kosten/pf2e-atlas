@@ -27,7 +27,7 @@ fn validate_numeric_catalog_uniqueness(
         "SELECT COUNT(*)
          FROM (
            SELECT field,
-                  COALESCE(record_family, '<global>') AS scope,
+                  COALESCE(record_kind, '<global>') AS scope,
                   COALESCE(metric_domain, '<none>') AS metric_domain_key,
                   COALESCE(metric_key, '<none>') AS metric_key_key
            FROM filter_numeric_catalog
@@ -76,31 +76,31 @@ fn numeric_field_catalog_diff(
     let sql = format!(
         "WITH field_values(record_key, value) AS ({value_sql}),
               scoped AS (
-                SELECT NULL AS record_family, CAST(value AS REAL) AS value
+                SELECT NULL AS record_kind, CAST(value AS REAL) AS value
                 FROM field_values fv
                 JOIN records r ON r.record_key = fv.record_key
                 WHERE r.is_default_visible = 1 AND value IS NOT NULL
                 UNION ALL
-                SELECT r.record_family, CAST(value AS REAL) AS value
+                SELECT r.record_kind, CAST(value AS REAL) AS value
                 FROM field_values fv
                 JOIN records r ON r.record_key = fv.record_key
                 WHERE r.is_default_visible = 1 AND value IS NOT NULL
               ),
               ordered AS (
-                SELECT record_family, value,
-                       ROW_NUMBER() OVER (PARTITION BY record_family ORDER BY value ASC) AS rn,
-                       COUNT(*) OVER (PARTITION BY record_family) AS n
+                SELECT record_kind, value,
+                       ROW_NUMBER() OVER (PARTITION BY record_kind ORDER BY value ASC) AS rn,
+                       COUNT(*) OVER (PARTITION BY record_kind) AS n
                 FROM scoped
               ),
               expected AS (
-                SELECT record_family,
+                SELECT record_kind,
                        COUNT(*) AS catalog_count,
                        CASE
-                         WHEN record_family IS NULL THEN
+                         WHEN record_kind IS NULL THEN
                            (SELECT COUNT(*) FROM records WHERE is_default_visible = 1)
                          ELSE
                            (SELECT COUNT(*) FROM records WHERE is_default_visible = 1
-                              AND records.record_family = ordered.record_family)
+                              AND records.record_kind = ordered.record_kind)
                        END - COUNT(*) AS null_count,
                        MIN(value) AS min,
                        MAX(CASE WHEN rn = CAST(n * 0.05 + 0.999999999 AS INTEGER) THEN value END) AS p05,
@@ -111,10 +111,10 @@ fn numeric_field_catalog_diff(
                        MAX(CASE WHEN rn = CAST(n * 0.95 + 0.999999999 AS INTEGER) THEN value END) AS p95,
                        MAX(value) AS max
                 FROM ordered
-                GROUP BY record_family
+                GROUP BY record_kind
               ),
               actual AS (
-                SELECT record_family, catalog_count, null_count, min, p05, p25, p50,
+                SELECT record_kind, catalog_count, null_count, min, p05, p25, p50,
                        mean, p75, p95, max
                 FROM filter_numeric_catalog
                 WHERE field = ?1 AND metric_domain IS NULL AND metric_key IS NULL
@@ -123,14 +123,14 @@ fn numeric_field_catalog_diff(
            (SELECT COUNT(*)
             FROM expected e
             LEFT JOIN actual a
-              ON ((a.record_family IS NULL AND e.record_family IS NULL)
-                  OR a.record_family = e.record_family)
+              ON ((a.record_kind IS NULL AND e.record_kind IS NULL)
+                  OR a.record_kind = e.record_kind)
             WHERE a.catalog_count IS NULL) AS missing_count,
            (SELECT COUNT(*)
             FROM actual a
             LEFT JOIN expected e
-              ON ((a.record_family IS NULL AND e.record_family IS NULL)
-                  OR a.record_family = e.record_family)
+              ON ((a.record_kind IS NULL AND e.record_kind IS NULL)
+                  OR a.record_kind = e.record_kind)
             WHERE e.catalog_count IS NULL
                OR a.catalog_count <> e.catalog_count
                OR a.null_count <> e.null_count
@@ -151,14 +151,14 @@ fn metric_numeric_catalog_diff(
 ) -> Result<(u64, u64), IndexValidationError> {
     let sql = "
         WITH scoped AS (
-          SELECT NULL AS record_family, rm.metric_domain, rm.metric_key, rm.number_value AS value
+          SELECT NULL AS record_kind, rm.metric_domain, rm.metric_key, rm.number_value AS value
           FROM record_metrics rm
           JOIN records r ON r.record_key = rm.record_key
           WHERE r.is_default_visible = 1
             AND rm.value_type = 'number'
             AND rm.number_value IS NOT NULL
           UNION ALL
-          SELECT r.record_family, rm.metric_domain, rm.metric_key, rm.number_value AS value
+          SELECT r.record_kind, rm.metric_domain, rm.metric_key, rm.number_value AS value
           FROM record_metrics rm
           JOIN records r ON r.record_key = rm.record_key
           WHERE r.is_default_visible = 1
@@ -166,25 +166,25 @@ fn metric_numeric_catalog_diff(
             AND rm.number_value IS NOT NULL
         ),
         ordered AS (
-          SELECT record_family, metric_domain, metric_key, value,
+          SELECT record_kind, metric_domain, metric_key, value,
                  ROW_NUMBER() OVER (
-                   PARTITION BY record_family, metric_domain, metric_key
+                   PARTITION BY record_kind, metric_domain, metric_key
                    ORDER BY value ASC
                  ) AS rn,
                  COUNT(*) OVER (
-                   PARTITION BY record_family, metric_domain, metric_key
+                   PARTITION BY record_kind, metric_domain, metric_key
                  ) AS n
           FROM scoped
         ),
         expected AS (
-          SELECT record_family, metric_domain, metric_key,
+          SELECT record_kind, metric_domain, metric_key,
                  COUNT(*) AS catalog_count,
                  CASE
-                   WHEN record_family IS NULL THEN
+                   WHEN record_kind IS NULL THEN
                      (SELECT COUNT(*) FROM records WHERE is_default_visible = 1)
                    ELSE
                      (SELECT COUNT(*) FROM records WHERE is_default_visible = 1
-                        AND records.record_family = ordered.record_family)
+                        AND records.record_kind = ordered.record_kind)
                  END - COUNT(*) AS null_count,
                  MIN(value) AS min,
                  MAX(CASE WHEN rn = CAST(n * 0.05 + 0.999999999 AS INTEGER) THEN value END) AS p05,
@@ -195,10 +195,10 @@ fn metric_numeric_catalog_diff(
                  MAX(CASE WHEN rn = CAST(n * 0.95 + 0.999999999 AS INTEGER) THEN value END) AS p95,
                  MAX(value) AS max
           FROM ordered
-          GROUP BY record_family, metric_domain, metric_key
+          GROUP BY record_kind, metric_domain, metric_key
         ),
         actual AS (
-          SELECT record_family, metric_domain, metric_key, catalog_count, null_count,
+          SELECT record_kind, metric_domain, metric_key, catalog_count, null_count,
                  min, p05, p25, p50, mean, p75, p95, max
           FROM filter_numeric_catalog
           WHERE field = 'metric'
@@ -207,16 +207,16 @@ fn metric_numeric_catalog_diff(
           (SELECT COUNT(*)
            FROM expected e
            LEFT JOIN actual a
-             ON ((a.record_family IS NULL AND e.record_family IS NULL)
-                 OR a.record_family = e.record_family)
+             ON ((a.record_kind IS NULL AND e.record_kind IS NULL)
+                 OR a.record_kind = e.record_kind)
             AND a.metric_domain = e.metric_domain
             AND a.metric_key = e.metric_key
            WHERE a.metric_key IS NULL) AS missing_count,
           (SELECT COUNT(*)
            FROM actual a
            LEFT JOIN expected e
-             ON ((a.record_family IS NULL AND e.record_family IS NULL)
-                 OR a.record_family = e.record_family)
+             ON ((a.record_kind IS NULL AND e.record_kind IS NULL)
+                 OR a.record_kind = e.record_kind)
             AND a.metric_domain = e.metric_domain
             AND a.metric_key = e.metric_key
            WHERE e.metric_key IS NULL

@@ -18,7 +18,7 @@ impl FilterCompiler {
         match filter {
             SearchFilterNode::RecordKind { value } => Ok(format!(
                 "{} = {}",
-                record_column(records::columns::RECORD_FAMILY),
+                record_column(records::columns::RECORD_KIND),
                 self.text(value.as_str())
             )),
             SearchFilterNode::LinksTo { target } => self.links_to_predicate(target),

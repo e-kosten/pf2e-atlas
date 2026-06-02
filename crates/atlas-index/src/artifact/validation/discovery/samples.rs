@@ -50,7 +50,7 @@ fn validate_sample_catalog_uniqueness(
         connection,
         "SELECT COUNT(*)
          FROM (
-           SELECT field, COALESCE(record_family, '<global>') AS scope, value
+           SELECT field, COALESCE(record_kind, '<global>') AS scope, value
            FROM filter_sample_catalog
            GROUP BY field, scope, value
            HAVING COUNT(*) > 1

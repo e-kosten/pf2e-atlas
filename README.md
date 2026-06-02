@@ -8,7 +8,7 @@ The `atlas` CLI indexes PF2E data from the [Foundry PF2E repository](https://git
 
 With `atlas`, you can:
 
-- search PF2E records by text, family, and structured filters
+- search PF2E records by text, kind, and structured filters
 - resolve names (including by pre-remaster aliases)
 - find records similar to a known seed record
 - inspect nearby references around a known record
@@ -67,7 +67,7 @@ Early release binaries are unsigned. macOS or Windows may show an operating-syst
 Search for something by meaning:
 
 ```bash
-atlas search "low level healing spell" --family spell --limit 5
+atlas search "low level healing spell" --kind spell --limit 5
 ```
 
 Resolve a record by name:
@@ -87,7 +87,7 @@ Explore available filters and nearby record context:
 
 ```bash
 atlas filters fields
-atlas similar "Dirge of Doom" --family spell
+atlas similar "Dirge of Doom" --kind spell
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9
 ```
 

@@ -70,7 +70,7 @@ A future Ratatui workbench should consume the Rust runtime crates through `atlas
 
 ### Future Derived Tags
 
-Derived tags are a planned Rust redesign. The retained model should be defined against record families, explicit metadata axes, typed filter discovery, and Rust artifact ownership before adding an `atlas-tags` crate or persisted tag rows.
+Derived tags are a planned Rust redesign. The retained model should be defined against record kinds, explicit metadata axes, typed filter discovery, and Rust artifact ownership before adding an `atlas-tags` crate or persisted tag rows.
 
 ## Data Flow
 

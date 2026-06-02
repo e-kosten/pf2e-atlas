@@ -44,7 +44,7 @@ Primary TypeScript sources:
 | `record_aliases` | Source-backed lookup aliases from remaster journals, migration rename files, and selected embedded compendium sources | parity | `atlas-index`, `atlas-ingest`, `atlas-search` lookup | Required before production lookup parity. Variant family grouping is separate metadata and should not create broad base-name alias rows. |
 | `record_legacy_links` | Premaster-to-remaster record bridges extracted from remaster journals and migration aliases | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest` | Preserve the domain concept, but name/model it as `remaster_links` or edition links in Rust rather than a generic legacy compatibility bucket. |
 | `record_traits` | Normalized trait rows | parity | `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for trait filters and value discovery. |
-| `record_derived_tags` | Normalized derived-tag rows | deferred redesign | Later `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Derived tags are intentionally deferred until late in the Rust migration. The surface is large and needs a separate design pass because `record_family`, explicit source axes, and retired subcategory semantics change the long-term tag model. |
+| `record_derived_tags` | Normalized derived-tag rows | deferred redesign | Later `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Derived tags are intentionally deferred until late in the Rust migration. The surface is large and needs a separate design pass because `record_kind`, explicit source axes, and retired subcategory semantics change the long-term tag model. |
 | `actor_records` | Actor-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for creature/hazard discovery and filters. |
 | `actor_metrics` | Actor metric predicates and discovery | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Rust uses unified `record_metrics` rows with `metric_domain = actor` rather than a separate physical actor table. |
 | `item_records` | Item/equipment side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for item metadata filters and discovery. |
@@ -72,7 +72,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 | `records` is a broad catch-all row containing core identity, presentation text, classification, variant facts, search text, raw JSON, and several denormalized filter fields | Makes the central table hard to version and encourages consumers to depend on incidental columns | Split Rust domain types into identity, summary, presentation, source/provenance, variant, and search-index inputs. The SQLite table may stay wide for read performance, but Rust APIs should not expose one giant mutable shape as the primary contract. |
 | `raw_json` is persisted for every row | Useful for debugging, but dangerous if runtime behavior keeps reaching into arbitrary JSON paths | Keep initially for parity/debugging. Runtime lookup/search/discovery should use typed rows. Any raw JSON dependency must be called out as an ingest gap. |
 | Boolean values are stored as `INTEGER` without explicit value constraints | SQLite permits non-0/1 values unless writers are disciplined | Rust artifact schema should add `CHECK` constraints for boolean columns or validate them during artifact validation. |
-| Many enum-like columns are plain text: TypeScript category, TypeScript subcategory, rarity, source category, variant source, document type, record type, metric value type | Current TypeScript relies on conventions and runtime normalization | Rust models Atlas-derived product grouping as `record_family`, preserves raw Foundry identity as `foundry_document_type` and `foundry_record_type`, and should model other durable closed values as enums or validated newtypes at load time. The Rust contract has no generic subcategory scope; useful TypeScript subcategory-like concepts become explicit metadata/filter axes such as Foundry document type, item type, actor type, spell tradition, spell kind, hazard kind, feat kind, and trait-backed filters. |
+| Many enum-like columns are plain text: TypeScript category, TypeScript subcategory, rarity, source category, variant source, document type, record type, metric value type | Current TypeScript relies on conventions and runtime normalization | Rust models Atlas-derived product grouping as `record_kind`, preserves raw Foundry identity as `foundry_document_type` and `foundry_record_type`, and should model other durable closed values as enums or validated newtypes at load time. The Rust contract has no generic subcategory scope; useful TypeScript subcategory-like concepts become explicit metadata/filter axes such as Foundry document type, item type, actor type, spell tradition, spell kind, hazard kind, feat kind, and trait-backed filters. |
 | `RecordKey` is a string alias in TypeScript | Malformed keys can cross boundaries until late SQL/runtime failures | Rust should use a parseable `RecordKey` newtype with `pack` and `id` components, and only serialize/display as `pack:id` at boundaries. |
 | Metric storage uses EAV tables with string metric keys and dynamic value types | Flexible, but weakly typed and hard to discover without catalogs | Keep EAV for first parity because actor/item metrics are open-ended. Strengthen with typed `MetricValue`, catalog validation, namespace prefix parsing, and stable metric key normalization. |
 | `metric_key_catalog` and `metric_value_catalog` are derived after all record writes | Correct today, but easy for future writers to forget | Make metric catalog writing a required artifact stage with validation that catalog rows match metric rows for canonical records. |
@@ -87,7 +87,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 ### Rust Type Principles For The Migration
 
 - Use newtypes for identifiers: `RecordKey`, `PackName`, `RecordId`, `MetricKey`, `SourceSignature`.
-- Use enums for closed vocabularies: `record_family`, publication family, rarity when normalized, search mode, retrieval mode, fusion method, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
+- Use enums for closed vocabularies: `record_kind`, publication family, rarity when normalized, search mode, retrieval mode, fusion method, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
 - Do not preserve TypeScript subcategory as a Rust field, enum, scope member, or compatibility projection. If a candidate axis is fully derived from traits, keep it as trait filtering. If multiple source facts produce one useful filter signal, collapse them into a clearly named metadata field.
 - Use typed side-data structs for actor, item, spell, publication, and variant facts. Embedding identity belongs to Phase 4 embedding/vector artifact contracts.
 - Keep open PF2E/provider-defined values as validated strings with clear owners rather than pretending they are closed enums.
@@ -121,7 +121,7 @@ Before Phase 7 discovery starts:
 Before Phase 4 embedding/vector work starts:
 
 - Use Rust-owned physical table names `document_embedding_cache` and `record_vector_index`; do not copy the TypeScript `embeddings` / `record_embeddings` names into the Rust artifact.
-- Keep `record_vector_index` rowid-and-vector only for the baseline. Do not add `record_key`, `embedding_unit_key`, `record_family`, or other filter projection columns before performance validation proves they are needed.
+- Keep `record_vector_index` rowid-and-vector only for the baseline. Do not add `record_key`, `embedding_unit_key`, `record_kind`, or other filter projection columns before performance validation proves they are needed.
 - Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_vector_index.rowid` values resolved through `document_embedding_cache`. Do not use ordinary joins around the vec scan for exact filtered KNN.
 - Treat filters that cannot compile to a SQL keyset as an error in the first Rust baseline.
 - Add an `atlas-embedding` model catalog as the single owner of the active/default model decision and identity fields. Ingest, validation, and search should consume catalog specs rather than repeating raw model strings.
@@ -137,7 +137,7 @@ Before Phase 4 embedding/vector work starts:
 | Load source packs and records | `source-loading.ts` | Tolerant Foundry source loading | `atlas-ingest` | parity |
 | Write packs | `catalog-writer.ts` | Pack writer | `atlas-ingest` | parity |
 | Normalize records | `record-normalization.ts` and helpers | Boundary parse to typed ingest model | `atlas-ingest` using `atlas-domain` value types | rust redesign |
-| Assign families | `family-assignment.ts` | Family/variant assignment | `atlas-ingest` initially, possibly later `atlas-search` for reusable semantics | parity |
+| Assign kinds | `family-assignment.ts` | Kind/variant assignment | `atlas-ingest` initially, possibly later `atlas-search` for reusable semantics | parity |
 | Resolve references, aliases, remaster links | `reference-resolution.ts` | Reference/alias/remaster-link resolver | `atlas-ingest` | parity with Rust naming/model cleanup |
 | Canonicalize records and derived afflictions | `canonicalization.ts`, `derived-afflictions.ts` | Canonical record selection and generated affliction policy; Rust keeps staged action, consumable, and spell afflictions, and rejects weapon/item containers whose affliction text would otherwise be promoted under the container name | `atlas-ingest` | rust redesign |
 | Build writable model | `record-write-model.ts` | Typed writer model | `atlas-ingest` | rust redesign |
@@ -170,7 +170,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | `SearchResult` | search result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve total/offset/limit/hasMore semantics. |
 | `RuleReferenceEdge` and graph results | Graph context edge/result structs | `atlas-search` initially; promote only when another surface needs the same contract | Rust redesign | V1 graph context is key-based and one-hop. Rule-context request/result DTOs are not retained as Rust contracts. Record-reference edges stay separate from remaster same-concept bridges. |
 | `record_legacy_links` rows | `RemasterLink` | `atlas-domain` | rust redesign | Represents premaster/remaster records that are conceptually the same record across edition state. Direction is `remaster` to `legacy`, preserving current TS canonical-to-legacy behavior. Source is currently `remaster_journal` or `migration`; do not model renamed/merged/replaced subtypes until ingest preserves that distinction. |
-| derived-tag ontology/runtime types | redesigned tag model and filtered row model | Later `atlas-tags` with shared ids in `atlas-domain` if retained | deferred redesign | Do not port derived tags during Phase 3. Revisit them late after `record_family`, explicit source axes, and search/discovery shape have stabilized. |
+| derived-tag ontology/runtime types | redesigned tag model and filtered row model | Later `atlas-tags` with shared ids in `atlas-domain` if retained | deferred redesign | Do not port derived tags during Phase 3. Revisit them late after `record_kind`, explicit source axes, and search/discovery shape have stabilized. |
 
 ## Filter And Discovery Contract Map
 
@@ -178,16 +178,16 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 
 - field vocabulary from `FILTER_VALUE_FIELDS`
 - metadata field kind/operator compatibility
-- record-family scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
+- record-kind scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
 - traits, taxonomy families, and variant axes
 - spell traditions and spell kinds
 - item fields such as item category, base item, usage, hands, weapon group, armor group, price, bulk, and damage types
 - actor fields such as size, languages, speeds, senses, immunities, resistances, weaknesses, disable skills, and complexity
 - spell fields such as range, save type, area type, duration, target, sustained, and basic save
 - actor and item metric key/value discovery from `metric_key_catalog` and `metric_value_catalog`
-- publication, pack, record-family, and explicit type-axis discovery
+- publication, pack, record-kind, and explicit type-axis discovery
 
-Discovery is blocked on Rust-owned writes for the tables and catalogs that back these values. Phase 7 should not be marked complete until the Rust artifact can answer these discovery calls without TypeScript runtime help. When the TUI filter-builder surface is rebuilt, it should not hard-gate filter addition behind top-level record-family selection; record family may still improve discovery ranking and applicability hints, but the data model should support global field discovery where a field is meaningful outside one family.
+Discovery is blocked on Rust-owned writes for the tables and catalogs that back these values. Phase 7 should not be marked complete until the Rust artifact can answer these discovery calls without TypeScript runtime help. When the TUI filter-builder surface is rebuilt, it should not hard-gate filter addition behind top-level record-kind selection; record kind may still improve discovery ranking and applicability hints, but the data model should support global field discovery where a field is meaningful outside one kind.
 
 ## Product Surface Parity Map
 
@@ -198,7 +198,7 @@ one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes 
 
 | Current product surface | Current behavior | Rust parity target |
 | --- | --- | --- |
-| `pf2e_lookup` | Best matching record by name with optional pack/category/TypeScript-subcategory hints and alternatives | `atlas record resolve` using Rust record families and explicit metadata axes for narrowing. Strict resolution should return a strong name, normalized-name, verified-alias, or exact full-variant-name match, or a clear miss/ambiguity diagnostic. |
+| `pf2e_lookup` | Best matching record by name with optional pack/category/TypeScript-subcategory hints and alternatives | `atlas record resolve` using Rust record kinds and explicit metadata axes for narrowing. Strict resolution should return a strong name, normalized-name, verified-alias, or exact full-variant-name match, or a clear miss/ambiguity diagnostic. |
 | `pf2e_lookup_many` | Batch exact-name resolution with compact output by default | Batch record resolution mode or stable JSON input for `atlas record resolve`; do not add a separate lookup backend. |
 | `pf2e_get_record_by_key` | Exact record fetch by canonical key, including raw JSON today | `atlas record get`; raw JSON remains debug/parity-only unless typed fields are missing. |
 | `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch key input for `atlas record get` or a stable JSON input mode with current detail semantics. |
@@ -207,7 +207,7 @@ one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes 
 | `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search <text>` with query, exclude, retrieval/fusion controls, and filters. Strong name and verified-alias matches should rank ahead of broader FTS or vector matches. |
 | `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas search` without text and with filters, sort, and pagination. A convenience `list` alias may be added only if it delegates to the same structured search path. |
 | `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Filter-field discovery through `atlas filters fields`. |
-| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery through `atlas filters values`. Preserve user-visible discovery capability through Rust record families and explicit metadata axes. |
+| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery through `atlas filters values`. Preserve user-visible discovery capability through Rust record kinds and explicit metadata axes. |
 | `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Not directly ported in the first Rust graph slice. Agents should explicitly use `record resolve` or `search` to identify the key, then use graph context retrieval by key. A shortcut can be reconsidered only after real CLI usage shows the two-step workflow is too costly. |
 | `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | `atlas graph get <record-key>` over one known key with outgoing/backlink limits and edge evidence. V1 is one-hop, key-based, and retrieval-only. |
 | `npm run tui` / Ink workbench | Derived-tag migration workbench | Ratatui replacement only after core lookup/search/detail flows are stable, then editorial workflows in separate slices. |

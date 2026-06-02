@@ -10,7 +10,7 @@ use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --family creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --family creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --kind spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --kind creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --kind creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --kind spell\n  atlas filters values --field metric --kind creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 pub(crate) struct SearchOptions {
     #[arg(help = "Plain-text query for ranked retrieval; omit for filter-only listing")]

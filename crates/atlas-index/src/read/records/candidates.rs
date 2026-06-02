@@ -8,7 +8,7 @@ use crate::SearchCandidateRecord;
 use crate::schema::records;
 
 use super::RecordLoadError;
-use super::parse::{json_string_array, parse_record_family, parse_record_key};
+use super::parse::{json_string_array, parse_record_key, parse_record_kind};
 
 pub(super) fn read_search_candidate_records_by_keys(
     connection: &mut SqliteConnection,
@@ -31,7 +31,7 @@ pub(super) fn read_search_candidate_records_by_keys(
                 key: parse_record_key(&row.record_key)?,
                 name: row.name,
                 traits: json_string_array("records.traits_json", &row.traits_json)?,
-                kind: parse_record_family(&row.record_family)?,
+                kind: parse_record_kind(&row.record_kind)?,
                 foundry_type: FoundryRecordType::from_foundry(&row.foundry_record_type),
                 inferred_groups: json_string_array(
                     "records.taxonomy_families_json",
@@ -51,7 +51,7 @@ struct SearchCandidateRecordRow {
     record_key: String,
     name: String,
     traits_json: String,
-    record_family: String,
+    record_kind: String,
     foundry_record_type: String,
     taxonomy_families_json: String,
     system_category: Option<String>,

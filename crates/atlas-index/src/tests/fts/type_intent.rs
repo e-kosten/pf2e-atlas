@@ -6,17 +6,17 @@ use super::{insert_fixture_record, record_key_strings, replace_fts_rows};
 use crate::{FtsColumnWeights, FtsQuery, SqliteIndexReader};
 
 #[test]
-fn type_intent_can_promote_matching_family_under_low_final_limit()
+fn type_intent_can_promote_matching_kind_under_low_final_limit()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-type-intent");
     super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
-         SET record_family = CASE record_key
+         SET record_kind = CASE record_key
              WHEN 'actions:testAction1' THEN 'creature'
              WHEN 'actions:testAction2' THEN 'spell'
-             ELSE record_family
+             ELSE record_kind
          END,
              foundry_record_type = CASE record_key
              WHEN 'actions:testAction1' THEN 'npc'
@@ -88,7 +88,7 @@ fn mixed_case_tokens_are_normalized_before_type_intent_lowering()
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
-         SET record_family = CASE record_key
+         SET record_kind = CASE record_key
              WHEN 'actions:testAction2' THEN 'spell'
              ELSE 'creature'
          END,
@@ -162,7 +162,7 @@ fn type_intent_uses_internal_candidate_window_before_final_truncation()
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
-         SET record_family = CASE record_key
+         SET record_kind = CASE record_key
              WHEN 'actions:testAction2' THEN 'spell'
              ELSE 'creature'
          END,
@@ -297,7 +297,7 @@ fn secondary_type_intent_promotes_matching_equipment_type_on_database_path()
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
-         SET record_family = CASE record_key
+         SET record_kind = CASE record_key
              WHEN 'actions:testAction1' THEN 'creature'
              WHEN 'actions:testAction2' THEN 'equipment'
              ELSE 'creature'
@@ -372,9 +372,9 @@ fn all_type_intent_query_skips_strict_and_uses_or_fallback()
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
-         SET record_family = CASE record_key
+         SET record_kind = CASE record_key
              WHEN 'actions:testAction2' THEN 'spell'
-             ELSE record_family
+             ELSE record_kind
          END,
              foundry_record_type = CASE record_key
              WHEN 'actions:testAction2' THEN 'spell'

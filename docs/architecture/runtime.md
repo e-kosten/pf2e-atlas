@@ -58,7 +58,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     raw["Foundry source records<br/>raw JSON + manifest packs"] --> load["atlas-ingest::source<br/>load packs and source signature"]
-    load --> normalize["normalize<br/>RecordKey, family, traits,<br/>metrics, side tables"]
+    load --> normalize["normalize<br/>RecordKey, kind, traits,<br/>metrics, side tables"]
     normalize --> content["Foundry content parser<br/>HTML/macros -> ContentDocument"]
     content --> enrich["atlas-ingest::records<br/>aliases, variants, taxonomy,<br/>reference resolution, visibility"]
     enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]

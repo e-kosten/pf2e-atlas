@@ -16,7 +16,7 @@ pub(crate) struct DiscoveryFieldDefinition {
     extractor: DiscoveryFieldExtractor,
     pub(crate) operators: &'static [FilterOperator],
     pub(crate) cli_flags: &'static [&'static str],
-    pub(crate) applicable_families: &'static [&'static str],
+    pub(crate) applicable_kinds: &'static [&'static str],
     pub(crate) default_sort: FilterValueSort,
     pub(crate) policy_reason: &'static str,
 }
@@ -38,8 +38,8 @@ impl DiscoveryFieldDefinition {
             group: self.group,
             value_policy: self.value_policy,
             operators: self.operators.to_vec(),
-            applicable_families: self
-                .applicable_families
+            applicable_kinds: self
+                .applicable_kinds
                 .iter()
                 .map(|value| (*value).to_string())
                 .collect(),
@@ -143,7 +143,7 @@ const BOOLEAN_OPERATORS: &[FilterOperator] = &[
     FilterOperator::IsNotNull,
 ];
 
-pub(crate) const DISCOVERY_ALL_FAMILIES: &[&str] = &[
+pub(crate) const DISCOVERY_ALL_KINDS: &[&str] = &[
     "creature",
     "character",
     "companion",
@@ -160,8 +160,8 @@ pub(crate) const DISCOVERY_ALL_FAMILIES: &[&str] = &[
     "tooling",
     "campaign_feature",
 ];
-const SPELL_FAMILY: &[&str] = &["spell"];
-const ACTOR_FAMILIES: &[&str] = &[
+const SPELL_KIND: &[&str] = &["spell"];
+const ACTOR_KINDS: &[&str] = &[
     "army",
     "character",
     "companion",
@@ -169,14 +169,14 @@ const ACTOR_FAMILIES: &[&str] = &[
     "hazard",
     "vehicle",
 ];
-const ITEM_FAMILIES: &[&str] = &["equipment"];
+const ITEM_KINDS: &[&str] = &["equipment"];
 const DAMAGE_TYPE_COLUMNS: &[Column] = &[
     item_records::columns::DAMAGE_TYPES_JSON,
     spell_records::columns::DAMAGE_TYPES_JSON,
 ];
 
 macro_rules! field {
-    ($field:literal, $field_type:ident, $group:ident, $policy:ident, $extractor:expr, $operators:ident, [$($flag:literal),*], $families:expr, $sort:ident) => {
+    ($field:literal, $field_type:ident, $group:ident, $policy:ident, $extractor:expr, $operators:ident, [$($flag:literal),*], $kinds:expr, $sort:ident) => {
         DiscoveryFieldDefinition {
             field: $field,
             field_type: FilterFieldType::$field_type,
@@ -185,7 +185,7 @@ macro_rules! field {
             extractor: $extractor,
             operators: $operators,
             cli_flags: &[$($flag),*],
-            applicable_families: $families,
+            applicable_kinds: $kinds,
             default_sort: FilterValueSort::$sort,
             policy_reason: stringify!($policy),
         }
@@ -194,14 +194,14 @@ macro_rules! field {
 
 pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
     field!(
-        "record_family",
+        "record_kind",
         EnumString,
         Record,
         Enumerable,
-        DiscoveryFieldExtractor::Column(records::columns::RECORD_FAMILY),
+        DiscoveryFieldExtractor::Column(records::columns::RECORD_KIND),
         STRING_OPERATORS,
-        ["--family"],
-        DISCOVERY_ALL_FAMILIES,
+        ["--kind"],
+        DISCOVERY_ALL_KINDS,
         Canonical
     ),
     field!(
@@ -212,7 +212,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::PACK_NAME),
         STRING_OPERATORS,
         ["--pack-name"],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -223,7 +223,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::PACK_LABEL),
         STRING_OPERATORS,
         ["--pack-label"],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -234,7 +234,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::FOUNDRY_RECORD_TYPE),
         STRING_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -245,7 +245,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::PUBLICATION_TITLE),
         STRING_OPERATORS,
         ["--publication-title"],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -256,7 +256,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::PUBLICATION_FAMILY),
         STRING_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -267,7 +267,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::PUBLICATION_REMASTER),
         BOOLEAN_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -278,7 +278,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::RARITY),
         STRING_OPERATORS,
         ["--rarity"],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Canonical
     ),
     field!(
@@ -289,7 +289,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::LEVEL),
         NUMBER_OPERATORS,
         ["--level", "--min-level", "--max-level"],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -300,7 +300,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::ACTIVATION_TIME_ACTIONS),
         NUMBER_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -311,7 +311,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(record_traits::columns::TRAIT),
         SET_OPERATORS,
         ["--trait", "--any-trait"],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -322,7 +322,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(records::columns::TAXONOMY_FAMILIES_JSON),
         SET_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -333,7 +333,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(spell_records::columns::TRADITIONS_JSON),
         SET_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -344,7 +344,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(spell_records::columns::SPELL_KINDS_JSON),
         SET_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -366,7 +366,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::LANGUAGES_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -377,7 +377,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::SPEED_TYPES_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -388,7 +388,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::SENSES_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -399,7 +399,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::IMMUNITIES_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -410,7 +410,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::RESISTANCES_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -421,7 +421,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::WEAKNESSES_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -432,7 +432,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(actor_records::columns::DISABLE_SKILLS_JSON),
         SET_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -443,7 +443,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(actor_records::columns::SIZE),
         STRING_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -454,7 +454,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::SYSTEM_USAGE),
         STRING_OPERATORS,
         [],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -465,7 +465,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::SYSTEM_GROUP),
         STRING_OPERATORS,
         [],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -476,7 +476,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::SYSTEM_CATEGORY),
         STRING_OPERATORS,
         [],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -487,7 +487,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::SYSTEM_BASE_ITEM),
         STRING_OPERATORS,
         [],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -498,7 +498,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(item_records::columns::HANDS_REQUIREMENT),
         STRING_OPERATORS,
         [],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -509,7 +509,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::SAVE_TYPE),
         STRING_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -520,7 +520,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::AREA_TYPE),
         STRING_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -531,7 +531,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::DURATION_UNIT),
         STRING_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -542,7 +542,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::SUSTAINED),
         BOOLEAN_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -553,7 +553,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::BASIC_SAVE),
         BOOLEAN_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -564,7 +564,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(actor_records::columns::IS_COMPLEX),
         BOOLEAN_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -575,7 +575,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::PRICE_CP),
         NUMBER_OPERATORS,
         ["--price", "--min-price", "--max-price"],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -586,7 +586,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(item_records::columns::BULK_VALUE),
         NUMBER_OPERATORS,
         [],
-        ITEM_FAMILIES,
+        ITEM_KINDS,
         Count
     ),
     field!(
@@ -597,7 +597,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::RANGE_VALUE),
         NUMBER_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -608,7 +608,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::AREA_VALUE),
         NUMBER_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -619,7 +619,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::VARIANT_GROUP_KEY),
         STRING_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -630,7 +630,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::JsonArrayColumn(records::columns::VARIANT_AXES_JSON),
         SET_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -641,7 +641,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::RANGE_TEXT),
         TEXT_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -652,7 +652,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::DURATION_TEXT),
         TEXT_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -663,7 +663,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(spell_records::columns::TARGET_TEXT),
         TEXT_OPERATORS,
         [],
-        SPELL_FAMILY,
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -674,7 +674,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(actor_records::columns::DISABLE_TEXT),
         TEXT_OPERATORS,
         [],
-        ACTOR_FAMILIES,
+        ACTOR_KINDS,
         Count
     ),
     field!(
@@ -685,7 +685,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::VARIANT_BASE_NAME),
         TEXT_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
     field!(
@@ -696,7 +696,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         DiscoveryFieldExtractor::Column(records::columns::VARIANT_LABEL),
         TEXT_OPERATORS,
         [],
-        DISCOVERY_ALL_FAMILIES,
+        DISCOVERY_ALL_KINDS,
         Count
     ),
 ];
@@ -725,7 +725,7 @@ pub(crate) fn metric_field_info(catalog_available: bool) -> FilterFieldInfo {
             FilterOperator::Lt,
             FilterOperator::Lte,
         ],
-        applicable_families: Vec::new(),
+        applicable_kinds: Vec::new(),
         cli_flags: vec!["--metric".to_string()],
         catalog_available,
     }
@@ -735,15 +735,15 @@ pub(crate) fn metric_field_info(catalog_available: bool) -> FilterFieldInfo {
 mod tests {
     use atlas_domain::RecordKind;
 
-    use super::DISCOVERY_ALL_FAMILIES;
+    use super::DISCOVERY_ALL_KINDS;
 
     #[test]
-    fn discovery_families_match_canonical_record_families() {
+    fn discovery_kinds_match_canonical_record_kinds() {
         let expected = RecordKind::ALL
             .iter()
-            .map(|family| family.as_str())
+            .map(|kind| kind.as_str())
             .collect::<Vec<_>>();
 
-        assert_eq!(DISCOVERY_ALL_FAMILIES, expected.as_slice());
+        assert_eq!(DISCOVERY_ALL_KINDS, expected.as_slice());
     }
 }

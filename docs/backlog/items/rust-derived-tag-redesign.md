@@ -7,7 +7,7 @@ Last reviewed: 2026-05-19
 
 ## Problem
 
-Derived tags remain useful as a product concept, but the Rust artifact model changes the surrounding vocabulary: record families replace broad category/subcategory assumptions, explicit source axes are available, and search/filter discovery has stronger typed foundations.
+Derived tags remain useful as a product concept, but the Rust artifact model changes the surrounding vocabulary: record kinds replace broad category/subcategory assumptions, explicit source axes are available, and search/filter discovery has stronger typed foundations.
 
 The next implementation should redesign the retained tag model for the Rust runtime instead of porting the previous editorial implementation directly.
 
@@ -19,7 +19,7 @@ The redesign should decide:
 
 - which tag concepts remain runtime filter axes
 - which concepts become authored taxonomy or editorial-only metadata
-- which concepts retire because record family, traits, metadata, metrics, or graph context cover the use case better
+- which concepts retire because record kind, traits, metadata, metrics, or graph context cover the use case better
 - how authored assignments, exemplars, reviews, and generated candidates should be represented on disk
 - which CLI and future TUI workflows are needed for review, assignment, evaluation, and discovery
 - how agent workflows should support tag audit, batch assignment, exemplar review, seed migration, and rule maintenance
