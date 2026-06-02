@@ -1,0 +1,33 @@
+{
+  "_id": "testWeapon0001",
+  "name": "Longbow",
+  "type": "weapon",
+  "system": {
+    "traits": {
+      "value": [
+        "deadly-d10"
+      ]
+    },
+    "group": "bow",
+    "usage": {
+      "value": "held-in-two-hands"
+    },
+    "bulk": {
+      "value": 2
+    },
+    "range": {
+      "increment": 100
+    },
+    "reload": {
+      "value": 0
+    },
+    "damage": {
+      "dice": 1,
+      "die": "d8",
+      "damageType": "piercing"
+    },
+    "description": {
+      "value": "<p>A ranged weapon.</p>"
+    }
+  }
+}

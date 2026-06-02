@@ -1,0 +1,20 @@
+{
+  "_id": "expensiveItem",
+  "name": "Expensive Tool",
+  "type": "equipment",
+  "system": {
+    "price": {
+      "value": {
+        "gp": 1
+      }
+    },
+    "traits": {
+      "value": [
+        "tool"
+      ]
+    },
+    "description": {
+      "value": "<p>An expensive tool.</p>"
+    }
+  }
+}

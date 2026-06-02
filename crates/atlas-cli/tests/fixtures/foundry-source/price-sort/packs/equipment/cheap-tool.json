@@ -1,0 +1,20 @@
+{
+  "_id": "cheapItem0001",
+  "name": "Cheap Tool",
+  "type": "equipment",
+  "system": {
+    "price": {
+      "value": {
+        "cp": 5
+      }
+    },
+    "traits": {
+      "value": [
+        "tool"
+      ]
+    },
+    "description": {
+      "value": "<p>A cheap tool.</p>"
+    }
+  }
+}

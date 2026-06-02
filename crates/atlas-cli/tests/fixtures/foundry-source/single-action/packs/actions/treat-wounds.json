@@ -1,0 +1,15 @@
+{
+  "_id": "testAction0001",
+  "name": "Treat Wounds",
+  "type": "action",
+  "system": {
+    "description": {
+      "value": "<p>You treat wounds.</p>"
+    },
+    "traits": {
+      "value": [
+        "healing"
+      ]
+    }
+  }
+}

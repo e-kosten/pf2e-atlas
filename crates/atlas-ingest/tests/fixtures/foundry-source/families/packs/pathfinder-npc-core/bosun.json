@@ -1,0 +1,18 @@
+{
+  "_id": "bosun00000001",
+  "name": "Bosun",
+  "type": "npc",
+  "folder": "folderSeafarer",
+  "system": {
+    "traits": {
+      "value": [
+        "human",
+        "humanoid"
+      ],
+      "rarity": "common"
+    },
+    "description": {
+      "value": "<p>A ship officer.</p>"
+    }
+  }
+}

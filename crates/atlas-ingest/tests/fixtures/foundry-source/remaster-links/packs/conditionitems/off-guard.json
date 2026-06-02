@@ -1,0 +1,14 @@
+{
+  "_id": "offGuard1",
+  "name": "Off-Guard",
+  "type": "condition",
+  "system": {
+    "publication": {
+      "title": "Player Core",
+      "remaster": true
+    },
+    "description": {
+      "value": "<p>You are distracted.</p>"
+    }
+  }
+}

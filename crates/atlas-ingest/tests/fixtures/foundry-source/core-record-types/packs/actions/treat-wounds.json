@@ -1,0 +1,50 @@
+{
+  "_id": "testAction0001",
+  "name": "Treat Wounds",
+  "type": "action",
+  "system": {
+    "traits": {
+      "value": [
+        "healing",
+        "exploration"
+      ]
+    },
+    "prerequisites": {
+      "value": [
+        {
+          "value": "trained in Medicine"
+        },
+        {
+          "value": "healer's toolkit"
+        },
+        {
+          "value": "   "
+        }
+      ]
+    },
+    "actions": {
+      "value": 1
+    },
+    "usage": {
+      "value": "held-in-one-hand"
+    },
+    "price": {
+      "value": {
+        "sp": 3
+      }
+    },
+    "publication": {
+      "title": "Player Core",
+      "remaster": true
+    },
+    "rules": [
+      {
+        "key": "Note",
+        "text": "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal} @UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal} @UUID[Compendium.pf2e.spells.Item.missingSpell]{Missing}"
+      }
+    ],
+    "description": {
+      "value": "<p>You spend 10 minutes treating one injured living creature with @UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}.</p>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "_id": "flatFooted1",
+  "name": "flat-footed",
+  "type": "condition",
+  "system": {
+    "publication": {
+      "title": "Core Rulebook",
+      "remaster": false
+    },
+    "description": {
+      "value": "<p>You are distracted.</p>"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "_id": "figurineBear1",
+  "name": "Wondrous Figurine (Rubber Bear)",
+  "type": "equipment",
+  "system": {
+    "description": {
+      "value": "<p>A rubber bear figurine.</p>"
+    }
+  }
+}

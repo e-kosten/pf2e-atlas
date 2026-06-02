@@ -1,0 +1,20 @@
+{
+  "_id": "venexus000001",
+  "name": "Venexus",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "value": [
+        "dragon",
+        "electricity"
+      ],
+      "rarity": "unique"
+    },
+    "details": {
+      "blurb": "Female young storm dragon"
+    },
+    "description": {
+      "value": "<p>A named storm dragon.</p>"
+    }
+  }
+}

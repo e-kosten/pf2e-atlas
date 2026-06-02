@@ -1,0 +1,15 @@
+{
+  "_id": "journal1",
+  "name": "Remaster Changes",
+  "pages": [
+    {
+      "_id": "page1",
+      "name": "Class Features",
+      "type": "text",
+      "text": {
+        "content": "<table><tbody><tr><td>Attack of Opportunity</td><td>Multiple</td><td>Renamed</td><td>@UUID[Compendium.pf2e.actions.Item.Reactive Strike]{Reactive Strike}</td></tr></tbody></table>",
+        "format": 1
+      }
+    }
+  ]
+}

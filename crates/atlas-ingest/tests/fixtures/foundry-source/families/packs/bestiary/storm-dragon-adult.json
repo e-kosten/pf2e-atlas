@@ -1,0 +1,16 @@
+{
+  "_id": "stormAdult01",
+  "name": "Storm Dragon (Adult)",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "value": [
+        "dragon",
+        "electricity"
+      ]
+    },
+    "description": {
+      "value": "<p>An adult storm dragon.</p>"
+    }
+  }
+}

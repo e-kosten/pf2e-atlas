@@ -1,0 +1,16 @@
+{
+  "_id": "stormYoung001",
+  "name": "Storm Dragon (Young)",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "value": [
+        "dragon",
+        "electricity"
+      ]
+    },
+    "description": {
+      "value": "<p>A young storm dragon.</p>"
+    }
+  }
+}

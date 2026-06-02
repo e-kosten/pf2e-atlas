@@ -1,0 +1,34 @@
+{
+  "packs": [
+    {
+      "name": "pathfinder-npc-core",
+      "label": "NPC Core",
+      "type": "Actor",
+      "path": "packs/pathfinder-npc-core"
+    },
+    {
+      "name": "bestiary-family-ability-glossary",
+      "label": "Family Abilities",
+      "type": "Item",
+      "path": "packs/bestiary-family-ability-glossary"
+    },
+    {
+      "name": "bestiary",
+      "label": "Bestiary",
+      "type": "Actor",
+      "path": "packs/bestiary"
+    },
+    {
+      "name": "adventure-bestiary",
+      "label": "Adventure Bestiary",
+      "type": "Actor",
+      "path": "packs/adventure-bestiary"
+    },
+    {
+      "name": "equipment",
+      "label": "Equipment",
+      "type": "Item",
+      "path": "packs/equipment"
+    }
+  ]
+}
