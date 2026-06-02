@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "name": "creatures",
+      "label": "Creatures",
+      "type": "Actor",
+      "path": "packs/creatures"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "_id": "macroTreatWounds",
+  "name": "Treat Wounds",
+  "type": "script",
+  "command": "console.log('Treat Wounds')"
+}

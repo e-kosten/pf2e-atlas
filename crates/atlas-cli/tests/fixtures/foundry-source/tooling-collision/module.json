@@ -1,0 +1,16 @@
+{
+  "packs": [
+    {
+      "name": "actions",
+      "label": "Actions",
+      "type": "Item",
+      "path": "packs/actions"
+    },
+    {
+      "name": "pf2e-macros",
+      "label": "Macros",
+      "type": "Macro",
+      "path": "packs/pf2e-macros"
+    }
+  ]
+}

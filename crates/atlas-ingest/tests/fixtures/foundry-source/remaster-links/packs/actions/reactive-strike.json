@@ -1,0 +1,14 @@
+{
+  "_id": "reactiveStrike1",
+  "name": "Reactive Strike",
+  "type": "action",
+  "system": {
+    "publication": {
+      "title": "Player Core",
+      "remaster": true
+    },
+    "description": {
+      "value": "<p>Strike as a reaction.</p>"
+    }
+  }
+}

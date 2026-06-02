@@ -1,0 +1,25 @@
+{
+  "_id": "testAction0002",
+  "name": "Demoralize",
+  "type": "action",
+  "system": {
+    "traits": {
+      "value": [
+        "auditory",
+        "concentrate",
+        "emotion",
+        "fear",
+        "mental"
+      ]
+    },
+    "rules": [
+      {
+        "key": "Note",
+        "text": "@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}"
+      }
+    ],
+    "description": {
+      "value": "<p>Use Intimidation to frighten a creature.</p>"
+    }
+  }
+}

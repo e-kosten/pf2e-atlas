@@ -1,0 +1,22 @@
+{
+  "packs": [
+    {
+      "name": "spells",
+      "label": "Spells",
+      "type": "Item",
+      "path": "packs/spells"
+    },
+    {
+      "name": "bestiary",
+      "label": "Bestiary",
+      "type": "Actor",
+      "path": "packs/bestiary"
+    },
+    {
+      "name": "hazards",
+      "label": "Hazards",
+      "type": "Actor",
+      "path": "packs/hazards"
+    }
+  ]
+}

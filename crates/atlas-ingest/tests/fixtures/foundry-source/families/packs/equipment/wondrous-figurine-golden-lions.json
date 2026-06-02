@@ -1,0 +1,10 @@
+{
+  "_id": "figurineLions1",
+  "name": "Wondrous Figurine (Golden Lions)",
+  "type": "equipment",
+  "system": {
+    "description": {
+      "value": "<p>A golden lions figurine.</p>"
+    }
+  }
+}

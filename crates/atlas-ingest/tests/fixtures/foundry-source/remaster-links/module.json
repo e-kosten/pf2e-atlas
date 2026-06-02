@@ -1,0 +1,28 @@
+{
+  "packs": [
+    {
+      "name": "actions",
+      "label": "Actions",
+      "type": "Item",
+      "path": "packs/actions"
+    },
+    {
+      "name": "conditionitems",
+      "label": "Conditions",
+      "type": "Item",
+      "path": "packs/conditionitems"
+    },
+    {
+      "name": "bestiary",
+      "label": "Bestiary",
+      "type": "Actor",
+      "path": "packs/bestiary"
+    },
+    {
+      "name": "journals",
+      "label": "Journals",
+      "type": "JournalEntry",
+      "path": "packs/journals"
+    }
+  ]
+}

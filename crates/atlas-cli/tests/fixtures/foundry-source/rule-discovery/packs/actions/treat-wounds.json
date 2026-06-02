@@ -1,0 +1,16 @@
+{
+  "_id": "testAction0001",
+  "name": "Treat Wounds",
+  "type": "action",
+  "system": {
+    "traits": {
+      "value": [
+        "healing",
+        "exploration"
+      ]
+    },
+    "description": {
+      "value": "<p>You spend 10 minutes treating one injured living creature.</p>"
+    }
+  }
+}

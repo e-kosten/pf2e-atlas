@@ -1,0 +1,56 @@
+{
+  "_id": "testGhoul0001",
+  "name": "Test Ghoul",
+  "type": "npc",
+  "items": [
+    {
+      "_id": "ghoulFeverItem",
+      "name": "Ghoul Fever",
+      "type": "action",
+      "system": {
+        "category": "offensive",
+        "description": {
+          "value": "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p>"
+        },
+        "traits": {
+          "value": [
+            "disease"
+          ]
+        }
+      }
+    },
+    {
+      "_id": "serpentDaggerItem",
+      "name": "Serpent Dagger",
+      "type": "weapon",
+      "system": {
+        "category": "simple",
+        "description": {
+          "value": "<p>Dagger Venom (poison) <strong>Saving Throw</strong> @Check[fortitude|dc:21]</p><p><strong>Stage 1</strong> @Damage[1d8[poison]] damage</p>"
+        },
+        "traits": {
+          "value": [
+            "agile",
+            "poison"
+          ]
+        }
+      }
+    }
+  ],
+  "system": {
+    "details": {
+      "level": {
+        "value": 2
+      },
+      "publication": {
+        "title": "Pathfinder Monster Core"
+      }
+    },
+    "traits": {
+      "rarity": "common",
+      "value": [
+        "undead"
+      ]
+    }
+  }
+}

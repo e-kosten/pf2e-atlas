@@ -1,8 +1,16 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use serde_json::Value;
+
+mod support;
+
+use support::command::{atlas_command, git_command};
+use support::json::ok_data;
+use support::path::temp_root;
+use support::source::{write_changed_single_action_record, write_single_action_source};
+use support::timing::{assert_human_duration, value_after_prefix};
 
 #[test]
 fn setup_default_mode_uses_global_install_paths() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,7 +18,7 @@ fn setup_default_mode_uses_global_install_paths() -> Result<(), Box<dyn std::err
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["setup", "--source"])
@@ -80,7 +88,7 @@ fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["setup", "--path-mode", "global", "--source"])
@@ -132,7 +140,7 @@ fn setup_human_output_reports_build_timing_summary() -> Result<(), Box<dyn std::
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let output = atlas_command()
         .args([
@@ -169,7 +177,7 @@ fn setup_records_second_run_skips_rebuild() -> Result<(), Box<dyn std::error::Er
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let first = setup_records_offline(&source, &cache, &index)?;
     assert!(first.status.success());
@@ -204,7 +212,7 @@ fn setup_records_git_source_manifest_tracks_git_commit() -> Result<(), Box<dyn s
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
     let git_commit = initialize_git_source(&source)?;
 
     let output = setup_records_offline(&source, &cache, &index)?;
@@ -230,11 +238,11 @@ fn setup_check_falls_back_to_source_analysis_when_manifest_source_position_chang
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let first = setup_records_offline(&source, &cache, &index)?;
     assert!(first.status.success());
-    write_changed_fixture_record(&source)?;
+    write_changed_single_action_record(&source)?;
 
     let output = setup_records_check(&source, &cache, &index)?;
 
@@ -252,12 +260,12 @@ fn setup_check_falls_back_to_source_analysis_for_dirty_git_source()
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
     initialize_git_source(&source)?;
 
     let first = setup_records_offline(&source, &cache, &index)?;
     assert!(first.status.success());
-    write_changed_fixture_record(&source)?;
+    write_changed_single_action_record(&source)?;
 
     let output = setup_records_check(&source, &cache, &index)?;
 
@@ -275,7 +283,7 @@ fn setup_check_falls_back_to_source_analysis_for_untracked_git_source()
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
     initialize_git_source(&source)?;
 
     let first = setup_records_offline(&source, &cache, &index)?;
@@ -308,7 +316,7 @@ fn setup_check_force_reports_not_ready() -> Result<(), Box<dyn std::error::Error
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let build_output = setup_records_offline(&source, &cache, &index)?;
     assert!(build_output.status.success());
@@ -367,7 +375,7 @@ fn setup_full_check_reports_record_ready_when_vectors_missing()
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let build_output = setup_records_offline(&source, &cache, &index)?;
     assert!(build_output.status.success());
@@ -409,7 +417,7 @@ fn setup_failed_source_update_is_runtime_failure() -> Result<(), Box<dyn std::er
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
 
     let build_output = setup_records_offline(&source, &cache, &index)?;
     assert!(build_output.status.success());
@@ -455,7 +463,7 @@ fn setup_failed_source_update_blocks_missing_index_build() -> Result<(), Box<dyn
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    write_fixture_source(&source)?;
+    write_single_action_source(&source)?;
     fs::create_dir(source.join(".git"))?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -613,38 +621,6 @@ fn assert_plans_rebuild_after_source_analysis(
     Ok(())
 }
 
-fn ok_data(value: &Value) -> &Value {
-    assert_eq!(value["status"], "ok");
-    value.get("data").expect("ok envelope should contain data")
-}
-
-fn value_after_prefix<'a>(text: &'a str, prefix: &str) -> &'a str {
-    text.lines()
-        .find_map(|line| line.strip_prefix(prefix))
-        .expect("expected output line")
-}
-
-fn assert_human_duration(value: &str) {
-    assert!(
-        value.ends_with("ms")
-            || value.ends_with('s')
-            || value.contains("m ")
-            || value.contains("h "),
-        "expected human-readable duration, got {value:?}"
-    );
-}
-
-fn temp_root(name: &str) -> PathBuf {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "atlas-cli-{name}-{}-{}",
-        std::process::id(),
-        std::thread::current().name().unwrap_or("test")
-    ));
-    let _ = fs::remove_dir_all(&path);
-    path
-}
-
 fn setup_records_offline(
     source: &Path,
     cache: &Path,
@@ -718,63 +694,4 @@ fn initialize_git_source(source: &Path) -> Result<String, Box<dyn std::error::Er
         .output()?;
     assert!(head.status.success());
     Ok(String::from_utf8(head.stdout)?.trim().to_string())
-}
-
-fn atlas_command() -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
-    clear_git_hook_env(&mut command);
-    command
-}
-
-fn git_command() -> Command {
-    let mut command = Command::new("git");
-    clear_git_hook_env(&mut command);
-    command
-}
-
-fn clear_git_hook_env(command: &mut Command) {
-    for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX"] {
-        command.env_remove(name);
-    }
-}
-
-fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(root.join("packs/actions"))?;
-    fs::write(
-        root.join("module.json"),
-        r#"{
-          "packs": [
-            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" }
-          ]
-        }"#,
-    )?;
-    fs::write(
-        root.join("packs/actions/treat-wounds.json"),
-        r#"{
-          "_id": "testAction0001",
-          "name": "Treat Wounds",
-          "type": "action",
-          "system": {
-            "description": { "value": "<p>You treat wounds.</p>" },
-            "traits": { "value": ["healing"] }
-          }
-        }"#,
-    )?;
-    Ok(())
-}
-
-fn write_changed_fixture_record(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::write(
-        root.join("packs/actions/treat-wounds.json"),
-        r#"{
-          "_id": "testAction0001",
-          "name": "Treat Wounds",
-          "type": "action",
-          "system": {
-            "description": { "value": "<p>You treat changed wounds.</p>" },
-            "traits": { "value": ["healing"] }
-          }
-        }"#,
-    )?;
-    Ok(())
 }

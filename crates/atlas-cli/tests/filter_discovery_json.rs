@@ -1,14 +1,21 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use rusqlite::Connection;
 use serde_json::{Value, json};
 
+mod support;
+
+use support::command::build_index;
+use support::json::ok_data;
+use support::path::temp_source_root;
+use support::source::{write_filter_discovery_source, write_rule_discovery_source};
+
 #[test]
 fn reports_fields_values_and_dynamic_refinements() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery");
-    write_rule_fixture_source(&root)?;
+    write_rule_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let fields_output = atlas(&[
@@ -126,7 +133,7 @@ fn reports_fields_values_and_dynamic_refinements() -> Result<(), Box<dyn std::er
 #[test]
 fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-text");
-    write_rule_fixture_source(&root)?;
+    write_rule_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let fields_output = atlas_raw(&[
@@ -175,7 +182,7 @@ fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn st
 #[test]
 fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-rich");
-    write_filter_discovery_fixture_source(&root)?;
+    write_filter_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let metric_keys = atlas(&[
@@ -312,7 +319,7 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
 #[test]
 fn catalog_validation_rejects_missing_rows() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-validation");
-    write_rule_fixture_source(&root)?;
+    write_rule_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let connection = Connection::open(&index_path)?;
@@ -332,7 +339,7 @@ fn catalog_validation_rejects_missing_rows() -> Result<(), Box<dyn std::error::E
 #[test]
 fn catalog_validation_rejects_missing_payload_rows() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-payload-validation");
-    write_filter_discovery_fixture_source(&root)?;
+    write_filter_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let connection = Connection::open(&index_path)?;
@@ -367,7 +374,7 @@ fn catalog_validation_rejects_missing_payload_rows() -> Result<(), Box<dyn std::
 #[test]
 fn catalog_validation_rejects_stale_payload_rows() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-stale-validation");
-    write_filter_discovery_fixture_source(&root)?;
+    write_filter_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let connection = Connection::open(&index_path)?;
@@ -414,7 +421,7 @@ fn catalog_validation_rejects_stale_payload_rows() -> Result<(), Box<dyn std::er
 #[test]
 fn catalog_validation_rejects_duplicate_global_rows() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-duplicate-validation");
-    write_filter_discovery_fixture_source(&root)?;
+    write_filter_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let connection = Connection::open(&index_path)?;
@@ -463,7 +470,7 @@ fn catalog_validation_rejects_duplicate_global_rows() -> Result<(), Box<dyn std:
 fn metric_discovery_uses_global_catalog_and_rejects_conflicting_options()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-global-metric");
-    write_filter_discovery_fixture_source(&root)?;
+    write_filter_discovery_source(&root)?;
     let index_path = build_index(&root)?;
 
     let global_keys = atlas(&[
@@ -541,22 +548,6 @@ fn atlas_raw(args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::
         .output()?)
 }
 
-fn build_index(root: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let index_path = root.join("artifact.sqlite");
-    let output = atlas(&[
-        "index",
-        "build",
-        "--source",
-        root.to_str().unwrap(),
-        "--output",
-        index_path.to_str().unwrap(),
-        "--no-embeddings",
-        "--json",
-    ])?;
-    assert!(output.status.success());
-    Ok(index_path)
-}
-
 fn validate_contract_violation(path: &Path) -> Result<Value, Box<dyn std::error::Error>> {
     let output = atlas(&[
         "index",
@@ -582,129 +573,4 @@ fn assert_diagnostic(data: &Value, key: &str) {
             .any(|diagnostic| diagnostic["key"] == key),
         "missing diagnostic {key}"
     );
-}
-
-fn ok_data(value: &Value) -> &Value {
-    assert_eq!(value["status"], "ok");
-    value.get("data").expect("ok envelope should contain data")
-}
-
-fn temp_source_root(name: &str) -> PathBuf {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "atlas-cli-{name}-{}-{}",
-        std::process::id(),
-        std::thread::current().name().unwrap_or("test")
-    ));
-    let _ = fs::remove_dir_all(&path);
-    path
-}
-
-fn write_rule_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(root.join("packs/actions"))?;
-    fs::write(
-        root.join("module.json"),
-        r#"{
-          "packs": [
-            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" }
-          ]
-        }"#,
-    )?;
-    fs::write(
-        root.join("packs/actions/treat-wounds.json"),
-        r#"{
-          "_id": "testAction0001",
-          "name": "Treat Wounds",
-          "type": "action",
-          "system": {
-            "traits": { "value": ["healing", "exploration"] },
-            "description": { "value": "<p>You spend 10 minutes treating one injured living creature.</p>" }
-          }
-        }"#,
-    )?;
-    Ok(())
-}
-
-fn write_filter_discovery_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(root.join("packs/spells"))?;
-    fs::create_dir_all(root.join("packs/bestiary"))?;
-    fs::create_dir_all(root.join("packs/hazards"))?;
-    fs::write(
-        root.join("module.json"),
-        r#"{
-          "packs": [
-            { "name": "spells", "label": "Spells", "type": "Item", "path": "packs/spells" },
-            { "name": "bestiary", "label": "Bestiary", "type": "Actor", "path": "packs/bestiary" },
-            { "name": "hazards", "label": "Hazards", "type": "Actor", "path": "packs/hazards" }
-          ]
-        }"#,
-    )?;
-    fs::write(
-        root.join("packs/spells/heal.json"),
-        r#"{
-          "_id": "testSpell0001",
-          "name": "Heal",
-          "type": "spell",
-          "system": {
-            "level": { "value": 1 },
-            "traits": { "value": ["healing", "vitality"], "traditions": ["divine"], "rarity": "common" },
-            "time": { "value": "1 minute" },
-            "duration": { "value": "10 minutes" },
-            "range": { "value": "30 feet" },
-            "target": { "value": "<p>1 willing creature</p>" },
-            "defense": { "save": { "statistic": "fortitude", "basic": true } },
-            "description": { "value": "<p>You channel vital energy.</p>" }
-          }
-        }"#,
-    )?;
-    fs::write(
-        root.join("packs/bestiary/goblin.json"),
-        r#"{
-          "_id": "testActor0001",
-          "name": "Goblin Scout",
-          "type": "npc",
-          "system": {
-            "traits": { "value": ["goblin", "humanoid"], "size": { "value": "small" } },
-            "details": { "languages": { "value": ["goblin"] } },
-            "abilities": { "dex": { "mod": 4 } },
-            "perception": { "mod": 7, "senses": [{ "type": "darkvision", "range": 60 }] },
-            "attributes": {
-              "ac": { "value": 17 },
-              "hp": { "value": 16, "max": 16 },
-              "speed": { "value": 25 }
-            },
-            "saves": {
-              "fortitude": { "mod": 5 },
-              "reflex": { "mod": 8 },
-              "will": { "mod": 4 }
-            },
-            "description": { "value": "<p>A small scout.</p>" }
-          }
-        }"#,
-    )?;
-    fs::write(
-        root.join("packs/hazards/spear-trap.json"),
-        r#"{
-          "_id": "testHazard0001",
-          "name": "Spear Trap",
-          "type": "hazard",
-          "system": {
-            "traits": { "value": ["mechanical", "trap"], "size": { "value": "medium" } },
-            "attributes": {
-              "ac": { "value": 18 },
-              "hp": { "value": 20, "max": 20 }
-            },
-            "saves": {
-              "fortitude": { "mod": 8 },
-              "reflex": { "mod": 6 },
-              "will": { "mod": 2 }
-            },
-            "details": {
-              "disable": "<p>Thievery DC 18</p>"
-            },
-            "description": { "value": "<p>A hidden spear trap.</p>" }
-          }
-        }"#,
-    )?;
-    Ok(())
 }

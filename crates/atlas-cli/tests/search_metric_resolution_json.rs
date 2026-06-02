@@ -1,17 +1,20 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use serde_json::json;
 
-use serde_json::{Value, json};
+mod support;
+
+use support::command::{atlas_json, build_index};
+use support::json::{parse_json, parse_ok_data};
+use support::path::temp_source_root;
+use support::source::write_metric_source;
 
 #[test]
 fn metric_query_and_short_label_filters_use_catalog_resolution()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-search-metric-resolution");
-    write_metric_fixture_source(&root)?;
+    write_metric_source(&root)?;
     let index_path = build_index(&root)?;
 
-    let metric_query = atlas(&[
+    let metric_query = atlas_json(&[
         "filters",
         "values",
         "--field",
@@ -24,8 +27,7 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
         index_path.to_str().unwrap(),
     ])?;
     assert!(metric_query.status.success());
-    let metric_query_json: Value = serde_json::from_slice(&metric_query.stdout)?;
-    let metric_query_data = ok_data(&metric_query_json);
+    let metric_query_data = parse_ok_data(&metric_query)?;
     let armor_class = metric_query_data["metrics"]
         .as_array()
         .unwrap()
@@ -36,7 +38,7 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
     assert_eq!(armor_class["short_label"], "AC");
     assert_eq!(armor_class["group"], "defense");
 
-    let metric_short_label_values = atlas(&[
+    let metric_short_label_values = atlas_json(&[
         "filters",
         "values",
         "--field",
@@ -49,15 +51,14 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
         index_path.to_str().unwrap(),
     ])?;
     assert!(metric_short_label_values.status.success());
-    let metric_short_label_json: Value = serde_json::from_slice(&metric_short_label_values.stdout)?;
-    let metric_short_label_data = ok_data(&metric_short_label_json);
+    let metric_short_label_data = parse_ok_data(&metric_short_label_values)?;
     assert_eq!(metric_short_label_data["metric"]["metric_key"], "ac.value");
     assert_eq!(
         metric_short_label_data["values"]["stats"]["p50"],
         json!(17.0)
     );
 
-    let metric_filter_search = atlas(&[
+    let metric_filter_search = atlas_json(&[
         "search",
         "--family",
         "creature",
@@ -67,15 +68,14 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
         index_path.to_str().unwrap(),
     ])?;
     assert!(metric_filter_search.status.success());
-    let metric_filter_json: Value = serde_json::from_slice(&metric_filter_search.stdout)?;
-    let metric_filter_data = ok_data(&metric_filter_json);
+    let metric_filter_data = parse_ok_data(&metric_filter_search)?;
     assert_eq!(metric_filter_data["pagination"]["total"], 1);
     assert_eq!(
         metric_filter_data["results"][0]["record"]["key"],
         "bestiary:testActor0001"
     );
 
-    let unknown_metric_filter = atlas(&[
+    let unknown_metric_filter = atlas_json(&[
         "search",
         "--family",
         "creature",
@@ -85,91 +85,13 @@ fn metric_query_and_short_label_filters_use_catalog_resolution()
         index_path.to_str().unwrap(),
     ])?;
     assert_eq!(unknown_metric_filter.status.code(), Some(3));
-    let unknown_metric_json: Value = serde_json::from_slice(&unknown_metric_filter.stdout)?;
+    let unknown_metric_json = parse_json(&unknown_metric_filter)?;
     assert_eq!(unknown_metric_json["error"]["code"], "invalid_filter");
     let unknown_metric_message = unknown_metric_json["error"]["message"].as_str().unwrap();
     assert!(unknown_metric_message.contains("unknown metric `armor`"));
     assert!(unknown_metric_message.contains("ac.value"));
     assert!(unknown_metric_message.contains("--metric-query armor"));
 
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-fn atlas(args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::Error>> {
-    let mut args = args.to_vec();
-    if !args.contains(&"--json") {
-        args.push("--json");
-    }
-    Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(args)
-        .output()?)
-}
-
-fn build_index(root: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let index_path = root.join("artifact.sqlite");
-    let output = atlas(&[
-        "index",
-        "build",
-        "--source",
-        root.to_str().unwrap(),
-        "--output",
-        index_path.to_str().unwrap(),
-        "--no-embeddings",
-        "--json",
-    ])?;
-    assert!(output.status.success());
-    Ok(index_path)
-}
-
-fn ok_data(value: &Value) -> &Value {
-    assert_eq!(value["status"], "ok");
-    value.get("data").expect("ok envelope should contain data")
-}
-
-fn temp_source_root(name: &str) -> PathBuf {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "atlas-cli-{name}-{}-{}",
-        std::process::id(),
-        std::thread::current().name().unwrap_or("test")
-    ));
-    let _ = fs::remove_dir_all(&path);
-    path
-}
-
-fn write_metric_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(root.join("packs/bestiary"))?;
-    fs::write(
-        root.join("module.json"),
-        r#"{
-          "packs": [
-            { "name": "bestiary", "label": "Bestiary", "type": "Actor", "path": "packs/bestiary" }
-          ]
-        }"#,
-    )?;
-    fs::write(
-        root.join("packs/bestiary/goblin.json"),
-        r#"{
-          "_id": "testActor0001",
-          "name": "Goblin Scout",
-          "type": "npc",
-          "system": {
-            "traits": { "value": ["goblin", "humanoid"], "size": { "value": "small" } },
-            "details": { "languages": { "value": ["goblin"] } },
-            "attributes": {
-              "ac": { "value": 17 },
-              "hp": { "value": 16, "max": 16 },
-              "speed": { "value": 25 }
-            },
-            "saves": {
-              "fortitude": { "mod": 5 },
-              "reflex": { "mod": 8 },
-              "will": { "mod": 4 }
-            },
-            "description": { "value": "<p>A small scout.</p>" }
-          }
-        }"#,
-    )?;
+    std::fs::remove_dir_all(root)?;
     Ok(())
 }

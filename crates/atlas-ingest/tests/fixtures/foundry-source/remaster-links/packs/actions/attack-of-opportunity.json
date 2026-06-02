@@ -1,0 +1,14 @@
+{
+  "_id": "attackOpportunity1",
+  "name": "Attack of Opportunity",
+  "type": "action",
+  "system": {
+    "publication": {
+      "title": "Core Rulebook",
+      "remaster": false
+    },
+    "description": {
+      "value": "<p>Legacy reaction.</p>"
+    }
+  }
+}

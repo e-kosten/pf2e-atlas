@@ -1,0 +1,49 @@
+{
+  "_id": "testActor0001",
+  "name": "Goblin Scout",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "value": [
+        "goblin",
+        "humanoid"
+      ],
+      "size": {
+        "value": "small"
+      }
+    },
+    "details": {
+      "languages": {
+        "value": [
+          "goblin"
+        ]
+      }
+    },
+    "attributes": {
+      "ac": {
+        "value": 17
+      },
+      "hp": {
+        "value": 16,
+        "max": 16
+      },
+      "speed": {
+        "value": 25
+      }
+    },
+    "saves": {
+      "fortitude": {
+        "mod": 5
+      },
+      "reflex": {
+        "mod": 8
+      },
+      "will": {
+        "mod": 4
+      }
+    },
+    "description": {
+      "value": "<p>A small scout.</p>"
+    }
+  }
+}

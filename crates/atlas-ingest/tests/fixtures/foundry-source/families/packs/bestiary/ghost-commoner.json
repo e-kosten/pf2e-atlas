@@ -1,0 +1,22 @@
+{
+  "_id": "ghostCommoner1",
+  "name": "Ghost Commoner",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "value": [
+        "ghost",
+        "undead"
+      ]
+    },
+    "rules": [
+      {
+        "key": "Note",
+        "text": "@UUID[Compendium.pf2e.bestiary-family-ability-glossary.Item.ghostAbility01]{Frightful Moans}"
+      }
+    ],
+    "description": {
+      "value": "<p>A ghostly commoner with @UUID[Compendium.pf2e.bestiary-family-ability-glossary.Item.ghostAbility01]{Frightful Moans}.</p>"
+    }
+  }
+}

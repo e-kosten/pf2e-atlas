@@ -1,0 +1,15 @@
+{
+  "_id": "duplicateAction1",
+  "name": "Duplicate Action",
+  "type": "action",
+  "system": {
+    "traits": {
+      "value": [
+        "exploration"
+      ]
+    },
+    "description": {
+      "value": "<p>Duplicate action fixture.</p>"
+    }
+  }
+}

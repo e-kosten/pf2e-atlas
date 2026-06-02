@@ -1,0 +1,35 @@
+{
+  "_id": "aliasCarrier1",
+  "name": "Alias Carrier",
+  "type": "npc",
+  "items": [
+    {
+      "_id": "embeddedLegacy1",
+      "name": "Legacy Guard",
+      "type": "condition",
+      "_stats": {
+        "compendiumSource": "Compendium.pf2e.conditionitems.Item.offGuard1"
+      },
+      "system": {
+        "publication": {
+          "title": "Core Rulebook",
+          "remaster": false
+        }
+      }
+    }
+  ],
+  "system": {
+    "publication": {
+      "title": "Bestiary",
+      "remaster": false
+    },
+    "traits": {
+      "value": [
+        "humanoid"
+      ]
+    },
+    "description": {
+      "value": "<p>Fixture carrier.</p>"
+    }
+  }
+}

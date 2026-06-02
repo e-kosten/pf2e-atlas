@@ -1,0 +1,10 @@
+{
+  "_id": "ghostAbility01",
+  "name": "Frightful Moans",
+  "type": "action",
+  "system": {
+    "description": {
+      "value": "<p>A ghost family ability.</p>"
+    }
+  }
+}

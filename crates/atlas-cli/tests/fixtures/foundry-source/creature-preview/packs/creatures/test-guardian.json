@@ -1,0 +1,57 @@
+{
+  "_id": "testCreature001",
+  "name": "Test Guardian",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "value": [
+        "human",
+        "humanoid"
+      ],
+      "size": {
+        "value": "med"
+      }
+    },
+    "details": {
+      "level": {
+        "value": 5
+      },
+      "languages": {
+        "value": [
+          "common"
+        ]
+      },
+      "description": "<p>A sturdy fixture creature.</p>"
+    },
+    "attributes": {
+      "ac": {
+        "value": 25
+      },
+      "hp": {
+        "value": 80
+      },
+      "speed": {
+        "value": 25
+      }
+    },
+    "perception": {
+      "mod": 12,
+      "senses": [
+        {
+          "type": "darkvision"
+        }
+      ]
+    },
+    "saves": {
+      "fortitude": {
+        "mod": 14
+      },
+      "reflex": {
+        "mod": 11
+      },
+      "will": {
+        "mod": 12
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "_id": "testSpell0001",
+  "name": "Heal",
+  "type": "spell",
+  "system": {
+    "level": {
+      "value": 1
+    },
+    "traits": {
+      "value": [
+        "healing",
+        "vitality"
+      ],
+      "traditions": [
+        "divine"
+      ],
+      "rarity": "common"
+    },
+    "time": {
+      "value": "1 minute"
+    },
+    "duration": {
+      "value": "10 minutes"
+    },
+    "range": {
+      "value": "30 feet"
+    },
+    "target": {
+      "value": "<p>1 willing creature</p>"
+    },
+    "defense": {
+      "save": {
+        "statistic": "fortitude",
+        "basic": true
+      }
+    },
+    "description": {
+      "value": "<p>You channel vital energy.</p>"
+    }
+  }
+}

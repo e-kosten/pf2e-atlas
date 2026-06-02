@@ -1,0 +1,42 @@
+{
+  "_id": "testHazard0001",
+  "name": "Spear Trap",
+  "type": "hazard",
+  "system": {
+    "traits": {
+      "value": [
+        "mechanical",
+        "trap"
+      ],
+      "size": {
+        "value": "medium"
+      }
+    },
+    "attributes": {
+      "ac": {
+        "value": 18
+      },
+      "hp": {
+        "value": 20,
+        "max": 20
+      }
+    },
+    "saves": {
+      "fortitude": {
+        "mod": 8
+      },
+      "reflex": {
+        "mod": 6
+      },
+      "will": {
+        "mod": 2
+      }
+    },
+    "details": {
+      "disable": "<p>Thievery DC 18</p>"
+    },
+    "description": {
+      "value": "<p>A hidden spear trap.</p>"
+    }
+  }
+}

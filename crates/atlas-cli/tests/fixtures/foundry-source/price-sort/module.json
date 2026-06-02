@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "name": "equipment",
+      "label": "Equipment",
+      "type": "Item",
+      "path": "packs/equipment"
+    }
+  ]
+}
