@@ -2,28 +2,32 @@ use atlas_index::{IndexBuildInput, IndexBuildPack};
 
 use crate::source::SourceLoad;
 
-pub(crate) fn index_build_input(source: &SourceLoad) -> IndexBuildInput<'_> {
+pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
     IndexBuildInput {
-        source_signature: &source.source_signature,
+        source_signature: source.source_signature,
         source_record_count: source.source_record_count,
         packs: source
             .packs
-            .iter()
+            .into_iter()
             .map(|pack| IndexBuildPack {
-                name: &pack.name,
-                label: &pack.label,
-                document_type: &pack.document_type,
-                declared_path: &pack.declared_path,
-                resolved_path: &pack.resolved_path,
+                name: pack.name,
+                label: pack.label,
+                document_type: pack.document_type,
+                declared_path: pack.declared_path,
+                resolved_path: pack.resolved_path,
                 record_count: pack.record_count,
             })
             .collect(),
-        records: source.records.iter().map(|loaded| &loaded.record).collect(),
-        references: &source.references,
-        aliases: &source.aliases,
-        remaster_links: &source.remaster_links,
-        pending_document_embeddings: &source.pending_document_embeddings,
-        document_embeddings: &source.document_embeddings,
+        records: source
+            .records
+            .into_iter()
+            .map(|loaded| loaded.record)
+            .collect(),
+        references: source.references,
+        aliases: source.aliases,
+        remaster_links: source.remaster_links,
+        pending_document_embeddings: source.pending_document_embeddings,
+        document_embeddings: source.document_embeddings,
     }
 }
 
@@ -117,38 +121,33 @@ mod tests {
             warnings: Vec::new(),
         };
 
-        let input = index_build_input(&source);
+        let input = index_build_input(source);
 
-        assert_eq!(input.source_signature, source.source_signature);
+        assert_eq!(input.source_signature, "foundry-pf2e:sha256:test");
         assert_eq!(input.source_record_count, 1);
         assert_eq!(input.artifact_record_count(), 2);
         assert_eq!(input.generated_record_count()?, 1);
 
         assert_eq!(input.packs.len(), 1);
-        assert_eq!(input.packs[0].name, &source.packs[0].name);
-        assert_eq!(input.packs[0].label, source.packs[0].label);
-        assert_eq!(input.packs[0].document_type, source.packs[0].document_type);
-        assert_eq!(input.packs[0].declared_path, source.packs[0].declared_path);
-        assert_eq!(input.packs[0].resolved_path, source.packs[0].resolved_path);
-        assert_eq!(input.packs[0].record_count, source.packs[0].record_count);
+        assert_eq!(input.packs[0].name.as_str(), "source-pack");
+        assert_eq!(input.packs[0].label, "Source Pack");
+        assert_eq!(input.packs[0].document_type, "Item");
+        assert_eq!(input.packs[0].declared_path, "packs/source-pack");
+        assert_eq!(
+            input.packs[0].resolved_path,
+            PathBuf::from("/tmp/source-pack")
+        );
+        assert_eq!(input.packs[0].record_count, 1);
 
         assert_eq!(input.records.len(), 2);
-        assert!(std::ptr::eq(input.records[0], &source.records[0].record));
-        assert!(std::ptr::eq(input.records[1], &source.records[1].record));
-        assert_eq!(input.records[0].key, source.records[0].record.key);
-        assert_eq!(input.records[1].key, source.records[1].record.key);
+        assert_eq!(input.records[0].key, source_key);
+        assert_eq!(input.records[1].key, generated_key);
 
-        assert_eq!(input.references, source.references.as_slice());
-        assert_eq!(input.aliases, source.aliases.as_slice());
-        assert_eq!(input.remaster_links, source.remaster_links.as_slice());
-        assert_eq!(
-            input.pending_document_embeddings,
-            source.pending_document_embeddings.as_slice()
-        );
-        assert_eq!(
-            input.document_embeddings,
-            source.document_embeddings.as_slice()
-        );
+        assert_eq!(input.references.len(), 1);
+        assert_eq!(input.aliases.len(), 1);
+        assert_eq!(input.remaster_links.len(), 1);
+        assert_eq!(input.pending_document_embeddings.len(), 1);
+        assert_eq!(input.document_embeddings.len(), 1);
         Ok(())
     }
 

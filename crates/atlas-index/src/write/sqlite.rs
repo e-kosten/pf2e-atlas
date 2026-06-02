@@ -55,7 +55,7 @@ impl IndexArtifactWriter for SqliteIndexWriter {
 
     fn write(
         &self,
-        input: &IndexBuildInput<'_>,
+        input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
     ) -> Result<(), IndexWriteError> {
         write_artifact(&self.path, input, embedding_model)
@@ -64,7 +64,7 @@ impl IndexArtifactWriter for SqliteIndexWriter {
 
 fn write_artifact(
     path: &Path,
-    input: &IndexBuildInput<'_>,
+    input: &IndexBuildInput,
     embedding_model: EmbeddingModelId,
 ) -> Result<(), IndexWriteError> {
     artifact_progress("artifact_write", "Preparing artifact output");
@@ -90,7 +90,7 @@ fn write_artifact(
             input.source_record_count,
             input.artifact_record_count(),
             input.generated_record_count()?,
-            input.source_signature,
+            &input.source_signature,
             embedding_model,
         )?;
         artifact_progress("artifact_write", "Writing packs");
@@ -101,15 +101,15 @@ fn write_artifact(
         write_records(
             connection,
             &input.records,
-            input.aliases,
-            input.remaster_links,
+            &input.aliases,
+            &input.remaster_links,
         )?;
         artifact_progress("artifact_write", "Writing reference edges");
         info!(
             reference_edges = input.references.len(),
             "writing reference edges"
         );
-        write_reference_edges(connection, input.references)?;
+        write_reference_edges(connection, &input.references)?;
         artifact_progress("artifact_write", "Writing reference occurrences");
         info!(
             records = input.records.len(),
@@ -118,19 +118,19 @@ fn write_artifact(
         write_reference_occurrences(connection, &input.records)?;
         artifact_progress("artifact_write", "Writing record aliases");
         info!(aliases = input.aliases.len(), "writing record aliases");
-        write_record_aliases(connection, input.aliases)?;
+        write_record_aliases(connection, &input.aliases)?;
         artifact_progress("artifact_write", "Writing remaster links");
         info!(
             remaster_links = input.remaster_links.len(),
             "writing remaster links"
         );
-        write_remaster_links(connection, input.remaster_links)?;
+        write_remaster_links(connection, &input.remaster_links)?;
         artifact_progress("artifact_write", "Writing document embedding cache");
         info!(
             document_embeddings = input.document_embeddings.len(),
             "writing document embedding cache"
         );
-        write_document_embedding_cache(connection, input.document_embeddings)?;
+        write_document_embedding_cache(connection, &input.document_embeddings)?;
         if !input.document_embeddings.is_empty() {
             artifact_progress("artifact_write", "Writing record vector index");
             info!(
@@ -220,25 +220,28 @@ mod tests {
             source: atlas_domain::RemasterLinkSource::Migration,
             source_ref: "fixture".to_string(),
         }];
-        let record_refs = records.iter().collect::<Vec<_>>();
-        let resolved_path = Path::new("packs/actions");
+        let records_len = records.len();
+        let references_len = references.len();
+        let aliases_len = aliases.len();
+        let remaster_links_expected = remaster_links.clone();
+        let resolved_path = Path::new("packs/actions").to_path_buf();
         let input = IndexBuildInput {
-            source_signature: "foundry-pf2e:fixture",
-            source_record_count: records.len(),
+            source_signature: "foundry-pf2e:fixture".to_string(),
+            source_record_count: records_len,
             packs: vec![IndexBuildPack {
-                name: &pack_name,
-                label: "Actions",
-                document_type: "Item",
-                declared_path: "packs/actions",
+                name: pack_name,
+                label: "Actions".to_string(),
+                document_type: "Item".to_string(),
+                declared_path: "packs/actions".to_string(),
                 resolved_path,
-                record_count: records.len(),
+                record_count: records_len,
             }],
-            records: record_refs,
-            references: &references,
-            aliases: &aliases,
-            remaster_links: &remaster_links,
-            pending_document_embeddings: &[],
-            document_embeddings: &[],
+            records,
+            references,
+            aliases,
+            remaster_links,
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
         };
 
         SqliteIndexWriter::new(target_path.clone())
@@ -248,10 +251,10 @@ mod tests {
         let validation = reader.validate()?;
         assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
         let record_set = reader.load_record_set()?;
-        assert_eq!(record_set.records.len(), records.len());
-        assert_eq!(record_set.reference_edges.len(), references.len());
-        assert_eq!(record_set.aliases.len(), aliases.len());
-        assert_eq!(record_set.remaster_links, remaster_links);
+        assert_eq!(record_set.records.len(), records_len);
+        assert_eq!(record_set.reference_edges.len(), references_len);
+        assert_eq!(record_set.aliases.len(), aliases_len);
+        assert_eq!(record_set.remaster_links, remaster_links_expected);
 
         let connection = Connection::open(&target_path)?;
         let metric_count: i64 = connection.query_row(
@@ -268,10 +271,10 @@ mod tests {
         assert_eq!(discovery_count, 2);
         let alias_count: i64 =
             connection.query_row("SELECT COUNT(*) FROM record_aliases", [], |row| row.get(0))?;
-        assert_eq!(alias_count, aliases.len() as i64);
+        assert_eq!(alias_count, aliases_len as i64);
         let reference_count: i64 =
             connection.query_row("SELECT COUNT(*) FROM reference_edges", [], |row| row.get(0))?;
-        assert_eq!(reference_count, references.len() as i64);
+        assert_eq!(reference_count, references_len as i64);
 
         let _ = fs::remove_file(&target_path);
         Ok(())
@@ -283,15 +286,15 @@ mod tests {
         let target_path = unique_temp_path("failed-artifact-write.sqlite");
         fs::write(&target_path, b"existing artifact")?;
         let input = IndexBuildInput {
-            source_signature: "fixture",
+            source_signature: "fixture".to_string(),
             source_record_count: 1,
             packs: Vec::new(),
             records: Vec::new(),
-            references: &[],
-            aliases: &[],
-            remaster_links: &[],
-            pending_document_embeddings: &[],
-            document_embeddings: &[],
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links: Vec::new(),
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
         };
 
         let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
@@ -324,15 +327,15 @@ mod tests {
     fn writer_rejects_non_utf8_artifact_paths() -> Result<(), Box<dyn std::error::Error>> {
         let target_path = non_utf8_temp_path("writer");
         let input = IndexBuildInput {
-            source_signature: "foundry-pf2e:fixture",
+            source_signature: "foundry-pf2e:fixture".to_string(),
             source_record_count: 0,
             packs: Vec::new(),
             records: Vec::new(),
-            references: &[],
-            aliases: &[],
-            remaster_links: &[],
-            pending_document_embeddings: &[],
-            document_embeddings: &[],
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links: Vec::new(),
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
         };
 
         let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
@@ -351,22 +354,22 @@ mod tests {
         let pack_name = PackName::new("actions")?;
         let resolved_path = non_utf8_temp_path("pack");
         let input = IndexBuildInput {
-            source_signature: "foundry-pf2e:fixture",
+            source_signature: "foundry-pf2e:fixture".to_string(),
             source_record_count: 0,
             packs: vec![IndexBuildPack {
-                name: &pack_name,
-                label: "Actions",
-                document_type: "Item",
-                declared_path: "packs/actions",
-                resolved_path: &resolved_path,
+                name: pack_name,
+                label: "Actions".to_string(),
+                document_type: "Item".to_string(),
+                declared_path: "packs/actions".to_string(),
+                resolved_path,
                 record_count: 0,
             }],
             records: Vec::new(),
-            references: &[],
-            aliases: &[],
-            remaster_links: &[],
-            pending_document_embeddings: &[],
-            document_embeddings: &[],
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links: Vec::new(),
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
         };
 
         let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)

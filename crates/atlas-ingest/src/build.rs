@@ -43,7 +43,12 @@ pub(crate) fn build_artifact(
     let embedding_report = generate_document_embeddings_for_source(&mut source, &options)?;
 
     let embedding_model = options.embedding_model()?;
-    let index_input = index_build_input(&source);
+    let document_embedding_tokenization =
+        std::mem::take(&mut source.document_embedding_tokenization);
+    let diagnostics = std::mem::take(&mut source.diagnostics);
+    let skipped_records = std::mem::take(&mut source.skipped_records);
+    let warnings = std::mem::take(&mut source.warnings);
+    let index_input = index_build_input(source);
     let output = SqliteIndexWriter::new(options.output_path.clone());
     info!(
         backend = output.label(),
@@ -53,11 +58,11 @@ pub(crate) fn build_artifact(
     output
         .write(&index_input, embedding_model)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    let artifact_record_count = source.records.len();
-    let source_record_count = source.source_record_count;
+    let artifact_record_count = index_input.records.len();
+    let source_record_count = index_input.source_record_count;
     let generated_record_count = artifact_record_count - source_record_count;
-    let document_embedding_count = source.document_embeddings.len();
-    let source_signature = source.source_signature.clone();
+    let document_embedding_count = index_input.document_embeddings.len();
+    let source_signature = index_input.source_signature.clone();
     let source_position =
         compute_source_position_report(&options.source_root, options.manifest_path.as_deref());
     let manifest = ArtifactManifest::new(ArtifactManifestInput {
@@ -78,31 +83,31 @@ pub(crate) fn build_artifact(
     info!(
         output = %options.output_path.display(),
         artifact_records = artifact_record_count,
-        packs = source.packs.len(),
-        document_embeddings = source.document_embeddings.len(),
+        packs = index_input.packs.len(),
+        document_embeddings = index_input.document_embeddings.len(),
         duration_ms = build_duration_ms,
         "artifact build complete"
     );
     Ok(BuildArtifactReport {
         output_path: options.output_path,
-        pack_count: source.packs.len(),
+        pack_count: index_input.packs.len(),
         record_count: artifact_record_count,
         source_record_count,
         artifact_record_count,
         generated_record_count,
-        pending_document_embedding_count: source.pending_document_embeddings.len(),
+        pending_document_embedding_count: index_input.pending_document_embeddings.len(),
         document_embedding_count,
         reused_document_embedding_count: embedding_report.reused_count,
         generated_document_embedding_count: embedding_report.generated_count,
         document_embedding_tokenization:
             DocumentEmbeddingTokenizationReport::from_embedding_telemetry(
-                source.document_embedding_tokenization,
+                document_embedding_tokenization,
             ),
         embedding_timing: embedding_report.timing,
         build_duration_ms,
         source_signature,
-        diagnostics: source.diagnostics,
-        skipped_records: source.skipped_records,
-        warnings: source.warnings,
+        diagnostics,
+        skipped_records,
+        warnings,
     })
 }

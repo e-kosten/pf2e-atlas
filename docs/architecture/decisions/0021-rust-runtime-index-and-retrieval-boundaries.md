@@ -33,7 +33,7 @@ Consumers should depend on narrow `atlas-search` capability traits when they onl
 
 `SemanticSearchService` is an internal migration component for the semantic-only embedding/sqlite-vec validation loop. It may remain as an implementation detail under `AtlasRetrievalService`, but it is not the long-term public retrieval boundary.
 
-`atlas-ingest` remains the owner of artifact build orchestration, embedding preparation, and `IndexBuildInput` handoff. Writable SQLite usage belongs in `atlas-index` writer implementations and is separate from runtime artifact consumption. Normal embedding-enabled builds hand document embedding cache rows and sqlite-vec `record_vector_index` inputs to the index writer before the completed artifact is published.
+`atlas-ingest` remains the owner of artifact build orchestration, embedding preparation, and the owned `IndexBuildInput` handoff. Writable SQLite usage belongs in `atlas-index` writer implementations and is separate from runtime artifact consumption. Normal embedding-enabled builds hand document embedding cache rows and sqlite-vec `record_vector_index` inputs to the index writer before the completed artifact is published.
 
 Base artifact validation should use plain SQLite and validate the structural artifact contract without requiring sqlite-vec. Search-readiness validation should layer on embedding model, sqlite-vec, vector-table, and vector-count checks where the caller is preparing the full retrieval runtime.
 
