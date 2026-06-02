@@ -3,8 +3,9 @@ use atlas_domain::MetricDomain;
 use crate::MetricRow;
 
 use super::model::{
-    MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricKeyPattern,
-    MetricKeySegment, MetricLabelTemplate, MetricVariableVocabulary,
+    MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel,
+    MetricKeyDefinition, MetricKeyPattern, MetricKeySegment, MetricLabelTemplate,
+    MetricVariableVocabulary,
 };
 use super::{actor, item};
 
@@ -27,9 +28,9 @@ pub fn all_definitions() -> &'static [MetricDefinition] {
 
 pub fn definition_for(domain: MetricDomain, key: &str) -> Option<MetricDefinitionMatch> {
     for definition in DEFINITIONS {
-        if let MetricDefinition::Static(static_definition) = definition
-            && static_definition.domain == domain
-            && static_definition.key == key
+        if definition.domain == domain
+            && let Some(static_key) = definition.exact_key()
+            && static_key == key
         {
             return Some(MetricDefinitionMatch {
                 definition,
@@ -39,9 +40,9 @@ pub fn definition_for(domain: MetricDomain, key: &str) -> Option<MetricDefinitio
     }
 
     for definition in DEFINITIONS {
-        if let MetricDefinition::Pattern(pattern_definition) = definition
-            && pattern_definition.domain == domain
-            && let Some(captures) = match_pattern(pattern_definition.pattern, key)
+        if definition.domain == domain
+            && let MetricKeyDefinition::Pattern(pattern) = definition.key
+            && let Some(captures) = match_pattern(pattern, key)
         {
             return Some(MetricDefinitionMatch {
                 definition,

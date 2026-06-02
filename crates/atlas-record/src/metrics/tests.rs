@@ -134,11 +134,11 @@ fn pattern_definitions_do_not_overlap_on_current_inventory() {
     for key in current_dynamic_keys {
         let mut matches_by_domain: BTreeMap<MetricDomain, usize> = BTreeMap::new();
         for definition in all_definitions() {
-            let MetricDefinition::Pattern(pattern) = definition else {
+            let MetricKeyDefinition::Pattern(pattern) = definition.key else {
                 continue;
             };
-            if matching::match_pattern(pattern.pattern, key).is_some() {
-                *matches_by_domain.entry(pattern.domain).or_default() += 1;
+            if matching::match_pattern(pattern, key).is_some() {
+                *matches_by_domain.entry(definition.domain).or_default() += 1;
             }
         }
 
