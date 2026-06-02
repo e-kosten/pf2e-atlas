@@ -5,8 +5,8 @@ use crate::records::MetricRow;
 use crate::source::normalize::pointer_string;
 
 use super::specs::{
-    CaptureNormalize, DynamicMetricSourceSpec, MetricCoercion, MetricPathCandidate,
-    MetricPathTemplateCandidate, StaticMetricSourceSpec,
+    CaptureNormalize, DynamicMetricSourceSpec, MetricCaptureSource, MetricCoercion,
+    MetricPathShape, MetricValuePath, StaticMetricSourceSpec,
 };
 use super::value::{
     damage_die_faces, number_at_pointer, number_like_at_pointer, slugify_metric_segment,
@@ -22,7 +22,7 @@ pub(super) fn emit_static_specs(
         add_defined_metric_number(
             metrics,
             spec.definition,
-            first_value_at_paths(raw, spec.paths),
+            first_value_at_paths(raw, spec.paths, None),
         )?;
     }
     Ok(())
@@ -35,42 +35,30 @@ pub(super) fn emit_dynamic_specs(
 ) -> Vec<EmittedDynamicMetric> {
     let mut emitted = Vec::new();
     for spec in specs {
-        match *spec {
-            DynamicMetricSourceSpec::FixedCapture {
-                definition,
-                capture,
-                key_builder,
-                paths,
-            } => emit_dynamic_metric(
+        match spec.capture_source {
+            MetricCaptureSource::FixedCapture { capture, paths } => emit_dynamic_metric(
                 metrics,
                 &mut emitted,
-                definition,
+                spec.definition,
                 capture,
-                key_builder,
-                first_value_at_paths(raw, paths),
+                spec.key_builder,
+                first_value_at_paths(raw, paths, None),
             ),
-            DynamicMetricSourceSpec::ClosedVocabulary {
-                definition,
-                captures,
-                key_builder,
-                path_templates,
-            } => {
+            MetricCaptureSource::ClosedVocabulary { captures, paths } => {
                 for capture in captures {
                     emit_dynamic_metric(
                         metrics,
                         &mut emitted,
-                        definition,
+                        spec.definition,
                         capture,
-                        key_builder,
-                        first_value_at_templates(raw, capture, path_templates),
+                        spec.key_builder,
+                        first_value_at_paths(raw, paths, Some(capture)),
                     );
                 }
             }
-            DynamicMetricSourceSpec::ObjectEntries {
-                definition,
+            MetricCaptureSource::ObjectEntries {
                 collection_path,
                 capture_normalize,
-                key_builder,
                 value_paths,
             } => {
                 let Some(entries) = raw.pointer(collection_path).and_then(Value::as_object) else {
@@ -83,19 +71,17 @@ pub(super) fn emit_dynamic_specs(
                     emit_dynamic_metric(
                         metrics,
                         &mut emitted,
-                        definition,
+                        spec.definition,
                         &capture,
-                        key_builder,
-                        first_value_at_paths(value, value_paths),
+                        spec.key_builder,
+                        first_value_at_paths(value, value_paths, None),
                     );
                 }
             }
-            DynamicMetricSourceSpec::ArrayEntries {
-                definition,
+            MetricCaptureSource::ArrayEntries {
                 collection_path,
                 capture_path,
                 capture_normalize,
-                key_builder,
                 value_paths,
             } => {
                 let Some(entries) = raw.pointer(collection_path).and_then(Value::as_array) else {
@@ -111,10 +97,10 @@ pub(super) fn emit_dynamic_specs(
                     emit_dynamic_metric(
                         metrics,
                         &mut emitted,
-                        definition,
+                        spec.definition,
                         &capture,
-                        key_builder,
-                        first_value_at_paths(entry, value_paths),
+                        spec.key_builder,
+                        first_value_at_paths(entry, value_paths, None),
                     );
                 }
             }
@@ -153,25 +139,25 @@ fn emit_dynamic_metric(
     });
 }
 
-fn first_value_at_paths(raw: &Value, paths: &[MetricPathCandidate]) -> Option<f64> {
+fn first_value_at_paths(
+    raw: &Value,
+    paths: &[MetricValuePath],
+    capture: Option<&str>,
+) -> Option<f64> {
     paths
         .iter()
-        .find_map(|candidate| value_at_path(raw, candidate))
+        .find_map(|candidate| value_at_path(raw, candidate, capture))
 }
 
-fn first_value_at_templates(
-    raw: &Value,
-    capture: &str,
-    templates: &[MetricPathTemplateCandidate],
-) -> Option<f64> {
-    templates.iter().find_map(|template| {
-        let path = format!("{}{}{}", template.prefix, capture, template.suffix);
-        value_at_pointer(raw, &path, template.coercion)
-    })
-}
-
-fn value_at_path(raw: &Value, candidate: &MetricPathCandidate) -> Option<f64> {
-    value_at_pointer(raw, candidate.path, candidate.coercion)
+fn value_at_path(raw: &Value, candidate: &MetricValuePath, capture: Option<&str>) -> Option<f64> {
+    match candidate.shape {
+        MetricPathShape::Pointer(path) => value_at_pointer(raw, path, candidate.coercion),
+        MetricPathShape::Template { prefix, suffix } => {
+            let capture = capture?;
+            let path = format!("{prefix}{capture}{suffix}");
+            value_at_pointer(raw, &path, candidate.coercion)
+        }
+    }
 }
 
 fn value_at_pointer(raw: &Value, path: &str, coercion: MetricCoercion) -> Option<f64> {

@@ -6,7 +6,7 @@ use crate::records::{MetricRow, MetricValue};
 
 use super::actor::extract_actor_metrics;
 use super::specs::{
-    ACTOR_DYNAMIC_SPECS, ACTOR_STATIC_SPECS, ARMOR_STATIC_SPECS, DynamicMetricSourceSpec,
+    ACTOR_DYNAMIC_SPECS, ACTOR_STATIC_SPECS, ARMOR_STATIC_SPECS, MetricCaptureSource,
     SHIELD_STATIC_SPECS, WEAPON_STATIC_SPECS,
 };
 use super::value::{number_like_value, slugify_metric_segment};
@@ -109,51 +109,32 @@ fn source_specs_reference_the_definitions_they_emit() {
     }
 
     for spec in ACTOR_DYNAMIC_SPECS {
-        let (definition, key) = match *spec {
-            DynamicMetricSourceSpec::FixedCapture {
-                definition,
-                capture,
-                key_builder,
-                ..
-            } => (definition, key_builder(capture)),
-            DynamicMetricSourceSpec::ClosedVocabulary {
-                definition,
-                captures,
-                key_builder,
-                ..
-            } => (
-                definition,
-                key_builder(captures.first().expect("closed vocabulary has a sample")),
-            ),
-            DynamicMetricSourceSpec::ObjectEntries {
-                definition,
-                key_builder,
-                ..
-            } => {
-                let sample = match definition {
+        let key = match spec.capture_source {
+            MetricCaptureSource::FixedCapture { capture, .. } => (spec.key_builder)(capture),
+            MetricCaptureSource::ClosedVocabulary { captures, .. } => {
+                (spec.key_builder)(captures.first().expect("closed vocabulary has a sample"))
+            }
+            MetricCaptureSource::ObjectEntries { .. } => {
+                let sample = match spec.definition {
                     metric_definitions::actor::save::MOD => "fort",
                     metric_definitions::actor::skill::MOD
                     | metric_definitions::actor::skill::RANK => "arcana",
                     _ => panic!("dynamic object source spec needs a representative capture"),
                 };
-                (definition, key_builder(sample))
+                (spec.key_builder)(sample)
             }
-            DynamicMetricSourceSpec::ArrayEntries {
-                definition,
-                key_builder,
-                ..
-            } => {
-                let sample = match definition {
+            MetricCaptureSource::ArrayEntries { .. } => {
+                let sample = match spec.definition {
                     metric_definitions::actor::speed::VALUE => "fly",
                     metric_definitions::actor::sense::RANGE => "darkvision",
                     _ => panic!("dynamic array source spec needs a representative capture"),
                 };
-                (definition, key_builder(sample))
+                (spec.key_builder)(sample)
             }
         };
-        let matched = metric_definitions::definition_for(definition.domain(), &key)
+        let matched = metric_definitions::definition_for(spec.definition.domain(), &key)
             .expect("dynamic source spec should emit a known metric key");
-        assert_eq!(*matched.definition, definition);
+        assert_eq!(*matched.definition, spec.definition);
     }
 }
 

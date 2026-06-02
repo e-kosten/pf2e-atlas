@@ -68,31 +68,20 @@ pub struct MetricKeyPattern {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StaticMetricDefinition {
+pub enum MetricKeyDefinition {
+    Static(&'static str),
+    Pattern(MetricKeyPattern),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MetricDefinition {
     pub domain: MetricDomain,
-    pub key: &'static str,
+    pub key: MetricKeyDefinition,
     pub value_type: MetricValueType,
     pub namespace: &'static str,
     pub label: MetricLabelTemplate,
     pub short_label: Option<MetricLabelTemplate>,
     pub group: MetricGroup,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PatternMetricDefinition {
-    pub domain: MetricDomain,
-    pub pattern: MetricKeyPattern,
-    pub value_type: MetricValueType,
-    pub namespace: &'static str,
-    pub label: MetricLabelTemplate,
-    pub short_label: Option<MetricLabelTemplate>,
-    pub group: MetricGroup,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MetricDefinition {
-    Static(StaticMetricDefinition),
-    Pattern(PatternMetricDefinition),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,52 +106,34 @@ pub struct MetricDisplayLabel {
 
 impl MetricDefinition {
     pub const fn exact_key(self) -> Option<&'static str> {
-        match self {
-            Self::Static(definition) => Some(definition.key),
-            Self::Pattern(_) => None,
+        match self.key {
+            MetricKeyDefinition::Static(key) => Some(key),
+            MetricKeyDefinition::Pattern(_) => None,
         }
     }
 
     pub const fn domain(self) -> MetricDomain {
-        match self {
-            Self::Static(definition) => definition.domain,
-            Self::Pattern(definition) => definition.domain,
-        }
+        self.domain
     }
 
     pub const fn value_type(self) -> MetricValueType {
-        match self {
-            Self::Static(definition) => definition.value_type,
-            Self::Pattern(definition) => definition.value_type,
-        }
+        self.value_type
     }
 
     pub const fn namespace(self) -> &'static str {
-        match self {
-            Self::Static(definition) => definition.namespace,
-            Self::Pattern(definition) => definition.namespace,
-        }
+        self.namespace
     }
 
     pub const fn group(self) -> MetricGroup {
-        match self {
-            Self::Static(definition) => definition.group,
-            Self::Pattern(definition) => definition.group,
-        }
+        self.group
     }
 
     pub(crate) const fn label_template(self) -> MetricLabelTemplate {
-        match self {
-            Self::Static(definition) => definition.label,
-            Self::Pattern(definition) => definition.label,
-        }
+        self.label
     }
 
     pub(crate) const fn short_label_template(self) -> Option<MetricLabelTemplate> {
-        match self {
-            Self::Static(definition) => definition.short_label,
-            Self::Pattern(definition) => definition.short_label,
-        }
+        self.short_label
     }
 }
 
@@ -175,15 +146,15 @@ pub(crate) const fn static_definition(
     short_label: Option<MetricLabelTemplate>,
     group: MetricGroup,
 ) -> MetricDefinition {
-    MetricDefinition::Static(StaticMetricDefinition {
+    MetricDefinition {
         domain,
-        key,
+        key: MetricKeyDefinition::Static(key),
         value_type,
         namespace,
         label,
         short_label,
         group,
-    })
+    }
 }
 
 pub(crate) const fn pattern_definition(
@@ -195,13 +166,13 @@ pub(crate) const fn pattern_definition(
     short_label: Option<MetricLabelTemplate>,
     group: MetricGroup,
 ) -> MetricDefinition {
-    MetricDefinition::Pattern(PatternMetricDefinition {
+    MetricDefinition {
         domain,
-        pattern,
+        key: MetricKeyDefinition::Pattern(pattern),
         value_type,
         namespace,
         label,
         short_label,
         group,
-    })
+    }
 }

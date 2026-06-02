@@ -8,15 +8,17 @@ pub(super) enum MetricCoercion {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct MetricPathCandidate {
-    pub path: &'static str,
-    pub coercion: MetricCoercion,
+pub(super) enum MetricPathShape {
+    Pointer(&'static str),
+    Template {
+        prefix: &'static str,
+        suffix: &'static str,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct MetricPathTemplateCandidate {
-    pub prefix: &'static str,
-    pub suffix: &'static str,
+pub(super) struct MetricValuePath {
+    pub shape: MetricPathShape,
     pub coercion: MetricCoercion,
 }
 
@@ -29,37 +31,36 @@ pub(super) enum CaptureNormalize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct StaticMetricSourceSpec {
     pub definition: metric_definitions::MetricDefinition,
-    pub paths: &'static [MetricPathCandidate],
+    pub paths: &'static [MetricValuePath],
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) enum DynamicMetricSourceSpec {
+pub(super) struct DynamicMetricSourceSpec {
+    pub definition: metric_definitions::MetricDefinition,
+    pub key_builder: fn(&str) -> String,
+    pub capture_source: MetricCaptureSource,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum MetricCaptureSource {
     FixedCapture {
-        definition: metric_definitions::MetricDefinition,
         capture: &'static str,
-        key_builder: fn(&str) -> String,
-        paths: &'static [MetricPathCandidate],
+        paths: &'static [MetricValuePath],
     },
     ClosedVocabulary {
-        definition: metric_definitions::MetricDefinition,
         captures: &'static [&'static str],
-        key_builder: fn(&str) -> String,
-        path_templates: &'static [MetricPathTemplateCandidate],
+        paths: &'static [MetricValuePath],
     },
     ObjectEntries {
-        definition: metric_definitions::MetricDefinition,
         collection_path: &'static str,
         capture_normalize: CaptureNormalize,
-        key_builder: fn(&str) -> String,
-        value_paths: &'static [MetricPathCandidate],
+        value_paths: &'static [MetricValuePath],
     },
     ArrayEntries {
-        definition: metric_definitions::MetricDefinition,
         collection_path: &'static str,
         capture_path: &'static str,
         capture_normalize: CaptureNormalize,
-        key_builder: fn(&str) -> String,
-        value_paths: &'static [MetricPathCandidate],
+        value_paths: &'static [MetricValuePath],
     },
 }
 
@@ -107,62 +108,76 @@ pub(super) const ACTOR_STATIC_SPECS: &[StaticMetricSourceSpec] = &[
 ];
 
 pub(super) const ACTOR_DYNAMIC_SPECS: &[DynamicMetricSourceSpec] = &[
-    DynamicMetricSourceSpec::ClosedVocabulary {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::ability::MOD,
-        captures: &["str", "dex", "con", "int", "wis", "cha"],
         key_builder: metric_definitions::actor::ability::mod_key,
-        path_templates: &[
-            number_template("/system/abilities/", "/mod"),
-            number_template("/system/abilities/", "/modifier"),
-        ],
+        capture_source: MetricCaptureSource::ClosedVocabulary {
+            captures: &["str", "dex", "con", "int", "wis", "cha"],
+            paths: &[
+                number_template("/system/abilities/", "/mod"),
+                number_template("/system/abilities/", "/modifier"),
+            ],
+        },
     },
-    DynamicMetricSourceSpec::ObjectEntries {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::save::MOD,
-        collection_path: "/system/saves",
-        capture_normalize: CaptureNormalize::SaveKey,
         key_builder: metric_definitions::actor::save::mod_key,
-        value_paths: &[
-            number("/mod"),
-            number("/modifier"),
-            number("/value"),
-            number("/totalModifier"),
-        ],
+        capture_source: MetricCaptureSource::ObjectEntries {
+            collection_path: "/system/saves",
+            capture_normalize: CaptureNormalize::SaveKey,
+            value_paths: &[
+                number("/mod"),
+                number("/modifier"),
+                number("/value"),
+                number("/totalModifier"),
+            ],
+        },
     },
-    DynamicMetricSourceSpec::ObjectEntries {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::skill::MOD,
-        collection_path: "/system/skills",
-        capture_normalize: CaptureNormalize::Slug,
         key_builder: metric_definitions::actor::skill::mod_key,
-        value_paths: &[number("/mod"), number("/modifier"), number("/value")],
+        capture_source: MetricCaptureSource::ObjectEntries {
+            collection_path: "/system/skills",
+            capture_normalize: CaptureNormalize::Slug,
+            value_paths: &[number("/mod"), number("/modifier"), number("/value")],
+        },
     },
-    DynamicMetricSourceSpec::ObjectEntries {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::skill::RANK,
-        collection_path: "/system/skills",
-        capture_normalize: CaptureNormalize::Slug,
         key_builder: metric_definitions::actor::skill::rank_key,
-        value_paths: &[number("/rank")],
+        capture_source: MetricCaptureSource::ObjectEntries {
+            collection_path: "/system/skills",
+            capture_normalize: CaptureNormalize::Slug,
+            value_paths: &[number("/rank")],
+        },
     },
-    DynamicMetricSourceSpec::FixedCapture {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::speed::VALUE,
-        capture: "land",
         key_builder: metric_definitions::actor::speed::value_key,
-        paths: &[number_like("/system/attributes/speed/value")],
+        capture_source: MetricCaptureSource::FixedCapture {
+            capture: "land",
+            paths: &[number_like("/system/attributes/speed/value")],
+        },
     },
-    DynamicMetricSourceSpec::ArrayEntries {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::speed::VALUE,
-        collection_path: "/system/attributes/speed/otherSpeeds",
-        capture_path: "/type",
-        capture_normalize: CaptureNormalize::Slug,
         key_builder: metric_definitions::actor::speed::value_key,
-        value_paths: &[number_like("/value")],
+        capture_source: MetricCaptureSource::ArrayEntries {
+            collection_path: "/system/attributes/speed/otherSpeeds",
+            capture_path: "/type",
+            capture_normalize: CaptureNormalize::Slug,
+            value_paths: &[number_like("/value")],
+        },
     },
-    DynamicMetricSourceSpec::ArrayEntries {
+    DynamicMetricSourceSpec {
         definition: metric_definitions::actor::sense::RANGE,
-        collection_path: "/system/perception/senses",
-        capture_path: "/type",
-        capture_normalize: CaptureNormalize::Slug,
         key_builder: metric_definitions::actor::sense::range_key,
-        value_paths: &[number_like("/range")],
+        capture_source: MetricCaptureSource::ArrayEntries {
+            collection_path: "/system/perception/senses",
+            capture_path: "/type",
+            capture_normalize: CaptureNormalize::Slug,
+            value_paths: &[number_like("/range")],
+        },
     },
 ];
 
@@ -238,34 +253,30 @@ pub(super) const SHIELD_STATIC_SPECS: &[StaticMetricSourceSpec] = &[
     },
 ];
 
-const fn number(path: &'static str) -> MetricPathCandidate {
-    MetricPathCandidate {
-        path,
+const fn number(path: &'static str) -> MetricValuePath {
+    MetricValuePath {
+        shape: MetricPathShape::Pointer(path),
         coercion: MetricCoercion::Number,
     }
 }
 
-const fn number_like(path: &'static str) -> MetricPathCandidate {
-    MetricPathCandidate {
-        path,
+const fn number_like(path: &'static str) -> MetricValuePath {
+    MetricValuePath {
+        shape: MetricPathShape::Pointer(path),
         coercion: MetricCoercion::NumberLike,
     }
 }
 
-const fn damage_die_faces(path: &'static str) -> MetricPathCandidate {
-    MetricPathCandidate {
-        path,
+const fn damage_die_faces(path: &'static str) -> MetricValuePath {
+    MetricValuePath {
+        shape: MetricPathShape::Pointer(path),
         coercion: MetricCoercion::DamageDieFaces,
     }
 }
 
-const fn number_template(
-    prefix: &'static str,
-    suffix: &'static str,
-) -> MetricPathTemplateCandidate {
-    MetricPathTemplateCandidate {
-        prefix,
-        suffix,
+const fn number_template(prefix: &'static str, suffix: &'static str) -> MetricValuePath {
+    MetricValuePath {
+        shape: MetricPathShape::Template { prefix, suffix },
         coercion: MetricCoercion::Number,
     }
 }

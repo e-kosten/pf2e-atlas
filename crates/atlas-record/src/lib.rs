@@ -27,9 +27,8 @@ pub use json_projection::{
 };
 pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
-    MetricKeyPattern, MetricKeySegment, MetricLabelTemplate, MetricVariableVocabulary,
-    PatternMetricDefinition, StaticMetricDefinition, all_definitions, definition_for, is_known_key,
-    label_for_row,
+    MetricKeyDefinition, MetricKeyPattern, MetricKeySegment, MetricLabelTemplate,
+    MetricVariableVocabulary, all_definitions, definition_for, is_known_key, label_for_row,
 };
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,

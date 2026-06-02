@@ -49,8 +49,7 @@ pub(crate) fn format_skill_mods(metrics: &[MetricRow]) -> Option<String> {
     let mut parts = metrics
         .iter()
         .filter_map(|metric| {
-            let skill = metric
-                .definition_match()
+            let skill = and_definition_match(metric)
                 .filter(|matched| *matched.definition == crate::metrics::actor::skill::MOD)
                 .and_then(|matched| {
                     matched
@@ -87,8 +86,7 @@ pub(crate) fn format_speeds(metrics: &[MetricRow]) -> Option<String> {
     let mut parts = metrics
         .iter()
         .filter_map(|metric| {
-            let speed = metric
-                .definition_match()
+            let speed = and_definition_match(metric)
                 .filter(|matched| *matched.definition == crate::metrics::actor::speed::VALUE)
                 .and_then(|matched| {
                     matched
@@ -119,14 +117,8 @@ pub(crate) fn format_stealth(metrics: &[MetricRow]) -> Option<String> {
     }
 }
 
-trait MetricRowDefinitionExt {
-    fn definition_match(&self) -> Option<crate::MetricDefinitionMatch>;
-}
-
-impl MetricRowDefinitionExt for MetricRow {
-    fn definition_match(&self) -> Option<crate::MetricDefinitionMatch> {
-        definition_for(self.domain, &self.key)
-    }
+fn and_definition_match(metric: &MetricRow) -> Option<crate::MetricDefinitionMatch> {
+    definition_for(metric.domain, &metric.key)
 }
 
 pub(crate) fn format_list(values: &[String]) -> Option<String> {
