@@ -1,19 +1,19 @@
 # Rust Rich Source Content Model
 
-Status: proposed
+Status: done
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-02
+Last reviewed: 2026-06-05
 
 ## Problem
 
-The current Rust content model parses Foundry HTML and inline macros into `ContentDocument`. That model is useful for CLI output, FTS, references, and embedding units, but it is intentionally lossy relative to the authored rich content. It drops most HTML-native structure and attributes before any future web surface can use them.
+The pre-migration Rust content model parsed Foundry HTML and inline macros into a lossy `ContentDocument`. That model was useful for CLI output, FTS, references, and embedding units, but it dropped most HTML-native structure and attributes before any future web surface could use them.
 
 PF2e Atlas needs a source-preserving content model that can represent browser-grade HTML structure and Foundry enrichment semantics together, without falling back to raw HTML as the runtime source of truth.
 
 ## Desired Outcome
 
-Design and implement an Atlas-owned `RichDocument` model that becomes the canonical stored representation for authored rich content.
+Design and implement an Atlas-owned `RichDocument` model that becomes the canonical stored representation for authored rich content. This landed in the RichDocument production migration; remaining follow-up work is tracked in narrower backlog items.
 
 The model should:
 
@@ -29,7 +29,7 @@ The model should:
 - The implementation should not leave long-term parallel canonical models for rich text.
 - Derived projections such as FTS rows, reference occurrences, and embedding units should remain build-time artifact outputs.
 - Foundry markup should still be parsed once through one shared content path; embedding and reference extraction must not parse raw markup independently.
-- Architecture docs and ADRs must be updated because this supersedes the current `ContentDocument` canonicality decision.
+- Architecture docs and ADRs must describe `RichDocument` as the canonical authored rich-content model.
 
 ## Related
 

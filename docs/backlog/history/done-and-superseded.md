@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Rust rich source content model](../items/rust-rich-source-content-model.md)
+  The lossy `ContentDocument` storage model has been replaced by canonical `RichDocument` content stored in `record_content`, with projections for CLI presentation, FTS, references, and embedding units. Status: done.
+
 - [Core architecture convergence](./items/core-architecture-convergence.md)
   The long-term non-tag architecture cleanup from the May 2026 codebase architecture review is landed across data/search retrieval, canonical TUI query editing, typed indexing stages, and search-discovery/ontology ownership. Status: done.
 

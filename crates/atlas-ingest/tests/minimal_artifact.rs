@@ -12,6 +12,8 @@ use fixture_sources::{
     write_generated_affliction_fixture_source, write_remaster_fixture_source,
 };
 
+type OccurrenceRow = (String, i64, String, String, String, String, String, String);
+
 #[test]
 fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn std::error::Error>>
 {
@@ -304,7 +306,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
           ],
           "system": {
             "description": {
-              "value": "<p>Use @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal One}, then @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Two}.</p>"
+              "value": "<p>Use @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal One}, then @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Two}. Embed @Embed[Compendium.pf2e.spells.Item.targetSpell01 inline]{Heal Embed}.</p>"
             },
             "details": {
               "publicNotes": "<p>Also see @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Notes}.</p>"
@@ -337,7 +339,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
 
     let connection = Connection::open(&output_path)?;
     let mut statement = connection.prepare(
-        "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text
+        "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text, relation_kind
          FROM reference_occurrences
          WHERE record_key = 'actions:occurrenceAction1'
          ORDER BY content_key, occurrence_ordinal",
@@ -352,50 +354,70 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
                 row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
     assert_eq!(
-        rows,
-        vec![
-            (
-                "description:5c0f512dc5b998cc".to_string(),
-                0,
-                "spells:targetSpell01".to_string(),
-                "description".to_string(),
-                "public".to_string(),
-                "Heal One".to_string(),
-                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
-            ),
-            (
-                "description:5c0f512dc5b998cc".to_string(),
-                1,
-                "spells:targetSpell01".to_string(),
-                "description".to_string(),
-                "public".to_string(),
-                "Heal Two".to_string(),
-                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
-            ),
-            (
-                "embedded_item_description:501a5e3dbbe444a0".to_string(),
-                0,
-                "spells:targetSpell01".to_string(),
-                "embedded_item_description".to_string(),
-                "public".to_string(),
-                "Heal Embedded".to_string(),
-                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
-            ),
-            (
-                "public_notes:77a41753a3a5a2d7".to_string(),
-                0,
-                "spells:targetSpell01".to_string(),
-                "public_notes".to_string(),
-                "public".to_string(),
-                "Heal Notes".to_string(),
-                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
-            ),
-        ]
+        rows.len(),
+        5,
+        "unexpected reference occurrence rows: {rows:?}"
+    );
+    assert_occurrence(
+        &rows,
+        "description:",
+        0,
+        "spells:targetSpell01",
+        "description",
+        "public",
+        "Heal One",
+        "Compendium.pf2e.spells.Item.targetSpell01",
+        "reference",
+    );
+    assert_occurrence(
+        &rows,
+        "description:",
+        1,
+        "spells:targetSpell01",
+        "description",
+        "public",
+        "Heal Two",
+        "Compendium.pf2e.spells.Item.targetSpell01",
+        "reference",
+    );
+    assert_occurrence(
+        &rows,
+        "description:",
+        2,
+        "spells:targetSpell01",
+        "description",
+        "public",
+        "Heal Embed",
+        "Compendium.pf2e.spells.Item.targetSpell01",
+        "embed",
+    );
+    assert_occurrence(
+        &rows,
+        "embedded_item_description:",
+        0,
+        "spells:targetSpell01",
+        "embedded_item_description",
+        "public",
+        "Heal Embedded",
+        "Compendium.pf2e.spells.Item.targetSpell01",
+        "reference",
+    );
+    assert_occurrence(
+        &rows,
+        "public_notes:",
+        0,
+        "spells:targetSpell01",
+        "public_notes",
+        "public",
+        "Heal Notes",
+        "Compendium.pf2e.spells.Item.targetSpell01",
+        "reference",
     );
 
     drop(statement);
@@ -412,6 +434,44 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
     drop(connection);
     fs::remove_dir_all(root)?;
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn assert_occurrence(
+    rows: &[OccurrenceRow],
+    content_key_prefix: &str,
+    occurrence_ordinal: i64,
+    target_record_key: &str,
+    source_kind: &str,
+    visibility: &str,
+    display_text: &str,
+    reference_text: &str,
+    relation_kind: &str,
+) {
+    assert!(
+        rows.iter().any(
+            |(
+                content_key,
+                row_ordinal,
+                row_target,
+                row_source_kind,
+                row_visibility,
+                row_display,
+                row_reference,
+                row_relation,
+            )| {
+                content_key.starts_with(content_key_prefix)
+                    && *row_ordinal == occurrence_ordinal
+                    && row_target == target_record_key
+                    && row_source_kind == source_kind
+                    && row_visibility == visibility
+                    && row_display == display_text
+                    && row_reference == reference_text
+                    && row_relation == relation_kind
+            },
+        ),
+        "missing occurrence {source_kind}:{occurrence_ordinal} {display_text} ({relation_kind}); rows: {rows:?}"
+    );
 }
 
 #[test]

@@ -4,16 +4,17 @@ Status: deferred
 
 ## Context
 
-Phase 5 of the Rust CLI runtime migration projects `ContentDocument` blocks to markdown in record JSON output. That keeps the first durable record DTO simple while preserving the canonical rich content model internally.
+The Rust CLI now exposes structured presentation-content blocks derived from canonical `RichDocument` values and renders terminal output directly from that DTO. Future consumers may still need additional output formats tailored to automation, source auditing, or web presentation.
 
 There are plausible future consumers for more than one content representation:
 
-- structured `ContentDocument` JSON owned by the Rust content model
+- structured `RichDocument` JSON for source-preserving audit/debug use
+- structured presentation-content JSON for user-facing record output
 - original Foundry rich text or source document fragments
 - plain text projections for simple terminal and shell use
 
 ## Desired Outcome
 
-Decide which non-markdown content formats the Rust CLI should expose, how callers select them, and whether the output should represent internal `ContentDocument` structure or preserve Foundry-origin format where available.
+Decide which non-default content formats the Rust CLI should expose, how callers select them, and whether optional output should represent canonical `RichDocument` structure, presentation content, plain text, or Foundry-origin format where available.
 
 The default record output should remain stable while adding any optional content format.
