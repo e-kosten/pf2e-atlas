@@ -1,6 +1,5 @@
 use atlas_domain::{RecordKey, RecordKind};
-
-use crate::ContentDocument;
+use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordPresentationDocument {
@@ -82,8 +81,80 @@ impl PresentationSection {
 pub enum PresentationBlock {
     FactList(Vec<PresentationFact>),
     Prose(PresentationText),
-    Content(ContentDocument),
+    Content(PresentationContent),
     Relationships(Vec<PresentationRelationship>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct PresentationContent {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<PresentationContentBlock>,
+}
+
+impl PresentationContent {
+    pub fn new(blocks: Vec<PresentationContentBlock>) -> Self {
+        Self { blocks }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.blocks.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PresentationContentBlock {
+    Heading {
+        level: u8,
+        text: String,
+    },
+    Paragraph {
+        spans: Vec<PresentationInline>,
+    },
+    List {
+        ordered: bool,
+        items: Vec<PresentationListItem>,
+    },
+    Table {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        caption: Option<String>,
+        rows: Vec<PresentationTableRow>,
+    },
+    Rule,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PresentationListItem {
+    pub blocks: Vec<PresentationContentBlock>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PresentationTableRow {
+    pub cells: Vec<PresentationContent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PresentationInline {
+    Text {
+        text: String,
+    },
+    Strong {
+        spans: Vec<PresentationInline>,
+    },
+    Emphasis {
+        spans: Vec<PresentationInline>,
+    },
+    Code {
+        text: String,
+    },
+    Reference {
+        label: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_key: Option<RecordKey>,
+        embedded: bool,
+    },
+    LineBreak,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

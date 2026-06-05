@@ -1,4 +1,4 @@
-use atlas_record::{ContentDocument, ContentSourceKind, RecordPresentationDocument};
+use atlas_record::{ContentSourceKind, RecordPresentationDocument, RichDocument};
 
 use crate::document_renderer::EmbeddingInputChunk;
 use crate::unit_kind::EmbeddingUnitKind;
@@ -16,7 +16,7 @@ pub struct DocumentEmbeddingSource {
 pub struct DocumentEmbeddingContentSource {
     pub source_kind: ContentSourceKind,
     pub label: Option<String>,
-    pub document: ContentDocument,
+    pub document: RichDocument,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -16,7 +16,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the product-facing hooks used by ingest, runtime, search, and CLI consumers; artifact, read, write, and SQLite implementation details stay behind internal module facades.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
-- `atlas-record` owns normalized records, `ContentDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
+- `atlas-record` owns normalized records, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
@@ -75,7 +75,7 @@ Derived tags are a planned Rust redesign. The retained model should be defined a
 ## Data Flow
 
 1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
-2. Ingest normalizes source records, parses rich content into `ContentDocument`, extracts references/traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
+2. Ingest normalizes source records, parses rich content into `RichDocument`, resolves rich-content references, extracts traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
 3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
 4. `atlas-runtime` resolves source, embedding cache, and artifact paths for setup and query commands.
 5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.

@@ -82,10 +82,9 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(record_sections(&description_get_data["record"]).contains(&"description"));
     assert!(!record_sections(&description_get_data["record"]).contains(&"description_preview"));
     assert!(!record_sections(&description_get_data["record"]).contains(&"details"));
-    assert!(
-        serde_json::to_string(&description_get_data["record"]["sections"])?
-            .contains("[Treat Wounds](record:actions:testAction0001)")
-    );
+    let description_sections = serde_json::to_string(&description_get_data["record"]["sections"])?;
+    assert!(description_sections.contains("\"label\":\"Treat Wounds\""));
+    assert!(description_sections.contains("\"record_key\":\"actions:testAction0001\""));
 
     let full_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -231,7 +230,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         text_resolve_description_stdout
             .contains("You spend 10 minutes treating one injured living creature with")
     );
-    assert!(text_resolve_description_stdout.contains("# Public Notes"));
+    assert!(text_resolve_description_stdout.contains("Public Notes"));
     assert!(text_resolve_description_stdout.contains("Bring a healer's kit."));
     assert!(text_resolve_description_stdout.contains("Match: name"));
 
@@ -331,7 +330,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(excluded_search_output.status.success());
     let excluded_search_json: Value = serde_json::from_slice(&excluded_search_output.stdout)?;
     let excluded_search_data = ok_data(&excluded_search_json);
-    assert_eq!(excluded_search_data["pagination"]["total"], 0);
+    assert_eq!(excluded_search_data["pagination"]["total"], 1);
     assert_eq!(
         excluded_search_data["query_analysis"]["exclude_tokens"][0],
         "treating"

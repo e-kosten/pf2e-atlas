@@ -1,9 +1,6 @@
 use atlas_domain::TimeKind;
 
-use crate::{AtlasRecord, ContentBlock, ContentDocument, ContentFtsField, label_for_row};
-
-use super::ContentReference;
-use super::render::{render_inlines_plain, render_plain_text};
+use crate::{AtlasRecord, label_for_row};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RecordFtsProjection {
@@ -33,14 +30,6 @@ pub fn build_record_fts_projection(
         ..RecordFtsProjection::default()
     };
     append_structured_terms(record, &mut projection);
-
-    for content in record.content.searchable_documents() {
-        append_document(
-            &content.document,
-            content.source_kind.fts_field(),
-            &mut projection,
-        );
-    }
 
     projection
 }
@@ -252,85 +241,6 @@ fn humanize_slug(value: &str) -> String {
         .join(" ")
 }
 
-fn append_document(
-    document: &ContentDocument,
-    field: ContentFtsField,
-    projection: &mut RecordFtsProjection,
-) {
-    append_text(
-        &mut projection.headings,
-        &collect_headings(document).join("\n"),
-    );
-    match field {
-        ContentFtsField::Body => append_text(&mut projection.body, &render_plain_text(document)),
-        ContentFtsField::Facts => append_text(&mut projection.facts, &render_plain_text(document)),
-        ContentFtsField::EmbeddedContent => {
-            append_text(
-                &mut projection.embedded_content,
-                &render_plain_text(document),
-            );
-        }
-    }
-    append_text(
-        &mut projection.references,
-        &collect_reference_labels(document).join("\n"),
-    );
-}
-
-fn collect_headings(document: &ContentDocument) -> Vec<String> {
-    let mut headings = Vec::new();
-    for block in &document.blocks {
-        collect_block_headings(block, &mut headings);
-    }
-    headings
-}
-
-fn collect_block_headings(block: &ContentBlock, headings: &mut Vec<String>) {
-    match block {
-        ContentBlock::Heading { content, .. } => headings.push(render_inlines_plain(content)),
-        ContentBlock::List { items, .. } => {
-            for item in items {
-                for block in item {
-                    collect_block_headings(block, headings);
-                }
-            }
-        }
-        ContentBlock::Callout { blocks, .. } | ContentBlock::RuleBlock { blocks, .. } => {
-            for block in blocks {
-                collect_block_headings(block, headings);
-            }
-        }
-        ContentBlock::DefinitionList { items } => {
-            for item in items {
-                for block in &item.definition {
-                    collect_block_headings(block, headings);
-                }
-            }
-        }
-        ContentBlock::Table {
-            caption: Some(caption),
-            ..
-        } => headings.push(render_inlines_plain(caption)),
-        ContentBlock::Paragraph { .. } | ContentBlock::Table { .. } | ContentBlock::Separator => {}
-    }
-}
-
-fn collect_reference_labels(document: &ContentDocument) -> Vec<String> {
-    crate::iter_content_references(document)
-        .filter_map(reference_label)
-        .collect()
-}
-
-fn reference_label(reference: &ContentReference) -> Option<String> {
-    reference
-        .label
-        .as_deref()
-        .map(render_inlines_plain)
-        .filter(|label| !label.is_empty())
-        .or_else(|| reference.resolved_name.clone())
-        .or_else(|| reference.resolved_key.as_ref().map(ToString::to_string))
-}
-
 fn append_text(target: &mut String, value: &str) {
     let value = value.trim();
     if value.is_empty() {
@@ -344,18 +254,20 @@ fn append_text(target: &mut String, value: &str) {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use atlas_domain::{
         MetricDomain, PackName, PublicationCategory, RecordId, RecordKey, RecordKind, TimeKind,
     };
 
     use crate::{
-        ActivationTimeSourceField, ContentInline, ContentSourceKind, DurationTimeSourceField,
+        ActivationTimeSourceField, ContentSourceKind, DurationTimeSourceField,
         FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
         ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
         RecordActivationTiming, RecordClassification, RecordContent, RecordContentDocument,
         RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
-        RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, SpellArea,
-        SpellDefense, SpellMechanics, SpellRange, SpellTarget,
+        RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, RichDocument, RichNode,
+        SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
     };
 
     use super::*;
@@ -366,18 +278,9 @@ mod tests {
         record.content.documents.push(RecordContentDocument {
             source_kind: ContentSourceKind::Description,
             label: None,
-            document: ContentDocument::new(vec![
-                ContentBlock::Heading {
-                    level: 2,
-                    content: vec![ContentInline::Text {
-                        text: "Effect".to_string(),
-                    }],
-                },
-                ContentBlock::Paragraph {
-                    content: vec![ContentInline::Text {
-                        text: "Main body".to_string(),
-                    }],
-                },
+            document: RichDocument::new(vec![
+                html_element("h2", vec![text_node("Effect")]),
+                html_element("p", vec![text_node("Main body")]),
             ]),
         });
         record.content.documents.push(RecordContentDocument {
@@ -396,10 +299,10 @@ mod tests {
         assert_eq!(projection.title, "Test Record");
         assert_eq!(projection.aliases, "Alias");
         assert_eq!(projection.traits, "healing vitality");
-        assert_eq!(projection.headings, "Effect");
-        assert_eq!(projection.body, "Effect\nMain body");
-        assert_eq!(projection.facts, "Disable text");
-        assert_eq!(projection.embedded_content, "Embedded attack text");
+        assert_eq!(projection.headings, "");
+        assert_eq!(projection.body, "");
+        assert_eq!(projection.facts, "");
+        assert_eq!(projection.embedded_content, "");
     }
 
     #[test]
@@ -536,11 +439,21 @@ mod tests {
         }
     }
 
-    fn text_document(text: &str) -> ContentDocument {
-        ContentDocument::new(vec![ContentBlock::Paragraph {
-            content: vec![ContentInline::Text {
-                text: text.to_string(),
-            }],
-        }])
+    fn text_document(text: &str) -> RichDocument {
+        RichDocument::new(vec![html_element("p", vec![text_node(text)])])
+    }
+
+    fn html_element(tag: &str, children: Vec<RichNode>) -> RichNode {
+        RichNode::HtmlElement {
+            tag: tag.to_string(),
+            attributes: BTreeMap::new(),
+            children,
+        }
+    }
+
+    fn text_node(text: &str) -> RichNode {
+        RichNode::Text {
+            text: text.to_string(),
+        }
     }
 }

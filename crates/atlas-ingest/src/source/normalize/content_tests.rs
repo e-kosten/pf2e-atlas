@@ -1,4 +1,4 @@
-use atlas_record::{ContentBlock, ContentInline, ContentReferenceLocator, render_plain_text};
+use atlas_record::{FoundryLinkMacroKind, RichLinkTarget, RichNode, render_plain_text};
 
 use super::parse_foundry_content;
 
@@ -13,19 +13,27 @@ fn parses_headings_strong_text_and_uuid_references() {
         render_plain_text(&parsed.document),
         "Effect\nStage 1 Sickened 1"
     );
-    let ContentBlock::Paragraph { content } = &parsed.document.blocks[1] else {
-        panic!("second block should be paragraph");
+    let RichNode::HtmlElement { tag, children, .. } = &parsed.document.nodes[1] else {
+        panic!("second node should be paragraph");
     };
-    assert!(matches!(content[0], ContentInline::Strong { .. }));
-    let ContentInline::Reference { reference } = &content[2] else {
-        panic!("third inline should be reference");
+    assert_eq!(tag, "p");
+    assert!(matches!(
+        children[0],
+        RichNode::HtmlElement { ref tag, .. } if tag == "strong"
+    ));
+    let RichNode::FoundryLink { link } = &children[2] else {
+        panic!("third child should be reference link");
     };
+    assert_eq!(link.source.macro_kind, FoundryLinkMacroKind::Uuid);
     assert_eq!(
-        reference.locator,
-        ContentReferenceLocator::FoundryUuid {
-            raw_target: "Compendium.pf2e.conditionitems.Item.Sickened".to_string()
-        }
+        link.source.authored_target,
+        "Compendium.pf2e.conditionitems.Item.Sickened"
     );
+    assert!(matches!(
+        &link.target,
+        RichLinkTarget::Unresolved { target, .. }
+            if target == "Compendium.pf2e.conditionitems.Item.Sickened"
+    ));
 }
 
 #[test]
@@ -35,12 +43,32 @@ fn parses_lists_tables_rolls_and_macro_signals() {
          <table><caption>Treasure</caption><tr><th>Level</th></tr><tr><td>1</td></tr></table>",
     );
 
-    assert_eq!(parsed.document.blocks.len(), 2);
+    assert_eq!(parsed.document.nodes.len(), 2);
     assert_eq!(
         render_plain_text(&parsed.document),
-        "fortitude 2d6\nTreasure\nLevel\n1"
+        "fortitude 2d6\nTreasure\nLevel |\n1 |"
     );
     assert!(parsed.diagnostics.dropped_macros.is_empty());
+}
+
+#[test]
+fn uuid_targets_can_contain_commas() {
+    let parsed =
+        parse_foundry_content("@UUID[Compendium.pf2e.actionspf2e.Item.Strike, Breathe, Rend]");
+
+    let RichNode::FoundryLink { link } = &parsed.document.nodes[0] else {
+        panic!("first node should be reference link");
+    };
+    assert_eq!(
+        link.source.authored_target,
+        "Compendium.pf2e.actionspf2e.Item.Strike, Breathe, Rend"
+    );
+    assert!(matches!(
+        &link.target,
+        RichLinkTarget::Unresolved { target, fallback_label }
+            if target == "Compendium.pf2e.actionspf2e.Item.Strike, Breathe, Rend"
+                && fallback_label == "Strike, Breathe, Rend"
+    ));
 }
 
 #[test]

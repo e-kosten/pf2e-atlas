@@ -1,12 +1,11 @@
 use crate::schema::records;
 use atlas_domain::RecordKey;
 use atlas_record::{
-    ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
-    FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, RecordActivationTiming,
-    RecordClassification, RecordContent, RecordContentDocument, RecordDurationTiming,
-    RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
-    RecordTaxonomy, RecordTiming, RecordVariantMembership, RecordVisibility,
-    RecordVisibilityReason, VariantSource,
+    ActivationTimeSourceField, AtlasRecord, DurationTimeSourceField, FoundryDocumentType,
+    FoundryRecordInfo, FoundryRecordType, RecordActivationTiming, RecordClassification,
+    RecordContent, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
+    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership,
+    RecordVisibility, RecordVisibilityReason, VariantSource,
 };
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -14,8 +13,8 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 
 use super::RecordLoadError;
 use super::parse::{
-    content_document, json_string_array, normalized_time, parse_publication_family, parse_rarity,
-    parse_record_key, parse_record_kind, parse_variant_source,
+    json_string_array, normalized_time, parse_publication_family, parse_rarity, parse_record_key,
+    parse_record_kind, parse_variant_source,
 };
 
 pub(super) fn read_record_rows(
@@ -72,8 +71,6 @@ struct RecordRow {
     duration_text: Option<String>,
     publication_title: Option<String>,
     publication_remaster: bool,
-    description_json: Option<String>,
-    blurb_json: Option<String>,
     publication_family: String,
     folder_id: Option<String>,
     taxonomy_families_json: String,
@@ -118,32 +115,6 @@ fn record_from_row(row: RecordRow) -> Result<AtlasRecord, RecordLoadError> {
         time,
         source_field: DurationTimeSourceField::DurationValue,
     });
-    let mut documents = Vec::new();
-    if let Some(document) = row
-        .description_json
-        .as_deref()
-        .map(|value| content_document("records.description_json", value))
-        .transpose()?
-    {
-        documents.push(RecordContentDocument {
-            source_kind: ContentSourceKind::Description,
-            label: None,
-            document,
-        });
-    }
-    if let Some(document) = row
-        .blurb_json
-        .as_deref()
-        .map(|value| content_document("records.blurb_json", value))
-        .transpose()?
-    {
-        documents.push(RecordContentDocument {
-            source_kind: ContentSourceKind::Blurb,
-            label: None,
-            document,
-        });
-    }
-
     Ok(AtlasRecord {
         identity: RecordIdentity {
             key: parse_record_key(&row.record_key)?,
@@ -187,7 +158,9 @@ fn record_from_row(row: RecordRow) -> Result<AtlasRecord, RecordLoadError> {
             duration,
         },
         mechanics: RecordMechanics::default(),
-        content: RecordContent { documents },
+        content: RecordContent {
+            documents: Vec::new(),
+        },
         variant: variant_group,
         visibility: if row.is_default_visible {
             RecordVisibility::visible(RecordVisibilityReason::SourceRecord)

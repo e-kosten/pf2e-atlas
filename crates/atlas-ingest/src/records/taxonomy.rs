@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
-use atlas_record::{ContentReferenceLocator, iter_content_references};
+use atlas_record::{RichDocument, iter_foundry_links};
 
 use crate::diagnostics::FolderDefinition;
 use crate::diagnostics::IngestDiagnostics;
@@ -70,22 +70,10 @@ fn glossary_reference_targets(loaded: &LoadedSourceRecord) -> Vec<(String, Strin
     targets
 }
 
-fn collect_glossary_targets(
-    document: &atlas_record::ContentDocument,
-    targets: &mut Vec<(String, String)>,
-) {
-    for reference in iter_content_references(document) {
-        match &reference.locator {
-            ContentReferenceLocator::FoundryUuid { raw_target }
-            | ContentReferenceLocator::Compendium { raw_target } => {
-                if let Some(target) = reference_pack_and_locator(raw_target) {
-                    targets.push(target);
-                }
-            }
-            ContentReferenceLocator::PackAndLocator { pack_name, locator } => {
-                targets.push((pack_name.clone(), locator.clone()));
-            }
-            ContentReferenceLocator::Unknown { .. } => {}
+fn collect_glossary_targets(document: &RichDocument, targets: &mut Vec<(String, String)>) {
+    for link in iter_foundry_links(document) {
+        if let Some(target) = reference_pack_and_locator(&link.source.authored_target) {
+            targets.push(target);
         }
     }
 }

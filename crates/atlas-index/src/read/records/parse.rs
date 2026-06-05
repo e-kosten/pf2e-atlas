@@ -3,8 +3,8 @@ use atlas_domain::{
     RemasterLinkSource, TimeKind, TimeUnit,
 };
 use atlas_record::{
-    AliasSource, ContentDocument, ContentSourceKind, ContentVisibility, NormalizedTime,
-    VariantSource,
+    AliasSource, ContentSourceKind, ContentVisibility, NormalizedTime, ReferenceRelationKind,
+    RichDocument, VariantSource,
 };
 
 use super::RecordLoadError;
@@ -41,9 +41,9 @@ pub(super) fn json_string_array(
 pub(super) fn content_document(
     name: &'static str,
     value: &str,
-) -> Result<ContentDocument, RecordLoadError> {
+) -> Result<RichDocument, RecordLoadError> {
     serde_json::from_str(value).map_err(|error| {
-        RecordLoadError::InvalidData(format!("{name} must be a content document JSON: {error}"))
+        RecordLoadError::InvalidData(format!("{name} must be a rich document JSON: {error}"))
     })
 }
 
@@ -90,6 +90,13 @@ pub(super) fn parse_content_source_kind(value: &str) -> Result<ContentSourceKind
 pub(super) fn parse_content_visibility(value: &str) -> Result<ContentVisibility, RecordLoadError> {
     ContentVisibility::from_canonical(value)
         .ok_or_else(|| invalid_value("content.visibility", value.to_string()))
+}
+
+pub(super) fn parse_reference_relation_kind(
+    value: &str,
+) -> Result<ReferenceRelationKind, RecordLoadError> {
+    ReferenceRelationKind::from_canonical(value)
+        .ok_or_else(|| invalid_value("reference.relation_kind", value.to_string()))
 }
 
 pub(super) fn parse_remaster_link_source(

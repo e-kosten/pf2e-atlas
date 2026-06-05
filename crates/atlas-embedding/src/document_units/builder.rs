@@ -1,5 +1,5 @@
 use atlas_record::{
-    ContentBlock, ContentDocument, ContentSectionNode, ContentSectionOrigin, ContentSourceKind,
+    ContentSectionNode, ContentSectionOrigin, ContentSourceKind, RichDocument, RichNode,
     build_content_section_tree, render_plain_text,
 };
 
@@ -153,7 +153,7 @@ struct EmbeddingContentGroup {
 struct ContentTreeEmbeddingSection {
     kind: EmbeddingUnitKind,
     label: String,
-    blocks: Vec<ContentBlock>,
+    nodes: Vec<RichNode>,
 }
 
 fn embedding_content_groups(
@@ -178,7 +178,7 @@ fn embedding_content_groups_for_source(
         sections.push(ContentTreeEmbeddingSection {
             kind: EmbeddingUnitKind::HeadingSection,
             label,
-            blocks: content_source.document.blocks.clone(),
+            nodes: content_source.document.nodes.clone(),
         });
     }
 
@@ -209,7 +209,7 @@ fn content_tree_embedding_sections(
     root: &ContentSectionNode,
 ) -> Vec<ContentTreeEmbeddingSection> {
     let mut sections = Vec::new();
-    let leading_body = render_plain_text(&ContentDocument::new(root.source_blocks.clone()));
+    let leading_body = render_plain_text(&RichDocument::new(root.source_nodes.clone()));
     if !leading_body.trim().is_empty() {
         sections.push(ContentTreeEmbeddingSection {
             kind: EmbeddingUnitKind::HeadingSection,
@@ -217,7 +217,7 @@ fn content_tree_embedding_sections(
                 .label
                 .clone()
                 .unwrap_or_else(|| content_source.source_kind.as_str().to_string()),
-            blocks: root.source_blocks.clone(),
+            nodes: root.source_nodes.clone(),
         });
     }
     collect_content_tree_embedding_sections(root, &mut sections);
@@ -236,7 +236,7 @@ fn collect_content_tree_embedding_sections(
         sections.push(ContentTreeEmbeddingSection {
             kind: EmbeddingUnitKind::HeadingSection,
             label: label.to_string(),
-            blocks: node.source_blocks.clone(),
+            nodes: node.source_nodes.clone(),
         });
     }
     for child in &node.children {
@@ -245,7 +245,7 @@ fn collect_content_tree_embedding_sections(
 }
 
 fn render_content_section_embedding_body(node: &ContentSectionNode) -> String {
-    render_plain_text(&ContentDocument::new(node.source_blocks.clone()))
+    render_plain_text(&RichDocument::new(node.source_nodes.clone()))
 }
 
 fn content_group_chunks(
@@ -262,8 +262,8 @@ fn content_group_chunks(
         .with_source_kind(source_kind)
         .with_group_key(group_key),
     );
-    for block in &section.blocks {
-        let text = render_plain_text(&ContentDocument::new(vec![block.clone()]));
+    for node in &section.nodes {
+        let text = render_plain_text(&RichDocument::new(vec![node.clone()]));
         if text.trim().is_empty() {
             continue;
         }

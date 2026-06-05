@@ -1,223 +1,102 @@
-use super::{ContentBlock, ContentDocument, ContentInline, ContentReference};
+use super::{FoundryLink, FoundryNode, RichDocument, RichNode};
 
-pub type ContentReferenceIter<'a> = Box<dyn Iterator<Item = &'a ContentReference> + 'a>;
+pub type FoundryLinkIter<'a> = Box<dyn Iterator<Item = &'a FoundryLink> + 'a>;
 
-pub fn iter_content_references(document: &ContentDocument) -> ContentReferenceIter<'_> {
-    Box::new(document.blocks.iter().flat_map(iter_block_references))
+pub fn iter_foundry_links(document: &RichDocument) -> FoundryLinkIter<'_> {
+    Box::new(document.nodes.iter().flat_map(iter_node_links))
 }
 
-pub fn visit_content_references_mut(
-    document: &mut ContentDocument,
-    mut visitor: impl FnMut(&mut ContentReference),
+pub fn visit_foundry_links_mut(
+    document: &mut RichDocument,
+    mut visitor: impl FnMut(&mut FoundryLink),
 ) {
-    for block in &mut document.blocks {
-        visit_block_references_mut(block, &mut visitor);
+    for node in &mut document.nodes {
+        visit_node_links_mut(node, &mut visitor);
     }
 }
 
-fn iter_block_references(block: &ContentBlock) -> ContentReferenceIter<'_> {
-    match block {
-        ContentBlock::Heading { content, .. } | ContentBlock::Paragraph { content } => {
-            Box::new(iter_inline_references(content))
+fn iter_node_links(node: &RichNode) -> FoundryLinkIter<'_> {
+    match node {
+        RichNode::Text { .. } => Box::new(std::iter::empty()),
+        RichNode::HtmlElement { children, .. } => {
+            Box::new(children.iter().flat_map(iter_node_links))
         }
-        ContentBlock::List { items, .. } => Box::new(
-            items
-                .iter()
-                .flat_map(|item| item.iter().flat_map(iter_block_references)),
-        ),
-        ContentBlock::Table {
-            caption,
-            headers,
-            rows,
-        } => Box::new(
-            caption
-                .iter()
-                .flat_map(|caption| iter_inline_references(caption))
-                .chain(headers.iter().flat_map(|cell| iter_inline_references(cell)))
-                .chain(
-                    rows.iter()
-                        .flat_map(|row| row.iter().flat_map(|cell| iter_inline_references(cell))),
-                ),
-        ),
-        ContentBlock::Callout { title, blocks } | ContentBlock::RuleBlock { title, blocks } => {
-            Box::new(
-                title
+        RichNode::FoundryLink { link } => Box::new(
+            std::iter::once(link).chain(
+                link.label
                     .iter()
-                    .flat_map(|title| iter_inline_references(title))
-                    .chain(blocks.iter().flat_map(iter_block_references)),
-            )
-        }
-        ContentBlock::DefinitionList { items } => Box::new(items.iter().flat_map(|item| {
-            iter_inline_references(&item.term)
-                .chain(item.definition.iter().flat_map(iter_block_references))
-        })),
-        ContentBlock::Separator => Box::new(std::iter::empty()),
-    }
-}
-
-fn iter_inline_references(
-    inlines: &[ContentInline],
-) -> impl Iterator<Item = &ContentReference> + '_ {
-    inlines.iter().flat_map(iter_inline_reference)
-}
-
-fn iter_inline_reference(inline: &ContentInline) -> ContentReferenceIter<'_> {
-    match inline {
-        ContentInline::Reference { reference } => Box::new(
-            std::iter::once(reference).chain(
-                reference
-                    .label
-                    .iter()
-                    .flat_map(|label| iter_inline_references(label)),
+                    .flat_map(|label| label.iter().flat_map(iter_node_links)),
             ),
         ),
-        ContentInline::Strong { content } | ContentInline::Emphasis { content } => {
-            Box::new(iter_inline_references(content))
-        }
-        ContentInline::Text { .. }
-        | ContentInline::Code { .. }
-        | ContentInline::Break
-        | ContentInline::Roll { .. }
-        | ContentInline::Template { .. }
-        | ContentInline::Macro { .. }
-        | ContentInline::ActionGlyph { .. }
-        | ContentInline::Icon { .. } => Box::new(std::iter::empty()),
+        RichNode::Foundry { node } => iter_foundry_node_links(node),
     }
 }
 
-fn visit_block_references_mut(
-    block: &mut ContentBlock,
-    visitor: &mut impl FnMut(&mut ContentReference),
+fn iter_foundry_node_links(node: &FoundryNode) -> FoundryLinkIter<'_> {
+    match node {
+        FoundryNode::Check { label, .. }
+        | FoundryNode::Damage { label, .. }
+        | FoundryNode::InlineCommand { label, .. }
+        | FoundryNode::Template { label, .. }
+        | FoundryNode::Trait { label, .. }
+        | FoundryNode::UnknownFoundry { label, .. } => Box::new(
+            label
+                .iter()
+                .flat_map(|label| label.iter().flat_map(iter_node_links)),
+        ),
+        FoundryNode::Localize { value, .. } => Box::new(
+            value
+                .iter()
+                .flat_map(|value| value.iter().flat_map(iter_node_links)),
+        ),
+        FoundryNode::ActionGlyph { .. } => Box::new(std::iter::empty()),
+    }
+}
+
+fn visit_node_links_mut(node: &mut RichNode, visitor: &mut impl FnMut(&mut FoundryLink)) {
+    match node {
+        RichNode::Text { .. } => {}
+        RichNode::HtmlElement { children, .. } => {
+            for child in children {
+                visit_node_links_mut(child, visitor);
+            }
+        }
+        RichNode::FoundryLink { link } => {
+            visitor(link);
+            if let Some(label) = &mut link.label {
+                for node in label {
+                    visit_node_links_mut(node, visitor);
+                }
+            }
+        }
+        RichNode::Foundry { node } => visit_foundry_node_links_mut(node, visitor),
+    }
+}
+
+fn visit_foundry_node_links_mut(
+    node: &mut FoundryNode,
+    visitor: &mut impl FnMut(&mut FoundryLink),
 ) {
-    match block {
-        ContentBlock::Heading { content, .. } | ContentBlock::Paragraph { content } => {
-            visit_inline_references_mut(content, visitor);
-        }
-        ContentBlock::List { items, .. } => {
-            for item in items {
-                for block in item {
-                    visit_block_references_mut(block, visitor);
+    match node {
+        FoundryNode::Check { label, .. }
+        | FoundryNode::Damage { label, .. }
+        | FoundryNode::InlineCommand { label, .. }
+        | FoundryNode::Template { label, .. }
+        | FoundryNode::Trait { label, .. }
+        | FoundryNode::UnknownFoundry { label, .. } => {
+            if let Some(label) = label {
+                for node in label {
+                    visit_node_links_mut(node, visitor);
                 }
             }
         }
-        ContentBlock::Table {
-            caption,
-            headers,
-            rows,
-        } => {
-            if let Some(caption) = caption {
-                visit_inline_references_mut(caption, visitor);
-            }
-            for header in headers {
-                visit_inline_references_mut(header, visitor);
-            }
-            for row in rows {
-                for cell in row {
-                    visit_inline_references_mut(cell, visitor);
+        FoundryNode::Localize { value, .. } => {
+            if let Some(value) = value {
+                for node in value {
+                    visit_node_links_mut(node, visitor);
                 }
             }
         }
-        ContentBlock::Callout { title, blocks } | ContentBlock::RuleBlock { title, blocks } => {
-            if let Some(title) = title {
-                visit_inline_references_mut(title, visitor);
-            }
-            for block in blocks {
-                visit_block_references_mut(block, visitor);
-            }
-        }
-        ContentBlock::DefinitionList { items } => {
-            for item in items {
-                visit_inline_references_mut(&mut item.term, visitor);
-                for block in &mut item.definition {
-                    visit_block_references_mut(block, visitor);
-                }
-            }
-        }
-        ContentBlock::Separator => {}
-    }
-}
-
-fn visit_inline_references_mut(
-    inlines: &mut [ContentInline],
-    visitor: &mut impl FnMut(&mut ContentReference),
-) {
-    for inline in inlines {
-        match inline {
-            ContentInline::Reference { reference } => {
-                visitor(reference);
-                if let Some(label) = &mut reference.label {
-                    visit_inline_references_mut(label, visitor);
-                }
-            }
-            ContentInline::Strong { content } | ContentInline::Emphasis { content } => {
-                visit_inline_references_mut(content, visitor);
-            }
-            ContentInline::Text { .. }
-            | ContentInline::Code { .. }
-            | ContentInline::Break
-            | ContentInline::Roll { .. }
-            | ContentInline::Template { .. }
-            | ContentInline::Macro { .. }
-            | ContentInline::ActionGlyph { .. }
-            | ContentInline::Icon { .. } => {}
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::content::{ContentReferenceLocator, ContentSourceKind, ContentVisibility};
-
-    #[test]
-    fn finds_references_inside_nested_blocks_and_inline_labels() {
-        let document = ContentDocument::new(vec![ContentBlock::DefinitionList {
-            items: vec![super::super::ContentDefinitionItem {
-                term: vec![ContentInline::Reference {
-                    reference: ContentReference {
-                        label: None,
-                        locator: ContentReferenceLocator::Unknown {
-                            raw: "term".to_string(),
-                        },
-                        resolved_key: None,
-                        resolved_name: None,
-                    },
-                }],
-                definition: vec![ContentBlock::Paragraph {
-                    content: vec![ContentInline::Reference {
-                        reference: ContentReference {
-                            label: Some(vec![ContentInline::Reference {
-                                reference: ContentReference {
-                                    label: None,
-                                    locator: ContentReferenceLocator::Unknown {
-                                        raw: "label".to_string(),
-                                    },
-                                    resolved_key: None,
-                                    resolved_name: None,
-                                },
-                            }]),
-                            locator: ContentReferenceLocator::Unknown {
-                                raw: "body".to_string(),
-                            },
-                            resolved_key: None,
-                            resolved_name: None,
-                        },
-                    }],
-                }],
-            }],
-        }]);
-
-        let raw_values: Vec<String> = iter_content_references(&document)
-            .map(|reference| match &reference.locator {
-                ContentReferenceLocator::Unknown { raw } => raw.clone(),
-                _ => unreachable!("test only uses unknown locators"),
-            })
-            .collect();
-
-        assert_eq!(raw_values, vec!["term", "body", "label"]);
-        assert_eq!(
-            ContentSourceKind::PublicNotes.default_visibility(),
-            ContentVisibility::Public
-        );
+        FoundryNode::ActionGlyph { .. } => {}
     }
 }

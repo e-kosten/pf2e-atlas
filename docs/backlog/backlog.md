@@ -66,4 +66,13 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust artifact JSON content model review](./items/rust-artifact-json-content-model-review.md)
   Decide whether rich content JSON, content rows, and reference occurrence provenance should be refactored into a stronger artifact model. Status: proposed.
 
+- [Rust rich source content model](./items/rust-rich-source-content-model.md)
+  Replace the lossy `ContentDocument` storage model with a source-preserving rich document that represents HTML structure and Foundry enrichments together. Status: proposed.
+
+- [Rust optional PF2e art ingest](./items/rust-optional-pf2e-art-ingest.md)
+  Track optional local ingestion of PF2e system icons and module-provided creature portrait/token art for future web presentation. Status: proposed.
+
+- [Rust RichDocument child retrieval policy](./items/rust-rich-document-child-retrieval-policy.md)
+  Evaluate whether targeted child embeddings for body or structured rich content improve retrieval beyond the overflow-only RichDocument baseline. Status: proposed.
+
 See [Backlog Done / Superseded](./history/done-and-superseded.md) for completed and retired items.

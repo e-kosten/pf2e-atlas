@@ -4,7 +4,8 @@ use atlas_domain::{
 };
 
 use crate::content::{
-    ContentDocument, ContentSourceKind, ContentVisibility, RecordContentDocument,
+    ContentSourceKind, ContentVisibility, RecordContentDocument, ReferenceRelationKind,
+    RichDocument,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -411,19 +412,19 @@ pub struct RecordContent {
 }
 
 impl RecordContent {
-    pub fn description(&self) -> Option<&ContentDocument> {
+    pub fn description(&self) -> Option<&RichDocument> {
         self.document(ContentSourceKind::Description)
     }
 
-    pub fn blurb(&self) -> Option<&ContentDocument> {
+    pub fn blurb(&self) -> Option<&RichDocument> {
         self.document(ContentSourceKind::Blurb)
     }
 
-    pub fn primary_body(&self) -> Option<&ContentDocument> {
+    pub fn primary_body(&self) -> Option<&RichDocument> {
         self.description().or_else(|| self.blurb())
     }
 
-    pub fn document(&self, source_kind: ContentSourceKind) -> Option<&ContentDocument> {
+    pub fn document(&self, source_kind: ContentSourceKind) -> Option<&RichDocument> {
         self.documents
             .iter()
             .find(|content| content.source_kind == source_kind)
@@ -560,6 +561,7 @@ pub struct ReferenceEdge {
     pub to_record_key: RecordKey,
     pub display_text: Option<String>,
     pub reference_text: String,
+    pub relation_kind: ReferenceRelationKind,
     pub source_kind: ContentSourceKind,
     pub visibility: ContentVisibility,
 }

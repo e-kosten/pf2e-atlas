@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
@@ -9,124 +11,197 @@ mod traversal;
 pub use render::{render_markdown_like, render_plain_text};
 pub use search_projection::{RecordFtsProjection, build_record_fts_projection};
 pub use section_tree::{ContentSectionNode, ContentSectionOrigin, build_content_section_tree};
-pub use traversal::{ContentReferenceIter, iter_content_references, visit_content_references_mut};
+pub use traversal::{FoundryLinkIter, iter_foundry_links, visit_foundry_links_mut};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ContentDocument {
-    pub blocks: Vec<ContentBlock>,
+pub struct RichDocument {
+    pub nodes: Vec<RichNode>,
 }
 
-impl ContentDocument {
-    pub fn new(blocks: Vec<ContentBlock>) -> Self {
-        Self { blocks }
+impl RichDocument {
+    pub fn new(nodes: Vec<RichNode>) -> Self {
+        Self { nodes }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.blocks.is_empty()
+        self.nodes.is_empty()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
-pub enum ContentBlock {
-    Heading {
-        level: u8,
-        content: Vec<ContentInline>,
+pub enum RichNode {
+    Text {
+        text: String,
     },
-    Paragraph {
-        content: Vec<ContentInline>,
+    HtmlElement {
+        tag: String,
+        attributes: BTreeMap<String, Option<String>>,
+        children: Vec<RichNode>,
     },
-    List {
-        ordered: bool,
-        items: Vec<Vec<ContentBlock>>,
+    FoundryLink {
+        link: FoundryLink,
     },
-    Table {
-        caption: Option<Vec<ContentInline>>,
-        headers: Vec<Vec<ContentInline>>,
-        rows: Vec<Vec<Vec<ContentInline>>>,
+    Foundry {
+        node: FoundryNode,
     },
-    Callout {
-        title: Option<Vec<ContentInline>>,
-        blocks: Vec<ContentBlock>,
-    },
-    DefinitionList {
-        items: Vec<ContentDefinitionItem>,
-    },
-    RuleBlock {
-        title: Option<Vec<ContentInline>>,
-        blocks: Vec<ContentBlock>,
-    },
-    Separator,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ContentDefinitionItem {
-    pub term: Vec<ContentInline>,
-    pub definition: Vec<ContentBlock>,
+pub struct FoundryLink {
+    pub target: RichLinkTarget,
+    pub label: Option<Vec<RichNode>>,
+    pub source: FoundryLinkSource,
+    pub behavior: FoundryLinkBehavior,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
-pub enum ContentInline {
-    Text {
-        text: String,
+pub enum RichLinkTarget {
+    Record {
+        key: RecordKey,
+        name: String,
     },
-    Strong {
-        content: Vec<ContentInline>,
-    },
-    Emphasis {
-        content: Vec<ContentInline>,
-    },
-    Code {
-        text: String,
-    },
-    Break,
-    Reference {
-        reference: ContentReference,
-    },
-    Roll {
+    LocalContent {
+        content_key: String,
         label: Option<String>,
+    },
+    External {
+        target: String,
+        label: Option<String>,
+    },
+    Unresolved {
+        target: String,
+        fallback_label: String,
+    },
+}
+
+impl RichLinkTarget {
+    pub fn record_key(&self) -> Option<&RecordKey> {
+        match self {
+            Self::Record { key, .. } => Some(key),
+            Self::LocalContent { .. } | Self::External { .. } | Self::Unresolved { .. } => None,
+        }
+    }
+
+    pub fn display_name(&self) -> Option<&str> {
+        match self {
+            Self::Record { name, .. } => Some(name),
+            Self::LocalContent { label, .. } | Self::External { label, .. } => label.as_deref(),
+            Self::Unresolved { fallback_label, .. } => Some(fallback_label),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FoundryLinkSource {
+    pub macro_kind: FoundryLinkMacroKind,
+    pub authored_target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relation: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FoundryLinkMacroKind {
+    Uuid,
+    Compendium,
+    Embed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum FoundryLinkBehavior {
+    Reference,
+    Embed {
+        inline: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        hr: Option<bool>,
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        options: BTreeMap<String, String>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReferenceRelationKind {
+    Reference,
+    Embed,
+}
+
+impl ReferenceRelationKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Reference => "reference",
+            Self::Embed => "embed",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "reference" => Some(Self::Reference),
+            "embed" => Some(Self::Embed),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum FoundryNode {
+    Check {
+        statistic: Option<String>,
+        options: BTreeMap<String, String>,
+        label: Option<Vec<RichNode>>,
+    },
+    Damage {
         formula: String,
-        raw: String,
+        options: BTreeMap<String, String>,
+        damage_parts: Vec<DamagePart>,
+        label: Option<Vec<RichNode>>,
+    },
+    InlineCommand {
+        command: String,
+        arguments: String,
+        options: BTreeMap<String, String>,
+        label: Option<Vec<RichNode>>,
     },
     Template {
-        label: String,
-        template_kind: Option<String>,
-        raw: String,
-    },
-    Macro {
-        label: Option<String>,
-        raw: String,
+        shape: Option<String>,
+        options: BTreeMap<String, String>,
+        label: Option<Vec<RichNode>>,
     },
     ActionGlyph {
         action: String,
     },
-    Icon {
+    Trait {
+        traits: Vec<String>,
+        label: Option<Vec<RichNode>>,
+    },
+    Localize {
+        key: String,
+        value: Option<Vec<RichNode>>,
+    },
+    UnknownFoundry {
         name: String,
-        label: Option<String>,
+        body: Option<String>,
+        label: Option<Vec<RichNode>>,
+        raw: String,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ContentReference {
-    pub label: Option<Vec<ContentInline>>,
-    pub locator: ContentReferenceLocator,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub resolved_key: Option<RecordKey>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub resolved_name: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum ContentReferenceLocator {
-    FoundryUuid { raw_target: String },
-    Compendium { raw_target: String },
-    PackAndLocator { pack_name: String, locator: String },
-    Unknown { raw: String },
+pub struct DamagePart {
+    pub formula: String,
+    pub damage_type: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,7 +209,7 @@ pub enum ContentReferenceLocator {
 pub struct RecordContentDocument {
     pub source_kind: ContentSourceKind,
     pub label: Option<String>,
-    pub document: ContentDocument,
+    pub document: RichDocument,
 }
 
 impl RecordContentDocument {
@@ -309,36 +384,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn content_document_serializes_enums_with_stable_tags() {
-        let document = ContentDocument::new(vec![
-            ContentBlock::Heading {
-                level: 2,
-                content: vec![ContentInline::Text {
+    fn rich_document_serializes_enums_with_stable_tags() {
+        let document = RichDocument::new(vec![
+            RichNode::HtmlElement {
+                tag: "h2".to_string(),
+                attributes: BTreeMap::new(),
+                children: vec![RichNode::Text {
                     text: "Spell Effect".to_string(),
                 }],
             },
-            ContentBlock::Paragraph {
-                content: vec![
-                    ContentInline::Text {
+            RichNode::HtmlElement {
+                tag: "p".to_string(),
+                attributes: BTreeMap::new(),
+                children: vec![
+                    RichNode::Text {
                         text: "Use ".to_string(),
                     },
-                    ContentInline::Reference {
-                        reference: ContentReference {
-                            label: Some(vec![ContentInline::Text {
+                    RichNode::FoundryLink {
+                        link: FoundryLink {
+                            label: Some(vec![RichNode::Text {
                                 text: "Heal".to_string(),
                             }]),
-                            locator: ContentReferenceLocator::FoundryUuid {
-                                raw_target: "Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs"
-                                    .to_string(),
-                            },
-                            resolved_key: Some(
-                                RecordKey::parse("spells-srd:rfZpqmj0AIIdkVIs")
+                            target: RichLinkTarget::Record {
+                                key: RecordKey::parse("spells-srd:rfZpqmj0AIIdkVIs")
                                     .expect("record key parses"),
-                            ),
-                            resolved_name: Some("Heal".to_string()),
+                                name: "Heal".to_string(),
+                            },
+                            source: FoundryLinkSource {
+                                macro_kind: FoundryLinkMacroKind::Uuid,
+                                authored_target: "Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs"
+                                    .to_string(),
+                                relation: None,
+                            },
+                            behavior: FoundryLinkBehavior::Reference,
                         },
                     },
-                    ContentInline::Text {
+                    RichNode::Text {
                         text: " to restore vitality.".to_string(),
                     },
                 ],
@@ -347,15 +428,14 @@ mod tests {
 
         let encoded = serde_json::to_value(&document).expect("document serializes");
 
-        assert_eq!(encoded["blocks"][0]["kind"], "heading");
-        assert_eq!(encoded["blocks"][1]["content"][1]["kind"], "reference");
+        assert_eq!(encoded["nodes"][0]["kind"], "htmlElement");
+        assert_eq!(encoded["nodes"][1]["children"][1]["kind"], "foundryLink");
         assert_eq!(
-            encoded["blocks"][1]["content"][1]["reference"]["resolvedKey"],
+            encoded["nodes"][1]["children"][1]["link"]["target"]["key"],
             "spells-srd:rfZpqmj0AIIdkVIs"
         );
 
-        let decoded: ContentDocument =
-            serde_json::from_value(encoded).expect("document deserializes");
+        let decoded: RichDocument = serde_json::from_value(encoded).expect("document deserializes");
         assert_eq!(decoded, document);
     }
 
@@ -375,7 +455,7 @@ mod tests {
         let embedded_document = RecordContentDocument {
             source_kind: ContentSourceKind::EmbeddedSpellDescription,
             label: None,
-            document: ContentDocument::default(),
+            document: RichDocument::default(),
         };
         assert!(embedded_document.contributes_to_reference_occurrences());
         assert!(!embedded_document.contributes_to_default_backlinks());

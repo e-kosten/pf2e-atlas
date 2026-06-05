@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
-use atlas_record::{AtlasRecord, ContentDocument, ContentSourceKind, RecordContentDocument};
+use atlas_record::{AtlasRecord, ContentSourceKind, RecordContentDocument, RichDocument};
 use serde_json::Value;
 
 use crate::source::normalize::ContentParseDiagnostics;
@@ -83,7 +83,7 @@ pub(crate) struct JournalPageFact {
     pub(crate) ordinal: i64,
     pub(crate) source_ref: String,
     pub(crate) source_markup: String,
-    pub(crate) document: ContentDocument,
+    pub(crate) document: RichDocument,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,6 +1,7 @@
 use atlas_record::{AtlasRecord, build_record_fts_projection};
 use diesel::SqliteConnection;
 use diesel::prelude::*;
+use sha2::{Digest, Sha256};
 
 use super::labels::{
     metric_domain_label, metric_value_parts, publication_family_label, rarity_label,
@@ -42,8 +43,6 @@ pub(super) fn write_records(
                 .map(|membership| membership.axes.as_slice())
                 .unwrap_or_default(),
         )?;
-        let description_json = optional_json(&record.content.description())?;
-        let blurb_json = optional_json(&record.content.blurb())?;
         let activation_time = record.timing.activation_time();
         let duration = record.timing.duration_time();
         let system_actions_value = record.timing.activation_actions_value();
@@ -93,8 +92,6 @@ pub(super) fn write_records(
             duration_text: duration.map(|time| time.text.clone()),
             publication_title: record.publication.title.clone(),
             publication_remaster: record.publication.remaster,
-            description_json,
-            blurb_json,
             publication_family: publication_family_label(record.publication.category).to_string(),
             folder_id: record.foundry.folder_id.clone(),
             taxonomy_families_json,
@@ -111,30 +108,25 @@ pub(super) fn write_records(
             is_default_visible,
             raw_json: record.provenance.raw_json.clone().unwrap_or_default(),
         });
-        for (ordinal, supplemental) in record
-            .content
-            .documents
-            .iter()
-            .filter(|content| {
-                !matches!(
-                    content.source_kind,
-                    atlas_record::ContentSourceKind::Description
-                        | atlas_record::ContentSourceKind::Blurb
-                )
-            })
-            .enumerate()
-        {
-            let content_json = serde_json::to_string(&supplemental.document)
+        let mut content_inputs = Vec::new();
+        for (ordinal, content) in record.content.documents.iter().enumerate() {
+            let content_json = serde_json::to_string(&content.document)
                 .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+            content_inputs.push((ordinal, content, content_json));
+        }
+        let content_keys = allocated_content_keys(&content_inputs);
+        for ((ordinal, content, content_json), content_key) in
+            content_inputs.into_iter().zip(content_keys)
+        {
             content_rows.push(RecordContentRow {
                 record_key: record.identity.key.to_string(),
-                content_key: supplemental_content_key(ordinal),
+                content_key,
                 ordinal: to_i64(ordinal, "record_content.ordinal")?,
-                source_kind: supplemental.source_kind.as_str().to_string(),
-                visibility: supplemental.visibility().as_str().to_string(),
-                contributes_to_search: supplemental.contributes_to_search(),
-                contributes_to_references: supplemental.contributes_to_reference_occurrences(),
-                label: supplemental.label.clone(),
+                source_kind: content.source_kind.as_str().to_string(),
+                visibility: content.visibility().as_str().to_string(),
+                contributes_to_search: content.contributes_to_search(),
+                contributes_to_references: content.contributes_to_reference_occurrences(),
+                label: content.label.clone(),
                 content_json,
             });
         }
@@ -279,22 +271,49 @@ pub(super) fn write_records(
     Ok(())
 }
 
-pub(crate) fn supplemental_content_key(ordinal: usize) -> String {
-    format!("content:{ordinal}")
+pub(crate) fn allocated_content_keys(
+    inputs: &[(usize, &atlas_record::RecordContentDocument, String)],
+) -> Vec<String> {
+    let bases = inputs
+        .iter()
+        .map(|(_, content, content_json)| {
+            let mut hasher = Sha256::new();
+            hasher.update(content.source_kind.as_str().as_bytes());
+            hasher.update(b"\0");
+            if let Some(label) = &content.label {
+                hasher.update(label.as_bytes());
+            }
+            hasher.update(b"\0");
+            hasher.update(content_json.as_bytes());
+            let digest = hasher.finalize();
+            let short_hash = digest[..8]
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>();
+            format!("{}:{short_hash}", content.source_kind.as_str())
+        })
+        .collect::<Vec<_>>();
+    let mut base_counts = std::collections::BTreeMap::<String, usize>::new();
+    for base in &bases {
+        *base_counts.entry(base.clone()).or_insert(0) += 1;
+    }
+    let mut seen = std::collections::BTreeMap::<String, usize>::new();
+    bases
+        .into_iter()
+        .map(|base| {
+            if base_counts.get(&base).copied().unwrap_or(0) <= 1 {
+                return base;
+            }
+            let ordinal = seen.entry(base.clone()).or_insert(0);
+            let key = format!("{base}:{ordinal}");
+            *ordinal += 1;
+            key
+        })
+        .collect()
 }
 
 fn json_array(values: &[String]) -> Result<String, IndexWriteError> {
     serde_json::to_string(values).map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
-}
-
-fn optional_json<T: serde::Serialize>(
-    value: &Option<T>,
-) -> Result<Option<String>, IndexWriteError> {
-    value
-        .as_ref()
-        .map(serde_json::to_string)
-        .transpose()
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }
 
 fn to_i64(value: usize, field: &'static str) -> Result<i64, IndexWriteError> {

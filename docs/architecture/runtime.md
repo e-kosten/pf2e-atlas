@@ -25,7 +25,7 @@ flowchart TD
 
     subgraph SharedRustModels["Shared Rust models"]
       domain["atlas-domain<br/>request/filter/output vocabulary"]
-      record["atlas-record<br/>normalized records, ContentDocument,<br/>presentation and projections"]
+      record["atlas-record<br/>normalized records, RichDocument,<br/>presentation and projections"]
       artifactSchema["atlas-index<br/>Diesel schema, migrations,<br/>discovery policy, and artifact contract constants"]
     end
 
@@ -44,7 +44,7 @@ flowchart TD
 | Crate | Owns | Should not own |
 | --- | --- | --- |
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
-| `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `ContentDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
+| `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
 | `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
 | `atlas-index` | Read-only completed-artifact access through narrow read capability traits and the composite `RetrievalReadIndex` bundle implemented by `SqliteIndexReader`, Diesel-backed relational schema and migrations, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, filter discovery field policy and SQLite extractor rendering, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership, shared discovery/result DTO vocabulary. |
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
@@ -59,7 +59,7 @@ flowchart TD
 flowchart LR
     raw["Foundry source records<br/>raw JSON + manifest packs"] --> load["atlas-ingest::source<br/>load packs and source signature"]
     load --> normalize["normalize<br/>RecordKey, kind, traits,<br/>metrics, side tables"]
-    normalize --> content["Foundry content parser<br/>HTML/macros -> ContentDocument"]
+    normalize --> content["Foundry content parser<br/>HTML/macros -> RichDocument"]
     content --> enrich["atlas-ingest::records<br/>aliases, variants, taxonomy,<br/>reference resolution, visibility"]
     enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]
     generated --> embedPrep["atlas-ingest::embeddings<br/>prepare/run embedding-owned units"]
@@ -68,7 +68,7 @@ flowchart LR
     embedPrep --> writer
     writer --> sqlite["Rust SQLite artifact"]
 
-    record["atlas-record<br/>AtlasRecord + ContentDocument"] -. model .-> normalize
+    record["atlas-record<br/>AtlasRecord + RichDocument"] -. model .-> normalize
     artifactSchema["atlas-index Diesel schema,<br/>migrations, and discovery policy"] -. schema/catalog policy .-> writer
     embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
     sqliteVec["atlas-sqlite-vec<br/>vector table capability"] -. capability .-> writer
@@ -76,27 +76,27 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
-Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections continue to consume the normalized `ContentDocument` and supplemental-content outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
+Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
 
 ## Content, Search, And Reference Projections
 
 ```mermaid
 flowchart TD
     markup["Known Foundry rich-text fields<br/>description, notes, hazard text,<br/>embedded item/spell descriptions"] --> parser["atlas-ingest parser<br/>Foundry HTML/macros"]
-    parser --> doc["atlas-record::ContentDocument<br/>blocks, inlines, references,<br/>visibility/source policy"]
+    parser --> doc["atlas-record::RichDocument<br/>HTML elements, text,<br/>Foundry links/macros"]
 
     doc --> presentation["RecordPresentationDocument<br/>CLI/TUI-ready rich structure"]
     doc --> fts["RecordFtsProjection<br/>title, aliases, traits,<br/>taxonomy, constraints, mechanics,<br/>source, metrics, headings,<br/>body, facts, references,<br/>embedded_content"]
     doc --> tree["Content section tree<br/>explicit headings,<br/>synthetic run-in labels,<br/>table captions"]
-    doc --> refs["Resolved ContentReference nodes"]
+    doc --> refs["Resolved FoundryLink nodes"]
 
     presentation --> parentEmbedding["Embedding parent unit<br/>primary/default content;<br/>embedded capability content excluded"]
     tree --> childEmbedding["Embedding child units<br/>explicit headings only;<br/>unpromoted embedded content excluded"]
-    refs --> edges["reference_edges<br/>source_kind + visibility"]
+    refs --> edges["reference_edges<br/>source_kind + visibility + relation_kind"]
     fts --> recordsFts["records_fts<br/>weighted lexical search"]
 ```
 
-The durable source of authored rich text is `ContentDocument`, not stripped text and not raw Foundry markup. Plain text, markdown-like CLI output, FTS rows, semantic chunks, and reference edges are projections from content and presentation models.
+The durable source of authored rich text is `RichDocument`, not stripped text and not raw Foundry markup. `RichDocument` preserves HTML elements and Foundry enrichments together; plain text, structured presentation content for CLI JSON/terminal output, structured FTS rows, semantic chunks, and reference edges are projections from content and presentation models.
 
 Default public graph and backlink behavior uses the named reference graph policy in `atlas-record`: public non-embedded reference edges are in the default graph, public embedded edges require an expanded mode, and GM/private/internal edges remain excluded unless a caller explicitly asks for broader visibility. `atlas-index` lowers that policy into SQL predicates over `reference_edges`; the database does not store a separate default-edge boolean.
 

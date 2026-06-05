@@ -43,8 +43,6 @@ pub mod records {
         pub const DURATION_TEXT: Column = Column::new(TABLE, "duration_text");
         pub const PUBLICATION_TITLE: Column = Column::new(TABLE, "publication_title");
         pub const PUBLICATION_REMASTER: Column = Column::new(TABLE, "publication_remaster");
-        pub const DESCRIPTION_JSON: Column = Column::new(TABLE, "description_json");
-        pub const BLURB_JSON: Column = Column::new(TABLE, "blurb_json");
         pub const PUBLICATION_FAMILY: Column = Column::new(TABLE, "publication_family");
         pub const FOLDER_ID: Column = Column::new(TABLE, "folder_id");
         pub const TAXONOMY_FAMILIES_JSON: Column = Column::new(TABLE, "taxonomy_families_json");
@@ -93,8 +91,6 @@ pub mod records {
         columns::DURATION_TEXT,
         columns::PUBLICATION_TITLE,
         columns::PUBLICATION_REMASTER,
-        columns::DESCRIPTION_JSON,
-        columns::BLURB_JSON,
         columns::PUBLICATION_FAMILY,
         columns::FOLDER_ID,
         columns::TAXONOMY_FAMILIES_JSON,

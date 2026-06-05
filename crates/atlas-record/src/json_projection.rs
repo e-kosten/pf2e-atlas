@@ -2,9 +2,9 @@ use atlas_domain::DetailLevel;
 use serde::Serialize;
 
 use crate::{
-    AtlasRecord, PresentationBlock, PresentationFact, PresentationRelationship,
-    PresentationRelationshipKind, PresentationSection, PresentationSectionKind,
-    build_record_presentation_document, render_markdown_like, render_plain_text,
+    AtlasRecord, PresentationBlock, PresentationContent, PresentationFact,
+    PresentationRelationship, PresentationRelationshipKind, PresentationSection,
+    PresentationSectionKind, build_record_presentation_document, render_plain_text,
 };
 
 const DESCRIPTION_PREVIEW_WORDS: usize = 50;
@@ -80,8 +80,7 @@ pub enum RecordBlockJson {
         text: String,
     },
     Content {
-        format: &'static str,
-        text: String,
+        content: PresentationContent,
     },
     Relationships {
         relationships: Vec<RecordRelationshipJson>,
@@ -262,11 +261,9 @@ fn block_json(block: &PresentationBlock) -> Option<RecordBlockJson> {
                 text: text.text.clone(),
             })
         }
-        PresentationBlock::Content(document) => {
-            let text = render_markdown_like(document);
-            (!text.trim().is_empty()).then_some(RecordBlockJson::Content {
-                format: "markdown",
-                text,
+        PresentationBlock::Content(content) => {
+            (!content.is_empty()).then_some(RecordBlockJson::Content {
+                content: content.clone(),
             })
         }
         PresentationBlock::Relationships(relationships) => {
@@ -297,6 +294,8 @@ fn relationship_json(relationship: &PresentationRelationship) -> RecordRelations
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use atlas_domain::{
         MetricDomain, PackName, PublicationCategory, RecordId, RecordKey, RecordKind, TimeKind,
         TimeUnit,
@@ -304,12 +303,12 @@ mod tests {
 
     use super::*;
     use crate::{
-        ActivationTimeSourceField, ActorMechanics, ContentBlock, ContentDocument,
-        ContentSourceKind, DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, MetricRow, MetricValue, RecordActivationTiming,
-        RecordClassification, RecordContent, RecordContentDocument, RecordDurationTiming,
-        RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
-        RecordTaxonomy, RecordTiming, RecordVisibility,
+        ActivationTimeSourceField, ActorMechanics, ContentSourceKind, DurationTimeSourceField,
+        FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        MetricRow, MetricValue, RecordActivationTiming, RecordClassification, RecordContent,
+        RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
+        RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+        RecordVisibility, RichDocument, RichNode,
     };
 
     #[test]
@@ -542,14 +541,14 @@ mod tests {
                 documents: vec![RecordContentDocument {
                     source_kind: ContentSourceKind::Description,
                     label: None,
-                    document: ContentDocument {
-                        blocks: vec![ContentBlock::Paragraph {
-                            content: vec![crate::ContentInline::Text {
-                                text: "You spend 10 minutes treating one injured living creature."
-                                    .to_string(),
-                            }],
+                    document: RichDocument::new(vec![RichNode::HtmlElement {
+                        tag: "p".to_string(),
+                        attributes: BTreeMap::new(),
+                        children: vec![RichNode::Text {
+                            text: "You spend 10 minutes treating one injured living creature."
+                                .to_string(),
                         }],
-                    },
+                    }]),
                 }],
             },
             variant: None,

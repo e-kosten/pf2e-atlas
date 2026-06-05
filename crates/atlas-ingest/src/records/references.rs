@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator,
-    ContentSourceKind, ContentVisibility, ReferenceEdge, iter_content_references,
-    render_plain_text, visit_content_references_mut,
+    AtlasRecord, ContentSourceKind, ContentVisibility, FoundryLink, FoundryLinkBehavior,
+    ReferenceEdge, ReferenceRelationKind, RichDocument, RichLinkTarget, iter_foundry_links,
+    render_plain_text, visit_foundry_links_mut,
 };
 
 use crate::records::{LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate};
@@ -96,14 +96,16 @@ pub(crate) fn resolve_content_references(
     }
 }
 
-fn resolve_document_references(document: &mut ContentDocument, index: &RecordReferenceIndex) {
-    visit_content_references_mut(document, |reference| {
-        reference.resolved_key = resolve_content_reference(reference, index);
-        reference.resolved_name = reference
-            .resolved_key
-            .as_ref()
-            .and_then(|record_key| record_by_key(index, record_key))
-            .map(|record| record.identity.name.clone());
+fn resolve_document_references(document: &mut RichDocument, index: &RecordReferenceIndex) {
+    visit_foundry_links_mut(document, |link| {
+        if let Some(record_key) = resolve_foundry_link(link, index)
+            && let Some(record) = record_by_key(index, &record_key)
+        {
+            link.target = RichLinkTarget::Record {
+                key: record_key,
+                name: record.identity.name.clone(),
+            };
+        }
     });
 }
 
@@ -111,15 +113,15 @@ fn collect_document_reference_edges(
     record: &AtlasRecord,
     source_kind: ContentSourceKind,
     visibility: ContentVisibility,
-    document: &ContentDocument,
+    document: &RichDocument,
     seen: &mut BTreeSet<(String, String, String, String)>,
     references: &mut Vec<ReferenceEdge>,
 ) {
-    for reference in iter_content_references(document) {
-        let Some(to_record_key) = &reference.resolved_key else {
+    for link in iter_foundry_links(document) {
+        let Some(to_record_key) = link.target.record_key() else {
             continue;
         };
-        let reference_text = reference_text(reference);
+        let reference_text = link.source.authored_target.clone();
         let dedupe_key = (
             record.identity.key.to_string(),
             to_record_key.to_string(),
@@ -130,8 +132,9 @@ fn collect_document_reference_edges(
             references.push(ReferenceEdge {
                 from_record_key: record.identity.key.clone(),
                 to_record_key: to_record_key.clone(),
-                display_text: reference_display_text(reference),
+                display_text: reference_display_text(link),
                 reference_text,
+                relation_kind: reference_relation_kind(link),
                 source_kind,
                 visibility,
             });
@@ -141,7 +144,7 @@ fn collect_document_reference_edges(
 
 fn record_content_documents(
     record: &AtlasRecord,
-) -> Vec<(ContentSourceKind, ContentVisibility, &ContentDocument)> {
+) -> Vec<(ContentSourceKind, ContentVisibility, &RichDocument)> {
     record
         .content
         .default_backlink_documents()
@@ -149,44 +152,30 @@ fn record_content_documents(
         .collect()
 }
 
-fn resolve_content_reference(
-    reference: &ContentReference,
-    index: &RecordReferenceIndex,
-) -> Option<RecordKey> {
-    match &reference.locator {
-        ContentReferenceLocator::FoundryUuid { raw_target }
-        | ContentReferenceLocator::Compendium { raw_target } => {
-            let (pack_name, locator) = reference_pack_and_locator(raw_target)?;
+fn resolve_foundry_link(link: &FoundryLink, index: &RecordReferenceIndex) -> Option<RecordKey> {
+    match &link.target {
+        RichLinkTarget::Record { key, .. } => Some(key.clone()),
+        RichLinkTarget::LocalContent { .. } => None,
+        RichLinkTarget::External { target, .. } | RichLinkTarget::Unresolved { target, .. } => {
+            let (pack_name, locator) = reference_pack_and_locator(target)?;
             resolve_record_key(Some(&pack_name), &locator, index)
         }
-        ContentReferenceLocator::PackAndLocator { pack_name, locator } => {
-            resolve_record_key(Some(pack_name), locator, index)
-        }
-        ContentReferenceLocator::Unknown { raw } => resolve_record_key(None, raw, index),
     }
 }
 
-fn reference_text(reference: &ContentReference) -> String {
-    match &reference.locator {
-        ContentReferenceLocator::FoundryUuid { raw_target }
-        | ContentReferenceLocator::Compendium { raw_target } => raw_target.clone(),
-        ContentReferenceLocator::PackAndLocator { pack_name, locator } => {
-            format!("{pack_name}:{locator}")
-        }
-        ContentReferenceLocator::Unknown { raw } => raw.clone(),
-    }
-}
-
-fn reference_display_text(reference: &ContentReference) -> Option<String> {
-    reference
-        .label
+fn reference_display_text(link: &FoundryLink) -> Option<String> {
+    link.label
         .as_ref()
-        .map(|label| {
-            render_plain_text(&ContentDocument::new(vec![ContentBlock::Paragraph {
-                content: label.clone(),
-            }]))
-        })
+        .map(|label| render_plain_text(&RichDocument::new(label.clone())))
         .filter(|label| !label.trim().is_empty())
+        .or_else(|| link.target.display_name().map(ToOwned::to_owned))
+}
+
+fn reference_relation_kind(link: &FoundryLink) -> ReferenceRelationKind {
+    match link.behavior {
+        FoundryLinkBehavior::Reference => ReferenceRelationKind::Reference,
+        FoundryLinkBehavior::Embed { .. } => ReferenceRelationKind::Embed,
+    }
 }
 
 pub(crate) fn reference_pack_and_locator(raw_target: &str) -> Option<(String, String)> {
@@ -288,12 +277,14 @@ pub(crate) fn next_reference_prefix(text: &str, offset: usize) -> Option<(usize,
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
-        AtlasRecord, ContentBlock, ContentDocument, ContentInline, ContentReference,
-        ContentReferenceLocator, ContentSourceKind, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, RecordClassification, RecordContentDocument, RecordIdentity,
-        RecordProvenance, iter_content_references,
+        AtlasRecord, ContentSourceKind, FoundryDocumentType, FoundryLink, FoundryLinkBehavior,
+        FoundryLinkMacroKind, FoundryLinkSource, FoundryRecordInfo, FoundryRecordType,
+        RecordClassification, RecordContentDocument, RecordIdentity, RecordProvenance,
+        RichDocument, RichLinkTarget, RichNode, iter_foundry_links,
     };
 
     use super::{
@@ -310,16 +301,23 @@ mod tests {
             vec![RecordContentDocument {
                 source_kind: ContentSourceKind::EmbeddedItemDescription,
                 label: Some("Embedded Item".to_string()),
-                document: ContentDocument::new(vec![ContentBlock::Paragraph {
-                    content: vec![ContentInline::Reference {
-                        reference: ContentReference {
-                            label: None,
-                            locator: ContentReferenceLocator::PackAndLocator {
-                                pack_name: "actions".to_string(),
-                                locator: "Target Action".to_string(),
+                document: RichDocument::new(vec![RichNode::HtmlElement {
+                    tag: "p".to_string(),
+                    attributes: BTreeMap::new(),
+                    children: vec![RichNode::FoundryLink {
+                        link: FoundryLink {
+                            target: RichLinkTarget::Unresolved {
+                                target: "Compendium.pf2e.actions.Item.Target Action".to_string(),
+                                fallback_label: "Target Action".to_string(),
                             },
-                            resolved_key: None,
-                            resolved_name: None,
+                            label: None,
+                            source: FoundryLinkSource {
+                                macro_kind: FoundryLinkMacroKind::Uuid,
+                                authored_target: "Compendium.pf2e.actions.Item.Target Action"
+                                    .to_string(),
+                                relation: None,
+                            },
+                            behavior: FoundryLinkBehavior::Reference,
                         },
                     }],
                 }]),
@@ -330,17 +328,14 @@ mod tests {
 
         resolve_content_references(&mut records, &index);
         let embedded_document = &records[0].record.content.documents[0].document;
-        let references = iter_content_references(embedded_document).collect::<Vec<_>>();
+        let references = iter_foundry_links(embedded_document).collect::<Vec<_>>();
 
         assert_eq!(references.len(), 1);
-        assert_eq!(
-            references[0].resolved_key.as_ref().map(ToString::to_string),
-            Some("actions:targetAction".to_string())
-        );
-        assert_eq!(
-            references[0].resolved_name.as_deref(),
-            Some("Target Action")
-        );
+        let RichLinkTarget::Record { key, name } = &references[0].target else {
+            panic!("reference should resolve to record target");
+        };
+        assert_eq!(key.to_string(), "actions:targetAction");
+        assert_eq!(name, "Target Action");
         assert!(
             resolve_reference_edges(&records).is_empty(),
             "embedded content should resolve occurrences but stay out of default backlink edges"

@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 use std::process::ExitCode;
 
 use atlas_domain::{DetailLevel, RecordKey};
-use atlas_record::{RecordBlockJson, RecordJsonOptions, RecordSectionJson, record_json};
+use atlas_record::{
+    PresentationContent, PresentationContentBlock, PresentationInline, RecordBlockJson,
+    RecordJsonOptions, RecordSectionJson, record_json,
+};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
     GetRecordsRequest, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest, SearchError,
@@ -536,9 +539,9 @@ pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail:
             println!("{fact_line}");
         }
     }
-    if let Some(description) = record_description_text(record, detail) {
+    if let Some(description) = record_description_text(record, detail, style) {
         println!();
-        println!("{}", style.render_markdown(&description));
+        println!("{description}");
     }
 }
 
@@ -624,6 +627,7 @@ fn preview_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
 fn record_description_text(
     record: &atlas_record::RecordJson,
     detail: DetailLevel,
+    style: TerminalStyle,
 ) -> Option<String> {
     let section_kind = match detail {
         DetailLevel::Preview => "description_preview",
@@ -634,25 +638,121 @@ fn record_description_text(
         .sections
         .iter()
         .find(|section| section.kind == section_kind)
-        .and_then(section_text)
+        .and_then(|section| section_text(section, style))
 }
 
-fn section_text(section: &RecordSectionJson) -> Option<String> {
+fn section_text(section: &RecordSectionJson, style: TerminalStyle) -> Option<String> {
     let blocks = section
         .blocks
         .iter()
-        .filter_map(block_text)
+        .filter_map(|block| block_text(block, style))
         .collect::<Vec<_>>();
     (!blocks.is_empty()).then(|| blocks.join("\n\n"))
 }
 
-fn block_text(block: &RecordBlockJson) -> Option<String> {
+fn block_text(block: &RecordBlockJson, style: TerminalStyle) -> Option<String> {
     match block {
-        RecordBlockJson::Prose { text } | RecordBlockJson::Content { text, .. } => {
-            (!text.trim().is_empty()).then(|| text.clone())
-        }
+        RecordBlockJson::Prose { text } => (!text.trim().is_empty()).then(|| text.clone()),
+        RecordBlockJson::Content { content } => render_content(content, style),
         RecordBlockJson::FactList { .. } | RecordBlockJson::Relationships { .. } => None,
     }
+}
+
+fn render_content(content: &PresentationContent, style: TerminalStyle) -> Option<String> {
+    let blocks = content
+        .blocks
+        .iter()
+        .filter_map(|block| render_content_block(block, style, 0))
+        .collect::<Vec<_>>();
+    (!blocks.is_empty()).then(|| blocks.join("\n\n"))
+}
+
+fn render_content_block(
+    block: &PresentationContentBlock,
+    style: TerminalStyle,
+    indent: usize,
+) -> Option<String> {
+    match block {
+        PresentationContentBlock::Heading { text, .. } => (!text.trim().is_empty())
+            .then(|| format!("{}{}", " ".repeat(indent), style.label(text))),
+        PresentationContentBlock::Paragraph { spans } => {
+            let text = render_inline_spans(spans, style);
+            (!text.trim().is_empty()).then(|| format!("{}{}", " ".repeat(indent), text))
+        }
+        PresentationContentBlock::List { ordered, items } => {
+            let mut rendered = Vec::new();
+            for (index, item) in items.iter().enumerate() {
+                let item_text = item
+                    .blocks
+                    .iter()
+                    .filter_map(|block| render_content_block(block, style, indent + 2))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if item_text.trim().is_empty() {
+                    continue;
+                }
+                let marker = if *ordered {
+                    format!("{}.", index + 1)
+                } else {
+                    "-".to_string()
+                };
+                rendered.push(format!(
+                    "{}{} {}",
+                    " ".repeat(indent),
+                    marker,
+                    item_text.trim_start()
+                ));
+            }
+            (!rendered.is_empty()).then(|| rendered.join("\n"))
+        }
+        PresentationContentBlock::Table { caption, rows } => {
+            let mut lines = Vec::new();
+            if let Some(caption) = caption.as_ref().filter(|value| !value.trim().is_empty()) {
+                lines.push(format!("{}{}", " ".repeat(indent), style.label(caption)));
+            }
+            for row in rows {
+                let cells = row
+                    .cells
+                    .iter()
+                    .map(|cell| {
+                        render_content(cell, style)
+                            .unwrap_or_default()
+                            .replace('\n', " ")
+                    })
+                    .collect::<Vec<_>>();
+                if !cells.is_empty() {
+                    lines.push(format!("{}{}", " ".repeat(indent), cells.join(" | ")));
+                }
+            }
+            (!lines.is_empty()).then(|| lines.join("\n"))
+        }
+        PresentationContentBlock::Rule => {
+            Some(format!("{}{}", " ".repeat(indent), style.separator()))
+        }
+    }
+}
+
+fn render_inline_spans(spans: &[PresentationInline], style: TerminalStyle) -> String {
+    let mut output = String::new();
+    for span in spans {
+        match span {
+            PresentationInline::Text { text } => output.push_str(text),
+            PresentationInline::Strong { spans } => {
+                output.push_str(&style.label(&render_inline_spans(spans, style)));
+            }
+            PresentationInline::Emphasis { spans } => {
+                output.push_str(&render_inline_spans(spans, style));
+            }
+            PresentationInline::Code { text } => {
+                output.push('`');
+                output.push_str(text);
+                output.push('`');
+            }
+            PresentationInline::Reference { label, .. } => output.push_str(label),
+            PresentationInline::LineBreak => output.push('\n'),
+        }
+    }
+    output
 }
 
 fn invalid_record_key(json: bool, key: &str, message: String) -> Result<ExitCode, String> {

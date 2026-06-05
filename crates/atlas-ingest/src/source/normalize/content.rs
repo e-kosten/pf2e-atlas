@@ -1,390 +1,206 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use ego_tree::NodeRef;
+use scraper::{Html, node::Node};
+
 use atlas_record::{
-    ContentBlock, ContentDefinitionItem, ContentDocument, ContentInline, ContentReference,
-    ContentReferenceLocator,
+    DamagePart, FoundryLink, FoundryLinkBehavior, FoundryLinkMacroKind, FoundryLinkSource,
+    FoundryNode, RichDocument, RichLinkTarget, RichNode, render_plain_text,
 };
 
-use super::content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
-use super::content_html::{HtmlNode, parse_html_fragment};
+use super::content_diagnostics::ContentParseDiagnostics;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ParsedContentDocument {
-    pub(crate) document: ContentDocument,
+    pub(crate) document: RichDocument,
     pub(crate) diagnostics: ContentParseDiagnostics,
 }
 
 pub(crate) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
-    let nodes = parse_html_fragment(value);
+    let fragment = Html::parse_fragment(value);
+    let mut state = ParseState::default();
+    let mut nodes = Vec::new();
+    for child in fragment.tree.root().children() {
+        nodes.extend(convert_node_ref(child, &mut state));
+    }
+
     let mut diagnostics = ContentParseDiagnostics::default();
-    let blocks = nodes_to_blocks(&nodes, &mut diagnostics);
+    for tag in state.unsupported_tags {
+        diagnostics.record_unsupported_tag(&tag);
+    }
 
     ParsedContentDocument {
-        document: ContentDocument::new(blocks),
+        document: RichDocument::new(nodes),
         diagnostics,
     }
 }
 
-fn nodes_to_blocks(
-    nodes: &[HtmlNode],
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Vec<ContentBlock> {
-    let mut blocks = Vec::new();
-    let mut pending_inline = Vec::new();
-
-    for node in nodes {
-        let node_blocks = node_to_blocks(node, diagnostics);
-        if node_blocks.is_empty() {
-            pending_inline.extend(node_to_inlines(node, diagnostics));
-        } else {
-            push_pending_paragraph(&mut blocks, &mut pending_inline);
-            blocks.extend(node_blocks);
-        }
-    }
-
-    push_pending_paragraph(&mut blocks, &mut pending_inline);
-    blocks
+#[derive(Default)]
+struct ParseState {
+    unsupported_tags: BTreeSet<String>,
 }
 
-fn node_to_blocks(node: &HtmlNode, diagnostics: &mut ContentParseDiagnostics) -> Vec<ContentBlock> {
-    match node {
-        HtmlNode::Text(_) => Vec::new(),
-        HtmlNode::Element { name, children } => match name.as_str() {
-            "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => vec![ContentBlock::Heading {
-                level: name[1..].parse::<u8>().unwrap_or(1),
-                content: nodes_to_inlines(children, diagnostics),
-            }],
-            "p" => paragraph_from_inlines(nodes_to_inlines(children, diagnostics)),
-            "ul" | "ol" => vec![ContentBlock::List {
-                ordered: name == "ol",
-                items: children
-                    .iter()
-                    .filter_map(|child| list_item_blocks(child, diagnostics))
-                    .collect(),
-            }],
-            "table" => table_block(children, diagnostics).into_iter().collect(),
-            "dl" => vec![ContentBlock::DefinitionList {
-                items: definition_items(children, diagnostics),
-            }],
-            "blockquote" => vec![ContentBlock::Callout {
-                title: None,
-                blocks: nodes_to_blocks(children, diagnostics),
-            }],
-            "section" | "article" | "div" | "main" | "body" => {
-                nodes_to_blocks(children, diagnostics)
-            }
-            "hr" => vec![ContentBlock::Separator],
-            "br" | "strong" | "b" | "em" | "i" | "span" | "a" | "code" => Vec::new(),
-            other => {
-                diagnostics.record_unsupported_tag(other);
-                let blocks = nodes_to_blocks(children, diagnostics);
-                if blocks.is_empty() {
-                    paragraph_from_inlines(nodes_to_inlines(children, diagnostics))
-                } else {
-                    blocks
+fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState) -> Vec<RichNode> {
+    match node_ref.value() {
+        Node::Text(text) => parse_text_nodes(text, state),
+        Node::Element(element) => {
+            let tag = element.name().to_ascii_lowercase();
+            if tag == "html" && element.attrs().next().is_none() {
+                let mut children = Vec::new();
+                for child in node_ref.children() {
+                    children.extend(convert_node_ref(child, state));
                 }
+                return children;
             }
-        },
-    }
-}
-
-fn list_item_blocks(
-    node: &HtmlNode,
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Option<Vec<ContentBlock>> {
-    let HtmlNode::Element { name, children } = node else {
-        return None;
-    };
-    if name != "li" {
-        return None;
-    }
-    let blocks = nodes_to_blocks(children, diagnostics);
-    if blocks.is_empty() {
-        Some(paragraph_from_inlines(nodes_to_inlines(
-            children,
-            diagnostics,
-        )))
-    } else {
-        Some(blocks)
-    }
-}
-
-fn table_block(
-    children: &[HtmlNode],
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Option<ContentBlock> {
-    let caption = children.iter().find_map(|child| match child {
-        HtmlNode::Element { name, children } if name == "caption" => {
-            Some(nodes_to_inlines(children, diagnostics))
+            if is_unusual_tag(&tag) {
+                state.unsupported_tags.insert(tag.clone());
+            }
+            let attributes = element
+                .attrs()
+                .map(|(name, value)| (name.to_ascii_lowercase(), Some(value.to_string())))
+                .collect::<BTreeMap<_, _>>();
+            let mut children = Vec::new();
+            for child in node_ref.children() {
+                children.extend(convert_node_ref(child, state));
+            }
+            vec![RichNode::HtmlElement {
+                tag,
+                attributes,
+                children,
+            }]
         }
-        _ => None,
-    });
-    let table_rows = collect_table_rows(children, diagnostics);
-    if table_rows.is_empty() && caption.is_none() {
-        return None;
-    }
-
-    let mut headers = Vec::new();
-    let mut rows = Vec::new();
-    for row in table_rows {
-        if headers.is_empty() && row.has_header_cells {
-            headers = row.cells;
-        } else {
-            rows.push(row.cells);
-        }
-    }
-
-    Some(ContentBlock::Table {
-        caption,
-        headers,
-        rows,
-    })
-}
-
-fn collect_table_rows(
-    children: &[HtmlNode],
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Vec<TableRow> {
-    let mut rows = Vec::new();
-    for child in children {
-        match child {
-            HtmlNode::Element { name, children } if name == "tr" => {
-                if let Some(row) = table_row(children, diagnostics) {
-                    rows.push(row);
-                }
-            }
-            HtmlNode::Element { name, children }
-                if matches!(name.as_str(), "thead" | "tbody" | "tfoot") =>
-            {
-                rows.extend(collect_table_rows(children, diagnostics));
-            }
-            _ => {}
-        }
-    }
-    rows
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct TableRow {
-    has_header_cells: bool,
-    cells: Vec<Vec<ContentInline>>,
-}
-
-fn table_row(children: &[HtmlNode], diagnostics: &mut ContentParseDiagnostics) -> Option<TableRow> {
-    let mut has_header_cells = false;
-    let mut cells = Vec::new();
-    for child in children {
-        if let HtmlNode::Element { name, children } = child
-            && matches!(name.as_str(), "th" | "td")
-        {
-            has_header_cells |= name == "th";
-            cells.push(nodes_to_inlines(children, diagnostics));
-        }
-    }
-
-    (!cells.is_empty()).then_some(TableRow {
-        has_header_cells,
-        cells,
-    })
-}
-
-fn definition_items(
-    children: &[HtmlNode],
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Vec<ContentDefinitionItem> {
-    let mut items = Vec::new();
-    let mut pending_term: Option<Vec<ContentInline>> = None;
-
-    for child in children {
-        match child {
-            HtmlNode::Element { name, children } if name == "dt" => {
-                pending_term = Some(nodes_to_inlines(children, diagnostics));
-            }
-            HtmlNode::Element { name, children } if name == "dd" => {
-                if let Some(term) = pending_term.take() {
-                    items.push(ContentDefinitionItem {
-                        term,
-                        definition: nodes_to_blocks(children, diagnostics),
-                    });
-                }
-            }
-            _ => {}
-        }
-    }
-
-    items
-}
-
-fn paragraph_from_inlines(content: Vec<ContentInline>) -> Vec<ContentBlock> {
-    if content.is_empty() {
-        Vec::new()
-    } else {
-        vec![ContentBlock::Paragraph { content }]
+        Node::Comment(_) | Node::Doctype(_) => Vec::new(),
+        _ => Vec::new(),
     }
 }
 
-fn push_pending_paragraph(blocks: &mut Vec<ContentBlock>, pending_inline: &mut Vec<ContentInline>) {
-    if pending_inline.is_empty() {
-        return;
-    }
-
-    blocks.push(ContentBlock::Paragraph {
-        content: std::mem::take(pending_inline),
-    });
-}
-
-fn nodes_to_inlines(
-    nodes: &[HtmlNode],
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Vec<ContentInline> {
-    nodes
-        .iter()
-        .flat_map(|node| node_to_inlines(node, diagnostics))
-        .collect()
-}
-
-fn node_to_inlines(
-    node: &HtmlNode,
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Vec<ContentInline> {
-    match node {
-        HtmlNode::Text(text) => parse_text_inlines(text, diagnostics),
-        HtmlNode::Element { name, children } => match name.as_str() {
-            "strong" | "b" => vec![ContentInline::Strong {
-                content: nodes_to_inlines(children, diagnostics),
-            }],
-            "em" | "i" => vec![ContentInline::Emphasis {
-                content: nodes_to_inlines(children, diagnostics),
-            }],
-            "code" => vec![ContentInline::Code {
-                text: text_content(children),
-            }],
-            "br" => vec![ContentInline::Break],
-            "img" => vec![ContentInline::Icon {
-                name: "image".to_string(),
-                label: None,
-            }],
-            "a" | "span" | "small" | "sub" | "sup" => nodes_to_inlines(children, diagnostics),
-            _ if is_block_tag(name) => Vec::new(),
-            other => {
-                diagnostics.record_unsupported_tag(other);
-                nodes_to_inlines(children, diagnostics)
-            }
-        },
-    }
-}
-
-fn is_block_tag(name: &str) -> bool {
-    matches!(
-        name,
-        "p" | "h1"
+fn is_unusual_tag(tag: &str) -> bool {
+    !matches!(
+        tag,
+        "a" | "article"
+            | "b"
+            | "blockquote"
+            | "body"
+            | "br"
+            | "caption"
+            | "code"
+            | "dd"
+            | "div"
+            | "dl"
+            | "dt"
+            | "em"
+            | "h1"
             | "h2"
             | "h3"
             | "h4"
             | "h5"
             | "h6"
-            | "ul"
-            | "ol"
+            | "hr"
+            | "i"
+            | "img"
             | "li"
-            | "table"
-            | "thead"
-            | "tbody"
-            | "tfoot"
-            | "tr"
-            | "th"
-            | "td"
-            | "dl"
-            | "dt"
-            | "dd"
-            | "blockquote"
-            | "section"
-            | "article"
-            | "div"
             | "main"
-            | "body"
+            | "ol"
+            | "p"
+            | "section"
+            | "small"
+            | "span"
+            | "strong"
+            | "sub"
+            | "sup"
+            | "table"
+            | "tbody"
+            | "td"
+            | "tfoot"
+            | "th"
+            | "thead"
+            | "tr"
+            | "ul"
     )
 }
 
-fn text_content(nodes: &[HtmlNode]) -> String {
-    nodes
-        .iter()
-        .map(|node| match node {
-            HtmlNode::Text(text) => text.clone(),
-            HtmlNode::Element { children, .. } => text_content(children),
-        })
-        .collect::<Vec<_>>()
-        .join("")
-}
-
-fn parse_text_inlines(
-    value: &str,
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Vec<ContentInline> {
-    let mut inlines = Vec::new();
+fn parse_text_nodes(value: &str, state: &mut ParseState) -> Vec<RichNode> {
+    let mut nodes = Vec::new();
     let mut offset = 0;
-
     while offset < value.len() {
         let rest = &value[offset..];
-        if rest.starts_with("[[/r")
-            && let Some(end_relative) = rest.find("]]")
+        if rest.starts_with("[[/")
+            && let Some(parsed) = parse_inline_command(value, offset, state)
         {
-            let end = offset + end_relative + 2;
-            let raw = &value[offset..end];
-            let formula = raw
-                .trim_start_matches("[[/r")
-                .trim_end_matches("]]")
-                .trim()
-                .to_string();
-            inlines.push(ContentInline::Roll {
-                label: None,
-                formula,
-                raw: raw.to_string(),
-            });
-            offset = end;
+            nodes.push(RichNode::Foundry { node: parsed.node });
+            offset = parsed.end;
             continue;
         }
         if rest.starts_with('@')
-            && let Some(parsed) = parse_foundry_macro(value, offset, diagnostics)
+            && let Some(parsed) = parse_foundry_macro(value, offset, state)
         {
-            if !parsed.inlines.is_empty() {
-                inlines.extend(parsed.inlines);
-            }
+            nodes.push(parsed.node);
             offset = parsed.end;
             continue;
         }
 
         let next_macro = rest.find('@').unwrap_or(rest.len());
-        let next_roll = rest.find("[[/r").unwrap_or(rest.len());
-        let next_signal = next_macro.min(next_roll);
+        let next_inline_command = rest.find("[[/").unwrap_or(rest.len());
+        let next_signal = next_macro.min(next_inline_command);
         if next_signal > 0 {
-            push_text_inline(&mut inlines, &rest[..next_signal]);
+            push_text(&mut nodes, &rest[..next_signal]);
             offset += next_signal;
-        } else {
-            let Some(character) = rest.chars().next() else {
-                break;
-            };
-            push_text_inline(&mut inlines, &character.to_string());
+        } else if let Some(character) = rest.chars().next() {
+            push_text(&mut nodes, &character.to_string());
             offset += character.len_utf8();
+        } else {
+            break;
         }
     }
-
-    merge_adjacent_text(inlines)
+    merge_adjacent_text(nodes)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+fn push_text(nodes: &mut Vec<RichNode>, text: &str) {
+    if !text.is_empty() {
+        nodes.push(RichNode::Text {
+            text: text.to_string(),
+        });
+    }
+}
+
 struct ParsedMacro {
-    inlines: Vec<ContentInline>,
+    node: RichNode,
     end: usize,
 }
 
-fn parse_foundry_macro(
+struct ParsedFoundryNode {
+    node: FoundryNode,
+    end: usize,
+}
+
+fn parse_inline_command(
     value: &str,
     start: usize,
-    diagnostics: &mut ContentParseDiagnostics,
-) -> Option<ParsedMacro> {
+    state: &mut ParseState,
+) -> Option<ParsedFoundryNode> {
     let rest = &value[start..];
-    if !rest.starts_with('@') {
-        return None;
-    }
+    let body_end_relative = rest.find("]]")?;
+    let body_end = start + body_end_relative;
+    let body = value[start + 3..body_end].trim();
+    let mut end = body_end + 2;
+    let label = parse_optional_label(value, &mut end, state)?;
+    let (command, arguments) = body
+        .split_once(char::is_whitespace)
+        .map(|(command, arguments)| (command.trim_start_matches('/'), arguments.trim()))
+        .unwrap_or_else(|| (body.trim_start_matches('/'), ""));
 
+    Some(ParsedFoundryNode {
+        node: FoundryNode::InlineCommand {
+            command: command.to_string(),
+            arguments: arguments.to_string(),
+            options: inline_command_options(arguments),
+            label,
+        },
+        end,
+    })
+}
+
+fn parse_foundry_macro(value: &str, start: usize, state: &mut ParseState) -> Option<ParsedMacro> {
     let name_start = start + 1;
     let mut name_end = name_start;
     for (relative, character) in value[name_start..].char_indices() {
@@ -397,191 +213,311 @@ fn parse_foundry_macro(
     if name_end == name_start || !value[name_end..].starts_with('[') {
         return None;
     }
+
     let name = &value[name_start..name_end];
     let body_start = name_end + 1;
     let body_end = balanced_close(value, body_start, '[', ']')?;
     let body = &value[body_start..body_end];
     let mut end = body_end + 1;
-    let display = if value[end..].starts_with('{') {
-        let display_start = end + 1;
-        let display_end = balanced_close(value, display_start, '{', '}')?;
-        end = display_end + 1;
-        Some(&value[display_start..display_end])
-    } else {
-        None
-    };
+    let label = parse_optional_label(value, &mut end, state)?;
+    let macro_name = name.to_ascii_lowercase();
+    let parsed_body = ParsedMacroBody::parse(body);
 
-    let inlines = match name.to_ascii_lowercase().as_str() {
-        "uuid" => vec![ContentInline::Reference {
-            reference: ContentReference {
-                label: display.map(|label| parse_text_inlines(label, diagnostics)),
-                locator: ContentReferenceLocator::FoundryUuid {
-                    raw_target: body.to_string(),
-                },
-                resolved_key: None,
-                resolved_name: None,
-            },
-        }],
-        "compendium" => vec![ContentInline::Reference {
-            reference: ContentReference {
-                label: display.map(|label| parse_text_inlines(label, diagnostics)),
-                locator: ContentReferenceLocator::Compendium {
-                    raw_target: body.to_string(),
-                },
-                resolved_key: None,
-                resolved_name: None,
-            },
-        }],
-        "damage" | "check" | "trait" => {
-            let label = display
-                .map(|display| parse_text_inlines(display, diagnostics))
-                .unwrap_or_else(|| mechanic_signal(name, body));
-            if label.is_empty() {
-                dropped_macro(name, value, start, end, diagnostics);
+    let node = match macro_name.as_str() {
+        "uuid" | "compendium" => {
+            let target = parsed_body.first_positional().unwrap_or(body).to_string();
+            RichNode::FoundryLink {
+                link: unresolved_link(
+                    if macro_name == "uuid" {
+                        FoundryLinkMacroKind::Uuid
+                    } else {
+                        FoundryLinkMacroKind::Compendium
+                    },
+                    target,
+                    label,
+                    FoundryLinkBehavior::Reference,
+                ),
             }
-            label
         }
-        "template" => {
-            let template_kind = body
-                .split('|')
-                .next()
-                .and_then(|part| part.strip_prefix("type:"))
-                .map(ToOwned::to_owned);
-            vec![ContentInline::Template {
-                label: display
+        "embed" => {
+            let embed = ParsedEmbedBody::parse(body);
+            let inline = embed
+                .options
+                .get("inline")
+                .is_some_and(|value| value != "false");
+            let hr = embed.options.get("hr").map(|value| value != "false");
+            RichNode::FoundryLink {
+                link: unresolved_link(
+                    FoundryLinkMacroKind::Embed,
+                    embed.target,
+                    label,
+                    FoundryLinkBehavior::Embed {
+                        inline,
+                        hr,
+                        options: embed.options,
+                    },
+                ),
+            }
+        }
+        "check" => RichNode::Foundry {
+            node: FoundryNode::Check {
+                statistic: parsed_body.first_positional().map(ToOwned::to_owned),
+                options: parsed_body.options,
+                label,
+            },
+        },
+        "damage" => {
+            let formula = parsed_body.first_positional().unwrap_or(body).to_string();
+            RichNode::Foundry {
+                node: FoundryNode::Damage {
+                    damage_parts: damage_parts(&formula),
+                    formula,
+                    options: parsed_body.options,
+                    label,
+                },
+            }
+        }
+        "template" => RichNode::Foundry {
+            node: FoundryNode::Template {
+                shape: parsed_body
+                    .options
+                    .get("type")
+                    .cloned()
+                    .or_else(|| parsed_body.first_positional().map(ToOwned::to_owned)),
+                options: parsed_body.options,
+                label,
+            },
+        },
+        "action" => RichNode::Foundry {
+            node: FoundryNode::ActionGlyph {
+                action: label
+                    .as_ref()
+                    .map(|label| render_plain_text(&RichDocument::new(label.clone())))
+                    .filter(|text| !text.trim().is_empty())
+                    .unwrap_or_else(|| parsed_body.first_positional().unwrap_or(body).to_string()),
+            },
+        },
+        "trait" => RichNode::Foundry {
+            node: FoundryNode::Trait {
+                traits: split_at_depth(body, ',')
+                    .into_iter()
+                    .map(str::trim)
+                    .filter(|term| !term.is_empty())
                     .map(ToOwned::to_owned)
-                    .or_else(|| template_kind.clone())
-                    .unwrap_or_else(|| body.to_string()),
-                template_kind,
+                    .collect(),
+                label,
+            },
+        },
+        "localize" => RichNode::Foundry {
+            node: FoundryNode::Localize {
+                key: body.to_string(),
+                value: label,
+            },
+        },
+        _ => RichNode::Foundry {
+            node: FoundryNode::UnknownFoundry {
+                name: macro_name,
+                body: Some(body.to_string()),
+                label,
                 raw: value[start..end].to_string(),
-            }]
-        }
-        "action" => vec![ContentInline::ActionGlyph {
-            action: display
-                .map(ToOwned::to_owned)
-                .unwrap_or_else(|| body.split('|').next().unwrap_or(body).to_string()),
-        }],
-        _ => {
-            if let Some(display) = display {
-                parse_text_inlines(display, diagnostics)
-            } else {
-                vec![ContentInline::Macro {
-                    label: Some(name.to_string()),
-                    raw: value[start..end].to_string(),
-                }]
-            }
-        }
+            },
+        },
     };
 
-    Some(ParsedMacro { inlines, end })
+    Some(ParsedMacro { node, end })
 }
 
-fn dropped_macro(
-    name: &str,
+fn parse_optional_label(
     value: &str,
-    start: usize,
-    end: usize,
-    diagnostics: &mut ContentParseDiagnostics,
-) {
-    diagnostics.dropped_macros.push(DroppedContentMacro {
-        name: name.to_string(),
-        raw: value[start..end].to_string(),
-    });
-}
-
-fn mechanic_signal(name: &str, body: &str) -> Vec<ContentInline> {
-    let terms = match name.to_ascii_lowercase().as_str() {
-        "damage" => nested_bracket_signals(body),
-        "check" => mechanic_terms(body.split('|').next().unwrap_or_default()),
-        "trait" => mechanic_terms(body),
-        _ => Vec::new(),
-    };
-    if terms.is_empty() {
-        Vec::new()
+    end: &mut usize,
+    state: &mut ParseState,
+) -> Option<Option<Vec<RichNode>>> {
+    if value[*end..].starts_with('{') {
+        let label_start = *end + 1;
+        let label_end = balanced_close(value, label_start, '{', '}')?;
+        *end = label_end + 1;
+        Some(Some(parse_text_nodes(
+            &value[label_start..label_end],
+            state,
+        )))
     } else {
-        vec![ContentInline::Text {
-            text: terms.join(" "),
-        }]
+        Some(None)
     }
 }
 
-fn nested_bracket_signals(value: &str) -> Vec<String> {
-    let mut signals = Vec::new();
-    let mut offset = 0;
-
-    while offset < value.len() {
-        let rest = &value[offset..];
-        let Some(open_relative) = rest.find('[') else {
-            break;
-        };
-        let body_start = offset + open_relative + 1;
-        let Some(body_end) = balanced_close(value, body_start, '[', ']') else {
-            break;
-        };
-        signals.extend(mechanic_terms(&value[body_start..body_end]));
-        offset = body_end + 1;
+fn unresolved_link(
+    macro_kind: FoundryLinkMacroKind,
+    target: String,
+    label: Option<Vec<RichNode>>,
+    behavior: FoundryLinkBehavior,
+) -> FoundryLink {
+    let fallback_label = reference_display_fallback(&target);
+    FoundryLink {
+        target: RichLinkTarget::Unresolved {
+            target: target.clone(),
+            fallback_label,
+        },
+        label,
+        source: FoundryLinkSource {
+            macro_kind,
+            authored_target: target,
+            relation: None,
+        },
+        behavior,
     }
-
-    signals
 }
 
-fn mechanic_terms(value: &str) -> Vec<String> {
-    value
-        .split(|character: char| {
-            character.is_whitespace()
-                || matches!(
-                    character,
-                    '|' | ':' | ';' | ',' | '=' | '[' | ']' | '(' | ')' | '{' | '}'
-                )
-        })
-        .map(str::trim)
-        .filter(|term| !term.is_empty())
-        .filter(|term| !term.chars().all(|character| character.is_ascii_digit()))
-        .filter(|term| !term.contains(char::is_numeric))
-        .filter(|term| {
-            !matches!(
-                term.to_ascii_lowercase().as_str(),
-                "dc" | "basic" | "save" | "saving" | "throw" | "damage"
-            )
-        })
-        .map(ToOwned::to_owned)
-        .collect()
+struct ParsedMacroBody {
+    positional: Vec<String>,
+    options: BTreeMap<String, String>,
 }
 
-fn balanced_close(value: &str, body_start: usize, open: char, close: char) -> Option<usize> {
-    let mut depth = 1;
-    for (relative, character) in value[body_start..].char_indices() {
-        match character {
-            current if current == open => depth += 1,
-            current if current == close => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(body_start + relative);
-                }
+impl ParsedMacroBody {
+    fn parse(body: &str) -> Self {
+        let mut positional = Vec::new();
+        let mut options = BTreeMap::new();
+
+        for segment in split_at_depth(body, '|') {
+            let segment = segment.trim();
+            if segment.is_empty() {
+                continue;
             }
-            _ => {}
+            if let Some((key, value)) = split_option(segment) {
+                options.insert(key.to_string(), value.to_string());
+            } else if positional.is_empty() {
+                positional.push(segment.to_string());
+            } else {
+                options.insert(segment.to_string(), "true".to_string());
+            }
+        }
+
+        Self {
+            positional,
+            options,
+        }
+    }
+
+    fn first_positional(&self) -> Option<&str> {
+        self.positional.first().map(String::as_str)
+    }
+}
+
+struct ParsedEmbedBody {
+    target: String,
+    options: BTreeMap<String, String>,
+}
+
+impl ParsedEmbedBody {
+    fn parse(body: &str) -> Self {
+        let mut segments = body.split_whitespace();
+        let target = segments.next().unwrap_or(body).to_string();
+        let mut options = BTreeMap::new();
+        for segment in segments {
+            if let Some((key, value)) = split_option(segment) {
+                options.insert(key.to_string(), value.to_string());
+            } else if !segment.is_empty() {
+                options.insert(segment.to_string(), "true".to_string());
+            }
+        }
+        Self { target, options }
+    }
+}
+
+fn balanced_close(value: &str, start: usize, open: char, close: char) -> Option<usize> {
+    let mut depth = 1;
+    for (relative, character) in value[start..].char_indices() {
+        if character == open {
+            depth += 1;
+        } else if character == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(start + relative);
+            }
         }
     }
     None
 }
 
-fn push_text_inline(inlines: &mut Vec<ContentInline>, text: &str) {
-    if text.is_empty() {
-        return;
-    }
-    inlines.push(ContentInline::Text {
-        text: text.to_string(),
-    });
+fn split_option(segment: &str) -> Option<(&str, &str)> {
+    segment
+        .split_once(':')
+        .or_else(|| segment.split_once('='))
+        .map(|(key, value)| (key.trim(), value.trim()))
+        .filter(|(key, _)| !key.is_empty())
 }
 
-fn merge_adjacent_text(inlines: Vec<ContentInline>) -> Vec<ContentInline> {
-    let mut merged: Vec<ContentInline> = Vec::new();
-    for inline in inlines {
-        match (merged.last_mut(), inline) {
-            (Some(ContentInline::Text { text: existing }), ContentInline::Text { text }) => {
+fn split_at_depth(value: &str, separator: char) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut bracket_depth = 0usize;
+    let mut brace_depth = 0usize;
+
+    for (index, character) in value.char_indices() {
+        match character {
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '{' => brace_depth += 1,
+            '}' => brace_depth = brace_depth.saturating_sub(1),
+            _ if character == separator && bracket_depth == 0 && brace_depth == 0 => {
+                parts.push(&value[start..index]);
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+
+    parts.push(&value[start..]);
+    parts
+}
+
+fn inline_command_options(arguments: &str) -> BTreeMap<String, String> {
+    arguments
+        .split_whitespace()
+        .filter_map(split_option)
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect()
+}
+
+fn damage_parts(formula: &str) -> Vec<DamagePart> {
+    split_at_depth(formula, ',')
+        .into_iter()
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            if let Some(open) = part.rfind('[')
+                && part.ends_with(']')
+            {
+                return DamagePart {
+                    formula: part[..open].to_string(),
+                    damage_type: Some(part[open + 1..part.len() - 1].to_string()),
+                };
+            }
+            DamagePart {
+                formula: part.to_string(),
+                damage_type: None,
+            }
+        })
+        .collect()
+}
+
+fn reference_display_fallback(target: &str) -> String {
+    target
+        .rsplit('.')
+        .next()
+        .unwrap_or(target)
+        .replace(['-', '_'], " ")
+        .trim()
+        .to_string()
+}
+
+fn merge_adjacent_text(nodes: Vec<RichNode>) -> Vec<RichNode> {
+    let mut merged = Vec::new();
+    for node in nodes {
+        match (merged.last_mut(), node) {
+            (Some(RichNode::Text { text: existing }), RichNode::Text { text }) => {
                 existing.push_str(&text);
             }
-            (_, inline) => merged.push(inline),
+            (_, node) => merged.push(node),
         }
     }
     merged

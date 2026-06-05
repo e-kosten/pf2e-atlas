@@ -5,6 +5,7 @@ mod json_projection;
 pub mod metrics;
 mod model;
 mod presentation;
+mod presentation_content;
 mod presentation_format;
 mod presentation_recipe;
 #[cfg(test)]
@@ -12,11 +13,12 @@ mod presentation_recipe_tests;
 mod reference_policy;
 
 pub use content::{
-    ContentBlock, ContentDefinitionItem, ContentDocument, ContentFtsField, ContentInline,
-    ContentReference, ContentReferenceIter, ContentReferenceLocator, ContentSectionNode,
-    ContentSectionOrigin, ContentSourceKind, ContentVisibility, RecordContentDocument,
-    RecordFtsProjection, build_content_section_tree, build_record_fts_projection,
-    iter_content_references, render_markdown_like, render_plain_text, visit_content_references_mut,
+    ContentFtsField, ContentSectionNode, ContentSectionOrigin, ContentSourceKind,
+    ContentVisibility, DamagePart, FoundryLink, FoundryLinkBehavior, FoundryLinkIter,
+    FoundryLinkMacroKind, FoundryLinkSource, FoundryNode, RecordContentDocument,
+    RecordFtsProjection, ReferenceRelationKind, RichDocument, RichLinkTarget, RichNode,
+    build_content_section_tree, build_record_fts_projection, iter_foundry_links,
+    render_markdown_like, render_plain_text, visit_foundry_links_mut,
 };
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
@@ -37,10 +39,12 @@ pub use model::{
     SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget, VariantSource,
 };
 pub use presentation::{
-    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
+    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationContent,
+    PresentationContentBlock, PresentationFact, PresentationInline, PresentationListItem,
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
-    PresentationSectionKind, PresentationText, RecordPresentationDocument,
+    PresentationSectionKind, PresentationTableRow, PresentationText, RecordPresentationDocument,
 };
+pub use presentation_content::render_presentation_content_plain_text;
 pub use presentation_recipe::{
     build_record_presentation_document, build_record_presentation_document_with_content_filter,
 };

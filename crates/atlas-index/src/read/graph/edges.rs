@@ -1,7 +1,7 @@
 use crate::artifact::inventory::{Column, reference_edges};
 use crate::read::sql::SqlBindValue;
 use atlas_domain::RecordKey;
-use atlas_record::{ContentSourceKind, ContentVisibility};
+use atlas_record::{ContentSourceKind, ContentVisibility, ReferenceRelationKind};
 use diesel::sql_types::{Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
@@ -22,6 +22,7 @@ pub struct GraphReferenceEdge {
     pub to_record_key: RecordKey,
     pub display_text: Option<String>,
     pub reference_text: String,
+    pub relation_kind: ReferenceRelationKind,
     pub source_kind: ContentSourceKind,
     pub visibility: ContentVisibility,
 }
@@ -60,6 +61,7 @@ pub(crate) fn read_reference_edges_for_seed(
            {to_record_key},
            {display_text},
            {reference_text},
+           {relation_kind},
            {source_kind},
            {visibility}
          FROM {table} {alias}
@@ -72,6 +74,7 @@ pub(crate) fn read_reference_edges_for_seed(
         to_record_key = aliased_reference_column(alias, reference_edges::columns::TO_RECORD_KEY),
         display_text = aliased_reference_column(alias, reference_edges::columns::DISPLAY_TEXT),
         reference_text = aliased_reference_column(alias, reference_edges::columns::REFERENCE_TEXT),
+        relation_kind = aliased_reference_column(alias, reference_edges::columns::RELATION_KIND),
         source_kind = aliased_reference_column(alias, reference_edges::columns::SOURCE_KIND),
         visibility = aliased_reference_column(alias, reference_edges::columns::VISIBILITY),
         key_column = aliased_reference_column(alias, key_column),
@@ -90,6 +93,13 @@ pub(crate) fn read_reference_edges_for_seed(
                     .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
                 display_text: row.display_text,
                 reference_text: row.reference_text,
+                relation_kind: ReferenceRelationKind::from_canonical(&row.relation_kind)
+                    .ok_or_else(|| {
+                        RecordLoadError::InvalidData(format!(
+                            "unknown reference relation kind `{}`",
+                            row.relation_kind
+                        ))
+                    })?,
                 source_kind: ContentSourceKind::from_canonical(&row.source_kind).ok_or_else(
                     || {
                         RecordLoadError::InvalidData(format!(
@@ -125,6 +135,8 @@ struct ReferenceEdgeRow {
     display_text: Option<String>,
     #[diesel(sql_type = Text)]
     reference_text: String,
+    #[diesel(sql_type = Text)]
+    relation_kind: String,
     #[diesel(sql_type = Text)]
     source_kind: String,
     #[diesel(sql_type = Text)]

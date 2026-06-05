@@ -1,11 +1,11 @@
-use atlas_record::{ContentDocument, ContentSourceKind, RecordContentDocument};
+use atlas_record::{ContentSourceKind, RecordContentDocument, RichDocument};
 use serde_json::Value;
 
 use super::{ContentParseDiagnostics, parse_foundry_content, pointer_string, string_field};
 
 pub(super) struct SourceContentProjection {
-    pub description: Option<ContentDocument>,
-    pub blurb: Option<ContentDocument>,
+    pub description: Option<RichDocument>,
+    pub blurb: Option<RichDocument>,
     pub supplemental_content: Vec<(Option<String>, RecordContentDocument)>,
     pub diagnostics: Vec<ContentParseDiagnostics>,
 }
@@ -41,7 +41,7 @@ pub(super) fn extract_content_sources(raw: &Value) -> SourceContentProjection {
     }
 }
 
-fn non_empty_document(document: &ContentDocument) -> bool {
+fn non_empty_document(document: &RichDocument) -> bool {
     !document.is_empty()
 }
 
@@ -212,7 +212,7 @@ fn collect_embedded_content_at_pointer(
 fn supplemental_content(
     source_kind: ContentSourceKind,
     label: Option<String>,
-    document: ContentDocument,
+    document: RichDocument,
 ) -> RecordContentDocument {
     RecordContentDocument {
         source_kind,
