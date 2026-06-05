@@ -52,13 +52,6 @@ impl SearchError {
         Self::new(SearchErrorKind::QueryFailed, error.to_string())
     }
 
-    pub(crate) fn invalid_embedding_model(model: String, message: String) -> Self {
-        Self::vector_ready(
-            SearchErrorKind::EmbeddingUnavailable,
-            format!("invalid embedding model `{model}`: {message}"),
-        )
-    }
-
     pub(crate) fn embedding(message: String) -> Self {
         Self::vector_ready(
             SearchErrorKind::EmbeddingUnavailable,

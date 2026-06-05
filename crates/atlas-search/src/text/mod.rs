@@ -12,7 +12,10 @@ mod results;
 mod sources;
 
 use request::validate_search_text_request;
-pub use request::{RetrievalMode, TextSearchRequest};
+pub use request::{
+    DEFAULT_RANKED_CANDIDATE_WINDOW, MAX_RANKED_CANDIDATE_WINDOW, RetrievalMode, TextSearchRequest,
+    TextSearchTuning,
+};
 pub use results::{TextSearchMatch, TextSearchRecord, TextSearchResult};
 use results::{TextSearchResultItem, candidate_keys, identity_records};
 use sources::{
@@ -32,33 +35,33 @@ impl TextRetrieval for AtlasRetrievalService {
         &mut self,
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchResult, SearchError> {
-        validate_search_text_request(&request)?;
+        let tuning = validate_search_text_request(&request)?;
         let resolved_filter = resolve_text_filter(self.index.as_ref(), request.filter)?;
         let filter = resolved_filter.as_ref().or(request.filter);
         let query = analyze_text_query(request.query, request.exclude);
         let fts_query = FtsQuery::from_tokens(query.fts_tokens.clone());
         let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
         let identity_matches = resolve_identity_tier(self, request.query, filter)?;
-        let fts_hits = if request.retrieval.uses_fts() {
+        let fts_hits = if tuning.retrieval.uses_fts() {
             match fts_query.as_ref() {
                 Some(fts_query) => query_precision_fts_index(
                     self.index.as_ref(),
                     fts_query,
                     filter,
-                    request.fts_top_k,
+                    tuning.fts_top_k,
                 )?,
                 None => Vec::new(),
             }
         } else {
             Vec::new()
         };
-        let vector_hits = if request.retrieval.uses_vector() {
+        let vector_hits = if tuning.retrieval.uses_vector() {
             search_vector_lane(
                 self,
                 SemanticSearchRequest {
                     query: request.query,
                     filter,
-                    limit: request.vector_top_k,
+                    limit: tuning.vector_top_k,
                     mode: SemanticSearchMode::WeightedChunks,
                 },
             )?
@@ -101,15 +104,15 @@ impl TextRetrieval for AtlasRetrievalService {
             fts_tokens: &query.fts_tokens,
             identity_keys: &identity_keys,
             excluded_keys: &excluded_keys,
-            retrieval: request.retrieval,
-            fusion: request.fusion,
+            retrieval: tuning.retrieval,
+            fusion: tuning.fusion,
             fts_policy: DEFAULT_FTS_FUSION_POLICY,
             explain: request.explain,
             identity_count: identity_matches.len(),
         });
         let total = identity_matches.len() + fused.len();
         let identity_records =
-            identity_records(identity_matches, request.retrieval, request.explain);
+            identity_records(identity_matches, tuning.retrieval, request.explain);
         let mut page_items = identity_records
             .into_iter()
             .map(|record| TextSearchResultItem::Identity(Box::new(record)))
@@ -137,7 +140,7 @@ impl TextRetrieval for AtlasRetrievalService {
                     .map(|record| TextSearchRecord {
                         record: record.clone(),
                         match_info: TextSearchMatch::Ranked {
-                            retrieval: request.retrieval,
+                            retrieval: tuning.retrieval,
                             explain: ranked.explain,
                         },
                     }),
@@ -146,8 +149,8 @@ impl TextRetrieval for AtlasRetrievalService {
 
         Ok(TextSearchResult {
             query,
-            retrieval: request.retrieval,
-            fusion: request.fusion,
+            retrieval: tuning.retrieval,
+            fusion: tuning.fusion,
             records: page_records,
             total: total as u64,
         })
@@ -270,10 +273,12 @@ mod tests {
                 filter: None,
                 limit: 1,
                 offset: 1,
-                retrieval: RetrievalMode::Fts,
-                fusion: FusionOptions::default(),
-                fts_top_k: 10,
-                vector_top_k: 10,
+                tuning: Some(TextSearchTuning {
+                    retrieval: RetrievalMode::Fts,
+                    fusion: FusionOptions::default(),
+                    fts_top_k: 10,
+                    vector_top_k: 10,
+                }),
                 explain: true,
             })
             .expect("text search should succeed");
@@ -312,21 +317,34 @@ mod tests {
             filter: None,
             limit: 10,
             offset: 0,
-            retrieval: RetrievalMode::Fts,
-            fusion: FusionOptions {
-                method: FusionMethod::Rrf,
-                fts_weight: 2.0,
-                vector_weight: 1.0,
-                rank_constant: 60.0,
-            },
-            fts_top_k: 10,
-            vector_top_k: 10,
+            tuning: Some(TextSearchTuning {
+                retrieval: RetrievalMode::Fts,
+                fusion: FusionOptions {
+                    method: FusionMethod::Rrf,
+                    fts_weight: 2.0,
+                    vector_weight: 1.0,
+                    rank_constant: 60.0,
+                },
+                fts_top_k: 10,
+                vector_top_k: 10,
+            }),
             explain: false,
         };
 
         let error = validate_search_text_request(&request).expect_err("invalid fusion should fail");
 
         assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
+    }
+
+    #[test]
+    fn default_search_tuning_is_hybrid_and_expands_to_page_window() {
+        let tuning =
+            TextSearchTuning::default_for_page(250, 25).expect("default tuning should resolve");
+
+        assert_eq!(tuning.retrieval, RetrievalMode::Hybrid);
+        assert_eq!(tuning.fusion, FusionOptions::default());
+        assert_eq!(tuning.fts_top_k, 275);
+        assert_eq!(tuning.vector_top_k, 275);
     }
 
     struct FakeTextIndex {

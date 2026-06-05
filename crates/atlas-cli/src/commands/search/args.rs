@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use atlas_domain::DetailLevel;
-use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_search::{FusionMethod, RetrievalMode};
 use clap::{ArgAction, Args, ValueEnum};
 
@@ -44,38 +43,30 @@ pub(crate) struct SearchOptions {
     pub(crate) embedding_cache_path: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model for vector or hybrid retrieval")]
-    pub(crate) embedding_model: EmbeddingModelId,
-    #[arg(long, value_enum, default_value_t = CliRetrievalMode::Hybrid, help = "Rank text queries with fts, vector, or hybrid retrieval")]
-    pub(crate) retrieval: CliRetrievalMode,
-    #[arg(long, value_enum, default_value_t = CliFusionMethod::WeightedRrf, help = "Fusion algorithm for hybrid retrieval")]
-    pub(crate) fusion: CliFusionMethod,
     #[arg(
         long,
-        default_value_t = 1.0,
-        help = "FTS lane weight for weighted-rrf hybrid retrieval"
+        value_enum,
+        help = "Rank text queries with fts, vector, or hybrid retrieval"
     )]
-    pub(crate) fts_weight: f64,
+    pub(crate) retrieval: Option<CliRetrievalMode>,
+    #[arg(long, value_enum, help = "Fusion algorithm for hybrid retrieval")]
+    pub(crate) fusion: Option<CliFusionMethod>,
+    #[arg(long, help = "FTS lane weight for weighted-rrf hybrid retrieval")]
+    pub(crate) fts_weight: Option<f64>,
+    #[arg(long, help = "Vector lane weight for weighted-rrf hybrid retrieval")]
+    pub(crate) vector_weight: Option<f64>,
+    #[arg(long, help = "Reciprocal-rank fusion constant")]
+    pub(crate) rank_constant: Option<f64>,
     #[arg(
         long,
-        default_value_t = 1.0,
-        help = "Vector lane weight for weighted-rrf hybrid retrieval"
-    )]
-    pub(crate) vector_weight: f64,
-    #[arg(long, default_value_t = 60.0, help = "Reciprocal-rank fusion constant")]
-    pub(crate) rank_constant: f64,
-    #[arg(
-        long,
-        default_value_t = 200,
         help = "FTS candidate window for ranked text search; capped at 5000"
     )]
-    pub(crate) fts_top_k: u32,
+    pub(crate) fts_top_k: Option<u32>,
     #[arg(
         long,
-        default_value_t = 200,
         help = "Vector candidate window for ranked text search; capped at 5000"
     )]
-    pub(crate) vector_top_k: u32,
+    pub(crate) vector_top_k: Option<u32>,
     #[arg(
         long,
         help = "Exclude records whose indexed search text matches this plain-text query"

@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command as ProcessCommand;
 
-use atlas_embedding::DEFAULT_EMBEDDING_MODEL;
+use atlas_embedding::{EmbeddingModelId, embedding_model_for_model_id};
 use atlas_search::{AtlasRetrievalService, SearchEmbeddingConfig, SearchError};
 
 mod setup;
@@ -154,10 +154,23 @@ impl AtlasRuntime {
     }
 
     pub fn open_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {
-        self.open_retrieval_service_with_model(DEFAULT_EMBEDDING_MODEL.to_string())
+        let index = self.open_search_index().map_err(search_error_from_index)?;
+        let report = index
+            .validate_embedding_readiness()
+            .map_err(search_error_from_index)?;
+        if report.status != atlas_index::ValidationStatus::Ok {
+            return Err(SearchError::vector_readiness_required(report.message));
+        }
+        let config = SearchEmbeddingConfig {
+            model: embedding_model_from_artifact_report(&report)?,
+            cache_root: self.paths.embedding_cache_root.clone(),
+        };
+        AtlasRetrievalService::new(index, &config)
     }
 
-    pub fn open_record_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {
+    pub fn open_retrieval_service_no_embeddings(
+        &self,
+    ) -> Result<AtlasRetrievalService, SearchError> {
         Ok(AtlasRetrievalService::without_embeddings(
             self.open_index().map_err(search_error_from_index)?,
         ))
@@ -177,18 +190,21 @@ impl AtlasRuntime {
         }
         Ok(AtlasRetrievalService::without_embeddings(index))
     }
+}
 
-    pub fn open_retrieval_service_with_model(
-        &self,
-        model_id: impl Into<String>,
-    ) -> Result<AtlasRetrievalService, SearchError> {
-        let index = self.open_search_index().map_err(search_error_from_index)?;
-        let config = SearchEmbeddingConfig {
-            model_id: model_id.into(),
-            cache_root: self.paths.embedding_cache_root.clone(),
-        };
-        AtlasRetrievalService::new(index, &config)
-    }
+fn embedding_model_from_artifact_report(
+    report: &atlas_index::ArtifactValidationReport,
+) -> Result<EmbeddingModelId, SearchError> {
+    let model_id = report.embedding_model_id.as_deref().ok_or_else(|| {
+        SearchError::artifact_contract_violation(
+            "artifact embedding metadata is missing `embedding_model_id`",
+        )
+    })?;
+    embedding_model_for_model_id(model_id).ok_or_else(|| {
+        SearchError::artifact_contract_violation(format!(
+            "artifact embedding model `{model_id}` is not supported by this runtime"
+        ))
+    })
 }
 
 fn search_error_from_index(error: atlas_index::IndexValidationError) -> SearchError {

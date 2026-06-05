@@ -2,9 +2,10 @@ use atlas_domain::{DetailLevel, SearchFilterNode};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    DEFAULT_FTS_FUSION_POLICY_NAME, FusionOptions, ListRecordsRequest, RecordListSort,
-    RecordRetrieval, RetrievalMode, SearchError, SearchErrorKind, TextRetrieval, TextSearchExplain,
-    TextSearchMatch, TextSearchRequest,
+    DEFAULT_FTS_FUSION_POLICY_NAME, DEFAULT_RANKED_CANDIDATE_WINDOW, FusionOptions,
+    ListRecordsRequest, RecordListSort, RecordRetrieval, RetrievalMode, SearchError,
+    SearchErrorKind, TextRetrieval, TextSearchExplain, TextSearchMatch, TextSearchRequest,
+    TextSearchTuning,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -17,13 +18,12 @@ use crate::terminal::TerminalStyle;
 
 pub(crate) mod args;
 
-use args::{CliFusionMethod, CliSearchSort, SearchOptions};
+use args::{CliRetrievalMode, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
 use super::record::{detail_outputs_description, print_record_for_detail};
 
 const MAX_LIMIT: u32 = 100;
-const MAX_RANKED_CANDIDATE_WINDOW: u32 = 5_000;
 
 #[derive(Debug, Serialize)]
 struct SearchData {
@@ -205,7 +205,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
             return Err(error);
         }
     };
-    let service = match runtime.open_record_retrieval_service() {
+    let service = match runtime.open_retrieval_service_no_embeddings() {
         Ok(service) => service,
         Err(error) if options.json => {
             write_json_error("index_unavailable", error.to_string())?;
@@ -286,50 +286,18 @@ fn run_ranked_search_text(
     filter_value: Option<Value>,
     limit: u32,
 ) -> Result<ExitCode, String> {
-    let retrieval = RetrievalMode::from(options.retrieval);
-    let fusion = FusionOptions {
-        method: options.fusion.into(),
-        fts_weight: options.fts_weight,
-        vector_weight: options.vector_weight,
-        rank_constant: options.rank_constant,
-    };
-    if options.fusion == CliFusionMethod::Rrf
-        && ((options.fts_weight - 1.0).abs() > f64::EPSILON
-            || (options.vector_weight - 1.0).abs() > f64::EPSILON)
-    {
-        let message =
-            "--fusion rrf does not accept lane weights; use --fusion weighted-rrf".to_string();
-        if options.json {
-            write_json_error("invalid_option", message)?;
-            return Ok(ExitCode::from(2));
-        }
-        return Err(message);
-    }
-    if fusion.rank_constant <= 0.0 || fusion.fts_weight < 0.0 || fusion.vector_weight < 0.0 {
-        let message =
-            "fusion weights must be non-negative and --rank-constant must be greater than zero"
-                .to_string();
-        if options.json {
-            write_json_error("invalid_option", message)?;
-            return Ok(ExitCode::from(2));
-        }
-        return Err(message);
-    }
-    let ranked_window = options.offset.saturating_add(limit);
-    if ranked_window > MAX_RANKED_CANDIDATE_WINDOW
-        || options.fts_top_k > MAX_RANKED_CANDIDATE_WINDOW
-        || options.vector_top_k > MAX_RANKED_CANDIDATE_WINDOW
-    {
-        let message = format!(
-            "ranked search candidate windows must be at most {MAX_RANKED_CANDIDATE_WINDOW}; got --offset {}, --limit {limit}, --fts-top-k {}, --vector-top-k {}",
-            options.offset, options.fts_top_k, options.vector_top_k
-        );
-        if options.json {
-            write_json_error("invalid_option", message)?;
-            return Ok(ExitCode::from(2));
-        }
-        return Err(message);
-    }
+    let request_tuning = text_search_tuning_from_options(&options);
+    let resolved_tuning =
+        match TextSearchTuning::resolve_for_page(request_tuning, options.offset, limit) {
+            Ok(tuning) => tuning,
+            Err(error) if options.json => {
+                write_json_error(search_error_code(&error), error.to_string())?;
+                return Ok(ExitCode::from(2));
+            }
+            Err(error) => return Err(error.to_string()),
+        };
+    let explicit_fts = matches!(options.retrieval, Some(CliRetrievalMode::Fts));
+    let retrieval = resolved_tuning.retrieval;
     search_progress("Resolving Atlas paths", "resolve");
     let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.path_mode.into(),
@@ -346,9 +314,9 @@ fn run_ranked_search_text(
         }
         Err(error) => return Err(error),
     };
-    let mut search = if retrieval == RetrievalMode::Fts {
+    let mut search = if explicit_fts {
         search_progress("Opening index", "open-index");
-        match runtime.open_record_retrieval_service() {
+        match runtime.open_retrieval_service_no_embeddings() {
             Ok(search) => search,
             Err(error) if options.json => {
                 complete_search_progress();
@@ -362,7 +330,7 @@ fn run_ranked_search_text(
         }
     } else {
         search_progress("Loading embedding model", "load-embeddings");
-        match runtime.open_retrieval_service_with_model(options.embedding_model.to_string()) {
+        match runtime.open_retrieval_service() {
             Ok(search) => search,
             Err(error) if options.json && vector_readiness_error(&error) => {
                 complete_search_progress();
@@ -387,18 +355,13 @@ fn run_ranked_search_text(
         }
     };
     search_progress("Searching records", "search");
-    let fts_top_k = options.fts_top_k.max(ranked_window);
-    let vector_top_k = options.vector_top_k.max(ranked_window);
     let result = match search.search_text(TextSearchRequest {
         query,
         exclude: options.exclude.as_deref(),
         filter,
         limit,
         offset: options.offset,
-        retrieval,
-        fusion,
-        fts_top_k,
-        vector_top_k,
+        tuning: request_tuning,
         explain: options.explain,
     }) {
         Ok(result) => result,
@@ -454,8 +417,8 @@ fn run_ranked_search_text(
             fts_policy: DEFAULT_FTS_FUSION_POLICY_NAME,
         }),
         candidate_windows: options.explain.then_some(SearchCandidateWindowsJson {
-            fts_top_k,
-            vector_top_k,
+            fts_top_k: resolved_tuning.fts_top_k,
+            vector_top_k: resolved_tuning.vector_top_k,
         }),
         filter: filter_value,
         sort: SearchSortJson {
@@ -481,6 +444,45 @@ fn run_ranked_search_text(
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+fn text_search_tuning_from_options(options: &SearchOptions) -> Option<TextSearchTuning> {
+    if options.retrieval.is_none()
+        && options.fusion.is_none()
+        && options.fts_weight.is_none()
+        && options.vector_weight.is_none()
+        && options.rank_constant.is_none()
+        && options.fts_top_k.is_none()
+        && options.vector_top_k.is_none()
+    {
+        return None;
+    }
+
+    let mut fusion = FusionOptions::default();
+    if let Some(method) = options.fusion {
+        fusion.method = method.into();
+    }
+    if let Some(weight) = options.fts_weight {
+        fusion.fts_weight = weight;
+    }
+    if let Some(weight) = options.vector_weight {
+        fusion.vector_weight = weight;
+    }
+    if let Some(rank_constant) = options.rank_constant {
+        fusion.rank_constant = rank_constant;
+    }
+
+    Some(TextSearchTuning {
+        retrieval: options
+            .retrieval
+            .map(RetrievalMode::from)
+            .unwrap_or(RetrievalMode::Hybrid),
+        fusion,
+        fts_top_k: options.fts_top_k.unwrap_or(DEFAULT_RANKED_CANDIDATE_WINDOW),
+        vector_top_k: options
+            .vector_top_k
+            .unwrap_or(DEFAULT_RANKED_CANDIDATE_WINDOW),
+    })
 }
 
 fn search_progress(message: &'static str, phase: &'static str) {
