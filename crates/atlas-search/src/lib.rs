@@ -23,9 +23,8 @@ pub use graph::{
 };
 pub use query::TextQueryAnalysis;
 pub use records::{
-    BrowseRecordsRequest, BrowseRecordsResult, GetRecordRequest, GetRecordsRequest,
-    RecordBrowseSort, RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval,
-    ResolveRecordRequest,
+    GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordListSort,
+    RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest,
 };
 pub use remaster::{
     RemasterLinkResult, RemasterLinksRequest, RemasterLinksResult, RemasterRetrieval,

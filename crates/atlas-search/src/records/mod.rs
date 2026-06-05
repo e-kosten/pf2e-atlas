@@ -7,8 +7,8 @@ use atlas_record::AtlasRecord;
 use crate::SearchError;
 
 pub use types::{
-    BrowseRecordsRequest, BrowseRecordsResult, GetRecordRequest, GetRecordsRequest,
-    RecordBrowseSort, RecordResolutionMatchKind, RecordResolutionResult, ResolveRecordRequest,
+    GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordListSort,
+    RecordResolutionMatchKind, RecordResolutionResult, ResolveRecordRequest,
 };
 
 pub trait RecordRetrieval {
@@ -17,10 +17,10 @@ pub trait RecordRetrieval {
     fn get_record(&self, request: GetRecordRequest<'_>)
     -> Result<Option<AtlasRecord>, SearchError>;
 
-    fn browse_records(
+    fn list_records(
         &self,
-        request: BrowseRecordsRequest<'_>,
-    ) -> Result<BrowseRecordsResult, SearchError>;
+        request: ListRecordsRequest<'_>,
+    ) -> Result<ListRecordsResult, SearchError>;
 
     fn resolve_record(
         &self,

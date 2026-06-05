@@ -4,7 +4,7 @@ use atlas_record::AtlasRecord;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RecordBrowseSort {
+pub enum RecordListSort {
     Alphabetical,
     LevelAsc,
     LevelDesc,
@@ -14,16 +14,16 @@ pub enum RecordBrowseSort {
     Random { seed: u64 },
 }
 
-impl From<RecordBrowseSort> for FilteredRecordSort {
-    fn from(value: RecordBrowseSort) -> Self {
+impl From<RecordListSort> for FilteredRecordSort {
+    fn from(value: RecordListSort) -> Self {
         match value {
-            RecordBrowseSort::Alphabetical => Self::Alphabetical,
-            RecordBrowseSort::LevelAsc => Self::LevelAsc,
-            RecordBrowseSort::LevelDesc => Self::LevelDesc,
-            RecordBrowseSort::PriceAsc => Self::PriceAsc,
-            RecordBrowseSort::PriceDesc => Self::PriceDesc,
-            RecordBrowseSort::RecordKey => Self::RecordKey,
-            RecordBrowseSort::Random { seed } => Self::Random { seed },
+            RecordListSort::Alphabetical => Self::Alphabetical,
+            RecordListSort::LevelAsc => Self::LevelAsc,
+            RecordListSort::LevelDesc => Self::LevelDesc,
+            RecordListSort::PriceAsc => Self::PriceAsc,
+            RecordListSort::PriceDesc => Self::PriceDesc,
+            RecordListSort::RecordKey => Self::RecordKey,
+            RecordListSort::Random { seed } => Self::Random { seed },
         }
     }
 }
@@ -45,15 +45,15 @@ pub struct ResolveRecordRequest<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BrowseRecordsRequest<'a> {
+pub struct ListRecordsRequest<'a> {
     pub filter: Option<&'a SearchFilterNode>,
-    pub sort: RecordBrowseSort,
+    pub sort: RecordListSort,
     pub limit: u32,
     pub offset: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BrowseRecordsResult {
+pub struct ListRecordsResult {
     pub record_keys: Vec<RecordKey>,
     pub records: Vec<AtlasRecord>,
     pub total: u64,

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The TypeScript MCP product exposes separate lookup, search, and browse/list tools because those tools map cleanly to the internal `SearchRequest` modes:
+The TypeScript MCP product exposed separate lookup, search, and browse/list tools because those tools mapped cleanly to the old TypeScript request modes:
 
 - lookup is name/alias-oriented structured retrieval
 - search is ranked text retrieval over lexical, semantic, or hybrid signals
@@ -56,7 +56,7 @@ The runtime should still preserve the internal distinctions:
 - ranked text search
 - FTS, vector, and hybrid retrieval paths
 
-Those distinctions belong behind the CLI contract unless the caller explicitly asks for a retrieval or diagnostic mode.
+Those distinctions belong behind the CLI contract unless the caller explicitly asks for a retrieval or diagnostic mode. Rust does not preserve the old TypeScript `SearchRequest` browse/search/lookup enum as a shared domain contract; future app or web request DTOs should be designed from the Rust product workflows and adapted to the retrieval service layer.
 
 ## Consequences
 
@@ -71,6 +71,6 @@ Phase 5 should be reframed around record retrieval and structured search foundat
 
 Later ranked search work should extend the same `atlas search` command rather than adding separate default commands for FTS and semantic search. Power-user retrieval selection can expose FTS, vector, and hybrid behavior as flags.
 
-The CLI can still use internal Rust request models that resemble browse, lookup, and search. The product surface should present record operations and search operations instead of exposing those internal modes as peer commands.
+The CLI can still use internal Rust request models for record listing, strict resolution, and ranked text search. The product surface should present record operations and search operations instead of exposing old request modes as peer commands.
 
 This decision also affects skills and examples: agent guidance should teach `record get` for known keys, `record resolve` for strict names, and `search` for result sets. It should not tell ordinary users to pick separate semantic or lexical commands unless they are tuning retrieval behavior.
