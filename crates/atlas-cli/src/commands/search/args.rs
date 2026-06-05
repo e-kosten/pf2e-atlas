@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use atlas_domain::DetailLevel;
-use atlas_search::{DEFAULT_SEARCH_PAGE_SIZE, FusionMethod, RetrievalMode};
+use atlas_search::{DEFAULT_SEARCH_PAGE_SIZE, RetrievalMode, expert::FusionMethod};
 use clap::{ArgAction, Args, ValueEnum};
 
 use crate::cli::args::{CliPathMode, FilterOptions};

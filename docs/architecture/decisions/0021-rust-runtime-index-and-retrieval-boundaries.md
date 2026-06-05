@@ -29,7 +29,7 @@ Public path-based runtime operation helpers are not durable API. Passing a path 
 
 `atlas-search::AtlasRetrievalService` is the durable product-facing retrieval boundary. CLI and future TUI surfaces should route retrieval use cases through this service rather than constructing separate lookup, list, lexical, semantic, or hybrid services as peer public surfaces. The service owns retrieval orchestration and result assembly over the index-owned `RetrievalReadIndex` capability bundle and embedding components, while direct SQLite interaction remains inside `SqliteIndexReader`.
 
-Consumers should depend on narrow `atlas-search` capability traits when they only need a subset of retrieval behavior: `RecordRetrieval`, `TextRetrieval`, `SemanticRetrieval`, `SimilarRetrieval`, `GraphRetrieval`, `VariantRetrieval`, and `RemasterRetrieval`. These traits expose search-owned request/result DTOs and keep index-owned rows, SQL details, vector errors, and filter compiler internals out of product callers.
+Consumers should depend on narrow `atlas-search` capability traits when they only need a subset of retrieval behavior: `RecordRetrieval`, `TextRetrieval`, `SimilarRetrieval`, `GraphRetrieval`, `VariantRetrieval`, and `RemasterRetrieval`. These traits expose search-owned request/result DTOs and keep index-owned rows, SQL details, vector errors, and filter compiler internals out of product callers. Semantic-only retrieval and low-level fusion controls are expert/debug APIs rather than ordinary product entrypoints.
 
 `SemanticSearchService` is an internal migration component for the semantic-only embedding/sqlite-vec validation loop. It may remain as an implementation detail under `AtlasRetrievalService`, but it is not the long-term public retrieval boundary.
 

@@ -36,10 +36,10 @@ impl RetrievalMode {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextSearchTuning {
-    pub retrieval: RetrievalMode,
-    pub fusion: FusionOptions,
-    pub fts_top_k: u32,
-    pub vector_top_k: u32,
+    pub(crate) retrieval: RetrievalMode,
+    pub(crate) fusion: FusionOptions,
+    pub(crate) fts_top_k: u32,
+    pub(crate) vector_top_k: u32,
 }
 
 impl TextSearchTuning {
@@ -49,12 +49,7 @@ impl TextSearchTuning {
 
     pub fn resolve_for_page(tuning: Option<Self>, page: SearchPage) -> Result<Self, SearchError> {
         let required_window = page.required_window()?;
-        let tuning = tuning.unwrap_or_else(|| Self {
-            retrieval: RetrievalMode::Hybrid,
-            fusion: FusionOptions::default(),
-            fts_top_k: DEFAULT_RANKED_CANDIDATE_WINDOW,
-            vector_top_k: DEFAULT_RANKED_CANDIDATE_WINDOW,
-        });
+        let tuning = tuning.unwrap_or_default();
         let tuning = Self {
             fts_top_k: tuning.fts_top_k.max(required_window),
             vector_top_k: tuning.vector_top_k.max(required_window),
@@ -62,6 +57,76 @@ impl TextSearchTuning {
         };
         validate_text_search_tuning(&tuning, page)?;
         Ok(tuning)
+    }
+
+    pub const fn retrieval(&self) -> RetrievalMode {
+        self.retrieval
+    }
+
+    pub const fn fts_top_k(&self) -> u32 {
+        self.fts_top_k
+    }
+
+    pub const fn vector_top_k(&self) -> u32 {
+        self.vector_top_k
+    }
+
+    pub const fn with_retrieval(mut self, retrieval: RetrievalMode) -> Self {
+        self.retrieval = retrieval;
+        self
+    }
+
+    pub const fn with_fusion_method(mut self, method: FusionMethod) -> Self {
+        self.fusion.method = method;
+        self
+    }
+
+    pub const fn with_lane_weights(mut self, fts_weight: f64, vector_weight: f64) -> Self {
+        self.fusion.fts_weight = fts_weight;
+        self.fusion.vector_weight = vector_weight;
+        self
+    }
+
+    pub const fn with_fts_weight(mut self, fts_weight: f64) -> Self {
+        self.fusion.fts_weight = fts_weight;
+        self
+    }
+
+    pub const fn with_vector_weight(mut self, vector_weight: f64) -> Self {
+        self.fusion.vector_weight = vector_weight;
+        self
+    }
+
+    pub const fn with_rank_constant(mut self, rank_constant: f64) -> Self {
+        self.fusion.rank_constant = rank_constant;
+        self
+    }
+
+    pub const fn with_candidate_windows(mut self, fts_top_k: u32, vector_top_k: u32) -> Self {
+        self.fts_top_k = fts_top_k;
+        self.vector_top_k = vector_top_k;
+        self
+    }
+
+    pub const fn with_fts_top_k(mut self, fts_top_k: u32) -> Self {
+        self.fts_top_k = fts_top_k;
+        self
+    }
+
+    pub const fn with_vector_top_k(mut self, vector_top_k: u32) -> Self {
+        self.vector_top_k = vector_top_k;
+        self
+    }
+}
+
+impl Default for TextSearchTuning {
+    fn default() -> Self {
+        Self {
+            retrieval: RetrievalMode::Hybrid,
+            fusion: FusionOptions::default(),
+            fts_top_k: DEFAULT_RANKED_CANDIDATE_WINDOW,
+            vector_top_k: DEFAULT_RANKED_CANDIDATE_WINDOW,
+        }
     }
 }
 

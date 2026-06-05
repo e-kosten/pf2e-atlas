@@ -2,10 +2,9 @@ use atlas_domain::{DetailLevel, SearchFilterNode};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    DEFAULT_FTS_FUSION_POLICY_NAME, DEFAULT_RANKED_CANDIDATE_WINDOW, FusionOptions,
     ListRecordsRequest, RecordListSort, RecordRetrieval, RetrievalMode, SearchError,
-    SearchErrorKind, SearchPage, SearchPageInfo, TextRetrieval, TextSearchExplain, TextSearchMatch,
-    TextSearchRequest, TextSearchTuning,
+    SearchErrorKind, SearchPage, SearchPageInfo, TextRetrieval, TextSearchMatch, TextSearchRequest,
+    TextSearchTuning, expert::DEFAULT_FTS_FUSION_POLICY_NAME,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -292,7 +291,7 @@ fn run_ranked_search_text(
         Err(error) => return Err(error.to_string()),
     };
     let explicit_fts = matches!(options.retrieval, Some(CliRetrievalMode::Fts));
-    let retrieval = resolved_tuning.retrieval;
+    let retrieval = resolved_tuning.retrieval();
     search_progress("Resolving Atlas paths", "resolve");
     let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.path_mode.into(),
@@ -393,13 +392,15 @@ fn run_ranked_search_text(
     let data = SearchData {
         detail: options.detail.to_string(),
         query: Some(query.to_string()),
-        query_analysis: options.explain.then_some(SearchQueryAnalysisJson {
-            normalized_query: result.query.normalized_query,
-            fts_query: result.query.fts_query,
-            fts_tokens: result.query.fts_tokens,
-            exclude_query: result.query.exclude_query,
-            exclude_tokens: result.query.exclude_tokens,
-        }),
+        query_analysis: result
+            .diagnostics
+            .map(|diagnostics| SearchQueryAnalysisJson {
+                normalized_query: diagnostics.query.normalized_query,
+                fts_query: diagnostics.query.fts_query,
+                fts_tokens: diagnostics.query.fts_tokens,
+                exclude_query: diagnostics.query.exclude_query,
+                exclude_tokens: diagnostics.query.exclude_tokens,
+            }),
         retrieval: Some(result.retrieval.as_str()),
         fusion: Some(SearchFusionJson {
             method: result.fusion.method.as_str(),
@@ -409,8 +410,8 @@ fn run_ranked_search_text(
             fts_policy: DEFAULT_FTS_FUSION_POLICY_NAME,
         }),
         candidate_windows: options.explain.then_some(SearchCandidateWindowsJson {
-            fts_top_k: resolved_tuning.fts_top_k,
-            vector_top_k: resolved_tuning.vector_top_k,
+            fts_top_k: resolved_tuning.fts_top_k(),
+            vector_top_k: resolved_tuning.vector_top_k(),
         }),
         filter: filter_value,
         sort: SearchSortJson {
@@ -443,31 +444,30 @@ fn text_search_tuning_from_options(options: &SearchOptions) -> Option<TextSearch
         return None;
     }
 
-    let mut fusion = FusionOptions::default();
+    let mut tuning = TextSearchTuning::default();
+    if let Some(retrieval) = options.retrieval {
+        tuning = tuning.with_retrieval(retrieval.into());
+    }
     if let Some(method) = options.fusion {
-        fusion.method = method.into();
+        tuning = tuning.with_fusion_method(method.into());
     }
     if let Some(weight) = options.fts_weight {
-        fusion.fts_weight = weight;
+        tuning = tuning.with_fts_weight(weight);
     }
     if let Some(weight) = options.vector_weight {
-        fusion.vector_weight = weight;
+        tuning = tuning.with_vector_weight(weight);
     }
     if let Some(rank_constant) = options.rank_constant {
-        fusion.rank_constant = rank_constant;
+        tuning = tuning.with_rank_constant(rank_constant);
+    }
+    if let Some(fts_top_k) = options.fts_top_k {
+        tuning = tuning.with_fts_top_k(fts_top_k);
+    }
+    if let Some(vector_top_k) = options.vector_top_k {
+        tuning = tuning.with_vector_top_k(vector_top_k);
     }
 
-    Some(TextSearchTuning {
-        retrieval: options
-            .retrieval
-            .map(RetrievalMode::from)
-            .unwrap_or(RetrievalMode::Hybrid),
-        fusion,
-        fts_top_k: options.fts_top_k.unwrap_or(DEFAULT_RANKED_CANDIDATE_WINDOW),
-        vector_top_k: options
-            .vector_top_k
-            .unwrap_or(DEFAULT_RANKED_CANDIDATE_WINDOW),
-    })
+    Some(tuning)
 }
 
 fn search_progress(message: &'static str, phase: &'static str) {
@@ -617,23 +617,26 @@ fn search_match_json(match_info: TextSearchMatch) -> SearchMatchJson {
         TextSearchMatch::Identity {
             retrieval,
             identity_match_kind,
-            explain,
+            diagnostics,
         } => SearchMatchJson {
             kind: "identity",
             retrieval: Some(retrieval.as_str()),
             identity_match_kind: Some(identity_match_kind.as_str()),
-            explain: explain.map(search_explain_json),
+            explain: diagnostics.map(search_explain_json),
         },
-        TextSearchMatch::Ranked { retrieval, explain } => SearchMatchJson {
+        TextSearchMatch::Ranked {
+            retrieval,
+            diagnostics,
+        } => SearchMatchJson {
             kind: "ranked",
             retrieval: Some(retrieval.as_str()),
             identity_match_kind: None,
-            explain: explain.map(search_explain_json),
+            explain: diagnostics.map(search_explain_json),
         },
     }
 }
 
-fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
+fn search_explain_json(explain: atlas_search::TextSearchMatchDiagnostics) -> SearchExplainJson {
     let fusion = explain
         .fused_score
         .map(|fused_score| SearchFusionExplainJson {
@@ -646,8 +649,8 @@ fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
     .then_some(SearchFtsExplainJson {
         fts_rank: explain.fts_rank,
         fts_score: explain.fts_score,
-        fts_lane: explain.fts_lane.map(|lane| lane.as_str()),
-        fts_confidence: explain.fts_confidence.map(|confidence| confidence.as_str()),
+        fts_lane: explain.fts_lane,
+        fts_confidence: explain.fts_confidence,
     });
     let vector = (explain.vector_rank.is_some()
         || explain.vector_distance.is_some()
