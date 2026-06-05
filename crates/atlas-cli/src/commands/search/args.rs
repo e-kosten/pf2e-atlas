@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use atlas_domain::DetailLevel;
-use atlas_search::{FusionMethod, RetrievalMode};
+use atlas_search::{DEFAULT_SEARCH_PAGE_SIZE, FusionMethod, RetrievalMode};
 use clap::{ArgAction, Args, ValueEnum};
 
 use crate::cli::args::{CliPathMode, FilterOptions};
@@ -9,7 +9,7 @@ use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --kind spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --kind creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --kind creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --kind spell\n  atlas filters values --field metric --kind creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --kind spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --kind creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --kind creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n  atlas search \"healing\" --page 2 --limit 10 --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --kind spell\n  atlas filters values --field metric --kind creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 pub(crate) struct SearchOptions {
     #[arg(help = "Plain-text query for ranked retrieval; omit for filter-only listing")]
@@ -18,12 +18,12 @@ pub(crate) struct SearchOptions {
     pub(crate) index: Option<PathBuf>,
     #[arg(
         long,
-        default_value_t = 20,
-        help = "Maximum records to return; capped at 100"
+        default_value_t = DEFAULT_SEARCH_PAGE_SIZE,
+        help = "Records per page; must be between 1 and 250"
     )]
     pub(crate) limit: u32,
-    #[arg(long, default_value_t = 0, help = "Number of matching records to skip")]
-    pub(crate) offset: u32,
+    #[arg(long, default_value_t = 1, help = "1-based result page number")]
+    pub(crate) page: u32,
     #[arg(
         long,
         help = "Canonical SearchFilterNode JSON; do not combine with convenience filter flags"

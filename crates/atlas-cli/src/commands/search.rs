@@ -4,8 +4,8 @@ use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
     DEFAULT_FTS_FUSION_POLICY_NAME, DEFAULT_RANKED_CANDIDATE_WINDOW, FusionOptions,
     ListRecordsRequest, RecordListSort, RecordRetrieval, RetrievalMode, SearchError,
-    SearchErrorKind, TextRetrieval, TextSearchExplain, TextSearchMatch, TextSearchRequest,
-    TextSearchTuning,
+    SearchErrorKind, SearchPage, SearchPageInfo, TextRetrieval, TextSearchExplain, TextSearchMatch,
+    TextSearchRequest, TextSearchTuning,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -22,8 +22,6 @@ use args::{CliRetrievalMode, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
 use super::record::{detail_outputs_description, print_record_for_detail};
-
-const MAX_LIMIT: u32 = 100;
 
 #[derive(Debug, Serialize)]
 struct SearchData {
@@ -81,13 +79,13 @@ struct SearchSortJson {
 
 #[derive(Debug, Serialize)]
 struct SearchPagination {
-    offset: u32,
+    page: u32,
     limit: u32,
     count: usize,
     total: u64,
     has_more: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    next_offset: Option<u32>,
+    next_page: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -150,7 +148,6 @@ struct SearchVectorExplainJson {
 }
 
 pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
-    let limit = options.limit.clamp(1, MAX_LIMIT);
     let (filter, filter_value) =
         match build_filter(options.filter_json.as_deref(), &options.filter_options) {
             Ok(filter) => filter,
@@ -174,8 +171,17 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         return Ok(ExitCode::SUCCESS);
     }
 
+    let page = match SearchPage::new(options.page, options.limit) {
+        Ok(page) => page,
+        Err(error) if options.json => {
+            write_json_error(search_error_code(&error), error.to_string())?;
+            return Ok(ExitCode::from(2));
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+
     if let Some(query) = options.query.clone() {
-        return run_ranked_search_text(options, &query, filter.as_ref(), filter_value, limit);
+        return run_ranked_search_text(options, &query, filter.as_ref(), filter_value, page);
     }
 
     let (sort, sort_json) = match parse_sort(options.sort, options.seed) {
@@ -213,20 +219,19 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let page = match service.list_records(ListRecordsRequest {
+    let list_result = match service.list_records(ListRecordsRequest {
         filter: filter.as_ref(),
         sort,
-        limit,
-        offset: options.offset,
+        page,
     }) {
-        Ok(page) => page,
+        Ok(list_result) => list_result,
         Err(error) if options.json => {
             write_json_error(search_error_code(&error), error.to_string())?;
             return Ok(ExitCode::from(3));
         }
         Err(error) => return Err(error.to_string()),
     };
-    let by_key = page
+    let by_key = list_result
         .records
         .into_iter()
         .map(|record| (record.identity.key.to_string(), record))
@@ -235,7 +240,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         detail: options.detail,
         include_source_json: options.include_raw,
     };
-    let results = page
+    let results = list_result
         .record_keys
         .iter()
         .filter_map(|key| by_key.get(&key.to_string()))
@@ -249,8 +254,6 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
             },
         })
         .collect::<Vec<_>>();
-    let next_offset = options.offset.saturating_add(results.len() as u32);
-    let has_more = u64::from(next_offset) < page.total;
 
     let data = SearchData {
         detail: options.detail.to_string(),
@@ -261,14 +264,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         candidate_windows: None,
         filter: filter_value,
         sort: sort_json,
-        pagination: SearchPagination {
-            offset: options.offset,
-            limit,
-            count: results.len(),
-            total: page.total,
-            has_more,
-            next_offset: has_more.then_some(next_offset),
-        },
+        pagination: search_pagination_json(list_result.page),
         results,
     };
     if options.json {
@@ -284,18 +280,17 @@ fn run_ranked_search_text(
     query: &str,
     filter: Option<&SearchFilterNode>,
     filter_value: Option<Value>,
-    limit: u32,
+    page: SearchPage,
 ) -> Result<ExitCode, String> {
     let request_tuning = text_search_tuning_from_options(&options);
-    let resolved_tuning =
-        match TextSearchTuning::resolve_for_page(request_tuning, options.offset, limit) {
-            Ok(tuning) => tuning,
-            Err(error) if options.json => {
-                write_json_error(search_error_code(&error), error.to_string())?;
-                return Ok(ExitCode::from(2));
-            }
-            Err(error) => return Err(error.to_string()),
-        };
+    let resolved_tuning = match TextSearchTuning::resolve_for_page(request_tuning, page) {
+        Ok(tuning) => tuning,
+        Err(error) if options.json => {
+            write_json_error(search_error_code(&error), error.to_string())?;
+            return Ok(ExitCode::from(2));
+        }
+        Err(error) => return Err(error.to_string()),
+    };
     let explicit_fts = matches!(options.retrieval, Some(CliRetrievalMode::Fts));
     let retrieval = resolved_tuning.retrieval;
     search_progress("Resolving Atlas paths", "resolve");
@@ -359,8 +354,7 @@ fn run_ranked_search_text(
         query,
         exclude: options.exclude.as_deref(),
         filter,
-        limit,
-        offset: options.offset,
+        page,
         tuning: request_tuning,
         explain: options.explain,
     }) {
@@ -396,8 +390,6 @@ fn run_ranked_search_text(
             r#match: search_match_json(item.match_info),
         })
         .collect::<Vec<_>>();
-    let next_offset = options.offset.saturating_add(results.len() as u32);
-    let has_more = u64::from(next_offset) < result.total;
     let data = SearchData {
         detail: options.detail.to_string(),
         query: Some(query.to_string()),
@@ -425,14 +417,7 @@ fn run_ranked_search_text(
             kind: "ranked",
             seed: None,
         },
-        pagination: SearchPagination {
-            offset: options.offset,
-            limit,
-            count: results.len(),
-            total: result.total,
-            has_more,
-            next_offset: has_more.then_some(next_offset),
-        },
+        pagination: search_pagination_json(result.page),
         results,
     };
     if options.json {
@@ -555,6 +540,17 @@ fn parse_sort(
 
 fn generated_seed() -> u64 {
     rand::random()
+}
+
+fn search_pagination_json(page: SearchPageInfo) -> SearchPagination {
+    SearchPagination {
+        page: page.number,
+        limit: page.size,
+        count: page.count,
+        total: page.total,
+        has_more: page.has_more,
+        next_page: page.next_page,
+    }
 }
 
 fn print_search_results(data: &SearchData) {

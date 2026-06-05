@@ -6,6 +6,7 @@ use atlas_record::AtlasRecord;
 
 use crate::FusionOptions;
 use crate::fusion::{FusedRankedHit, TextSearchExplain, identity_explain};
+use crate::page::SearchPageInfo;
 use crate::query::TextQueryAnalysis;
 use crate::records::{RecordResolutionMatchKind, RecordResolutionResult};
 use crate::semantic::SemanticSearchHit;
@@ -19,6 +20,7 @@ pub struct TextSearchResult {
     pub fusion: FusionOptions,
     pub records: Vec<TextSearchRecord>,
     pub total: u64,
+    pub page: SearchPageInfo,
 }
 
 #[derive(Debug, Clone, PartialEq)]

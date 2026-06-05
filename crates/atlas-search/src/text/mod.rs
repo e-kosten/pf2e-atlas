@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use atlas_index::FtsQuery;
 
 use crate::fusion::{DEFAULT_FTS_FUSION_POLICY, FusionInput, fuse_ranked_hits};
+use crate::page::SearchPageInfo;
 use crate::query::analyze_text_query;
 use crate::semantic::{SemanticSearchMode, SemanticSearchRequest};
 use crate::{AtlasRetrievalService, SearchError};
@@ -113,12 +114,13 @@ impl TextRetrieval for AtlasRetrievalService {
         let total = identity_matches.len() + fused.len();
         let identity_records =
             identity_records(identity_matches, tuning.retrieval, request.explain);
+        let page_offset = request.page.offset()? as usize;
         let mut page_items = identity_records
             .into_iter()
             .map(|record| TextSearchResultItem::Identity(Box::new(record)))
             .chain(fused.into_iter().map(TextSearchResultItem::Ranked))
-            .skip(request.offset as usize)
-            .take(request.limit as usize)
+            .skip(page_offset)
+            .take(request.page.size() as usize)
             .collect::<Vec<_>>();
         let ranked_page_keys = page_items
             .iter()
@@ -147,12 +149,15 @@ impl TextRetrieval for AtlasRetrievalService {
             })
             .collect::<Vec<_>>();
 
+        let page_info = SearchPageInfo::from_page(request.page, page_records.len(), total as u64)?;
+
         Ok(TextSearchResult {
             query,
             retrieval: tuning.retrieval,
             fusion: tuning.fusion,
             records: page_records,
             total: total as u64,
+            page: page_info,
         })
     }
 }
@@ -271,8 +276,7 @@ mod tests {
                 query: "Identity Action",
                 exclude: None,
                 filter: None,
-                limit: 1,
-                offset: 1,
+                page: crate::SearchPage::new(2, 1).expect("page should be valid"),
                 tuning: Some(TextSearchTuning {
                     retrieval: RetrievalMode::Fts,
                     fusion: FusionOptions::default(),
@@ -315,8 +319,7 @@ mod tests {
             query: "healing",
             exclude: None,
             filter: None,
-            limit: 10,
-            offset: 0,
+            page: crate::SearchPage::first(10).expect("page should be valid"),
             tuning: Some(TextSearchTuning {
                 retrieval: RetrievalMode::Fts,
                 fusion: FusionOptions {
@@ -338,8 +341,9 @@ mod tests {
 
     #[test]
     fn default_search_tuning_is_hybrid_and_expands_to_page_window() {
+        let page = crate::SearchPage::new(11, 25).expect("page should be valid");
         let tuning =
-            TextSearchTuning::default_for_page(250, 25).expect("default tuning should resolve");
+            TextSearchTuning::default_for_page(page).expect("default tuning should resolve");
 
         assert_eq!(tuning.retrieval, RetrievalMode::Hybrid);
         assert_eq!(tuning.fusion, FusionOptions::default());

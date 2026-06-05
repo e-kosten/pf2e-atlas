@@ -336,7 +336,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         "treating"
     );
 
-    let offset_window_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+    let page_window_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
             "healing",
@@ -344,8 +344,8 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
             "fts",
             "--limit",
             "1",
-            "--offset",
-            "2",
+            "--page",
+            "3",
             "--fts-top-k",
             "1",
             "--explain",
@@ -354,10 +354,10 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .arg(&index_path)
         .arg("--json")
         .output()?;
-    assert!(offset_window_output.status.success());
-    let offset_window_json: Value = serde_json::from_slice(&offset_window_output.stdout)?;
-    let offset_window_data = ok_data(&offset_window_json);
-    assert_eq!(offset_window_data["candidate_windows"]["fts_top_k"], 3);
+    assert!(page_window_output.status.success());
+    let page_window_json: Value = serde_json::from_slice(&page_window_output.stdout)?;
+    let page_window_data = ok_data(&page_window_json);
+    assert_eq!(page_window_data["candidate_windows"]["fts_top_k"], 3);
 
     let oversized_window_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -397,8 +397,10 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
             "healing",
             "--retrieval",
             "fts",
-            "--offset",
-            "5000",
+            "--page",
+            "5001",
+            "--limit",
+            "1",
         ],
     ] {
         let oversized_output = Command::new(env!("CARGO_BIN_EXE_atlas"))

@@ -25,19 +25,19 @@ fn filter_search_reports_pagination_and_random_seed() -> Result<(), Box<dyn std:
     assert!(build_output.status.success());
 
     let paged_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["search", "--limit", "1", "--offset", "1", "--index"])
+        .args(["search", "--limit", "1", "--page", "2", "--index"])
         .arg(&index_path)
         .arg("--json")
         .output()?;
     assert!(paged_output.status.success());
     let paged_json: Value = serde_json::from_slice(&paged_output.stdout)?;
     let paged_data = ok_data(&paged_json);
-    assert_eq!(paged_data["pagination"]["offset"], 1);
+    assert_eq!(paged_data["pagination"]["page"], 2);
     assert_eq!(paged_data["pagination"]["limit"], 1);
     assert_eq!(paged_data["pagination"]["count"], 1);
     assert_eq!(paged_data["pagination"]["total"], 2);
     assert_eq!(paged_data["pagination"]["has_more"], false);
-    assert!(paged_data["pagination"].get("next_offset").is_none());
+    assert!(paged_data["pagination"].get("next_page").is_none());
 
     let seeded_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["search", "--sort", "random", "--seed", "1234", "--index"])

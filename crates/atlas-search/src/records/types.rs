@@ -3,6 +3,8 @@ use atlas_index::FilteredRecordSort;
 use atlas_record::AtlasRecord;
 use serde::{Deserialize, Serialize};
 
+use crate::{SearchPage, SearchPageInfo};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordListSort {
     Alphabetical,
@@ -48,8 +50,7 @@ pub struct ResolveRecordRequest<'a> {
 pub struct ListRecordsRequest<'a> {
     pub filter: Option<&'a SearchFilterNode>,
     pub sort: RecordListSort,
-    pub limit: u32,
-    pub offset: u32,
+    pub page: SearchPage,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +58,7 @@ pub struct ListRecordsResult {
     pub record_keys: Vec<RecordKey>,
     pub records: Vec<AtlasRecord>,
     pub total: u64,
+    pub page: SearchPageInfo,
 }
 
 #[derive(Debug, Clone, PartialEq)]

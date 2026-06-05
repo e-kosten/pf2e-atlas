@@ -63,15 +63,18 @@ where
         .resolve_metric_filters(request.filter)
         .map_err(SearchError::from_filter)?;
     let filter = resolved_filter.as_ref().or(request.filter);
+    let offset = request.page.offset()?;
     let FilteredRecordKeyPage { record_keys, total } = index
-        .list_filtered_record_keys(filter, request.sort.into(), request.limit, request.offset)
+        .list_filtered_record_keys(filter, request.sort.into(), request.page.size(), offset)
         .map_err(SearchError::from_filter)?;
     let records = index
         .load_records_by_key(&record_keys)
         .map_err(SearchError::from_record_load)?;
+    let page = crate::SearchPageInfo::from_page(request.page, record_keys.len(), total)?;
     Ok(ListRecordsResult {
         record_keys,
         records,
         total,
+        page,
     })
 }
