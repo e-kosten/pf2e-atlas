@@ -24,4 +24,4 @@ Vector storage code belongs at the index artifact boundary even though vector va
 
 Reference graph behavior can evolve through a named policy and SQL lowering rather than adding a derived boolean column that could drift from the semantic definition.
 
-Diesel schema ownership is not a general query-engine mandate. Filtering, ranking, vector KNN query shape, pagination, FTS, and user-facing search semantics remain owned by `atlas-index` and `atlas-search`, using raw SQL where the database feature is inherently dynamic or SQLite-specific.
+Diesel schema ownership is not a general query-engine mandate. Filtering, ranking, vector KNN query shape, FTS, and SQL paging execution remain owned by `atlas-index` and `atlas-search`, using raw SQL where the database feature is inherently dynamic or SQLite-specific. Product-facing pagination and user-facing search semantics belong above direct SQL details in `atlas-search`.

@@ -41,6 +41,8 @@ Fusion controls are advanced controls, not ordinary product modes. `--fusion wei
 
 The standard text-search request has normal product fields plus optional tuning. Callers that want ordinary product search omit tuning; `atlas-search` resolves the default hybrid retrieval, weighted-RRF fusion settings, and bounded candidate windows. Surfaces such as the CLI may expose advanced controls, but they translate those controls into optional tuning instead of owning separate search defaults. Future web or TUI surfaces should use the same default path unless they intentionally expose measured tuning controls.
 
+Search and record-list retrieval expose page-number pagination through the shared `atlas-search::SearchPage` contract: a 1-based page number plus a page size, currently capped at 250. Product surfaces should not expose raw offsets. `atlas-search` derives SQL offsets for filter-only retrieval internally and derives the ranked result window as `page * size` for FTS/vector candidate-window shaping. Result DTOs carry `SearchPageInfo` with page, size, count, total, `has_more`, and `next_page` so callers do not need to reconstruct pagination from backend-specific execution details.
+
 Exact identity matches form a top tier above fused FTS/vector results. Search reuses the same strict resolution implementation as `atlas record resolve` for exact name, normalized name, verified alias, and exact full variant-name matches. Identity records are deduplicated out of the fused result list before pagination.
 
 User query text is treated as plain text, not raw SQLite FTS5 syntax. The runtime builds safe FTS syntax from normalized non-stopword tokens, quotes each token, joins tokens with `OR`, and does not use raw user-provided FTS syntax.
@@ -62,6 +64,6 @@ The temporary `atlas search semantic --query ...` diagnostic branch should be re
 
 Search JSON remains compact by default. Rank, score, FTS lane, FTS confidence, vector-unit, and query-analysis details belong behind `--explain`, where per-result explain fields are attached to each result's `match` object.
 
-Filter-only search remains SQL-paged. Ranked text search works from bounded candidate windows rather than materializing the whole corpus. Phase 6 should not add a CLI-local window store or public runtime window registry, but the runtime internals should remain compatible with a future Rust TUI window abstraction.
+Filter-only search remains SQL-paged behind the retrieval service. Ranked text search works from bounded candidate windows rather than materializing the whole corpus; page-number requests cause the runtime to retrieve enough ranked candidates for the requested result window and hydrate only the current page. Phase 6 should not add a CLI-local window store or public runtime window registry, but the runtime internals should remain compatible with a future Rust TUI or web window abstraction that can cache ordered keys behind the same page contract.
 
 Search quality tuning should prefer measured changes to FTS confidence policy, FTS lane weights, RRF weights, candidate windows, rank constants, tokenizer/stemmer behavior, and vector unit policy before adding generic rerank adjustments.

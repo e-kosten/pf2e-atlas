@@ -3,6 +3,7 @@
 mod error;
 mod fusion;
 mod graph;
+mod page;
 mod query;
 mod records;
 mod remaster;
@@ -21,6 +22,7 @@ pub use graph::{
     GraphContextEdge, GraphContextEdgeSource, GraphContextRequest, GraphContextResult,
     GraphContextSection, GraphRetrieval,
 };
+pub use page::{DEFAULT_SEARCH_PAGE_SIZE, MAX_SEARCH_PAGE_SIZE, SearchPage, SearchPageInfo};
 pub use query::TextQueryAnalysis;
 pub use records::{
     GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordListSort,
