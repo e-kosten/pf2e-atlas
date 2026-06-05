@@ -6,7 +6,7 @@ pub mod discovery;
 pub mod metadata;
 pub mod record;
 pub mod record_key;
-pub mod search_request;
+pub mod search_filter;
 
 pub use categories::RecordKind;
 pub use detail::DetailLevel;
@@ -27,8 +27,7 @@ pub use record::{
     normalize_record_name,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
-pub use search_request::{
-    BrowseSortSpec, LookupSortKind, LookupSortPolicy, LookupSortSpec, MetricMatch,
-    NullableNumericMatch, NullableStringMatch, NumericMatch, ScalarValue, SearchFilterNode,
-    SearchFilterValidationError, SearchFusionMethod, SearchRequest, SearchRetrievalMode,
+pub use search_filter::{
+    MetricMatch, NullableNumericMatch, NullableStringMatch, NumericMatch, ScalarValue,
+    SearchFilterNode, SearchFilterValidationError,
 };

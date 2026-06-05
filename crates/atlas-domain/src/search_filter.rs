@@ -10,99 +10,6 @@ use crate::metadata::{
 use crate::{RecordKey, RecordKind};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "snake_case")]
-pub enum SearchRequest {
-    Browse {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        filter: Option<SearchFilterNode>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        offset: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        limit: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        sort: Option<BrowseSortSpec>,
-    },
-    Search {
-        query: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        exclude: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        retrieval: Option<SearchRetrievalMode>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        fusion: Option<SearchFusionMethod>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        filter: Option<SearchFilterNode>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        offset: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        limit: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        explain: Option<bool>,
-    },
-    Lookup {
-        query: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        filter: Option<SearchFilterNode>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        offset: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        limit: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        sort: Option<LookupSortSpec>,
-    },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SearchRetrievalMode {
-    Fts,
-    Vector,
-    Hybrid,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SearchFusionMethod {
-    Rrf,
-    WeightedRrf,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum BrowseSortSpec {
-    Alphabetical,
-    LevelAsc,
-    LevelDesc,
-    Random {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        seed: Option<u64>,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LookupSortSpec {
-    pub kind: LookupSortKind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub policy: Option<LookupSortPolicy>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LookupSortKind {
-    Alphabetical,
-    LevelAsc,
-    LevelDesc,
-    Random,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LookupSortPolicy {
-    Tiered,
-    Global,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SearchFilterNode {
     RecordKind {
@@ -282,21 +189,6 @@ impl fmt::Display for SearchFilterValidationError {
 
 impl Error for SearchFilterValidationError {}
 
-impl SearchRequest {
-    pub fn validate(&self) -> Result<(), SearchFilterValidationError> {
-        match self {
-            Self::Browse { filter, .. }
-            | Self::Search { filter, .. }
-            | Self::Lookup { filter, .. } => {
-                if let Some(filter) = filter {
-                    filter.validate()?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum NumericMatch {
@@ -391,67 +283,8 @@ mod tests {
     use super::*;
     use crate::metadata::{
         MetadataEnumStringField, MetadataNumberField, MetadataNumberMatch, MetadataPredicate,
-        MetadataSetField, MetadataSetMatch, MetadataStringMatch,
+        MetadataStringMatch,
     };
-
-    #[test]
-    fn search_request_round_trips_with_rust_canonical_names() {
-        let request = SearchRequest::Search {
-            query: "cold primal focus".to_string(),
-            exclude: Some("ritual".to_string()),
-            retrieval: Some(SearchRetrievalMode::Hybrid),
-            fusion: Some(SearchFusionMethod::WeightedRrf),
-            filter: Some(SearchFilterNode::all_of(vec![
-                SearchFilterNode::record_kind(RecordKind::Spell),
-                SearchFilterNode::metadata(MetadataPredicate::Set {
-                    field: MetadataSetField::Traditions,
-                    r#match: MetadataSetMatch::Includes {
-                        value: "primal".to_string(),
-                    },
-                }),
-                SearchFilterNode::links_to(
-                    RecordKey::parse("rules:abc123").expect("record key parses"),
-                ),
-            ])),
-            offset: Some(0),
-            limit: Some(10),
-            explain: Some(true),
-        };
-
-        let json = serde_json::to_string(&request).expect("request serializes");
-        assert!(json.contains("\"mode\":\"search\""));
-        assert!(json.contains("\"retrieval\":\"hybrid\""));
-        assert!(json.contains("\"fusion\":\"weighted-rrf\""));
-        assert!(json.contains("\"kind\":\"all_of\""));
-        assert!(json.contains("\"kind\":\"record_kind\""));
-        assert!(json.contains("\"kind\":\"links_to\""));
-        assert!(json.contains("\"field_type\":\"set\""));
-
-        let decoded: SearchRequest = serde_json::from_str(&json).expect("request deserializes");
-        assert_eq!(decoded, request);
-    }
-
-    #[test]
-    fn browse_request_round_trips_with_sort_and_numeric_filter() {
-        let request = SearchRequest::Browse {
-            filter: Some(SearchFilterNode::level(NumericMatch::Between {
-                min: 1.0,
-                max: 5.0,
-            })),
-            offset: None,
-            limit: Some(20),
-            sort: Some(BrowseSortSpec::Random { seed: Some(123) }),
-        };
-
-        let json = serde_json::to_string(&request).expect("request serializes");
-        assert!(json.contains("\"mode\":\"browse\""));
-        assert!(json.contains("\"kind\":\"metadata_predicate\""));
-        assert!(json.contains("\"field\":\"level\""));
-        assert!(json.contains("\"match\":{\"kind\":\"between\""));
-
-        let decoded: SearchRequest = serde_json::from_str(&json).expect("request deserializes");
-        assert_eq!(decoded, request);
-    }
 
     #[test]
     fn friendly_field_constructors_lower_to_metadata_predicates() {
@@ -471,31 +304,6 @@ mod tests {
                 r#match: MetadataNumberMatch::Gte { value: 2.0 },
             })
         );
-    }
-
-    #[test]
-    fn lookup_request_round_trips_with_metric_compare_and_not() {
-        let request = SearchRequest::Lookup {
-            query: "Treat Wounds".to_string(),
-            filter: Some(SearchFilterNode::not_of(SearchFilterNode::metric_compare(
-                "skill.medicine",
-                NumericMetricOperator::Gte,
-                "dc.standard",
-            ))),
-            offset: None,
-            limit: None,
-            sort: Some(LookupSortSpec {
-                kind: LookupSortKind::Alphabetical,
-                policy: Some(LookupSortPolicy::Tiered),
-            }),
-        };
-
-        let json = serde_json::to_string(&request).expect("request serializes");
-        assert!(json.contains("\"kind\":\"metric_compare\""));
-        assert!(json.contains("\"left_metric\""));
-
-        let decoded: SearchRequest = serde_json::from_str(&json).expect("request deserializes");
-        assert_eq!(decoded, request);
     }
 
     #[test]
@@ -521,14 +329,7 @@ mod tests {
             }
         );
         assert_eq!(
-            SearchRequest::Browse {
-                filter: Some(SearchFilterNode::all_of(Vec::new())),
-                offset: None,
-                limit: None,
-                sort: None,
-            }
-            .validate()
-            .unwrap_err(),
+            SearchFilterNode::all_of(Vec::new()).validate().unwrap_err(),
             SearchFilterValidationError::EmptyBooleanGroup {
                 kind: "all_of",
                 path: "filter",

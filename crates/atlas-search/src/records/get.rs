@@ -4,8 +4,8 @@ use atlas_record::AtlasRecord;
 use crate::{AtlasRetrievalService, SearchError};
 
 use super::{
-    BrowseRecordsRequest, BrowseRecordsResult, GetRecordRequest, GetRecordsRequest,
-    RecordRetrieval, ResolveRecordRequest, resolution,
+    GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordRetrieval,
+    ResolveRecordRequest, resolution,
 };
 
 impl RecordRetrieval for AtlasRetrievalService {
@@ -25,11 +25,11 @@ impl RecordRetrieval for AtlasRetrievalService {
             .next())
     }
 
-    fn browse_records(
+    fn list_records(
         &self,
-        request: BrowseRecordsRequest<'_>,
-    ) -> Result<BrowseRecordsResult, SearchError> {
-        browse_records(self.index.as_ref(), request)
+        request: ListRecordsRequest<'_>,
+    ) -> Result<ListRecordsResult, SearchError> {
+        list_records(self.index.as_ref(), request)
     }
 
     fn resolve_record(
@@ -52,10 +52,10 @@ where
         .map_err(SearchError::from_record_load)
 }
 
-fn browse_records<I>(
+fn list_records<I>(
     index: &I,
-    request: BrowseRecordsRequest<'_>,
-) -> Result<BrowseRecordsResult, SearchError>
+    request: ListRecordsRequest<'_>,
+) -> Result<ListRecordsResult, SearchError>
 where
     I: FilterReadIndex + RecordReadIndex + ?Sized,
 {
@@ -69,7 +69,7 @@ where
     let records = index
         .load_records_by_key(&record_keys)
         .map_err(SearchError::from_record_load)?;
-    Ok(BrowseRecordsResult {
+    Ok(ListRecordsResult {
         record_keys,
         records,
         total,

@@ -2,7 +2,7 @@ use atlas_domain::{DetailLevel, SearchFilterNode};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    BrowseRecordsRequest, DEFAULT_FTS_FUSION_POLICY_NAME, FusionOptions, RecordBrowseSort,
+    DEFAULT_FTS_FUSION_POLICY_NAME, FusionOptions, ListRecordsRequest, RecordListSort,
     RecordRetrieval, RetrievalMode, SearchError, SearchErrorKind, TextRetrieval, TextSearchExplain,
     TextSearchMatch, TextSearchRequest,
 };
@@ -213,7 +213,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let page = match service.browse_records(BrowseRecordsRequest {
+    let page = match service.list_records(ListRecordsRequest {
         filter: filter.as_ref(),
         sort,
         limit,
@@ -494,45 +494,45 @@ fn complete_search_progress() {
 fn parse_sort(
     value: CliSearchSort,
     seed: Option<u64>,
-) -> Result<(RecordBrowseSort, SearchSortJson), String> {
+) -> Result<(RecordListSort, SearchSortJson), String> {
     match value {
         CliSearchSort::Alphabetical => Ok((
-            RecordBrowseSort::Alphabetical,
+            RecordListSort::Alphabetical,
             SearchSortJson {
                 kind: "alphabetical",
                 seed: None,
             },
         )),
         CliSearchSort::LevelAsc => Ok((
-            RecordBrowseSort::LevelAsc,
+            RecordListSort::LevelAsc,
             SearchSortJson {
                 kind: "level_asc",
                 seed: None,
             },
         )),
         CliSearchSort::LevelDesc => Ok((
-            RecordBrowseSort::LevelDesc,
+            RecordListSort::LevelDesc,
             SearchSortJson {
                 kind: "level_desc",
                 seed: None,
             },
         )),
         CliSearchSort::PriceAsc => Ok((
-            RecordBrowseSort::PriceAsc,
+            RecordListSort::PriceAsc,
             SearchSortJson {
                 kind: "price_asc",
                 seed: None,
             },
         )),
         CliSearchSort::PriceDesc => Ok((
-            RecordBrowseSort::PriceDesc,
+            RecordListSort::PriceDesc,
             SearchSortJson {
                 kind: "price_desc",
                 seed: None,
             },
         )),
         CliSearchSort::RecordKey => Ok((
-            RecordBrowseSort::RecordKey,
+            RecordListSort::RecordKey,
             SearchSortJson {
                 kind: "record_key",
                 seed: None,
@@ -541,7 +541,7 @@ fn parse_sort(
         CliSearchSort::Random => {
             let seed = seed.unwrap_or_else(generated_seed);
             Ok((
-                RecordBrowseSort::Random { seed },
+                RecordListSort::Random { seed },
                 SearchSortJson {
                     kind: "random",
                     seed: Some(seed),
