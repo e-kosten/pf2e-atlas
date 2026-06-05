@@ -203,12 +203,12 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
             complete_search_progress();
-            write_json_error("runtime_error", error)?;
+            write_json_error("runtime_error", error.to_string())?;
             return Ok(ExitCode::from(3));
         }
         Err(error) => {
             complete_search_progress();
-            return Err(error);
+            return Err(error.to_string());
         }
     };
     let service = match runtime.open_retrieval_service_no_embeddings() {
@@ -304,10 +304,10 @@ fn run_ranked_search_text(
     }) {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
-            write_json_error("runtime_error", error)?;
+            write_json_error("runtime_error", error.to_string())?;
             return Ok(ExitCode::from(3));
         }
-        Err(error) => return Err(error),
+        Err(error) => return Err(error.to_string()),
     };
     let mut search = if explicit_fts {
         search_progress("Opening index", "open-index");

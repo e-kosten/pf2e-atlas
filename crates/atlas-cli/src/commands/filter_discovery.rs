@@ -108,7 +108,8 @@ fn open_index(
             embedding_cache_root: None,
             index_path: index,
         },
-    })?;
+    })
+    .map_err(|error| error.to_string())?;
     runtime.open_index().map_err(|error| error.to_string())
 }
 

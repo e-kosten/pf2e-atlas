@@ -27,7 +27,8 @@ pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode
             embedding_cache_root: None,
             index_path: None,
         },
-    })?;
+    })
+    .map_err(|error| error.to_string())?;
     let paths = runtime.paths();
     let report = analyze_foundry_source(&paths.source_root, options.manifest.as_deref())
         .map_err(|error| error.to_string())?;
@@ -75,7 +76,8 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.output,
         },
-    })?;
+    })
+    .map_err(|error| error.to_string())?;
     let paths = runtime.paths();
     let report = build_artifact(BuildArtifactOptions {
         source_root: paths.source_root.clone(),
@@ -373,4 +375,5 @@ fn index_runtime(path_mode: AtlasPathMode, index: Option<PathBuf>) -> Result<Atl
             index_path: index,
         },
     })
+    .map_err(|error| error.to_string())
 }

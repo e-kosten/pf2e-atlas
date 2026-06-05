@@ -47,8 +47,11 @@ fn similar_weights_require_semantic_dominance() {
     .validate()
     .expect_err("reference-heavy weights should be rejected");
 
+    assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
     assert!(
-        error.contains("semantic weight must be greater than the combined reference and trait")
+        error
+            .to_string()
+            .contains("semantic weight must be greater than the combined reference and trait")
     );
 }
 

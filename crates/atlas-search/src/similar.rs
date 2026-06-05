@@ -46,26 +46,28 @@ impl Default for SimilarScoreWeights {
 }
 
 impl SimilarScoreWeights {
-    pub fn validate(self) -> Result<Self, String> {
+    pub fn validate(self) -> Result<Self, SearchError> {
         for (label, weight) in [
             ("semantic", self.semantic),
             ("reference", self.reference),
             ("traits", self.traits),
         ] {
             if !weight.is_finite() || weight < 0.0 {
-                return Err(format!(
+                return Err(SearchError::invalid_search_options(format!(
                     "similar {label} weight must be finite and non-negative"
-                ));
+                )));
             }
         }
         if self.semantic <= 0.0 {
-            return Err("similar semantic weight must be greater than zero".to_string());
+            return Err(SearchError::invalid_search_options(
+                "similar semantic weight must be greater than zero".to_string(),
+            ));
         }
         if self.reference + self.traits >= self.semantic {
-            return Err(
+            return Err(SearchError::invalid_search_options(
                 "similar semantic weight must be greater than the combined reference and trait weights"
                     .to_string(),
-            );
+            ));
         }
         Ok(self)
     }
@@ -131,10 +133,7 @@ impl SimilarRetrieval for AtlasRetrievalService {
                 .validate()
                 .map_err(|error| SearchError::invalid_search_options(error.to_string()))?;
         }
-        let weights = request
-            .weights
-            .validate()
-            .map_err(SearchError::invalid_search_options)?;
+        let weights = request.weights.validate()?;
 
         let seed_unit = select_seed_embedding_unit(
             load_record_embedding_vectors(self.index.as_ref(), request.seed)?.as_slice(),
