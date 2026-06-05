@@ -9,9 +9,9 @@ use atlas_index::{
 use atlas_record::AtlasRecord;
 
 use crate::semantic::collapse_vector_hits;
+use crate::semantic::{SemanticSearchHit, SemanticSearchMode};
 use crate::{
     AtlasRetrievalService, GetRecordRequest, GetRecordsRequest, RecordRetrieval, SearchError,
-    SemanticSearchHit, SemanticSearchMode,
 };
 
 const DEFAULT_SEMANTIC_WEIGHT: f64 = 0.80;

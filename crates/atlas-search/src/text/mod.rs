@@ -17,7 +17,10 @@ pub use request::{
     DEFAULT_RANKED_CANDIDATE_WINDOW, MAX_RANKED_CANDIDATE_WINDOW, RetrievalMode, TextSearchRequest,
     TextSearchTuning,
 };
-pub use results::{TextSearchMatch, TextSearchRecord, TextSearchResult};
+pub use results::{
+    TextSearchDiagnostics, TextSearchMatch, TextSearchMatchDiagnostics, TextSearchRecord,
+    TextSearchResult,
+};
 use results::{TextSearchResultItem, candidate_keys, identity_records};
 use sources::{
     load_records_by_key, load_search_candidate_records, query_fts_candidate_record_keys,
@@ -143,7 +146,9 @@ impl TextRetrieval for AtlasRetrievalService {
                         record: record.clone(),
                         match_info: TextSearchMatch::Ranked {
                             retrieval: tuning.retrieval,
-                            explain: ranked.explain,
+                            diagnostics: ranked
+                                .explain
+                                .map(results::TextSearchMatchDiagnostics::from),
                         },
                     }),
             })
@@ -152,12 +157,14 @@ impl TextRetrieval for AtlasRetrievalService {
         let page_info = SearchPageInfo::from_page(request.page, page_records.len(), total as u64)?;
 
         Ok(TextSearchResult {
-            query,
             retrieval: tuning.retrieval,
             fusion: tuning.fusion,
             records: page_records,
             total: total as u64,
             page: page_info,
+            diagnostics: request
+                .explain
+                .then_some(results::TextSearchDiagnostics { query }),
         })
     }
 }
@@ -287,6 +294,13 @@ mod tests {
             })
             .expect("text search should succeed");
 
+        assert!(page.diagnostics.is_some());
+        assert!(
+            page.records[0]
+                .match_info
+                .diagnostics()
+                .is_some_and(|diagnostics| diagnostics.rank > 0)
+        );
         assert_eq!(page.total, 3);
         assert_eq!(
             page.records
@@ -310,6 +324,37 @@ mod tests {
         assert_eq!(
             load_by_key_calls.borrow().as_slice(),
             &[vec![ranked.identity.key]]
+        );
+    }
+
+    #[test]
+    fn search_text_omits_diagnostics_without_explain() {
+        let identity = fake_record("actions:identity", "Identity Action");
+        let ranked = fake_record("actions:ranked", "Ranked Action");
+        let index = FakeTextIndex::new(vec![identity, ranked]);
+        let mut service = AtlasRetrievalService::without_embeddings_with_index(Box::new(index));
+
+        let page = service
+            .search_text(TextSearchRequest {
+                query: "Identity Action",
+                exclude: None,
+                filter: None,
+                page: crate::SearchPage::first(10).expect("page should be valid"),
+                tuning: Some(TextSearchTuning {
+                    retrieval: RetrievalMode::Fts,
+                    fusion: FusionOptions::default(),
+                    fts_top_k: 10,
+                    vector_top_k: 10,
+                }),
+                explain: false,
+            })
+            .expect("text search should succeed");
+
+        assert!(page.diagnostics.is_none());
+        assert!(
+            page.records
+                .iter()
+                .all(|record| record.match_info.diagnostics().is_none())
         );
     }
 

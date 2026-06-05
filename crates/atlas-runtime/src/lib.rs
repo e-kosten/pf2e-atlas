@@ -149,7 +149,7 @@ impl AtlasRuntime {
         }
     }
 
-    pub fn open_search_index(
+    fn open_search_index(
         &self,
     ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexValidationError> {
         atlas_index::SqliteIndexReader::open_read_only_with_vectors(&self.paths.index_path)

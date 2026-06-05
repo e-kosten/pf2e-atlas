@@ -1,7 +1,7 @@
 use atlas_index::FtsQuery;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextQueryAnalysis {
+pub struct TextQueryDiagnostics {
     pub normalized_query: String,
     pub fts_query: Option<String>,
     pub fts_tokens: Vec<String>,
@@ -13,14 +13,14 @@ pub(crate) fn normalize_record_query(value: &str) -> String {
     atlas_domain::normalize_record_name(value)
 }
 
-pub(crate) fn analyze_text_query(query: &str, exclude: Option<&str>) -> TextQueryAnalysis {
+pub(crate) fn analyze_text_query(query: &str, exclude: Option<&str>) -> TextQueryDiagnostics {
     let normalized_query = normalize_record_query(query);
     let fts_tokens = tokenize_fts_query(query);
     let exclude_tokens = exclude.map(tokenize_fts_query).unwrap_or_default();
     let fts_query = FtsQuery::from_tokens(fts_tokens.clone()).map(|query| query.as_match_query());
     let exclude_query =
         FtsQuery::from_tokens(exclude_tokens.clone()).map(|query| query.as_match_query());
-    TextQueryAnalysis {
+    TextQueryDiagnostics {
         normalized_query,
         fts_query,
         fts_tokens,
