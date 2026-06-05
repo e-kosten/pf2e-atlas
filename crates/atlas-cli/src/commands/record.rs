@@ -794,7 +794,7 @@ pub(crate) fn open_record_service(
     runtime: &AtlasRuntime,
 ) -> Result<atlas_search::AtlasRetrievalService, String> {
     runtime
-        .open_record_retrieval_service()
+        .open_retrieval_service_no_embeddings()
         .map_err(|error| error.to_string())
 }
 

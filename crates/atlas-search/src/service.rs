@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
 use atlas_index::{RetrievalReadIndex, SqliteIndexReader};
@@ -18,7 +17,7 @@ pub struct AtlasRetrievalService {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchEmbeddingConfig {
-    pub model_id: String,
+    pub model: EmbeddingModelId,
     pub cache_root: PathBuf,
 }
 
@@ -53,9 +52,7 @@ impl AtlasRetrievalService {
 }
 
 fn load_embedder(embedding_config: &SearchEmbeddingConfig) -> Result<TextEmbedder, SearchError> {
-    let model = EmbeddingModelId::from_str(&embedding_config.model_id).map_err(|error| {
-        SearchError::invalid_embedding_model(embedding_config.model_id.clone(), error.to_string())
-    })?;
-    let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
+    let embedding_config =
+        EmbeddingRuntimeConfig::new(embedding_config.model, &embedding_config.cache_root);
     TextEmbedder::load(&embedding_config).map_err(|error| SearchError::embedding(error.to_string()))
 }

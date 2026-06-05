@@ -35,9 +35,11 @@ atlas search "healing magic" --retrieval vector --json
 atlas search "healing magic" --retrieval hybrid --json
 ```
 
-`--retrieval fts` must work with record-only artifacts produced by `atlas setup --no-embeddings`. Default hybrid and `--retrieval vector` require embedding/vector readiness. If that readiness is unavailable, the CLI reports `vector_readiness_required` and suggests either rebuilding with embeddings or using `--retrieval fts`.
+`--retrieval fts` must work with record-only artifacts produced by `atlas setup --no-embeddings`. It is an explicit diagnostic and development escape hatch, not the normal product path. Default hybrid and `--retrieval vector` require embedding/vector readiness and load the embedding model recorded in artifact metadata. If that readiness is unavailable, the CLI reports `vector_readiness_required` and suggests rebuilding with embeddings or explicitly using `--retrieval fts`.
 
 Fusion controls are advanced controls, not ordinary product modes. `--fusion weighted-rrf` accepts lane weights. If a user explicitly requests unweighted `--fusion rrf`, lane-weight flags are invalid.
+
+The standard text-search request has normal product fields plus optional tuning. Callers that want ordinary product search omit tuning; `atlas-search` resolves the default hybrid retrieval, weighted-RRF fusion settings, and bounded candidate windows. Surfaces such as the CLI may expose advanced controls, but they translate those controls into optional tuning instead of owning separate search defaults. Future web or TUI surfaces should use the same default path unless they intentionally expose measured tuning controls.
 
 Exact identity matches form a top tier above fused FTS/vector results. Search reuses the same strict resolution implementation as `atlas record resolve` for exact name, normalized name, verified alias, and exact full variant-name matches. Identity records are deduplicated out of the fused result list before pagination.
 

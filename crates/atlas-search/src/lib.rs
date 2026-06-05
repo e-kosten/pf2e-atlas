@@ -39,8 +39,8 @@ pub use similar::{
     SimilarRecordSemanticEvidence, SimilarRetrieval, SimilarScoreWeights, SimilarSharedReference,
 };
 pub use text::{
-    RetrievalMode, TextRetrieval, TextSearchMatch, TextSearchRecord, TextSearchRequest,
-    TextSearchResult,
+    DEFAULT_RANKED_CANDIDATE_WINDOW, MAX_RANKED_CANDIDATE_WINDOW, RetrievalMode, TextRetrieval,
+    TextSearchMatch, TextSearchRecord, TextSearchRequest, TextSearchResult, TextSearchTuning,
 };
 pub use variants::{
     VariantBaseNameRequest, VariantGroupRequest, VariantGroupResult, VariantRetrieval,
