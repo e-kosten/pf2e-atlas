@@ -71,10 +71,10 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
     };
     if let Err(error) = weights.validate() {
         if options.json {
-            write_json_error("invalid_option", error)?;
+            write_json_error(search_error_code(&error), error.to_string())?;
             return Ok(ExitCode::from(2));
         }
-        return Err(error);
+        return Err(error.to_string());
     }
     let (filter, filter_value) =
         match build_filter(options.filter_json.as_deref(), &options.filter_options) {
@@ -95,10 +95,10 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
     }) {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
-            write_json_error("runtime_error", error)?;
+            write_json_error("runtime_error", error.to_string())?;
             return Ok(ExitCode::from(3));
         }
-        Err(error) => return Err(error),
+        Err(error) => return Err(error.to_string()),
     };
     let service = match runtime.open_vector_record_retrieval_service() {
         Ok(service) => service,

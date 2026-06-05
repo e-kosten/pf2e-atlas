@@ -6,11 +6,13 @@ use std::process::Command as ProcessCommand;
 use atlas_embedding::{EmbeddingModelId, embedding_model_for_model_id};
 use atlas_search::{AtlasRetrievalService, SearchEmbeddingConfig, SearchError};
 
+mod error;
 mod setup;
 mod setup_clean;
 mod setup_freshness;
 mod setup_model;
 
+pub use error::{RuntimeError, RuntimeErrorKind, RuntimePathTarget, RuntimePlatform};
 pub use setup_model::{
     RuntimeSetupCleanOptions, RuntimeSetupCleanReport, RuntimeSetupOptions, RuntimeSetupReport,
     SetupAction, SetupActionKind, SetupActionStatus, SetupBuildReport, SetupCleanTarget,
@@ -51,7 +53,7 @@ pub struct AtlasRuntime {
 }
 
 impl AtlasRuntime {
-    pub fn resolve(options: AtlasRuntimeOptions) -> Result<Self, String> {
+    pub fn resolve(options: AtlasRuntimeOptions) -> Result<Self, RuntimeError> {
         Ok(Self {
             paths: resolve_atlas_paths(options.path_mode, options.overrides)?,
         })
@@ -259,16 +261,14 @@ impl ResolvedPathMode {
 fn resolve_atlas_paths(
     path_mode: AtlasPathMode,
     overrides: AtlasPathOverrides,
-) -> Result<ResolvedAtlasPaths, String> {
+) -> Result<ResolvedAtlasPaths, RuntimeError> {
     let (resolved_mode, repo_root) = match path_mode {
         AtlasPathMode::Repo => {
-            let current_dir = std::env::current_dir().map_err(|error| error.to_string())?;
+            let current_dir =
+                std::env::current_dir().map_err(RuntimeError::current_directory_unavailable)?;
             let repo_root = find_git_repo_root(&current_dir);
             if repo_root.is_none() {
-                return Err(
-                    "--path-mode repo requires running inside a git checkout with Cargo.toml"
-                        .to_string(),
-                );
+                return Err(RuntimeError::repo_mode_outside_checkout());
             }
             (ResolvedPathMode::Repo, repo_root)
         }
@@ -278,10 +278,7 @@ fn resolve_atlas_paths(
     let defaults = match resolved_mode {
         ResolvedPathMode::Repo => {
             let Some(repo_root) = repo_root.clone() else {
-                return Err(
-                    "--path-mode repo requires running inside a git checkout with Cargo.toml"
-                        .to_string(),
-                );
+                return Err(RuntimeError::repo_mode_outside_checkout());
             };
             AtlasPathOverrides {
                 source_root: Some(repo_root.join("vendor").join("pf2e")),
@@ -309,15 +306,17 @@ fn resolve_atlas_paths(
         source_root: overrides
             .source_root
             .or(defaults.source_root)
-            .ok_or_else(|| "source root default could not be resolved".to_string())?,
+            .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::SourceRoot))?,
         embedding_cache_root: overrides
             .embedding_cache_root
             .or(defaults.embedding_cache_root)
-            .ok_or_else(|| "embedding cache default could not be resolved".to_string())?,
+            .ok_or_else(|| {
+                RuntimeError::path_default_unavailable(RuntimePathTarget::EmbeddingCacheRoot)
+            })?,
         index_path: overrides
             .index_path
             .or(defaults.index_path)
-            .ok_or_else(|| "index default could not be resolved".to_string())?,
+            .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::IndexPath))?,
     })
 }
 
@@ -345,11 +344,11 @@ fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
     }
 }
 
-fn platform_cache_root() -> Result<PathBuf, String> {
+fn platform_cache_root() -> Result<PathBuf, RuntimeError> {
     if cfg!(target_os = "macos") {
         return home_dir()
             .map(|home| home.join("Library").join("Caches"))
-            .ok_or_else(|| "could not resolve HOME for user cache path".to_string());
+            .ok_or_else(|| RuntimeError::cache_root_unavailable(RuntimePlatform::Macos));
     }
     if cfg!(target_os = "windows") {
         if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
@@ -357,14 +356,14 @@ fn platform_cache_root() -> Result<PathBuf, String> {
         }
         return home_dir()
             .map(|home| home.join("AppData").join("Local"))
-            .ok_or_else(|| "could not resolve LOCALAPPDATA or USERPROFILE".to_string());
+            .ok_or_else(|| RuntimeError::cache_root_unavailable(RuntimePlatform::Windows));
     }
     if let Some(cache_home) = std::env::var_os("XDG_CACHE_HOME") {
         return Ok(PathBuf::from(cache_home));
     }
     home_dir()
         .map(|home| home.join(".cache"))
-        .ok_or_else(|| "could not resolve HOME for user cache path".to_string())
+        .ok_or_else(|| RuntimeError::cache_root_unavailable(RuntimePlatform::Unix))
 }
 
 fn home_dir() -> Option<PathBuf> {

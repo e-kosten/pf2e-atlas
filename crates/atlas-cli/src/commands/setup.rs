@@ -53,6 +53,7 @@ fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
             index_path: options.index,
         },
     })
+    .map_err(|error| error.to_string())
 }
 
 fn run_setup_install(

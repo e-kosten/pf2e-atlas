@@ -788,6 +788,7 @@ pub(crate) fn record_runtime(
             index_path: index,
         },
     })
+    .map_err(|error| error.to_string())
 }
 
 pub(crate) fn open_record_service(
