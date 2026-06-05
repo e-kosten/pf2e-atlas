@@ -5,15 +5,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::{SearchPage, SearchPageInfo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum RecordListSort {
+    #[default]
     Alphabetical,
     LevelAsc,
     LevelDesc,
     PriceAsc,
     PriceDesc,
     RecordKey,
-    Random { seed: u64 },
+    Random {
+        seed: u64,
+    },
 }
 
 impl From<RecordListSort> for FilteredRecordSort {
@@ -51,6 +54,21 @@ pub struct ListRecordsRequest<'a> {
     pub filter: Option<&'a SearchFilterNode>,
     pub sort: RecordListSort,
     pub page: SearchPage,
+}
+
+impl<'a> ListRecordsRequest<'a> {
+    pub fn new(filter: Option<&'a SearchFilterNode>, page: SearchPage) -> Self {
+        Self {
+            filter,
+            sort: RecordListSort::default(),
+            page,
+        }
+    }
+
+    pub fn with_sort(mut self, sort: RecordListSort) -> Self {
+        self.sort = sort;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

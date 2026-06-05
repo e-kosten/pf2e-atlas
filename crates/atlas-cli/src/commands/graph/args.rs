@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
 use atlas_domain::DetailLevel;
+use atlas_search::{
+    DEFAULT_GRAPH_BACKLINK_LIMIT, DEFAULT_GRAPH_OUTGOING_LIMIT, DEFAULT_GRAPH_USES_LIMIT,
+    MAX_GRAPH_CONTEXT_LIMIT,
+};
 use clap::{Args, Subcommand};
 
 use crate::cli::args::CliPathMode;
@@ -31,9 +35,9 @@ pub(crate) enum GraphCommand {
 pub(crate) struct GraphLinksOptions {
     #[arg(help = "Seed record key or strict resolvable record name")]
     pub(crate) record_ref: String,
-    #[arg(long, default_value_t = 8, value_parser = parse_graph_limit, help = "Maximum outgoing neighbor records to include, 0-50")]
+    #[arg(long, default_value_t = DEFAULT_GRAPH_OUTGOING_LIMIT, value_parser = parse_graph_limit, help = "Maximum outgoing neighbor records to include, 0-50")]
     pub(crate) outgoing: usize,
-    #[arg(long, default_value_t = 0, value_parser = parse_graph_limit, help = "Maximum backlink neighbor records to include, 0-50; 0 disables backlinks")]
+    #[arg(long, default_value_t = DEFAULT_GRAPH_BACKLINK_LIMIT, value_parser = parse_graph_limit, help = "Maximum backlink neighbor records to include, 0-50; 0 disables backlinks")]
     pub(crate) backlinks: usize,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     pub(crate) detail: DetailLevel,
@@ -52,7 +56,7 @@ pub(crate) struct GraphLinksOptions {
 pub(crate) struct GraphUsesOptions {
     #[arg(help = "Seed record key or strict resolvable record name")]
     pub(crate) record_ref: String,
-    #[arg(long, default_value_t = 25, value_parser = parse_graph_limit, help = "Maximum records that use this record to include, 0-50")]
+    #[arg(long, default_value_t = DEFAULT_GRAPH_USES_LIMIT, value_parser = parse_graph_limit, help = "Maximum records that use this record to include, 0-50")]
     pub(crate) limit: usize,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     pub(crate) detail: DetailLevel,
@@ -102,9 +106,11 @@ fn parse_graph_limit(value: &str) -> Result<usize, String> {
     let limit = value
         .parse::<usize>()
         .map_err(|error| format!("invalid graph limit `{value}`: {error}"))?;
-    if limit <= 50 {
+    if limit <= MAX_GRAPH_CONTEXT_LIMIT {
         Ok(limit)
     } else {
-        Err(format!("graph limit must be between 0 and 50, got {limit}"))
+        Err(format!(
+            "graph limit must be between 0 and {MAX_GRAPH_CONTEXT_LIMIT}, got {limit}"
+        ))
     }
 }
