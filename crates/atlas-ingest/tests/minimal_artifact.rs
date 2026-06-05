@@ -66,9 +66,17 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         treat_wounds_prerequisites,
         treat_wounds_description,
     ): (String, String, String, String, String, String, String) = connection.query_row(
-        "SELECT name, normalized_name, record_kind, foundry_record_type, traits_json, prerequisites_json,
-                json_extract(description_json, '$.blocks[0].content[0].text')
-         FROM records WHERE record_key = 'actions:testAction0001'",
+        "SELECT records.name,
+                records.normalized_name,
+                records.record_kind,
+                records.foundry_record_type,
+                records.traits_json,
+                records.prerequisites_json,
+                json_extract(record_content.content_json, '$.nodes[0].children[0].text')
+         FROM records
+         JOIN record_content ON record_content.record_key = records.record_key
+         WHERE records.record_key = 'actions:testAction0001'
+           AND record_content.source_kind = 'description'",
         [],
         |row| {
             Ok((
@@ -332,7 +340,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text
          FROM reference_occurrences
          WHERE record_key = 'actions:occurrenceAction1'
-         ORDER BY CASE content_key WHEN 'description' THEN 0 ELSE 1 END, content_key, occurrence_ordinal",
+         ORDER BY content_key, occurrence_ordinal",
     )?;
     let rows = statement
         .query_map([], |row| {
@@ -352,7 +360,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         rows,
         vec![
             (
-                "description".to_string(),
+                "description:5c0f512dc5b998cc".to_string(),
                 0,
                 "spells:targetSpell01".to_string(),
                 "description".to_string(),
@@ -361,7 +369,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
                 "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
             ),
             (
-                "description".to_string(),
+                "description:5c0f512dc5b998cc".to_string(),
                 1,
                 "spells:targetSpell01".to_string(),
                 "description".to_string(),
@@ -370,21 +378,21 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
                 "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
             ),
             (
-                "content:0".to_string(),
-                0,
-                "spells:targetSpell01".to_string(),
-                "public_notes".to_string(),
-                "public".to_string(),
-                "Heal Notes".to_string(),
-                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
-            ),
-            (
-                "content:1".to_string(),
+                "embedded_item_description:501a5e3dbbe444a0".to_string(),
                 0,
                 "spells:targetSpell01".to_string(),
                 "embedded_item_description".to_string(),
                 "public".to_string(),
                 "Heal Embedded".to_string(),
+                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
+            ),
+            (
+                "public_notes:77a41753a3a5a2d7".to_string(),
+                0,
+                "spells:targetSpell01".to_string(),
+                "public_notes".to_string(),
+                "public".to_string(),
+                "Heal Notes".to_string(),
                 "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
             ),
         ]

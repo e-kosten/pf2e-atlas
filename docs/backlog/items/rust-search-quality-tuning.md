@@ -19,6 +19,7 @@ The tuning pass should cover:
 
 - Whether the broad weighted FTS path should be removed entirely or retained only as a diagnostic/tuning primitive now that precision FTS is the product default.
 - Precision FTS lane tuning, including whether kind/type/source facets should join the current title/alias and trait/taxonomy lanes.
+- Whether selected high-signal rich-content fields, especially authored headings, should be reintroduced into precision FTS after the RichDocument migration intentionally removes rich prose from default FTS.
 - FTS confidence policy tuning, including the current `demote-weak` default and whether weak/medium lexical evidence should be discounted differently in hybrid fusion.
 - Candidate hydration cost in ranked search. Precision FTS confidence currently hydrates bounded FTS/vector candidates before final fusion; if larger candidate windows become necessary, consider a lighter ranking-facts load instead of full record hydration.
 - FTS column and BM25 weights for any retained broad weighted FTS diagnostic path.

@@ -12,7 +12,6 @@ use serde_json::Value;
 
 mod content;
 mod content_diagnostics;
-mod content_html;
 mod content_sources;
 #[cfg(test)]
 mod content_tests;

@@ -45,6 +45,7 @@ pub struct GraphContextEdge {
 pub struct GraphContextEdgeSource {
     pub kind: String,
     pub visibility: String,
+    pub relation_kind: String,
 }
 
 pub trait GraphRetrieval {
@@ -188,6 +189,7 @@ fn sorted_unique_graph_edges(
             source: GraphContextEdgeSource {
                 kind: edge.source_kind.as_str().to_string(),
                 visibility: edge.visibility.as_str().to_string(),
+                relation_kind: edge.relation_kind.as_str().to_string(),
             },
         })
         .collect::<Vec<_>>();
@@ -220,7 +222,7 @@ fn graph_neighbor_key(edge: &GraphContextEdge, direction: ReferenceEdgeDirection
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_record::{ContentSourceKind, ContentVisibility};
+    use atlas_record::{ContentSourceKind, ContentVisibility, ReferenceRelationKind};
 
     fn key(value: &str) -> RecordKey {
         RecordKey::parse(value).expect("record key should parse")
@@ -237,6 +239,7 @@ mod tests {
             to_record_key: key(to),
             display_text: display_text.map(str::to_string),
             reference_text: reference_text.to_string(),
+            relation_kind: ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::Description,
             visibility: ContentVisibility::Public,
         }

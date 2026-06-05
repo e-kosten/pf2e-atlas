@@ -3,13 +3,13 @@ use diesel::prelude::*;
 
 use crate::IndexWriteError;
 use atlas_record::{
-    AtlasRecord, ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator,
-    ContentSourceKind, ContentVisibility, RecordAlias, ReferenceEdge, RemasterLink,
-    iter_content_references, render_plain_text,
+    AtlasRecord, ContentSourceKind, ContentVisibility, FoundryLink, FoundryLinkBehavior,
+    RecordAlias, ReferenceEdge, ReferenceRelationKind, RemasterLink, RichDocument, RichLinkTarget,
+    iter_foundry_links, render_plain_text,
 };
 
 use super::models::{RecordAliasRow, ReferenceEdgeRow, ReferenceOccurrenceRow, RemasterLinkRow};
-use super::records::supplemental_content_key;
+use super::records::allocated_content_keys;
 
 pub(super) fn write_reference_edges(
     connection: &mut SqliteConnection,
@@ -22,6 +22,7 @@ pub(super) fn write_reference_edges(
             to_record_key: reference.to_record_key.to_string(),
             display_text: reference.display_text.clone(),
             reference_text: reference.reference_text.clone(),
+            relation_kind: reference.relation_kind.as_str().to_string(),
             source_kind: reference.source_kind.as_str().to_string(),
             visibility: reference.visibility.as_str().to_string(),
         })
@@ -41,48 +42,25 @@ pub(super) fn write_reference_occurrences(
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
     for record in records {
-        if let Some(document) = record.content.description() {
-            collect_document_reference_occurrences(
-                &mut rows,
-                record,
-                "description",
-                ContentSourceKind::Description,
-                ContentVisibility::Public,
-                document,
-            )?;
+        let mut content_inputs = Vec::new();
+        for (ordinal, content) in record.content.documents.iter().enumerate() {
+            let content_json = serde_json::to_string(&content.document)
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+            content_inputs.push((ordinal, content, content_json));
         }
-        if let Some(document) = record.content.blurb() {
-            collect_document_reference_occurrences(
-                &mut rows,
-                record,
-                "blurb",
-                ContentSourceKind::Blurb,
-                ContentVisibility::Public,
-                document,
-            )?;
-        }
-        for (ordinal, supplemental) in record
-            .content
-            .documents
-            .iter()
-            .filter(|content| {
-                !matches!(
-                    content.source_kind,
-                    ContentSourceKind::Description | ContentSourceKind::Blurb
-                )
-            })
-            .enumerate()
-        {
-            if supplemental.contributes_to_reference_occurrences() {
-                collect_document_reference_occurrences(
-                    &mut rows,
-                    record,
-                    &supplemental_content_key(ordinal),
-                    supplemental.source_kind,
-                    supplemental.visibility(),
-                    &supplemental.document,
-                )?;
+        let content_keys = allocated_content_keys(&content_inputs);
+        for ((_, content, _), content_key) in content_inputs.into_iter().zip(content_keys) {
+            if !content.contributes_to_reference_occurrences() {
+                continue;
             }
+            collect_document_reference_occurrences(
+                &mut rows,
+                record,
+                &content_key,
+                content.source_kind,
+                content.visibility(),
+                &content.document,
+            )?;
         }
     }
     for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
@@ -100,11 +78,11 @@ fn collect_document_reference_occurrences(
     content_key: &str,
     source_kind: ContentSourceKind,
     visibility: ContentVisibility,
-    document: &ContentDocument,
+    document: &RichDocument,
 ) -> Result<(), IndexWriteError> {
     let mut occurrence_ordinal = 0_i64;
-    for reference in iter_content_references(document) {
-        let Some(target_record_key) = &reference.resolved_key else {
+    for link in iter_foundry_links(document) {
+        let Some(target_record_key) = link.target.record_key() else {
             continue;
         };
         rows.push(ReferenceOccurrenceRow {
@@ -114,8 +92,9 @@ fn collect_document_reference_occurrences(
             target_record_key: target_record_key.to_string(),
             source_kind: source_kind.as_str().to_string(),
             visibility: visibility.as_str().to_string(),
-            display_text: content_reference_display_text(reference),
-            reference_text: content_reference_text(reference),
+            display_text: foundry_link_display_text(link),
+            reference_text: link.source.authored_target.clone(),
+            relation_kind: foundry_link_relation_kind(link).as_str().to_string(),
         });
         occurrence_ordinal = occurrence_ordinal.checked_add(1).ok_or_else(|| {
             IndexWriteError::WriteFailed(
@@ -171,25 +150,23 @@ pub(super) fn write_remaster_links(
     Ok(())
 }
 
-fn content_reference_text(reference: &ContentReference) -> String {
-    match &reference.locator {
-        ContentReferenceLocator::FoundryUuid { raw_target }
-        | ContentReferenceLocator::Compendium { raw_target } => raw_target.clone(),
-        ContentReferenceLocator::PackAndLocator { pack_name, locator } => {
-            format!("{pack_name}:{locator}")
-        }
-        ContentReferenceLocator::Unknown { raw } => raw.clone(),
-    }
+fn foundry_link_display_text(link: &FoundryLink) -> Option<String> {
+    link.label
+        .as_ref()
+        .map(|label| render_plain_text(&RichDocument::new(label.clone())))
+        .filter(|label| !label.trim().is_empty())
+        .or_else(|| match &link.target {
+            RichLinkTarget::Record { name, .. } => Some(name.clone()),
+            RichLinkTarget::LocalContent { label, .. } | RichLinkTarget::External { label, .. } => {
+                label.clone()
+            }
+            RichLinkTarget::Unresolved { fallback_label, .. } => Some(fallback_label.clone()),
+        })
 }
 
-fn content_reference_display_text(reference: &ContentReference) -> Option<String> {
-    reference
-        .label
-        .as_ref()
-        .map(|label| {
-            render_plain_text(&ContentDocument::new(vec![ContentBlock::Paragraph {
-                content: label.clone(),
-            }]))
-        })
-        .filter(|label| !label.trim().is_empty())
+fn foundry_link_relation_kind(link: &FoundryLink) -> ReferenceRelationKind {
+    match link.behavior {
+        FoundryLinkBehavior::Reference => ReferenceRelationKind::Reference,
+        FoundryLinkBehavior::Embed { .. } => ReferenceRelationKind::Embed,
+    }
 }

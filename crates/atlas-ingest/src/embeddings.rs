@@ -125,11 +125,13 @@ fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use atlas_domain::{PackName, RecordId, RecordKey, RecordKind};
     use atlas_record::{
-        AtlasRecord, ContentBlock, ContentDocument, ContentInline, ContentSourceKind,
-        FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, RecordClassification,
-        RecordContentDocument, RecordIdentity, RecordProvenance,
+        AtlasRecord, ContentSourceKind, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        RecordClassification, RecordContentDocument, RecordIdentity, RecordProvenance,
+        RichDocument, RichNode,
     };
 
     use super::{build_pending_document_embeddings, summarize_pending_document_embeddings};
@@ -145,18 +147,9 @@ mod tests {
         record.content.documents.push(RecordContentDocument {
             source_kind: ContentSourceKind::EmbeddedItemDescription,
             label: Some("Embedded Strike".to_string()),
-            document: ContentDocument::new(vec![
-                ContentBlock::Heading {
-                    level: 2,
-                    content: vec![ContentInline::Text {
-                        text: "Embedded Strike".to_string(),
-                    }],
-                },
-                ContentBlock::Paragraph {
-                    content: vec![ContentInline::Text {
-                        text: "Embedded capability text".to_string(),
-                    }],
-                },
+            document: RichDocument::new(vec![
+                html_element("h2", vec![text_node("Embedded Strike")]),
+                html_element("p", vec![text_node("Embedded capability text")]),
             ]),
         });
 
@@ -183,29 +176,11 @@ mod tests {
         record.content.documents.push(RecordContentDocument {
             source_kind: ContentSourceKind::Description,
             label: None,
-            document: ContentDocument::new(vec![
-                ContentBlock::Heading {
-                    level: 2,
-                    content: vec![ContentInline::Text {
-                        text: "First".to_string(),
-                    }],
-                },
-                ContentBlock::Paragraph {
-                    content: vec![ContentInline::Text {
-                        text: "First section text".to_string(),
-                    }],
-                },
-                ContentBlock::Heading {
-                    level: 2,
-                    content: vec![ContentInline::Text {
-                        text: "Second".to_string(),
-                    }],
-                },
-                ContentBlock::Paragraph {
-                    content: vec![ContentInline::Text {
-                        text: "Second section text".to_string(),
-                    }],
-                },
+            document: RichDocument::new(vec![
+                html_element("h2", vec![text_node("First")]),
+                html_element("p", vec![text_node("First section text")]),
+                html_element("h2", vec![text_node("Second")]),
+                html_element("p", vec![text_node("Second section text")]),
             ]),
         });
         let pending = build_pending_document_embeddings(
@@ -226,12 +201,22 @@ mod tests {
         assert_eq!(summary.max_child_units_per_record, 0);
     }
 
-    fn text_document(text: &str) -> ContentDocument {
-        ContentDocument::new(vec![ContentBlock::Paragraph {
-            content: vec![ContentInline::Text {
-                text: text.to_string(),
-            }],
-        }])
+    fn text_document(text: &str) -> RichDocument {
+        RichDocument::new(vec![html_element("p", vec![text_node(text)])])
+    }
+
+    fn html_element(tag: &str, children: Vec<RichNode>) -> RichNode {
+        RichNode::HtmlElement {
+            tag: tag.to_string(),
+            attributes: BTreeMap::new(),
+            children,
+        }
+    }
+
+    fn text_node(text: &str) -> RichNode {
+        RichNode::Text {
+            text: text.to_string(),
+        }
     }
 
     fn base_record() -> AtlasRecord {

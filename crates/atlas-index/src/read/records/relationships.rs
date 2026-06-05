@@ -8,7 +8,7 @@ use crate::schema::{record_aliases, reference_edges, remaster_links};
 use super::RecordLoadError;
 use super::parse::{
     parse_alias_source, parse_content_source_kind, parse_content_visibility, parse_record_key,
-    parse_remaster_link_source,
+    parse_reference_relation_kind, parse_remaster_link_source,
 };
 
 pub(super) fn read_reference_edges(
@@ -31,6 +31,7 @@ pub(super) fn read_reference_edges(
                 to_record_key: parse_record_key(&row.to_record_key)?,
                 display_text: row.display_text,
                 reference_text: row.reference_text,
+                relation_kind: parse_reference_relation_kind(&row.relation_kind)?,
                 source_kind: parse_content_source_kind(&row.source_kind)?,
                 visibility: parse_content_visibility(&row.visibility)?,
             })
@@ -97,6 +98,7 @@ struct ReferenceEdgeRow {
     to_record_key: String,
     display_text: Option<String>,
     reference_text: String,
+    relation_kind: String,
     source_kind: String,
     visibility: String,
 }

@@ -51,8 +51,6 @@ diesel::table! {
         duration_text -> Nullable<Text>,
         publication_title -> Nullable<Text>,
         publication_remaster -> Bool,
-        description_json -> Nullable<Text>,
-        blurb_json -> Nullable<Text>,
         publication_family -> Text,
         folder_id -> Nullable<Text>,
         taxonomy_families_json -> Text,
@@ -91,11 +89,12 @@ diesel::table! {
 }
 
 diesel::table! {
-    reference_edges (from_record_key, to_record_key, reference_text, source_kind) {
+    reference_edges (from_record_key, to_record_key, reference_text, relation_kind, source_kind) {
         from_record_key -> Text,
         to_record_key -> Text,
         display_text -> Nullable<Text>,
         reference_text -> Text,
+        relation_kind -> Text,
         source_kind -> Text,
         visibility -> Text,
     }
@@ -111,6 +110,7 @@ diesel::table! {
         visibility -> Text,
         display_text -> Nullable<Text>,
         reference_text -> Text,
+        relation_kind -> Text,
     }
 }
 

@@ -6,6 +6,7 @@ use crate::{
     ActorMechanics, AtlasRecord, ItemMechanics, MetricRow, PresentationBadge,
     PresentationBadgeKind, PresentationBlock, PresentationFact, PresentationSection,
     PresentationSectionKind, RecordContentDocument, SpellMechanics,
+    presentation_content::project_presentation_content,
     presentation_format::{
         action_count_text, activation_text, duration_text, format_ability_mods, format_area,
         format_bulk, format_list, format_number, format_price_cp, format_save, format_saves,
@@ -646,9 +647,13 @@ fn description_section(
 ) -> PresentationSection {
     let mut blocks = Vec::new();
     if let Some(document) = record.content.description() {
-        blocks.push(PresentationBlock::Content(document.clone()));
+        blocks.push(PresentationBlock::Content(project_presentation_content(
+            document,
+        )));
     } else if let Some(document) = record.content.blurb() {
-        blocks.push(PresentationBlock::Content(document.clone()));
+        blocks.push(PresentationBlock::Content(project_presentation_content(
+            document,
+        )));
     }
     blocks.extend(
         record
@@ -658,7 +663,7 @@ fn description_section(
                 content.contributes_to_search() && include_supplemental_content(content)
             })
             .map(|content| {
-                PresentationBlock::Content(labeled_content_document(
+                PresentationBlock::Content(labeled_content(
                     content.label.as_deref(),
                     &content.document,
                 ))
@@ -667,21 +672,22 @@ fn description_section(
     PresentationSection::new(PresentationSectionKind::Description, blocks)
 }
 
-fn labeled_content_document(
+fn labeled_content(
     label: Option<&str>,
-    document: &crate::ContentDocument,
-) -> crate::ContentDocument {
+    document: &crate::RichDocument,
+) -> crate::PresentationContent {
+    let mut content = project_presentation_content(document);
     let Some(label) = label.filter(|value| !value.trim().is_empty()) else {
-        return document.clone();
+        return content;
     };
-    let mut blocks = vec![crate::ContentBlock::Heading {
-        level: 3,
-        content: vec![crate::ContentInline::Text {
+    content.blocks.insert(
+        0,
+        crate::PresentationContentBlock::Heading {
+            level: 3,
             text: label.to_string(),
-        }],
-    }];
-    blocks.extend(document.blocks.clone());
-    crate::ContentDocument::new(blocks)
+        },
+    );
+    content
 }
 
 fn fact_section(
@@ -701,7 +707,7 @@ fn prune_empty_sections(sections: &mut Vec<PresentationSection>) {
         section.blocks.iter().any(|block| match block {
             PresentationBlock::FactList(facts) => !facts.is_empty(),
             PresentationBlock::Prose(text) => !text.text.trim().is_empty(),
-            PresentationBlock::Content(document) => !document.is_empty(),
+            PresentationBlock::Content(content) => !content.is_empty(),
             PresentationBlock::Relationships(relationships) => !relationships.is_empty(),
         })
     });

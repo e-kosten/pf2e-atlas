@@ -3,9 +3,9 @@ use std::convert::Infallible;
 
 use atlas_domain::{RecordKey, RecordKind};
 use atlas_record::{
-    ContentBlock, ContentDocument, ContentInline, PresentationBadge, PresentationBadgeKind,
-    PresentationBlock, PresentationFact, PresentationSection, PresentationSectionKind,
-    PresentationText, RecordPresentationDocument,
+    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
+    PresentationSection, PresentationSectionKind, PresentationText, RecordPresentationDocument,
+    RichDocument, RichNode,
 };
 
 use crate::document_input::hash_document_embedding_input;
@@ -54,20 +54,10 @@ Aliases: Legacy Visible"
 
 #[test]
 fn content_documents_build_child_candidates() {
-    let content_document = ContentDocument::new(vec![
-        ContentBlock::Heading {
-            level: 2,
-            content: vec![ContentInline::Text {
-                text: "Visible Record".to_string(),
-            }],
-        },
+    let content_document = RichDocument::new(vec![
+        html_element("h2", vec![text_node("Visible Record")]),
         paragraph_with_repeated_word("overview", 220),
-        ContentBlock::Heading {
-            level: 2,
-            content: vec![ContentInline::Text {
-                text: "Specific Section".to_string(),
-            }],
-        },
+        html_element("h2", vec![text_node("Specific Section")]),
         paragraph_with_repeated_word("section", 220),
     ]);
     let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
@@ -93,30 +83,15 @@ fn content_documents_build_child_candidates() {
 
 #[test]
 fn content_documents_fold_synthetic_sections_into_leading_child_candidate() {
-    let content_document = ContentDocument::new(vec![
-        ContentBlock::Paragraph {
-            content: vec![
-                ContentInline::Strong {
-                    content: vec![ContentInline::Text {
-                        text: "Critical Success".to_string(),
-                    }],
-                },
-                ContentInline::Text {
-                    text: " You win.".to_string(),
-                },
+    let content_document = RichDocument::new(vec![
+        html_element(
+            "p",
+            vec![
+                html_element("strong", vec![text_node("Critical Success")]),
+                text_node(" You win."),
             ],
-        },
-        ContentBlock::Table {
-            caption: Some(vec![ContentInline::Text {
-                text: "Treasure by Level".to_string(),
-            }]),
-            headers: vec![vec![ContentInline::Text {
-                text: "Level".to_string(),
-            }]],
-            rows: vec![vec![vec![ContentInline::Text {
-                text: "1".to_string(),
-            }]]],
-        },
+        ),
+        simple_table("Treasure by Level", "Level", "1"),
     ]);
     let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
         record_key: "packs:visible1".to_string(),
@@ -147,46 +122,18 @@ fn content_documents_fold_synthetic_sections_into_leading_child_candidate() {
 
 #[test]
 fn explicit_heading_child_candidates_include_synthetic_section_blocks() {
-    let content_document = ContentDocument::new(vec![
-        ContentBlock::Heading {
-            level: 2,
-            content: vec![ContentInline::Text {
-                text: "Outcomes".to_string(),
-            }],
-        },
-        ContentBlock::Paragraph {
-            content: vec![ContentInline::Text {
-                text: "Intro text.".to_string(),
-            }],
-        },
-        ContentBlock::Paragraph {
-            content: vec![
-                ContentInline::Strong {
-                    content: vec![ContentInline::Text {
-                        text: "Critical Success".to_string(),
-                    }],
-                },
-                ContentInline::Text {
-                    text: " You win.".to_string(),
-                },
+    let content_document = RichDocument::new(vec![
+        html_element("h2", vec![text_node("Outcomes")]),
+        html_element("p", vec![text_node("Intro text.")]),
+        html_element(
+            "p",
+            vec![
+                html_element("strong", vec![text_node("Critical Success")]),
+                text_node(" You win."),
             ],
-        },
-        ContentBlock::Table {
-            caption: Some(vec![ContentInline::Text {
-                text: "Treasure by Level".to_string(),
-            }]),
-            headers: vec![vec![ContentInline::Text {
-                text: "Level".to_string(),
-            }]],
-            rows: vec![vec![vec![ContentInline::Text {
-                text: "1".to_string(),
-            }]]],
-        },
-        ContentBlock::Paragraph {
-            content: vec![ContentInline::Text {
-                text: "Follow-up text.".to_string(),
-            }],
-        },
+        ),
+        simple_table("Treasure by Level", "Level", "1"),
+        html_element("p", vec![text_node("Follow-up text.")]),
     ]);
     let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
         record_key: "packs:visible1".to_string(),
@@ -229,13 +176,51 @@ fn explicit_heading_child_candidates_include_synthetic_section_blocks() {
     assert!(table_index < follow_up_index);
 }
 
-fn paragraph_with_repeated_word(word: &str, count: usize) -> ContentBlock {
-    ContentBlock::Paragraph {
-        content: vec![ContentInline::Text {
-            text: std::iter::repeat_n(word, count)
+fn paragraph_with_repeated_word(word: &str, count: usize) -> RichNode {
+    html_element(
+        "p",
+        vec![text_node(
+            &std::iter::repeat_n(word, count)
                 .collect::<Vec<_>>()
                 .join(" "),
-        }],
+        )],
+    )
+}
+
+fn simple_table(caption: &str, header: &str, cell: &str) -> RichNode {
+    html_element(
+        "table",
+        vec![
+            html_element("caption", vec![text_node(caption)]),
+            html_element(
+                "thead",
+                vec![html_element(
+                    "tr",
+                    vec![html_element("th", vec![text_node(header)])],
+                )],
+            ),
+            html_element(
+                "tbody",
+                vec![html_element(
+                    "tr",
+                    vec![html_element("td", vec![text_node(cell)])],
+                )],
+            ),
+        ],
+    )
+}
+
+fn html_element(tag: &str, children: Vec<RichNode>) -> RichNode {
+    RichNode::HtmlElement {
+        tag: tag.to_string(),
+        attributes: BTreeMap::new(),
+        children,
+    }
+}
+
+fn text_node(text: &str) -> RichNode {
+    RichNode::Text {
+        text: text.to_string(),
     }
 }
 

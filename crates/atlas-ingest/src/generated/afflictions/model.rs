@@ -1,5 +1,5 @@
 use atlas_domain::{PublicationCategory, Rarity};
-use atlas_record::{AtlasRecord, ContentDocument, ReferenceEdge};
+use atlas_record::{AtlasRecord, ReferenceEdge, RichDocument};
 use serde_json::Value;
 
 use crate::records::LoadedSourceRecord;
@@ -28,7 +28,7 @@ pub(crate) enum AfflictionFamily {
 pub(crate) struct AfflictionOccurrence {
     pub(crate) host_record: AtlasRecord,
     pub(crate) source_record: Option<AtlasRecord>,
-    pub(crate) description: Option<ContentDocument>,
+    pub(crate) description: Option<RichDocument>,
     pub(crate) raw_provenance: Option<Value>,
     pub(crate) family: AfflictionFamily,
     pub(crate) name: String,
@@ -51,8 +51,8 @@ pub(crate) struct DerivedAfflictionRecordInput {
     pub(crate) record_type: &'static str,
     pub(crate) family: AfflictionFamily,
     pub(crate) traits: Vec<String>,
-    pub(crate) description: Option<ContentDocument>,
-    pub(crate) blurb: Option<ContentDocument>,
+    pub(crate) description: Option<RichDocument>,
+    pub(crate) blurb: Option<RichDocument>,
     pub(crate) level: Option<i64>,
     pub(crate) rarity: Option<Rarity>,
     pub(crate) publication_title: Option<String>,

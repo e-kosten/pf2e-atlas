@@ -163,6 +163,7 @@ fn artifact_progress(phase: &'static str, message: &'static str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
     use std::ffi::OsString;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -173,16 +174,15 @@ mod tests {
     };
     use atlas_embedding::EmbeddingModelId;
     use atlas_record::{
-        ActivationTimeSourceField, AliasSource, AtlasRecord, ContentBlock, ContentDocument,
-        ContentInline, ContentSourceKind, ContentVisibility, DurationTimeSourceField,
-        FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-        ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
-        RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
+        ActivationTimeSourceField, AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility,
+        DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
+        FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue,
+        NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
         RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
         RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
         RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
-        RemasterLink, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
-        VariantSource,
+        RemasterLink, RichDocument, RichNode, SpellArea, SpellDefense, SpellMechanics, SpellRange,
+        SpellTarget, VariantSource,
     };
     use rusqlite::Connection;
 
@@ -209,6 +209,7 @@ mod tests {
                 to_record_key: pair[0].identity.key.clone(),
                 display_text: Some(pair[0].identity.name.clone()),
                 reference_text: format!("Compendium.pf2e.actions.{}", pair[0].identity.id()),
+                relation_kind: atlas_record::ReferenceRelationKind::Reference,
                 source_kind: ContentSourceKind::Description,
                 visibility: ContentVisibility::Public,
             })
@@ -632,9 +633,11 @@ mod tests {
         }
     }
 
-    fn text_document(text: &str) -> ContentDocument {
-        ContentDocument::new(vec![ContentBlock::Paragraph {
-            content: vec![ContentInline::Text {
+    fn text_document(text: &str) -> RichDocument {
+        RichDocument::new(vec![RichNode::HtmlElement {
+            tag: "p".to_string(),
+            attributes: BTreeMap::new(),
+            children: vec![RichNode::Text {
                 text: text.to_string(),
             }],
         }])

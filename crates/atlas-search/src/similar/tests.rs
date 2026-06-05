@@ -416,6 +416,7 @@ fn graph_edge(from: &RecordKey, to: &str) -> GraphReferenceEdge {
         to_record_key: RecordKey::parse(to).expect("fixture key should parse"),
         display_text: Some("Shared Reference".to_string()),
         reference_text: "fixture".to_string(),
+        relation_kind: atlas_record::ReferenceRelationKind::Reference,
         source_kind: ContentSourceKind::Description,
         visibility: ContentVisibility::Public,
     }

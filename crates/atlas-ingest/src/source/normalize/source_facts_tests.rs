@@ -353,7 +353,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         Some("Nested spell text.")
     );
 
-    assert_eq!(facts.journal_pages.len(), 1);
+    assert_eq!(facts.journal_pages.len(), 2);
     assert_eq!(facts.journal_pages[0].page_id.as_deref(), Some("page1"));
     assert_eq!(facts.journal_pages[0].normalized_name, "rules");
     assert_eq!(facts.journal_pages[0].source_ref, "journal:Rules");
@@ -361,7 +361,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         render_plain_text(&facts.journal_pages[0].document),
         "Rules\nPage body."
     );
-    assert_eq!(facts.skipped_journal_pages.len(), 3);
+    assert_eq!(facts.skipped_journal_pages.len(), 2);
     assert_eq!(
         facts.skipped_journal_pages[0].reason,
         JournalPageSkipReason::MissingTextContent
@@ -369,10 +369,6 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
     assert_eq!(
         facts.skipped_journal_pages[1].reason,
         JournalPageSkipReason::EmptyTextContent
-    );
-    assert_eq!(
-        facts.skipped_journal_pages[2].reason,
-        JournalPageSkipReason::EmptyParsedDocument
     );
 }
 

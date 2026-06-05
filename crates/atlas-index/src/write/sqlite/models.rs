@@ -54,8 +54,6 @@ pub(super) struct RecordRow {
     pub duration_text: Option<String>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
-    pub description_json: Option<String>,
-    pub blurb_json: Option<String>,
     pub publication_family: String,
     pub folder_id: Option<String>,
     pub taxonomy_families_json: String,
@@ -178,6 +176,7 @@ pub(super) struct ReferenceEdgeRow {
     pub to_record_key: String,
     pub display_text: Option<String>,
     pub reference_text: String,
+    pub relation_kind: String,
     pub source_kind: String,
     pub visibility: String,
 }
@@ -193,6 +192,7 @@ pub(super) struct ReferenceOccurrenceRow {
     pub visibility: String,
     pub display_text: Option<String>,
     pub reference_text: String,
+    pub relation_kind: String,
 }
 
 #[derive(Insertable)]

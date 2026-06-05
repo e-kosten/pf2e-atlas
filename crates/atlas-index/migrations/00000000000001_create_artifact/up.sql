@@ -46,8 +46,6 @@ CREATE TABLE records (
   duration_text TEXT,
   publication_title TEXT,
   publication_remaster INTEGER NOT NULL CHECK (publication_remaster IN (0, 1)),
-  description_json TEXT,
-  blurb_json TEXT,
   publication_family TEXT NOT NULL,
   folder_id TEXT,
   taxonomy_families_json TEXT NOT NULL,
@@ -88,9 +86,10 @@ CREATE TABLE reference_edges (
   to_record_key TEXT NOT NULL,
   display_text TEXT,
   reference_text TEXT NOT NULL,
+  relation_kind TEXT NOT NULL DEFAULT 'reference' CHECK (relation_kind IN ('reference', 'embed')),
   source_kind TEXT NOT NULL CHECK (source_kind IN ('description', 'blurb', 'disable', 'routine', 'reset', 'stealth_details', 'details_field_description', 'public_notes', 'gm_notes', 'private_notes', 'embedded_item_description', 'embedded_spell_description', 'generated_affliction')),
   visibility TEXT NOT NULL CHECK (visibility IN ('public', 'gm_only', 'private', 'internal')),
-  PRIMARY KEY (from_record_key, to_record_key, reference_text, source_kind),
+  PRIMARY KEY (from_record_key, to_record_key, reference_text, relation_kind, source_kind),
   FOREIGN KEY (from_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
   FOREIGN KEY (to_record_key) REFERENCES records(record_key) ON DELETE CASCADE
 );
@@ -104,6 +103,7 @@ CREATE TABLE reference_occurrences (
   visibility TEXT NOT NULL CHECK (visibility IN ('public', 'gm_only', 'private', 'internal')),
   display_text TEXT,
   reference_text TEXT NOT NULL,
+  relation_kind TEXT NOT NULL DEFAULT 'reference' CHECK (relation_kind IN ('reference', 'embed')),
   PRIMARY KEY (record_key, content_key, occurrence_ordinal),
   FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE,
   FOREIGN KEY (target_record_key) REFERENCES records(record_key) ON DELETE CASCADE

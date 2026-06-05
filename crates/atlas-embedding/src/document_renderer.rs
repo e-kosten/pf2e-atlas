@@ -192,7 +192,10 @@ fn render_section(chunks: &mut Vec<EmbeddingInputChunk>, section: &PresentationS
                     chunks,
                     EmbeddingInputChunk::truncatable_line(
                         embedding_section,
-                        format!("Description: {}", atlas_record::render_plain_text(document)),
+                        format!(
+                            "Description: {}",
+                            atlas_record::render_presentation_content_plain_text(document)
+                        ),
                     ),
                 );
             }

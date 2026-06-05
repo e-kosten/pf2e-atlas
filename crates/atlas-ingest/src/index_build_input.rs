@@ -79,6 +79,7 @@ mod tests {
                 to_record_key: generated_key.clone(),
                 display_text: Some("Generated Record".to_string()),
                 reference_text: "@UUID[generated]".to_string(),
+                relation_kind: atlas_record::ReferenceRelationKind::Reference,
                 source_kind: ContentSourceKind::Description,
                 visibility: ContentVisibility::Public,
             }],

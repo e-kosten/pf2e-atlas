@@ -106,7 +106,7 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
            contributes_to_references, label, content_json
          ) VALUES (
            'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           '{\"blocks\":[]}'
+           '{\"nodes\":[]}'
          )",
         [],
     )?;
@@ -376,7 +376,7 @@ fn load_records_rejects_content_policy_mismatch() -> Result<(), Box<dyn std::err
            contributes_to_references, label, content_json
          ) VALUES (
            'actions:testAction1', 'content:policy', 0, 'private_notes', 'public', 0, 0, NULL,
-           '{\"blocks\":[]}'
+           '{\"nodes\":[]}'
          )",
         [],
     )?;

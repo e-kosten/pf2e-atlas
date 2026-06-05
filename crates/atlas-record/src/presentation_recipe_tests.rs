@@ -1,16 +1,18 @@
+use std::collections::BTreeMap;
+
 use atlas_domain::{
     MetricDomain, PackName, PublicationCategory, Rarity, RecordId, RecordKey, RecordKind,
 };
 
 use crate::{
-    ActivationTimeSourceField, ActorMechanics, AtlasRecord, ContentBlock, ContentDocument,
-    ContentInline, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
-    FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricDefinition,
-    MetricRow, MetricValue, NormalizedTime, PresentationBlock, PresentationSection,
-    PresentationSectionKind, RecordActivationTiming, RecordClassification, RecordContent,
-    RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
-    RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, SpellDefense,
-    SpellMechanics, SpellRange, SpellTarget, build_record_presentation_document, metrics,
+    ActivationTimeSourceField, ActorMechanics, AtlasRecord, ContentSourceKind,
+    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+    ItemMechanics, ItemTypeMechanics, MetricDefinition, MetricRow, MetricValue, NormalizedTime,
+    PresentationBlock, PresentationSection, PresentationSectionKind, RecordActivationTiming,
+    RecordClassification, RecordContent, RecordContentDocument, RecordIdentity, RecordMechanics,
+    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+    RecordVisibility, RichDocument, RichNode, SpellDefense, SpellMechanics, SpellRange,
+    SpellTarget, build_record_presentation_document, metrics,
 };
 
 fn base_record(kind: RecordKind) -> AtlasRecord {
@@ -233,9 +235,11 @@ fn defined_metric(definition: MetricDefinition, value: f64) -> MetricRow {
     )
 }
 
-fn text_document(text: &str) -> ContentDocument {
-    ContentDocument::new(vec![ContentBlock::Paragraph {
-        content: vec![ContentInline::Text {
+fn text_document(text: &str) -> RichDocument {
+    RichDocument::new(vec![RichNode::HtmlElement {
+        tag: "p".to_string(),
+        attributes: BTreeMap::new(),
+        children: vec![RichNode::Text {
             text: text.to_string(),
         }],
     }])

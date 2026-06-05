@@ -1,6 +1,5 @@
 use atlas_record::{
-    AtlasRecord, ContentDocument, ContentInline, ContentReferenceLocator, ContentSourceKind,
-    iter_content_references, render_plain_text,
+    AtlasRecord, ContentSourceKind, RichDocument, iter_foundry_links, render_plain_text,
 };
 
 use crate::generated::afflictions::AfflictionFamily;
@@ -39,7 +38,7 @@ pub(super) fn affliction_family_label(family: AfflictionFamily) -> &'static str 
     }
 }
 
-pub(super) fn has_affliction_shape(document: Option<&ContentDocument>) -> bool {
+pub(super) fn has_affliction_shape(document: Option<&RichDocument>) -> bool {
     let Some(description) = document
         .map(render_plain_text)
         .filter(|value| !value.trim().is_empty())
@@ -50,7 +49,7 @@ pub(super) fn has_affliction_shape(document: Option<&ContentDocument>) -> bool {
     normalized.contains("saving throw") && normalized.contains("stage 1")
 }
 
-pub(super) fn record_affliction_document(record: &AtlasRecord) -> Option<ContentDocument> {
+pub(super) fn record_affliction_document(record: &AtlasRecord) -> Option<RichDocument> {
     record
         .content
         .description()
@@ -63,7 +62,7 @@ pub(super) fn record_affliction_document(record: &AtlasRecord) -> Option<Content
 pub(super) fn embedded_item_affliction_document(
     item: &EmbeddedItemFact,
     source_facts: &SourceRecordFacts,
-) -> Option<ContentDocument> {
+) -> Option<RichDocument> {
     item.content_refs
         .iter()
         .find(|content_ref| {
@@ -85,21 +84,19 @@ pub(super) fn parse_compendium_source(value: &str) -> Option<(String, String)> {
     None
 }
 
-pub(super) fn extract_linked_names(document: Option<&ContentDocument>) -> Vec<String> {
+pub(super) fn extract_linked_names(document: Option<&RichDocument>) -> Vec<String> {
     let Some(document) = document else {
         return Vec::new();
     };
     variants::sorted_unique(
-        iter_content_references(document)
+        iter_foundry_links(document)
             .filter_map(|candidate| {
                 candidate
                     .label
                     .as_ref()
-                    .and_then(|label| {
-                        let text = render_inlines_plain_text(label).trim().to_string();
-                        (!text.is_empty()).then_some(text)
-                    })
-                    .or_else(|| fallback_linked_name(&candidate.locator))
+                    .map(|label| render_plain_text(&RichDocument::new(label.clone())))
+                    .filter(|label| !label.trim().is_empty())
+                    .or_else(|| candidate.target.display_name().map(ToOwned::to_owned))
             })
             .collect(),
     )
@@ -108,61 +105,11 @@ pub(super) fn extract_linked_names(document: Option<&ContentDocument>) -> Vec<St
 fn supplemental_document(
     record: &AtlasRecord,
     source_kind: ContentSourceKind,
-) -> Option<ContentDocument> {
+) -> Option<RichDocument> {
     record
         .content
         .documents
         .iter()
         .find(|content| content.source_kind == source_kind)
         .map(|content| content.document.clone())
-}
-
-fn render_inlines_plain_text(inlines: &[ContentInline]) -> String {
-    let mut text = String::new();
-    for inline in inlines {
-        match inline {
-            ContentInline::Text { text: value } | ContentInline::Code { text: value } => {
-                text.push_str(value);
-            }
-            ContentInline::Strong { content } | ContentInline::Emphasis { content } => {
-                text.push_str(&render_inlines_plain_text(content));
-            }
-            ContentInline::Reference { reference } => {
-                if let Some(label) = &reference.label {
-                    text.push_str(&render_inlines_plain_text(label));
-                }
-            }
-            ContentInline::Break => text.push(' '),
-            ContentInline::Roll { label, formula, .. } => {
-                text.push_str(label.as_ref().unwrap_or(formula));
-            }
-            ContentInline::Template { label, .. }
-            | ContentInline::Icon {
-                label: Some(label), ..
-            } => {
-                text.push_str(label);
-            }
-            ContentInline::Macro {
-                label: Some(label), ..
-            } => {
-                text.push_str(label);
-            }
-            ContentInline::Macro { label: None, .. }
-            | ContentInline::ActionGlyph { .. }
-            | ContentInline::Icon { label: None, .. } => {}
-        }
-    }
-    text
-}
-
-fn fallback_linked_name(locator: &ContentReferenceLocator) -> Option<String> {
-    let raw = match locator {
-        ContentReferenceLocator::FoundryUuid { raw_target }
-        | ContentReferenceLocator::Compendium { raw_target } => raw_target.as_str(),
-        ContentReferenceLocator::PackAndLocator { locator, .. } => locator.as_str(),
-        ContentReferenceLocator::Unknown { raw } => raw.as_str(),
-    };
-    let tail = raw.split('.').next_back()?.replace(['-', '_'], " ");
-    let trimmed = tail.trim();
-    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }

@@ -12,6 +12,7 @@ pub mod reference_edges {
         pub const TO_RECORD_KEY: Column = Column::new(TABLE, "to_record_key");
         pub const DISPLAY_TEXT: Column = Column::new(TABLE, "display_text");
         pub const REFERENCE_TEXT: Column = Column::new(TABLE, "reference_text");
+        pub const RELATION_KIND: Column = Column::new(TABLE, "relation_kind");
         pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
     }
@@ -21,6 +22,7 @@ pub mod reference_edges {
         columns::TO_RECORD_KEY,
         columns::DISPLAY_TEXT,
         columns::REFERENCE_TEXT,
+        columns::RELATION_KIND,
         columns::SOURCE_KIND,
         columns::VISIBILITY,
     ];
@@ -42,6 +44,7 @@ pub mod reference_occurrences {
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
         pub const DISPLAY_TEXT: Column = Column::new(TABLE, "display_text");
         pub const REFERENCE_TEXT: Column = Column::new(TABLE, "reference_text");
+        pub const RELATION_KIND: Column = Column::new(TABLE, "relation_kind");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
@@ -53,6 +56,7 @@ pub mod reference_occurrences {
         columns::VISIBILITY,
         columns::DISPLAY_TEXT,
         columns::REFERENCE_TEXT,
+        columns::RELATION_KIND,
     ];
 }
 
