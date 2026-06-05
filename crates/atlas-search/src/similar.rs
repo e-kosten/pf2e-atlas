@@ -14,10 +14,15 @@ use crate::{
     AtlasRetrievalService, GetRecordRequest, GetRecordsRequest, RecordRetrieval, SearchError,
 };
 
-const DEFAULT_SEMANTIC_WEIGHT: f64 = 0.80;
-const DEFAULT_REFERENCE_WEIGHT: f64 = 0.15;
-const DEFAULT_TRAIT_WEIGHT: f64 = 0.05;
-const MAX_SIMILAR_CANDIDATES: u32 = 1_000;
+pub const DEFAULT_SIMILAR_RECORD_LIMIT: u32 = 20;
+pub const DEFAULT_SIMILAR_CANDIDATE_LIMIT: u32 = 100;
+pub const MAX_SIMILAR_RECORD_LIMIT: u32 = 100;
+pub const MAX_SIMILAR_CANDIDATE_LIMIT: u32 = 100;
+pub const DEFAULT_SIMILAR_SEMANTIC_WEIGHT: f64 = 0.80;
+pub const DEFAULT_SIMILAR_REFERENCE_WEIGHT: f64 = 0.15;
+pub const DEFAULT_SIMILAR_TRAIT_WEIGHT: f64 = 0.05;
+
+const MAX_SIMILAR_VECTOR_CANDIDATES: u32 = 1_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimilarRecordRequest<'a> {
@@ -26,6 +31,18 @@ pub struct SimilarRecordRequest<'a> {
     pub limit: u32,
     pub candidate_limit: u32,
     pub weights: SimilarScoreWeights,
+}
+
+impl<'a> SimilarRecordRequest<'a> {
+    pub fn new(seed: &'a RecordKey) -> Self {
+        Self {
+            seed,
+            filter: None,
+            limit: DEFAULT_SIMILAR_RECORD_LIMIT,
+            candidate_limit: DEFAULT_SIMILAR_CANDIDATE_LIMIT,
+            weights: SimilarScoreWeights::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -38,9 +55,9 @@ pub struct SimilarScoreWeights {
 impl Default for SimilarScoreWeights {
     fn default() -> Self {
         Self {
-            semantic: DEFAULT_SEMANTIC_WEIGHT,
-            reference: DEFAULT_REFERENCE_WEIGHT,
-            traits: DEFAULT_TRAIT_WEIGHT,
+            semantic: DEFAULT_SIMILAR_SEMANTIC_WEIGHT,
+            reference: DEFAULT_SIMILAR_REFERENCE_WEIGHT,
+            traits: DEFAULT_SIMILAR_TRAIT_WEIGHT,
         }
     }
 }
@@ -119,6 +136,7 @@ impl SimilarRetrieval for AtlasRetrievalService {
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, SearchError> {
+        validate_similar_request(&request)?;
         let Some(seed) = self.get_record(GetRecordRequest {
             record_key: request.seed,
         })?
@@ -142,10 +160,10 @@ impl SimilarRetrieval for AtlasRetrievalService {
         let candidate_limit = request
             .candidate_limit
             .max(request.limit)
-            .min(MAX_SIMILAR_CANDIDATES);
+            .min(MAX_SIMILAR_VECTOR_CANDIDATES);
         let vector_limit = candidate_limit
             .saturating_add(1)
-            .min(MAX_SIMILAR_CANDIDATES);
+            .min(MAX_SIMILAR_VECTOR_CANDIDATES);
         let vector_hits = query_similar_vector_index(
             self.index.as_ref(),
             &seed_unit.vector,
@@ -211,6 +229,22 @@ impl SimilarRetrieval for AtlasRetrievalService {
             records: ranked,
         }))
     }
+}
+
+fn validate_similar_request(request: &SimilarRecordRequest<'_>) -> Result<(), SearchError> {
+    if request.limit > MAX_SIMILAR_RECORD_LIMIT {
+        return Err(SearchError::invalid_search_options(format!(
+            "similar record limit must be at most {MAX_SIMILAR_RECORD_LIMIT}; got {}",
+            request.limit
+        )));
+    }
+    if request.candidate_limit > MAX_SIMILAR_CANDIDATE_LIMIT {
+        return Err(SearchError::invalid_search_options(format!(
+            "similar candidate limit must be at most {MAX_SIMILAR_CANDIDATE_LIMIT}; got {}",
+            request.candidate_limit
+        )));
+    }
+    Ok(())
 }
 
 fn resolve_similar_filter<I>(

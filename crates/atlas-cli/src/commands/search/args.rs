@@ -33,7 +33,7 @@ pub(crate) struct SearchOptions {
     pub(crate) filter_options: FilterOptions,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     pub(crate) detail: DetailLevel,
-    #[arg(long, value_enum, default_value_t = CliSearchSort::Alphabetical, help = "Sort order for filter-only searches; text queries are ranked")]
+    #[arg(long, value_enum, default_value_t = CliSearchSort::default(), help = "Sort order for filter-only searches; text queries are ranked")]
     pub(crate) sort: CliSearchSort,
     #[arg(long, help = "Seed for --sort random; generated when omitted")]
     pub(crate) seed: Option<u64>,
@@ -113,6 +113,20 @@ pub(crate) enum CliSearchSort {
     RecordKey,
     #[value(name = "random")]
     Random,
+}
+
+impl Default for CliSearchSort {
+    fn default() -> Self {
+        match atlas_search::RecordListSort::default() {
+            atlas_search::RecordListSort::Alphabetical => Self::Alphabetical,
+            atlas_search::RecordListSort::LevelAsc => Self::LevelAsc,
+            atlas_search::RecordListSort::LevelDesc => Self::LevelDesc,
+            atlas_search::RecordListSort::PriceAsc => Self::PriceAsc,
+            atlas_search::RecordListSort::PriceDesc => Self::PriceDesc,
+            atlas_search::RecordListSort::RecordKey => Self::RecordKey,
+            atlas_search::RecordListSort::Random { .. } => Self::Random,
+        }
+    }
 }
 
 impl From<CliRetrievalMode> for RetrievalMode {

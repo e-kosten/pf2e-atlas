@@ -129,6 +129,48 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
 }
 
 #[test]
+fn similar_records_rejects_result_limit_above_product_max() {
+    let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
+    let service =
+        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+
+    let error = service
+        .similar_records(SimilarRecordRequest {
+            limit: MAX_SIMILAR_RECORD_LIMIT + 1,
+            ..SimilarRecordRequest::new(&seed)
+        })
+        .expect_err("oversized result limit should be rejected");
+
+    assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
+    assert!(
+        error
+            .to_string()
+            .contains("similar record limit must be at most")
+    );
+}
+
+#[test]
+fn similar_records_rejects_candidate_limit_above_product_max() {
+    let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
+    let service =
+        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+
+    let error = service
+        .similar_records(SimilarRecordRequest {
+            candidate_limit: MAX_SIMILAR_CANDIDATE_LIMIT + 1,
+            ..SimilarRecordRequest::new(&seed)
+        })
+        .expect_err("oversized candidate limit should be rejected");
+
+    assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
+    assert!(
+        error
+            .to_string()
+            .contains("similar candidate limit must be at most")
+    );
+}
+
+#[test]
 fn similar_records_passes_filter_and_parent_only_scope_to_vector_index() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
     let filter = SearchFilterNode::record_kind(RecordKind::Rule);

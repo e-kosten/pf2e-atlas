@@ -9,11 +9,44 @@ use atlas_record::AtlasRecord;
 use crate::{AtlasRetrievalService, SearchError};
 use crate::{GetRecordRequest, GetRecordsRequest, RecordRetrieval};
 
+pub const DEFAULT_GRAPH_OUTGOING_LIMIT: usize = 8;
+pub const DEFAULT_GRAPH_BACKLINK_LIMIT: usize = 0;
+pub const DEFAULT_GRAPH_USES_LIMIT: usize = 25;
+pub const MAX_GRAPH_CONTEXT_LIMIT: usize = 50;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphContextRequest {
     pub seed: RecordKey,
     pub outgoing_limit: usize,
     pub backlink_limit: usize,
+}
+
+impl GraphContextRequest {
+    pub fn new(seed: RecordKey) -> Self {
+        Self {
+            seed,
+            outgoing_limit: DEFAULT_GRAPH_OUTGOING_LIMIT,
+            backlink_limit: DEFAULT_GRAPH_BACKLINK_LIMIT,
+        }
+    }
+
+    pub fn uses(seed: RecordKey) -> Self {
+        Self {
+            seed,
+            outgoing_limit: 0,
+            backlink_limit: DEFAULT_GRAPH_USES_LIMIT,
+        }
+    }
+
+    pub fn with_outgoing_limit(mut self, limit: usize) -> Self {
+        self.outgoing_limit = limit;
+        self
+    }
+
+    pub fn with_backlink_limit(mut self, limit: usize) -> Self {
+        self.backlink_limit = limit;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,6 +93,7 @@ impl GraphRetrieval for AtlasRetrievalService {
         &self,
         request: GraphContextRequest,
     ) -> Result<Option<GraphContextResult>, SearchError> {
+        validate_graph_context_request(&request)?;
         let Some(seed) = self.get_record(GetRecordRequest {
             record_key: &request.seed,
         })?
@@ -82,6 +116,18 @@ impl GraphRetrieval for AtlasRetrievalService {
             backlinks,
         }))
     }
+}
+
+fn validate_graph_context_request(request: &GraphContextRequest) -> Result<(), SearchError> {
+    if request.outgoing_limit > MAX_GRAPH_CONTEXT_LIMIT
+        || request.backlink_limit > MAX_GRAPH_CONTEXT_LIMIT
+    {
+        return Err(SearchError::invalid_search_options(format!(
+            "graph context limits must be at most {MAX_GRAPH_CONTEXT_LIMIT}; got outgoing {}, backlinks {}",
+            request.outgoing_limit, request.backlink_limit
+        )));
+    }
+    Ok(())
 }
 
 impl AtlasRetrievalService {
@@ -290,5 +336,28 @@ mod tests {
         let error = retained_records(&retained, &mut records).expect_err("missing record fails");
 
         assert!(error.to_string().contains("graph neighbor record"));
+    }
+
+    #[test]
+    fn graph_context_request_rejects_limits_above_product_max() {
+        let seed = key("actions:seed");
+
+        let error = validate_graph_context_request(
+            &GraphContextRequest::new(seed.clone())
+                .with_outgoing_limit(MAX_GRAPH_CONTEXT_LIMIT + 1),
+        )
+        .expect_err("oversized outgoing limit should be rejected");
+
+        assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
+        assert!(
+            error
+                .to_string()
+                .contains("graph context limits must be at most")
+        );
+
+        validate_graph_context_request(
+            &GraphContextRequest::uses(seed).with_backlink_limit(MAX_GRAPH_CONTEXT_LIMIT),
+        )
+        .expect("max backlink limit should be accepted");
     }
 }

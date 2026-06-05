@@ -15,8 +15,9 @@ mod variants;
 
 pub use error::{SearchError, SearchErrorKind};
 pub use graph::{
+    DEFAULT_GRAPH_BACKLINK_LIMIT, DEFAULT_GRAPH_OUTGOING_LIMIT, DEFAULT_GRAPH_USES_LIMIT,
     GraphContextEdge, GraphContextEdgeSource, GraphContextRequest, GraphContextResult,
-    GraphContextSection, GraphRetrieval,
+    GraphContextSection, GraphRetrieval, MAX_GRAPH_CONTEXT_LIMIT,
 };
 pub use page::{DEFAULT_SEARCH_PAGE_SIZE, MAX_SEARCH_PAGE_SIZE, SearchPage, SearchPageInfo};
 pub use query::TextQueryDiagnostics;
@@ -29,6 +30,9 @@ pub use remaster::{
 };
 pub use service::{AtlasRetrievalService, SearchEmbeddingConfig};
 pub use similar::{
+    DEFAULT_SIMILAR_CANDIDATE_LIMIT, DEFAULT_SIMILAR_RECORD_LIMIT,
+    DEFAULT_SIMILAR_REFERENCE_WEIGHT, DEFAULT_SIMILAR_SEMANTIC_WEIGHT,
+    DEFAULT_SIMILAR_TRAIT_WEIGHT, MAX_SIMILAR_CANDIDATE_LIMIT, MAX_SIMILAR_RECORD_LIMIT,
     SimilarRecord, SimilarRecordGraphEvidence, SimilarRecordRequest, SimilarRecordResult,
     SimilarRecordSemanticEvidence, SimilarRetrieval, SimilarScoreWeights, SimilarSharedReference,
 };

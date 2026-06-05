@@ -218,11 +218,9 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let list_result = match service.list_records(ListRecordsRequest {
-        filter: filter.as_ref(),
-        sort,
-        page,
-    }) {
+    let list_result = match service
+        .list_records(ListRecordsRequest::new(filter.as_ref(), page).with_sort(sort))
+    {
         Ok(list_result) => list_result,
         Err(error) if options.json => {
             write_json_error(search_error_code(&error), error.to_string())?;

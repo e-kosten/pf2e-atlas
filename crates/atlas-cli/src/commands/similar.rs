@@ -140,11 +140,11 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
         Err(error) => return Err(search_error(error)),
     };
     let result = match service.similar_records(SimilarRecordRequest {
-        seed: &seed,
         filter: filter.as_ref(),
         limit: options.limit,
         candidate_limit: options.candidates,
         weights,
+        ..SimilarRecordRequest::new(&seed)
     }) {
         Ok(Some(result)) => result,
         Ok(None) if options.json => {

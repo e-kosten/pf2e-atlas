@@ -31,11 +31,9 @@ pub(crate) fn run_graph_uses(options: GraphUsesOptions) -> Result<ExitCode, Stri
         GraphCommandOutcome::Value(key) => key,
         GraphCommandOutcome::Exit(code) => return Ok(code),
     };
-    let result = match service.graph_context(GraphContextRequest {
-        seed: key.clone(),
-        outgoing_limit: 0,
-        backlink_limit: options.limit,
-    }) {
+    let result = match service
+        .graph_context(GraphContextRequest::uses(key.clone()).with_backlink_limit(options.limit))
+    {
         Ok(Some(result)) => result,
         Ok(None) => return record_not_found(&key, options.json),
         Err(error) if options.json => {
