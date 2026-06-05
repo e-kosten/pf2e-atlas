@@ -128,7 +128,7 @@ impl TextRetrieval for AtlasRetrievalService {
             .into_iter()
             .map(|record| (record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
-        let mut page_records = page_items
+        let page_records = page_items
             .drain(..)
             .filter_map(|item| match item {
                 TextSearchResultItem::Identity(record) => Some(*record),
@@ -143,7 +143,6 @@ impl TextRetrieval for AtlasRetrievalService {
                     }),
             })
             .collect::<Vec<_>>();
-        self.enrich_text_record_reference_labels(&mut page_records)?;
 
         Ok(TextSearchResult {
             query,

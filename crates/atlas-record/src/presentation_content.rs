@@ -479,6 +479,31 @@ mod tests {
                         },
                     },
                     RichNode::Text {
+                        text: " and review ".to_string(),
+                    },
+                    RichNode::FoundryLink {
+                        link: FoundryLink {
+                            target: RichLinkTarget::Record {
+                                key: target_key.clone(),
+                                name: "Treat Wounds".to_string(),
+                            },
+                            label: Some(vec![RichNode::Text {
+                                text: "embedded treatment".to_string(),
+                            }]),
+                            source: FoundryLinkSource {
+                                macro_kind: FoundryLinkMacroKind::Embed,
+                                authored_target: "Compendium.pf2e.actionspf2e.Item.TreatWounds"
+                                    .to_string(),
+                                relation: None,
+                            },
+                            behavior: FoundryLinkBehavior::Embed {
+                                inline: true,
+                                hr: None,
+                                options: BTreeMap::new(),
+                            },
+                        },
+                    },
+                    RichNode::Text {
                         text: ".".to_string(),
                     },
                 ],
@@ -506,6 +531,14 @@ mod tests {
                 record_key: Some(record_key),
                 embedded: false,
             } if label == "Treat Wounds" && record_key == &target_key
+        )));
+        assert!(spans.iter().any(|span| matches!(
+            span,
+            PresentationInline::Reference {
+                label,
+                record_key: Some(record_key),
+                embedded: true,
+            } if label == "embedded treatment" && record_key == &target_key
         )));
     }
 }

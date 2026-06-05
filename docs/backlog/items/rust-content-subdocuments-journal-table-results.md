@@ -7,7 +7,7 @@ Last reviewed: 2026-05-16
 
 ## Problem
 
-The Rust content-document refactor intentionally models primary record descriptions, supplemental record-owned content, embedded actor/item capability text, FTS projections, semantic chunks, and reference edges from explicit `ContentDocument` sources. During planning, two rich-text source families were identified as real content but deferred from the first pass:
+The RichDocument migration models primary record descriptions, supplemental record-owned content, embedded actor/item capability text, FTS projections, semantic chunks, and reference edges from explicit rich-content sources. During planning, two rich-text source families were identified as real content but deferred from the first pass:
 
 - journal page bodies at `pages.*.text.content`
 - rollable table result prose at `results.*.description`
@@ -82,7 +82,7 @@ pub struct ContentSubdocument {
     pub kind: ContentSubdocumentKind,
     pub title: String,
     pub ordinal: i64,
-    pub document: ContentDocument,
+    pub document: RichDocument,
     pub visibility: ContentVisibility,
 }
 
@@ -119,9 +119,9 @@ The first option is less disruptive to existing record-key assumptions. The seco
 
 ## Acceptance Sketch
 
-- Journal pages can be parsed into `ContentDocument` values with page title and order preserved.
+- Journal pages can be parsed into `RichDocument` values with page title and order preserved.
 - Journal page skip reasons from ingest construction facts can feed coverage/audit reporting for unsupported or empty page shapes.
-- Table results can be parsed into `ContentDocument` values with result range/order preserved.
+- Table results can be parsed into `RichDocument` values with result range/order preserved.
 - Search results can expose a child target label such as `GM Screen > Falling` or `Madcap Top Effect > Result 2`.
 - Reference/backlink output can show the child source context rather than only the parent record.
 - FTS and semantic retrieval can downweight or separately rank child content so exact searches for canonical records are not dominated by broad containers.

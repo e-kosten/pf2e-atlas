@@ -1,5 +1,4 @@
 mod get;
-pub(crate) mod references;
 pub(crate) mod resolution;
 mod types;
 

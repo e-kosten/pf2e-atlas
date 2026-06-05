@@ -660,7 +660,12 @@ fn description_section(
             .content
             .searchable_documents()
             .filter(|content| {
-                content.contributes_to_search() && include_supplemental_content(content)
+                content.contributes_to_search()
+                    && !matches!(
+                        content.source_kind,
+                        crate::ContentSourceKind::Description | crate::ContentSourceKind::Blurb
+                    )
+                    && include_supplemental_content(content)
             })
             .map(|content| {
                 PresentationBlock::Content(labeled_content(

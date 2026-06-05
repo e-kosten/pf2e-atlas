@@ -10,9 +10,7 @@ use super::{
 
 impl RecordRetrieval for AtlasRetrievalService {
     fn get_records(&self, request: GetRecordsRequest<'_>) -> Result<Vec<AtlasRecord>, SearchError> {
-        let mut records = get_records(self.index.as_ref(), request)?;
-        self.enrich_reference_labels(&mut records)?;
-        Ok(records)
+        get_records(self.index.as_ref(), request)
     }
 
     fn get_record(
@@ -31,19 +29,14 @@ impl RecordRetrieval for AtlasRetrievalService {
         &self,
         request: BrowseRecordsRequest<'_>,
     ) -> Result<BrowseRecordsResult, SearchError> {
-        let mut result = browse_records(self.index.as_ref(), request)?;
-        self.enrich_reference_labels(&mut result.records)?;
-        Ok(result)
+        browse_records(self.index.as_ref(), request)
     }
 
     fn resolve_record(
         &self,
         request: ResolveRecordRequest<'_>,
     ) -> Result<Vec<super::RecordResolutionResult>, SearchError> {
-        let mut matches =
-            resolution::resolve_record(self.index.as_ref(), request.query, request.filter)?;
-        self.enrich_resolution_reference_labels(&mut matches)?;
-        Ok(matches)
+        resolution::resolve_record(self.index.as_ref(), request.query, request.filter)
     }
 }
 

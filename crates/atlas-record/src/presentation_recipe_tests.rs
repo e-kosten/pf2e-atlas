@@ -133,6 +133,33 @@ fn feat_recipe_surfaces_prerequisites_in_summary() {
 }
 
 #[test]
+fn description_section_does_not_duplicate_primary_content() {
+    let mut record = base_record(RecordKind::Spell);
+    record.content.documents.push(RecordContentDocument {
+        source_kind: ContentSourceKind::PublicNotes,
+        label: Some("Public Notes".to_string()),
+        document: text_document("Bring a healer's kit."),
+    });
+
+    let document = build_record_presentation_document(&record);
+    let description = document
+        .sections
+        .iter()
+        .find(|section| section.kind == PresentationSectionKind::Description)
+        .expect("description section");
+    let content_blocks = description
+        .blocks
+        .iter()
+        .filter(|block| matches!(block, PresentationBlock::Content(_)))
+        .count();
+
+    assert_eq!(
+        content_blocks, 2,
+        "description section should include one primary block plus one supplemental block"
+    );
+}
+
+#[test]
 fn creature_recipe_groups_defense_movement_and_offense_sections() {
     let mut record = base_record(RecordKind::Creature);
     record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {

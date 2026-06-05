@@ -27,7 +27,7 @@ The work should answer:
 ## Constraints
 
 - Treat rich PF2e art as optional local enrichment, not canonical normalized record content.
-- Do not put record portrait/token art into `ContentDocument`; it belongs in record-level media or presentation metadata.
+- Do not put record portrait/token art into `RichDocument`; it belongs in record-level media or presentation metadata.
 - Do not block HTML parsing, CLI presentation, FTS, embedding, or reference work on art ingestion.
 - Do not assume premium token-pack assets are present in the PF2e GitHub export.
 - Preserve a useful artifact when no optional art modules are installed.
