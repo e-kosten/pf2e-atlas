@@ -232,11 +232,21 @@ impl SimilarRetrieval for AtlasRetrievalService {
 }
 
 fn validate_similar_request(request: &SimilarRecordRequest<'_>) -> Result<(), SearchError> {
+    if request.limit == 0 {
+        return Err(SearchError::invalid_search_options(
+            "similar record limit must be at least 1".to_string(),
+        ));
+    }
     if request.limit > MAX_SIMILAR_RECORD_LIMIT {
         return Err(SearchError::invalid_search_options(format!(
             "similar record limit must be at most {MAX_SIMILAR_RECORD_LIMIT}; got {}",
             request.limit
         )));
+    }
+    if request.candidate_limit == 0 {
+        return Err(SearchError::invalid_search_options(
+            "similar candidate limit must be at least 1".to_string(),
+        ));
     }
     if request.candidate_limit > MAX_SIMILAR_CANDIDATE_LIMIT {
         return Err(SearchError::invalid_search_options(format!(

@@ -4,7 +4,7 @@ use atlas_domain::DetailLevel;
 use atlas_search::{
     DEFAULT_SIMILAR_CANDIDATE_LIMIT, DEFAULT_SIMILAR_RECORD_LIMIT,
     DEFAULT_SIMILAR_REFERENCE_WEIGHT, DEFAULT_SIMILAR_SEMANTIC_WEIGHT,
-    DEFAULT_SIMILAR_TRAIT_WEIGHT, MAX_SIMILAR_CANDIDATE_LIMIT, MAX_SIMILAR_RECORD_LIMIT,
+    DEFAULT_SIMILAR_TRAIT_WEIGHT,
 };
 use clap::{ArgAction, Args};
 
@@ -20,9 +20,9 @@ pub(crate) struct SimilarOptions {
     pub(crate) record_ref: String,
     #[arg(long, help = "Override the SQLite artifact path")]
     pub(crate) index: Option<PathBuf>,
-    #[arg(long, default_value_t = DEFAULT_SIMILAR_RECORD_LIMIT, value_parser = parse_similar_record_limit, help = "Maximum similar records to return, 1-100")]
+    #[arg(long, default_value_t = DEFAULT_SIMILAR_RECORD_LIMIT, help = "Maximum similar records to return, 1-100")]
     pub(crate) limit: u32,
-    #[arg(long, default_value_t = DEFAULT_SIMILAR_CANDIDATE_LIMIT, value_parser = parse_similar_candidate_limit, help = "Vector candidate records to inspect before graph reranking, 1-100")]
+    #[arg(long, default_value_t = DEFAULT_SIMILAR_CANDIDATE_LIMIT, help = "Vector candidate records to inspect before graph reranking, 1-100")]
     pub(crate) candidates: u32,
     #[arg(
         long,
@@ -59,25 +59,4 @@ pub(crate) struct SimilarOptions {
     pub(crate) explain: bool,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
-}
-
-fn parse_similar_record_limit(value: &str) -> Result<u32, String> {
-    parse_similar_limit(value, MAX_SIMILAR_RECORD_LIMIT)
-}
-
-fn parse_similar_candidate_limit(value: &str) -> Result<u32, String> {
-    parse_similar_limit(value, MAX_SIMILAR_CANDIDATE_LIMIT)
-}
-
-fn parse_similar_limit(value: &str, max: u32) -> Result<u32, String> {
-    let limit = value
-        .parse::<u32>()
-        .map_err(|error| format!("invalid similar limit `{value}`: {error}"))?;
-    if (1..=max).contains(&limit) {
-        Ok(limit)
-    } else {
-        Err(format!(
-            "similar limit must be between 1 and {max}, got {limit}"
-        ))
-    }
 }

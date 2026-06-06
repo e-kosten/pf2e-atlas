@@ -152,12 +152,15 @@ fn similar_json_reports_ambiguous_seed_name() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
-fn similar_rejects_reference_dominant_weights_before_opening_index()
+fn similar_reports_reference_dominant_weights_from_product_service()
 -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-similar-invalid-weights");
+    create_similar_database(&path)?;
+
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["similar", "actions:testAction1", "--index"])
+        .arg(&path)
         .args([
-            "similar",
-            "actions:testAction1",
             "--semantic-weight",
             "0",
             "--reference-weight",
@@ -173,16 +176,20 @@ fn similar_rejects_reference_dominant_weights_before_opening_index()
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "invalid_option");
 
+    fs::remove_file(path)?;
     Ok(())
 }
 
 #[test]
-fn similar_rejects_non_finite_weights_before_opening_index()
+fn similar_reports_non_finite_weights_from_product_service()
 -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-similar-nan-weights");
+    create_similar_database(&path)?;
+
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["similar", "actions:testAction1", "--index"])
+        .arg(&path)
         .args([
-            "similar",
-            "actions:testAction1",
             "--semantic-weight",
             "1",
             "--reference-weight",
@@ -198,6 +205,7 @@ fn similar_rejects_non_finite_weights_before_opening_index()
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "invalid_option");
 
+    fs::remove_file(path)?;
     Ok(())
 }
 

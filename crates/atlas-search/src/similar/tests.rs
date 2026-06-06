@@ -107,7 +107,7 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
             seed: &seed,
             filter: None,
             limit: 2,
-            candidate_limit: 0,
+            candidate_limit: 1,
             weights: SimilarScoreWeights {
                 semantic: 1.0,
                 reference: 0.0,
@@ -125,6 +125,47 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
     assert_eq!(
         result.records[1].record.identity.key.to_string(),
         "actions:graph"
+    );
+}
+
+#[test]
+fn similar_records_rejects_zero_limits() {
+    let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
+    let service =
+        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+
+    let result_limit_error = service
+        .similar_records(SimilarRecordRequest {
+            limit: 0,
+            ..SimilarRecordRequest::new(&seed)
+        })
+        .expect_err("zero result limit should be rejected");
+
+    assert_eq!(
+        result_limit_error.kind(),
+        crate::SearchErrorKind::InvalidOptions
+    );
+    assert!(
+        result_limit_error
+            .to_string()
+            .contains("similar record limit must be at least 1")
+    );
+
+    let candidate_limit_error = service
+        .similar_records(SimilarRecordRequest {
+            candidate_limit: 0,
+            ..SimilarRecordRequest::new(&seed)
+        })
+        .expect_err("zero candidate limit should be rejected");
+
+    assert_eq!(
+        candidate_limit_error.kind(),
+        crate::SearchErrorKind::InvalidOptions
+    );
+    assert!(
+        candidate_limit_error
+            .to_string()
+            .contains("similar candidate limit must be at least 1")
     );
 }
 
