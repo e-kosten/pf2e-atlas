@@ -8,7 +8,7 @@ use atlas_domain::{
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
     DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest, FilterDiscoveryError,
-    FilterDiscoveryRetrieval,
+    FilterDiscoveryRetrieval, MetricDiscoverySelector,
 };
 use serde_json::Value;
 
@@ -59,6 +59,12 @@ pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCo
 }
 
 pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCode, String> {
+    let metric_selector = match metric_selector_from_options(&options) {
+        Ok(selector) => selector,
+        Err(message) => {
+            return discovery_cli_error(options.json, "invalid_option", message, ExitCode::from(2));
+        }
+    };
     let (filter, filter_value) = match build_filter(
         options.filter_json.as_deref(),
         &FilterOptions::from(options.filter_options),
@@ -74,10 +80,7 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
         filter_json: filter_value,
         sort: options.sort.map(discovery_sort),
         sample_limit: options.sample_limit,
-        metric: options.metric,
-        metric_prefix: options.metric_prefix,
-        metric_label: options.metric_label,
-        metric_query: options.metric_query,
+        metric_selector,
         metric_domain: options.metric_domain,
     };
     let service = match open_filter_discovery_service(options.index, options.path_mode.into()) {
@@ -127,6 +130,37 @@ fn discovery_sort(sort: CliFilterValueSort) -> atlas_domain::FilterValueSort {
         CliFilterValueSort::Count => atlas_domain::FilterValueSort::Count,
         CliFilterValueSort::Alpha => atlas_domain::FilterValueSort::Alpha,
         CliFilterValueSort::Canonical => atlas_domain::FilterValueSort::Canonical,
+    }
+}
+
+fn metric_selector_from_options(
+    options: &FiltersValuesOptions,
+) -> Result<Option<MetricDiscoverySelector>, String> {
+    let mut selectors = Vec::new();
+    if let Some(metric) = options.metric.clone() {
+        selectors.push(("--metric", MetricDiscoverySelector::ExactKey(metric)));
+    }
+    if let Some(prefix) = options.metric_prefix.clone() {
+        selectors.push(("--metric-prefix", MetricDiscoverySelector::Prefix(prefix)));
+    }
+    if let Some(label) = options.metric_label.clone() {
+        selectors.push(("--metric-label", MetricDiscoverySelector::Label(label)));
+    }
+    if let Some(query) = options.metric_query.clone() {
+        selectors.push(("--metric-query", MetricDiscoverySelector::Query(query)));
+    }
+
+    match selectors.len() {
+        0 => Ok(None),
+        1 => Ok(selectors.pop().map(|(_, selector)| selector)),
+        _ => Err(format!(
+            "metric selector flags are mutually exclusive: {}",
+            selectors
+                .into_iter()
+                .map(|(flag, _)| flag)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
     }
 }
 

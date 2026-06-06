@@ -16,7 +16,7 @@ mod variants;
 
 pub use discovery::{
     DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest, FilterDiscoveryError,
-    FilterDiscoveryRetrieval,
+    FilterDiscoveryRetrieval, MetricDiscoverySelector,
 };
 pub use error::{SearchError, SearchErrorKind};
 pub use graph::{
