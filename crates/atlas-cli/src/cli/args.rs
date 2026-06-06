@@ -98,12 +98,12 @@ pub(crate) struct FilterOptions {
     pub(crate) any_traits: Vec<String>,
     #[arg(
         long = "references",
-        help = "Filter to records that reference this canonical record key; repeat to require all targets"
+        help = "Filter to records that link to/reference this canonical record key; repeat to require all targets"
     )]
     pub(crate) references: Vec<String>,
     #[arg(
         long = "referenced-by",
-        help = "Filter to records referenced by this canonical record key; repeat to require all sources"
+        help = "Filter to records linked from/referenced by this canonical record key; repeat to require all sources"
     )]
     pub(crate) referenced_by: Vec<String>,
     #[arg(

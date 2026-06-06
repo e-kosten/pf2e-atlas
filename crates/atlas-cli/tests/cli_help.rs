@@ -53,7 +53,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(graph_links_help.contains("--backlinks"));
 
     let similar_help = help_output(&["similar"])?;
-    assert!(similar_help.contains("atlas similar \"Dirge of Doom\""));
+    assert!(similar_help.contains("atlas similar \"Dirge of Doom\" --kind spell"));
     assert!(similar_help.contains("--semantic-weight"));
     assert!(similar_help.contains("--reference-weight"));
     assert!(similar_help.contains("--trait-weight"));

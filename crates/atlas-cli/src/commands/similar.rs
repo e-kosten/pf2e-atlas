@@ -1,11 +1,11 @@
 use std::process::ExitCode;
 
-use atlas_domain::{DetailLevel, RecordKey};
+use atlas_domain::DetailLevel;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
-    SearchError, SimilarRecordRequest, SimilarRecordResult, SimilarRetrieval, SimilarScoreWeights,
+    RecordResolutionResult, SearchError, SimilarRecordRefRequest, SimilarRecordRefResult,
+    SimilarRecordResult, SimilarRetrieval, SimilarScoreWeights,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -101,9 +101,23 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let seed = match resolve_seed(&service, &options.record_ref) {
-        Ok(SeedResolution::Resolved(seed)) => seed,
-        Ok(SeedResolution::Missing) => {
+    let result = match service.similar_records_for_ref(SimilarRecordRefRequest {
+        record_ref: &options.record_ref,
+        filter: filter.as_ref(),
+        limit: options.limit,
+        candidate_limit: options.candidates,
+        weights,
+    }) {
+        Ok(SimilarRecordRefResult::Found(result)) => *result,
+        Ok(SimilarRecordRefResult::RecordNotFound(seed)) if options.json => {
+            write_json_error("record_not_found", format!("record not found: {seed}"))?;
+            return Ok(ExitCode::from(1));
+        }
+        Ok(SimilarRecordRefResult::RecordNotFound(seed)) => {
+            eprintln!("record not found: {seed}");
+            return Ok(ExitCode::from(1));
+        }
+        Ok(SimilarRecordRefResult::ResolutionMiss) => {
             if options.json {
                 write_json_error(
                     "record_resolution_miss",
@@ -114,7 +128,8 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             }
             return Ok(ExitCode::from(1));
         }
-        Ok(SeedResolution::Ambiguous(ambiguity)) => {
+        Ok(SimilarRecordRefResult::ResolutionAmbiguous(matches)) => {
+            let ambiguity = ambiguous_seed_resolution(&options.record_ref, &matches);
             if options.json {
                 write_json_error_data(
                     "record_resolution_ambiguous",
@@ -124,28 +139,6 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             } else {
                 eprintln!("{ambiguity}");
             }
-            return Ok(ExitCode::from(1));
-        }
-        Err(error) if options.json => {
-            write_json_error(search_error_code(&error), error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(search_error(error)),
-    };
-    let result = match service.similar_records(SimilarRecordRequest {
-        filter: filter.as_ref(),
-        limit: options.limit,
-        candidate_limit: options.candidates,
-        weights,
-        ..SimilarRecordRequest::new(&seed)
-    }) {
-        Ok(Some(result)) => result,
-        Ok(None) if options.json => {
-            write_json_error("record_not_found", format!("record not found: {seed}"))?;
-            return Ok(ExitCode::from(1));
-        }
-        Ok(None) => {
-            eprintln!("record not found: {seed}");
             return Ok(ExitCode::from(1));
         }
         Err(error) if options.json => {
@@ -170,12 +163,6 @@ fn similar_error_exit_code(error: &SearchError) -> ExitCode {
         | atlas_search::SearchErrorKind::InvalidOptions => ExitCode::from(2),
         _ => ExitCode::from(3),
     }
-}
-
-enum SeedResolution {
-    Resolved(RecordKey),
-    Missing,
-    Ambiguous(AmbiguousSeedResolution),
 }
 
 #[derive(Debug, Serialize)]
@@ -217,23 +204,6 @@ impl AmbiguousSeedResolution {
                 .collect::<Vec<_>>()
                 .join(", ")
         )
-    }
-}
-
-fn resolve_seed(
-    service: &atlas_search::AtlasRetrievalService,
-    record_ref: &str,
-) -> Result<SeedResolution, SearchError> {
-    let resolution = service.resolve_record_ref(ResolveRecordRefRequest {
-        record_ref,
-        filter: None,
-    })?;
-    match resolution {
-        RecordRefResolutionResult::Key(key) => Ok(SeedResolution::Resolved(key)),
-        RecordRefResolutionResult::Miss => Ok(SeedResolution::Missing),
-        RecordRefResolutionResult::Ambiguous(alternatives) => Ok(SeedResolution::Ambiguous(
-            ambiguous_seed_resolution(record_ref, &alternatives),
-        )),
     }
 }
 

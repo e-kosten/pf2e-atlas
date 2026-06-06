@@ -11,7 +11,8 @@ use atlas_record::AtlasRecord;
 use crate::semantic::collapse_vector_hits;
 use crate::semantic::{SemanticSearchHit, SemanticSearchMode};
 use crate::{
-    AtlasRetrievalService, GetRecordRequest, GetRecordsRequest, RecordRetrieval, SearchError,
+    AtlasRetrievalService, GetRecordRequest, GetRecordsRequest, RecordRefResolutionResult,
+    RecordRetrieval, ResolveRecordRefRequest, SearchError,
 };
 
 pub const DEFAULT_SIMILAR_RECORD_LIMIT: u32 = 20;
@@ -37,6 +38,27 @@ impl<'a> SimilarRecordRequest<'a> {
     pub fn new(seed: &'a RecordKey) -> Self {
         Self {
             seed,
+            filter: None,
+            limit: DEFAULT_SIMILAR_RECORD_LIMIT,
+            candidate_limit: DEFAULT_SIMILAR_CANDIDATE_LIMIT,
+            weights: SimilarScoreWeights::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SimilarRecordRefRequest<'a> {
+    pub record_ref: &'a str,
+    pub filter: Option<&'a SearchFilterNode>,
+    pub limit: u32,
+    pub candidate_limit: u32,
+    pub weights: SimilarScoreWeights,
+}
+
+impl<'a> SimilarRecordRefRequest<'a> {
+    pub fn new(record_ref: &'a str) -> Self {
+        Self {
+            record_ref,
             filter: None,
             limit: DEFAULT_SIMILAR_RECORD_LIMIT,
             candidate_limit: DEFAULT_SIMILAR_CANDIDATE_LIMIT,
@@ -97,6 +119,14 @@ pub struct SimilarRecordResult {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum SimilarRecordRefResult {
+    Found(Box<SimilarRecordResult>),
+    RecordNotFound(RecordKey),
+    ResolutionMiss,
+    ResolutionAmbiguous(Vec<crate::RecordResolutionResult>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct SimilarRecord {
     pub record: AtlasRecord,
     pub score: f64,
@@ -129,9 +159,42 @@ pub trait SimilarRetrieval {
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, SearchError>;
+
+    fn similar_records_for_ref(
+        &self,
+        request: SimilarRecordRefRequest<'_>,
+    ) -> Result<SimilarRecordRefResult, SearchError>;
 }
 
 impl SimilarRetrieval for AtlasRetrievalService {
+    fn similar_records_for_ref(
+        &self,
+        request: SimilarRecordRefRequest<'_>,
+    ) -> Result<SimilarRecordRefResult, SearchError> {
+        match self.resolve_record_ref(ResolveRecordRefRequest {
+            record_ref: request.record_ref,
+            filter: request.filter,
+        })? {
+            RecordRefResolutionResult::Key(seed) => {
+                let result = self.similar_records(SimilarRecordRequest {
+                    seed: &seed,
+                    filter: request.filter,
+                    limit: request.limit,
+                    candidate_limit: request.candidate_limit,
+                    weights: request.weights,
+                })?;
+                Ok(match result {
+                    Some(result) => SimilarRecordRefResult::Found(Box::new(result)),
+                    None => SimilarRecordRefResult::RecordNotFound(seed),
+                })
+            }
+            RecordRefResolutionResult::Miss => Ok(SimilarRecordRefResult::ResolutionMiss),
+            RecordRefResolutionResult::Ambiguous(matches) => {
+                Ok(SimilarRecordRefResult::ResolutionAmbiguous(matches))
+            }
+        }
+    }
+
     fn similar_records(
         &self,
         request: SimilarRecordRequest<'_>,
