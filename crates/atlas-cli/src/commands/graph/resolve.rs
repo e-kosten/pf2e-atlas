@@ -3,8 +3,9 @@ use std::process::ExitCode;
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_search::{
-    AtlasRetrievalService, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest,
-    SearchError, VariantBaseNameRequest, VariantGroupRequest, VariantGroupResult, VariantRetrieval,
+    AtlasRetrievalService, RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval,
+    ResolveRecordRefRequest, ResolveRecordRequest, SearchError, VariantBaseNameRequest,
+    VariantGroupRequest, VariantGroupResult, VariantRetrieval,
 };
 use serde::Serialize;
 
@@ -22,34 +23,31 @@ pub(super) fn resolve_graph_record_ref(
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<RecordKey>, String> {
-    if let Ok(key) = RecordKey::parse(record_ref) {
-        return Ok(GraphCommandOutcome::Value(key));
-    }
-    let matches = match service.resolve_record(ResolveRecordRequest {
-        query: record_ref,
+    let resolution = match service.resolve_record_ref(ResolveRecordRefRequest {
+        record_ref,
         filter: None,
     }) {
-        Ok(matches) => matches,
+        Ok(resolution) => resolution,
         Err(error) => return graph_search_error(error, json),
     };
-    if matches.is_empty() {
-        if json {
-            write_json_error(
-                "record_resolution_miss",
-                format!("record resolution miss: {record_ref}"),
-            )?;
-        } else {
-            eprintln!("record resolution miss: {record_ref}");
+    match resolution {
+        RecordRefResolutionResult::Key(key) => Ok(GraphCommandOutcome::Value(key)),
+        RecordRefResolutionResult::Miss => {
+            if json {
+                write_json_error(
+                    "record_resolution_miss",
+                    format!("record resolution miss: {record_ref}"),
+                )?;
+            } else {
+                eprintln!("record resolution miss: {record_ref}");
+            }
+            Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
-        return Ok(GraphCommandOutcome::Exit(ExitCode::from(1)));
+        RecordRefResolutionResult::Ambiguous(matches) => {
+            write_record_resolution_ambiguity(record_ref, &matches, json)?;
+            Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
+        }
     }
-    if matches.len() > 1 {
-        write_record_resolution_ambiguity(record_ref, &matches, json)?;
-        return Ok(GraphCommandOutcome::Exit(ExitCode::from(1)));
-    }
-    Ok(GraphCommandOutcome::Value(
-        matches[0].record.identity.key.clone(),
-    ))
 }
 
 pub(super) fn resolve_graph_variant_group(

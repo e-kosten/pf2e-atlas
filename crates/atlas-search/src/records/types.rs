@@ -50,6 +50,12 @@ pub struct ResolveRecordRequest<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ResolveRecordRefRequest<'a> {
+    pub record_ref: &'a str,
+    pub filter: Option<&'a SearchFilterNode>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ListRecordsRequest<'a> {
     pub filter: Option<&'a SearchFilterNode>,
     pub sort: RecordListSort,
@@ -88,6 +94,13 @@ pub struct RecordResolutionResult {
     pub alias_source: Option<String>,
     pub alias_source_ref: Option<String>,
     pub record: AtlasRecord,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RecordRefResolutionResult {
+    Key(RecordKey),
+    Miss,
+    Ambiguous(Vec<RecordResolutionResult>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -4,8 +4,8 @@ use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    RecordResolutionResult, RecordRetrieval, ResolveRecordRequest, SearchError,
-    SimilarRecordRequest, SimilarRecordResult, SimilarRetrieval, SimilarScoreWeights,
+    RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
+    SearchError, SimilarRecordRequest, SimilarRecordResult, SimilarRetrieval, SimilarScoreWeights,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -224,22 +224,16 @@ fn resolve_seed(
     service: &atlas_search::AtlasRetrievalService,
     record_ref: &str,
 ) -> Result<SeedResolution, SearchError> {
-    if let Ok(key) = RecordKey::parse(record_ref) {
-        return Ok(SeedResolution::Resolved(key));
-    }
-    let matches = service.resolve_record(ResolveRecordRequest {
-        query: record_ref,
+    let resolution = service.resolve_record_ref(ResolveRecordRefRequest {
+        record_ref,
         filter: None,
     })?;
-    match matches.as_slice() {
-        [] => Ok(SeedResolution::Missing),
-        [resolution] => Ok(SeedResolution::Resolved(
-            resolution.record.identity.key.clone(),
+    match resolution {
+        RecordRefResolutionResult::Key(key) => Ok(SeedResolution::Resolved(key)),
+        RecordRefResolutionResult::Miss => Ok(SeedResolution::Missing),
+        RecordRefResolutionResult::Ambiguous(alternatives) => Ok(SeedResolution::Ambiguous(
+            ambiguous_seed_resolution(record_ref, &alternatives),
         )),
-        alternatives => Ok(SeedResolution::Ambiguous(ambiguous_seed_resolution(
-            record_ref,
-            alternatives,
-        ))),
     }
 }
 
