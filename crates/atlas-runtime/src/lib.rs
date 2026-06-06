@@ -178,7 +178,7 @@ impl AtlasRuntime {
         ))
     }
 
-    pub fn open_vector_record_retrieval_service(
+    pub fn open_retrieval_service_for_stored_vectors(
         &self,
     ) -> Result<AtlasRetrievalService, SearchError> {
         let index = self.open_search_index().map_err(search_error_from_index)?;
