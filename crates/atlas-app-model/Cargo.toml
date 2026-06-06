@@ -1,5 +1,5 @@
 [package]
-name = "atlas-record"
+name = "atlas-app-model"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -7,9 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atlas-domain.workspace = true
+atlas-record.workspace = true
 serde.workspace = true
-ts-rs.workspace = true
-
-[dev-dependencies]
 serde_json.workspace = true
+ts-rs.workspace = true

@@ -1,6 +1,6 @@
 # Runtime Architecture
 
-This document describes the Rust workspace architecture for deterministic ingest, artifact validation, local CLI workflows, lexical and semantic search, graph context retrieval, first-party agent skill workflows, and future Rust TUI/tagging surfaces.
+This document describes the Rust workspace architecture for deterministic ingest, artifact validation, local CLI workflows, local web workflows, lexical and semantic search, graph context retrieval, first-party agent skill workflows, and future Rust TUI/tagging surfaces.
 
 The Rust architecture is deliberately crate-oriented. Crates should expose only the public API needed by adjacent owners, and ingest/build-time policy should not leak into runtime query or presentation crates.
 
@@ -12,6 +12,11 @@ flowchart TD
     ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes,<br/>agent skill installation"]
+    cli --> web["atlas-web<br/>local Axum API"]
+    web --> appService["atlas-app-service<br/>long-lived workflow service"]
+    appService --> appModel["atlas-app-model<br/>app DTOs + TS export"]
+    appService --> runtime
+    appService --> search
     cli --> runtime["atlas-runtime<br/>path and setup policy"]
     runtime --> search["atlas-search<br/>AtlasRetrievalService"]
     runtime --> index["atlas-index<br/>RetrievalReadIndex capability bundle<br/>SqliteIndexReader"]
@@ -43,6 +48,9 @@ flowchart TD
 
 | Crate | Owns | Should not own |
 | --- | --- | --- |
+| `atlas-app-model` | Interactive app workflow DTOs, app errors, readiness views, basic filter state, result-window request/response types, record view wrappers, serde contracts, and generated TypeScript app contracts. | Durable search semantics, SQLite access, runtime path policy, CLI presentation, or duplicate record presentation/rich document logic. |
+| `atlas-app-service` | Long-lived interactive workflow orchestration over `atlas-runtime` and `atlas-search`, including full retrieval-service startup, result windows, app filter lowering, record detail projection, and app error mapping. | Direct `atlas-index` access, SQLite reader assembly, no-embeddings retrieval shortcuts, HTTP routing, frontend layout/state. |
+| `atlas-web` | Local Axum HTTP routes, API error/status mapping, and future static frontend serving for the local web app. | Retrieval semantics, result-window policy, app DTO definitions, SQLite access, frontend component logic. |
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives, including the simple product filter DTO and canonical `SearchFilterNode` tree. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
 | `atlas-tags` | Future owner for tag ontology, YAML parsing, applicability evaluation, assignment validation, evidence validation, ontology suggestions, and tagging agent contract DTOs. | Raw source normalization, SQLite schema, runtime path policy, CLI presentation, or terminal rendering. |
 | `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
@@ -137,6 +145,8 @@ Graph context retrieval is one-hop in the Rust CLI. `atlas graph links <record>`
 
 Runtime SQLite access is read-only and goes through `SqliteIndexReader`, with retrieval orchestration depending on index-owned read capability traits rather than on ad hoc SQL access. `atlas-index` owns the composite `RetrievalReadIndex` bundle for consumers that legitimately need the full retrieval read surface; `atlas-search` consumes that bundle while exposing product-facing retrieval traits to its own callers. Construction-time writes are separate and go through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`, which write a temporary artifact and publish it only after records, FTS, embedding cache rows, and `record_vector_index` are complete. Product surfaces route retrieval and filter discovery through `atlas-runtime` and `AtlasRetrievalService`; they do not open SQLite or assemble retrieval dependencies directly. Callers should type dependencies to the narrow `atlas-search` capability trait they need, such as `RecordRetrieval`, `TextRetrieval`, `GraphRetrieval`, `VariantRetrieval`, `RemasterRetrieval`, or `FilterDiscoveryRetrieval`.
 
+The local web surface follows the same boundary through `atlas-app-service`. `atlas web` resolves path overrides and starts Axum, but the app-service worker opens one full `AtlasRetrievalService` with `AtlasRuntime::open_retrieval_service`. Web startup fails if the full semantic-search runtime is not ready; the app service must not call `open_retrieval_service_no_embeddings`, which is reserved for short-lived CLI workflows that intentionally do not need semantic retrieval. Axum handlers call the cloneable app-service handle, and the worker owns retrieval state plus result-window handles so requests do not reopen database/model resources.
+
 Filter discovery callers express product intent through `atlas-search` request types. `atlas-search` owns option coherence such as metric selector shape before adapting to index read requests. `atlas-index` still owns catalog-backed and dynamic discovery execution, including SQL, field definitions, metric resolution against catalog rows, and artifact-specific error details.
 
 Record-reference inputs that intentionally accept either a canonical `RecordKey` or a strict resolvable record name use the `RecordRetrieval` record-reference resolver in `atlas-search`. Surface crates may decide which arguments accept that product behavior and how to present misses or ambiguity, but they should not duplicate the key-or-name resolution policy locally.
@@ -161,7 +171,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 
 ## Current Gaps And Deferred Shapes
 
-- The future Ratatui workbench is a runtime consumer. It should compose through `atlas-search`, `atlas-index`, `atlas-runtime`, and `atlas-record` rather than opening SQLite or embedding models directly.
+- The future Ratatui workbench is an interactive app consumer. It should compose through `atlas-app-model` and `atlas-app-service` rather than opening SQLite or embedding models directly.
 - Journal pages and table results are recognized as rich content but are deferred to [Rust content subdocuments for journal pages and table results](../backlog/items/rust-content-subdocuments-journal-table-results.md).
 - Tag rows are intentionally deferred until the accepted [tagging architecture](./tagging.md) is implemented. The target runtime table family is `record_tags`, written during regular `atlas index build` from validated YAML catalog and assignment files.
 - Search quality tuning and broader full-corpus parity remain follow-up validation work, not reasons to reintroduce raw JSON scanning or duplicate markup parsing.
