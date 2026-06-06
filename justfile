@@ -12,10 +12,10 @@ dev-setup:
 preflight:
     scripts/preflight.sh
 
-[doc('Run the full Rust fmt, clippy, test, and build gate')]
+[doc('Run the full Rust fmt, clippy, test, and build gate; pass --verbose for detailed output')]
 [group('validation')]
-verify:
-    scripts/verify.sh
+verify *args:
+    scripts/verify.sh {{args}}
 
 [doc('Install the local atlas CLI from this checkout')]
 [group('development')]

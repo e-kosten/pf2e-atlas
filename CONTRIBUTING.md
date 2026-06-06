@@ -84,6 +84,10 @@ just verify
 # or: scripts/verify.sh
 ```
 
+Validation is quiet by default: successful gates print summary lines, and detailed
+Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
+`scripts/verify.sh --verbose` when you want the full command stream.
+
 Run the CLI from source:
 
 ```bash
@@ -212,6 +216,9 @@ Run these before opening a branch for review, merging back to `main`, or prepari
 just verify
 # or: scripts/verify.sh
 ```
+
+Use `just verify --verbose` or `scripts/verify.sh --verbose` to stream detailed
+Cargo output for every successful gate.
 
 Tracked git hooks live in `.githooks/` and enforce:
 
