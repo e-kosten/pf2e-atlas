@@ -12,13 +12,13 @@ Read this document first when you need to understand crate ownership, then follo
 
 - `atlas-cli` owns command parsing, output, progress, exit codes, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
-- `atlas-search` owns retrieval orchestration and result assembly.
-- `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the product-facing hooks used by ingest, runtime, search, and CLI consumers; artifact, read, write, and SQLite implementation details stay behind internal module facades.
+- `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
+- `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
 - `atlas-record` owns normalized records, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
-- `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary.
+- `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
 
 If you remember one rule, remember this: product surfaces stay thin, and durable behavior belongs in the crate that owns the concern.
@@ -56,7 +56,7 @@ flowchart TD
 - shell completions
 - first-party agent skill installation and diagnostics
 
-It should not own durable retrieval semantics, SQLite schema, model execution policy, or artifact mutation rules.
+It should not own durable retrieval semantics, filter discovery behavior, SQLite schema, model execution policy, or artifact mutation rules.
 
 ### Agent Skill
 

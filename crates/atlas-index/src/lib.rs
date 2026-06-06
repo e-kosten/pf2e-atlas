@@ -26,7 +26,9 @@ pub use inspect::{
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
 pub use read::RetrievalReadIndex;
-pub use read::discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
+pub use read::discovery::{
+    DiscoveryError, DiscoveryReadIndex, DiscoveryValueSort, FilterValueRequest,
+};
 pub use read::graph::edges::GraphReferenceEdge;
 pub use read::graph::product::{
     IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup, ReferenceReadIndex,

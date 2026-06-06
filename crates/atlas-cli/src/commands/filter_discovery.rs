@@ -5,8 +5,11 @@ use atlas_domain::{
     FilterSample, FilterValueDiscovery, FilterValuePayload, FilterValuePolicy, MetricKeyDiscovery,
     MetricValuePayload, NumericFieldStats,
 };
-use atlas_index::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
+use atlas_search::{
+    DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest, FilterDiscoveryError,
+    FilterDiscoveryRetrieval,
+};
 use serde_json::Value;
 
 use crate::cli::args::FilterOptions;
@@ -28,8 +31,8 @@ pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCo
             return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
         }
     };
-    let index = match open_index(options.index, options.path_mode.into()) {
-        Ok(index) => index,
+    let service = match open_filter_discovery_service(options.index, options.path_mode.into()) {
+        Ok(service) => service,
         Err(error) => {
             return discovery_cli_error(
                 options.json,
@@ -39,7 +42,10 @@ pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCo
             );
         }
     };
-    match index.list_filter_fields(filter.as_ref(), filter_value) {
+    match service.discover_filter_fields(DiscoverFilterFieldsRequest {
+        filter: filter.as_ref(),
+        filter_json: filter_value,
+    }) {
         Ok(data) => {
             if options.json {
                 write_json_data(data)?;
@@ -62,8 +68,9 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
             return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
         }
     };
-    let request = FilterValueRequest {
+    let request = DiscoverFilterValuesRequest {
         field: options.field,
+        filter: filter.as_ref(),
         filter_json: filter_value,
         sort: options.sort.map(discovery_sort),
         sample_limit: options.sample_limit,
@@ -73,8 +80,8 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
         metric_query: options.metric_query,
         metric_domain: options.metric_domain,
     };
-    let index = match open_index(options.index, options.path_mode.into()) {
-        Ok(index) => index,
+    let service = match open_filter_discovery_service(options.index, options.path_mode.into()) {
+        Ok(service) => service,
         Err(error) => {
             return discovery_cli_error(
                 options.json,
@@ -84,7 +91,7 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
             );
         }
     };
-    match index.list_filter_values(filter.as_ref(), request) {
+    match service.discover_filter_values(request) {
         Ok(data) => {
             if options.json {
                 write_json_data(data)?;
@@ -97,10 +104,10 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
     }
 }
 
-fn open_index(
+fn open_filter_discovery_service(
     index: Option<std::path::PathBuf>,
     path_mode: atlas_runtime::AtlasPathMode,
-) -> Result<atlas_index::SqliteIndexReader, String> {
+) -> Result<atlas_search::AtlasRetrievalService, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode,
         overrides: AtlasPathOverrides {
@@ -110,25 +117,27 @@ fn open_index(
         },
     })
     .map_err(|error| error.to_string())?;
-    runtime.open_index().map_err(|error| error.to_string())
+    runtime
+        .open_retrieval_service_no_embeddings()
+        .map_err(|error| error.to_string())
 }
 
-fn discovery_sort(sort: CliFilterValueSort) -> DiscoveryValueSort {
+fn discovery_sort(sort: CliFilterValueSort) -> atlas_domain::FilterValueSort {
     match sort {
-        CliFilterValueSort::Count => DiscoveryValueSort::Count,
-        CliFilterValueSort::Alpha => DiscoveryValueSort::Alpha,
-        CliFilterValueSort::Canonical => DiscoveryValueSort::Canonical,
+        CliFilterValueSort::Count => atlas_domain::FilterValueSort::Count,
+        CliFilterValueSort::Alpha => atlas_domain::FilterValueSort::Alpha,
+        CliFilterValueSort::Canonical => atlas_domain::FilterValueSort::Canonical,
     }
 }
 
-fn write_discovery_error(error: DiscoveryError, json: bool) -> Result<ExitCode, String> {
+fn write_discovery_error(error: FilterDiscoveryError, json: bool) -> Result<ExitCode, String> {
     let code = match error {
-        DiscoveryError::InvalidField(_) => "invalid_field",
-        DiscoveryError::InvalidOption(_) => "invalid_option",
-        DiscoveryError::FieldNotApplicable(_) => "field_not_applicable",
-        DiscoveryError::AmbiguousMetric(_) => "ambiguous_metric",
-        DiscoveryError::Filter(_) => "invalid_filter",
-        DiscoveryError::QueryFailed(_) => "query_failed",
+        FilterDiscoveryError::InvalidField(_) => "invalid_field",
+        FilterDiscoveryError::InvalidOption(_) => "invalid_option",
+        FilterDiscoveryError::FieldNotApplicable(_) => "field_not_applicable",
+        FilterDiscoveryError::AmbiguousMetric(_) => "ambiguous_metric",
+        FilterDiscoveryError::InvalidFilter(_) => "invalid_filter",
+        FilterDiscoveryError::QueryFailed(_) => "query_failed",
     };
     discovery_cli_error(json, code, error.to_string(), ExitCode::from(2))
 }

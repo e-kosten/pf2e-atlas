@@ -138,8 +138,9 @@ impl AtlasRetrievalService {
 mod tests {
     use atlas_domain::{PublicationCategory, RecordKey, RecordKind};
     use atlas_index::{
-        FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery,
-        FtsReadIndex, FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinkRecord,
+        DiscoveryError, DiscoveryReadIndex, FilterCompileError, FilterReadIndex,
+        FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsReadIndex,
+        FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinkRecord,
         IndexRemasterLinks, IndexVariantGroup, RecordIdentityMatch, RecordLoadError,
         RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex,
         VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
@@ -468,6 +469,24 @@ mod tests {
                     source_ref: "fixture".to_string(),
                 }],
             }))
+        }
+    }
+
+    impl DiscoveryReadIndex for FakeIndex {
+        fn list_filter_fields(
+            &self,
+            _filter: Option<&atlas_domain::SearchFilterNode>,
+            _filter_json: Option<serde_json::Value>,
+        ) -> Result<atlas_domain::FilterFieldDiscovery, DiscoveryError> {
+            unreachable!("variant tests do not call filter discovery")
+        }
+
+        fn list_filter_values(
+            &self,
+            _filter: Option<&atlas_domain::SearchFilterNode>,
+            _request: FilterValueRequest,
+        ) -> Result<atlas_domain::FilterValueDiscovery, DiscoveryError> {
+            unreachable!("variant tests do not call filter discovery")
         }
     }
 

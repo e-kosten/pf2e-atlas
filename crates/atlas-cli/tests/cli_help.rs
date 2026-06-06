@@ -147,3 +147,51 @@ fn validate_vectors_subcommand_is_removed() -> Result<(), Box<dyn std::error::Er
     assert!(stderr.contains("unrecognized subcommand 'validate-vectors'"));
     Ok(())
 }
+
+#[test]
+fn product_cli_modules_do_not_import_atlas_index() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let source_root = manifest_dir.join("src");
+    let allowed = [
+        source_root.join("commands/index.rs"),
+        source_root.join("output.rs"),
+    ];
+    let mut violations = Vec::new();
+
+    for path in rust_files(&source_root)? {
+        if allowed.iter().any(|allowed_path| allowed_path == &path) {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path)?;
+        if source.contains("atlas_index") {
+            let relative = path.strip_prefix(manifest_dir)?.display().to_string();
+            violations.push(relative);
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "product CLI modules must route retrieval/discovery through atlas-search; unexpected atlas_index imports in: {}",
+        violations.join(", ")
+    );
+    Ok(())
+}
+
+fn rust_files(
+    root: &std::path::Path,
+) -> Result<Vec<std::path::PathBuf>, Box<dyn std::error::Error>> {
+    let mut pending = vec![root.to_path_buf()];
+    let mut files = Vec::new();
+    while let Some(path) = pending.pop() {
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                files.push(path);
+            }
+        }
+    }
+    Ok(files)
+}

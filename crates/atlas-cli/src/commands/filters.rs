@@ -1,10 +1,6 @@
-use atlas_domain::metadata::{
-    MetadataEnumStringField, MetadataNumberField, MetadataNumberMatch, MetadataPredicate,
-    MetadataSetField, MetadataSetMatch, MetadataStringMatch, MetadataTextMatch,
-    MetadataTextStringField,
-};
 use atlas_domain::{
-    MetricMatch, NumericMatch, RecordKey, RecordKind, ScalarValue, SearchFilterNode,
+    MetricFilter, MetricMatch, NumericMatch, RecordKey, RecordKind, ScalarValue, SearchFilterNode,
+    SimpleSearchFilter,
 };
 use serde_json::Value;
 
@@ -46,7 +42,12 @@ pub(crate) fn build_filter(
         return Ok((Some(filter), Some(filter_value)));
     }
 
-    let filter = build_convenience_filter(options)?;
+    let filter = simple_filter_from_options(options)?
+        .into_filter_node()
+        .map_err(|error| CliFilterError {
+            code: "invalid_filter",
+            message: error.to_string(),
+        })?;
     let filter_value = filter
         .as_ref()
         .map(serde_json::to_value)
@@ -83,90 +84,44 @@ impl FilterOptionExt for FilterOptions {
     }
 }
 
-fn build_convenience_filter(
+fn simple_filter_from_options(
     options: &FilterOptions,
-) -> Result<Option<SearchFilterNode>, CliFilterError> {
-    let mut children = Vec::new();
-
-    push_repeated_kind(&mut children, &options.kinds)?;
-    push_enum_string_filter(
-        &mut children,
-        MetadataEnumStringField::PackName,
-        &options.pack_names,
-    );
-    push_enum_string_filter(
-        &mut children,
-        MetadataEnumStringField::PackLabel,
-        &options.pack_labels,
-    );
-    push_enum_string_filter(
-        &mut children,
-        MetadataEnumStringField::Rarity,
-        &options.rarities,
-    );
-    push_text_string_filter(
-        &mut children,
-        MetadataTextStringField::PublicationTitle,
-        &options.publication_titles,
-    );
-    push_level_filter(
-        &mut children,
-        options.level.as_deref(),
-        options.min_level,
-        options.max_level,
-    )?;
-    push_number_filter(
-        &mut children,
-        MetadataNumberField::PriceCp,
-        "--price",
-        options.price.as_deref(),
-        options.min_price,
-        options.max_price,
-    )?;
-    for value in &options.traits {
-        children.push(trait_filter(value));
-    }
-    if !options.any_traits.is_empty() {
-        children.push(any_or_single(
-            options.any_traits.iter().map(|value| trait_filter(value)),
-        ));
-    }
-    for value in &options.references {
-        children.push(SearchFilterNode::links_to(parse_record_key(
-            value,
-            "--references",
-        )?));
-    }
-    for value in &options.referenced_by {
-        children.push(SearchFilterNode::linked_from(parse_record_key(
-            value,
-            "--referenced-by",
-        )?));
-    }
-    for value in &options.metrics {
-        children.push(parse_metric_filter(value)?);
-    }
-
-    match children.len() {
-        0 => Ok(None),
-        1 => Ok(children.into_iter().next()),
-        _ => Ok(Some(SearchFilterNode::all_of(children))),
-    }
+) -> Result<SimpleSearchFilter, CliFilterError> {
+    Ok(SimpleSearchFilter {
+        kinds: parse_record_kinds(&options.kinds)?,
+        pack_names: options.pack_names.clone(),
+        pack_labels: options.pack_labels.clone(),
+        rarities: options.rarities.clone(),
+        publication_titles: options.publication_titles.clone(),
+        level: parse_numeric_filter(
+            "--level",
+            options.level.as_deref(),
+            options.min_level,
+            options.max_level,
+        )?,
+        price_cp: parse_numeric_filter(
+            "--price",
+            options.price.as_deref(),
+            options.min_price,
+            options.max_price,
+        )?,
+        traits_all: options.traits.clone(),
+        traits_any: options.any_traits.clone(),
+        links_to: parse_record_keys(&options.references, "--references")?,
+        linked_from: parse_record_keys(&options.referenced_by, "--referenced-by")?,
+        metrics: options
+            .metrics
+            .iter()
+            .map(|value| parse_metric_filter(value))
+            .collect::<Result<Vec<_>, _>>()?,
+    })
 }
 
-fn push_repeated_kind(
-    children: &mut Vec<SearchFilterNode>,
-    values: &[String],
-) -> Result<(), CliFilterError> {
-    let nodes = values
+fn parse_record_kinds(values: &[String]) -> Result<Vec<RecordKind>, CliFilterError> {
+    values
         .iter()
-        .map(|value| {
-            let kind = serde_plain_record_kind(value)?;
-            Ok(SearchFilterNode::record_kind(kind))
-        })
-        .collect::<Result<Vec<_>, CliFilterError>>()?;
-    push_optional_group(children, nodes);
-    Ok(())
+        .map(|value| serde_plain_record_kind(value))
+        .collect()
 }
 
 fn serde_plain_record_kind(value: &str) -> Result<RecordKind, CliFilterError> {
@@ -178,63 +133,13 @@ fn serde_plain_record_kind(value: &str) -> Result<RecordKind, CliFilterError> {
     })
 }
 
-fn push_enum_string_filter(
-    children: &mut Vec<SearchFilterNode>,
-    field: MetadataEnumStringField,
-    values: &[String],
-) {
-    let nodes = values.iter().map(|value| {
-        SearchFilterNode::metadata(MetadataPredicate::EnumString {
-            field,
-            r#match: MetadataStringMatch::Eq {
-                value: value.clone(),
-            },
-        })
-    });
-    push_optional_group(children, nodes.collect());
-}
-
-fn push_text_string_filter(
-    children: &mut Vec<SearchFilterNode>,
-    field: MetadataTextStringField,
-    values: &[String],
-) {
-    let nodes = values.iter().map(|value| {
-        SearchFilterNode::metadata(MetadataPredicate::Text {
-            field,
-            r#match: MetadataTextMatch::Eq {
-                value: value.clone(),
-            },
-        })
-    });
-    push_optional_group(children, nodes.collect());
-}
-
-fn push_level_filter(
-    children: &mut Vec<SearchFilterNode>,
-    level: Option<&str>,
-    min_level: Option<f64>,
-    max_level: Option<f64>,
-) -> Result<(), CliFilterError> {
-    push_number_filter(
-        children,
-        MetadataNumberField::Level,
-        "--level",
-        level,
-        min_level,
-        max_level,
-    )
-}
-
-fn push_number_filter(
-    children: &mut Vec<SearchFilterNode>,
-    field: MetadataNumberField,
+fn parse_numeric_filter(
     flag: &'static str,
     exact_or_range: Option<&str>,
-    min_value: Option<f64>,
-    max_value: Option<f64>,
-) -> Result<(), CliFilterError> {
-    if exact_or_range.is_some() && (min_value.is_some() || max_value.is_some()) {
+    min_level: Option<f64>,
+    max_level: Option<f64>,
+) -> Result<Option<NumericMatch>, CliFilterError> {
+    if exact_or_range.is_some() && (min_level.is_some() || max_level.is_some()) {
         return Err(CliFilterError {
             code: "invalid_filter",
             message: format!(
@@ -242,25 +147,18 @@ fn push_number_filter(
             ),
         });
     }
-    let Some(r#match) = (match exact_or_range {
+    Ok(match exact_or_range {
         Some(value) => Some(parse_number_match(value, flag)?),
-        None => match (min_value, max_value) {
-            (Some(min), Some(max)) => Some(MetadataNumberMatch::Between { min, max }),
-            (Some(value), None) => Some(MetadataNumberMatch::Gte { value }),
-            (None, Some(value)) => Some(MetadataNumberMatch::Lte { value }),
+        None => match (min_level, max_level) {
+            (Some(min), Some(max)) => Some(NumericMatch::Between { min, max }),
+            (Some(value), None) => Some(NumericMatch::Gte { value }),
+            (None, Some(value)) => Some(NumericMatch::Lte { value }),
             (None, None) => None,
         },
-    }) else {
-        return Ok(());
-    };
-    children.push(SearchFilterNode::metadata(MetadataPredicate::Number {
-        field,
-        r#match,
-    }));
-    Ok(())
+    })
 }
 
-fn parse_number_match(value: &str, flag: &str) -> Result<MetadataNumberMatch, CliFilterError> {
+fn parse_number_match(value: &str, flag: &str) -> Result<NumericMatch, CliFilterError> {
     if let Some((min, max)) = value.split_once("..") {
         if min.is_empty() || max.is_empty() {
             return Err(CliFilterError {
@@ -268,15 +166,14 @@ fn parse_number_match(value: &str, flag: &str) -> Result<MetadataNumberMatch, Cl
                 message: format!("{flag} range must include both bounds, such as 1..5"),
             });
         }
-        return Ok(MetadataNumberMatch::Between {
+        return Ok(NumericMatch::Between {
             min: parse_number_bound(min, flag)?,
             max: parse_number_bound(max, flag)?,
         });
     }
     Ok(NumericMatch::Eq {
         value: parse_number_bound(value, flag)?,
-    }
-    .into())
+    })
 }
 
 fn parse_number_bound(value: &str, flag: &str) -> Result<f64, CliFilterError> {
@@ -293,7 +190,17 @@ fn parse_record_key(value: &str, flag: &str) -> Result<RecordKey, CliFilterError
     })
 }
 
-fn parse_metric_filter(value: &str) -> Result<SearchFilterNode, CliFilterError> {
+fn parse_record_keys(
+    values: &[String],
+    flag: &'static str,
+) -> Result<Vec<RecordKey>, CliFilterError> {
+    values
+        .iter()
+        .map(|value| parse_record_key(value, flag))
+        .collect()
+}
+
+fn parse_metric_filter(value: &str) -> Result<MetricFilter, CliFilterError> {
     let (metric, operator, raw_value) = split_predicate(value, "--metric")?;
     if metric.is_empty() {
         return Err(CliFilterError {
@@ -318,7 +225,10 @@ fn parse_metric_filter(value: &str) -> Result<SearchFilterNode, CliFilterError> 
             value: parse_number_bound(raw_value, "--metric")?,
         },
     };
-    Ok(SearchFilterNode::metric(metric, r#match))
+    Ok(MetricFilter {
+        key: metric.to_string(),
+        r#match,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -376,32 +286,13 @@ fn parse_scalar_value(value: &str) -> ScalarValue {
     }
 }
 
-fn trait_filter(value: &str) -> SearchFilterNode {
-    SearchFilterNode::metadata(MetadataPredicate::Set {
-        field: MetadataSetField::Traits,
-        r#match: MetadataSetMatch::Includes {
-            value: value.to_string(),
-        },
-    })
-}
-
-fn push_optional_group(children: &mut Vec<SearchFilterNode>, nodes: Vec<SearchFilterNode>) {
-    if !nodes.is_empty() {
-        children.push(any_or_single(nodes));
-    }
-}
-
-fn any_or_single(nodes: impl IntoIterator<Item = SearchFilterNode>) -> SearchFilterNode {
-    let mut nodes = nodes.into_iter().collect::<Vec<_>>();
-    match nodes.len() {
-        1 => nodes.remove(0),
-        _ => SearchFilterNode::any_of(nodes),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use atlas_domain::metadata::{
+        MetadataEnumStringField, MetadataNumberField, MetadataNumberMatch, MetadataPredicate,
+        MetadataStringMatch,
+    };
     use atlas_domain::{RecordKind, ScalarValue};
 
     #[test]

@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod discovery;
 mod error;
 mod fusion;
 mod graph;
@@ -13,6 +14,10 @@ mod similar;
 mod text;
 mod variants;
 
+pub use discovery::{
+    DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest, FilterDiscoveryError,
+    FilterDiscoveryRetrieval,
+};
 pub use error::{SearchError, SearchErrorKind};
 pub use graph::{
     DEFAULT_GRAPH_BACKLINK_LIMIT, DEFAULT_GRAPH_OUTGOING_LIMIT, DEFAULT_GRAPH_USES_LIMIT,
