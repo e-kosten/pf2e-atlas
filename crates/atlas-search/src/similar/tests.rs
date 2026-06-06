@@ -454,11 +454,35 @@ impl ReferenceReadIndex for FakeSimilarIndex {
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
         assert_eq!(direction, ReferenceEdgeDirection::Outgoing);
         let seed_text = seed.to_string();
-        if seed_text == "actions:seed" || seed_text == "actions:graph" {
+        assert_eq!(
+            seed_text, "actions:seed",
+            "candidate reference evidence should use the batch reader"
+        );
+        if seed_text == "actions:seed" {
             Ok(vec![graph_edge(seed, "actions:reference")])
         } else {
             Ok(Vec::new())
         }
+    }
+
+    fn outgoing_reference_targets_for_records(
+        &self,
+        records: &[RecordKey],
+    ) -> Result<BTreeMap<RecordKey, BTreeSet<RecordKey>>, RecordLoadError> {
+        Ok(records
+            .iter()
+            .cloned()
+            .map(|record| {
+                let targets = if record.to_string() == "actions:graph" {
+                    BTreeSet::from([
+                        RecordKey::parse("actions:reference").expect("fixture key should parse")
+                    ])
+                } else {
+                    BTreeSet::new()
+                };
+                (record, targets)
+            })
+            .collect())
     }
 }
 

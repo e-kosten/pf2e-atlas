@@ -98,6 +98,74 @@ fn reference_edges_for_seed_returns_policy_visible_backlinks()
 }
 
 #[test]
+fn outgoing_reference_targets_for_records_batches_policy_visible_edges()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("graph-outgoing-batch");
+    create_valid_artifact_database(&path)?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction1",
+        "actions:testAction2",
+        Some("Visible"),
+        "visible-ref",
+        "description",
+        "public",
+    )?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction1",
+        "actions:testAction3",
+        Some("Private"),
+        "private-ref",
+        "private_notes",
+        "private",
+    )?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction2",
+        "actions:testAction3",
+        Some("Also Visible"),
+        "also-visible-ref",
+        "description",
+        "public",
+    )?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction2",
+        "actions:testAction1",
+        Some("Embedded"),
+        "embedded-ref",
+        "embedded_item_description",
+        "public",
+    )?;
+
+    let index = SqliteIndexReader::open_read_only(&path)?;
+    let targets = index.outgoing_reference_targets_for_records(&[
+        RecordKey::parse("actions:testAction1")?,
+        RecordKey::parse("actions:testAction2")?,
+        RecordKey::parse("actions:testAction3")?,
+    ])?;
+
+    assert_eq!(
+        targets[&RecordKey::parse("actions:testAction1")?]
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        vec!["actions:testAction2"]
+    );
+    assert_eq!(
+        targets[&RecordKey::parse("actions:testAction2")?]
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        vec!["actions:testAction3"]
+    );
+    assert!(targets[&RecordKey::parse("actions:testAction3")?].is_empty());
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn variant_group_returns_ordered_siblings() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-variant-group");
     create_valid_artifact_database(&path)?;

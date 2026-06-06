@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use atlas_domain::{RecordKey, RemasterLinkSource};
 use diesel::OptionalExtension;
 use diesel::dsl::sql;
@@ -15,6 +17,11 @@ pub trait ReferenceReadIndex {
         seed: &RecordKey,
         direction: ReferenceEdgeDirection,
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError>;
+
+    fn outgoing_reference_targets_for_records(
+        &self,
+        records: &[RecordKey],
+    ) -> Result<BTreeMap<RecordKey, BTreeSet<RecordKey>>, RecordLoadError>;
 }
 
 pub trait VariantReadIndex {
@@ -62,6 +69,13 @@ impl ReferenceReadIndex for SqliteIndexReader {
         direction: ReferenceEdgeDirection,
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
         SqliteIndexReader::reference_edges_for_seed(self, seed, direction)
+    }
+
+    fn outgoing_reference_targets_for_records(
+        &self,
+        records: &[RecordKey],
+    ) -> Result<BTreeMap<RecordKey, BTreeSet<RecordKey>>, RecordLoadError> {
+        SqliteIndexReader::outgoing_reference_targets_for_records(self, records)
     }
 }
 
