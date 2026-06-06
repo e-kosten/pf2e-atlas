@@ -12,4 +12,5 @@ atlas-embedding.workspace = true
 atlas-index.workspace = true
 atlas-record.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true

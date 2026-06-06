@@ -28,6 +28,7 @@ pub use record::{
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 pub use search_filter::{
-    MetricMatch, NullableNumericMatch, NullableStringMatch, NumericMatch, ScalarValue,
-    SearchFilterNode, SearchFilterValidationError,
+    MetricFilter, MetricMatch, NullableNumericMatch, NullableStringMatch, NumericMatch,
+    ScalarValue, SearchFilterNode, SearchFilterValidationError, SimpleSearchFilter,
+    SimpleSearchFilterError,
 };

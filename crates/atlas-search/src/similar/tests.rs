@@ -1,11 +1,11 @@
 use super::*;
 use atlas_domain::{PublicationCategory, RecordKind, SearchFilterNode};
 use atlas_index::{
-    FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery,
-    FtsReadIndex, FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinks,
-    IndexVariantGroup, RecordIdentityMatch, RecordLoadError, RecordReadIndex, ReferenceReadIndex,
-    RemasterReadIndex, SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex,
-    VectorSearchHit,
+    DiscoveryError, DiscoveryReadIndex, FilterCompileError, FilterReadIndex, FilterValueRequest,
+    FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsReadIndex, FtsSearchHit,
+    GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinks, IndexVariantGroup,
+    RecordIdentityMatch, RecordLoadError, RecordReadIndex, ReferenceReadIndex, RemasterReadIndex,
+    SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
 };
 use atlas_record::{
     AtlasRecordSet, ContentSourceKind, ContentVisibility, FoundryDocumentType, FoundryRecordInfo,
@@ -443,6 +443,24 @@ impl RemasterReadIndex for FakeSimilarIndex {
         _seed: &RecordKey,
     ) -> Result<Option<IndexRemasterLinks>, RecordLoadError> {
         Ok(None)
+    }
+}
+
+impl DiscoveryReadIndex for FakeSimilarIndex {
+    fn list_filter_fields(
+        &self,
+        _filter: Option<&SearchFilterNode>,
+        _filter_json: Option<serde_json::Value>,
+    ) -> Result<atlas_domain::FilterFieldDiscovery, DiscoveryError> {
+        unreachable!("similar tests do not call filter discovery")
+    }
+
+    fn list_filter_values(
+        &self,
+        _filter: Option<&SearchFilterNode>,
+        _request: FilterValueRequest,
+    ) -> Result<atlas_domain::FilterValueDiscovery, DiscoveryError> {
+        unreachable!("similar tests do not call filter discovery")
     }
 }
 

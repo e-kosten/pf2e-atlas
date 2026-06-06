@@ -19,6 +19,7 @@ pub trait RetrievalReadIndex:
     + graph::product::ReferenceReadIndex
     + graph::product::VariantReadIndex
     + graph::product::RemasterReadIndex
+    + discovery::DiscoveryReadIndex
 {
 }
 
@@ -31,5 +32,6 @@ impl<T> RetrievalReadIndex for T where
         + graph::product::ReferenceReadIndex
         + graph::product::VariantReadIndex
         + graph::product::RemasterReadIndex
+        + discovery::DiscoveryReadIndex
 {
 }

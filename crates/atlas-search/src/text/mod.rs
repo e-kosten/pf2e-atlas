@@ -180,12 +180,12 @@ mod tests {
         MetricDomain, PublicationCategory, RecordKey, RecordKind, SearchFilterNode,
     };
     use atlas_index::{
-        FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort,
-        FtsReadIndex, FtsSearchHit, FtsSearchLane, GraphReferenceEdge, IdentityReadIndex,
-        IndexRemasterLinks, IndexVariantGroup, RecordEmbeddingVector, RecordIdentityMatch,
-        RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex,
-        SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex,
-        VectorSearchHit,
+        DiscoveryError, DiscoveryReadIndex, FilterCompileError, FilterReadIndex,
+        FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort, FtsReadIndex, FtsSearchHit,
+        FtsSearchLane, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinks,
+        IndexVariantGroup, RecordEmbeddingVector, RecordIdentityMatch, RecordReadIndex,
+        ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex, SearchCandidateRecord,
+        VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
     };
     use atlas_record::{
         AtlasRecord, AtlasRecordSet, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
@@ -258,6 +258,24 @@ mod tests {
                     _seed: &RecordKey,
                 ) -> Result<Option<IndexRemasterLinks>, atlas_index::RecordLoadError> {
                     Ok(None)
+                }
+            }
+
+            impl DiscoveryReadIndex for $type {
+                fn list_filter_fields(
+                    &self,
+                    _filter: Option<&SearchFilterNode>,
+                    _filter_json: Option<serde_json::Value>,
+                ) -> Result<atlas_domain::FilterFieldDiscovery, DiscoveryError> {
+                    unreachable!("text search tests do not call filter discovery")
+                }
+
+                fn list_filter_values(
+                    &self,
+                    _filter: Option<&SearchFilterNode>,
+                    _request: FilterValueRequest,
+                ) -> Result<atlas_domain::FilterValueDiscovery, DiscoveryError> {
+                    unreachable!("text search tests do not call filter discovery")
                 }
             }
         };

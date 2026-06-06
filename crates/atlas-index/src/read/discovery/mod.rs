@@ -14,6 +14,20 @@ use crate::sqlite::SqliteIndexReader;
 pub use error::DiscoveryError;
 pub use request::{DiscoveryValueSort, FilterValueRequest};
 
+pub trait DiscoveryReadIndex {
+    fn list_filter_fields(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+    ) -> Result<FilterFieldDiscovery, DiscoveryError>;
+
+    fn list_filter_values(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        request: FilterValueRequest,
+    ) -> Result<FilterValueDiscovery, DiscoveryError>;
+}
+
 pub(crate) fn list_filter_fields(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
@@ -38,7 +52,17 @@ pub(crate) fn resolve_filter_metrics(
 }
 
 impl SqliteIndexReader {
-    pub fn list_filter_fields(
+    pub fn resolve_metric_filters(
+        &self,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<SearchFilterNode>, FilterCompileError> {
+        self.with_diesel_connection(|connection| resolve_filter_metrics(connection, filter))
+            .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
+    }
+}
+
+impl DiscoveryReadIndex for SqliteIndexReader {
+    fn list_filter_fields(
         &self,
         filter: Option<&SearchFilterNode>,
         filter_json: Option<serde_json::Value>,
@@ -48,19 +72,11 @@ impl SqliteIndexReader {
         })
     }
 
-    pub fn list_filter_values(
+    fn list_filter_values(
         &self,
         filter: Option<&SearchFilterNode>,
         request: FilterValueRequest,
     ) -> Result<FilterValueDiscovery, DiscoveryError> {
         self.with_diesel_connection(|connection| list_filter_values(connection, filter, request))
-    }
-
-    pub fn resolve_metric_filters(
-        &self,
-        filter: Option<&SearchFilterNode>,
-    ) -> Result<Option<SearchFilterNode>, FilterCompileError> {
-        self.with_diesel_connection(|connection| resolve_filter_metrics(connection, filter))
-            .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
     }
 }
