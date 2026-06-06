@@ -1,9 +1,12 @@
 use atlas_domain::{RecordKey, RecordKind};
 use serde::Serialize;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct RecordPresentationDocument {
+    #[ts(type = "string")]
     pub record_key: RecordKey,
+    #[ts(type = "string")]
     pub kind: RecordKind,
     pub title: String,
     pub identity: Vec<PresentationFact>,
@@ -11,7 +14,9 @@ pub struct RecordPresentationDocument {
     pub sections: Vec<PresentationSection>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum PresentationSectionKind {
     Summary,
     DescriptionPreview,
@@ -60,7 +65,7 @@ impl PresentationSectionKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationSection {
     pub kind: PresentationSectionKind,
     pub title: String,
@@ -77,7 +82,9 @@ impl PresentationSection {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(tag = "kind", content = "content", rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum PresentationBlock {
     FactList(Vec<PresentationFact>),
     Prose(PresentationText),
@@ -85,7 +92,7 @@ pub enum PresentationBlock {
     Relationships(Vec<PresentationRelationship>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, TS)]
 pub struct PresentationContent {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<PresentationContentBlock>,
@@ -101,8 +108,9 @@ impl PresentationContent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum PresentationContentBlock {
     Heading {
         level: u8,
@@ -123,18 +131,19 @@ pub enum PresentationContentBlock {
     Rule,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationListItem {
     pub blocks: Vec<PresentationContentBlock>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationTableRow {
     pub cells: Vec<PresentationContent>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum PresentationInline {
     Text {
         text: String,
@@ -151,45 +160,51 @@ pub enum PresentationInline {
     Reference {
         label: String,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "string")]
         record_key: Option<RecordKey>,
         embedded: bool,
     },
     LineBreak,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationFact {
     pub key: String,
     pub label: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationText {
     pub text: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationBadge {
     pub kind: PresentationBadgeKind,
     pub label: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum PresentationBadgeKind {
     Trait,
     Classification,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PresentationRelationship {
     pub kind: PresentationRelationshipKind,
     pub label: String,
+    #[ts(type = "string | null")]
     pub record_key: Option<RecordKey>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum PresentationRelationshipKind {
     Reference,
     Backlink,
@@ -280,5 +295,78 @@ mod tests {
             PresentationBlock::Relationships(relationships)
                 if relationships[0].label == "vitality"
         ));
+    }
+
+    #[test]
+    fn document_serializes_with_stable_presentation_contract() {
+        let document = RecordPresentationDocument {
+            record_key: RecordKey::parse("spells:Heal").expect("record key should parse"),
+            kind: RecordKind::Spell,
+            title: "Heal".to_string(),
+            identity: vec![PresentationFact {
+                key: "level".to_string(),
+                label: "Rank".to_string(),
+                value: "1".to_string(),
+            }],
+            badges: vec![PresentationBadge {
+                kind: PresentationBadgeKind::Trait,
+                label: "Trait".to_string(),
+                value: "healing".to_string(),
+            }],
+            sections: vec![PresentationSection::new(
+                PresentationSectionKind::Description,
+                vec![
+                    PresentationBlock::FactList(vec![PresentationFact {
+                        key: "traditions".to_string(),
+                        label: "Traditions".to_string(),
+                        value: "divine".to_string(),
+                    }]),
+                    PresentationBlock::Content(PresentationContent::new(vec![
+                        PresentationContentBlock::Paragraph {
+                            spans: vec![PresentationInline::Reference {
+                                label: "Treat Wounds".to_string(),
+                                record_key: Some(
+                                    RecordKey::parse("actions:TreatWounds")
+                                        .expect("record key should parse"),
+                                ),
+                                embedded: false,
+                            }],
+                        },
+                    ])),
+                    PresentationBlock::Relationships(vec![PresentationRelationship {
+                        kind: PresentationRelationshipKind::Reference,
+                        label: "Treat Wounds".to_string(),
+                        record_key: Some(
+                            RecordKey::parse("actions:TreatWounds")
+                                .expect("record key should parse"),
+                        ),
+                    }]),
+                ],
+            )],
+        };
+
+        let value = serde_json::to_value(document).expect("document should serialize");
+
+        assert_eq!(value["record_key"], "spells:Heal");
+        assert_eq!(value["kind"], "spell");
+        assert_eq!(value["badges"][0]["kind"], "trait");
+        assert_eq!(value["sections"][0]["kind"], "description");
+        assert_eq!(value["sections"][0]["blocks"][0]["kind"], "fact_list");
+        assert_eq!(
+            value["sections"][0]["blocks"][0]["content"][0]["key"],
+            "traditions"
+        );
+        assert_eq!(
+            value["sections"][0]["blocks"][1]["content"]["blocks"][0]["kind"],
+            "paragraph"
+        );
+        assert_eq!(
+            value["sections"][0]["blocks"][1]["content"]["blocks"][0]["spans"][0]["record_key"],
+            "actions:TreatWounds"
+        );
+        assert_eq!(
+            value["sections"][0]["blocks"][2]["content"][0]["kind"],
+            "reference"
+        );
     }
 }

@@ -8,3 +8,4 @@ pub(crate) mod record;
 pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod similar;
+pub(crate) mod web;

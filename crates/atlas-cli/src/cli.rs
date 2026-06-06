@@ -12,6 +12,7 @@ use crate::commands::record::args::{RecordArgs, RecordCommand};
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
+use crate::commands::web::args::WebArgs;
 use crate::{commands, output, progress};
 
 pub(crate) mod args;
@@ -52,6 +53,8 @@ pub(crate) enum Command {
     Similar(Box<SimilarOptions>),
     #[command(about = "Run Atlas search commands")]
     Search(Box<SearchOptions>),
+    #[command(about = "Start the local Atlas web service")]
+    Web(WebArgs),
     #[command(about = "Discover filter fields and values")]
     Filters(FiltersArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
@@ -109,6 +112,7 @@ impl Command {
             },
             Self::Similar(options) => options.json,
             Self::Search(options) => options.json,
+            Self::Web(_) => false,
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
                 FiltersCommand::Values(options) => options.json,
@@ -145,6 +149,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         },
         Command::Similar(options) => commands::similar::run_similar(*options),
         Command::Search(options) => commands::search::run_search(*options),
+        Command::Web(args) => commands::web::run_web(args),
         Command::Filters(filters) => match filters.command {
             FiltersCommand::Fields(options) => {
                 commands::filter_discovery::run_filters_fields(*options)
