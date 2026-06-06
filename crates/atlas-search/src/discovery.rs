@@ -32,11 +32,16 @@ pub struct DiscoverFilterValuesRequest<'a> {
     pub filter_json: Option<Value>,
     pub sort: Option<FilterValueSort>,
     pub sample_limit: Option<usize>,
-    pub metric: Option<String>,
-    pub metric_prefix: Option<String>,
-    pub metric_label: Option<String>,
-    pub metric_query: Option<String>,
+    pub metric_selector: Option<MetricDiscoverySelector>,
     pub metric_domain: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MetricDiscoverySelector {
+    ExactKey(String),
+    Prefix(String),
+    Label(String),
+    Query(String),
 }
 
 #[derive(Debug, Error)]
@@ -82,29 +87,112 @@ impl FilterDiscoveryRetrieval for AtlasRetrievalService {
         &self,
         request: DiscoverFilterValuesRequest<'_>,
     ) -> Result<FilterValueDiscovery, FilterDiscoveryError> {
+        let filter = request.filter;
+        let index_request = index_filter_value_request(request)?;
         self.index
-            .list_filter_values(
-                request.filter,
-                IndexFilterValueRequest {
-                    field: request.field,
-                    filter_json: request.filter_json,
-                    sort: request.sort,
-                    sample_limit: request.sample_limit,
-                    metric: request.metric,
-                    metric_prefix: request.metric_prefix,
-                    metric_label: request.metric_label,
-                    metric_query: request.metric_query,
-                    metric_domain: request.metric_domain,
-                },
-            )
+            .list_filter_values(filter, index_request)
             .map_err(FilterDiscoveryError::from)
     }
+}
+
+fn index_filter_value_request(
+    request: DiscoverFilterValuesRequest<'_>,
+) -> Result<IndexFilterValueRequest, FilterDiscoveryError> {
+    if request.metric_selector.is_some() && request.field != "metric" {
+        return Err(FilterDiscoveryError::InvalidOption(
+            "metric discovery options apply only to field `metric`".to_string(),
+        ));
+    }
+    if request.metric_domain.is_some() && request.field != "metric" {
+        return Err(FilterDiscoveryError::InvalidOption(
+            "metric domain applies only to field `metric`".to_string(),
+        ));
+    }
+    let mut index_request = IndexFilterValueRequest {
+        field: request.field,
+        filter_json: request.filter_json,
+        sort: request.sort,
+        sample_limit: request.sample_limit,
+        metric: None,
+        metric_prefix: None,
+        metric_label: None,
+        metric_query: None,
+        metric_domain: request.metric_domain,
+    };
+    match request.metric_selector {
+        Some(MetricDiscoverySelector::ExactKey(metric)) => index_request.metric = Some(metric),
+        Some(MetricDiscoverySelector::Prefix(prefix)) => index_request.metric_prefix = Some(prefix),
+        Some(MetricDiscoverySelector::Label(label)) => index_request.metric_label = Some(label),
+        Some(MetricDiscoverySelector::Query(query)) => index_request.metric_query = Some(query),
+        None => {}
+    }
+    Ok(index_request)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use atlas_index::FilterCompileError;
+
+    #[test]
+    fn metric_selector_applies_only_to_metric_field() {
+        let error = index_filter_value_request(DiscoverFilterValuesRequest {
+            field: "traits".to_string(),
+            filter: None,
+            filter_json: None,
+            sort: None,
+            sample_limit: None,
+            metric_selector: Some(MetricDiscoverySelector::Query("armor".to_string())),
+            metric_domain: None,
+        })
+        .expect_err("metric selector should be rejected for non-metric fields");
+
+        assert!(matches!(error, FilterDiscoveryError::InvalidOption(_)));
+        assert_eq!(
+            error.to_string(),
+            "metric discovery options apply only to field `metric`"
+        );
+    }
+
+    #[test]
+    fn metric_domain_applies_only_to_metric_field() {
+        let error = index_filter_value_request(DiscoverFilterValuesRequest {
+            field: "traits".to_string(),
+            filter: None,
+            filter_json: None,
+            sort: None,
+            sample_limit: None,
+            metric_selector: None,
+            metric_domain: Some("actor".to_string()),
+        })
+        .expect_err("metric domain should be rejected for non-metric fields");
+
+        assert!(matches!(error, FilterDiscoveryError::InvalidOption(_)));
+        assert_eq!(
+            error.to_string(),
+            "metric domain applies only to field `metric`"
+        );
+    }
+
+    #[test]
+    fn metric_selector_lowers_to_index_request() {
+        let request = index_filter_value_request(DiscoverFilterValuesRequest {
+            field: "metric".to_string(),
+            filter: None,
+            filter_json: None,
+            sort: None,
+            sample_limit: None,
+            metric_selector: Some(MetricDiscoverySelector::Prefix("save.".to_string())),
+            metric_domain: Some("actor".to_string()),
+        })
+        .expect("metric selector should lower");
+
+        assert_eq!(request.metric, None);
+        assert_eq!(request.metric_prefix.as_deref(), Some("save."));
+        assert_eq!(request.metric_label, None);
+        assert_eq!(request.metric_query, None);
+        assert_eq!(request.metric_domain.as_deref(), Some("actor"));
+    }
 
     #[test]
     fn discovery_errors_map_to_product_error_variants() {
