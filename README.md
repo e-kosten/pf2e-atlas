@@ -200,6 +200,8 @@ cargo install --path crates/atlas-cli --locked
 
 ## Further Reading
 
+- [docs/getting-started.md](./docs/getting-started.md) for first-run setup and core lookup workflows
+- [docs/cli-examples.md](./docs/cli-examples.md) for task-oriented CLI recipes
 - [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, validation commands, and repo layout
 - [docs/architecture](./docs/architecture/overview.md) for architecture, artifact, and crate ownership docs
 

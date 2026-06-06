@@ -140,9 +140,9 @@ fn differing_install_requires_force() -> Result<(), Box<dyn std::error::Error>> 
             .contains("explicit record identification followed by graph context retrieval")
     );
     assert!(installed_skill.contains("actionspf2e:1kGNdIIhuglAjIp9"));
-    assert!(installed_skill.contains("spells-srd:sxQZ6yqTn0czJxVd"));
+    assert!(installed_skill.contains("spells-srd:4koZzrnMXhhosn0D"));
     assert!(installed_skill.contains("conditionitems:AJh5ex99aV6VTggg"));
-    assert!(installed_skill.contains("bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4"));
+    assert!(installed_skill.contains("bestiary-ability-glossary-srd:Tkd8sH4pwFIPzqTr"));
 
     fs::remove_dir_all(root)?;
     Ok(())

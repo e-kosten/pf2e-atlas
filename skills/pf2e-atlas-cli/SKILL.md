@@ -5,7 +5,7 @@ description: Use when answering Pathfinder 2e data questions with the local PF2e
 
 # PF2e Atlas CLI
 
-Use the local `atlas` command for Pathfinder 2e record lookup, search, graph context, and filter discovery. This skill assumes `atlas` is installed on `PATH`; if it is missing, tell the user to install or expose the Atlas CLI before continuing.
+Use the local `atlas` command for Pathfinder 2e record lookup, search, graph context, and filter discovery. If the user names an explicit Atlas binary path, use that exact binary for command examples, smoke tests, and diagnostics. Otherwise assume `atlas` is installed on `PATH`; if it is missing, tell the user to install or expose the Atlas CLI before continuing.
 
 ## Readiness
 
@@ -57,10 +57,11 @@ Use `record resolve` when you need one record from a strict name or verified ali
 atlas record resolve "Treat Wounds" --pack-name actionspf2e --detail description
 ```
 
-If strict resolution reports ambiguity, inspect the returned alternatives before broadening to search. Rerun with an explicit alternative count or different detail level when needed:
+If strict resolution reports ambiguity, inspect the returned alternatives and continue with the canonical key for the best match. Fetch the selected key with `record get` when you need full details. Use narrower filters only when you need to rerun resolution or the alternatives are too broad:
 
 ```bash
-atlas record resolve "Treat Wounds" --pack-name actionspf2e --alternatives 5 --detail preview
+atlas record resolve "Shield Block" --kind feat --alternatives 5 --detail preview --json
+atlas record get feats-srd:jM72TjJ965jocBV8 --detail standard --json
 ```
 
 If strict resolution misses, use `search` with a narrow kind or pack filter instead of treating `record resolve` as fuzzy search. If the query appears misspelled or malformed, do not rely on Atlas typo tolerance; retry with corrected canonical spelling or nearby known PF2E terms when you can infer them safely from context, then use narrow search only if strict resolution still misses.
@@ -79,11 +80,13 @@ atlas search "healing spell" --kind spell --max-level 2 --detail preview --limit
 atlas search "protect an ally" --kind feat --trait champion --detail preview --limit 8
 ```
 
-Use `--limit` for exploratory searches and filter-only lists unless the user needs a broad inventory. Small result sets are easier to judge and reduce context noise:
+Use `--limit` for exploratory searches, filter-only lists, `similar` research, and backlink/uses graph calls unless the user needs a broad inventory. Small result sets are easier to judge and reduce context noise:
 
 ```bash
 atlas search "low level healing spell" --kind spell --detail preview --limit 8
 atlas search --kind equipment --rarity uncommon --detail preview --limit 20
+atlas similar "Dirge of Doom" --kind spell --limit 8 --json
+atlas graph uses conditionitems:TBSHQspnbcqxsmjL --limit 5 --json
 ```
 
 Use `graph links` when you already have a canonical record key or strict resolvable record name and need connected one-hop reference context around that record. This is the right follow-up after `record resolve`, `record get`, or `search` identifies the key. Do not look for a separate rule-context command; the intended workflow is explicit record identification followed by graph context retrieval:
@@ -91,9 +94,9 @@ Use `graph links` when you already have a canonical record key or strict resolva
 ```bash
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --json
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json
-atlas graph links spells-srd:sxQZ6yqTn0czJxVd --json
+atlas graph links spells-srd:4koZzrnMXhhosn0D --json
 atlas graph uses conditionitems:AJh5ex99aV6VTggg --limit 3 --json
-atlas graph links bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4 --outgoing 0 --backlinks 6 --json
+atlas graph links bestiary-ability-glossary-srd:Tkd8sH4pwFIPzqTr --outgoing 0 --backlinks 6 --json
 ```
 
 By default, graph links include outgoing references and omit backlinks. Use `--backlinks <count>` only when incoming context is useful, because backlinks can be noisy for common rules, actions, conditions, and traits. Use `graph uses` for backlinks-only context. Graph context is retrieval only; it does not synthesize answers.
@@ -125,7 +128,10 @@ Relationship filters require canonical record keys. Resolve or fetch a record fi
 ```bash
 atlas record resolve "Battle Medicine" --kind feat --detail standard --json
 atlas search --referenced-by feats-srd:wYerMk6F1RZb0Fwt --detail preview --limit 10
+atlas search --references actionspf2e:1kGNdIIhuglAjIp9 --detail preview --limit 10
 ```
+
+Read the relationship direction from the candidate record's perspective: `--referenced-by KEY` finds records linked from `KEY`, while `--references KEY` finds records that link to `KEY`.
 
 ## Filter Discovery
 

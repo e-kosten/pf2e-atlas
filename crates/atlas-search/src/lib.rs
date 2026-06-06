@@ -39,8 +39,9 @@ pub use similar::{
     DEFAULT_SIMILAR_CANDIDATE_LIMIT, DEFAULT_SIMILAR_RECORD_LIMIT,
     DEFAULT_SIMILAR_REFERENCE_WEIGHT, DEFAULT_SIMILAR_SEMANTIC_WEIGHT,
     DEFAULT_SIMILAR_TRAIT_WEIGHT, MAX_SIMILAR_CANDIDATE_LIMIT, MAX_SIMILAR_RECORD_LIMIT,
-    SimilarRecord, SimilarRecordGraphEvidence, SimilarRecordRequest, SimilarRecordResult,
-    SimilarRecordSemanticEvidence, SimilarRetrieval, SimilarScoreWeights, SimilarSharedReference,
+    SimilarRecord, SimilarRecordGraphEvidence, SimilarRecordRefRequest, SimilarRecordRefResult,
+    SimilarRecordRequest, SimilarRecordResult, SimilarRecordSemanticEvidence, SimilarRetrieval,
+    SimilarScoreWeights, SimilarSharedReference,
 };
 pub use text::{
     DEFAULT_RANKED_CANDIDATE_WINDOW, MAX_RANKED_CANDIDATE_WINDOW, RetrievalMode, TextRetrieval,

@@ -210,13 +210,61 @@ fn similar_reports_non_finite_weights_from_product_service()
 }
 
 #[test]
-fn similar_resolves_seed_name_before_applying_candidate_filter()
--> Result<(), Box<dyn std::error::Error>> {
+fn similar_filters_seed_name_resolution_and_candidates() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-similar-filtered-name");
     create_similar_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET name = 'Shared Action', normalized_name = 'shared action'
+         WHERE record_key = 'actions:testAction1'",
+        [],
+    )?;
+    connection.execute(
+        "UPDATE records
+         SET name = 'Shared Action', normalized_name = 'shared action', record_kind = 'spell'
+         WHERE record_key = 'actions:testAction2'",
+        [],
+    )?;
+    drop(connection);
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["similar", "Test Action 1", "--index"])
+        .args(["similar", "Shared Action", "--index"])
+        .arg(&path)
+        .args(["--kind", "spell", "--json"])
+        .output()?;
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let data = ok_data(&json);
+    assert_eq!(data["seed"]["key"], "actions:testAction2");
+    assert_eq!(data["filter"]["kind"], "record_kind");
+    assert!(
+        data["results"]
+            .as_array()
+            .expect("results should be an array")
+            .iter()
+            .all(|result| result["record"]["kind"] == "spell")
+    );
+
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn similar_canonical_seed_key_is_not_rejected_by_candidate_filter()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-similar-key-filter");
+    create_similar_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records SET record_kind = 'spell' WHERE record_key = 'actions:testAction2'",
+        [],
+    )?;
+    drop(connection);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["similar", "actions:testAction1", "--index"])
         .arg(&path)
         .args(["--kind", "spell", "--json"])
         .output()?;
@@ -225,13 +273,12 @@ fn similar_resolves_seed_name_before_applying_candidate_filter()
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["key"], "actions:testAction1");
-    assert_eq!(data["filter"]["kind"], "record_kind");
-    assert_eq!(
+    assert!(
         data["results"]
             .as_array()
             .expect("results should be an array")
-            .len(),
-        0
+            .iter()
+            .all(|result| result["record"]["kind"] == "spell")
     );
 
     fs::remove_file(path)?;

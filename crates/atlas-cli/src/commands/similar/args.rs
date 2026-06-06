@@ -13,7 +13,7 @@ use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas similar \"Dirge of Doom\"\n  atlas similar \"Shield Block\" --limit 12 --explain --json\n  atlas similar spells-srd:RDXXE7wMrSPCLv5k --kind spell --max-level 5"
+    after_help = "Examples:\n  atlas similar \"Dirge of Doom\" --kind spell\n  atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain --json\n  atlas similar spells-srd:rfZpqmj0AIIdkVIs --kind spell --max-level 5"
 )]
 pub(crate) struct SimilarOptions {
     #[arg(help = "Seed record key or strict resolvable record name")]
