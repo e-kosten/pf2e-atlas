@@ -28,7 +28,8 @@ pub use page::{DEFAULT_SEARCH_PAGE_SIZE, MAX_SEARCH_PAGE_SIZE, SearchPage, Searc
 pub use query::TextQueryDiagnostics;
 pub use records::{
     GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordListSort,
-    RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest,
+    RecordRefResolutionResult, RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval,
+    ResolveRecordRefRequest, ResolveRecordRequest,
 };
 pub use remaster::{
     RemasterLinkResult, RemasterLinksRequest, RemasterLinksResult, RemasterRetrieval,
