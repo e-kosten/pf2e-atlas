@@ -249,8 +249,9 @@ mod tests {
     #[test]
     fn graph_product_service_uses_index_variant_group_seam()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service =
-            AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+            FakeIndex::new(),
+        ));
 
         let result = service
             .variant_group(VariantGroupRequest {
@@ -276,8 +277,9 @@ mod tests {
     #[test]
     fn graph_product_service_uses_index_variant_base_name_seam()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service =
-            AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+            FakeIndex::new(),
+        ));
 
         let results = service.variant_groups_by_base_name(VariantBaseNameRequest {
             base_name: "Test Action",
@@ -292,8 +294,9 @@ mod tests {
     #[test]
     fn variant_group_ref_resolution_accepts_record_keys() -> Result<(), Box<dyn std::error::Error>>
     {
-        let service =
-            AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+            FakeIndex::new(),
+        ));
 
         let resolution = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
             variant_group_ref: "actions:testAction1",
@@ -316,7 +319,7 @@ mod tests {
     #[test]
     fn variant_group_ref_resolution_prefers_base_name_before_record_name()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::BaseNameShadowsRecordName),
         ));
 
@@ -336,7 +339,7 @@ mod tests {
     #[test]
     fn variant_group_ref_resolution_falls_back_to_record_name()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::NoBaseGroup),
         ));
 
@@ -361,7 +364,7 @@ mod tests {
     #[test]
     fn variant_group_ref_resolution_reports_ambiguous_base_name_before_record_resolution()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::AmbiguousBaseGroup),
         ));
 
@@ -379,7 +382,7 @@ mod tests {
     #[test]
     fn variant_group_ref_resolution_reports_record_ambiguity_after_base_name_miss()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::NoBaseGroupAmbiguousRecord),
         ));
 
@@ -397,7 +400,7 @@ mod tests {
     #[test]
     fn variant_group_ref_resolution_reports_missing_inputs()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::NoBaseGroup),
         ));
 
@@ -424,7 +427,7 @@ mod tests {
     #[test]
     fn graph_product_service_propagates_index_read_errors() -> Result<(), Box<dyn std::error::Error>>
     {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::Error),
         ));
 
@@ -445,7 +448,7 @@ mod tests {
     #[test]
     fn graph_product_service_reports_missing_variant_relation_targets()
     -> Result<(), Box<dyn std::error::Error>> {
-        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+        let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
             FakeIndex::with_mode(FakeGraphMode::MissingTarget),
         ));
 

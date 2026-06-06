@@ -12,19 +12,21 @@ impl AtlasRuntime {
         if report.status != atlas_index::ValidationStatus::Ok {
             return Err(SearchError::vector_readiness_required(report.message));
         }
-        let config = SearchEmbeddingConfig {
-            model: embedding_model_from_artifact_report(&report)?,
-            cache_root: self.paths().embedding_cache_root.clone(),
-        };
-        AtlasRetrievalService::new(index, &config)
+        let config = SearchEmbeddingConfig::new(
+            embedding_model_from_artifact_report(&report)?,
+            self.paths().embedding_cache_root.clone(),
+        );
+        AtlasRetrievalService::from_prepared_index(index, &config)
     }
 
     pub fn open_retrieval_service_no_embeddings(
         &self,
     ) -> Result<AtlasRetrievalService, SearchError> {
-        Ok(AtlasRetrievalService::without_embeddings(
-            self.open_index().map_err(search_error_from_index)?,
-        ))
+        Ok(
+            AtlasRetrievalService::from_prepared_index_without_embeddings(
+                self.open_index().map_err(search_error_from_index)?,
+            ),
+        )
     }
 
     pub fn open_retrieval_service_for_stored_vectors(
@@ -39,7 +41,7 @@ impl AtlasRuntime {
                 atlas_index::IndexValidationError::InvalidArtifact(report.message).to_string(),
             ));
         }
-        Ok(AtlasRetrievalService::without_embeddings(index))
+        Ok(AtlasRetrievalService::from_prepared_index_without_embeddings(index))
     }
 }
 
