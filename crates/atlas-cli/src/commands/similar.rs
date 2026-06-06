@@ -93,7 +93,7 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let service = match runtime.open_vector_record_retrieval_service() {
+    let service = match runtime.open_retrieval_service_for_stored_vectors() {
         Ok(service) => service,
         Err(error) if options.json => {
             write_json_error("index_unavailable", error.to_string())?;
