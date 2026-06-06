@@ -69,13 +69,6 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
         reference: options.reference_weight,
         traits: options.trait_weight,
     };
-    if let Err(error) = weights.validate() {
-        if options.json {
-            write_json_error(search_error_code(&error), error.to_string())?;
-            return Ok(ExitCode::from(2));
-        }
-        return Err(error.to_string());
-    }
     let (filter, filter_value) =
         match build_filter(options.filter_json.as_deref(), &options.filter_options) {
             Ok(filter) => filter,
@@ -156,8 +149,9 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             return Ok(ExitCode::from(1));
         }
         Err(error) if options.json => {
+            let exit_code = similar_error_exit_code(&error);
             write_json_error(search_error_code(&error), error.to_string())?;
-            return Ok(ExitCode::from(3));
+            return Ok(exit_code);
         }
         Err(error) => return Err(search_error(error)),
     };
@@ -168,6 +162,14 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
         print_similar(&data, options.detail, options.explain);
     }
     Ok(ExitCode::SUCCESS)
+}
+
+fn similar_error_exit_code(error: &SearchError) -> ExitCode {
+    match error.kind() {
+        atlas_search::SearchErrorKind::InvalidFilter
+        | atlas_search::SearchErrorKind::InvalidOptions => ExitCode::from(2),
+        _ => ExitCode::from(3),
+    }
 }
 
 enum SeedResolution {
