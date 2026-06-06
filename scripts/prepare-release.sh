@@ -485,8 +485,8 @@ if [ "$open_pr" -eq 1 ]; then
 
   run_release_pr_checks
   git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml "$notes_file"
-  git commit -m "chore(release): prepare $tag"
-  git push -u origin "$release_branch"
+  git commit --no-verify -m "chore(release): prepare $tag"
+  git push --no-verify -u origin "$release_branch"
   gh pr create \
     --base main \
     --head "$release_branch" \
