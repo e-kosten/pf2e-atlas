@@ -73,7 +73,7 @@ pub(crate) struct GraphUsesOptions {
     after_help = "Examples:\n  atlas graph variants \"Dread Ampoule\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
 )]
 pub(crate) struct GraphVariantsOptions {
-    #[arg(help = "Seed record key or strict resolvable record name")]
+    #[arg(help = "Seed record key, strict resolvable record name, or variant base name")]
     pub(crate) record_ref: String,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     pub(crate) detail: DetailLevel,

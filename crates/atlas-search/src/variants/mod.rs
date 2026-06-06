@@ -5,7 +5,10 @@ use atlas_index::{IndexVariantGroup, VariantReadIndex};
 use atlas_record::AtlasRecord;
 
 use crate::query::normalize_record_query;
-use crate::{AtlasRetrievalService, GetRecordsRequest, RecordRetrieval, SearchError};
+use crate::{
+    AtlasRetrievalService, GetRecordsRequest, RecordRefResolutionResult, RecordRetrieval,
+    ResolveRecordRefRequest, SearchError,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantGroupRequest<'a> {
@@ -18,10 +21,36 @@ pub struct VariantBaseNameRequest<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ResolveVariantGroupRefRequest<'a> {
+    pub variant_group_ref: &'a str,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct VariantGroupResult {
     pub seed: Option<AtlasRecord>,
     pub variant_group_key: Option<String>,
     pub variants: Vec<AtlasRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariantGroupRefResolutionResult {
+    Group {
+        result: Box<VariantGroupResult>,
+        matched_by: VariantGroupRefMatch,
+    },
+    RecordNotFound {
+        record_key: RecordKey,
+    },
+    ResolutionMiss,
+    RecordResolutionAmbiguous(Vec<crate::RecordResolutionResult>),
+    VariantGroupAmbiguous(Vec<VariantGroupResult>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariantGroupRefMatch {
+    RecordKey,
+    BaseName,
+    RecordName,
 }
 
 pub trait VariantRetrieval {
@@ -34,6 +63,11 @@ pub trait VariantRetrieval {
         &self,
         request: VariantBaseNameRequest<'_>,
     ) -> Result<Vec<VariantGroupResult>, SearchError>;
+
+    fn resolve_variant_group_ref(
+        &self,
+        request: ResolveVariantGroupRefRequest<'_>,
+    ) -> Result<VariantGroupRefResolutionResult, SearchError>;
 }
 
 impl VariantRetrieval for AtlasRetrievalService {
@@ -83,6 +117,48 @@ impl VariantRetrieval for AtlasRetrievalService {
             })
             .collect()
     }
+
+    fn resolve_variant_group_ref(
+        &self,
+        request: ResolveVariantGroupRefRequest<'_>,
+    ) -> Result<VariantGroupRefResolutionResult, SearchError> {
+        if let Ok(record_key) = RecordKey::parse(request.variant_group_ref) {
+            return self
+                .variant_group_ref_for_record_key(record_key, VariantGroupRefMatch::RecordKey);
+        }
+
+        let mut groups = self.variant_groups_by_base_name(VariantBaseNameRequest {
+            base_name: request.variant_group_ref,
+        })?;
+        match groups.len() {
+            1 => {
+                let result = groups.remove(0);
+                return Ok(VariantGroupRefResolutionResult::Group {
+                    result: Box::new(result),
+                    matched_by: VariantGroupRefMatch::BaseName,
+                });
+            }
+            count if count > 1 => {
+                return Ok(VariantGroupRefResolutionResult::VariantGroupAmbiguous(
+                    groups,
+                ));
+            }
+            _ => {}
+        }
+
+        match self.resolve_record_ref(ResolveRecordRefRequest {
+            record_ref: request.variant_group_ref,
+            filter: None,
+        })? {
+            RecordRefResolutionResult::Key(record_key) => {
+                self.variant_group_ref_for_record_key(record_key, VariantGroupRefMatch::RecordName)
+            }
+            RecordRefResolutionResult::Miss => Ok(VariantGroupRefResolutionResult::ResolutionMiss),
+            RecordRefResolutionResult::Ambiguous(matches) => Ok(
+                VariantGroupRefResolutionResult::RecordResolutionAmbiguous(matches),
+            ),
+        }
+    }
 }
 
 fn variant_group_for_record<I>(
@@ -110,6 +186,22 @@ where
 }
 
 impl AtlasRetrievalService {
+    fn variant_group_ref_for_record_key(
+        &self,
+        record_key: RecordKey,
+        matched_by: VariantGroupRefMatch,
+    ) -> Result<VariantGroupRefResolutionResult, SearchError> {
+        match self.variant_group(VariantGroupRequest {
+            record_key: &record_key,
+        })? {
+            Some(result) => Ok(VariantGroupRefResolutionResult::Group {
+                result: Box::new(result),
+                matched_by,
+            }),
+            None => Ok(VariantGroupRefResolutionResult::RecordNotFound { record_key }),
+        }
+    }
+
     fn load_records_preserving_order(
         &self,
         record_keys: &[RecordKey],
@@ -141,9 +233,9 @@ mod tests {
         DiscoveryError, DiscoveryReadIndex, FilterCompileError, FilterReadIndex,
         FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsReadIndex,
         FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinkRecord,
-        IndexRemasterLinks, IndexVariantGroup, RecordIdentityMatch, RecordLoadError,
-        RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex,
-        VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
+        IndexRemasterLinks, IndexVariantGroup, RecordIdentityMatch, RecordIdentityMatchKind,
+        RecordLoadError, RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex,
+        RemasterReadIndex, VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
     };
     use atlas_record::{
         AtlasRecordSet, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
@@ -194,6 +286,138 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert!(results[0].seed.is_none());
         assert_eq!(results[0].variant_group_key.as_deref(), Some("test-action"));
+        Ok(())
+    }
+
+    #[test]
+    fn variant_group_ref_resolution_accepts_record_keys() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let service =
+            AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeIndex::new()));
+
+        let resolution = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "actions:testAction1",
+        })?;
+
+        let VariantGroupRefResolutionResult::Group { result, matched_by } = resolution else {
+            panic!("expected resolved variant group");
+        };
+        assert_eq!(matched_by, VariantGroupRefMatch::RecordKey);
+        assert_eq!(
+            result
+                .seed
+                .as_ref()
+                .map(|record| record.identity.key.to_string()),
+            Some("actions:testAction1".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn variant_group_ref_resolution_prefers_base_name_before_record_name()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+            FakeIndex::with_mode(FakeGraphMode::BaseNameShadowsRecordName),
+        ));
+
+        let resolution = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "Test Action",
+        })?;
+
+        let VariantGroupRefResolutionResult::Group { result, matched_by } = resolution else {
+            panic!("expected resolved variant group");
+        };
+        assert_eq!(matched_by, VariantGroupRefMatch::BaseName);
+        assert!(result.seed.is_none());
+        assert_eq!(result.variant_group_key.as_deref(), Some("test-action"));
+        Ok(())
+    }
+
+    #[test]
+    fn variant_group_ref_resolution_falls_back_to_record_name()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+            FakeIndex::with_mode(FakeGraphMode::NoBaseGroup),
+        ));
+
+        let resolution = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "Test Action 1",
+        })?;
+
+        let VariantGroupRefResolutionResult::Group { result, matched_by } = resolution else {
+            panic!("expected resolved variant group");
+        };
+        assert_eq!(matched_by, VariantGroupRefMatch::RecordName);
+        assert_eq!(
+            result
+                .seed
+                .as_ref()
+                .map(|record| record.identity.key.to_string()),
+            Some("actions:testAction1".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn variant_group_ref_resolution_reports_ambiguous_base_name_before_record_resolution()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+            FakeIndex::with_mode(FakeGraphMode::AmbiguousBaseGroup),
+        ));
+
+        let resolution = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "Test Action",
+        })?;
+
+        let VariantGroupRefResolutionResult::VariantGroupAmbiguous(groups) = resolution else {
+            panic!("expected ambiguous variant groups");
+        };
+        assert_eq!(groups.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn variant_group_ref_resolution_reports_record_ambiguity_after_base_name_miss()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+            FakeIndex::with_mode(FakeGraphMode::NoBaseGroupAmbiguousRecord),
+        ));
+
+        let resolution = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "Test Action",
+        })?;
+
+        let VariantGroupRefResolutionResult::RecordResolutionAmbiguous(matches) = resolution else {
+            panic!("expected ambiguous records");
+        };
+        assert_eq!(matches.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn variant_group_ref_resolution_reports_missing_inputs()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+            FakeIndex::with_mode(FakeGraphMode::NoBaseGroup),
+        ));
+
+        let missing_key = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "actions:missing",
+        })?;
+        assert_eq!(
+            missing_key,
+            VariantGroupRefResolutionResult::RecordNotFound {
+                record_key: RecordKey::parse("actions:missing")?
+            }
+        );
+
+        let missing_name = service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+            variant_group_ref: "Not Present",
+        })?;
+        assert_eq!(
+            missing_name,
+            VariantGroupRefResolutionResult::ResolutionMiss
+        );
         Ok(())
     }
 
@@ -249,6 +473,10 @@ mod tests {
         Default,
         Error,
         MissingTarget,
+        NoBaseGroup,
+        AmbiguousBaseGroup,
+        NoBaseGroupAmbiguousRecord,
+        BaseNameShadowsRecordName,
     }
 
     impl FakeIndex {
@@ -261,6 +489,7 @@ mod tests {
                 records: vec![
                     fake_record("actions:testAction1", "Test Action 1"),
                     fake_record("actions:testAction2", "Test Action 2"),
+                    fake_record("actions:testActionBase", "Test Action"),
                 ],
                 mode,
             }
@@ -317,11 +546,32 @@ mod tests {
     impl IdentityReadIndex for FakeIndex {
         fn resolve_record_identity_matches(
             &self,
-            _query: &str,
-            _normalized_query: &str,
+            query: &str,
+            normalized_query: &str,
             _filter: Option<&atlas_domain::SearchFilterNode>,
         ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-            Ok(Vec::new())
+            if matches!(self.mode, FakeGraphMode::BaseNameShadowsRecordName) {
+                panic!("base-name resolution should win before record-name resolution");
+            }
+            let keys = if matches!(self.mode, FakeGraphMode::NoBaseGroupAmbiguousRecord)
+                && normalized_query == "test action"
+            {
+                vec!["actions:testAction1", "actions:testAction2"]
+            } else if query == "Test Action 1" {
+                vec!["actions:testAction1"]
+            } else {
+                Vec::new()
+            };
+            Ok(keys
+                .into_iter()
+                .map(|key| RecordIdentityMatch {
+                    record_key: RecordKey::parse(key).expect("fixture key should parse"),
+                    match_kind: RecordIdentityMatchKind::Name,
+                    matched_text: query.to_string(),
+                    alias_source: None,
+                    alias_source_ref: None,
+                })
+                .collect())
         }
     }
 
@@ -402,19 +652,27 @@ mod tests {
     impl VariantReadIndex for FakeIndex {
         fn variant_group_for_record(
             &self,
-            _seed: &RecordKey,
+            seed: &RecordKey,
         ) -> Result<Option<IndexVariantGroup>, RecordLoadError> {
             if matches!(self.mode, FakeGraphMode::Error) {
                 return Err(RecordLoadError::QueryFailed(
                     "fixture graph error".to_string(),
                 ));
             }
-            assert_eq!(self.records[0].identity.key, *_seed);
+            if self
+                .records
+                .iter()
+                .find(|record| record.identity.key == *seed)
+                .is_none()
+            {
+                return Ok(None);
+            }
             let record_keys = if matches!(self.mode, FakeGraphMode::MissingTarget) {
                 vec![RecordKey::parse("actions:missing").expect("fixture key should parse")]
             } else {
                 self.records
                     .iter()
+                    .filter(|record| record.identity.key.to_string() != "actions:testActionBase")
                     .map(|record| record.identity.key.clone())
                     .collect()
             };
@@ -433,15 +691,34 @@ mod tests {
                     "fixture graph error".to_string(),
                 ));
             }
-            assert_eq!(normalized_base_name, "test action");
-            Ok(vec![IndexVariantGroup {
+            if matches!(
+                self.mode,
+                FakeGraphMode::NoBaseGroup | FakeGraphMode::NoBaseGroupAmbiguousRecord
+            ) {
+                return Ok(Vec::new());
+            }
+            if normalized_base_name != "test action" {
+                return Ok(Vec::new());
+            }
+            let group = IndexVariantGroup {
                 variant_group_key: Some("test-action".to_string()),
                 record_keys: self
                     .records
                     .iter()
+                    .filter(|record| record.identity.key.to_string() != "actions:testActionBase")
                     .map(|record| record.identity.key.clone())
                     .collect(),
-            }])
+            };
+            if matches!(self.mode, FakeGraphMode::AmbiguousBaseGroup) {
+                return Ok(vec![
+                    group,
+                    IndexVariantGroup {
+                        variant_group_key: Some("other-test-action".to_string()),
+                        record_keys: vec![self.records[0].identity.key.clone()],
+                    },
+                ]);
+            }
+            Ok(vec![group])
         }
     }
 

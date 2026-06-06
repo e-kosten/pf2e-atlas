@@ -3,9 +3,9 @@ use std::process::ExitCode;
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_search::{
-    AtlasRetrievalService, RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval,
-    ResolveRecordRefRequest, ResolveRecordRequest, SearchError, VariantBaseNameRequest,
-    VariantGroupRequest, VariantGroupResult, VariantRetrieval,
+    RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
+    ResolveVariantGroupRefRequest, SearchError, VariantGroupRefResolutionResult,
+    VariantGroupResult, VariantRetrieval,
 };
 use serde::Serialize;
 
@@ -19,7 +19,7 @@ pub(super) enum GraphCommandOutcome<T> {
 }
 
 pub(super) fn resolve_graph_record_ref(
-    service: &AtlasRetrievalService,
+    service: &impl RecordRetrieval,
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<RecordKey>, String> {
@@ -51,65 +51,44 @@ pub(super) fn resolve_graph_record_ref(
 }
 
 pub(super) fn resolve_graph_variant_group(
-    service: &AtlasRetrievalService,
+    service: &impl VariantRetrieval,
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<VariantGroupResult>, String> {
-    if let Ok(key) = RecordKey::parse(record_ref) {
-        return match service.variant_group(VariantGroupRequest { record_key: &key }) {
-            Ok(Some(result)) => Ok(GraphCommandOutcome::Value(result)),
-            Ok(None) => record_not_found(&key, json).map(GraphCommandOutcome::Exit),
-            Err(error) => graph_search_error(error, json),
-        };
-    }
-    let matches = match service.resolve_record(ResolveRecordRequest {
-        query: record_ref,
-        filter: None,
+    let resolution = match service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
+        variant_group_ref: record_ref,
     }) {
-        Ok(matches) => matches,
+        Ok(resolution) => resolution,
         Err(error) => return graph_search_error(error, json),
     };
-    if matches.len() == 1 {
-        let key = &matches[0].record.identity.key;
-        return match service.variant_group(VariantGroupRequest { record_key: key }) {
-            Ok(Some(result)) => Ok(GraphCommandOutcome::Value(result)),
-            Ok(None) => record_not_found(key, json).map(GraphCommandOutcome::Exit),
-            Err(error) => graph_search_error(error, json),
-        };
-    }
-    if matches.len() > 1 {
-        write_record_resolution_ambiguity(record_ref, &matches, json)?;
-        return Ok(GraphCommandOutcome::Exit(ExitCode::from(1)));
-    }
 
-    let variant_groups = match service.variant_groups_by_base_name(VariantBaseNameRequest {
-        base_name: record_ref,
-    }) {
-        Ok(groups) => groups,
-        Err(error) => return graph_search_error(error, json),
-    };
-    match variant_groups.len() {
-        1 => {
-            if let Some(result) = variant_groups.into_iter().next() {
-                return Ok(GraphCommandOutcome::Value(result));
+    match resolution {
+        VariantGroupRefResolutionResult::Group { result, .. } => {
+            Ok(GraphCommandOutcome::Value(*result))
+        }
+        VariantGroupRefResolutionResult::RecordNotFound { record_key } => {
+            record_not_found(&record_key, json).map(GraphCommandOutcome::Exit)
+        }
+        VariantGroupRefResolutionResult::ResolutionMiss => {
+            if json {
+                write_json_error(
+                    "record_resolution_miss",
+                    format!("record resolution miss: {record_ref}"),
+                )?;
+            } else {
+                eprintln!("record resolution miss: {record_ref}");
             }
+            Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
-        count if count > 1 => {
-            write_variant_group_ambiguity(record_ref, &variant_groups, json)?;
-            return Ok(GraphCommandOutcome::Exit(ExitCode::from(1)));
+        VariantGroupRefResolutionResult::RecordResolutionAmbiguous(matches) => {
+            write_record_resolution_ambiguity(record_ref, &matches, json)?;
+            Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
-        _ => {}
+        VariantGroupRefResolutionResult::VariantGroupAmbiguous(groups) => {
+            write_variant_group_ambiguity(record_ref, &groups, json)?;
+            Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
+        }
     }
-
-    if json {
-        write_json_error(
-            "record_resolution_miss",
-            format!("record resolution miss: {record_ref}"),
-        )?;
-    } else {
-        eprintln!("record resolution miss: {record_ref}");
-    }
-    Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
 }
 
 pub(super) fn graph_search_error<T>(
