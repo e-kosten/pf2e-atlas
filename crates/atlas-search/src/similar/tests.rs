@@ -99,8 +99,9 @@ fn similar_weights_reject_zero_negative_and_non_finite_values() {
 #[test]
 fn similar_records_candidate_window_never_drops_below_result_limit() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
-    let service =
-        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+    let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+        FakeSimilarIndex::new(),
+    ));
 
     let result = service
         .similar_records(SimilarRecordRequest {
@@ -131,8 +132,9 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
 #[test]
 fn similar_records_rejects_zero_limits() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
-    let service =
-        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+    let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+        FakeSimilarIndex::new(),
+    ));
 
     let result_limit_error = service
         .similar_records(SimilarRecordRequest {
@@ -172,8 +174,9 @@ fn similar_records_rejects_zero_limits() {
 #[test]
 fn similar_records_rejects_result_limit_above_product_max() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
-    let service =
-        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+    let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+        FakeSimilarIndex::new(),
+    ));
 
     let error = service
         .similar_records(SimilarRecordRequest {
@@ -193,8 +196,9 @@ fn similar_records_rejects_result_limit_above_product_max() {
 #[test]
 fn similar_records_rejects_candidate_limit_above_product_max() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
-    let service =
-        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+    let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+        FakeSimilarIndex::new(),
+    ));
 
     let error = service
         .similar_records(SimilarRecordRequest {
@@ -215,7 +219,7 @@ fn similar_records_rejects_candidate_limit_above_product_max() {
 fn similar_records_passes_filter_and_parent_only_scope_to_vector_index() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
     let filter = SearchFilterNode::record_kind(RecordKind::Rule);
-    let service = AtlasRetrievalService::without_embeddings_with_index(Box::new(
+    let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
         FakeSimilarIndex::new_expecting_filter(),
     ));
 
@@ -261,8 +265,9 @@ fn select_seed_embedding_requires_parent_unit() {
 #[test]
 fn similar_records_uses_seed_embedding_and_reranks_with_graph_evidence() {
     let seed = RecordKey::parse("actions:seed").expect("fixture key should parse");
-    let service =
-        AtlasRetrievalService::without_embeddings_with_index(Box::new(FakeSimilarIndex::new()));
+    let service = AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(
+        FakeSimilarIndex::new(),
+    ));
 
     let result = service
         .similar_records(SimilarRecordRequest {

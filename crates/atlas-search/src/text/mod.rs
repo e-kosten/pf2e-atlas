@@ -308,7 +308,8 @@ mod tests {
         let index = FakeTextIndex::new(vec![identity.clone(), ranked.clone(), off_page]);
         let candidate_calls = Rc::clone(&index.candidate_calls);
         let load_by_key_calls = Rc::clone(&index.load_by_key_calls);
-        let mut service = AtlasRetrievalService::without_embeddings_with_index(Box::new(index));
+        let mut service =
+            AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(index));
 
         let page = service
             .search_text(TextSearchRequest {
@@ -364,7 +365,8 @@ mod tests {
         let identity = fake_record("actions:identity", "Identity Action");
         let ranked = fake_record("actions:ranked", "Ranked Action");
         let index = FakeTextIndex::new(vec![identity, ranked]);
-        let mut service = AtlasRetrievalService::without_embeddings_with_index(Box::new(index));
+        let mut service =
+            AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(index));
 
         let page = service
             .search_text(TextSearchRequest {
