@@ -48,7 +48,8 @@ pub use text::{
     TextSearchRequest, TextSearchResult, TextSearchTuning,
 };
 pub use variants::{
-    VariantBaseNameRequest, VariantGroupRequest, VariantGroupResult, VariantRetrieval,
+    ResolveVariantGroupRefRequest, VariantBaseNameRequest, VariantGroupRefMatch,
+    VariantGroupRefResolutionResult, VariantGroupRequest, VariantGroupResult, VariantRetrieval,
 };
 
 pub mod expert {
