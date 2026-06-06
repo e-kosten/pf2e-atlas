@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::artifact::inventory::{Column, reference_edges};
 use crate::read::sql::SqlBindValue;
 use atlas_domain::RecordKey;
@@ -35,6 +37,15 @@ impl SqliteIndexReader {
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
         self.with_diesel_connection(|connection| {
             read_reference_edges_for_seed(connection, seed, direction)
+        })
+    }
+
+    pub fn outgoing_reference_targets_for_records(
+        &self,
+        records: &[RecordKey],
+    ) -> Result<BTreeMap<RecordKey, BTreeSet<RecordKey>>, RecordLoadError> {
+        self.with_diesel_connection(|connection| {
+            read_outgoing_reference_targets_for_records(connection, records)
         })
     }
 }
@@ -125,6 +136,55 @@ fn aliased_reference_column(alias: &str, column: Column) -> String {
     format!("{}.{}", alias, column.name())
 }
 
+pub(crate) fn read_outgoing_reference_targets_for_records(
+    connection: &mut SqliteConnection,
+    records: &[RecordKey],
+) -> Result<BTreeMap<RecordKey, BTreeSet<RecordKey>>, RecordLoadError> {
+    let mut targets_by_record = records
+        .iter()
+        .cloned()
+        .map(|record| (record, BTreeSet::new()))
+        .collect::<BTreeMap<_, _>>();
+    if records.is_empty() {
+        return Ok(targets_by_record);
+    }
+
+    let alias = "re";
+    let placeholders = vec!["?"; records.len()].join(", ");
+    let sql = format!(
+        "SELECT
+           {from_record_key},
+           {to_record_key}
+         FROM {table} {alias}
+         WHERE {from_record_key} IN ({placeholders})
+           AND {default_predicate}
+         ORDER BY {from_record_key}, {to_record_key}",
+        table = reference_edges::TABLE.name(),
+        from_record_key =
+            aliased_reference_column(alias, reference_edges::columns::FROM_RECORD_KEY),
+        to_record_key = aliased_reference_column(alias, reference_edges::columns::TO_RECORD_KEY),
+        default_predicate = default_reference_edge_sql_predicate(alias),
+    );
+    let parameters = records
+        .iter()
+        .map(|record| SqlBindValue::Text(record.to_string()))
+        .collect::<Vec<_>>();
+    for row in bind_sql_query(sql, &parameters)
+        .load::<ReferenceTargetRow>(connection)
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
+    {
+        let from_record_key = RecordKey::parse(&row.from_record_key)
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        let to_record_key = RecordKey::parse(&row.to_record_key)
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        targets_by_record
+            .entry(from_record_key)
+            .or_default()
+            .insert(to_record_key);
+    }
+    Ok(targets_by_record)
+}
+
 #[derive(QueryableByName)]
 struct ReferenceEdgeRow {
     #[diesel(sql_type = Text)]
@@ -141,4 +201,12 @@ struct ReferenceEdgeRow {
     source_kind: String,
     #[diesel(sql_type = Text)]
     visibility: String,
+}
+
+#[derive(QueryableByName)]
+struct ReferenceTargetRow {
+    #[diesel(sql_type = Text)]
+    from_record_key: String,
+    #[diesel(sql_type = Text)]
+    to_record_key: String,
 }

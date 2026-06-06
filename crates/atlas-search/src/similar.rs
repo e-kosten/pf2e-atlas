@@ -191,6 +191,8 @@ impl SimilarRetrieval for AtlasRetrievalService {
             .collect::<BTreeMap<_, _>>();
 
         let seed_references = outgoing_reference_keys(self.index.as_ref(), request.seed)?;
+        let candidate_references =
+            outgoing_reference_keys_for_records(self.index.as_ref(), &candidate_keys)?;
         let reference_names = self.reference_names(&seed_references)?;
         let seed_traits = string_set(&seed.classification.traits);
         let mut ranked = semantic_hits
@@ -201,16 +203,17 @@ impl SimilarRetrieval for AtlasRetrievalService {
                 Some((hit, record))
             })
             .map(|(hit, record)| {
-                self.similar_record_for_hit(
+                similar_record_for_hit(
                     hit,
                     record,
                     &seed_references,
+                    &candidate_references,
                     &reference_names,
                     &seed_traits,
                     weights,
                 )
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Vec<_>>();
         ranked.sort_by(|left, right| {
             right
                 .score
@@ -308,53 +311,55 @@ impl AtlasRetrievalService {
             .map(|record| (record.identity.key, record.identity.name))
             .collect())
     }
+}
 
-    fn similar_record_for_hit(
-        &self,
-        hit: SemanticSearchHit,
-        record: AtlasRecord,
-        seed_references: &BTreeSet<RecordKey>,
-        reference_names: &BTreeMap<RecordKey, String>,
-        seed_traits: &BTreeSet<String>,
-        weights: SimilarScoreWeights,
-    ) -> Result<SimilarRecord, SearchError> {
-        let candidate_references =
-            outgoing_reference_keys(self.index.as_ref(), &record.identity.key)?;
-        let shared_references = seed_references
-            .intersection(&candidate_references)
-            .map(|key| SimilarSharedReference {
-                key: key.clone(),
-                name: reference_names
-                    .get(key)
-                    .cloned()
-                    .unwrap_or_else(|| key.to_string()),
-            })
-            .collect::<Vec<_>>();
-        let candidate_traits = string_set(&record.classification.traits);
-        let shared_traits = seed_traits
-            .intersection(&candidate_traits)
-            .cloned()
-            .collect::<Vec<_>>();
-        let score = similar_score(
-            hit.rank_distance,
-            shared_references.len(),
-            shared_traits.len(),
-            weights,
-        );
-        Ok(SimilarRecord {
-            record,
-            score,
-            semantic: SimilarRecordSemanticEvidence {
-                unit_kind: hit.unit_kind,
-                label: hit.label,
-                distance: hit.distance,
-                rank_distance: hit.rank_distance,
-            },
-            graph: SimilarRecordGraphEvidence {
-                shared_references,
-                shared_traits,
-            },
+fn similar_record_for_hit(
+    hit: SemanticSearchHit,
+    record: AtlasRecord,
+    seed_references: &BTreeSet<RecordKey>,
+    references_by_candidate: &BTreeMap<RecordKey, BTreeSet<RecordKey>>,
+    reference_names: &BTreeMap<RecordKey, String>,
+    seed_traits: &BTreeSet<String>,
+    weights: SimilarScoreWeights,
+) -> SimilarRecord {
+    let candidate_references = references_by_candidate
+        .get(&record.identity.key)
+        .cloned()
+        .unwrap_or_default();
+    let shared_references = seed_references
+        .intersection(&candidate_references)
+        .map(|key| SimilarSharedReference {
+            key: key.clone(),
+            name: reference_names
+                .get(key)
+                .cloned()
+                .unwrap_or_else(|| key.to_string()),
         })
+        .collect::<Vec<_>>();
+    let candidate_traits = string_set(&record.classification.traits);
+    let shared_traits = seed_traits
+        .intersection(&candidate_traits)
+        .cloned()
+        .collect::<Vec<_>>();
+    let score = similar_score(
+        hit.rank_distance,
+        shared_references.len(),
+        shared_traits.len(),
+        weights,
+    );
+    SimilarRecord {
+        record,
+        score,
+        semantic: SimilarRecordSemanticEvidence {
+            unit_kind: hit.unit_kind,
+            label: hit.label,
+            distance: hit.distance,
+            rank_distance: hit.rank_distance,
+        },
+        graph: SimilarRecordGraphEvidence {
+            shared_references,
+            shared_traits,
+        },
     }
 }
 
@@ -382,6 +387,18 @@ where
         .into_iter()
         .map(|edge| edge.to_record_key)
         .collect())
+}
+
+fn outgoing_reference_keys_for_records<I>(
+    index: &I,
+    records: &[RecordKey],
+) -> Result<BTreeMap<RecordKey, BTreeSet<RecordKey>>, SearchError>
+where
+    I: ReferenceReadIndex + ?Sized,
+{
+    index
+        .outgoing_reference_targets_for_records(records)
+        .map_err(SearchError::from_record_load)
 }
 
 fn string_set(values: &[String]) -> BTreeSet<String> {

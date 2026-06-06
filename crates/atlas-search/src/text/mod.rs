@@ -234,6 +234,20 @@ mod tests {
                 ) -> Result<Vec<GraphReferenceEdge>, atlas_index::RecordLoadError> {
                     Ok(Vec::new())
                 }
+
+                fn outgoing_reference_targets_for_records(
+                    &self,
+                    records: &[RecordKey],
+                ) -> Result<
+                    std::collections::BTreeMap<RecordKey, std::collections::BTreeSet<RecordKey>>,
+                    atlas_index::RecordLoadError,
+                > {
+                    Ok(records
+                        .iter()
+                        .cloned()
+                        .map(|record| (record, std::collections::BTreeSet::new()))
+                        .collect())
+                }
             }
 
             impl VariantReadIndex for $type {

@@ -4,28 +4,17 @@ use atlas_search::{RemasterLinksRequest, RemasterRetrieval};
 
 use crate::output::{write_json_data, write_json_error};
 
-use super::super::record::{open_record_service, record_runtime, search_error, search_error_code};
+use super::super::record::{search_error, search_error_code};
 use super::args::GraphRemasterOptions;
 use super::data::graph_remaster_data;
+use super::open_graph_service;
 use super::render::print_graph_remaster;
 use super::resolve::{GraphCommandOutcome, record_not_found, resolve_graph_record_ref};
 
 pub(crate) fn run_graph_remaster(options: GraphRemasterOptions) -> Result<ExitCode, String> {
-    let runtime = match record_runtime(options.path_mode.into(), options.index) {
-        Ok(runtime) => runtime,
-        Err(error) if options.json => {
-            write_json_error("runtime_error", error)?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error),
-    };
-    let service = match open_record_service(&runtime) {
-        Ok(service) => service,
-        Err(error) if options.json => {
-            write_json_error("index_unavailable", error)?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error),
+    let service = match open_graph_service(options.path_mode, options.index, options.json)? {
+        GraphCommandOutcome::Value(service) => service,
+        GraphCommandOutcome::Exit(code) => return Ok(code),
     };
     let key = match resolve_graph_record_ref(&service, &options.record_ref, options.json)? {
         GraphCommandOutcome::Value(key) => key,

@@ -647,6 +647,20 @@ mod tests {
         ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
             Ok(Vec::new())
         }
+
+        fn outgoing_reference_targets_for_records(
+            &self,
+            records: &[RecordKey],
+        ) -> Result<
+            std::collections::BTreeMap<RecordKey, std::collections::BTreeSet<RecordKey>>,
+            RecordLoadError,
+        > {
+            Ok(records
+                .iter()
+                .cloned()
+                .map(|record| (record, std::collections::BTreeSet::new()))
+                .collect())
+        }
     }
 
     impl VariantReadIndex for FakeIndex {
