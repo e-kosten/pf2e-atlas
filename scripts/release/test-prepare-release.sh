@@ -334,11 +334,11 @@ grep -q 'git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml d
   echo "prepare-release --open-pr did not stage release-prep files" >&2
   exit 1
 }
-grep -q 'git commit -m chore(release): prepare v0.1.0' "$log" || {
+grep -q 'git commit --no-verify -m chore(release): prepare v0.1.0' "$log" || {
   echo "prepare-release --open-pr did not create the release-prep commit" >&2
   exit 1
 }
-grep -q 'git push -u origin release/v0.1.0' "$log" || {
+grep -q 'git push --no-verify -u origin release/v0.1.0' "$log" || {
   echo "prepare-release --open-pr did not push the release branch" >&2
   exit 1
 }
@@ -350,8 +350,8 @@ reset_flags
 
 : > "$log"
 ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --open-pr --dry-run >/dev/null
-expect_log_absent 'git commit -m chore(release): prepare v0.1.0' "prepare-release --open-pr dry-run committed"
-expect_log_absent 'git push -u origin release/v0.1.0' "prepare-release --open-pr dry-run pushed"
+expect_log_absent 'git commit --no-verify -m chore(release): prepare v0.1.0' "prepare-release --open-pr dry-run committed"
+expect_log_absent 'git push --no-verify -u origin release/v0.1.0' "prepare-release --open-pr dry-run pushed"
 expect_log_absent 'gh pr create' "prepare-release --open-pr dry-run created a PR"
 reset_flags
 
