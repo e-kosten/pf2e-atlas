@@ -2,6 +2,7 @@ target/
 .DS_Store
 vendor/pf2e/
 .cache/
+.codex/config.toml
 .swp
 *.swp
 *.swo
