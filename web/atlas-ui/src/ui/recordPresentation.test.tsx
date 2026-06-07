@@ -32,7 +32,7 @@ describe("RecordPresentation", () => {
 
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
     expect(screen.getByText("spell:dirge-of-doom")).toBeInTheDocument();
-    expect(screen.getByText("Auditory")).toBeInTheDocument();
+    expect(screen.getByText("auditory")).toBeInTheDocument();
     expect(screen.getByText("Level")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Description" })).toBeInTheDocument();
@@ -72,7 +72,7 @@ function recordDetailFixture(): RecordDetailView {
       kind: "spell",
       title: "Dirge of Doom",
       identity: [{ key: "level", label: "Level", value: "3" }],
-      badges: [{ kind: "trait", label: "Auditory", value: "auditory" }],
+      badges: [{ kind: "trait", label: "Trait", value: "auditory" }],
       sections: [
         {
           kind: "description",

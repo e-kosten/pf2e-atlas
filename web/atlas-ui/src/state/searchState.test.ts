@@ -93,6 +93,54 @@ describe("searchState", () => {
     );
   });
 
+  it("builds dynamic option, boolean, and range filter clauses", () => {
+    const state: SearchFormState = {
+      ...DEFAULT_SEARCH_STATE,
+      optionFilters: {
+        traditions: ["arcane", "occult"],
+        size: ["lg"],
+      },
+      booleanFilters: {
+        basic_save: "true",
+      },
+      rangeFilters: {
+        bulk_value: { min: 1, max: 3 },
+      },
+    };
+
+    const request = buildOpenRequest(state, 1);
+    const clauses =
+      request.mode.kind === "list_records"
+        ? request.mode.filter?.clauses
+        : request.mode.filter?.clauses;
+
+    expect(clauses).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "traditions",
+          operator: "include_any",
+          values: ["arcane", "occult"],
+        }),
+        expect.objectContaining({
+          field: "size",
+          operator: "include_any",
+          values: ["lg"],
+        }),
+        expect.objectContaining({
+          field: "basic_save",
+          operator: "include_any",
+          values: ["true"],
+        }),
+        expect.objectContaining({
+          id: "bulk_value-range",
+          field: "bulk_value",
+          operator: "range",
+          range: { min: 1, max: 3 },
+        }),
+      ]),
+    );
+  });
+
   it("encodes and decodes unicode search state", () => {
     const state: SearchFormState = {
       ...DEFAULT_SEARCH_STATE,

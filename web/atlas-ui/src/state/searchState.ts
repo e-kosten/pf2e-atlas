@@ -9,6 +9,10 @@ import type {
 
 export type LibraryPrototype = "ant" | "mantine";
 export type TraitOperator = "include_all" | "include_any";
+export type NumericRangeState = {
+  min: number | null;
+  max: number | null;
+};
 
 export type SearchFormState = {
   query: string;
@@ -23,6 +27,9 @@ export type SearchFormState = {
   publicationTitles: string[];
   levelMin: number | null;
   levelMax: number | null;
+  optionFilters: Record<string, string[]>;
+  rangeFilters: Record<string, NumericRangeState>;
+  booleanFilters: Record<string, string | null>;
   sort: SortKey;
   pageSize: number;
   includeDiagnostics: boolean;
@@ -49,6 +56,9 @@ export const DEFAULT_SEARCH_STATE: SearchFormState = {
   publicationTitles: [],
   levelMin: null,
   levelMax: null,
+  optionFilters: {},
+  rangeFilters: {},
+  booleanFilters: {},
   sort: "record_key",
   pageSize: 25,
   includeDiagnostics: false,
@@ -214,6 +224,18 @@ export function decodeSearchState(value: string | null): SearchFormState {
       ),
       levelMin: nullableFiniteNumber(decoded.levelMin, DEFAULT_SEARCH_STATE.levelMin),
       levelMax: nullableFiniteNumber(decoded.levelMax, DEFAULT_SEARCH_STATE.levelMax),
+      optionFilters: stringArrayRecordValue(
+        decoded.optionFilters,
+        DEFAULT_SEARCH_STATE.optionFilters,
+      ),
+      rangeFilters: rangeRecordValue(
+        decoded.rangeFilters,
+        DEFAULT_SEARCH_STATE.rangeFilters,
+      ),
+      booleanFilters: booleanFilterRecordValue(
+        decoded.booleanFilters,
+        DEFAULT_SEARCH_STATE.booleanFilters,
+      ),
       sort: oneOf(decoded.sort, SORT_VALUES, DEFAULT_SEARCH_STATE.sort),
       pageSize: pageSizeValue(decoded.pageSize, DEFAULT_SEARCH_STATE.pageSize),
       includeDiagnostics: booleanValue(
@@ -252,6 +274,17 @@ function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
       },
     });
   }
+  for (const [field, values] of Object.entries(state.optionFilters)) {
+    pushValues(clauses, field, "include_any", values);
+  }
+  for (const [field, value] of Object.entries(state.booleanFilters)) {
+    if (value === "true" || value === "false") {
+      pushValues(clauses, field, "include_any", [value]);
+    }
+  }
+  for (const [field, range] of Object.entries(state.rangeFilters)) {
+    pushRange(clauses, field, range);
+  }
 
   return { clauses };
 }
@@ -277,6 +310,26 @@ function pushValues(
   });
 }
 
+function pushRange(
+  clauses: FilterClause[],
+  field: string,
+  range: NumericRangeState,
+) {
+  if (range.min === null && range.max === null) {
+    return;
+  }
+  clauses.push({
+    id: `${field}-range`,
+    field,
+    operator: "range",
+    values: [],
+    range: {
+      min: range.min ?? undefined,
+      max: range.max ?? undefined,
+    },
+  });
+}
+
 function sortView(sort: SortKey): RecordListSortView {
   return { kind: sort };
 }
@@ -294,6 +347,61 @@ function stringArrayValue(value: unknown, fallback: string[]): string[] {
     return fallback;
   }
   return value;
+}
+
+function stringArrayRecordValue(
+  value: unknown,
+  fallback: Record<string, string[]>,
+): Record<string, string[]> {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([, entry]) =>
+        Array.isArray(entry) && entry.every((item) => typeof item === "string"),
+    ),
+  ) as Record<string, string[]>;
+}
+
+function rangeRecordValue(
+  value: unknown,
+  fallback: Record<string, NumericRangeState>,
+): Record<string, NumericRangeState> {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .flatMap(([field, entry]) => {
+        if (!isRecord(entry)) {
+          return [];
+        }
+        return [
+          [
+            field,
+            {
+              min: nullableFiniteNumber(entry.min, null),
+              max: nullableFiniteNumber(entry.max, null),
+            },
+          ],
+        ];
+      }),
+  );
+}
+
+function booleanFilterRecordValue(
+  value: unknown,
+  fallback: Record<string, string | null>,
+): Record<string, string | null> {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([, entry]) => entry === null || entry === "true" || entry === "false",
+    ),
+  ) as Record<string, string | null>;
 }
 
 function oneOf<T extends string>(

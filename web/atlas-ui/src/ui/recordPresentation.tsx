@@ -38,7 +38,7 @@ export function RecordPresentation({
         <div className="badge-row">
           {detail.presentation.badges.map((badge) => (
             <span className="atlas-badge" key={`${badge.kind}-${badge.value}`}>
-              {badge.label}
+              {badge.value}
             </span>
           ))}
         </div>

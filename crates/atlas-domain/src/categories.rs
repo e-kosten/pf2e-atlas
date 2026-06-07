@@ -84,7 +84,11 @@ impl RecordKind {
     }
 
     pub fn from_input(value: &str) -> Option<Self> {
-        match normalize_input(value).as_str() {
+        let normalized = normalize_input(value);
+        if let Some(kind) = Self::from_canonical(&normalized) {
+            return Some(kind);
+        }
+        match normalized.as_str() {
             "creature" | "creatures" => Some(Self::Creature),
             "character" | "characters" => Some(Self::Character),
             "companion" | "companions" | "familiar" | "familiars" => Some(Self::Companion),
@@ -154,6 +158,9 @@ mod tests {
 
     #[test]
     fn record_kind_accepts_current_ts_aliases() {
+        for kind in RecordKind::ALL {
+            assert_eq!(RecordKind::from_input(kind.as_str()), Some(kind));
+        }
         assert_eq!(
             RecordKind::from_input("character creation"),
             Some(RecordKind::CharacterOption)

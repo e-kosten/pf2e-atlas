@@ -224,6 +224,7 @@ impl FilterCompiler {
             MetadataEnumStringField::PublicationCategory => records::columns::PUBLICATION_FAMILY,
             MetadataEnumStringField::Size => actor_records::columns::SIZE,
             MetadataEnumStringField::Usage => records::columns::SYSTEM_USAGE,
+            MetadataEnumStringField::SystemCategory => records::columns::SYSTEM_CATEGORY,
             MetadataEnumStringField::SystemGroup => records::columns::SYSTEM_GROUP,
             MetadataEnumStringField::FoundryRecordType => records::columns::FOUNDRY_RECORD_TYPE,
             MetadataEnumStringField::BaseItem => records::columns::SYSTEM_BASE_ITEM,
