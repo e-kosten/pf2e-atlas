@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
-import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQueries,
+  useQuery,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import {
   discoverFilterFields,
   discoverFilterValues,
@@ -68,6 +73,7 @@ export type AtlasWorkspaceState = {
   filterValuesByField: Record<string, FilterValueListView | undefined>;
   readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
+  resultsRefreshing: boolean;
   detailLoading: boolean;
   filterDiscoveryLoading: boolean;
   diagnostics: AtlasWorkspaceDiagnostics;
@@ -124,6 +130,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   const resultsQuery = useQuery({
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const startedAt = performance.now();
       if (
@@ -285,6 +292,11 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     valueFieldIds.map((fieldId, index) => [fieldId, filterValueQueries[index]?.data]),
   );
 
+  const resultsRefreshing =
+    searchDebouncing ||
+    resultsQuery.isPlaceholderData ||
+    (resultsQuery.isFetching && !resultsQuery.isLoading);
+
   return {
     search,
     setSearch,
@@ -301,8 +313,8 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     filterFields: filterFieldsQuery.data,
     filterValuesByField,
     readiness,
-    resultsLoading:
-      resultsQuery.isLoading || resultsQuery.isFetching || searchDebouncing,
+    resultsLoading: resultsQuery.isLoading || searchDebouncing,
+    resultsRefreshing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
     filterDiscoveryLoading:
       filterFieldsQuery.isLoading ||
