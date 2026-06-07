@@ -2,16 +2,11 @@
 
 This package is the first frontend prototype for the local Atlas web app.
 
-It intentionally keeps one shared API/client/state layer and two visual implementations:
+It uses React, Ant Design, TanStack Query, and Rust-generated Atlas DTOs for the local search-to-detail workflow.
 
-- Ant Design
-- Mantine
+## Component Library
 
-Both implementations render the same search-to-detail workflow so the component-library comparison is grounded in the product surface rather than isolated widgets.
-
-## Component-library comparison
-
-The comparison intentionally shares Atlas behavior and isolates library-owned filters/results. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the evaluation matrix and guidance on when native library support should count as an advantage versus when custom Atlas composition is expected.
+Ant Design is the selected component library for the prototype. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the decision note and retained comparison context.
 
 ## Development
 
@@ -53,7 +48,10 @@ cargo test -p atlas-app-model
 Frontend validation commands:
 
 ```bash
-npm run test
+npm run format:check
 npm run lint
+npm run typecheck
+npm run test
 npm run build
+npm run verify
 ```

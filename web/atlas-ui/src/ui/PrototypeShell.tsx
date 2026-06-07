@@ -2,23 +2,18 @@ import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { ColorSchemePreference, ResolvedColorScheme } from "./atlasTheme";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
-import type { LibraryPrototype } from "../state/searchState";
 
 type PrototypeShellProps = {
-  activeLibrary: LibraryPrototype;
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
-  onLibraryChange: (library: LibraryPrototype) => void;
   resolvedColorScheme: ResolvedColorScheme;
   workspace: AtlasWorkspaceState;
   children: React.ReactNode;
 };
 
 export function PrototypeShell({
-  activeLibrary,
   colorScheme,
   onColorSchemeChange,
-  onLibraryChange,
   resolvedColorScheme,
   workspace,
   children,
@@ -49,24 +44,6 @@ export function PrototypeShell({
         </div>
         <div className="topbar__actions">
           <span className={`status-pill status-pill--${status}`}>{status}</span>
-          <div className="library-switch" role="tablist" aria-label="Component library">
-            <button
-              aria-selected={activeLibrary === "ant"}
-              onClick={() => onLibraryChange("ant")}
-              role="tab"
-              type="button"
-            >
-              AntD
-            </button>
-            <button
-              aria-selected={activeLibrary === "mantine"}
-              onClick={() => onLibraryChange("mantine")}
-              role="tab"
-              type="button"
-            >
-              Mantine
-            </button>
-          </div>
           <button
             className="icon-button"
             aria-pressed={diagnosticsOpen}

@@ -7,7 +7,6 @@ import type {
   RecordListSortView,
 } from "../generated/atlas";
 
-export type LibraryPrototype = "ant" | "mantine";
 export type TraitOperator = "include_all" | "include_any";
 export type NumericRangeState = {
   min: number | null;

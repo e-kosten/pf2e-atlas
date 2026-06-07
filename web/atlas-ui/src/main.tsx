@@ -1,4 +1,3 @@
-import "@mantine/core/styles.css";
 import "antd/dist/reset.css";
 import "./styles.css";
 
