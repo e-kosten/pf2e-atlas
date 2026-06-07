@@ -44,6 +44,7 @@ flowchart TD
 | Crate | Owns | Should not own |
 | --- | --- | --- |
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives, including the simple product filter DTO and canonical `SearchFilterNode` tree. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
+| `atlas-tags` | Future owner for tag ontology, YAML parsing, applicability evaluation, assignment validation, evidence validation, ontology suggestions, and tagging agent contract DTOs. | Raw source normalization, SQLite schema, runtime path policy, CLI presentation, or terminal rendering. |
 | `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
 | `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
 | `atlas-index` | Read-only completed-artifact access through narrow read capability traits and the composite `RetrievalReadIndex` bundle implemented by `SqliteIndexReader`, Diesel-backed relational schema and migrations, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, filter discovery field policy and SQLite extractor rendering, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership, shared discovery/result DTO vocabulary. |
@@ -151,7 +152,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 - canonical records: `records`
 - supplemental content: `record_content`
 - aliases and remaster links: `record_aliases`, `remaster_links`
-- filterable projections: `record_traits`, actor/item/spell side tables
+- filterable projections: `record_traits`, actor/item/spell side tables; future `record_tags`
 - discovery catalogs: `filter_field_catalog`, `filter_value_catalog`, `filter_sample_catalog`, `filter_numeric_catalog`
 - open metrics and catalogs: `record_metrics`, `metric_key_catalog`, `metric_value_catalog`
 - reference graph: `reference_edges`
@@ -162,5 +163,5 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 
 - The future Ratatui workbench is a runtime consumer. It should compose through `atlas-search`, `atlas-index`, `atlas-runtime`, and `atlas-record` rather than opening SQLite or embedding models directly.
 - Journal pages and table results are recognized as rich content but are deferred to [Rust content subdocuments for journal pages and table results](../backlog/items/rust-content-subdocuments-journal-table-results.md).
-- Derived-tag rows are intentionally deferred until the Rust artifact model has a dedicated derived-tag design.
+- Tag rows are intentionally deferred until the accepted [tagging architecture](./tagging.md) is implemented. The target runtime table family is `record_tags`, written during regular `atlas index build` from validated YAML catalog and assignment files.
 - Search quality tuning and broader full-corpus parity remain follow-up validation work, not reasons to reintroduce raw JSON scanning or duplicate markup parsing.

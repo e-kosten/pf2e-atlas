@@ -14,6 +14,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0025-rust-graph-context-retrieval.md`](./0025-rust-graph-context-retrieval.md): graph context retrieval is key-based, one-hop, and separate from search relationship filters.
 - [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): PF2e Atlas is a Rust CLI plus first-party skill product; future TUI and derived tags are Rust-owned follow-ups.
 - [`0027-rust-runtime-lint-policy.md`](./0027-rust-runtime-lint-policy.md): runtime Rust code denies panic-oriented Clippy lints outside tests, while tests keep assertion-oriented unwrap/expect ergonomics.
+- [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): tags are global Rust-owned concepts with typed applicability, YAML-authored assignments, unanimous agent assignment, and `record_tags` artifact rows.
 
 ## Historical ADRs
 
