@@ -1,5 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type PaneKey = "filter" | "results" | "detail";
 
@@ -46,36 +46,47 @@ export function WorkspaceLayout({
     results: false,
     detail: false,
   });
+  const [detailCollapsedForRecordKey, setDetailCollapsedForRecordKey] = useState<
+    string | null
+  >(null);
   const dragState = useRef<{
     handle: "filter-results" | "results-detail";
     startX: number;
     startWidths: PaneState;
   } | null>(null);
 
-  useEffect(() => {
-    if (!selectedRecordKey) {
-      return;
-    }
-    setCollapsed((current) =>
-      current.detail ? { ...current, detail: false } : current,
-    );
-  }, [selectedRecordKey]);
+  const effectiveCollapsed = useMemo(
+    () => ({
+      ...collapsed,
+      detail:
+        collapsed.detail &&
+        detailCollapsedForRecordKey !== null &&
+        detailCollapsedForRecordKey === selectedRecordKey,
+    }),
+    [collapsed, detailCollapsedForRecordKey, selectedRecordKey],
+  );
 
   const gridTemplateColumns = useMemo(
     () =>
       [
-        paneColumn("filter", collapsed, widths),
+        paneColumn("filter", effectiveCollapsed, widths),
         "var(--panel-gap)",
-        paneColumn("results", collapsed, widths),
+        paneColumn("results", effectiveCollapsed, widths),
         "var(--panel-gap)",
-        paneColumn("detail", collapsed, widths),
+        paneColumn("detail", effectiveCollapsed, widths),
       ]
         .map((value) => (typeof value === "number" ? `${value}px` : value))
         .join(" "),
-    [collapsed, widths],
+    [effectiveCollapsed, widths],
   );
 
   function togglePane(pane: PaneKey) {
+    if (pane === "detail") {
+      const nextDetailCollapsed = !effectiveCollapsed.detail;
+      setDetailCollapsedForRecordKey(nextDetailCollapsed ? selectedRecordKey : null);
+      setCollapsed((current) => ({ ...current, detail: nextDetailCollapsed }));
+      return;
+    }
     setCollapsed((current) => ({ ...current, [pane]: !current[pane] }));
   }
 
@@ -119,7 +130,7 @@ export function WorkspaceLayout({
   return (
     <main className="workspace-grid" style={{ gridTemplateColumns }}>
       <WorkspacePane
-        collapsed={collapsed.filter}
+        collapsed={effectiveCollapsed.filter}
         headerActions={filterHeaderActions}
         label="Filters"
         onToggle={() => togglePane("filter")}
@@ -127,14 +138,14 @@ export function WorkspaceLayout({
         {filter}
       </WorkspacePane>
       <ResizeHandle
-        disabled={collapsed.filter && collapsed.results}
+        disabled={effectiveCollapsed.filter && effectiveCollapsed.results}
         label="Resize filters"
         onPointerDown={(event) => beginResize("filter-results", event)}
         onPointerMove={resize}
         onPointerUp={endResize}
       />
       <WorkspacePane
-        collapsed={collapsed.results}
+        collapsed={effectiveCollapsed.results}
         headerActions={resultsHeaderActions}
         label="Results"
         onToggle={() => togglePane("results")}
@@ -142,14 +153,14 @@ export function WorkspaceLayout({
         {results}
       </WorkspacePane>
       <ResizeHandle
-        disabled={collapsed.results && collapsed.detail}
+        disabled={effectiveCollapsed.results && effectiveCollapsed.detail}
         label="Resize results"
         onPointerDown={(event) => beginResize("results-detail", event)}
         onPointerMove={resize}
         onPointerUp={endResize}
       />
       <WorkspacePane
-        collapsed={collapsed.detail}
+        collapsed={effectiveCollapsed.detail}
         headerActions={detailHeaderActions}
         label="Detail"
         onToggle={() => togglePane("detail")}
