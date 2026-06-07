@@ -6,6 +6,7 @@ Read this document first when you need to understand crate ownership, then follo
 
 - [Runtime architecture](./runtime.md): crate ownership, ingest flow, content/search/reference projections, and runtime query flow.
 - [Artifact contract](./artifact-contract.md): SQLite schema, table families, validation contract, and embedding/vector artifact boundary.
+- [Tagging architecture](./tagging.md): Rust-owned tag ontology, assignment corpus, agent workflow, context packets, and future `record_tags` artifact integration.
 - [Architecture decisions](./decisions/README.md): accepted durable design decisions.
 
 ## Crate Map
@@ -15,6 +16,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
 - `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
+- `atlas-tags` will own tag ontology, YAML parsing, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs once the first tagging implementation slice lands.
 - `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
 - `atlas-record` owns normalized records, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
@@ -68,9 +70,11 @@ Skill guidance should use installed `atlas` commands. Contributor-only `cargo ru
 
 A future Ratatui workbench should consume the Rust runtime crates through `atlas-runtime`, `atlas-search`, `atlas-index`, and `atlas-record`. Screen code should not open SQLite, load embedding models, or duplicate artifact/readiness policy.
 
-### Future Derived Tags
+### Tags
 
-Derived tags are a planned Rust redesign. The retained model should be defined against record kinds, explicit metadata axes, typed filter discovery, and Rust artifact ownership before adding an `atlas-tags` crate or persisted tag rows.
+Tags are a planned Rust-owned product surface with an accepted architecture model. Tags are global concepts with typed applicability over record kind, optional Foundry record type refinements, and small normalized fact predicates. They are authored as YAML, assigned through an agent-first workflow, and will become authoritative runtime filters through `record_tags` rows written during regular `atlas index build`.
+
+See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-tagging-model.md).
 
 ## Data Flow
 
@@ -96,4 +100,5 @@ Derived tags are a planned Rust redesign. The retained model should be defined a
 
 - [Runtime architecture](./runtime.md)
 - [Artifact contract](./artifact-contract.md)
+- [Tagging architecture](./tagging.md)
 - [Architecture decisions](./decisions/README.md)
