@@ -1,0 +1,15 @@
+records:
+  - record_key: spells-srd:generic-flavor-cantrip
+    name: Generic Flavor Cantrip
+    tags: []
+    note: Short record text did not establish a useful retrieval concept.
+
+  - record_key: equipment-srd:plain-clothing
+    name: Plain Clothing
+    tags: []
+    note: Generic item; no high-value setting, utility, or build-support tag.
+
+  - record_key: bestiary:minimal-placeholder
+    name: Minimal Placeholder
+    tags: []
+    note: Parsed record lacks enough descriptive content for a repeatable assignment.

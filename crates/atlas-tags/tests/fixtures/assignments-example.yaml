@@ -1,0 +1,41 @@
+records:
+  - record_key: spells-srd:dispel-magic
+    name: Dispel Magic
+    tags:
+      - tag_id: problem.counteract_magic
+        evidence:
+          - kind: content_excerpt
+            path: description
+            quote: You attempt to counteract a spell or magical effect.
+          - kind: normalized_fact
+            field: record_kind
+            value: spell
+        note: Core use is removing active magic.
+
+  - record_key: spells-srd:water-breathing
+    name: Water Breathing
+    tags:
+      - tag_id: exploration.environment.aquatic
+        evidence:
+          - kind: content_excerpt
+            path: description
+            quote: Allows creatures to breathe underwater.
+          - kind: tag_guidance_match
+            signal: Enables underwater exploration.
+            explanation: The spell directly solves a travel or environment problem.
+        note: Enables aquatic exploration rather than combat advantage alone.
+
+  - record_key: equipment-srd:spyglass
+    name: Spyglass
+    tags:
+      - tag_id: exploration.reconnaissance.long_range
+        evidence:
+          - kind: content_excerpt
+            path: description
+            quote: Helps view distant objects.
+          - kind: normalized_fact
+            field: foundry_record_type
+            value: equipment
+          - kind: presentation_section
+            section: description
+            summary: The presented description is about distant visual inspection.
