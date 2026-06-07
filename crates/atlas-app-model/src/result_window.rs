@@ -3,27 +3,6 @@ use ts_rs::TS;
 
 use crate::{BasicSearchFilter, RecordSummaryView};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct BasicSearchState {
-    pub v: u32,
-    pub mode: BasicSearchMode,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub sort: Option<RecordListSortView>,
-    pub page_size: u32,
-    pub page: u32,
-    pub filter: BasicSearchFilter,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum BasicSearchMode {
-    Browse,
-    TextSearch { query: String },
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SearchPageRequest {
