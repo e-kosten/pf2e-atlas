@@ -189,14 +189,16 @@ export function AntPrototype({ workspace }: AntPrototypeProps) {
           </div>
           <PaginationControls workspace={workspace} />
         </div>
-        <Table
-          columns={columns}
-          dataSource={resultPage?.rows ?? []}
-          loading={workspace.resultsLoading}
-          pagination={false}
-          rowKey={(row) => row.record.record_key}
-          size="middle"
-        />
+        <div className="results-scroll">
+          <Table
+            columns={columns}
+            dataSource={resultPage?.rows ?? []}
+            loading={workspace.resultsLoading}
+            pagination={false}
+            rowKey={(row) => row.record.record_key}
+            size="middle"
+          />
+        </div>
       </section>
       <section className="detail-panel">
         <RecordPresentation

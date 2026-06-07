@@ -11,6 +11,13 @@
   --warning: #a56a00;
   --danger: #9b2f2f;
   --shadow: 0 16px 36px rgba(24, 38, 33, 0.08);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+  --control-height: 34px;
+  --panel-gap: 14px;
+  --panel-padding: 14px;
 }
 
 :root[data-theme="dark"] {
@@ -88,7 +95,7 @@ button {
   align-items: center;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   color: var(--muted);
   background: var(--panel-subtle);
@@ -106,9 +113,9 @@ button {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
   width: 162px;
-  height: 34px;
+  height: var(--control-height);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--panel-subtle);
 }
@@ -129,10 +136,10 @@ button {
 .icon-button {
   display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: var(--control-height);
+  height: var(--control-height);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--panel);
 }
 
@@ -140,7 +147,7 @@ button {
   margin: 12px 22px 0;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, var(--panel));
 }
@@ -148,9 +155,9 @@ button {
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(360px, 520px);
-  gap: 14px;
+  gap: var(--panel-gap);
   height: calc(100vh - 77px);
-  padding: 14px;
+  padding: var(--panel-gap);
 }
 
 .filter-panel,
@@ -159,7 +166,7 @@ button {
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
   box-shadow: var(--shadow);
 }
@@ -167,8 +174,8 @@ button {
 .filter-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
+  gap: var(--panel-gap);
+  padding: var(--panel-padding);
   overflow: auto;
 }
 
@@ -194,6 +201,12 @@ button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.results-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .panel-heading {
@@ -304,7 +317,7 @@ button {
   min-height: 24px;
   padding: 0 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-subtle);
   color: var(--muted);
   font-size: 12px;
@@ -320,7 +333,7 @@ button {
 .fact-grid div {
   padding: 9px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--panel-subtle);
 }
 
