@@ -12,6 +12,7 @@ use crate::commands::record::args::{RecordArgs, RecordCommand};
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
+use crate::commands::tags::args::{TagsArgs, TagsCommand};
 use crate::commands::web::args::WebArgs;
 use crate::{commands, output, progress};
 
@@ -57,6 +58,8 @@ pub(crate) enum Command {
     Web(WebArgs),
     #[command(about = "Discover filter fields and values")]
     Filters(FiltersArgs),
+    #[command(about = "Validate and inspect authored tag data")]
+    Tags(TagsArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
     Agent(AgentArgs),
     #[command(about = "Generate shell completion scripts")]
@@ -117,6 +120,9 @@ impl Command {
                 FiltersCommand::Fields(options) => options.json,
                 FiltersCommand::Values(options) => options.json,
             },
+            Self::Tags(tags) => match &tags.command {
+                TagsCommand::Validate(options) => options.json,
+            },
             Self::Agent(args) => args.uses_json(),
             Self::Completions(_) => false,
         }
@@ -157,6 +163,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             FiltersCommand::Values(options) => {
                 commands::filter_discovery::run_filters_values(*options)
             }
+        },
+        Command::Tags(tags) => match tags.command {
+            TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),
         },
         Command::Agent(agent) => commands::agent_skills::run_agent(agent),
         Command::Completions(args) => commands::completions::run_completions(args, Cli::command()),
