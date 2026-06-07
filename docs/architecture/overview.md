@@ -14,6 +14,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-app-model` owns interactive app DTOs for local web/TUI-style workflows, including app errors, readiness, basic filters, result windows, and record view wrappers. It is the default Rust-to-TypeScript export boundary for app contracts.
 - `atlas-app-service` owns long-lived interactive workflow orchestration over `atlas-runtime` and `atlas-search`. It opens one full retrieval service through runtime setup/readiness policy, owns result windows, lowers app filters to canonical filters, and exposes native methods to web and future TUI surfaces.
 - `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
+- `web/atlas-ui` owns the TypeScript/React frontend prototype. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and contains the Ant Design vs Mantine comparison screens. It should not own retrieval semantics or duplicate Rust DTO contracts.
 - `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
@@ -38,6 +39,7 @@ flowchart TD
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
     cli --> web["atlas-web<br/>local Axum API"]
+    browser["web/atlas-ui<br/>React prototype"] --> web
     web --> appService["atlas-app-service<br/>interactive workflow service"]
     appService --> appModel["atlas-app-model<br/>interactive DTOs"]
     appService --> runtime
@@ -74,6 +76,8 @@ It should not own durable retrieval semantics, filter discovery behavior, SQLite
 
 The app service opens a full `AtlasRetrievalService` through `AtlasRuntime::open_retrieval_service` and should fail startup when artifact, vector, or embedding readiness is not satisfied. It must not use `open_retrieval_service_no_embeddings`, which remains a CLI-only shortcut for short-lived commands that do not need semantic retrieval.
 
+`web/atlas-ui` is a Vite/React prototype package. During frontend prototyping, run it as a Vite dev server that proxies `/api/*` to the local `atlas-web` service. It imports the Rust-generated TypeScript DTO surface through `web/atlas-ui/src/generated/atlas.ts`; frontend code should use those generated contracts rather than hand-written duplicate app DTOs.
+
 ### Agent Skill
 
 The first-party PF2e Atlas CLI skill lives under `skills/pf2e-atlas-cli` and is packaged by `atlas-cli`. The skill teaches local agents how to choose between record lookup, strict resolution, search, graph context, filter discovery, and readiness diagnostics.
@@ -101,6 +105,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 7. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`.
 8. `atlas-app-service` holds long-lived retrieval state for interactive sessions and adapts app DTOs into `atlas-search` requests.
 9. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
+10. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
 
 ## Editing Guidance
 
@@ -109,6 +114,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 - Run `cargo test -p atlas-app-model` after app DTO changes; it fails when checked-in TypeScript bindings drift. Regenerate bindings intentionally with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
 - Keep `atlas-app-service` behind runtime/search boundaries. It should not import `atlas-index`, assemble SQLite readers, or use no-embeddings retrieval shortcuts.
 - Keep `atlas-web` as transport glue. It adapts HTTP requests/errors to app-service methods and should not own retrieval semantics.
+- Keep `web/atlas-ui` focused on browser presentation, frontend state, component-library comparison, and the thin API client. It should import generated DTOs from the app-model binding surface rather than redefining Rust-owned contracts.
 - Keep `atlas-cli/src/main.rs` as the binary entrypoint only. Top-level command composition and dispatch belong in `atlas-cli/src/cli.rs`; shared CLI argument groups and parsers belong under `atlas-cli/src/cli/`; command-specific argument grammar, execution, and presentation belong under `atlas-cli/src/commands/`.
 - Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
 - Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
