@@ -86,6 +86,32 @@ describe("useAtlasWorkspace", () => {
       query: "fi",
     });
   });
+
+  it("tracks keyboard result selection separately from opened detail routes", async () => {
+    apiMocks.openResultWindow.mockResolvedValue(
+      resultWindowPage(["spell:dirge-of-doom", "spell:heal"]),
+    );
+    apiMocks.getRecordDetail.mockResolvedValue({ record_key: "spell:heal" });
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current.activeResultKey).toBe("spell:dirge-of-doom"),
+    );
+
+    act(() => result.current.moveResultSelection("next"));
+    expect(result.current.activeResultKey).toBe("spell:heal");
+    expect(result.current.selectedRecordKey).toBeNull();
+
+    act(() => result.current.openActiveResult());
+    expect(result.current.selectedRecordKey).toBe("spell:heal");
+    expect(window.location.pathname).toBe("/records/spell%3Aheal");
+
+    act(() => result.current.selectRecord(null));
+    expect(result.current.selectedRecordKey).toBeNull();
+    expect(window.location.pathname).toBe("/");
+  });
 });
 
 function queryClientWrapper() {
@@ -103,7 +129,7 @@ function queryClientWrapper() {
   };
 }
 
-function resultWindowPage(): ResultWindowPage {
+function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
   return {
     window_id: 1n,
     mode: { kind: "text_search", query: "" },
@@ -114,7 +140,14 @@ function resultWindowPage(): ResultWindowPage {
       total: 0n,
       has_more: false,
     },
-    rows: [],
+    rows: recordKeys.map((recordKey) => ({
+      record: {
+        record_key: recordKey,
+        title: recordKey.split(":")[1] ?? recordKey,
+        kind: "spell",
+        kind_label: "Spell",
+      },
+    })),
   };
 }
 

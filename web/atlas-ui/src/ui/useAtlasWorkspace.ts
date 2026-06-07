@@ -47,6 +47,10 @@ export type AtlasWorkspaceDiagnostics = {
 export type AtlasWorkspaceState = {
   search: SearchFormState;
   setSearch: (next: SearchFormState) => void;
+  activeResultKey: string | null;
+  focusResult: (recordKey: string) => void;
+  moveResultSelection: (direction: "next" | "previous") => void;
+  openActiveResult: () => void;
   selectedRecordKey: string | null;
   selectRecord: (recordKey: string | null) => void;
   pageNumber: number;
@@ -71,6 +75,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(
     () => recordKeyFromPath(window.location.pathname),
   );
+  const [activeResultKey, setActiveResultKey] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(search.pageSize > 0 ? 1 : 1);
   const [windowId, setWindowId] = useState<bigint | null>(null);
   const [activeSearch, setActiveSearch] = useState(search);
@@ -196,6 +201,20 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     enabled: selectedRecordKey !== null,
   });
 
+  const resultRows = resultsQuery.data?.rows ?? [];
+
+  useEffect(() => {
+    if (resultRows.length === 0) {
+      setActiveResultKey(null);
+      return;
+    }
+    setActiveResultKey((current) =>
+      current && resultRows.some((row) => row.record.record_key === current)
+        ? current
+        : resultRows[0].record.record_key,
+    );
+  }, [resultRows]);
+
   function setSearch(next: SearchFormState) {
     setSearchState(next);
     const url = selectedRecordKey
@@ -211,6 +230,35 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
         ? `/?s=${searchToken}`
         : `/records/${encodeURIComponent(recordKey)}?s=${searchToken}`;
     history.pushState(null, "", url);
+  }
+
+  function moveResultSelection(direction: "next" | "previous") {
+    if (resultRows.length === 0) {
+      setActiveResultKey(null);
+      return;
+    }
+    const currentIndex = activeResultKey
+      ? resultRows.findIndex((row) => row.record.record_key === activeResultKey)
+      : -1;
+    const fallbackIndex = direction === "next" ? 0 : resultRows.length - 1;
+    const nextIndex =
+      currentIndex === -1
+        ? fallbackIndex
+        : Math.min(
+            resultRows.length - 1,
+            Math.max(0, currentIndex + (direction === "next" ? 1 : -1)),
+          );
+    setActiveResultKey(resultRows[nextIndex].record.record_key);
+  }
+
+  function focusResult(recordKey: string) {
+    setActiveResultKey(recordKey);
+  }
+
+  function openActiveResult() {
+    if (activeResultKey) {
+      selectRecord(activeResultKey);
+    }
   }
 
   const errorMessage =
@@ -230,6 +278,10 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   return {
     search,
     setSearch,
+    activeResultKey,
+    focusResult,
+    moveResultSelection,
+    openActiveResult,
     selectedRecordKey,
     selectRecord,
     pageNumber,

@@ -1,10 +1,13 @@
-import { Button, Space, Table, Tag } from "antd";
+import { Space, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ResultWindowRow } from "../../generated/atlas";
+import { handleResultKeyboard, useActiveResultScroll } from "../resultKeyboard";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function AntResults({ workspace }: { workspace: AtlasWorkspaceState }) {
+  const scrollRef = useActiveResultScroll<HTMLDivElement>(
+    workspace.activeResultKey,
+  );
   const columns: ColumnsType<ResultWindowRow> = [
     {
       title: "Record",
@@ -46,48 +49,34 @@ export function AntResults({ workspace }: { workspace: AtlasWorkspaceState }) {
 
   return (
     <section className="results-panel">
-      <div className="panel-heading">
-        <div>
-          <h2>Results</h2>
-          <p>
-            {workspace.resultPage
-              ? `${workspace.resultPage.page.total.toLocaleString()} records`
-              : "No result window yet"}
-          </p>
-        </div>
-        <PaginationControls workspace={workspace} />
-      </div>
-      <div className="results-scroll">
+      <div
+        aria-label="Results"
+        className="results-scroll results-scroll--focusable"
+        onKeyDown={(event) => handleResultKeyboard(event, workspace)}
+        ref={scrollRef}
+        tabIndex={0}
+      >
         <Table
           columns={columns}
           dataSource={workspace.resultPage?.rows ?? []}
           loading={workspace.resultsLoading}
           pagination={false}
+          rowClassName={(row) =>
+            row.record.record_key === workspace.activeResultKey
+              ? "result-row result-row--active"
+              : "result-row"
+          }
+          onRow={(row) => ({
+            "data-active-result":
+              row.record.record_key === workspace.activeResultKey
+                ? "true"
+                : undefined,
+            onMouseEnter: () => workspace.focusResult(row.record.record_key),
+          })}
           rowKey={(row) => row.record.record_key}
           size="middle"
         />
       </div>
     </section>
-  );
-}
-
-function PaginationControls({ workspace }: { workspace: AtlasWorkspaceState }) {
-  const page = workspace.resultPage?.page;
-  return (
-    <div className="pager">
-      <Button
-        disabled={workspace.pageNumber <= 1}
-        icon={<ChevronLeft size={16} />}
-        onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-      />
-      <span>{page ? `${page.number}` : workspace.pageNumber}</span>
-      <Button
-        disabled={!page?.has_more}
-        icon={<ChevronRight size={16} />}
-        onClick={() =>
-          workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-        }
-      />
-    </div>
   );
 }
