@@ -1,5 +1,5 @@
-import { Badge, Button, Group, ScrollArea, Table } from "@mantine/core";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge, Group, ScrollArea, Table } from "@mantine/core";
+import { handleResultKeyboard, useActiveResultScroll } from "../resultKeyboard";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function MantineResults({
@@ -7,20 +7,19 @@ export function MantineResults({
 }: {
   workspace: AtlasWorkspaceState;
 }) {
+  const scrollRef = useActiveResultScroll<HTMLDivElement>(
+    workspace.activeResultKey,
+  );
+
   return (
     <section className="results-panel">
-      <div className="panel-heading">
-        <div>
-          <h2>Results</h2>
-          <p>
-            {workspace.resultPage
-              ? `${workspace.resultPage.page.total.toLocaleString()} records`
-              : "No result window yet"}
-          </p>
-        </div>
-        <PaginationControls workspace={workspace} />
-      </div>
-      <ScrollArea>
+      <ScrollArea
+        aria-label="Results"
+        className="results-scroll--focusable"
+        onKeyDown={(event) => handleResultKeyboard(event, workspace)}
+        ref={scrollRef}
+        tabIndex={0}
+      >
         <Table highlightOnHover stickyHeader>
           <Table.Thead>
             <Table.Tr>
@@ -32,7 +31,20 @@ export function MantineResults({
           </Table.Thead>
           <Table.Tbody>
             {(workspace.resultPage?.rows ?? []).map((row) => (
-              <Table.Tr key={row.record.record_key}>
+              <Table.Tr
+                className={
+                  row.record.record_key === workspace.activeResultKey
+                    ? "result-row result-row--active"
+                    : "result-row"
+                }
+                key={row.record.record_key}
+                data-active-result={
+                  row.record.record_key === workspace.activeResultKey
+                    ? "true"
+                    : undefined
+                }
+                onMouseEnter={() => workspace.focusResult(row.record.record_key)}
+              >
                 <Table.Td>
                   <button
                     className="row-link"
@@ -60,28 +72,5 @@ export function MantineResults({
         </Table>
       </ScrollArea>
     </section>
-  );
-}
-
-function PaginationControls({ workspace }: { workspace: AtlasWorkspaceState }) {
-  const page = workspace.resultPage?.page;
-  return (
-    <Group gap={6} className="pager">
-      <Button
-        disabled={workspace.pageNumber <= 1}
-        leftSection={<ChevronLeft size={16} />}
-        onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-        variant="subtle"
-      />
-      <span>{page ? `${page.number}` : workspace.pageNumber}</span>
-      <Button
-        disabled={!page?.has_more}
-        rightSection={<ChevronRight size={16} />}
-        onClick={() =>
-          workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-        }
-        variant="subtle"
-      />
-    </Group>
   );
 }

@@ -1,7 +1,9 @@
 import { MantineFilters } from "./mantine/MantineFilters";
 import { MantineResults } from "./mantine/MantineResults";
 import { RecordPresentation } from "./recordPresentation";
+import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
+import { WorkspaceLayout } from "./WorkspaceLayout";
 
 export function MantinePrototype({
   workspace,
@@ -9,16 +11,21 @@ export function MantinePrototype({
   workspace: AtlasWorkspaceState;
 }) {
   return (
-    <main className="workspace-grid workspace-grid--mantine">
-      <MantineFilters workspace={workspace} />
-      <MantineResults workspace={workspace} />
-      <section className="detail-panel">
-        <RecordPresentation
-          detail={workspace.recordDetail}
-          loading={workspace.detailLoading}
-          onReference={workspace.selectRecord}
-        />
-      </section>
-    </main>
+    <WorkspaceLayout
+      variant="mantine"
+      filter={<MantineFilters workspace={workspace} />}
+      results={<MantineResults workspace={workspace} />}
+      resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
+      selectedRecordKey={workspace.selectedRecordKey}
+      detail={
+        <section className="detail-panel">
+          <RecordPresentation
+            detail={workspace.recordDetail}
+            loading={workspace.detailLoading}
+            onReference={workspace.selectRecord}
+          />
+        </section>
+      }
+    />
   );
 }
