@@ -40,6 +40,18 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
   Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage. Status: proposed.
 
+- [Rust web UI architecture review](./items/rust-web-ui-architecture-review.md)
+  Review the first web UI vertical slice for DTO/API boundaries, state ownership, AntD composition, module layout, and tests before substantial follow-up feature work. Status: proposed.
+
+- [Rust web filter UX expansion](./items/rust-web-filter-ux-expansion.md)
+  Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: proposed.
+
+- [Rust web record detail polish](./items/rust-web-record-detail-polish.md)
+  Improve record detail readability, navigation, loading states, and shared presentation-contract usage in the web UI. Status: proposed.
+
+- [Rust web keyboard navigation and focus](./items/rust-web-keyboard-navigation-focus.md)
+  Define a coherent keyboard-driven web workflow across search, filters, results, detail panes, and editable controls. Status: proposed.
+
 ## Later
 
 - [Rust derived-tag runtime and editorial redesign](./items/rust-derived-tag-redesign.md)
@@ -62,6 +74,12 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Rust web text-scoped filter counts](./items/rust-web-text-scoped-filter-counts.md)
   Design query-aware dynamic filter counts for the web search experience without duplicating text retrieval semantics in the app layer. Status: deferred.
+
+- [Rust web static frontend serving](./items/rust-web-static-frontend-serving.md)
+  Serve the built web UI through `atlas-web` for normal `atlas web` usage while preserving Vite as the development path. Status: deferred.
+
+- [Rust web Vite bundle cleanup](./items/rust-web-vite-bundle-cleanup.md)
+  Evaluate and reduce large frontend chunks once the UI shape stabilizes. Status: proposed.
 
 - [Rust FTS tokenization and stemming exploration](./items/rust-fts-tokenization-stemming.md)
   Evaluate SQLite FTS tokenizer/stemming choices for inflection handling. Status: proposed.
