@@ -502,7 +502,14 @@ fn match_summary(match_info: &TextSearchMatch) -> ResultMatchSummary {
 
 #[cfg(test)]
 mod tests {
-    use atlas_app_model::{BasicSearchFilter, ResultWindowMode};
+    use atlas_app_model::{
+        BasicSearchFilter, FilterClause, FilterClauseOperator, FilterDiscoveryContext,
+        OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultWindowMode,
+        SearchPageRequest,
+    };
+    use atlas_search::test_support::{
+        FixtureArtifact, minimal_fixture_retrieval_service_without_embeddings,
+    };
 
     use super::*;
 
@@ -609,6 +616,133 @@ mod tests {
         assert!(store.get(window_id).is_ok());
     }
 
+    #[test]
+    fn app_service_start_fails_when_artifact_is_unavailable() {
+        let missing_path = std::env::temp_dir().join(format!(
+            "atlas-app-service-missing-{}-{}.sqlite",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let result = AtlasAppService::start(AtlasAppServiceOptions {
+            path_mode: AtlasPathMode::Global,
+            source_root: None,
+            embedding_cache_root: None,
+            index_path: Some(missing_path),
+        });
+
+        let error = match result {
+            Ok(_) => panic!(
+                "web app service startup should fail instead of using no-embeddings fallback"
+            ),
+            Err(error) => error.into_app_error(),
+        };
+        assert_eq!(error.code, AppErrorCode::IndexUnavailable);
+    }
+
+    #[test]
+    fn worker_opens_and_reads_list_result_window_pages() {
+        let mut fixture = fixture_worker();
+        let worker = &mut fixture.worker;
+        let first_page = worker
+            .open_result_window(OpenResultWindowRequest {
+                mode: ResultWindowMode::ListRecords {
+                    filter: None,
+                    sort: RecordListSortView::RecordKey,
+                },
+                page: SearchPageRequest { number: 1, size: 2 },
+                include_diagnostics: false,
+            })
+            .expect("fixture list window should open");
+
+        assert_eq!(first_page.window_id, 1);
+        assert_eq!(first_page.page.number, 1);
+        assert_eq!(first_page.page.count, 2);
+        assert_eq!(first_page.page.total, 3);
+        assert_eq!(first_page.rows[0].record.record_key, "actions:testAction1");
+        assert_eq!(first_page.rows[0].record.pack.as_deref(), Some("Actions"));
+
+        let second_page = worker
+            .read_result_window_page(
+                first_page.window_id,
+                ReadResultWindowPageRequest {
+                    page: SearchPageRequest { number: 2, size: 2 },
+                },
+            )
+            .expect("stored fixture window should read later page");
+
+        assert_eq!(second_page.page.number, 2);
+        assert_eq!(second_page.page.count, 1);
+        assert_eq!(second_page.rows[0].record.record_key, "actions:testAction3");
+    }
+
+    #[test]
+    fn worker_record_detail_reports_valid_invalid_and_missing_keys() {
+        let fixture = fixture_worker();
+        let worker = &fixture.worker;
+
+        let detail = worker
+            .record_detail("actions:testAction1")
+            .expect("fixture record should load");
+        assert_eq!(detail.record_key, "actions:testAction1");
+        assert_eq!(detail.title, "Test Action 1");
+        assert_eq!(detail.kind, "rule");
+        assert_eq!(detail.presentation.title, "Test Action 1");
+
+        let invalid = worker
+            .record_detail("not a key")
+            .expect_err("invalid keys should be rejected")
+            .into_app_error();
+        assert_eq!(invalid.code, AppErrorCode::InvalidRecordKey);
+
+        let missing = worker
+            .record_detail("actions:missing")
+            .expect_err("missing keys should return not found")
+            .into_app_error();
+        assert_eq!(missing.code, AppErrorCode::RecordNotFound);
+    }
+
+    #[test]
+    fn worker_discovers_app_facing_filter_fields_and_values() {
+        let fixture = fixture_worker();
+        let worker = &fixture.worker;
+        let context = FilterDiscoveryContext::Filtered {
+            filter: BasicSearchFilter {
+                clauses: vec![FilterClause {
+                    id: "kind-include_any".to_string(),
+                    field: "kind".to_string(),
+                    operator: FilterClauseOperator::IncludeAny,
+                    values: vec!["rule".to_string()],
+                    range: None,
+                    metric: None,
+                }],
+            },
+        };
+
+        let fields = worker
+            .discover_filter_fields(atlas_app_model::DiscoverFilterFieldsRequest {
+                context: context.clone(),
+            })
+            .expect("fixture field discovery should succeed");
+
+        assert_eq!(fields.matching_record_count, 3);
+        assert!(fields.fields.iter().any(|field| field.id == "kind"));
+        assert!(fields.fields.iter().any(|field| field.id == "pack"));
+        assert!(!fields.fields.iter().any(|field| field.id == "pack_label"));
+
+        let values = worker
+            .discover_filter_values(atlas_app_model::DiscoverFilterValuesRequest {
+                context,
+                field_id: "pack".to_string(),
+            })
+            .expect("fixture value discovery should succeed");
+
+        assert_eq!(values.field_id, "pack");
+        assert_eq!(values.matching_record_count, 3);
+        assert_eq!(values.options[0].value, "Actions");
+        assert_eq!(values.options[0].count, Some(3));
+        assert!(!values.options[0].disabled);
+    }
+
     fn stored_window(id: &str) -> StoredResultWindow {
         StoredResultWindow {
             mode: ResultWindowMode::ListRecords {
@@ -619,5 +753,30 @@ mod tests {
             },
             include_diagnostics: id == "first",
         }
+    }
+
+    struct FixtureWorker {
+        worker: AppServiceWorker,
+        _artifact: FixtureArtifact,
+    }
+
+    fn fixture_worker() -> FixtureWorker {
+        let (retrieval, artifact) = minimal_fixture_retrieval_service_without_embeddings()
+            .expect("fixture retrieval service should build");
+        FixtureWorker {
+            worker: AppServiceWorker {
+                retrieval,
+                windows: ResultWindowStore::new(MAX_RESULT_WINDOWS),
+                next_window_id: AtomicU64::new(1),
+            },
+            _artifact: artifact,
+        }
+    }
+
+    fn unique_suffix() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos()
     }
 }

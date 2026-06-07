@@ -14,4 +14,6 @@ serde_json.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
+atlas-domain.workspace = true
+atlas-record.workspace = true
 tower = { version = "0.5.2", features = ["util"] }

@@ -1,4 +1,5 @@
 import {
+  buildFilterDiscoveryContext,
   buildOpenRequest,
   decodeSearchState,
   DEFAULT_SEARCH_STATE,
@@ -47,6 +48,25 @@ describe("searchState", () => {
     });
     expect("sort" in request.mode).toBe(false);
     expect(request.include_diagnostics).toBe(true);
+  });
+
+  it("builds filter discovery context from filters only", () => {
+    const context = buildFilterDiscoveryContext({
+      ...DEFAULT_SEARCH_STATE,
+      mode: "text_search",
+      query: "fireball",
+      rarity: ["rare"],
+    });
+
+    expect(context).toEqual({
+      kind: "filtered",
+      filter: {
+        clauses: expect.arrayContaining([
+          expect.objectContaining({ field: "kind" }),
+          expect.objectContaining({ field: "rarity", values: ["rare"] }),
+        ]),
+      },
+    });
   });
 
   it("builds rarity, trait, excluded trait, and level clauses", () => {

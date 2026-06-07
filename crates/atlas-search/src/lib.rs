@@ -11,6 +11,8 @@ mod remaster;
 mod semantic;
 mod service;
 mod similar;
+#[cfg(feature = "test-support")]
+pub mod test_support;
 mod text;
 mod variants;
 

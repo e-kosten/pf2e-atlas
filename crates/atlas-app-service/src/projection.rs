@@ -51,7 +51,7 @@ pub(crate) fn record_summary(record: &AtlasRecord) -> RecordSummaryView {
             })
             .collect(),
         publication: record.publication.title.clone(),
-        pack_label: Some(record.foundry.pack_label.clone()),
+        pack: Some(record.foundry.pack_label.clone()),
         preview: None,
     }
 }

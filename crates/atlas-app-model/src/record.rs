@@ -23,7 +23,7 @@ pub struct RecordSummaryView {
     pub publication: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub pack_label: Option<String>,
+    pub pack: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub preview: Option<String>,

@@ -55,7 +55,9 @@ describe("atlasApi", () => {
   });
 
   it("posts filter-field discovery requests and normalizes record counts", async () => {
-    const request = { context: { kind: "browse" as const, filter: { clauses: [] } } };
+    const request = {
+      context: { kind: "filtered" as const, filter: { clauses: [] } },
+    };
     const fetchMock = mockFetch({
       matching_record_count: 42,
       fields: [],
@@ -75,7 +77,7 @@ describe("atlasApi", () => {
 
   it("posts filter-value discovery requests and normalizes option counts", async () => {
     const request = {
-      context: { kind: "browse" as const, filter: { clauses: [] } },
+      context: { kind: "filtered" as const, filter: { clauses: [] } },
       field_id: "traits",
     };
     const fetchMock = mockFetch({
