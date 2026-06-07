@@ -26,11 +26,13 @@ When adding product behavior, prefer adding the behavior to shared state first, 
 
 | Requirement | Ant Design path | Mantine path | Custom composition cost | Notes |
 | --- | --- | --- | --- | --- |
-| Text search | `Input.Search` | `TextInput` with `leftSection` icon | Low | AntD has a native search affordance with clear/search button behavior. Mantine keeps the input simpler and composes the icon. |
-| Multi-value filters | `Select mode="multiple"` | `MultiSelect` | Low | Compare keyboard behavior, tag overflow, searchable menus, and dense layout behavior. |
+| Text search | `Form.Item` plus `Input.Search` | `TextInput` with `leftSection` icon | Low | AntD has a native search affordance with clear/search button behavior. Mantine keeps the input simpler and composes the icon. |
+| Multi-value filters | `Form.Item` plus `Select mode="multiple"` | `MultiSelect` | Low | Compare keyboard behavior, tag overflow, searchable menus, and dense layout behavior. |
 | Numeric range filters | `InputNumber` | `NumberInput` | Low | Both have native numeric inputs. Atlas owns range semantics. |
 | Boolean/toggle filters | `Checkbox` | `Checkbox` | Low | Both are native. |
 | Sort selector | `Select` | `Select` | Low | Both are native; Atlas owns sort DTO mapping. |
+| Dense filter panel grouping | `Collapse` with `Form layout="vertical"` | Plain stacked inputs/groups | Medium for Mantine if matched | AntD now supplies the stronger native form-and-section structure. Mantine can likely match this with `Accordion` plus explicit composition, but that would be additional implementation rather than current baseline. |
+| Add-filter empty/loading states | `Select` loading plus `Empty` not-found content | Plain `Select` | Low for AntD, medium for Mantine if matched | AntD's empty/loading affordances fit the dynamic filter catalog with little custom code. Mantine can represent the state, but the current prototype does less out of the box. |
 | Result table | `Table` with column config, loading, row key | `Table` inside `ScrollArea` with explicit rows | Medium for Mantine | AntD has the more complete data-table primitive. Mantine exposes table building blocks, so row rendering, loading states, empty states, selection, and future virtualization need more Atlas code or another table package. |
 | Result paging | `Button` controls | `Button` controls | Medium for both | Backend result-window paging is product-specific, so neither library removes much code here. |
 | Trait chips | `Tag` | `Badge` | Low | Both are native visual primitives. |
@@ -49,3 +51,9 @@ When comparing the two prototypes, separate these questions:
 - Theme fit: Can shared Atlas tokens produce the desired design language without brittle overrides?
 - Accessibility and keyboard behavior: Does the native component already handle expected focus, menu, table, and input behavior?
 - Custom code burden: How much Atlas-specific glue remains after using the library's intended primitives?
+
+## Current Direction
+
+Ant Design is the provisional default after the expanded-filter slice. The AntD version now uses native `Form`, `Collapse`, `Input.Search`, `Select`, `InputNumber`, `Checkbox`, `Empty`, `Alert`, and `Table` components for the main search workflow. Mantine remains useful as a comparison target, but the current implementation shows more Atlas-owned composition in Mantine for dense search-console behavior, especially sectioned filter forms and result-table behavior.
+
+Before removing Mantine, evaluate one more component-heavy pass only if a near-term feature stresses components AntD has not yet proven: advanced filter editing, keyboard-first table navigation, drawer/modal detail navigation, or virtualized results. If the next slice continues to favor AntD, remove Mantine and convert this document into a short implementation decision note.
