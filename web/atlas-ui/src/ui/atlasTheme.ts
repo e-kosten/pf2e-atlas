@@ -1,7 +1,6 @@
 import type { ThemeConfig } from "antd";
 import { theme as antTheme } from "antd";
 import type { CSSProperties } from "react";
-import type { MantineThemeOverride } from "@mantine/core";
 
 export type ColorSchemePreference = "system" | "light" | "dark";
 export type ResolvedColorScheme = "light" | "dark";
@@ -135,49 +134,6 @@ export function antDesignTheme(scheme: ResolvedColorScheme): ThemeConfig {
       },
       Tag: {
         borderRadiusSM: atlasTheme.radius.pill,
-      },
-    },
-  };
-}
-
-export function mantineTheme(scheme: ResolvedColorScheme): MantineThemeOverride {
-  const color = atlasTheme.color[scheme];
-  return {
-    primaryColor: "atlasTeal",
-    fontFamily: atlasTheme.fontFamily,
-    defaultRadius: atlasTheme.radius.md,
-    colors: {
-      atlasTeal: [
-        "#e5f6f3",
-        "#cce9e4",
-        "#99d3cb",
-        "#69bbb1",
-        "#3fa298",
-        color.accent,
-        color.accentStrong,
-        "#104842",
-        "#0c3834",
-        "#072623",
-      ],
-    },
-    primaryShade: scheme === "dark" ? 4 : 5,
-    components: {
-      Button: {
-        defaultProps: {
-          radius: atlasTheme.radius.md,
-        },
-      },
-      Input: {
-        styles: {
-          input: {
-            minHeight: atlasTheme.controlHeight,
-          },
-        },
-      },
-      Table: {
-        defaultProps: {
-          verticalSpacing: "sm",
-        },
       },
     },
   };

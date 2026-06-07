@@ -10,7 +10,6 @@ type PaneState = {
 };
 
 type WorkspaceLayoutProps = {
-  variant: "ant" | "mantine";
   filter: React.ReactNode;
   filterHeaderActions?: React.ReactNode;
   results: React.ReactNode;
@@ -33,7 +32,6 @@ const DEFAULT_WIDTHS: PaneState = {
 };
 
 export function WorkspaceLayout({
-  variant,
   filter,
   filterHeaderActions,
   results,
@@ -119,10 +117,7 @@ export function WorkspaceLayout({
   }
 
   return (
-    <main
-      className={`workspace-grid workspace-grid--${variant}`}
-      style={{ gridTemplateColumns }}
-    >
+    <main className="workspace-grid" style={{ gridTemplateColumns }}>
       <WorkspacePane
         collapsed={collapsed.filter}
         headerActions={filterHeaderActions}

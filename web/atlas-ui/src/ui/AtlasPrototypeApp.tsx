@@ -1,22 +1,17 @@
 import { ConfigProvider } from "antd";
-import { MantineProvider } from "@mantine/core";
 import { useEffect, useState } from "react";
 import {
   COLOR_SCHEME_STORAGE_KEY,
   antDesignTheme,
   atlasCssVariables,
-  mantineTheme,
   type ColorSchemePreference,
   type ResolvedColorScheme,
 } from "./atlasTheme";
 import { AntPrototype } from "./AntPrototype";
-import { MantinePrototype } from "./MantinePrototype";
 import { PrototypeShell } from "./PrototypeShell";
 import { useAtlasWorkspace } from "./useAtlasWorkspace";
-import type { LibraryPrototype } from "../state/searchState";
 
 export function AtlasPrototypeApp() {
-  const [activeLibrary, setActiveLibrary] = useState<LibraryPrototype>("ant");
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
   const systemColorScheme = useSystemColorScheme();
@@ -38,30 +33,16 @@ export function AtlasPrototypeApp() {
     localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, preference);
   };
 
-  const content =
-    activeLibrary === "ant" ? (
-      <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
-        <AntPrototype workspace={workspace} />
-      </ConfigProvider>
-    ) : (
-      <MantineProvider
-        forceColorScheme={resolvedColorScheme}
-        theme={mantineTheme(resolvedColorScheme)}
-      >
-        <MantinePrototype workspace={workspace} />
-      </MantineProvider>
-    );
-
   return (
     <PrototypeShell
-      activeLibrary={activeLibrary}
       colorScheme={colorScheme}
       onColorSchemeChange={updateColorScheme}
-      onLibraryChange={setActiveLibrary}
       resolvedColorScheme={resolvedColorScheme}
       workspace={workspace}
     >
-      {content}
+      <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
+        <AntPrototype workspace={workspace} />
+      </ConfigProvider>
     </PrototypeShell>
   );
 }

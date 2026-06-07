@@ -12,7 +12,6 @@ type AntPrototypeProps = {
 export function AntPrototype({ workspace }: AntPrototypeProps) {
   return (
     <WorkspaceLayout
-      variant="ant"
       filter={<AntFilters workspace={workspace} />}
       results={<AntResults workspace={workspace} />}
       resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}

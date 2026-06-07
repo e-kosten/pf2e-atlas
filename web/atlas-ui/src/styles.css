@@ -116,28 +116,11 @@ button {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
 
-.library-switch {
-  display: inline-grid;
-  grid-template-columns: 1fr 1fr;
-  width: 162px;
-  height: var(--control-height);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--panel-subtle);
-}
-
-.library-switch button,
 .icon-button {
   border: 0;
   color: var(--text);
   background: transparent;
   cursor: pointer;
-}
-
-.library-switch button[aria-selected="true"] {
-  background: var(--accent);
-  color: white;
 }
 
 .icon-button {
