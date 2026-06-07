@@ -69,7 +69,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
         </Form.Item>
         <Collapse
           className="ant-filter-collapse"
-          defaultActiveKey={["standard", "more", "options"]}
+          defaultActiveKey={["standard", "options"]}
           ghost
           items={[
             {
@@ -157,10 +157,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
               children: (
                 <div className="filter-section">
                   {optionalFilterIds.length === 0 ? (
-                    <Empty
-                      description="No additional filters"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    />
+                    <p className="filter-empty-note">No additional filters added.</p>
                   ) : (
                     optionalFilterIds.map((fieldId) => (
                       <Form.Item
