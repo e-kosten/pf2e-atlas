@@ -1,6 +1,7 @@
 use atlas_app_model::{
-    FilterClauseOperator, FilterDiscoveryContext, FilterFieldListView, FilterFieldView,
-    FilterValueListView, FilterValueOption,
+    FilterClauseOperator, FilterControlView, FilterDiscoveryContext, FilterEditorFieldView,
+    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterValueListView,
+    FilterValueOption,
 };
 use atlas_domain::{
     FilterFieldDiscovery, FilterFieldInfo, FilterFieldType, FilterOperator, FilterValueCount,
@@ -10,15 +11,23 @@ use atlas_domain::{
 use crate::AppServiceResult;
 use crate::filter::discovery_field_id;
 
-pub(crate) fn filter_field_list_view(discovery: FilterFieldDiscovery) -> FilterFieldListView {
-    FilterFieldListView {
+pub(crate) fn filter_editor_view(discovery: FilterFieldDiscovery) -> FilterEditorView {
+    let mut groups = filter_editor_groups();
+    for field in discovery
+        .fields
+        .iter()
+        .filter(|field| supported_basic_field(&field.field))
+    {
+        let app_id = app_field_id(&field.field);
+        let group_id = field_group_id(&app_id);
+        if let Some(group) = groups.iter_mut().find(|group| group.id == group_id) {
+            group.fields.push(filter_editor_field_view(field));
+        }
+    }
+    groups.retain(|group| !group.fields.is_empty());
+    FilterEditorView {
         matching_record_count: discovery.matching_record_count,
-        fields: discovery
-            .fields
-            .iter()
-            .filter(|field| supported_basic_field(&field.field))
-            .map(filter_field_view)
-            .collect(),
+        groups,
     }
 }
 
@@ -80,23 +89,6 @@ fn app_field_id(field: &str) -> String {
     }
 }
 
-fn filter_field_view(field: &FilterFieldInfo) -> FilterFieldView {
-    let app_id = app_field_id(&field.field);
-    FilterFieldView {
-        id: app_id.clone(),
-        label: filter_field_label(&app_id).to_string(),
-        cardinality: cardinality(field).to_string(),
-        value_kind: value_kind(field.field_type).to_string(),
-        allowed_operators: allowed_operators(field),
-        default_operator: default_operator(field),
-        ui_hint: ui_hint(field).to_string(),
-        supports_counts: matches!(
-            field.value_policy,
-            FilterValuePolicy::Enumerable | FilterValuePolicy::BooleanCounts
-        ),
-    }
-}
-
 fn filter_field_label(field: &str) -> &'static str {
     match field {
         "kind" => "Kinds",
@@ -134,23 +126,6 @@ fn filter_field_label(field: &str) -> &'static str {
     }
 }
 
-fn cardinality(field: &FilterFieldInfo) -> &'static str {
-    match field.field_type {
-        FilterFieldType::Set => "many",
-        FilterFieldType::Number => "range",
-        _ => "one",
-    }
-}
-
-fn value_kind(field_type: FilterFieldType) -> &'static str {
-    match field_type {
-        FilterFieldType::Set | FilterFieldType::EnumString | FilterFieldType::Text => "string",
-        FilterFieldType::Number => "number",
-        FilterFieldType::Boolean => "boolean",
-        FilterFieldType::Metric => "metric",
-    }
-}
-
 fn allowed_operators(field: &FilterFieldInfo) -> Vec<FilterClauseOperator> {
     if field.field_type == FilterFieldType::Number {
         return vec![FilterClauseOperator::Range];
@@ -181,23 +156,12 @@ fn default_operator(field: &FilterFieldInfo) -> FilterClauseOperator {
     }
 }
 
-fn ui_hint(field: &FilterFieldInfo) -> &'static str {
-    match field.field_type {
-        FilterFieldType::Number => "range",
-        FilterFieldType::Set | FilterFieldType::EnumString | FilterFieldType::Text => {
-            "multi_select"
-        }
-        FilterFieldType::Boolean => "checkbox",
-        FilterFieldType::Metric => "metric",
-    }
-}
-
 fn filter_value_options(
     field_id: &str,
     context: &FilterDiscoveryContext,
     payload: FilterValuePayload,
 ) -> AppServiceResult<Vec<FilterValueOption>> {
-    let values = match payload {
+    let mut values = match payload {
         FilterValuePayload::Enumerable { values, .. } => values,
         FilterValuePayload::BooleanCounts { counts } => vec![
             FilterValueCount {
@@ -214,6 +178,7 @@ fn filter_value_options(
         }
     };
     let selected = selected_values(field_id, context);
+    sort_filter_values(field_id, &mut values);
     Ok(values
         .into_iter()
         .map(|value| {
@@ -233,6 +198,120 @@ fn filter_value_options(
             }
         })
         .collect())
+}
+
+fn filter_editor_groups() -> Vec<FilterEditorGroupView> {
+    [
+        ("standard", "Standard"),
+        ("source", "Source"),
+        ("spells", "Spells"),
+        ("spells_equipment", "Spells & Equipment"),
+        ("equipment", "Equipment"),
+        ("creatures", "Creatures"),
+    ]
+    .into_iter()
+    .map(|(id, label)| FilterEditorGroupView {
+        id: id.to_string(),
+        label: label.to_string(),
+        fields: Vec::new(),
+    })
+    .collect()
+}
+
+fn filter_editor_field_view(field: &FilterFieldInfo) -> FilterEditorFieldView {
+    let app_id = app_field_id(&field.field);
+    FilterEditorFieldView {
+        id: app_id.clone(),
+        label: filter_field_label(&app_id).to_string(),
+        control: filter_control(field),
+        placement: field_placement(&app_id),
+        allowed_operators: allowed_operators(field),
+        default_operator: default_operator(field),
+        supports_counts: matches!(
+            field.value_policy,
+            FilterValuePolicy::Enumerable | FilterValuePolicy::BooleanCounts
+        ),
+    }
+}
+
+fn filter_control(field: &FilterFieldInfo) -> FilterControlView {
+    match field.field_type {
+        FilterFieldType::Number => FilterControlView::Range {
+            min_label: "Min".to_string(),
+            max_label: "Max".to_string(),
+            min: range_minimum(&field.field),
+            max: range_maximum(&field.field),
+            step: range_step(&field.field),
+        },
+        FilterFieldType::Boolean => FilterControlView::Boolean {
+            true_label: "Yes".to_string(),
+            false_label: "No".to_string(),
+        },
+        FilterFieldType::Set | FilterFieldType::EnumString | FilterFieldType::Text => {
+            FilterControlView::MultiSelect
+        }
+        FilterFieldType::Metric => FilterControlView::MultiSelect,
+    }
+}
+
+fn field_placement(field: &str) -> FilterFieldPlacement {
+    match field {
+        "kind" | "rarity" | "traits" | "level" => FilterFieldPlacement::AlwaysVisible,
+        "pack" => FilterFieldPlacement::InitiallyVisible,
+        _ => FilterFieldPlacement::Addable,
+    }
+}
+
+fn range_minimum(field: &str) -> Option<f64> {
+    match field {
+        "level" => Some(0.0),
+        _ => None,
+    }
+}
+
+fn range_maximum(field: &str) -> Option<f64> {
+    match field {
+        "level" => Some(30.0),
+        _ => None,
+    }
+}
+
+fn range_step(field: &str) -> Option<f64> {
+    match field {
+        "level" | "price_cp" | "hands" | "range_value" | "area_value" => Some(1.0),
+        _ => None,
+    }
+}
+
+fn field_group_id(field: &str) -> &'static str {
+    match field {
+        "kind" | "rarity" | "traits" | "level" => "standard",
+        "pack" | "publication_title" | "publication_family" | "publication_remaster" => "source",
+        "traditions" | "spell_kinds" | "save_type" | "basic_save" | "sustained" | "range_value"
+        | "area_type" | "area_value" => "spells",
+        "damage_types" => "spells_equipment",
+        "item_category" | "item_group" | "price_cp" | "bulk_value" | "hands" | "usage"
+        | "base_item" => "equipment",
+        "size" | "speed_types" | "languages" | "senses" | "immunities" | "resistances"
+        | "weaknesses" => "creatures",
+        _ => "source",
+    }
+}
+
+fn sort_filter_values(field_id: &str, values: &mut [FilterValueCount]) {
+    if field_id == "rarity" {
+        values.sort_by_key(|value| rarity_rank(&value.value));
+    }
+}
+
+fn rarity_rank(value: &str) -> usize {
+    match value {
+        "common" => 0,
+        "uncommon" => 1,
+        "rare" => 2,
+        "unique" => 3,
+        _ => 4,
+    }
 }
 
 fn selected_values(field_id: &str, context: &FilterDiscoveryContext) -> Vec<String> {
@@ -304,8 +383,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn field_projection_filters_unsupported_fields_and_uses_app_ids() {
-        let view = filter_field_list_view(FilterFieldDiscovery {
+    fn editor_projection_groups_supported_fields_and_uses_app_ids() {
+        let view = filter_editor_view(FilterFieldDiscovery {
             filter: None,
             execution: FilterDiscoveryExecution::Dynamic,
             matching_record_count: 3,
@@ -318,22 +397,95 @@ mod tests {
             ],
         });
 
-        let ids = view
+        let standard = view
+            .groups
+            .iter()
+            .find(|group| group.id == "standard")
+            .expect("standard group should be present");
+        let source = view
+            .groups
+            .iter()
+            .find(|group| group.id == "source")
+            .expect("source group should be present");
+        let ids = standard
             .fields
             .iter()
+            .chain(source.fields.iter())
             .map(|field| field.id.as_str())
             .collect::<Vec<_>>();
-        assert_eq!(ids, vec!["kind", "pack", "traits", "level"]);
-        assert_eq!(view.fields[0].label, "Kinds");
+        assert_eq!(ids, vec!["kind", "traits", "level", "pack"]);
+        assert_eq!(standard.fields[0].label, "Kinds");
         assert_eq!(
-            view.fields[2].default_operator,
+            standard.fields[0].placement,
+            atlas_app_model::FilterFieldPlacement::AlwaysVisible
+        );
+        assert_eq!(
+            standard.fields[1].default_operator,
             FilterClauseOperator::IncludeAll
         );
         assert_eq!(
-            view.fields[3].allowed_operators,
+            standard.fields[2].allowed_operators,
             vec![FilterClauseOperator::Range]
         );
-        assert_eq!(view.fields[3].ui_hint, "range");
+        assert!(matches!(
+            standard.fields[2].control,
+            atlas_app_model::FilterControlView::Range {
+                min: Some(0.0),
+                max: Some(30.0),
+                step: Some(1.0),
+                ..
+            }
+        ));
+        assert_eq!(
+            source.fields[0].placement,
+            atlas_app_model::FilterFieldPlacement::InitiallyVisible
+        );
+    }
+
+    #[test]
+    fn rarity_values_use_domain_order() {
+        let values = filter_value_list_view(
+            "rarity",
+            &FilterDiscoveryContext::Filtered {
+                filter: BasicSearchFilter { clauses: vec![] },
+            },
+            FilterValueDiscovery {
+                field: "rarity".to_string(),
+                filter: None,
+                execution: FilterDiscoveryExecution::Dynamic,
+                matching_record_count: 4,
+                payload: FilterValuePayload::Enumerable {
+                    values: vec![
+                        FilterValueCount {
+                            value: "unique".to_string(),
+                            count: 1,
+                        },
+                        FilterValueCount {
+                            value: "common".to_string(),
+                            count: 2,
+                        },
+                        FilterValueCount {
+                            value: "rare".to_string(),
+                            count: 3,
+                        },
+                        FilterValueCount {
+                            value: "uncommon".to_string(),
+                            count: 4,
+                        },
+                    ],
+                    null_count: 0,
+                    sort: FilterValueSort::Alpha,
+                },
+            },
+        )
+        .expect("rarity values should project");
+
+        let order = values
+            .options
+            .iter()
+            .map(|option| option.value.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(order, vec!["common", "uncommon", "rare", "unique"]);
     }
 
     #[test]

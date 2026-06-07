@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use atlas_app_model::{
-    AppError, AppErrorCode, AppReadinessView, DiscoverFilterFieldsRequest,
-    DiscoverFilterValuesRequest, FilterFieldListView, FilterValueListView, OpenResultWindowRequest,
+    AppError, AppErrorCode, AppReadinessView, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, FilterEditorView, FilterValueListView, OpenResultWindowRequest,
     ReadResultWindowPageRequest, RecordDetailView, ResultWindowPage,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
@@ -40,7 +40,7 @@ fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
-        .route("/api/filters/fields", post(discover_filter_fields))
+        .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
         .route("/api/result-windows", post(open_result_window))
         .route(
@@ -54,10 +54,10 @@ fn router_with_state(state: AtlasWebState) -> Router {
 trait AtlasWebService: Send + Sync {
     fn readiness(&self) -> AppReadinessView;
 
-    fn discover_filter_fields(
+    fn discover_filter_editor(
         &self,
-        request: DiscoverFilterFieldsRequest,
-    ) -> Result<FilterFieldListView, AppServiceError>;
+        request: DiscoverFilterEditorRequest,
+    ) -> Result<FilterEditorView, AppServiceError>;
 
     fn discover_filter_values(
         &self,
@@ -83,11 +83,11 @@ impl AtlasWebService for AtlasAppService {
         self.readiness()
     }
 
-    fn discover_filter_fields(
+    fn discover_filter_editor(
         &self,
-        request: DiscoverFilterFieldsRequest,
-    ) -> Result<FilterFieldListView, AppServiceError> {
-        self.discover_filter_fields(request)
+        request: DiscoverFilterEditorRequest,
+    ) -> Result<FilterEditorView, AppServiceError> {
+        self.discover_filter_editor(request)
     }
 
     fn discover_filter_values(
@@ -126,14 +126,14 @@ async fn readiness(State(state): State<AtlasWebState>) -> Result<impl IntoRespon
     Ok(Json(call_service(move || Ok(service.readiness())).await?))
 }
 
-async fn discover_filter_fields(
+async fn discover_filter_editor(
     State(state): State<AtlasWebState>,
-    payload: Result<Json<DiscoverFilterFieldsRequest>, JsonRejection>,
+    payload: Result<Json<DiscoverFilterEditorRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(move || service.discover_filter_fields(request)).await?,
+        call_service(move || service.discover_filter_editor(request)).await?,
     ))
 }
 
@@ -258,8 +258,9 @@ async fn call_service<T: Send + 'static>(
 #[cfg(test)]
 mod tests {
     use atlas_app_model::{
-        AppReadinessStatus, FilterFieldView, FilterValueOption, RecordSummaryView,
-        ResultWindowModeSummary, SearchPageView,
+        AppReadinessStatus, FilterControlView, FilterEditorFieldView, FilterEditorGroupView,
+        FilterFieldPlacement, FilterValueOption, RecordSummaryView, ResultWindowModeSummary,
+        SearchPageView,
     };
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::RecordPresentationDocument;
@@ -432,13 +433,14 @@ mod tests {
         assert_eq!(body["record_key"], "actions:testAction1");
         assert_eq!(body["presentation"]["title"], "Test Action 1");
 
-        let fields_request = json!({
+        let editor_request = json!({
             "context": { "kind": "filtered", "filter": { "clauses": [] } }
         });
         let (status, body) =
-            route_json(Method::POST, "/api/filters/fields", Some(fields_request)).await;
+            route_json(Method::POST, "/api/filters/editor", Some(editor_request)).await;
         assert_eq!(status, StatusCode::OK);
-        assert_eq!(body["fields"][0]["id"], "kind");
+        assert_eq!(body["groups"][0]["id"], "standard");
+        assert_eq!(body["groups"][0]["fields"][0]["id"], "kind");
 
         let values_request = json!({
             "context": { "kind": "filtered", "filter": { "clauses": [] } },
@@ -456,7 +458,7 @@ mod tests {
         let app = test_router();
         let response = app
             .oneshot(
-                Request::post("/api/filters/fields")
+                Request::post("/api/filters/editor")
                     .header("content-type", "application/json")
                     .body(Body::from("{"))
                     .expect("request should build"),
@@ -514,21 +516,24 @@ mod tests {
             }
         }
 
-        fn discover_filter_fields(
+        fn discover_filter_editor(
             &self,
-            _request: DiscoverFilterFieldsRequest,
-        ) -> Result<FilterFieldListView, AppServiceError> {
-            Ok(FilterFieldListView {
+            _request: DiscoverFilterEditorRequest,
+        ) -> Result<FilterEditorView, AppServiceError> {
+            Ok(FilterEditorView {
                 matching_record_count: 3,
-                fields: vec![FilterFieldView {
-                    id: "kind".to_string(),
-                    label: "Kinds".to_string(),
-                    cardinality: "one".to_string(),
-                    value_kind: "string".to_string(),
-                    allowed_operators: vec![],
-                    default_operator: atlas_app_model::FilterClauseOperator::IncludeAny,
-                    ui_hint: "multi_select".to_string(),
-                    supports_counts: true,
+                groups: vec![FilterEditorGroupView {
+                    id: "standard".to_string(),
+                    label: "Standard".to_string(),
+                    fields: vec![FilterEditorFieldView {
+                        id: "kind".to_string(),
+                        label: "Kinds".to_string(),
+                        control: FilterControlView::MultiSelect,
+                        placement: FilterFieldPlacement::AlwaysVisible,
+                        allowed_operators: vec![],
+                        default_operator: atlas_app_model::FilterClauseOperator::IncludeAny,
+                        supports_counts: true,
+                    }],
                 }],
             })
         }

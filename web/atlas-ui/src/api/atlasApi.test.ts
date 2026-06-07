@@ -1,7 +1,7 @@
 import type { AppError, OpenResultWindowRequest } from "../generated/atlas";
 import {
   AtlasApiError,
-  discoverFilterFields,
+  discoverFilterEditor,
   discoverFilterValues,
   getReadiness,
   getRecordDetail,
@@ -54,19 +54,19 @@ describe("atlasApi", () => {
     expect(result.page.total).toBe(42n);
   });
 
-  it("posts filter-field discovery requests and normalizes record counts", async () => {
+  it("posts filter-editor requests and normalizes record counts", async () => {
     const request = {
       context: { kind: "filtered" as const, filter: { clauses: [] } },
     };
     const fetchMock = mockFetch({
       matching_record_count: 42,
-      fields: [],
+      groups: [],
     });
 
-    const result = await discoverFilterFields(request);
+    const result = await discoverFilterEditor(request);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/filters/fields",
+      "/api/filters/editor",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify(request),

@@ -6,7 +6,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import {
-  discoverFilterFields,
+  discoverFilterEditor,
   discoverFilterValues,
   getReadiness,
   getRecordDetail,
@@ -14,7 +14,7 @@ import {
   readResultWindowPage,
 } from "../api/atlasApi";
 import type {
-  FilterFieldListView,
+  FilterEditorView,
   FilterValueListView,
   RecordDetailView,
   ResultWindowPage,
@@ -69,7 +69,7 @@ export type AtlasWorkspaceState = {
   setPageNumber: (page: number) => void;
   resultPage: ResultWindowPage | undefined;
   recordDetail: RecordDetailView | undefined;
-  filterFields: FilterFieldListView | undefined;
+  filterEditor: FilterEditorView | undefined;
   filterValuesByField: Record<string, FilterValueListView | undefined>;
   readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
@@ -173,18 +173,27 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     [activeSearch],
   );
 
-  const filterFieldsQuery = useQuery({
-    queryKey: ["filter-fields", activeSearchExecutionToken],
-    queryFn: () => discoverFilterFields({ context: filterDiscoveryContext }),
+  const filterEditorQuery = useQuery({
+    queryKey: ["filter-editor", activeSearchExecutionToken],
+    queryFn: () => discoverFilterEditor({ context: filterDiscoveryContext }),
   });
 
   const valueFieldIds = useMemo(() => {
-    const fields = filterFieldsQuery.data?.fields ?? [];
-    const countBackedFields = new Set(
-      fields.filter((field) => field.supports_counts).map((field) => field.id),
+    const fields = (filterEditorQuery.data?.groups ?? []).flatMap(
+      (group) => group.fields,
     );
-    return search.visibleFilterIds.filter((fieldId) => countBackedFields.has(fieldId));
-  }, [filterFieldsQuery.data, search.visibleFilterIds]);
+    const visibleFields = new Set(search.visibleFilterIds);
+    const hiddenFields = new Set(search.hiddenFilterIds);
+    return fields
+      .filter(
+        (field) =>
+          field.supports_counts &&
+          (field.placement === "always_visible" ||
+            visibleFields.has(field.id) ||
+            (field.placement === "initially_visible" && !hiddenFields.has(field.id))),
+      )
+      .map((field) => field.id);
+  }, [filterEditorQuery.data, search.hiddenFilterIds, search.visibleFilterIds]);
 
   const filterValueQueries = useQueries({
     queries: valueFieldIds.map((fieldId) => ({
@@ -280,7 +289,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const errorMessage =
     messageFromError(resultsQuery.error) ??
     messageFromError(detailQuery.error) ??
-    messageFromError(filterFieldsQuery.error) ??
+    messageFromError(filterEditorQuery.error) ??
     filterValueQueries.map((query) => messageFromError(query.error)).find(Boolean) ??
     messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
@@ -310,15 +319,15 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
     resultPage: resultsQuery.data,
     recordDetail: detailQuery.data,
-    filterFields: filterFieldsQuery.data,
+    filterEditor: filterEditorQuery.data,
     filterValuesByField,
     readiness,
     resultsLoading: resultsQuery.isLoading || searchDebouncing,
     resultsRefreshing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
     filterDiscoveryLoading:
-      filterFieldsQuery.isLoading ||
-      filterFieldsQuery.isFetching ||
+      filterEditorQuery.isLoading ||
+      filterEditorQuery.isFetching ||
       filterValueQueries.some((query) => query.isLoading || query.isFetching),
     diagnostics: {
       activeWindowId,

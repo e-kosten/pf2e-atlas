@@ -10,18 +10,16 @@ import {
   Select,
 } from "antd";
 import { Search } from "lucide-react";
-import {
-  KIND_OPTIONS,
-  RARITY_OPTIONS,
-  SORT_OPTIONS,
-  TRAIT_OPTIONS,
-} from "../../state/searchState";
+import type { FilterEditorFieldView } from "../../generated/atlas";
+import { SORT_OPTIONS } from "../../state/searchState";
 import {
   addVisibleFilter,
   additionalFilterGroups,
+  additionalVisibleFilterIds,
   booleanForField,
   controlKindForField,
   discoveredOptions,
+  editorFieldForId,
   labelForField,
   rangeForField,
   removeVisibleFilter,
@@ -29,14 +27,14 @@ import {
   setRangeForField,
   setValuesForField,
   valuesForField,
+  visibleEditorFilterFields,
 } from "../filterControls";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
   const { search, setSearch } = workspace;
-  const optionalFilterIds = search.visibleFilterIds.filter(
-    (fieldId) => !["kind", "rarity", "traits", "level"].includes(fieldId),
-  );
+  const standardFilterFields = visibleEditorFilterFields(workspace);
+  const optionalFilterIds = additionalVisibleFilterIds(workspace);
   const addFilterGroups = additionalFilterGroups(workspace);
 
   return (
@@ -77,75 +75,13 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
               label: "Standard filters",
               children: (
                 <div className="filter-section">
-                  <Form.Item label="Kinds">
-                    <Select
-                      mode="multiple"
-                      options={discoveredOptions(workspace, "kind", KIND_OPTIONS)}
-                      value={search.kinds}
-                      onChange={(kinds) => setSearch({ ...search, kinds })}
+                  {standardFilterFields.map((field) => (
+                    <FilterFieldControl
+                      key={field.id}
+                      workspace={workspace}
+                      field={field}
                     />
-                  </Form.Item>
-                  <Form.Item label="Rarity">
-                    <Select
-                      mode="multiple"
-                      options={discoveredOptions(workspace, "rarity", RARITY_OPTIONS)}
-                      value={search.rarity}
-                      onChange={(rarity) => setSearch({ ...search, rarity })}
-                    />
-                  </Form.Item>
-                  <Form.Item label="Traits">
-                    <Select
-                      mode="multiple"
-                      options={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
-                      value={search.traits}
-                      onChange={(traits) => setSearch({ ...search, traits })}
-                    />
-                  </Form.Item>
-                  <Checkbox
-                    checked={search.traitOperator === "include_any"}
-                    onChange={(event) =>
-                      setSearch({
-                        ...search,
-                        traitOperator: event.target.checked
-                          ? "include_any"
-                          : "include_all",
-                      })
-                    }
-                  >
-                    Match any selected trait
-                  </Checkbox>
-                  <Form.Item label="Excluded traits">
-                    <Select
-                      mode="multiple"
-                      options={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
-                      value={search.excludedTraits}
-                      onChange={(excludedTraits) =>
-                        setSearch({ ...search, excludedTraits })
-                      }
-                    />
-                  </Form.Item>
-                  <div className="control-row">
-                    <Form.Item label="Min level">
-                      <InputNumber
-                        min={0}
-                        max={30}
-                        value={search.levelMin}
-                        onChange={(levelMin) =>
-                          setSearch({ ...search, levelMin: levelMin ?? null })
-                        }
-                      />
-                    </Form.Item>
-                    <Form.Item label="Max level">
-                      <InputNumber
-                        min={0}
-                        max={30}
-                        value={search.levelMax}
-                        onChange={(levelMax) =>
-                          setSearch({ ...search, levelMax: levelMax ?? null })
-                        }
-                      />
-                    </Form.Item>
-                  </div>
+                  ))}
                 </div>
               ),
             },
@@ -164,9 +100,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                         key={fieldId}
                         label={
                           <div className="control-heading">
-                            <span>
-                              {labelForField(workspace.filterFields?.fields, fieldId)}
-                            </span>
+                            <span>{labelForField(workspace, fieldId)}</span>
                             <Button
                               size="small"
                               type="text"
@@ -235,6 +169,113 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
   );
 }
 
+function FilterFieldControl({
+  workspace,
+  field,
+}: {
+  workspace: AtlasWorkspaceState;
+  field: FilterEditorFieldView;
+}) {
+  const { search, setSearch } = workspace;
+  const controlKind = controlKindForField(workspace, field.id);
+
+  if (controlKind === "range") {
+    const range = rangeForField(search, field.id);
+    const minLabel = field.control.kind === "range" ? field.control.min_label : "Min";
+    const maxLabel = field.control.kind === "range" ? field.control.max_label : "Max";
+    return (
+      <div className="control-row">
+        <Form.Item label={`${minLabel} ${field.label.toLowerCase()}`}>
+          <InputNumber
+            min={field.control.kind === "range" ? field.control.min : undefined}
+            max={field.control.kind === "range" ? field.control.max : undefined}
+            step={field.control.kind === "range" ? field.control.step : undefined}
+            value={range.min}
+            onChange={(min) =>
+              setSearch(
+                setRangeForField(search, field.id, {
+                  ...range,
+                  min: min ?? null,
+                }),
+              )
+            }
+          />
+        </Form.Item>
+        <Form.Item label={`${maxLabel} ${field.label.toLowerCase()}`}>
+          <InputNumber
+            min={field.control.kind === "range" ? field.control.min : undefined}
+            max={field.control.kind === "range" ? field.control.max : undefined}
+            step={field.control.kind === "range" ? field.control.step : undefined}
+            value={range.max}
+            onChange={(max) =>
+              setSearch(
+                setRangeForField(search, field.id, {
+                  ...range,
+                  max: max ?? null,
+                }),
+              )
+            }
+          />
+        </Form.Item>
+      </div>
+    );
+  }
+
+  if (controlKind === "boolean") {
+    return (
+      <Form.Item label={field.label}>
+        <Select
+          allowClear
+          loading={workspace.filterDiscoveryLoading}
+          options={discoveredOptions(workspace, field.id)}
+          value={booleanForField(search, field.id)}
+          onChange={(value) =>
+            setSearch(setBooleanForField(search, field.id, value ?? null))
+          }
+        />
+      </Form.Item>
+    );
+  }
+
+  return (
+    <>
+      <Form.Item label={field.label}>
+        <Select
+          mode="multiple"
+          loading={workspace.filterDiscoveryLoading}
+          options={discoveredOptions(workspace, field.id)}
+          value={valuesForField(search, field.id)}
+          onChange={(values) => setSearch(setValuesForField(search, field.id, values))}
+        />
+      </Form.Item>
+      {field.id === "traits" ? (
+        <>
+          <Checkbox
+            checked={search.traitOperator === "include_any"}
+            onChange={(event) =>
+              setSearch({
+                ...search,
+                traitOperator: event.target.checked ? "include_any" : "include_all",
+              })
+            }
+          >
+            Match any selected trait
+          </Checkbox>
+          <Form.Item label={`Excluded ${field.label.toLowerCase()}`}>
+            <Select
+              mode="multiple"
+              loading={workspace.filterDiscoveryLoading}
+              options={discoveredOptions(workspace, field.id)}
+              value={search.excludedTraits}
+              onChange={(excludedTraits) => setSearch({ ...search, excludedTraits })}
+            />
+          </Form.Item>
+        </>
+      ) : null}
+    </>
+  );
+}
+
 function OptionalFilterControl({
   workspace,
   fieldId,
@@ -243,14 +284,18 @@ function OptionalFilterControl({
   fieldId: string;
 }) {
   const { search, setSearch } = workspace;
-  const controlKind = controlKindForField(workspace.filterFields?.fields, fieldId);
+  const controlKind = controlKindForField(workspace, fieldId);
 
   if (controlKind === "range") {
     const range = rangeForField(search, fieldId);
+    const field = editorFieldForId(workspace, fieldId);
     return (
       <div className="control-row">
         <InputNumber
           placeholder="Min"
+          min={field?.control.kind === "range" ? field.control.min : undefined}
+          max={field?.control.kind === "range" ? field.control.max : undefined}
+          step={field?.control.kind === "range" ? field.control.step : undefined}
           value={range.min}
           onChange={(min) =>
             setSearch(
@@ -263,6 +308,9 @@ function OptionalFilterControl({
         />
         <InputNumber
           placeholder="Max"
+          min={field?.control.kind === "range" ? field.control.min : undefined}
+          max={field?.control.kind === "range" ? field.control.max : undefined}
+          step={field?.control.kind === "range" ? field.control.step : undefined}
           value={range.max}
           onChange={(max) =>
             setSearch(
@@ -282,10 +330,7 @@ function OptionalFilterControl({
       <Select
         allowClear
         loading={workspace.filterDiscoveryLoading}
-        options={discoveredOptions(workspace, fieldId, [
-          { value: "true", label: "Yes" },
-          { value: "false", label: "No" },
-        ])}
+        options={discoveredOptions(workspace, fieldId)}
         value={booleanForField(search, fieldId)}
         onChange={(value) =>
           setSearch(setBooleanForField(search, fieldId, value ?? null))
@@ -298,7 +343,7 @@ function OptionalFilterControl({
     <Select
       mode="multiple"
       loading={workspace.filterDiscoveryLoading}
-      options={discoveredOptions(workspace, fieldId, [])}
+      options={discoveredOptions(workspace, fieldId)}
       value={valuesForField(search, fieldId)}
       onChange={(values) => setSearch(setValuesForField(search, fieldId, values))}
     />
