@@ -1,6 +1,7 @@
 import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { ColorSchemePreference, ResolvedColorScheme } from "./atlasTheme";
+import { pagePositionLabel } from "./pageMetrics";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
 type PrototypeShellProps = {
@@ -101,10 +102,25 @@ function DiagnosticsPanel({ workspace }: { workspace: AtlasWorkspaceState }) {
             : "pending"
         }
       />
-      <DiagnosticItem label="Window" value={diagnostics.activeWindowId ?? "none"} />
+      <DiagnosticItem
+        label="Records"
+        value={
+          workspace.resultsRefreshing
+            ? "updating"
+            : resultPage
+              ? resultPage.page.total.toLocaleString()
+              : "pending"
+        }
+      />
       <DiagnosticItem
         label="Page"
-        value={`${workspace.pageNumber}${resultPage ? ` / ${resultPage.page.total.toLocaleString()} records` : ""}`}
+        value={
+          workspace.resultsRefreshing
+            ? `loading ${workspace.pageNumber.toLocaleString()}`
+            : resultPage
+              ? pagePositionLabel(resultPage.page)
+              : `${workspace.pageNumber}`
+        }
       />
       <DiagnosticItem
         label="Detail request"

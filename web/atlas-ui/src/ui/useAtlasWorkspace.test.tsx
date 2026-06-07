@@ -136,6 +136,40 @@ describe("useAtlasWorkspace", () => {
     });
   });
 
+  it("keeps previous rows while marking page transitions as refreshing", async () => {
+    const nextPage = deferred<ResultWindowPage>();
+    apiMocks.openResultWindow.mockResolvedValue(
+      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
+    );
+    apiMocks.readResultWindowPage.mockReturnValue(nextPage.promise);
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current.activeResultKey).toBe("spell:dirge-of-doom"),
+    );
+
+    act(() => result.current.setPageNumber(2));
+
+    await waitFor(() => expect(result.current.resultsRefreshing).toBe(true));
+    expect(result.current.resultsLoading).toBe(false);
+    expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+      "spell:dirge-of-doom",
+    );
+
+    await act(async () => {
+      nextPage.resolve(
+        resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
+      );
+      await nextPage.promise;
+    });
+
+    await waitFor(() => expect(result.current.resultsRefreshing).toBe(false));
+    expect(result.current.resultPage?.page.number).toBe(2);
+    expect(result.current.resultPage?.rows[0]?.record.record_key).toBe("spell:heal");
+  });
+
   it("resets page execution when search changes from a later page", async () => {
     apiMocks.openResultWindow.mockResolvedValue(
       resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
@@ -249,4 +283,12 @@ function resultWindowPage(
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+  return { promise, resolve };
 }

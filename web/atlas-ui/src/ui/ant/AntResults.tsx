@@ -49,6 +49,7 @@ export function AntResults({ workspace }: { workspace: AtlasWorkspaceState }) {
     <section className="results-panel">
       <div
         aria-label="Results"
+        aria-busy={workspace.resultsLoading || workspace.resultsRefreshing}
         className="results-scroll results-scroll--focusable"
         onKeyDown={(event) => handleResultKeyboard(event, workspace)}
         ref={scrollRef}
