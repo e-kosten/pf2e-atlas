@@ -37,7 +37,8 @@ export function additionalFilterGroups(
           (field) =>
             (field.placement === "addable" ||
               (field.placement === "initially_visible" && hidden.has(field.id))) &&
-            !visible.has(field.id),
+            !visible.has(field.id) &&
+            field.applicability === "applicable",
         )
         .map((field) => ({ value: field.id, label: field.label })),
     }))

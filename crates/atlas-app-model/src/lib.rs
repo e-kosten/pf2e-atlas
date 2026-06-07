@@ -10,9 +10,9 @@ pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     BasicSearchFilter, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterClause,
     FilterClauseOperator, FilterControlView, FilterDiscoveryContext, FilterEditorFieldView,
-    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterRange,
-    FilterValidationCode, FilterValidationMessage, FilterValidationResult, FilterValueListView,
-    FilterValueOption, MetricComparison,
+    FilterEditorGroupView, FilterEditorView, FilterFieldApplicability, FilterFieldPlacement,
+    FilterRange, FilterValidationCode, FilterValidationMessage, FilterValidationResult,
+    FilterValueListView, FilterValueOption, MetricComparison,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{RecordBadgeView, RecordDetailView, RecordSummaryView};

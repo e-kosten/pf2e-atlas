@@ -1,7 +1,7 @@
 use atlas_app_model::{
     FilterClauseOperator, FilterControlView, FilterDiscoveryContext, FilterEditorFieldView,
-    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterValueListView,
-    FilterValueOption,
+    FilterEditorGroupView, FilterEditorView, FilterFieldApplicability, FilterFieldPlacement,
+    FilterValueListView, FilterValueOption,
 };
 use atlas_domain::{
     FilterFieldDiscovery, FilterFieldInfo, FilterFieldType, FilterOperator, FilterValueCount,
@@ -9,10 +9,15 @@ use atlas_domain::{
 };
 
 use crate::AppServiceResult;
-use crate::filter::discovery_field_id;
+use crate::filter::app_filter_field_id;
 
-pub(crate) fn filter_editor_view(discovery: FilterFieldDiscovery) -> FilterEditorView {
+pub(crate) fn filter_editor_view(
+    discovery: FilterFieldDiscovery,
+    selected_candidates: FilterFieldDiscovery,
+    selected_field_ids: &[String],
+) -> FilterEditorView {
     let mut groups = filter_editor_groups();
+    let mut projected_field_ids = Vec::new();
     for field in discovery
         .fields
         .iter()
@@ -21,7 +26,34 @@ pub(crate) fn filter_editor_view(discovery: FilterFieldDiscovery) -> FilterEdito
         let app_id = app_field_id(&field.field);
         let group_id = field_group_id(&app_id);
         if let Some(group) = groups.iter_mut().find(|group| group.id == group_id) {
-            group.fields.push(filter_editor_field_view(field));
+            group.fields.push(filter_editor_field_view(
+                field,
+                FilterFieldApplicability::Applicable,
+            ));
+            projected_field_ids.push(app_id);
+        }
+    }
+
+    for field in selected_candidates
+        .fields
+        .iter()
+        .filter(|field| supported_basic_field(&field.field))
+    {
+        let app_id = app_field_id(&field.field);
+        if !selected_field_ids
+            .iter()
+            .any(|selected| app_filter_field_id(selected) == app_id)
+            || projected_field_ids.contains(&app_id)
+        {
+            continue;
+        }
+        let group_id = field_group_id(&app_id);
+        if let Some(group) = groups.iter_mut().find(|group| group.id == group_id) {
+            group.fields.push(filter_editor_field_view(
+                field,
+                FilterFieldApplicability::SelectedUnavailable,
+            ));
+            projected_field_ids.push(app_id);
         }
     }
     groups.retain(|group| !group.fields.is_empty());
@@ -83,11 +115,7 @@ fn supported_basic_field(field: &str) -> bool {
 }
 
 fn app_field_id(field: &str) -> String {
-    match discovery_field_id(field).as_str() {
-        "record_kind" => "kind".to_string(),
-        "pack_label" => "pack".to_string(),
-        other => other.to_string(),
-    }
+    app_filter_field_id(field)
 }
 
 fn filter_field_label(field: &str) -> &'static str {
@@ -251,13 +279,17 @@ fn filter_editor_groups() -> Vec<FilterEditorGroupView> {
     .collect()
 }
 
-fn filter_editor_field_view(field: &FilterFieldInfo) -> FilterEditorFieldView {
+fn filter_editor_field_view(
+    field: &FilterFieldInfo,
+    applicability: FilterFieldApplicability,
+) -> FilterEditorFieldView {
     let app_id = app_field_id(&field.field);
     FilterEditorFieldView {
         id: app_id.clone(),
         label: filter_field_label(&app_id).to_string(),
         control: filter_control(field),
         placement: field_placement(&app_id),
+        applicability,
         allowed_operators: allowed_operators(field),
         default_operator: default_operator(field),
         supports_counts: matches!(
@@ -437,7 +469,7 @@ mod tests {
 
     #[test]
     fn editor_projection_groups_supported_fields_and_uses_app_ids() {
-        let view = filter_editor_view(FilterFieldDiscovery {
+        let discovery = FilterFieldDiscovery {
             filter: None,
             execution: FilterDiscoveryExecution::Dynamic,
             matching_record_count: 3,
@@ -449,7 +481,8 @@ mod tests {
                 field("metric", FilterFieldType::Metric),
                 field("foundry_document_type", FilterFieldType::EnumString),
             ],
-        });
+        };
+        let view = filter_editor_view(discovery.clone(), discovery, &[]);
 
         let standard = view
             .groups
@@ -474,6 +507,10 @@ mod tests {
             .find(|group| group.id == "metrics")
             .expect("metrics group should be present");
         assert_eq!(standard.fields[0].label, "Kinds");
+        assert_eq!(
+            standard.fields[0].applicability,
+            atlas_app_model::FilterFieldApplicability::Applicable
+        );
         assert_eq!(
             standard.fields[0].placement,
             atlas_app_model::FilterFieldPlacement::AlwaysVisible
@@ -509,6 +546,41 @@ mod tests {
             atlas_app_model::FilterControlView::MetricComparison { .. }
         ));
         assert!(metrics.fields[0].supports_counts);
+    }
+
+    #[test]
+    fn editor_projection_preserves_selected_unavailable_fields() {
+        let applicable = FilterFieldDiscovery {
+            filter: None,
+            execution: FilterDiscoveryExecution::Dynamic,
+            matching_record_count: 1,
+            fields: vec![field("record_kind", FilterFieldType::EnumString)],
+        };
+        let candidates = FilterFieldDiscovery {
+            filter: None,
+            execution: FilterDiscoveryExecution::Catalog,
+            matching_record_count: 3,
+            fields: vec![
+                field("record_kind", FilterFieldType::EnumString),
+                field("publication_title", FilterFieldType::Text),
+            ],
+        };
+
+        let view = filter_editor_view(applicable, candidates, &["publication".to_string()]);
+        let fields = view
+            .groups
+            .iter()
+            .flat_map(|group| group.fields.iter())
+            .collect::<Vec<_>>();
+
+        let publication = fields
+            .iter()
+            .find(|field| field.id == "publication_title")
+            .expect("selected unavailable field should be preserved");
+        assert_eq!(
+            publication.applicability,
+            atlas_app_model::FilterFieldApplicability::SelectedUnavailable
+        );
     }
 
     #[test]

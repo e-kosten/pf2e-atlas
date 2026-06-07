@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import {
   keepPreviousData,
+  useQueryClient,
   useQueries,
   useQuery,
+  type QueryClient,
   type UseQueryResult,
 } from "@tanstack/react-query";
 import {
@@ -95,6 +97,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const [lastResultRequest, setLastResultRequest] =
     useState<AtlasWorkspaceDiagnostics["resultRequest"]>(null);
   const [resultWindow, setResultWindow] = useState<ResultWindowHandle | null>(null);
+  const queryClient = useQueryClient();
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
     () => encodeSearchExecutionState(search),
@@ -174,8 +177,13 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   );
 
   const filterEditorQuery = useQuery({
-    queryKey: ["filter-editor", activeSearchExecutionToken],
-    queryFn: () => discoverFilterEditor({ context: filterDiscoveryContext }),
+    queryKey: ["filter-editor", activeSearchExecutionToken, search.visibleFilterIds],
+    placeholderData: keepPreviousData,
+    queryFn: () =>
+      discoverFilterEditor({
+        context: filterDiscoveryContext,
+        selected_field_ids: search.visibleFilterIds,
+      }),
   });
 
   const valueFieldIds = useMemo(() => {
@@ -198,6 +206,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const filterValueQueries = useQueries({
     queries: valueFieldIds.map((fieldId) => ({
       queryKey: ["filter-values", activeSearchExecutionToken, fieldId],
+      placeholderData: () => retainedFilterValue(queryClient, fieldId),
       queryFn: () =>
         discoverFilterValues({
           context: filterDiscoveryContext,
@@ -298,7 +307,10 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
       ? resultWindow.windowId.toString()
       : null;
   const filterValuesByField = Object.fromEntries(
-    valueFieldIds.map((fieldId, index) => [fieldId, filterValueQueries[index]?.data]),
+    valueFieldIds.map((fieldId, index) => {
+      const data = filterValueQueries[index]?.data;
+      return [fieldId, data];
+    }),
   );
 
   const resultsRefreshing =
@@ -356,6 +368,16 @@ function messageFromError(error: unknown): string | null {
 
 function elapsedMilliseconds(startedAt: number): number {
   return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
+function retainedFilterValue(
+  queryClient: QueryClient,
+  fieldId: string,
+): FilterValueListView | undefined {
+  return queryClient
+    .getQueriesData<FilterValueListView>({ queryKey: ["filter-values"] })
+    .map(([, data]) => data)
+    .find((data) => data?.field_id === fieldId);
 }
 
 export function resetSearchState(): SearchFormState {

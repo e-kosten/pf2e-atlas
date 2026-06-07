@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
+  FilterValueListView,
   OpenResultWindowRequest,
   ResultWindowPage,
 } from "../generated/atlas";
@@ -147,6 +148,120 @@ describe("useAtlasWorkspace", () => {
       expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
         expect.objectContaining({ field_id: "basic_save" }),
       ),
+    );
+  });
+
+  it("passes selected visible fields to editor discovery", async () => {
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        visibleFilterIds: ["publication_title"],
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.discoverFilterEditor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selected_field_ids: ["publication_title"],
+        }),
+      ),
+    );
+  });
+
+  it("keeps previous filter editor data while refreshed discovery is pending", async () => {
+    const nextEditor = deferred<FilterEditorView>();
+    apiMocks.discoverFilterEditor
+      .mockResolvedValueOnce(filterEditor())
+      .mockReturnValueOnce(nextEditor.promise);
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.filterEditor).toEqual(filterEditor()));
+
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        filterClauses: [
+          {
+            id: "kind-include_any",
+            field: "kind",
+            operator: "include_any",
+            values: ["creature"],
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    expect(result.current.filterEditor).toEqual(filterEditor());
+    expect(result.current.filterDiscoveryLoading).toBe(true);
+
+    await act(async () => {
+      nextEditor.resolve({
+        matching_record_count: 1n,
+        groups: [],
+      });
+      await nextEditor.promise;
+    });
+
+    await waitFor(() => expect(result.current.filterEditor?.groups).toEqual([]));
+  });
+
+  it("keeps previous field values while refreshed value discovery is pending", async () => {
+    const nextKindValues = deferred<FilterValueListView>();
+    let kindValueRequests = 0;
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    apiMocks.discoverFilterValues.mockImplementation(
+      (request: { field_id: string }) => {
+        if (request.field_id !== "kind") {
+          return Promise.resolve(emptyValues(request.field_id));
+        }
+        kindValueRequests += 1;
+        return kindValueRequests === 1
+          ? Promise.resolve(kindValues(["spell", "creature"]))
+          : nextKindValues.promise;
+      },
+    );
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current.filterValuesByField.kind?.options).toHaveLength(2),
+    );
+
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        filterClauses: [
+          {
+            id: "kind-include_any",
+            field: "kind",
+            operator: "include_any",
+            values: ["creature"],
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(kindValueRequests).toBe(2));
+    expect(result.current.filterValuesByField.kind?.options).toHaveLength(2);
+    expect(result.current.filterDiscoveryLoading).toBe(true);
+
+    await act(async () => {
+      nextKindValues.resolve(kindValues(["spell", "creature", "feat"]));
+      await nextKindValues.promise;
+    });
+
+    await waitFor(() =>
+      expect(result.current.filterValuesByField.kind?.options).toHaveLength(3),
     );
   });
 
@@ -334,6 +449,7 @@ function filterEditor(): FilterEditorView {
             label: "Kinds",
             control: { kind: "multi_select" },
             placement: "always_visible",
+            applicability: "applicable",
             allowed_operators: ["include_any"],
             default_operator: "include_any",
             supports_counts: true,
@@ -350,6 +466,7 @@ function filterEditor(): FilterEditorView {
               step: 1,
             },
             placement: "always_visible",
+            applicability: "applicable",
             allowed_operators: ["range"],
             default_operator: "range",
             supports_counts: false,
@@ -365,6 +482,7 @@ function filterEditor(): FilterEditorView {
             label: "Pack",
             control: { kind: "multi_select" },
             placement: "initially_visible",
+            applicability: "applicable",
             allowed_operators: ["include_any"],
             default_operator: "include_any",
             supports_counts: true,
@@ -378,6 +496,7 @@ function filterEditor(): FilterEditorView {
               false_label: "No",
             },
             placement: "addable",
+            applicability: "applicable",
             allowed_operators: ["include_any"],
             default_operator: "include_any",
             supports_counts: true,
@@ -385,6 +504,29 @@ function filterEditor(): FilterEditorView {
         ],
       },
     ],
+  };
+}
+
+function kindValues(values: string[]): FilterValueListView {
+  return {
+    field_id: "kind",
+    matching_record_count: BigInt(values.length),
+    options: values.map((value) => ({
+      value,
+      label: value,
+      count: 1n,
+      selected: false,
+      disabled: false,
+      status: "available",
+    })),
+  };
+}
+
+function emptyValues(fieldId: string): FilterValueListView {
+  return {
+    field_id: fieldId,
+    matching_record_count: 0n,
+    options: [],
   };
 }
 

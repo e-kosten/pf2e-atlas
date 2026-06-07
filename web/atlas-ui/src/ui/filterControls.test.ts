@@ -126,6 +126,35 @@ describe("filterControls", () => {
     expect(discoveredOptions(workspace, "rarity")).toEqual([]);
   });
 
+  it("keeps selected unavailable fields addressable while hiding them from add menu", () => {
+    const workspace = workspaceFor({
+      search: {
+        ...DEFAULT_SEARCH_STATE,
+        visibleFilterIds: ["publication_title"],
+      },
+      filterEditor: {
+        matching_record_count: 1n,
+        groups: [
+          {
+            id: "source",
+            label: "Source",
+            fields: [
+              {
+                ...field("publication_title", "Publication", "addable", {
+                  kind: "multi_select",
+                }),
+                applicability: "selected_unavailable",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(additionalVisibleFilterIds(workspace)).toEqual(["publication_title"]);
+    expect(additionalFilterGroups(workspace)).toEqual([]);
+  });
+
   it("keeps range, boolean, and metric values in filter clauses", () => {
     const withLevel = setRangeForField(DEFAULT_SEARCH_STATE, "level", {
       min: 2,
@@ -261,6 +290,7 @@ function field(
     label,
     control,
     placement,
+    applicability: "applicable",
     allowed_operators: ["include_any"],
     default_operator: "include_any",
     supports_counts: control.kind !== "range",

@@ -70,6 +70,8 @@ pub enum FilterDiscoveryContext {
 #[serde(rename_all = "snake_case")]
 pub struct DiscoverFilterEditorRequest {
     pub context: FilterDiscoveryContext,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selected_field_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -107,9 +109,18 @@ pub struct FilterEditorFieldView {
     pub label: String,
     pub control: FilterControlView,
     pub placement: FilterFieldPlacement,
+    pub applicability: FilterFieldApplicability,
     pub allowed_operators: Vec<FilterClauseOperator>,
     pub default_operator: FilterClauseOperator,
     pub supports_counts: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum FilterFieldApplicability {
+    Applicable,
+    SelectedUnavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

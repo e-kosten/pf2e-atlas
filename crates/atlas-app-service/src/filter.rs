@@ -1,4 +1,6 @@
-use atlas_app_model::{BasicSearchFilter, FilterClauseOperator, FilterRange, MetricComparison};
+use atlas_app_model::{
+    BasicSearchFilter, FilterClauseOperator, FilterDiscoveryContext, FilterRange, MetricComparison,
+};
 use atlas_domain::{
     MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
     MetadataPredicate, MetadataSetField, MetadataSetMatch, MetadataStringMatch, MetadataTextMatch,
@@ -69,12 +71,37 @@ pub(crate) fn lower_basic_filter(
 }
 
 pub(crate) fn lower_basic_filter_context(
-    context: &atlas_app_model::FilterDiscoveryContext,
+    context: &FilterDiscoveryContext,
 ) -> AppServiceResult<Option<SearchFilterNode>> {
     match context {
-        atlas_app_model::FilterDiscoveryContext::Filtered { filter } => {
-            lower_basic_filter(Some(filter))
-        }
+        FilterDiscoveryContext::Filtered { filter } => lower_basic_filter(Some(filter)),
+    }
+}
+
+pub(crate) fn filter_context_excluding_field(
+    context: &FilterDiscoveryContext,
+    field_id: &str,
+) -> FilterDiscoveryContext {
+    let excluded_field = app_filter_field_id(field_id);
+    match context {
+        FilterDiscoveryContext::Filtered { filter } => FilterDiscoveryContext::Filtered {
+            filter: BasicSearchFilter {
+                clauses: filter
+                    .clauses
+                    .iter()
+                    .filter(|clause| app_filter_field_id(&clause.field) != excluded_field)
+                    .cloned()
+                    .collect(),
+            },
+        },
+    }
+}
+
+pub(crate) fn app_filter_field_id(field: &str) -> String {
+    match discovery_field_id(field).as_str() {
+        "record_kind" => "kind".to_string(),
+        "pack_label" => "pack".to_string(),
+        other => other.to_string(),
     }
 }
 
@@ -387,7 +414,7 @@ mod tests {
         MetadataStringMatch, MetricMatch, NumericMatch, ScalarValue, SearchFilterNode,
     };
 
-    use super::lower_basic_filter;
+    use super::{filter_context_excluding_field, lower_basic_filter};
 
     #[test]
     fn lowers_required_traits_as_all_predicates() {
@@ -496,6 +523,32 @@ mod tests {
                     }
                 )
             ])
+        );
+    }
+
+    #[test]
+    fn discovery_context_exclusion_removes_same_app_field_aliases_only() {
+        let context = atlas_app_model::FilterDiscoveryContext::Filtered {
+            filter: BasicSearchFilter {
+                clauses: vec![
+                    clause("kind", FilterClauseOperator::IncludeAny, ["spell"]),
+                    clause("record_kind", FilterClauseOperator::IncludeAny, ["feat"]),
+                    clause("rarity", FilterClauseOperator::IncludeAny, ["common"]),
+                    clause("traits", FilterClauseOperator::ExcludeAny, ["fire"]),
+                ],
+            },
+        };
+
+        let filtered = filter_context_excluding_field(&context, "record_kind");
+        let atlas_app_model::FilterDiscoveryContext::Filtered { filter } = filtered;
+
+        assert_eq!(
+            filter
+                .clauses
+                .iter()
+                .map(|clause| clause.field.as_str())
+                .collect::<Vec<_>>(),
+            vec!["rarity", "traits"]
         );
     }
 

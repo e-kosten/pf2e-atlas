@@ -15,6 +15,7 @@ export type { FilterDiscoveryContext } from "../../../../crates/atlas-app-model/
 export type { FilterEditorFieldView } from "../../../../crates/atlas-app-model/bindings/FilterEditorFieldView";
 export type { FilterEditorGroupView } from "../../../../crates/atlas-app-model/bindings/FilterEditorGroupView";
 export type { FilterEditorView } from "../../../../crates/atlas-app-model/bindings/FilterEditorView";
+export type { FilterFieldApplicability } from "../../../../crates/atlas-app-model/bindings/FilterFieldApplicability";
 export type { FilterFieldPlacement } from "../../../../crates/atlas-app-model/bindings/FilterFieldPlacement";
 export type { FilterRange } from "../../../../crates/atlas-app-model/bindings/FilterRange";
 export type { FilterValidationCode } from "../../../../crates/atlas-app-model/bindings/FilterValidationCode";
