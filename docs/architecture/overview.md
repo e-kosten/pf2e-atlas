@@ -90,7 +90,7 @@ A future Ratatui workbench should consume `atlas-app-model` and `atlas-app-servi
 
 ### Tags
 
-Tags are a planned Rust-owned product surface with an accepted architecture model. Tags are global concepts with typed applicability over record kind, optional Foundry record type refinements, and small normalized fact predicates. They are authored as YAML, assigned through an agent-first workflow, and will become authoritative runtime filters through `record_tags` rows written during regular `atlas index build`.
+Tags are a Rust-owned product surface with an accepted architecture model and an initial authored-corpus validation command. Tags are global concepts with typed applicability over record kind, optional Foundry record type refinements, and small normalized fact predicates. They are authored as YAML, assigned through an agent-first workflow, and validated with `atlas tags validate`. They will become authoritative runtime filters through `record_tags` rows written during regular `atlas index build`.
 
 See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-tagging-model.md).
 
