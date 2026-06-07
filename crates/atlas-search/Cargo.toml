@@ -11,6 +11,10 @@ atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-index.workspace = true
 atlas-record.workspace = true
+rusqlite = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+[features]
+test-support = ["atlas-index/test-support", "rusqlite"]

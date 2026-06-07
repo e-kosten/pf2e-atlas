@@ -72,8 +72,7 @@ pub(crate) fn lower_basic_filter_context(
     context: &atlas_app_model::FilterDiscoveryContext,
 ) -> AppServiceResult<Option<SearchFilterNode>> {
     match context {
-        atlas_app_model::FilterDiscoveryContext::Browse { filter }
-        | atlas_app_model::FilterDiscoveryContext::TextSearch { filter, .. } => {
+        atlas_app_model::FilterDiscoveryContext::Filtered { filter } => {
             lower_basic_filter(Some(filter))
         }
     }

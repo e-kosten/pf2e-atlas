@@ -60,6 +60,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust graph context deeper local graph](./items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.
 
+- [Rust web text-scoped filter counts](./items/rust-web-text-scoped-filter-counts.md)
+  Design query-aware dynamic filter counts for the web search experience without duplicating text retrieval semantics in the app layer. Status: deferred.
+
 - [Rust FTS tokenization and stemming exploration](./items/rust-fts-tokenization-stemming.md)
   Evaluate SQLite FTS tokenizer/stemming choices for inflection handling. Status: proposed.
 

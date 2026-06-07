@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use atlas_app_model::{
-    AppError, AppErrorCode, DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest,
-    OpenResultWindowRequest, ReadResultWindowPageRequest,
+    AppError, AppErrorCode, AppReadinessView, DiscoverFilterFieldsRequest,
+    DiscoverFilterValuesRequest, FilterFieldListView, FilterValueListView, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RecordDetailView, ResultWindowPage,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use axum::extract::rejection::JsonRejection;
@@ -16,11 +17,15 @@ use axum::{Json, Router};
 
 #[derive(Clone)]
 struct AtlasWebState {
-    service: Arc<AtlasAppService>,
+    service: Arc<dyn AtlasWebService>,
 }
 
 impl AtlasWebState {
     fn new(service: AtlasAppService) -> Self {
+        Self::from_service(service)
+    }
+
+    fn from_service(service: impl AtlasWebService + 'static) -> Self {
         Self {
             service: Arc::new(service),
         }
@@ -28,6 +33,10 @@ impl AtlasWebState {
 }
 
 pub fn router(service: AtlasAppService) -> Router {
+    router_with_state(AtlasWebState::new(service))
+}
+
+fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
@@ -39,7 +48,73 @@ pub fn router(service: AtlasAppService) -> Router {
             post(read_result_window_page),
         )
         .route("/api/records/{record_key}", get(record_detail))
-        .with_state(AtlasWebState::new(service))
+        .with_state(state)
+}
+
+trait AtlasWebService: Send + Sync {
+    fn readiness(&self) -> AppReadinessView;
+
+    fn discover_filter_fields(
+        &self,
+        request: DiscoverFilterFieldsRequest,
+    ) -> Result<FilterFieldListView, AppServiceError>;
+
+    fn discover_filter_values(
+        &self,
+        request: DiscoverFilterValuesRequest,
+    ) -> Result<FilterValueListView, AppServiceError>;
+
+    fn open_result_window(
+        &self,
+        request: OpenResultWindowRequest,
+    ) -> Result<ResultWindowPage, AppServiceError>;
+
+    fn read_result_window_page(
+        &self,
+        window_id: u64,
+        request: ReadResultWindowPageRequest,
+    ) -> Result<ResultWindowPage, AppServiceError>;
+
+    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+}
+
+impl AtlasWebService for AtlasAppService {
+    fn readiness(&self) -> AppReadinessView {
+        self.readiness()
+    }
+
+    fn discover_filter_fields(
+        &self,
+        request: DiscoverFilterFieldsRequest,
+    ) -> Result<FilterFieldListView, AppServiceError> {
+        self.discover_filter_fields(request)
+    }
+
+    fn discover_filter_values(
+        &self,
+        request: DiscoverFilterValuesRequest,
+    ) -> Result<FilterValueListView, AppServiceError> {
+        self.discover_filter_values(request)
+    }
+
+    fn open_result_window(
+        &self,
+        request: OpenResultWindowRequest,
+    ) -> Result<ResultWindowPage, AppServiceError> {
+        self.open_result_window(request)
+    }
+
+    fn read_result_window_page(
+        &self,
+        window_id: u64,
+        request: ReadResultWindowPageRequest,
+    ) -> Result<ResultWindowPage, AppServiceError> {
+        self.read_result_window_page(window_id, request)
+    }
+
+    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
+        self.record_detail(record_key)
+    }
 }
 
 async fn root() -> &'static str {
@@ -182,12 +257,17 @@ async fn call_service<T: Send + 'static>(
 
 #[cfg(test)]
 mod tests {
+    use atlas_app_model::{
+        AppReadinessStatus, FilterFieldView, FilterValueOption, RecordSummaryView,
+        ResultWindowModeSummary, SearchPageView,
+    };
+    use atlas_domain::{RecordKey, RecordKind};
+    use atlas_record::RecordPresentationDocument;
     use axum::body::Body;
     use axum::body::to_bytes;
-    use axum::extract::Path;
-    use axum::http::Request;
+    use axum::http::{Method, Request};
     use axum::response::IntoResponse;
-    use axum::routing::post;
+    use serde_json::{Value, json};
     use tower::ServiceExt;
 
     use super::*;
@@ -228,37 +308,6 @@ mod tests {
 
         assert_eq!(error.code, AppErrorCode::InvalidRequest);
         assert!(error.message.contains("invalid result window id"));
-    }
-
-    #[tokio::test]
-    async fn invalid_window_id_route_returns_app_error_envelope() {
-        async fn invalid_id_handler(Path(window_id): Path<String>) -> Result<Response, WebError> {
-            let _ = parse_window_id(&window_id)?;
-            Ok(StatusCode::NO_CONTENT.into_response())
-        }
-
-        let app = Router::new().route(
-            "/api/result-windows/{window_id}/page",
-            post(invalid_id_handler),
-        );
-        let response = app
-            .oneshot(
-                Request::post("/api/result-windows/not-a-number/page")
-                    .body(Body::empty())
-                    .expect("request should build"),
-            )
-            .await
-            .expect("route should respond");
-        let (parts, body) = response.into_parts();
-        let body = to_bytes(body, usize::MAX)
-            .await
-            .expect("error body should be readable");
-        let app_error: AppError =
-            serde_json::from_slice(&body).expect("error body should be AppError JSON");
-
-        assert_eq!(parts.status, StatusCode::BAD_REQUEST);
-        assert_eq!(app_error.code, AppErrorCode::InvalidRequest);
-        assert!(app_error.message.contains("invalid result window id"));
     }
 
     #[tokio::test]
@@ -309,5 +358,265 @@ mod tests {
 
         assert_eq!(parts.status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(app_error.code, AppErrorCode::InternalError);
+    }
+
+    #[tokio::test]
+    async fn readiness_route_returns_service_readiness() {
+        let (status, body) = route_json(Method::GET, "/api/readiness", None).await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["status"], "ready");
+        assert_eq!(body["message"], "fixture ready");
+    }
+
+    #[tokio::test]
+    async fn result_window_routes_return_success_and_service_errors() {
+        let open_body = json!({
+            "mode": {
+                "kind": "list_records",
+                "filter": { "clauses": [] },
+                "sort": { "kind": "record_key" }
+            },
+            "page": { "number": 1, "size": 25 },
+            "include_diagnostics": false
+        });
+        let (status, body) = route_json(Method::POST, "/api/result-windows", Some(open_body)).await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["window_id"], 42);
+        assert_eq!(body["mode"]["kind"], "list_records");
+
+        let page_body = json!({ "page": { "number": 2, "size": 25 } });
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/result-windows/42/page",
+            Some(page_body.clone()),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["page"]["number"], 2);
+
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/result-windows/not-a-number/page",
+            Some(page_body.clone()),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+        assert!(
+            body["message"]
+                .as_str()
+                .expect("message should be string")
+                .contains("invalid result window id")
+        );
+
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/result-windows/999/page",
+            Some(page_body),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["code"], "window_not_found");
+    }
+
+    #[tokio::test]
+    async fn record_and_filter_routes_use_real_router_wiring() {
+        let (status, body) =
+            route_json(Method::GET, "/api/records/actions:testAction1", None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["record_key"], "actions:testAction1");
+        assert_eq!(body["presentation"]["title"], "Test Action 1");
+
+        let fields_request = json!({
+            "context": { "kind": "filtered", "filter": { "clauses": [] } }
+        });
+        let (status, body) =
+            route_json(Method::POST, "/api/filters/fields", Some(fields_request)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["fields"][0]["id"], "kind");
+
+        let values_request = json!({
+            "context": { "kind": "filtered", "filter": { "clauses": [] } },
+            "field_id": "pack"
+        });
+        let (status, body) =
+            route_json(Method::POST, "/api/filters/values", Some(values_request)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["field_id"], "pack");
+        assert_eq!(body["options"][0]["label"], "Actions");
+    }
+
+    #[tokio::test]
+    async fn malformed_json_route_body_returns_app_error_envelope() {
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::post("/api/filters/fields")
+                    .header("content-type", "application/json")
+                    .body(Body::from("{"))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+        let (status, body) = response_json(response).await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+        assert!(
+            body["message"]
+                .as_str()
+                .expect("message should be string")
+                .contains("invalid JSON request body")
+        );
+    }
+
+    async fn route_json(method: Method, path: &str, body: Option<Value>) -> (StatusCode, Value) {
+        let app = test_router();
+        let mut builder = Request::builder().method(method).uri(path);
+        let body = if let Some(body) = body {
+            builder = builder.header("content-type", "application/json");
+            Body::from(body.to_string())
+        } else {
+            Body::empty()
+        };
+        let response = app
+            .oneshot(builder.body(body).expect("request should build"))
+            .await
+            .expect("route should respond");
+        response_json(response).await
+    }
+
+    async fn response_json(response: Response) -> (StatusCode, Value) {
+        let (parts, body) = response.into_parts();
+        let body = to_bytes(body, usize::MAX)
+            .await
+            .expect("body should be readable");
+        let json = serde_json::from_slice(&body).expect("body should be JSON");
+        (parts.status, json)
+    }
+
+    fn test_router() -> Router {
+        router_with_state(AtlasWebState::from_service(MockService))
+    }
+
+    struct MockService;
+
+    impl AtlasWebService for MockService {
+        fn readiness(&self) -> AppReadinessView {
+            AppReadinessView {
+                status: AppReadinessStatus::Ready,
+                message: "fixture ready".to_string(),
+            }
+        }
+
+        fn discover_filter_fields(
+            &self,
+            _request: DiscoverFilterFieldsRequest,
+        ) -> Result<FilterFieldListView, AppServiceError> {
+            Ok(FilterFieldListView {
+                matching_record_count: 3,
+                fields: vec![FilterFieldView {
+                    id: "kind".to_string(),
+                    label: "Kinds".to_string(),
+                    cardinality: "one".to_string(),
+                    value_kind: "string".to_string(),
+                    allowed_operators: vec![],
+                    default_operator: atlas_app_model::FilterClauseOperator::IncludeAny,
+                    ui_hint: "multi_select".to_string(),
+                    supports_counts: true,
+                }],
+            })
+        }
+
+        fn discover_filter_values(
+            &self,
+            _request: DiscoverFilterValuesRequest,
+        ) -> Result<FilterValueListView, AppServiceError> {
+            Ok(FilterValueListView {
+                field_id: "pack".to_string(),
+                matching_record_count: 3,
+                options: vec![FilterValueOption {
+                    value: "Actions".to_string(),
+                    label: "Actions".to_string(),
+                    count: Some(3),
+                    selected: false,
+                    disabled: false,
+                    status: "available".to_string(),
+                }],
+            })
+        }
+
+        fn open_result_window(
+            &self,
+            _request: OpenResultWindowRequest,
+        ) -> Result<ResultWindowPage, AppServiceError> {
+            Ok(result_window_page(42, 1))
+        }
+
+        fn read_result_window_page(
+            &self,
+            window_id: u64,
+            request: ReadResultWindowPageRequest,
+        ) -> Result<ResultWindowPage, AppServiceError> {
+            if window_id == 999 {
+                return Err(AppServiceError::new(
+                    AppErrorCode::WindowNotFound,
+                    "window missing",
+                ));
+            }
+            Ok(result_window_page(window_id, request.page.number))
+        }
+
+        fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
+            Ok(RecordDetailView {
+                record_key: record_key.to_string(),
+                title: "Test Action 1".to_string(),
+                kind: "rule".to_string(),
+                presentation: RecordPresentationDocument {
+                    record_key: RecordKey::parse(record_key).expect("fixture key should parse"),
+                    kind: RecordKind::Rule,
+                    title: "Test Action 1".to_string(),
+                    identity: vec![],
+                    badges: vec![],
+                    sections: vec![],
+                },
+            })
+        }
+    }
+
+    fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
+        ResultWindowPage {
+            window_id,
+            mode: ResultWindowModeSummary::ListRecords,
+            page: SearchPageView {
+                number: page_number,
+                size: 25,
+                count: 1,
+                total: 3,
+                has_more: page_number < 3,
+                next_page: Some(page_number + 1),
+            },
+            rows: vec![atlas_app_model::ResultWindowRow {
+                record: RecordSummaryView {
+                    record_key: "actions:testAction1".to_string(),
+                    title: "Test Action 1".to_string(),
+                    kind: "rule".to_string(),
+                    kind_label: "Rule".to_string(),
+                    level_label: None,
+                    rarity: None,
+                    traits: vec![],
+                    taxonomy: vec![],
+                    publication: None,
+                    pack: Some("Actions".to_string()),
+                    preview: None,
+                },
+                match_summary: None,
+            }],
+        }
     }
 }

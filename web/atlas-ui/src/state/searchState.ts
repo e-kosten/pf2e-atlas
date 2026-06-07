@@ -159,18 +159,9 @@ export function buildOpenRequest(
 export function buildFilterDiscoveryContext(
   state: SearchFormState,
 ): FilterDiscoveryContext {
-  const filter = buildBasicFilter(state);
-  const query = state.query.trim();
-  if (state.mode === "text_search" && query.length > 0) {
-    return {
-      kind: "text_search",
-      query,
-      filter,
-    };
-  }
   return {
-    kind: "browse",
-    filter,
+    kind: "filtered",
+    filter: buildBasicFilter(state),
   };
 }
 
@@ -254,7 +245,7 @@ function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
   pushValues(clauses, "rarity", "include_any", state.rarity);
   pushValues(clauses, "traits", state.traitOperator, state.traits);
   pushValues(clauses, "traits", "exclude_any", state.excludedTraits);
-  pushValues(clauses, "pack_label", "include_any", state.packLabels);
+  pushValues(clauses, "pack", "include_any", state.packLabels);
   pushValues(
     clauses,
     "publication_title",

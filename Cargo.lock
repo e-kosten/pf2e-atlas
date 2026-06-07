@@ -228,6 +228,7 @@ dependencies = [
  "atlas-embedding",
  "atlas-index",
  "atlas-record",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror",
@@ -248,6 +249,8 @@ version = "0.1.0"
 dependencies = [
  "atlas-app-model",
  "atlas-app-service",
+ "atlas-domain",
+ "atlas-record",
  "axum",
  "serde_json",
  "tokio",

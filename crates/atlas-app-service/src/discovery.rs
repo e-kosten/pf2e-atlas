@@ -237,8 +237,7 @@ fn filter_value_options(
 
 fn selected_values(field_id: &str, context: &FilterDiscoveryContext) -> Vec<String> {
     let filter = match context {
-        FilterDiscoveryContext::Browse { filter }
-        | FilterDiscoveryContext::TextSearch { filter, .. } => filter,
+        FilterDiscoveryContext::Filtered { filter } => filter,
     };
     filter
         .clauses
@@ -293,4 +292,137 @@ fn title_case(value: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_app_model::{BasicSearchFilter, FilterClause};
+    use atlas_domain::{
+        BooleanFieldCounts, FilterDiscoveryExecution, FilterFieldGroup, FilterValueSort,
+    };
+
+    use super::*;
+
+    #[test]
+    fn field_projection_filters_unsupported_fields_and_uses_app_ids() {
+        let view = filter_field_list_view(FilterFieldDiscovery {
+            filter: None,
+            execution: FilterDiscoveryExecution::Dynamic,
+            matching_record_count: 3,
+            fields: vec![
+                field("record_kind", FilterFieldType::EnumString),
+                field("pack_label", FilterFieldType::EnumString),
+                field("traits", FilterFieldType::Set),
+                field("level", FilterFieldType::Number),
+                field("foundry_document_type", FilterFieldType::EnumString),
+            ],
+        });
+
+        let ids = view
+            .fields
+            .iter()
+            .map(|field| field.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec!["kind", "pack", "traits", "level"]);
+        assert_eq!(view.fields[0].label, "Kinds");
+        assert_eq!(
+            view.fields[2].default_operator,
+            FilterClauseOperator::IncludeAll
+        );
+        assert_eq!(
+            view.fields[3].allowed_operators,
+            vec![FilterClauseOperator::Range]
+        );
+        assert_eq!(view.fields[3].ui_hint, "range");
+    }
+
+    #[test]
+    fn value_projection_preserves_counts_selection_and_boolean_labels() {
+        let context = FilterDiscoveryContext::Filtered {
+            filter: BasicSearchFilter {
+                clauses: vec![FilterClause {
+                    id: "pack-include_any".to_string(),
+                    field: "pack".to_string(),
+                    operator: FilterClauseOperator::IncludeAny,
+                    values: vec!["Actions".to_string()],
+                    range: None,
+                    metric: None,
+                }],
+            },
+        };
+
+        let packs = filter_value_list_view(
+            "pack",
+            &context,
+            FilterValueDiscovery {
+                field: "pack_label".to_string(),
+                filter: None,
+                execution: FilterDiscoveryExecution::Dynamic,
+                matching_record_count: 3,
+                payload: FilterValuePayload::Enumerable {
+                    values: vec![
+                        FilterValueCount {
+                            value: "Actions".to_string(),
+                            count: 0,
+                        },
+                        FilterValueCount {
+                            value: "Spells".to_string(),
+                            count: 0,
+                        },
+                    ],
+                    null_count: 0,
+                    sort: FilterValueSort::Alpha,
+                },
+            },
+        )
+        .expect("pack values should project");
+
+        assert_eq!(packs.field_id, "pack");
+        assert!(packs.options[0].selected);
+        assert!(!packs.options[0].disabled);
+        assert!(!packs.options[1].selected);
+        assert!(packs.options[1].disabled);
+
+        let remaster = filter_value_list_view(
+            "publication_remaster",
+            &FilterDiscoveryContext::Filtered {
+                filter: BasicSearchFilter { clauses: vec![] },
+            },
+            FilterValueDiscovery {
+                field: "publication_remaster".to_string(),
+                filter: None,
+                execution: FilterDiscoveryExecution::Dynamic,
+                matching_record_count: 3,
+                payload: FilterValuePayload::BooleanCounts {
+                    counts: BooleanFieldCounts {
+                        r#true: 2,
+                        r#false: 1,
+                        null: 0,
+                    },
+                },
+            },
+        )
+        .expect("boolean values should project");
+
+        assert_eq!(remaster.options[0].label, "Yes");
+        assert_eq!(remaster.options[0].count, Some(2));
+        assert_eq!(remaster.options[1].label, "No");
+    }
+
+    fn field(name: &str, field_type: FilterFieldType) -> FilterFieldInfo {
+        FilterFieldInfo {
+            field: name.to_string(),
+            field_type,
+            group: FilterFieldGroup::Record,
+            value_policy: match field_type {
+                FilterFieldType::Boolean => FilterValuePolicy::BooleanCounts,
+                FilterFieldType::Number => FilterValuePolicy::NumericStats,
+                _ => FilterValuePolicy::Enumerable,
+            },
+            operators: vec![FilterOperator::Eq, FilterOperator::Includes],
+            applicable_kinds: vec!["rule".to_string()],
+            cli_flags: vec![],
+            catalog_available: true,
+        }
+    }
 }
