@@ -20,7 +20,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
 - `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
-- `atlas-tags` will own tag ontology, YAML parsing, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs once the first tagging implementation slice lands.
+- `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
 - `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
 - `atlas-record` owns normalized records, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.

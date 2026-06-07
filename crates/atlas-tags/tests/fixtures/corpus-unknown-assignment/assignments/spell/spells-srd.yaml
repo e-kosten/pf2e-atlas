@@ -1,0 +1,6 @@
+records:
+  - record_key: spells-srd:water-breathing
+    name: Water Breathing
+    tags:
+      - tag_id: exploration.environment.aquatic
+

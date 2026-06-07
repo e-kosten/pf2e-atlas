@@ -2,6 +2,7 @@
 
 mod assignment;
 mod catalog;
+mod corpus;
 mod id;
 mod model;
 mod proposal;
@@ -12,6 +13,7 @@ pub use assignment::{
     AssignmentEvidence, AssignmentFile, RecordTagAssignments, TagAssignment, TagFactField,
 };
 pub use catalog::{TagCatalog, TagCatalogFile};
+pub use corpus::{TagCorpus, TagCorpusLoadError, load_tag_corpus, validate_tag_corpus};
 pub use id::{TagId, TagIdParseError};
 pub use model::{
     TagApplicability, TagApplicabilityClause, TagDefinition, TagDisplayGroup, TagDisplaySubgroup,
