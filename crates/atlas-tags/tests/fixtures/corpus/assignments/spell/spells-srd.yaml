@@ -1,0 +1,14 @@
+records:
+  - record_key: spells-srd:dispel-magic
+    name: Dispel Magic
+    tags:
+      - tag_id: problem.counteract_magic
+        evidence:
+          - kind: content_excerpt
+            path: description
+            quote: You attempt to counteract a spell or magical effect.
+          - kind: normalized_fact
+            field: record_kind
+            value: spell
+        note: Core use is removing active magic.
+

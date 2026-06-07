@@ -1,0 +1,16 @@
+tags:
+  - id: problem.counteract_magic
+    label: Counteract Magic
+    description: Helps suppress, dispel, counteract, or remove active magical effects.
+    display:
+      group: ProblemSolving
+      subgroup: Countermeasure
+    applicability:
+      any_of:
+        - record_kinds: [spell]
+    guidance:
+      applies_when:
+        - The record explicitly dispels, counteracts, suppresses, or removes magic.
+      does_not_apply_when:
+        - The record only deals magical damage.
+

@@ -1,0 +1,13 @@
+suggestions:
+  - proposed_id: exploration.environment.aquatic
+    label: Aquatic Environment Support
+    display:
+      group: ExplorationAndUtility
+      subgroup: TravelAndMovement
+    applicability:
+      any_of:
+        - record_kinds: [spell, equipment]
+    rationale: Several records solve underwater breathing or underwater movement, which is a predictable exploration-prep search axis not covered by native traits alone.
+    triggering_record_key: spells-srd:water-breathing
+    follow_up_research_needed: true
+

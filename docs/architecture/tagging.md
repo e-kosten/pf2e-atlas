@@ -50,6 +50,8 @@ data/tags/
 
 If a catalog group becomes too large, it may be split by subgroup under that group directory. File layout is for authoring ergonomics only; the parsed catalog is one global tag catalog.
 
+`atlas-tags` loads this layout as one corpus. Catalog files under `catalog/` are required and merged into a single valid tag id set. Assignment and ontology-suggestion directories may be absent during early authoring; when present, assignment files are merged and validated against the merged catalog, while ontology suggestions remain secondary proposals and do not become valid assignable tags until approved into the catalog.
+
 Tag ids use a lowercase dotted namespace with snake-case leaves, such as:
 
 - `setting.darklands`

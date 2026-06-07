@@ -1,0 +1,18 @@
+records:
+  - record_key: equipment-srd:fortress-shield
+    name: Fortress Shield
+    tags:
+      - tag_id: equipment.party_support.defense
+        evidence:
+          - kind: normalized_fact
+            field: foundry_record_type
+            value: shield
+          - kind: tag_guidance_match
+            signal: Improves durability or ally protection.
+            explanation: The item is defensive equipment and matches the party support guidance.
+
+  - record_key: equipment-srd:plain-clothing
+    name: Plain Clothing
+    tags: []
+    note: Reviewed; no high-signal tags justified.
+
