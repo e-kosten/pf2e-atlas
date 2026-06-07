@@ -14,7 +14,7 @@ use atlas_search::{
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::lower_basic_filter;
 use crate::projection::{record_summary, search_page_view, text_match_summary};
-use crate::service::AppServiceWorker;
+use crate::service::AtlasAppService;
 
 pub(super) const MAX_RESULT_WINDOWS: usize = 64;
 const MAX_EXPIRED_RESULT_WINDOWS: usize = MAX_RESULT_WINDOWS;
@@ -35,9 +35,9 @@ pub(super) struct ResultWindowStore {
     expired_capacity: usize,
 }
 
-impl AppServiceWorker {
-    pub(super) fn open_result_window(
-        &mut self,
+impl AtlasAppService {
+    pub fn open_result_window(
+        &self,
         request: OpenResultWindowRequest,
     ) -> AppServiceResult<ResultWindowPage> {
         let window_id = self.next_window_id.fetch_add(1, Ordering::Relaxed);
@@ -45,33 +45,28 @@ impl AppServiceWorker {
             mode: request.mode,
             include_diagnostics: request.include_diagnostics,
         };
-        let retrieval = &mut self.retrieval;
-        insert_after_success(&mut self.windows, window_id, window, |window| {
+        let window_for_render = window.clone();
+        let page = self.retrieval.submit(move |retrieval| {
             render_result_window_page(
                 retrieval,
                 window_id,
-                window,
+                &window_for_render,
                 ReadResultWindowPageRequest { page: request.page },
             )
+        })?;
+        self.windows()?.insert(window_id, window);
+        Ok(page)
+    }
+
+    pub fn read_result_window_page(
+        &self,
+        window_id: u64,
+        request: ReadResultWindowPageRequest,
+    ) -> AppServiceResult<ResultWindowPage> {
+        let window = self.windows()?.get(window_id)?;
+        self.retrieval.submit(move |retrieval| {
+            render_result_window_page(retrieval, window_id, &window, request)
         })
-    }
-
-    pub(super) fn read_result_window_page(
-        &mut self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> AppServiceResult<ResultWindowPage> {
-        let window = self.windows.get(window_id)?;
-        self.render_result_window_page(window_id, &window, request)
-    }
-
-    fn render_result_window_page(
-        &mut self,
-        window_id: u64,
-        window: &StoredResultWindow,
-        request: ReadResultWindowPageRequest,
-    ) -> AppServiceResult<ResultWindowPage> {
-        render_result_window_page(&mut self.retrieval, window_id, window, request)
     }
 }
 
@@ -129,17 +124,6 @@ impl ResultWindowStore {
             }
         })
     }
-}
-
-fn insert_after_success<T>(
-    store: &mut ResultWindowStore,
-    window_id: u64,
-    window: StoredResultWindow,
-    render: impl FnOnce(&StoredResultWindow) -> AppServiceResult<T>,
-) -> AppServiceResult<T> {
-    let result = render(&window)?;
-    store.insert(window_id, window);
-    Ok(result)
 }
 
 fn render_result_window_page(
@@ -228,13 +212,15 @@ fn match_summary(match_info: &TextSearchMatch) -> ResultMatchSummary {
 
 #[cfg(test)]
 mod tests {
+    use std::thread;
+
     use atlas_app_model::{
         BasicSearchFilter, OpenResultWindowRequest, ReadResultWindowPageRequest,
         RecordListSortView, ResultWindowMode, SearchPageRequest,
     };
 
     use super::*;
-    use crate::test_support::fixture_worker;
+    use crate::test_support::{fixture_worker, fixture_worker_with_workers};
 
     #[test]
     fn result_window_store_expires_oldest_window_when_capacity_is_exceeded() {
@@ -307,36 +293,31 @@ mod tests {
 
     #[test]
     fn failed_result_window_open_does_not_retain_hidden_window() {
-        let mut store = ResultWindowStore::new(2);
-        let window_id = 7;
-        let result = insert_after_success(&mut store, window_id, stored_window("failed"), |_| {
-            Err::<(), _>(AppServiceError::invalid_request("invalid first page"))
+        let fixture = fixture_worker();
+        let service = &fixture.worker;
+        let result = service.open_result_window(OpenResultWindowRequest {
+            mode: ResultWindowMode::ListRecords {
+                filter: None,
+                sort: RecordListSortView::RecordKey,
+            },
+            page: SearchPageRequest { number: 0, size: 2 },
+            include_diagnostics: false,
         });
 
         assert!(result.is_err());
-        assert_eq!(store.windows.len(), 0);
         assert_eq!(
-            store
-                .get(window_id)
+            service
+                .read_result_window_page(
+                    1,
+                    ReadResultWindowPageRequest {
+                        page: SearchPageRequest { number: 1, size: 2 },
+                    }
+                )
                 .expect_err("failed open should not retain a hidden window")
                 .into_app_error()
                 .code,
             AppErrorCode::WindowNotFound
         );
-    }
-
-    #[test]
-    fn successful_result_window_open_inserts_after_render() {
-        let mut store = ResultWindowStore::new(2);
-        let window_id = 7;
-
-        let result = insert_after_success(&mut store, window_id, stored_window("success"), |_| {
-            Ok::<_, AppServiceError>("page")
-        })
-        .expect("successful render should insert window");
-
-        assert_eq!(result, "page");
-        assert!(store.get(window_id).is_ok());
     }
 
     #[test]
@@ -375,6 +356,66 @@ mod tests {
         assert_eq!(second_page.rows[0].record.record_key, "actions:testAction3");
     }
 
+    #[test]
+    fn cloned_service_opens_and_reads_result_windows_concurrently() {
+        let fixture = fixture_worker_with_workers(2);
+        let first_service = fixture.worker.clone();
+        let second_service = fixture.worker.clone();
+
+        let first_handle = thread::spawn(move || first_service.open_result_window(list_request(1)));
+        let second_handle =
+            thread::spawn(move || second_service.open_result_window(list_request(2)));
+
+        let first_page = first_handle
+            .join()
+            .expect("first open thread should not panic")
+            .expect("first window should open");
+        let second_page = second_handle
+            .join()
+            .expect("second open thread should not panic")
+            .expect("second window should open");
+
+        assert_ne!(first_page.window_id, second_page.window_id);
+        assert_eq!(first_page.page.count, 1);
+        assert_eq!(second_page.page.count, 1);
+
+        let first_reader = fixture.worker.clone();
+        let second_reader = fixture.worker.clone();
+        let first_window_id = first_page.window_id;
+        let second_window_id = second_page.window_id;
+
+        let first_read = thread::spawn(move || {
+            first_reader.read_result_window_page(
+                first_window_id,
+                ReadResultWindowPageRequest {
+                    page: SearchPageRequest { number: 1, size: 1 },
+                },
+            )
+        });
+        let second_read = thread::spawn(move || {
+            second_reader.read_result_window_page(
+                second_window_id,
+                ReadResultWindowPageRequest {
+                    page: SearchPageRequest { number: 2, size: 1 },
+                },
+            )
+        });
+
+        let first_page = first_read
+            .join()
+            .expect("first read thread should not panic")
+            .expect("first window should read");
+        let second_page = second_read
+            .join()
+            .expect("second read thread should not panic")
+            .expect("second window should read");
+
+        assert_eq!(first_page.window_id, first_window_id);
+        assert_eq!(second_page.window_id, second_window_id);
+        assert_eq!(first_page.rows[0].record.record_key, "actions:testAction1");
+        assert_eq!(second_page.rows[0].record.record_key, "actions:testAction2");
+    }
+
     fn stored_window(id: &str) -> StoredResultWindow {
         StoredResultWindow {
             mode: ResultWindowMode::ListRecords {
@@ -384,6 +425,20 @@ mod tests {
                 sort: atlas_app_model::RecordListSortView::RecordKey,
             },
             include_diagnostics: id == "first",
+        }
+    }
+
+    fn list_request(page_number: u32) -> OpenResultWindowRequest {
+        OpenResultWindowRequest {
+            mode: ResultWindowMode::ListRecords {
+                filter: None,
+                sort: RecordListSortView::RecordKey,
+            },
+            page: SearchPageRequest {
+                number: page_number,
+                size: 1,
+            },
+            include_diagnostics: false,
         }
     }
 }

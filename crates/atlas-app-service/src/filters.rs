@@ -14,43 +14,43 @@ use crate::filter::{
     app_filter_field_id, discovery_field_id, filter_context_excluding_field,
     lower_basic_filter_context,
 };
-use crate::service::AppServiceWorker;
+use crate::service::AtlasAppService;
 
-impl AppServiceWorker {
-    pub(super) fn discover_filter_editor(
+impl AtlasAppService {
+    pub fn discover_filter_editor(
         &self,
         request: DiscoverFilterEditorRequest,
     ) -> AppServiceResult<FilterEditorView> {
         let filter = lower_basic_filter_context(&request.context)?;
-        let discovery =
-            self.retrieval
-                .discover_filter_fields(SearchDiscoverFilterFieldsRequest {
+        let selected_field_ids = selected_filter_field_ids(&request);
+        self.retrieval.submit(move |retrieval| {
+            let discovery =
+                retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
                     filter: filter.as_ref(),
                     filter_json: None,
                 })?;
-        let selected_candidates =
-            self.retrieval
-                .discover_filter_fields(SearchDiscoverFilterFieldsRequest {
+            let selected_candidates =
+                retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
                     filter: None,
                     filter_json: None,
                 })?;
-        let selected_field_ids = selected_filter_field_ids(&request);
-        Ok(filter_editor_view(
-            discovery,
-            selected_candidates,
-            &selected_field_ids,
-        ))
+            Ok(filter_editor_view(
+                discovery,
+                selected_candidates,
+                &selected_field_ids,
+            ))
+        })
     }
 
-    pub(super) fn discover_filter_values(
+    pub fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
     ) -> AppServiceResult<FilterValueListView> {
         let discovery_context = filter_context_excluding_field(&request.context, &request.field_id);
         let filter = lower_basic_filter_context(&discovery_context)?;
-        let discovery =
-            self.retrieval
-                .discover_filter_values(SearchDiscoverFilterValuesRequest {
+        self.retrieval.submit(move |retrieval| {
+            let discovery =
+                retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
                     field: discovery_field_id(&request.field_id),
                     filter: filter.as_ref(),
                     filter_json: None,
@@ -59,7 +59,8 @@ impl AppServiceWorker {
                     metric_selector: metric_selector(request.metric_query.as_deref()),
                     metric_domain: request.metric_domain.clone(),
                 })?;
-        filter_value_list_view(&request.field_id, &request.context, discovery)
+            filter_value_list_view(&request.field_id, &request.context, discovery)
+        })
     }
 }
 

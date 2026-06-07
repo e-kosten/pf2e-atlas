@@ -20,11 +20,11 @@ Add three app-layer crates:
 
 Add `web/atlas-ui` as the TypeScript/React frontend package. It consumes generated app DTOs through a local aggregation file, uses a thin handwritten API client over `/api/*`, and renders the search-to-detail workflow with the selected Ant Design component library.
 
-`atlas web` starts the local service from the CLI. The app service opens one full `AtlasRetrievalService` through `AtlasRuntime::open_retrieval_service` and fails startup when artifact/vector/embedding readiness is not satisfied. It must not call `open_retrieval_service_no_embeddings`.
+`atlas web` starts the local service from the CLI. The app service starts a bounded pool of retrieval workers; each worker opens a full `AtlasRetrievalService` through `AtlasRuntime::open_retrieval_service`, and service startup fails when artifact/vector/embedding readiness is not satisfied. It must not call `open_retrieval_service_no_embeddings`.
 
 `atlas-app-service` must not import or assemble `atlas-index` internals. It adapts app DTOs into `atlas-search` request types and uses narrow retrieval capability traits where practical.
 
-The initial implementation may use a cloneable app-service handle backed by a dedicated worker thread that owns retrieval state and result-window handles. Axum request handlers call through that handle instead of reopening resources per request.
+The app-service handle is cloneable for Axum request handlers, but it must not funnel all frontend requests through one unbounded synchronous lane. Shared mutable UI workflow state, such as result-window metadata, stays guarded by explicit app-service synchronization, while retrieval work is submitted to the bounded worker pool and rejected with a retryable busy error when the queue is full.
 
 TypeScript bindings are generated from the app DTO graph and checked into the app-model crate. `cargo test -p atlas-app-model` validates that checked-in bindings are fresh. To deliberately refresh them after DTO changes, run:
 

@@ -21,6 +21,12 @@ impl AppServiceError {
         Self::new(AppErrorCode::InvalidRequest, message)
     }
 
+    pub fn service_busy(message: impl Into<String>) -> Self {
+        let mut error = AppError::new(AppErrorCode::ServiceBusy, message);
+        error.retryable = Some(true);
+        Self { error }
+    }
+
     pub fn into_app_error(self) -> AppError {
         self.error
     }

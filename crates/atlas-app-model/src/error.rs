@@ -56,6 +56,7 @@ pub enum AppErrorCode {
     EmbeddingModelUnavailable,
     SetupRequired,
     SetupInProgress,
+    ServiceBusy,
     OperationCancelled,
     OperationTimeout,
     InternalError,

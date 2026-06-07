@@ -1,31 +1,26 @@
-use std::sync::atomic::AtomicU64;
 use std::sync::{Mutex, OnceLock};
 
-use atlas_search::test_support::{
-    FixtureArtifact, minimal_fixture_retrieval_service_without_embeddings,
-};
-
-use crate::service::AppServiceWorker;
-use crate::windows::{MAX_RESULT_WINDOWS, ResultWindowStore};
+use crate::executor::RetrievalExecutor;
+use crate::service::AtlasAppService;
 
 pub(super) struct FixtureWorker {
-    pub(super) worker: AppServiceWorker,
-    _artifact: FixtureArtifact,
+    pub(super) worker: AtlasAppService,
 }
 
 pub(super) fn fixture_worker() -> FixtureWorker {
+    fixture_worker_with_workers(1)
+}
+
+pub(super) fn fixture_worker_with_workers(worker_count: usize) -> FixtureWorker {
     let _guard = fixture_creation_lock()
         .lock()
         .expect("fixture creation lock should not be poisoned");
-    let (retrieval, artifact) = minimal_fixture_retrieval_service_without_embeddings()
-        .expect("fixture retrieval service should build");
     FixtureWorker {
-        worker: AppServiceWorker {
-            retrieval,
-            windows: ResultWindowStore::new(MAX_RESULT_WINDOWS),
-            next_window_id: AtomicU64::new(1),
-        },
-        _artifact: artifact,
+        worker: AtlasAppService::new(Ok(RetrievalExecutor::from_fixture_workers(
+            worker_count,
+            16,
+        )))
+        .expect("fixture service should build"),
     }
 }
 

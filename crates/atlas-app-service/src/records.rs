@@ -4,25 +4,26 @@ use atlas_search::{GetRecordRequest, RecordRetrieval};
 
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::projection::record_detail;
-use crate::service::AppServiceWorker;
+use crate::service::AtlasAppService;
 
-impl AppServiceWorker {
-    pub(super) fn record_detail(&self, record_key: &str) -> AppServiceResult<RecordDetailView> {
+impl AtlasAppService {
+    pub fn record_detail(&self, record_key: &str) -> AppServiceResult<RecordDetailView> {
         let record_key = RecordKey::parse(record_key).map_err(|error| {
             AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
         })?;
-        let record = self
-            .retrieval
-            .get_record(GetRecordRequest {
-                record_key: &record_key,
-            })?
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::RecordNotFound,
-                    format!("record `{record_key}` was not found"),
-                )
-            })?;
-        record_detail(&record)
+        self.retrieval.submit(move |retrieval| {
+            let record = retrieval
+                .get_record(GetRecordRequest {
+                    record_key: &record_key,
+                })?
+                .ok_or_else(|| {
+                    AppServiceError::new(
+                        AppErrorCode::RecordNotFound,
+                        format!("record `{record_key}` was not found"),
+                    )
+                })?;
+            record_detail(&record)
+        })
     }
 }
 
