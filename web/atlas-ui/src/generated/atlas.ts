@@ -4,8 +4,6 @@ export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bind
 export type { AppReadinessView } from "../../../../crates/atlas-app-model/bindings/AppReadinessView";
 export type { AppRecoverableAction } from "../../../../crates/atlas-app-model/bindings/AppRecoverableAction";
 export type { BasicSearchFilter } from "../../../../crates/atlas-app-model/bindings/BasicSearchFilter";
-export type { BasicSearchMode } from "../../../../crates/atlas-app-model/bindings/BasicSearchMode";
-export type { BasicSearchState } from "../../../../crates/atlas-app-model/bindings/BasicSearchState";
 export type { DiscoverFilterEditorRequest } from "../../../../crates/atlas-app-model/bindings/DiscoverFilterEditorRequest";
 export type { DiscoverFilterValuesRequest } from "../../../../crates/atlas-app-model/bindings/DiscoverFilterValuesRequest";
 export type { FilterClause } from "../../../../crates/atlas-app-model/bindings/FilterClause";

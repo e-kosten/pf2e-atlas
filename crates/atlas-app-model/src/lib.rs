@@ -17,9 +17,9 @@ pub use filter::{
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{RecordBadgeView, RecordDetailView, RecordSummaryView};
 pub use result_window::{
-    BasicSearchMode, BasicSearchState, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RecordListSortView, ResultMatchSummary, ResultWindowMode, ResultWindowModeSummary,
-    ResultWindowPage, ResultWindowRow, SearchPageRequest, SearchPageView,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
+    ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
+    SearchPageRequest, SearchPageView,
 };
 
 #[cfg(test)]
@@ -60,7 +60,6 @@ mod tests {
         AppError::export_all_to(path).expect("AppError bindings should export");
         AppReadinessView::export_all_to(path).expect("AppReadinessView bindings should export");
         BasicSearchFilter::export_all_to(path).expect("BasicSearchFilter bindings should export");
-        BasicSearchState::export_all_to(path).expect("BasicSearchState bindings should export");
         DiscoverFilterEditorRequest::export_all_to(path)
             .expect("DiscoverFilterEditorRequest bindings should export");
         DiscoverFilterValuesRequest::export_all_to(path)
