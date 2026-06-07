@@ -10,7 +10,9 @@ import {
   Select,
 } from "antd";
 import { Search } from "lucide-react";
+import { useState } from "react";
 import type { FilterEditorFieldView } from "../../generated/atlas";
+import type { MetricComparisonState } from "../../state/searchState";
 import { SORT_OPTIONS } from "../../state/searchState";
 import {
   addVisibleFilter,
@@ -20,10 +22,16 @@ import {
   controlKindForField,
   discoveredOptions,
   editorFieldForId,
+  excludedValuesForField,
+  includeOperatorForField,
   labelForField,
+  metricComparisonForField,
   rangeForField,
   removeVisibleFilter,
   setBooleanForField,
+  setExcludedValuesForField,
+  setIncludeOperatorForField,
+  setMetricComparisonForField,
   setRangeForField,
   setValuesForField,
   valuesForField,
@@ -237,6 +245,10 @@ function FilterFieldControl({
     );
   }
 
+  if (controlKind === "metric") {
+    return <MetricFilterControl workspace={workspace} field={field} />;
+  }
+
   return (
     <>
       <Form.Item label={field.label}>
@@ -251,12 +263,15 @@ function FilterFieldControl({
       {field.id === "traits" ? (
         <>
           <Checkbox
-            checked={search.traitOperator === "include_any"}
+            checked={includeOperatorForField(search, field.id) === "include_any"}
             onChange={(event) =>
-              setSearch({
-                ...search,
-                traitOperator: event.target.checked ? "include_any" : "include_all",
-              })
+              setSearch(
+                setIncludeOperatorForField(
+                  search,
+                  field.id,
+                  event.target.checked ? "include_any" : "include_all",
+                ),
+              )
             }
           >
             Match any selected trait
@@ -266,8 +281,10 @@ function FilterFieldControl({
               mode="multiple"
               loading={workspace.filterDiscoveryLoading}
               options={discoveredOptions(workspace, field.id)}
-              value={search.excludedTraits}
-              onChange={(excludedTraits) => setSearch({ ...search, excludedTraits })}
+              value={excludedValuesForField(search, field.id)}
+              onChange={(excludedValues) =>
+                setSearch(setExcludedValuesForField(search, field.id, excludedValues))
+              }
             />
           </Form.Item>
         </>
@@ -339,6 +356,11 @@ function OptionalFilterControl({
     );
   }
 
+  if (controlKind === "metric") {
+    const field = editorFieldForId(workspace, fieldId);
+    return field ? <MetricFilterControl workspace={workspace} field={field} /> : null;
+  }
+
   return (
     <Select
       mode="multiple"
@@ -347,5 +369,65 @@ function OptionalFilterControl({
       value={valuesForField(search, fieldId)}
       onChange={(values) => setSearch(setValuesForField(search, fieldId, values))}
     />
+  );
+}
+
+function MetricFilterControl({
+  workspace,
+  field,
+}: {
+  workspace: AtlasWorkspaceState;
+  field: FilterEditorFieldView;
+}) {
+  const { search, setSearch } = workspace;
+  const current = metricComparisonForField(search, field.id);
+  const [draft, setDraft] = useState<MetricComparisonState>(current);
+  const keyLabel =
+    field.control.kind === "metric_comparison" ? field.control.key_label : "Metric";
+  const operatorLabel =
+    field.control.kind === "metric_comparison"
+      ? field.control.operator_label
+      : "Operator";
+  const valueLabel =
+    field.control.kind === "metric_comparison" ? field.control.value_label : "Value";
+
+  function update(next: MetricComparisonState) {
+    setDraft(next);
+    setSearch(setMetricComparisonForField(search, field.id, next));
+  }
+
+  return (
+    <div className="control-row metric-filter-control">
+      <Form.Item label={keyLabel}>
+        <Select
+          showSearch
+          allowClear
+          loading={workspace.filterDiscoveryLoading}
+          optionFilterProp="label"
+          options={discoveredOptions(workspace, field.id)}
+          value={draft.key}
+          onChange={(key) => update({ ...draft, key: key ?? null })}
+        />
+      </Form.Item>
+      <Form.Item label={operatorLabel}>
+        <Select
+          options={[
+            { value: "gte", label: ">=" },
+            { value: "lte", label: "<=" },
+            { value: "gt", label: ">" },
+            { value: "lt", label: "<" },
+            { value: "eq", label: "=" },
+          ]}
+          value={draft.op}
+          onChange={(op) => update({ ...draft, op })}
+        />
+      </Form.Item>
+      <Form.Item label={valueLabel}>
+        <InputNumber
+          value={draft.value}
+          onChange={(value) => update({ ...draft, value: value ?? null })}
+        />
+      </Form.Item>
+    </div>
   );
 }

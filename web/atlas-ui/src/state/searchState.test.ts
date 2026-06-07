@@ -8,7 +8,7 @@ import {
 } from "./searchState";
 
 describe("searchState", () => {
-  it("builds a browse request with kind filters, sort, and page data", () => {
+  it("builds a browse request with clause filters, sort, and page data", () => {
     const request = buildOpenRequest(DEFAULT_SEARCH_STATE, 3);
 
     expect(request).toMatchObject({
@@ -50,12 +50,20 @@ describe("searchState", () => {
     expect(request.include_diagnostics).toBe(true);
   });
 
-  it("builds filter discovery context from filters only", () => {
+  it("builds filter discovery context from clauses only", () => {
     const context = buildFilterDiscoveryContext({
       ...DEFAULT_SEARCH_STATE,
       mode: "text_search",
       query: "fireball",
-      rarity: ["rare"],
+      filterClauses: [
+        ...DEFAULT_SEARCH_STATE.filterClauses,
+        {
+          id: "rarity-include_any",
+          field: "rarity",
+          operator: "include_any",
+          values: ["rare"],
+        },
+      ],
     });
 
     expect(context).toEqual({
@@ -69,15 +77,30 @@ describe("searchState", () => {
     });
   });
 
-  it("builds rarity, trait, excluded trait, and level clauses", () => {
+  it("preserves range and metric comparison clauses", () => {
     const state: SearchFormState = {
       ...DEFAULT_SEARCH_STATE,
-      rarity: ["uncommon", "rare"],
-      traits: ["auditory", "mental"],
-      traitOperator: "include_all",
-      excludedTraits: ["incapacitation"],
-      levelMin: 2,
-      levelMax: 5,
+      filterClauses: [
+        ...DEFAULT_SEARCH_STATE.filterClauses,
+        {
+          id: "level-range",
+          field: "level",
+          operator: "range",
+          values: [],
+          range: { min: 2, max: 5 },
+        },
+        {
+          id: "metric-metric_compare",
+          field: "metric",
+          operator: "metric_compare",
+          values: [],
+          metric: {
+            key: "spell.area.value",
+            op: "gte",
+            value: 10,
+          },
+        },
+      ],
     };
 
     const request = buildOpenRequest(state, 1);
@@ -88,74 +111,21 @@ describe("searchState", () => {
 
     expect(clauses).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          field: "rarity",
-          operator: "include_any",
-          values: ["uncommon", "rare"],
-        }),
-        expect.objectContaining({
-          field: "traits",
-          operator: "include_all",
-          values: ["auditory", "mental"],
-        }),
-        expect.objectContaining({
-          field: "traits",
-          operator: "exclude_any",
-          values: ["incapacitation"],
-        }),
         expect.objectContaining({
           id: "level-range",
           field: "level",
           operator: "range",
           range: { min: 2, max: 5 },
         }),
-      ]),
-    );
-  });
-
-  it("builds dynamic option, boolean, and range filter clauses", () => {
-    const state: SearchFormState = {
-      ...DEFAULT_SEARCH_STATE,
-      optionFilters: {
-        traditions: ["arcane", "occult"],
-        size: ["lg"],
-      },
-      booleanFilters: {
-        basic_save: "true",
-      },
-      rangeFilters: {
-        bulk_value: { min: 1, max: 3 },
-      },
-    };
-
-    const request = buildOpenRequest(state, 1);
-    const clauses =
-      request.mode.kind === "list_records"
-        ? request.mode.filter?.clauses
-        : request.mode.filter?.clauses;
-
-    expect(clauses).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
-          field: "traditions",
-          operator: "include_any",
-          values: ["arcane", "occult"],
-        }),
-        expect.objectContaining({
-          field: "size",
-          operator: "include_any",
-          values: ["lg"],
-        }),
-        expect.objectContaining({
-          field: "basic_save",
-          operator: "include_any",
-          values: ["true"],
-        }),
-        expect.objectContaining({
-          id: "bulk_value-range",
-          field: "bulk_value",
-          operator: "range",
-          range: { min: 1, max: 3 },
+          id: "metric-metric_compare",
+          field: "metric",
+          operator: "metric_compare",
+          metric: {
+            key: "spell.area.value",
+            op: "gte",
+            value: 10,
+          },
         }),
       ]),
     );
@@ -166,14 +136,46 @@ describe("searchState", () => {
       ...DEFAULT_SEARCH_STATE,
       query: "鬼火 café",
       mode: "text_search",
-      traits: ["fire"],
-      levelMin: 1,
-      levelMax: null,
+      filterClauses: [
+        ...DEFAULT_SEARCH_STATE.filterClauses,
+        {
+          id: "traits-include_all",
+          field: "traits",
+          operator: "include_all",
+          values: ["fire"],
+        },
+      ],
     };
 
     const encoded = encodeSearchState(state);
     expect(encoded).toContain("%");
     expect(decodeSearchState(encoded)).toEqual(state);
+  });
+
+  it("uses default clauses when encoded state does not include clause state", () => {
+    const encoded = encodeURIComponent(
+      JSON.stringify({
+        rarity: ["uncommon", "rare"],
+        traits: ["auditory", "mental"],
+        traitOperator: "include_all",
+        excludedTraits: ["incapacitation"],
+        levelMin: 2,
+        levelMax: 5,
+        optionFilters: {
+          traditions: ["arcane", "occult"],
+        },
+        booleanFilters: {
+          basic_save: "true",
+        },
+        rangeFilters: {
+          bulk_value: { min: 1, max: 3 },
+        },
+      }),
+    );
+
+    expect(decodeSearchState(encoded).filterClauses).toEqual(
+      DEFAULT_SEARCH_STATE.filterClauses,
+    );
   });
 
   it("falls back to defaults for missing or malformed encoded state", () => {
@@ -187,13 +189,27 @@ describe("searchState", () => {
       JSON.stringify({
         query: 7,
         mode: "unsupported",
-        kinds: ["spell", 12],
-        rarity: ["rare"],
-        traits: "fire",
-        traitOperator: "exclude_any",
-        excludedTraits: ["mental"],
-        levelMin: "1",
-        levelMax: Number.POSITIVE_INFINITY,
+        filterClauses: [
+          {
+            id: "rarity-include_any",
+            field: "rarity",
+            operator: "include_any",
+            values: ["rare"],
+          },
+          {
+            id: "empty-values",
+            field: "traits",
+            operator: "include_all",
+            values: [],
+          },
+          {
+            id: "bad-metric",
+            field: "metric",
+            operator: "metric_compare",
+            metric: { key: "spell.area.value", op: "gte", value: "10" },
+            values: [],
+          },
+        ],
         sort: "unknown",
         pageSize: -4,
         includeDiagnostics: "true",
@@ -202,8 +218,14 @@ describe("searchState", () => {
 
     expect(decodeSearchState(encoded)).toEqual({
       ...DEFAULT_SEARCH_STATE,
-      rarity: ["rare"],
-      excludedTraits: ["mental"],
+      filterClauses: [
+        {
+          id: "rarity-include_any",
+          field: "rarity",
+          operator: "include_any",
+          values: ["rare"],
+        },
+      ],
       pageSize: 1,
     });
   });

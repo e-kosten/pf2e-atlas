@@ -62,7 +62,14 @@ describe("workspaceInteractionReducer", () => {
   it("restores URL state as one transition", () => {
     const restoredSearch = {
       ...DEFAULT_SEARCH_STATE,
-      kinds: ["creature"],
+      filterClauses: [
+        {
+          id: "kind-include_any",
+          field: "kind",
+          operator: "include_any" as const,
+          values: ["creature"],
+        },
+      ],
     };
 
     const next = workspaceInteractionReducer(

@@ -15,8 +15,8 @@ use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntim
 use atlas_search::{
     AtlasRetrievalService, DiscoverFilterFieldsRequest as SearchDiscoverFilterFieldsRequest,
     DiscoverFilterValuesRequest as SearchDiscoverFilterValuesRequest, FilterDiscoveryRetrieval,
-    GetRecordRequest, ListRecordsRequest, RecordListSort, RecordRetrieval, SearchPage,
-    TextRetrieval, TextSearchMatch, TextSearchRequest,
+    GetRecordRequest, ListRecordsRequest, MetricDiscoverySelector, RecordListSort, RecordRetrieval,
+    SearchPage, TextRetrieval, TextSearchMatch, TextSearchRequest,
 };
 
 use crate::discovery::{filter_editor_view, filter_value_list_view};
@@ -331,10 +331,19 @@ impl AppServiceWorker {
                     filter_json: None,
                     sort: None,
                     sample_limit: None,
-                    metric_selector: None,
-                    metric_domain: None,
+                    metric_selector: metric_selector(request.metric_query.as_deref()),
+                    metric_domain: request.metric_domain.clone(),
                 })?;
         filter_value_list_view(&request.field_id, &request.context, discovery)
+    }
+}
+
+fn metric_selector(query: Option<&str>) -> Option<MetricDiscoverySelector> {
+    let query = query?.trim();
+    if query.is_empty() {
+        None
+    } else {
+        Some(MetricDiscoverySelector::Query(query.to_string()))
     }
 }
 
@@ -738,6 +747,8 @@ mod tests {
             .discover_filter_values(atlas_app_model::DiscoverFilterValuesRequest {
                 context,
                 field_id: "pack".to_string(),
+                metric_query: None,
+                metric_domain: None,
             })
             .expect("fixture value discovery should succeed");
 
