@@ -14,7 +14,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-app-model` owns interactive app DTOs for local web/TUI-style workflows, including app errors, readiness, basic filters, result windows, and record view wrappers. It is the default Rust-to-TypeScript export boundary for app contracts.
 - `atlas-app-service` owns long-lived interactive workflow orchestration over `atlas-runtime` and `atlas-search`. It opens one full retrieval service through runtime setup/readiness policy, owns result windows, lowers app filters to canonical filters, and exposes native methods to web and future TUI surfaces.
 - `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
-- `web/atlas-ui` owns the TypeScript/React frontend prototype. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and contains the Ant Design vs Mantine comparison screens. It should not own retrieval semantics or duplicate Rust DTO contracts.
+- `web/atlas-ui` owns the TypeScript/React frontend prototype. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
 - `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
