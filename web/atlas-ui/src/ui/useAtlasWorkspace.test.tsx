@@ -53,6 +53,7 @@ describe("useAtlasWorkspace", () => {
     });
 
     expect(result.current.search.query).toBe("fi");
+    expect(result.current.diagnostics.searchDebouncing).toBe(true);
     expect(window.location.search).toContain("fi");
     await delay(150);
     expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1);
@@ -60,6 +61,10 @@ describe("useAtlasWorkspace", () => {
     await waitFor(() =>
       expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2),
     );
+    expect(result.current.diagnostics.searchDebouncing).toBe(false);
+    expect(result.current.diagnostics.resultRequest).toMatchObject({
+      kind: "open_window",
+    });
     const request = apiMocks.openResultWindow.mock
       .calls[1][0] as OpenResultWindowRequest;
     expect(request.mode).toMatchObject({

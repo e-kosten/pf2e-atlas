@@ -152,12 +152,49 @@ button {
   background: color-mix(in srgb, var(--danger) 10%, var(--panel));
 }
 
+.diagnostics-panel {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 1px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
+.diagnostics-panel__item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 12px;
+  background: var(--panel-subtle);
+}
+
+.diagnostics-panel__item span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.diagnostics-panel__item strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(360px, 520px);
   gap: var(--panel-gap);
   height: calc(100vh - 77px);
   padding: var(--panel-gap);
+}
+
+.atlas-app--diagnostics .workspace-grid {
+  height: calc(100vh - 77px - 54px);
 }
 
 .filter-panel,
@@ -405,6 +442,14 @@ button {
 }
 
 @media (max-width: 1180px) {
+  .diagnostics-panel {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+
+  .atlas-app--diagnostics .workspace-grid {
+    height: auto;
+  }
+
   .workspace-grid {
     grid-template-columns: 290px minmax(0, 1fr);
     height: auto;
@@ -418,6 +463,10 @@ button {
 }
 
 @media (max-width: 760px) {
+  .diagnostics-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;

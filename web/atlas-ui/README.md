@@ -9,6 +9,10 @@ It intentionally keeps one shared API/client/state layer and two visual implemen
 
 Both implementations render the same search-to-detail workflow so the component-library comparison is grounded in the product surface rather than isolated widgets.
 
+## Component-library comparison
+
+The comparison intentionally shares Atlas behavior and isolates library-owned filters/results. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the evaluation matrix and guidance on when native library support should count as an advantage versus when custom Atlas composition is expected.
+
 ## Development
 
 Start the Rust local service in another terminal:
