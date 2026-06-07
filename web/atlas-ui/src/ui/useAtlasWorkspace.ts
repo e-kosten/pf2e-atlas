@@ -15,6 +15,8 @@ import {
   type SearchFormState,
 } from "../state/searchState";
 
+const SEARCH_REQUEST_DEBOUNCE_MS = 300;
+
 export type AtlasWorkspaceState = {
   search: SearchFormState;
   setSearch: (next: SearchFormState) => void;
@@ -40,7 +42,12 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   );
   const [pageNumber, setPageNumber] = useState(search.pageSize > 0 ? 1 : 1);
   const [windowId, setWindowId] = useState<bigint | null>(null);
+  const [activeSearch, setActiveSearch] = useState(search);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
+  const activeSearchToken = useMemo(
+    () => encodeSearchState(activeSearch),
+    [activeSearch],
+  );
 
   useEffect(() => {
     const onPopState = () => {
@@ -54,9 +61,13 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   }, []);
 
   useEffect(() => {
-    setWindowId(null);
-    setPageNumber(1);
-  }, [searchToken]);
+    const timeout = window.setTimeout(() => {
+      setWindowId(null);
+      setPageNumber(1);
+      setActiveSearch(search);
+    }, SEARCH_REQUEST_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [search, searchToken]);
 
   const readiness = useQuery({
     queryKey: ["readiness"],
@@ -64,15 +75,17 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   });
 
   const resultsQuery = useQuery({
-    queryKey: ["results", searchToken, pageNumber],
+    queryKey: ["results", activeSearchToken, pageNumber],
     queryFn: async () => {
       if (windowId === null || pageNumber === 1) {
-        const page = await openResultWindow(buildOpenRequest(search, pageNumber));
+        const page = await openResultWindow(
+          buildOpenRequest(activeSearch, pageNumber),
+        );
         setWindowId(page.window_id);
         return page;
       }
       return readResultWindowPage(windowId, {
-        page: { number: pageNumber, size: search.pageSize },
+        page: { number: pageNumber, size: activeSearch.pageSize },
       });
     },
   });
@@ -115,7 +128,10 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     resultPage: resultsQuery.data,
     recordDetail: detailQuery.data,
     readiness,
-    resultsLoading: resultsQuery.isLoading || resultsQuery.isFetching,
+    resultsLoading:
+      resultsQuery.isLoading ||
+      resultsQuery.isFetching ||
+      activeSearchToken !== searchToken,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
     errorMessage,
     refresh: () => {
