@@ -73,7 +73,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(() =>
     recordKeyFromPath(window.location.pathname),
   );
-  const [activeResultKey, setActiveResultKey] = useState<string | null>(null);
+  const [focusedResultKey, setFocusedResultKey] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(search.pageSize > 0 ? 1 : 1);
   const [windowId, setWindowId] = useState<bigint | null>(null);
   const [activeSearch, setActiveSearch] = useState(search);
@@ -200,17 +200,15 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     [resultsQuery.data?.rows],
   );
 
-  useEffect(() => {
+  const activeResultKey = useMemo(() => {
     if (resultRows.length === 0) {
-      setActiveResultKey(null);
-      return;
+      return null;
     }
-    setActiveResultKey((current) =>
-      current && resultRows.some((row) => row.record.record_key === current)
-        ? current
-        : resultRows[0].record.record_key,
-    );
-  }, [resultRows]);
+    return focusedResultKey &&
+      resultRows.some((row) => row.record.record_key === focusedResultKey)
+      ? focusedResultKey
+      : resultRows[0].record.record_key;
+  }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
     setSearchState(next);
@@ -231,7 +229,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   function moveResultSelection(direction: "next" | "previous") {
     if (resultRows.length === 0) {
-      setActiveResultKey(null);
+      setFocusedResultKey(null);
       return;
     }
     const currentIndex = activeResultKey
@@ -245,11 +243,11 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
             resultRows.length - 1,
             Math.max(0, currentIndex + (direction === "next" ? 1 : -1)),
           );
-    setActiveResultKey(resultRows[nextIndex].record.record_key);
+    setFocusedResultKey(resultRows[nextIndex].record.record_key);
   }
 
   function focusResult(recordKey: string) {
-    setActiveResultKey(recordKey);
+    setFocusedResultKey(recordKey);
   }
 
   function openActiveResult() {

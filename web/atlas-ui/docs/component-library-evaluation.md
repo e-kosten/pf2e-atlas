@@ -26,4 +26,8 @@ AntD better fits the current product shape: a dense local search console with dy
 
 ## Follow-Up
 
-Keep AntD as the default path while tightening the UI architecture. The next architectural pass should focus on workspace state ownership, result selection, pane state, URL state, and whether React lint rules can enforce stronger state transitions without awkward code.
+Keep AntD as the default path while tightening the UI architecture.
+
+The first state cleanup removed effect-driven repair logic for result focus and detail-pane expansion. Active result selection is now derived from the current result rows plus the user's focused-row preference. Detail collapse state records the selected record key it was collapsed for, so selecting a different record expands detail without a follow-up effect. This keeps interaction transitions explicit enough to enable `react-hooks/set-state-in-effect`.
+
+Future UI state work should keep this direction: TanStack Query owns server/cache state, URL/search state remains durable and shareable, and local workspace interaction state should be either event-driven or derived from current data instead of synchronized by corrective effects.
