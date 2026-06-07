@@ -629,11 +629,6 @@ fn details_section(record: &AtlasRecord) -> PresentationSection {
             Some(humanize(record.publication.category.as_str())),
         ),
         fact("pack", "Pack", Some(record.identity.pack().to_string())),
-        fact(
-            "foundryDocumentType",
-            "Foundry Document Type",
-            Some(record.foundry.document_type.as_str().to_string()),
-        ),
     ]
     .into_iter()
     .flatten()

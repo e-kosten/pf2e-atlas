@@ -27,6 +27,7 @@ pub enum MetadataEnumStringField {
     PublicationCategory,
     Size,
     Usage,
+    SystemCategory,
     SystemGroup,
     FoundryRecordType,
     BaseItem,

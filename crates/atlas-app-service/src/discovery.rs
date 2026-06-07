@@ -38,7 +38,37 @@ pub(crate) fn filter_value_list_view(
 fn supported_basic_field(field: &str) -> bool {
     matches!(
         field,
-        "record_kind" | "rarity" | "traits" | "level" | "pack_label" | "publication_title"
+        "record_kind"
+            | "rarity"
+            | "traits"
+            | "level"
+            | "pack_label"
+            | "publication_title"
+            | "publication_family"
+            | "publication_remaster"
+            | "traditions"
+            | "spell_kinds"
+            | "save_type"
+            | "basic_save"
+            | "sustained"
+            | "damage_types"
+            | "range_value"
+            | "area_type"
+            | "area_value"
+            | "item_category"
+            | "item_group"
+            | "price_cp"
+            | "bulk_value"
+            | "hands"
+            | "usage"
+            | "base_item"
+            | "size"
+            | "speed_types"
+            | "languages"
+            | "senses"
+            | "immunities"
+            | "resistances"
+            | "weaknesses"
     )
 }
 
@@ -58,7 +88,7 @@ fn filter_field_view(field: &FilterFieldInfo) -> FilterFieldView {
         cardinality: cardinality(field).to_string(),
         value_kind: value_kind(field.field_type).to_string(),
         allowed_operators: allowed_operators(field),
-        default_operator: default_operator(&app_id),
+        default_operator: default_operator(field),
         ui_hint: ui_hint(field).to_string(),
         supports_counts: matches!(
             field.value_policy,
@@ -75,6 +105,31 @@ fn filter_field_label(field: &str) -> &'static str {
         "level" => "Level",
         "pack" => "Pack",
         "publication_title" => "Publication",
+        "publication_family" => "Publication Family",
+        "publication_remaster" => "Remaster",
+        "traditions" => "Traditions",
+        "spell_kinds" => "Spell Type",
+        "save_type" => "Save Type",
+        "basic_save" => "Basic Save",
+        "sustained" => "Sustained",
+        "damage_types" => "Damage Type",
+        "range_value" => "Range",
+        "area_type" => "Area Type",
+        "area_value" => "Area Size",
+        "item_category" => "Category",
+        "item_group" => "Group",
+        "price_cp" => "Price",
+        "bulk_value" => "Bulk",
+        "hands" => "Hands",
+        "usage" => "Usage",
+        "base_item" => "Base Item",
+        "size" => "Size",
+        "speed_types" => "Speeds",
+        "languages" => "Languages",
+        "senses" => "Senses",
+        "immunities" => "Immunities",
+        "resistances" => "Resistances",
+        "weaknesses" => "Weaknesses",
         _ => "Filter",
     }
 }
@@ -116,10 +171,10 @@ fn allowed_operators(field: &FilterFieldInfo) -> Vec<FilterClauseOperator> {
     }
 }
 
-fn default_operator(field: &str) -> FilterClauseOperator {
-    if field == "traits" {
+fn default_operator(field: &FilterFieldInfo) -> FilterClauseOperator {
+    if field.field == "traits" {
         FilterClauseOperator::IncludeAll
-    } else if field == "level" {
+    } else if field.field_type == FilterFieldType::Number {
         FilterClauseOperator::Range
     } else {
         FilterClauseOperator::IncludeAny
@@ -194,7 +249,31 @@ fn selected_values(field_id: &str, context: &FilterDiscoveryContext) -> Vec<Stri
 }
 
 fn filter_value_label(field_id: &str, value: &str) -> String {
-    if field_id == "kind" || field_id == "rarity" {
+    if matches!(
+        field_id,
+        "publication_remaster" | "basic_save" | "sustained"
+    ) {
+        return match value {
+            "true" => "Yes".to_string(),
+            "false" => "No".to_string(),
+            _ => value.to_string(),
+        };
+    }
+    if matches!(
+        field_id,
+        "kind"
+            | "rarity"
+            | "publication_family"
+            | "spell_kinds"
+            | "save_type"
+            | "area_type"
+            | "item_category"
+            | "item_group"
+            | "hands"
+            | "usage"
+            | "size"
+            | "speed_types"
+    ) {
         title_case(value)
     } else {
         value.to_string()

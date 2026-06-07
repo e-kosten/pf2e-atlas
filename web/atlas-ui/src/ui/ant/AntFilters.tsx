@@ -8,11 +8,15 @@ import {
 } from "../../state/searchState";
 import {
   addVisibleFilter,
-  additionalFilterOptions,
+  additionalFilterGroups,
+  booleanForField,
+  controlKindForField,
   discoveredOptions,
   labelForField,
-  optionFieldIds,
+  rangeForField,
   removeVisibleFilter,
+  setBooleanForField,
+  setRangeForField,
   setValuesForField,
   valuesForField,
 } from "../filterControls";
@@ -140,8 +144,8 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
           />
         </div>
       </div>
-      {optionFieldIds(search)
-        .filter((fieldId) => !["kind", "rarity", "traits"].includes(fieldId))
+      {search.visibleFilterIds
+        .filter((fieldId) => !["kind", "rarity", "traits", "level"].includes(fieldId))
         .map((fieldId) => (
           <div className="control-group" key={fieldId}>
             <div className="control-heading">
@@ -154,26 +158,90 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                 Remove
               </Button>
             </div>
-            <Select
-              mode="multiple"
-              loading={workspace.filterDiscoveryLoading}
-              options={discoveredOptions(workspace, fieldId, [])}
-              value={valuesForField(search, fieldId)}
-              onChange={(values) =>
-                setSearch(setValuesForField(search, fieldId, values))
-              }
-            />
+            <OptionalFilterControl workspace={workspace} fieldId={fieldId} />
           </div>
         ))}
       <div className="control-group">
         <label>Add filter</label>
         <Select
           placeholder="Choose a filter"
-          options={additionalFilterOptions(workspace)}
+          options={additionalFilterGroups(workspace)}
           value={null}
           onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
         />
       </div>
     </aside>
+  );
+}
+
+function OptionalFilterControl({
+  workspace,
+  fieldId,
+}: {
+  workspace: AtlasWorkspaceState;
+  fieldId: string;
+}) {
+  const { search, setSearch } = workspace;
+  const controlKind = controlKindForField(workspace.filterFields?.fields, fieldId);
+
+  if (controlKind === "range") {
+    const range = rangeForField(search, fieldId);
+    return (
+      <div className="control-row">
+        <InputNumber
+          placeholder="Min"
+          value={range.min}
+          onChange={(min) =>
+            setSearch(
+              setRangeForField(search, fieldId, {
+                ...range,
+                min: min ?? null,
+              }),
+            )
+          }
+        />
+        <InputNumber
+          placeholder="Max"
+          value={range.max}
+          onChange={(max) =>
+            setSearch(
+              setRangeForField(search, fieldId, {
+                ...range,
+                max: max ?? null,
+              }),
+            )
+          }
+        />
+      </div>
+    );
+  }
+
+  if (controlKind === "boolean") {
+    return (
+      <Select
+        allowClear
+        loading={workspace.filterDiscoveryLoading}
+        options={discoveredOptions(workspace, fieldId, [
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ])}
+        value={booleanForField(search, fieldId)}
+        onChange={(value) =>
+          setSearch(setBooleanForField(search, fieldId, value ?? null))
+        }
+      />
+    );
+  }
+
+  return (
+    <Select
+      mode="multiple"
+      loading={workspace.filterDiscoveryLoading}
+      options={discoveredOptions(workspace, fieldId, [])}
+      value={valuesForField(search, fieldId)}
+      onChange={(values) =>
+        setSearch(setValuesForField(search, fieldId, values))
+      }
+    />
   );
 }

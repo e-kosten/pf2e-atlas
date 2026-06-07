@@ -17,11 +17,15 @@ import {
 } from "../../state/searchState";
 import {
   addVisibleFilter,
-  additionalFilterOptions,
+  additionalFilterGroups,
+  booleanForField,
+  controlKindForField,
   discoveredOptions,
   labelForField,
-  optionFieldIds,
+  rangeForField,
   removeVisibleFilter,
+  setBooleanForField,
+  setRangeForField,
   setValuesForField,
   valuesForField,
 } from "../filterControls";
@@ -136,8 +140,8 @@ export function MantineFilters({
           }
         />
       </Group>
-      {optionFieldIds(search)
-        .filter((fieldId) => !["kind", "rarity", "traits"].includes(fieldId))
+      {search.visibleFilterIds
+        .filter((fieldId) => !["kind", "rarity", "traits", "level"].includes(fieldId))
         .map((fieldId) => (
           <div className="control-group" key={fieldId}>
             <div className="control-heading">
@@ -150,23 +154,89 @@ export function MantineFilters({
                 Remove
               </Button>
             </div>
-            <MultiSelect
-              data={discoveredOptions(workspace, fieldId, [])}
-              searchable
-              value={valuesForField(search, fieldId)}
-              onChange={(values) =>
-                setSearch(setValuesForField(search, fieldId, values))
-              }
-            />
+            <OptionalFilterControl workspace={workspace} fieldId={fieldId} />
           </div>
         ))}
       <Select
-        data={additionalFilterOptions(workspace)}
+        data={additionalFilterGroups(workspace).map((group) => ({
+          group: group.label,
+          items: group.options,
+        }))}
         label="Add filter"
         placeholder="Choose a filter"
         value={null}
         onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
       />
     </aside>
+  );
+}
+
+function OptionalFilterControl({
+  workspace,
+  fieldId,
+}: {
+  workspace: AtlasWorkspaceState;
+  fieldId: string;
+}) {
+  const { search, setSearch } = workspace;
+  const controlKind = controlKindForField(workspace.filterFields?.fields, fieldId);
+
+  if (controlKind === "range") {
+    const range = rangeForField(search, fieldId);
+    return (
+      <Group grow align="end">
+        <NumberInput
+          placeholder="Min"
+          value={range.min ?? ""}
+          onChange={(min) =>
+            setSearch(
+              setRangeForField(search, fieldId, {
+                ...range,
+                min: typeof min === "number" ? min : null,
+              }),
+            )
+          }
+        />
+        <NumberInput
+          placeholder="Max"
+          value={range.max ?? ""}
+          onChange={(max) =>
+            setSearch(
+              setRangeForField(search, fieldId, {
+                ...range,
+                max: typeof max === "number" ? max : null,
+              }),
+            )
+          }
+        />
+      </Group>
+    );
+  }
+
+  if (controlKind === "boolean") {
+    return (
+      <Select
+        clearable
+        data={discoveredOptions(workspace, fieldId, [
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ])}
+        value={booleanForField(search, fieldId)}
+        onChange={(value) =>
+          setSearch(setBooleanForField(search, fieldId, value ?? null))
+        }
+      />
+    );
+  }
+
+  return (
+    <MultiSelect
+      data={discoveredOptions(workspace, fieldId, [])}
+      searchable
+      value={valuesForField(search, fieldId)}
+      onChange={(values) =>
+        setSearch(setValuesForField(search, fieldId, values))
+      }
+    />
   );
 }

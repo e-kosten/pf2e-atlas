@@ -160,6 +160,20 @@ fn description_section_does_not_duplicate_primary_content() {
 }
 
 #[test]
+fn details_section_does_not_expose_foundry_document_type() {
+    let record = base_record(RecordKind::Equipment);
+
+    let document = build_record_presentation_document(&record);
+
+    assert!(!document.sections.iter().any(|section| {
+        section
+            .blocks
+            .iter()
+            .any(|block| block_has_fact_label(block, "Foundry Document Type"))
+    }));
+}
+
+#[test]
 fn creature_recipe_groups_defense_movement_and_offense_sections() {
     let mut record = base_record(RecordKind::Creature);
     record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
@@ -286,4 +300,13 @@ fn assert_section_facts_include(section: &PresentationSection, label: &str, valu
         "expected section {:?} to contain {label}: {value}",
         section.kind
     );
+}
+
+fn block_has_fact_label(block: &PresentationBlock, label: &str) -> bool {
+    match block {
+        PresentationBlock::FactList(facts) => facts.iter().any(|fact| fact.label == label),
+        PresentationBlock::Prose(_)
+        | PresentationBlock::Content(_)
+        | PresentationBlock::Relationships(_) => false,
+    }
 }

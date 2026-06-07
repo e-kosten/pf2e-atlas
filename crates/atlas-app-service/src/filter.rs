@@ -1,8 +1,9 @@
 use atlas_app_model::{BasicSearchFilter, FilterClauseOperator, FilterRange, MetricComparison};
 use atlas_domain::{
-    MetadataEnumStringField, MetadataPredicate, MetadataSetField, MetadataSetMatch,
-    MetadataStringMatch, MetadataTextMatch, MetadataTextStringField, MetricFilter, MetricMatch,
-    NumericMatch, RecordKind, ScalarValue, SearchFilterNode, SimpleSearchFilter,
+    MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
+    MetadataPredicate, MetadataSetField, MetadataSetMatch, MetadataStringMatch, MetadataTextMatch,
+    MetadataTextStringField, MetricFilter, MetricMatch, NumericMatch, RecordKind, ScalarValue,
+    SearchFilterNode, SimpleSearchFilter,
 };
 
 use crate::{AppServiceError, AppServiceResult};
@@ -43,7 +44,7 @@ pub(crate) fn lower_basic_filter(
                 )?));
             }
             FilterClauseOperator::Range => {
-                lower_range(&mut simple, &clause.field, clause.range)?;
+                lower_range(&mut simple, &mut direct_nodes, &clause.field, clause.range)?;
             }
             FilterClauseOperator::MetricCompare => {
                 lower_metric(&mut simple, clause.metric.as_ref())?;
@@ -84,6 +85,16 @@ pub(crate) fn discovery_field_id(field: &str) -> String {
         "trait" | "traits" => "traits".to_string(),
         "pack" | "pack_label" => "pack_label".to_string(),
         "source" | "publication" | "publication_title" => "publication_title".to_string(),
+        "spell_type" => "spell_kinds".to_string(),
+        "publication_category" => "publication_family".to_string(),
+        "remaster" => "publication_remaster".to_string(),
+        "price" => "price_cp".to_string(),
+        "bulk" => "bulk_value".to_string(),
+        "range" => "range_value".to_string(),
+        "area" => "area_value".to_string(),
+        "category" => "item_category".to_string(),
+        "group" => "item_group".to_string(),
+        "speeds" => "speed_types".to_string(),
         other => other.to_string(),
     }
 }
@@ -142,6 +153,7 @@ fn lower_include_all(
 
 fn lower_range(
     simple: &mut SimpleSearchFilter,
+    direct_nodes: &mut Vec<SearchFilterNode>,
     field: &str,
     range: Option<FilterRange>,
 ) -> AppServiceResult<()> {
@@ -154,6 +166,12 @@ fn lower_range(
     match canonical_field(field).as_str() {
         "level" | "rank" => simple.level = Some(numeric_match),
         "price" | "price_cp" => simple.price_cp = Some(numeric_match),
+        other if let Some(field) = number_field(other) => {
+            direct_nodes.push(SearchFilterNode::metadata(MetadataPredicate::Number {
+                field,
+                r#match: numeric_match.into(),
+            }));
+        }
         other => {
             return Err(AppServiceError::invalid_request(format!(
                 "range filters are not supported for field `{other}`"
@@ -251,12 +269,94 @@ fn value_node(field: &str, value: &str) -> AppServiceResult<SearchFilterNode> {
                 },
             })
         }
+        other if let Some(field) = set_field(other) => {
+            SearchFilterNode::metadata(MetadataPredicate::Set {
+                field,
+                r#match: MetadataSetMatch::Includes {
+                    value: value.to_string(),
+                },
+            })
+        }
+        other if let Some(field) = enum_string_field(other) => {
+            SearchFilterNode::metadata(MetadataPredicate::EnumString {
+                field,
+                r#match: MetadataStringMatch::Eq {
+                    value: value.to_string(),
+                },
+            })
+        }
+        other if let Some(field) = boolean_field(other) => {
+            SearchFilterNode::metadata(MetadataPredicate::Boolean {
+                field,
+                r#match: MetadataBooleanMatch::Eq {
+                    value: parse_bool_value(value)?,
+                },
+            })
+        }
         other => {
             return Err(AppServiceError::invalid_request(format!(
                 "unsupported filter field `{other}`"
             )));
         }
     })
+}
+
+fn set_field(field: &str) -> Option<MetadataSetField> {
+    Some(match field {
+        "traditions" => MetadataSetField::Traditions,
+        "spell_kinds" => MetadataSetField::SpellKinds,
+        "damage_types" => MetadataSetField::DamageTypes,
+        "languages" => MetadataSetField::Languages,
+        "speed_types" => MetadataSetField::SpeedTypes,
+        "senses" => MetadataSetField::Senses,
+        "immunities" => MetadataSetField::Immunities,
+        "resistances" => MetadataSetField::Resistances,
+        "weaknesses" => MetadataSetField::Weaknesses,
+        _ => return None,
+    })
+}
+
+fn enum_string_field(field: &str) -> Option<MetadataEnumStringField> {
+    Some(match field {
+        "publication_family" => MetadataEnumStringField::PublicationCategory,
+        "size" => MetadataEnumStringField::Size,
+        "usage" => MetadataEnumStringField::Usage,
+        "item_category" => MetadataEnumStringField::SystemCategory,
+        "item_group" => MetadataEnumStringField::SystemGroup,
+        "base_item" => MetadataEnumStringField::BaseItem,
+        "hands" => MetadataEnumStringField::Hands,
+        "save_type" => MetadataEnumStringField::SaveType,
+        "area_type" => MetadataEnumStringField::AreaType,
+        _ => return None,
+    })
+}
+
+fn number_field(field: &str) -> Option<MetadataNumberField> {
+    Some(match field {
+        "bulk_value" => MetadataNumberField::BulkValue,
+        "range_value" => MetadataNumberField::RangeValue,
+        "area_value" => MetadataNumberField::AreaValue,
+        _ => return None,
+    })
+}
+
+fn boolean_field(field: &str) -> Option<MetadataBooleanField> {
+    Some(match field {
+        "publication_remaster" => MetadataBooleanField::PublicationRemaster,
+        "basic_save" => MetadataBooleanField::BasicSave,
+        "sustained" => MetadataBooleanField::Sustained,
+        _ => return None,
+    })
+}
+
+fn parse_bool_value(value: &str) -> AppServiceResult<bool> {
+    match value {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        other => Err(AppServiceError::invalid_request(format!(
+            "boolean filter value must be `true` or `false`, got `{other}`"
+        ))),
+    }
 }
 
 fn numeric_match(range: FilterRange) -> AppServiceResult<NumericMatch> {
@@ -283,8 +383,9 @@ mod tests {
         BasicSearchFilter, FilterClause, FilterClauseOperator, FilterRange, MetricComparison,
     };
     use atlas_domain::{
-        MetadataNumberField, MetadataNumberMatch, MetadataPredicate, MetadataSetField,
-        MetadataSetMatch, MetricMatch, NumericMatch, ScalarValue, SearchFilterNode,
+        MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
+        MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
+        MetadataStringMatch, MetricMatch, NumericMatch, ScalarValue, SearchFilterNode,
     };
 
     use super::lower_basic_filter;
@@ -400,6 +501,75 @@ mod tests {
     }
 
     #[test]
+    fn lowers_expanded_option_filters_to_metadata_predicates() {
+        let node = lower_basic_filter(Some(&BasicSearchFilter {
+            clauses: vec![
+                clause(
+                    "traditions",
+                    FilterClauseOperator::IncludeAny,
+                    ["arcane", "occult"],
+                ),
+                clause("size", FilterClauseOperator::IncludeAny, ["lg"]),
+                clause(
+                    "item_category",
+                    FilterClauseOperator::IncludeAny,
+                    ["weapon"],
+                ),
+            ],
+        }))
+        .expect("filter lowers")
+        .expect("filter node");
+
+        assert_eq!(
+            node,
+            SearchFilterNode::all_of(vec![
+                SearchFilterNode::any_of(vec![
+                    set_node(MetadataSetField::Traditions, "arcane"),
+                    set_node(MetadataSetField::Traditions, "occult"),
+                ]),
+                enum_node(MetadataEnumStringField::Size, "lg"),
+                enum_node(MetadataEnumStringField::SystemCategory, "weapon"),
+            ])
+        );
+    }
+
+    #[test]
+    fn lowers_expanded_boolean_and_number_filters_to_metadata_predicates() {
+        let node = lower_basic_filter(Some(&BasicSearchFilter {
+            clauses: vec![
+                clause("basic_save", FilterClauseOperator::IncludeAny, ["true"]),
+                FilterClause {
+                    id: "bulk".to_string(),
+                    field: "bulk_value".to_string(),
+                    operator: FilterClauseOperator::Range,
+                    values: Vec::new(),
+                    range: Some(FilterRange {
+                        min: Some(1.0),
+                        max: Some(3.0),
+                    }),
+                    metric: None,
+                },
+            ],
+        }))
+        .expect("filter lowers")
+        .expect("filter node");
+
+        assert_eq!(
+            node,
+            SearchFilterNode::all_of(vec![
+                SearchFilterNode::metadata(MetadataPredicate::Boolean {
+                    field: MetadataBooleanField::BasicSave,
+                    r#match: MetadataBooleanMatch::Eq { value: true },
+                }),
+                SearchFilterNode::metadata(MetadataPredicate::Number {
+                    field: MetadataNumberField::BulkValue,
+                    r#match: MetadataNumberMatch::Between { min: 1.0, max: 3.0 },
+                }),
+            ])
+        );
+    }
+
+    #[test]
     fn rejects_inverted_range() {
         let error = lower_basic_filter(Some(&BasicSearchFilter {
             clauses: vec![FilterClause {
@@ -435,9 +605,22 @@ mod tests {
     }
 
     fn trait_node(value: &str) -> SearchFilterNode {
+        set_node(MetadataSetField::Traits, value)
+    }
+
+    fn set_node(field: MetadataSetField, value: &str) -> SearchFilterNode {
         SearchFilterNode::metadata(MetadataPredicate::Set {
-            field: MetadataSetField::Traits,
+            field,
             r#match: MetadataSetMatch::Includes {
+                value: value.to_string(),
+            },
+        })
+    }
+
+    fn enum_node(field: MetadataEnumStringField, value: &str) -> SearchFilterNode {
+        SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field,
+            r#match: MetadataStringMatch::Eq {
                 value: value.to_string(),
             },
         })
