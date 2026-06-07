@@ -1,6 +1,8 @@
 import type { AppError, OpenResultWindowRequest } from "../generated/atlas";
 import {
   AtlasApiError,
+  discoverFilterFields,
+  discoverFilterValues,
   getReadiness,
   getRecordDetail,
   openResultWindow,
@@ -50,6 +52,58 @@ describe("atlasApi", () => {
     );
     expect(result.window_id).toBe(12n);
     expect(result.page.total).toBe(42n);
+  });
+
+  it("posts filter-field discovery requests and normalizes record counts", async () => {
+    const request = { context: { kind: "browse" as const, filter: { clauses: [] } } };
+    const fetchMock = mockFetch({
+      matching_record_count: 42,
+      fields: [],
+    });
+
+    const result = await discoverFilterFields(request);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/filters/fields",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(request),
+      }),
+    );
+    expect(result.matching_record_count).toBe(42n);
+  });
+
+  it("posts filter-value discovery requests and normalizes option counts", async () => {
+    const request = {
+      context: { kind: "browse" as const, filter: { clauses: [] } },
+      field_id: "traits",
+    };
+    const fetchMock = mockFetch({
+      field_id: "traits",
+      matching_record_count: 7,
+      options: [
+        {
+          value: "fire",
+          label: "fire",
+          count: 3,
+          selected: false,
+          disabled: false,
+          status: "available",
+        },
+      ],
+    });
+
+    const result = await discoverFilterValues(request);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/filters/values",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(request),
+      }),
+    );
+    expect(result.matching_record_count).toBe(7n);
+    expect(result.options[0]?.count).toBe(3n);
   });
 
   it("formats bigint window IDs when reading later pages", async () => {

@@ -8,9 +8,10 @@ mod result_window;
 
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
-    BasicSearchFilter, FilterClause, FilterClauseOperator, FilterDiscoveryContext, FilterFieldView,
+    BasicSearchFilter, DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest, FilterClause,
+    FilterClauseOperator, FilterDiscoveryContext, FilterFieldListView, FilterFieldView,
     FilterRange, FilterValidationCode, FilterValidationMessage, FilterValidationResult,
-    FilterValueOption, MetricComparison,
+    FilterValueListView, FilterValueOption, MetricComparison,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{RecordBadgeView, RecordDetailView, RecordSummaryView};
@@ -59,11 +60,19 @@ mod tests {
         AppReadinessView::export_all_to(path).expect("AppReadinessView bindings should export");
         BasicSearchFilter::export_all_to(path).expect("BasicSearchFilter bindings should export");
         BasicSearchState::export_all_to(path).expect("BasicSearchState bindings should export");
+        DiscoverFilterFieldsRequest::export_all_to(path)
+            .expect("DiscoverFilterFieldsRequest bindings should export");
+        DiscoverFilterValuesRequest::export_all_to(path)
+            .expect("DiscoverFilterValuesRequest bindings should export");
         FilterDiscoveryContext::export_all_to(path)
             .expect("FilterDiscoveryContext bindings should export");
+        FilterFieldListView::export_all_to(path)
+            .expect("FilterFieldListView bindings should export");
         FilterFieldView::export_all_to(path).expect("FilterFieldView bindings should export");
         FilterValidationResult::export_all_to(path)
             .expect("FilterValidationResult bindings should export");
+        FilterValueListView::export_all_to(path)
+            .expect("FilterValueListView bindings should export");
         FilterValueOption::export_all_to(path).expect("FilterValueOption bindings should export");
         OpenResultWindowRequest::export_all_to(path)
             .expect("OpenResultWindowRequest bindings should export");

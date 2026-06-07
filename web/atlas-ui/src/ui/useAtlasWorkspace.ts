@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
+  useQueries,
+  useQuery,
+  type UseQueryResult,
+} from "@tanstack/react-query";
+import {
+  discoverFilterFields,
+  discoverFilterValues,
   getReadiness,
   getRecordDetail,
   openResultWindow,
   readResultWindowPage,
 } from "../api/atlasApi";
-import type { RecordDetailView, ResultWindowPage } from "../generated/atlas";
+import type {
+  FilterFieldListView,
+  FilterValueListView,
+  RecordDetailView,
+  ResultWindowPage,
+} from "../generated/atlas";
 import {
+  buildFilterDiscoveryContext,
   buildOpenRequest,
   decodeSearchState,
   DEFAULT_SEARCH_STATE,
+  encodeSearchExecutionState,
   encodeSearchState,
   type SearchFormState,
 } from "../state/searchState";
@@ -40,9 +53,12 @@ export type AtlasWorkspaceState = {
   setPageNumber: (page: number) => void;
   resultPage: ResultWindowPage | undefined;
   recordDetail: RecordDetailView | undefined;
+  filterFields: FilterFieldListView | undefined;
+  filterValuesByField: Record<string, FilterValueListView | undefined>;
   readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
   detailLoading: boolean;
+  filterDiscoveryLoading: boolean;
   diagnostics: AtlasWorkspaceDiagnostics;
   errorMessage: string | null;
   refresh: () => void;
@@ -64,8 +80,12 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     AtlasWorkspaceDiagnostics["resultRequest"]
   >(null);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
-  const activeSearchToken = useMemo(
-    () => encodeSearchState(activeSearch),
+  const searchExecutionToken = useMemo(
+    () => encodeSearchExecutionState(search),
+    [search],
+  );
+  const activeSearchExecutionToken = useMemo(
+    () => encodeSearchExecutionState(activeSearch),
     [activeSearch],
   );
 
@@ -95,7 +115,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   });
 
   const resultsQuery = useQuery({
-    queryKey: ["results", activeSearchToken, pageNumber],
+    queryKey: ["results", activeSearchExecutionToken, pageNumber],
     queryFn: async () => {
       const startedAt = performance.now();
       if (windowId === null || pageNumber === 1) {
@@ -125,6 +145,39 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
         });
       }
     },
+  });
+
+  const filterDiscoveryContext = useMemo(
+    () => buildFilterDiscoveryContext(activeSearch),
+    [activeSearch],
+  );
+
+  const filterFieldsQuery = useQuery({
+    queryKey: ["filter-fields", activeSearchExecutionToken],
+    queryFn: () => discoverFilterFields({ context: filterDiscoveryContext }),
+  });
+
+  const valueFieldIds = useMemo(() => {
+    const fields = filterFieldsQuery.data?.fields ?? [];
+    const countBackedFields = new Set(
+      fields
+        .filter((field) => field.supports_counts)
+        .map((field) => field.id),
+    );
+    return search.visibleFilterIds.filter((fieldId) =>
+      countBackedFields.has(fieldId),
+    );
+  }, [filterFieldsQuery.data, search.visibleFilterIds]);
+
+  const filterValueQueries = useQueries({
+    queries: valueFieldIds.map((fieldId) => ({
+      queryKey: ["filter-values", activeSearchExecutionToken, fieldId],
+      queryFn: () =>
+        discoverFilterValues({
+          context: filterDiscoveryContext,
+          field_id: fieldId,
+        }),
+    })),
   });
 
   const detailQuery = useQuery({
@@ -163,8 +216,16 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const errorMessage =
     messageFromError(resultsQuery.error) ??
     messageFromError(detailQuery.error) ??
+    messageFromError(filterFieldsQuery.error) ??
+    filterValueQueries.map((query) => messageFromError(query.error)).find(Boolean) ??
     messageFromError(readiness.error);
-  const searchDebouncing = activeSearchToken !== searchToken;
+  const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
+  const filterValuesByField = Object.fromEntries(
+    valueFieldIds.map((fieldId, index) => [
+      fieldId,
+      filterValueQueries[index]?.data,
+    ]),
+  );
 
   return {
     search,
@@ -175,12 +236,18 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     setPageNumber,
     resultPage: resultsQuery.data,
     recordDetail: detailQuery.data,
+    filterFields: filterFieldsQuery.data,
+    filterValuesByField,
     readiness,
     resultsLoading:
       resultsQuery.isLoading ||
       resultsQuery.isFetching ||
       searchDebouncing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
+    filterDiscoveryLoading:
+      filterFieldsQuery.isLoading ||
+      filterFieldsQuery.isFetching ||
+      filterValueQueries.some((query) => query.isLoading || query.isFetching),
     diagnostics: {
       activeWindowId: windowId?.toString() ?? null,
       detailRequest: lastDetailRequest,

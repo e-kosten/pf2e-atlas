@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod discovery;
 mod error;
 mod filter;
 mod projection;

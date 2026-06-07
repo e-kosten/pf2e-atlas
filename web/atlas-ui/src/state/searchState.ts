@@ -1,5 +1,6 @@
 import type {
   BasicSearchFilter,
+  FilterDiscoveryContext,
   FilterClause,
   FilterClauseOperator,
   OpenResultWindowRequest,
@@ -12,11 +13,14 @@ export type TraitOperator = "include_all" | "include_any";
 export type SearchFormState = {
   query: string;
   mode: "browse" | "text_search";
+  visibleFilterIds: string[];
   kinds: string[];
   rarity: string[];
   traits: string[];
   traitOperator: TraitOperator;
   excludedTraits: string[];
+  packLabels: string[];
+  publicationTitles: string[];
   levelMin: number | null;
   levelMax: number | null;
   sort: SortKey;
@@ -35,11 +39,14 @@ export type SortKey =
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
   mode: "browse",
+  visibleFilterIds: ["kind", "rarity", "traits", "level"],
   kinds: ["spell", "feat", "equipment"],
   rarity: [],
   traits: [],
   traitOperator: "include_all",
   excludedTraits: [],
+  packLabels: [],
+  publicationTitles: [],
   levelMin: null,
   levelMax: null,
   sort: "record_key",
@@ -99,6 +106,8 @@ export const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: "price_desc", label: "Price Down" },
 ];
 
+export const STANDARD_FILTER_IDS = ["kind", "rarity", "traits", "level"];
+
 const MODE_VALUES = ["browse", "text_search"] as const;
 const TRAIT_OPERATOR_VALUES = ["include_all", "include_any"] as const;
 const SORT_VALUES = SORT_OPTIONS.map(({ value }) => value);
@@ -137,8 +146,31 @@ export function buildOpenRequest(
   };
 }
 
+export function buildFilterDiscoveryContext(
+  state: SearchFormState,
+): FilterDiscoveryContext {
+  const filter = buildBasicFilter(state);
+  const query = state.query.trim();
+  if (state.mode === "text_search" && query.length > 0) {
+    return {
+      kind: "text_search",
+      query,
+      filter,
+    };
+  }
+  return {
+    kind: "browse",
+    filter,
+  };
+}
+
 export function encodeSearchState(state: SearchFormState): string {
   return encodeURIComponent(JSON.stringify(state));
+}
+
+export function encodeSearchExecutionState(state: SearchFormState): string {
+  const { visibleFilterIds: _visibleFilterIds, ...executionState } = state;
+  return encodeURIComponent(JSON.stringify(executionState));
 }
 
 export function decodeSearchState(value: string | null): SearchFormState {
@@ -154,6 +186,12 @@ export function decodeSearchState(value: string | null): SearchFormState {
       ...DEFAULT_SEARCH_STATE,
       query: stringValue(decoded.query, DEFAULT_SEARCH_STATE.query),
       mode: oneOf(decoded.mode, MODE_VALUES, DEFAULT_SEARCH_STATE.mode),
+      visibleFilterIds: dedupeStrings(
+        stringArrayValue(
+          decoded.visibleFilterIds,
+          DEFAULT_SEARCH_STATE.visibleFilterIds,
+        ),
+      ),
       kinds: stringArrayValue(decoded.kinds, DEFAULT_SEARCH_STATE.kinds),
       rarity: stringArrayValue(decoded.rarity, DEFAULT_SEARCH_STATE.rarity),
       traits: stringArrayValue(decoded.traits, DEFAULT_SEARCH_STATE.traits),
@@ -165,6 +203,14 @@ export function decodeSearchState(value: string | null): SearchFormState {
       excludedTraits: stringArrayValue(
         decoded.excludedTraits,
         DEFAULT_SEARCH_STATE.excludedTraits,
+      ),
+      packLabels: stringArrayValue(
+        decoded.packLabels,
+        DEFAULT_SEARCH_STATE.packLabels,
+      ),
+      publicationTitles: stringArrayValue(
+        decoded.publicationTitles,
+        DEFAULT_SEARCH_STATE.publicationTitles,
       ),
       levelMin: nullableFiniteNumber(decoded.levelMin, DEFAULT_SEARCH_STATE.levelMin),
       levelMax: nullableFiniteNumber(decoded.levelMax, DEFAULT_SEARCH_STATE.levelMax),
@@ -186,6 +232,13 @@ function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
   pushValues(clauses, "rarity", "include_any", state.rarity);
   pushValues(clauses, "traits", state.traitOperator, state.traits);
   pushValues(clauses, "traits", "exclude_any", state.excludedTraits);
+  pushValues(clauses, "pack_label", "include_any", state.packLabels);
+  pushValues(
+    clauses,
+    "publication_title",
+    "include_any",
+    state.publicationTitles,
+  );
 
   if (state.levelMin !== null || state.levelMax !== null) {
     clauses.push({
@@ -201,6 +254,10 @@ function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
   }
 
   return { clauses };
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return Array.from(new Set(values));
 }
 
 function pushValues(

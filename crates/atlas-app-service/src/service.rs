@@ -5,19 +5,23 @@ use std::sync::mpsc;
 use std::thread;
 
 use atlas_app_model::{
-    AppErrorCode, AppReadinessStatus, AppReadinessView, OpenResultWindowRequest,
+    AppErrorCode, AppReadinessStatus, AppReadinessView, DiscoverFilterFieldsRequest,
+    DiscoverFilterValuesRequest, FilterFieldListView, FilterValueListView, OpenResultWindowRequest,
     ReadResultWindowPageRequest, RecordDetailView, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
 };
 use atlas_domain::RecordKey;
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    AtlasRetrievalService, GetRecordRequest, ListRecordsRequest, RecordListSort, RecordRetrieval,
-    SearchPage, TextRetrieval, TextSearchMatch, TextSearchRequest,
+    AtlasRetrievalService, DiscoverFilterFieldsRequest as SearchDiscoverFilterFieldsRequest,
+    DiscoverFilterValuesRequest as SearchDiscoverFilterValuesRequest, FilterDiscoveryRetrieval,
+    GetRecordRequest, ListRecordsRequest, RecordListSort, RecordRetrieval, SearchPage,
+    TextRetrieval, TextSearchMatch, TextSearchRequest,
 };
 
+use crate::discovery::{filter_field_list_view, filter_value_list_view};
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::filter::lower_basic_filter;
+use crate::filter::{discovery_field_id, lower_basic_filter, lower_basic_filter_context};
 use crate::projection::{record_detail, record_summary, search_page_view, text_match_summary};
 
 const MAX_RESULT_WINDOWS: usize = 64;
@@ -74,6 +78,14 @@ enum AppServiceCommand {
     RecordDetail {
         record_key: String,
         reply: mpsc::Sender<AppServiceResult<RecordDetailView>>,
+    },
+    DiscoverFilterFields {
+        request: DiscoverFilterFieldsRequest,
+        reply: mpsc::Sender<AppServiceResult<FilterFieldListView>>,
+    },
+    DiscoverFilterValues {
+        request: DiscoverFilterValuesRequest,
+        reply: mpsc::Sender<AppServiceResult<FilterValueListView>>,
     },
 }
 
@@ -148,6 +160,20 @@ impl AtlasAppService {
         })
     }
 
+    pub fn discover_filter_fields(
+        &self,
+        request: DiscoverFilterFieldsRequest,
+    ) -> AppServiceResult<FilterFieldListView> {
+        self.call(|reply| AppServiceCommand::DiscoverFilterFields { request, reply })
+    }
+
+    pub fn discover_filter_values(
+        &self,
+        request: DiscoverFilterValuesRequest,
+    ) -> AppServiceResult<FilterValueListView> {
+        self.call(|reply| AppServiceCommand::DiscoverFilterValues { request, reply })
+    }
+
     fn call<T>(
         &self,
         build: impl FnOnce(mpsc::Sender<AppServiceResult<T>>) -> AppServiceCommand,
@@ -204,6 +230,12 @@ impl AppServiceWorker {
                 }
                 AppServiceCommand::RecordDetail { record_key, reply } => {
                     let _ = reply.send(self.record_detail(&record_key));
+                }
+                AppServiceCommand::DiscoverFilterFields { request, reply } => {
+                    let _ = reply.send(self.discover_filter_fields(request));
+                }
+                AppServiceCommand::DiscoverFilterValues { request, reply } => {
+                    let _ = reply.send(self.discover_filter_values(request));
                 }
             }
         }
@@ -270,6 +302,39 @@ impl AppServiceWorker {
                 )
             })?;
         record_detail(&record)
+    }
+
+    fn discover_filter_fields(
+        &self,
+        request: DiscoverFilterFieldsRequest,
+    ) -> AppServiceResult<FilterFieldListView> {
+        let filter = lower_basic_filter_context(&request.context)?;
+        let discovery =
+            self.retrieval
+                .discover_filter_fields(SearchDiscoverFilterFieldsRequest {
+                    filter: filter.as_ref(),
+                    filter_json: None,
+                })?;
+        Ok(filter_field_list_view(discovery))
+    }
+
+    fn discover_filter_values(
+        &self,
+        request: DiscoverFilterValuesRequest,
+    ) -> AppServiceResult<FilterValueListView> {
+        let filter = lower_basic_filter_context(&request.context)?;
+        let discovery =
+            self.retrieval
+                .discover_filter_values(SearchDiscoverFilterValuesRequest {
+                    field: discovery_field_id(&request.field_id),
+                    filter: filter.as_ref(),
+                    filter_json: None,
+                    sort: None,
+                    sample_limit: None,
+                    metric_selector: None,
+                    metric_domain: None,
+                })?;
+        filter_value_list_view(&request.field_id, &request.context, discovery)
     }
 }
 

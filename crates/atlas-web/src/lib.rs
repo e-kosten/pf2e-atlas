@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use atlas_app_model::{
-    AppError, AppErrorCode, OpenResultWindowRequest, ReadResultWindowPageRequest,
+    AppError, AppErrorCode, DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest,
+    OpenResultWindowRequest, ReadResultWindowPageRequest,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use axum::extract::rejection::JsonRejection;
@@ -30,6 +31,8 @@ pub fn router(service: AtlasAppService) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
+        .route("/api/filters/fields", post(discover_filter_fields))
+        .route("/api/filters/values", post(discover_filter_values))
         .route("/api/result-windows", post(open_result_window))
         .route(
             "/api/result-windows/{window_id}/page",
@@ -46,6 +49,28 @@ async fn root() -> &'static str {
 async fn readiness(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
     let service = state.service.clone();
     Ok(Json(call_service(move || Ok(service.readiness())).await?))
+}
+
+async fn discover_filter_fields(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<DiscoverFilterFieldsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(move || service.discover_filter_fields(request)).await?,
+    ))
+}
+
+async fn discover_filter_values(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<DiscoverFilterValuesRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(move || service.discover_filter_values(request)).await?,
+    ))
 }
 
 async fn open_result_window(

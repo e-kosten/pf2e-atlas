@@ -1,4 +1,5 @@
 import {
+  Button,
   Checkbox,
   Group,
   MultiSelect,
@@ -14,6 +15,16 @@ import {
   TRAIT_OPTIONS,
   type SortKey,
 } from "../../state/searchState";
+import {
+  addVisibleFilter,
+  additionalFilterOptions,
+  discoveredOptions,
+  labelForField,
+  optionFieldIds,
+  removeVisibleFilter,
+  setValuesForField,
+  valuesForField,
+} from "../filterControls";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function MantineFilters({
@@ -38,20 +49,20 @@ export function MantineFilters({
         }
       />
       <MultiSelect
-        data={KIND_OPTIONS}
+        data={discoveredOptions(workspace, "kind", KIND_OPTIONS)}
         label="Kinds"
         searchable
         value={search.kinds}
         onChange={(kinds) => setSearch({ ...search, kinds })}
       />
       <MultiSelect
-        data={RARITY_OPTIONS}
+        data={discoveredOptions(workspace, "rarity", RARITY_OPTIONS)}
         label="Rarity"
         value={search.rarity}
         onChange={(rarity) => setSearch({ ...search, rarity })}
       />
       <MultiSelect
-        data={TRAIT_OPTIONS}
+        data={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
         label="Traits"
         searchable
         value={search.traits}
@@ -70,7 +81,7 @@ export function MantineFilters({
         }
       />
       <MultiSelect
-        data={TRAIT_OPTIONS}
+        data={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
         label="Excluded traits"
         searchable
         value={search.excludedTraits}
@@ -125,6 +136,37 @@ export function MantineFilters({
           }
         />
       </Group>
+      {optionFieldIds(search)
+        .filter((fieldId) => !["kind", "rarity", "traits"].includes(fieldId))
+        .map((fieldId) => (
+          <div className="control-group" key={fieldId}>
+            <div className="control-heading">
+              <label>{labelForField(workspace.filterFields?.fields, fieldId)}</label>
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => removeVisibleFilter(workspace, fieldId)}
+              >
+                Remove
+              </Button>
+            </div>
+            <MultiSelect
+              data={discoveredOptions(workspace, fieldId, [])}
+              searchable
+              value={valuesForField(search, fieldId)}
+              onChange={(values) =>
+                setSearch(setValuesForField(search, fieldId, values))
+              }
+            />
+          </div>
+        ))}
+      <Select
+        data={additionalFilterOptions(workspace)}
+        label="Add filter"
+        placeholder="Choose a filter"
+        value={null}
+        onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
+      />
     </aside>
   );
 }

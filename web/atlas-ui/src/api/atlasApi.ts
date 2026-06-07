@@ -1,6 +1,10 @@
 import type {
   AppError,
   AppReadinessView,
+  DiscoverFilterFieldsRequest,
+  DiscoverFilterValuesRequest,
+  FilterFieldListView,
+  FilterValueListView,
   OpenResultWindowRequest,
   ReadResultWindowPageRequest,
   RecordDetailView,
@@ -23,6 +27,26 @@ export class AtlasApiError extends Error {
 
 export async function getReadiness(): Promise<AppReadinessView> {
   return atlasFetch("/api/readiness");
+}
+
+export async function discoverFilterFields(
+  request: DiscoverFilterFieldsRequest,
+): Promise<FilterFieldListView> {
+  const fields = await atlasFetch<unknown>("/api/filters/fields", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+  return normalizeFilterFieldList(fields);
+}
+
+export async function discoverFilterValues(
+  request: DiscoverFilterValuesRequest,
+): Promise<FilterValueListView> {
+  const values = await atlasFetch<unknown>("/api/filters/values", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+  return normalizeFilterValueList(values);
 }
 
 export async function openResultWindow(
@@ -126,6 +150,33 @@ function normalizeResultWindowPage(value: unknown): ResultWindowPage {
       total: toBigInt(page.total),
     },
   } as ResultWindowPage;
+}
+
+function normalizeFilterFieldList(value: unknown): FilterFieldListView {
+  if (!isRecord(value)) {
+    throw new AtlasApiError(200, "Invalid filter-field response");
+  }
+  return {
+    ...value,
+    matching_record_count: toBigInt(value.matching_record_count),
+  } as FilterFieldListView;
+}
+
+function normalizeFilterValueList(value: unknown): FilterValueListView {
+  if (!isRecord(value)) {
+    throw new AtlasApiError(200, "Invalid filter-value response");
+  }
+  return {
+    ...value,
+    matching_record_count: toBigInt(value.matching_record_count),
+    options: Array.isArray(value.options)
+      ? value.options.map((option) =>
+          isRecord(option) && "count" in option
+            ? { ...option, count: toBigInt(option.count) }
+            : option,
+        )
+      : [],
+  } as FilterValueListView;
 }
 
 function toBigInt(value: unknown): bigint {

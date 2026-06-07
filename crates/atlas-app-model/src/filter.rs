@@ -74,6 +74,26 @@ pub enum FilterDiscoveryContext {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+pub struct DiscoverFilterFieldsRequest {
+    pub context: FilterDiscoveryContext,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct DiscoverFilterValuesRequest {
+    pub context: FilterDiscoveryContext,
+    pub field_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct FilterFieldListView {
+    pub matching_record_count: u64,
+    pub fields: Vec<FilterFieldView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
 pub struct FilterFieldView {
     pub id: String,
     pub label: String,
@@ -83,6 +103,14 @@ pub struct FilterFieldView {
     pub default_operator: FilterClauseOperator,
     pub ui_hint: String,
     pub supports_counts: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct FilterValueListView {
+    pub field_id: String,
+    pub matching_record_count: u64,
+    pub options: Vec<FilterValueOption>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
