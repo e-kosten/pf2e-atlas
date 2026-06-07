@@ -18,6 +18,8 @@ Add three app-layer crates:
 - `atlas-app-service` for long-lived native workflow orchestration over `atlas-runtime` and `atlas-search`.
 - `atlas-web` for the Axum local HTTP surface and future static frontend serving.
 
+Add `web/atlas-ui` as the TypeScript/React frontend package. It consumes generated app DTOs through a local aggregation file, uses a thin handwritten API client over `/api/*`, and contains the first Ant Design vs Mantine prototype screens for the search-to-detail workflow.
+
 `atlas web` starts the local service from the CLI. The app service opens one full `AtlasRetrievalService` through `AtlasRuntime::open_retrieval_service` and fails startup when artifact/vector/embedding readiness is not satisfied. It must not call `open_retrieval_service_no_embeddings`.
 
 `atlas-app-service` must not import or assemble `atlas-index` internals. It adapts app DTOs into `atlas-search` request types and uses narrow retrieval capability traits where practical.
@@ -36,4 +38,5 @@ cargo test -p atlas-app-model export_typescript_bindings -- --ignored
 - TypeScript contracts are generated from Rust DTOs, reducing duplicate frontend interface maintenance.
 - The app-service boundary stays native-only and does not need WASM compatibility.
 - Local web startup is stricter than some CLI commands: missing vectors or embedding readiness is a startup error, not a degraded mode.
-- Static frontend serving and component-library choices remain frontend implementation details above the app-service boundary.
+- Static frontend serving remains future work. During prototyping, `web/atlas-ui` runs through Vite and proxies API calls to the local Axum service.
+- Component-library choice remains a frontend implementation detail above the app-service boundary; the current prototype compares Ant Design and Mantine against the same app workflow.
