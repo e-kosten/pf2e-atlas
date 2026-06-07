@@ -86,6 +86,14 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filters_help.contains("fields"));
     assert!(filters_help.contains("values"));
 
+    let tags_help = help_output(&["tags"])?;
+    assert!(tags_help.contains("validate"));
+
+    let tags_validate_help = help_output(&["tags", "validate"])?;
+    assert!(tags_validate_help.contains("atlas tags validate --path data/tags --json"));
+    assert!(tags_validate_help.contains("--path"));
+    assert!(tags_validate_help.contains("--json"));
+
     let filter_fields_help = help_output(&["filters", "fields"])?;
     assert!(filter_fields_help.contains("atlas filters fields --kind spell"));
     assert!(filter_fields_help.contains("atlas filters fields --kind creature --json"));
