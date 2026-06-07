@@ -6,9 +6,10 @@ use std::thread;
 
 use atlas_app_model::{
     AppErrorCode, AppReadinessStatus, AppReadinessView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, FilterEditorView, FilterValueListView, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordListSortView, ResultMatchSummary,
-    ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
+    DiscoverFilterValuesRequest, FilterDiscoveryContext, FilterEditorView, FilterValueListView,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordListSortView,
+    ResultMatchSummary, ResultWindowMode, ResultWindowModeSummary, ResultWindowPage,
+    ResultWindowRow,
 };
 use atlas_domain::RecordKey;
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
@@ -21,7 +22,10 @@ use atlas_search::{
 
 use crate::discovery::{filter_editor_view, filter_value_list_view};
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::filter::{discovery_field_id, lower_basic_filter, lower_basic_filter_context};
+use crate::filter::{
+    app_filter_field_id, discovery_field_id, filter_context_excluding_field, lower_basic_filter,
+    lower_basic_filter_context,
+};
 use crate::projection::{record_detail, record_summary, search_page_view, text_match_summary};
 
 const MAX_RESULT_WINDOWS: usize = 64;
@@ -315,14 +319,26 @@ impl AppServiceWorker {
                     filter: filter.as_ref(),
                     filter_json: None,
                 })?;
-        Ok(filter_editor_view(discovery))
+        let selected_candidates =
+            self.retrieval
+                .discover_filter_fields(SearchDiscoverFilterFieldsRequest {
+                    filter: None,
+                    filter_json: None,
+                })?;
+        let selected_field_ids = selected_filter_field_ids(&request);
+        Ok(filter_editor_view(
+            discovery,
+            selected_candidates,
+            &selected_field_ids,
+        ))
     }
 
     fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
     ) -> AppServiceResult<FilterValueListView> {
-        let filter = lower_basic_filter_context(&request.context)?;
+        let discovery_context = filter_context_excluding_field(&request.context, &request.field_id);
+        let filter = lower_basic_filter_context(&discovery_context)?;
         let discovery =
             self.retrieval
                 .discover_filter_values(SearchDiscoverFilterValuesRequest {
@@ -336,6 +352,27 @@ impl AppServiceWorker {
                 })?;
         filter_value_list_view(&request.field_id, &request.context, discovery)
     }
+}
+
+fn selected_filter_field_ids(request: &DiscoverFilterEditorRequest) -> Vec<String> {
+    let mut fields = request
+        .selected_field_ids
+        .iter()
+        .map(|field| app_filter_field_id(field))
+        .collect::<Vec<_>>();
+    match &request.context {
+        FilterDiscoveryContext::Filtered { filter } => {
+            fields.extend(
+                filter
+                    .clauses
+                    .iter()
+                    .map(|clause| app_filter_field_id(&clause.field)),
+            );
+        }
+    }
+    fields.sort();
+    fields.dedup();
+    fields
 }
 
 fn metric_selector(query: Option<&str>) -> Option<MetricDiscoverySelector> {
@@ -513,8 +550,8 @@ fn match_summary(match_info: &TextSearchMatch) -> ResultMatchSummary {
 mod tests {
     use atlas_app_model::{
         BasicSearchFilter, FilterClause, FilterClauseOperator, FilterDiscoveryContext,
-        OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultWindowMode,
-        SearchPageRequest,
+        FilterFieldApplicability, OpenResultWindowRequest, ReadResultWindowPageRequest,
+        RecordListSortView, ResultWindowMode, SearchPageRequest,
     };
     use atlas_search::test_support::{
         FixtureArtifact, minimal_fixture_retrieval_service_without_embeddings,
@@ -730,6 +767,7 @@ mod tests {
         let editor = worker
             .discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 context: context.clone(),
+                selected_field_ids: Vec::new(),
             })
             .expect("fixture editor discovery should succeed");
 
@@ -759,6 +797,81 @@ mod tests {
         assert!(!values.options[0].disabled);
     }
 
+    #[test]
+    fn worker_preserves_clause_selected_fields_when_editor_scope_has_no_matches() {
+        let fixture = fixture_worker();
+        let worker = &fixture.worker;
+        let editor = worker
+            .discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
+                context: FilterDiscoveryContext::Filtered {
+                    filter: BasicSearchFilter {
+                        clauses: vec![filter_clause("pack_label", "Missing")],
+                    },
+                },
+                selected_field_ids: vec!["publication_category".to_string()],
+            })
+            .expect("fixture editor discovery should succeed");
+
+        assert_eq!(editor.matching_record_count, 0);
+        let fields = editor
+            .groups
+            .iter()
+            .flat_map(|group| group.fields.iter())
+            .collect::<Vec<_>>();
+        let pack = fields
+            .iter()
+            .find(|field| field.id == "pack")
+            .expect("active pack_label clause should preserve app-facing pack field");
+        assert_eq!(
+            pack.applicability,
+            FilterFieldApplicability::SelectedUnavailable
+        );
+        let publication_family = fields
+            .iter()
+            .find(|field| field.id == "publication_family")
+            .expect("explicit selected alias should preserve publication family field");
+        assert_eq!(
+            publication_family.applicability,
+            FilterFieldApplicability::SelectedUnavailable
+        );
+        assert!(
+            !fields.iter().any(|field| field.id == "kind"),
+            "unselected unavailable candidates should not be returned"
+        );
+    }
+
+    #[test]
+    fn worker_discovers_values_with_same_app_field_excluded_from_scope() {
+        let fixture = fixture_worker();
+        let worker = &fixture.worker;
+        let context = FilterDiscoveryContext::Filtered {
+            filter: BasicSearchFilter {
+                clauses: vec![
+                    filter_clause("kind", "rule"),
+                    filter_clause("pack_label", "Missing"),
+                ],
+            },
+        };
+
+        let values = worker
+            .discover_filter_values(atlas_app_model::DiscoverFilterValuesRequest {
+                context,
+                field_id: "pack".to_string(),
+                metric_query: None,
+                metric_domain: None,
+            })
+            .expect("same-field exclusion should keep pack discovery valid");
+
+        assert_eq!(values.field_id, "pack");
+        assert_eq!(
+            values.matching_record_count, 3,
+            "pack_label clause should be excluded while kind=rule remains active"
+        );
+        assert_eq!(values.options.len(), 1);
+        assert_eq!(values.options[0].value, "Actions");
+        assert_eq!(values.options[0].count, Some(3));
+    }
+
     fn stored_window(id: &str) -> StoredResultWindow {
         StoredResultWindow {
             mode: ResultWindowMode::ListRecords {
@@ -768,6 +881,17 @@ mod tests {
                 sort: atlas_app_model::RecordListSortView::RecordKey,
             },
             include_diagnostics: id == "first",
+        }
+    }
+
+    fn filter_clause(field: &str, value: &str) -> FilterClause {
+        FilterClause {
+            id: format!("{field}-include_any"),
+            field: field.to_string(),
+            operator: FilterClauseOperator::IncludeAny,
+            values: vec![value.to_string()],
+            range: None,
+            metric: None,
         }
     }
 

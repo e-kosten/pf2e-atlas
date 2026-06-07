@@ -530,6 +530,7 @@ mod tests {
                         label: "Kinds".to_string(),
                         control: FilterControlView::MultiSelect,
                         placement: FilterFieldPlacement::AlwaysVisible,
+                        applicability: atlas_app_model::FilterFieldApplicability::Applicable,
                         allowed_operators: vec![],
                         default_operator: atlas_app_model::FilterClauseOperator::IncludeAny,
                         supports_counts: true,
