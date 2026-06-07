@@ -222,6 +222,13 @@ button {
   gap: 6px;
 }
 
+.control-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .control-group label {
   color: var(--muted);
   font-size: 12px;

@@ -6,6 +6,8 @@ import { DEFAULT_SEARCH_STATE } from "../state/searchState";
 import { useAtlasWorkspace } from "./useAtlasWorkspace";
 
 const apiMocks = vi.hoisted(() => ({
+  discoverFilterFields: vi.fn(),
+  discoverFilterValues: vi.fn(),
   getRecordDetail: vi.fn(),
   getReadiness: vi.fn(),
   openResultWindow: vi.fn(),
@@ -13,6 +15,8 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/atlasApi", () => ({
+  discoverFilterFields: apiMocks.discoverFilterFields,
+  discoverFilterValues: apiMocks.discoverFilterValues,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
   openResultWindow: apiMocks.openResultWindow,
@@ -26,6 +30,15 @@ describe("useAtlasWorkspace", () => {
       status: "ready",
       message: "Ready",
     });
+    apiMocks.discoverFilterFields.mockResolvedValue({
+      matching_record_count: 0n,
+      fields: [],
+    });
+    apiMocks.discoverFilterValues.mockResolvedValue({
+      field_id: "kind",
+      matching_record_count: 0n,
+      options: [],
+    });
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
     history.replaceState(null, "", "/");
   });
@@ -38,6 +51,7 @@ describe("useAtlasWorkspace", () => {
     await waitFor(() =>
       expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1),
     );
+    expect(apiMocks.discoverFilterFields).toHaveBeenCalled();
 
     act(() => {
       result.current.setSearch({

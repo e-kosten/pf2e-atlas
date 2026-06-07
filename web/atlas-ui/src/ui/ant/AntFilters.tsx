@@ -1,4 +1,4 @@
-import { Checkbox, Input, InputNumber, Select } from "antd";
+import { Button, Checkbox, Input, InputNumber, Select } from "antd";
 import { Search } from "lucide-react";
 import {
   KIND_OPTIONS,
@@ -6,6 +6,16 @@ import {
   SORT_OPTIONS,
   TRAIT_OPTIONS,
 } from "../../state/searchState";
+import {
+  addVisibleFilter,
+  additionalFilterOptions,
+  discoveredOptions,
+  labelForField,
+  optionFieldIds,
+  removeVisibleFilter,
+  setValuesForField,
+  valuesForField,
+} from "../filterControls";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
@@ -37,7 +47,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
         <label>Kinds</label>
         <Select
           mode="multiple"
-          options={KIND_OPTIONS}
+          options={discoveredOptions(workspace, "kind", KIND_OPTIONS)}
           value={search.kinds}
           onChange={(kinds) => setSearch({ ...search, kinds })}
         />
@@ -46,7 +56,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
         <label>Rarity</label>
         <Select
           mode="multiple"
-          options={RARITY_OPTIONS}
+          options={discoveredOptions(workspace, "rarity", RARITY_OPTIONS)}
           value={search.rarity}
           onChange={(rarity) => setSearch({ ...search, rarity })}
         />
@@ -55,7 +65,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
         <label>Traits</label>
         <Select
           mode="multiple"
-          options={TRAIT_OPTIONS}
+          options={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
           value={search.traits}
           onChange={(traits) => setSearch({ ...search, traits })}
         />
@@ -77,7 +87,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
         <label>Excluded traits</label>
         <Select
           mode="multiple"
-          options={TRAIT_OPTIONS}
+          options={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
           value={search.excludedTraits}
           onChange={(excludedTraits) =>
             setSearch({ ...search, excludedTraits })
@@ -129,6 +139,40 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
             }
           />
         </div>
+      </div>
+      {optionFieldIds(search)
+        .filter((fieldId) => !["kind", "rarity", "traits"].includes(fieldId))
+        .map((fieldId) => (
+          <div className="control-group" key={fieldId}>
+            <div className="control-heading">
+              <label>{labelForField(workspace.filterFields?.fields, fieldId)}</label>
+              <Button
+                size="small"
+                type="text"
+                onClick={() => removeVisibleFilter(workspace, fieldId)}
+              >
+                Remove
+              </Button>
+            </div>
+            <Select
+              mode="multiple"
+              loading={workspace.filterDiscoveryLoading}
+              options={discoveredOptions(workspace, fieldId, [])}
+              value={valuesForField(search, fieldId)}
+              onChange={(values) =>
+                setSearch(setValuesForField(search, fieldId, values))
+              }
+            />
+          </div>
+        ))}
+      <div className="control-group">
+        <label>Add filter</label>
+        <Select
+          placeholder="Choose a filter"
+          options={additionalFilterOptions(workspace)}
+          value={null}
+          onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
+        />
       </div>
     </aside>
   );

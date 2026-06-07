@@ -67,6 +67,27 @@ pub(crate) fn lower_basic_filter(
     })
 }
 
+pub(crate) fn lower_basic_filter_context(
+    context: &atlas_app_model::FilterDiscoveryContext,
+) -> AppServiceResult<Option<SearchFilterNode>> {
+    match context {
+        atlas_app_model::FilterDiscoveryContext::Browse { filter }
+        | atlas_app_model::FilterDiscoveryContext::TextSearch { filter, .. } => {
+            lower_basic_filter(Some(filter))
+        }
+    }
+}
+
+pub(crate) fn discovery_field_id(field: &str) -> String {
+    match canonical_field(field).as_str() {
+        "kind" | "record_kind" => "record_kind".to_string(),
+        "trait" | "traits" => "traits".to_string(),
+        "pack" | "pack_label" => "pack_label".to_string(),
+        "source" | "publication" | "publication_title" => "publication_title".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn is_empty_clause(clause: &atlas_app_model::FilterClause) -> bool {
     clause.values.is_empty() && clause.range.is_none() && clause.metric.is_none()
 }
@@ -94,8 +115,8 @@ fn lower_include_any(
         }
         "trait" | "traits" => simple.traits_any.extend(values.iter().cloned()),
         "rarity" => simple.rarities.extend(values.iter().cloned()),
-        "pack" | "pack_name" => simple.pack_names.extend(values.iter().cloned()),
-        "pack_label" => simple.pack_labels.extend(values.iter().cloned()),
+        "pack_name" => simple.pack_names.extend(values.iter().cloned()),
+        "pack" | "pack_label" => simple.pack_labels.extend(values.iter().cloned()),
         "source" | "publication" | "publication_title" => {
             simple.publication_titles.extend(values.iter().cloned());
         }
@@ -215,8 +236,8 @@ fn value_node(field: &str, value: &str) -> AppServiceResult<SearchFilterNode> {
         "rarity" => SearchFilterNode::rarity(atlas_domain::NullableStringMatch::Eq {
             value: value.to_string(),
         }),
-        "pack" | "pack_name" => SearchFilterNode::pack(value.to_string()),
-        "pack_label" => SearchFilterNode::metadata(MetadataPredicate::EnumString {
+        "pack_name" => SearchFilterNode::pack(value.to_string()),
+        "pack" | "pack_label" => SearchFilterNode::metadata(MetadataPredicate::EnumString {
             field: MetadataEnumStringField::PackLabel,
             r#match: MetadataStringMatch::Eq {
                 value: value.to_string(),
