@@ -1,18 +1,12 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
-export function ResultPaneHeader({
-  workspace,
-}: {
-  workspace: AtlasWorkspaceState;
-}) {
+export function ResultPaneHeader({ workspace }: { workspace: AtlasWorkspaceState }) {
   const page = workspace.resultPage?.page;
   return (
     <div className="result-pane-header">
       <span>
-        {page
-          ? `${page.total.toLocaleString()} records`
-          : "No result window yet"}
+        {page ? `${page.total.toLocaleString()} records` : "No result window yet"}
       </span>
       <div className="pager pager--compact">
         <button

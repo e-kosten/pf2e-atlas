@@ -17,9 +17,8 @@ import type { LibraryPrototype } from "../state/searchState";
 
 export function AtlasPrototypeApp() {
   const [activeLibrary, setActiveLibrary] = useState<LibraryPrototype>("ant");
-  const [colorScheme, setColorScheme] = useState<ColorSchemePreference>(
-    readStoredColorScheme,
-  );
+  const [colorScheme, setColorScheme] =
+    useState<ColorSchemePreference>(readStoredColorScheme);
   const systemColorScheme = useSystemColorScheme();
   const resolvedColorScheme =
     colorScheme === "system" ? systemColorScheme : colorScheme;
@@ -69,14 +68,13 @@ export function AtlasPrototypeApp() {
 
 function readStoredColorScheme(): ColorSchemePreference {
   const value = localStorage.getItem(COLOR_SCHEME_STORAGE_KEY);
-  return value === "light" || value === "dark" || value === "system"
-    ? value
-    : "system";
+  return value === "light" || value === "dark" || value === "system" ? value : "system";
 }
 
 function useSystemColorScheme(): ResolvedColorScheme {
-  const [systemColorScheme, setSystemColorScheme] =
-    useState<ResolvedColorScheme>(() => getSystemColorScheme());
+  const [systemColorScheme, setSystemColorScheme] = useState<ResolvedColorScheme>(() =>
+    getSystemColorScheme(),
+  );
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)");
@@ -89,7 +87,5 @@ function useSystemColorScheme(): ResolvedColorScheme {
 }
 
 function getSystemColorScheme(): ResolvedColorScheme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }

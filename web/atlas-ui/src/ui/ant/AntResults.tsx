@@ -5,9 +5,7 @@ import { handleResultKeyboard, useActiveResultScroll } from "../resultKeyboard";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function AntResults({ workspace }: { workspace: AtlasWorkspaceState }) {
-  const scrollRef = useActiveResultScroll<HTMLDivElement>(
-    workspace.activeResultKey,
-  );
+  const scrollRef = useActiveResultScroll<HTMLDivElement>(workspace.activeResultKey);
   const columns: ColumnsType<ResultWindowRow> = [
     {
       title: "Record",
@@ -54,6 +52,7 @@ export function AntResults({ workspace }: { workspace: AtlasWorkspaceState }) {
         className="results-scroll results-scroll--focusable"
         onKeyDown={(event) => handleResultKeyboard(event, workspace)}
         ref={scrollRef}
+        role="listbox"
         tabIndex={0}
       >
         <Table
@@ -68,9 +67,7 @@ export function AntResults({ workspace }: { workspace: AtlasWorkspaceState }) {
           }
           onRow={(row) => ({
             "data-active-result":
-              row.record.record_key === workspace.activeResultKey
-                ? "true"
-                : undefined,
+              row.record.record_key === workspace.activeResultKey ? "true" : undefined,
             onMouseEnter: () => workspace.focusResult(row.record.record_key),
           })}
           rowKey={(row) => row.record.record_key}

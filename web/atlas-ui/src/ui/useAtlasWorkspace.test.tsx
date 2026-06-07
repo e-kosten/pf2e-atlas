@@ -48,9 +48,7 @@ describe("useAtlasWorkspace", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() =>
-      expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1),
-    );
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
     expect(apiMocks.discoverFilterFields).toHaveBeenCalled();
 
     act(() => {
@@ -72,9 +70,7 @@ describe("useAtlasWorkspace", () => {
     await delay(150);
     expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1);
 
-    await waitFor(() =>
-      expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2),
-    );
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
     expect(result.current.diagnostics.searchDebouncing).toBe(false);
     expect(result.current.diagnostics.resultRequest).toMatchObject({
       kind: "open_window",
@@ -123,9 +119,7 @@ function queryClientWrapper() {
     },
   });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 

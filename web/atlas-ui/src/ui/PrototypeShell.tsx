@@ -53,6 +53,7 @@ export function PrototypeShell({
             <button
               aria-selected={activeLibrary === "ant"}
               onClick={() => onLibraryChange("ant")}
+              role="tab"
               type="button"
             >
               AntD
@@ -60,6 +61,7 @@ export function PrototypeShell({
             <button
               aria-selected={activeLibrary === "mantine"}
               onClick={() => onLibraryChange("mantine")}
+              role="tab"
               type="button"
             >
               Mantine
@@ -106,7 +108,10 @@ function DiagnosticsPanel({ workspace }: { workspace: AtlasWorkspaceState }) {
   const { diagnostics, resultPage } = workspace;
   return (
     <section className="diagnostics-panel" aria-label="Diagnostics">
-      <DiagnosticItem label="Readiness" value={workspace.readiness.data?.status ?? "loading"} />
+      <DiagnosticItem
+        label="Readiness"
+        value={workspace.readiness.data?.status ?? "loading"}
+      />
       <DiagnosticItem
         label="Search"
         value={diagnostics.searchDebouncing ? "debouncing" : "settled"}
@@ -119,10 +124,7 @@ function DiagnosticsPanel({ workspace }: { workspace: AtlasWorkspaceState }) {
             : "pending"
         }
       />
-      <DiagnosticItem
-        label="Window"
-        value={diagnostics.activeWindowId ?? "none"}
-      />
+      <DiagnosticItem label="Window" value={diagnostics.activeWindowId ?? "none"} />
       <DiagnosticItem
         label="Page"
         value={`${workspace.pageNumber}${resultPage ? ` / ${resultPage.page.total.toLocaleString()} records` : ""}`}
@@ -166,9 +168,7 @@ function SystemThemeIcon() {
   );
 }
 
-function cycleColorScheme(
-  colorScheme: ColorSchemePreference,
-): ColorSchemePreference {
+function cycleColorScheme(colorScheme: ColorSchemePreference): ColorSchemePreference {
   if (colorScheme === "system") {
     return "light";
   }

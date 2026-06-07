@@ -205,10 +205,7 @@ export function decodeSearchState(value: string | null): SearchFormState {
         decoded.excludedTraits,
         DEFAULT_SEARCH_STATE.excludedTraits,
       ),
-      packLabels: stringArrayValue(
-        decoded.packLabels,
-        DEFAULT_SEARCH_STATE.packLabels,
-      ),
+      packLabels: stringArrayValue(decoded.packLabels, DEFAULT_SEARCH_STATE.packLabels),
       publicationTitles: stringArrayValue(
         decoded.publicationTitles,
         DEFAULT_SEARCH_STATE.publicationTitles,
@@ -246,12 +243,7 @@ function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
   pushValues(clauses, "traits", state.traitOperator, state.traits);
   pushValues(clauses, "traits", "exclude_any", state.excludedTraits);
   pushValues(clauses, "pack", "include_any", state.packLabels);
-  pushValues(
-    clauses,
-    "publication_title",
-    "include_any",
-    state.publicationTitles,
-  );
+  pushValues(clauses, "publication_title", "include_any", state.publicationTitles);
 
   if (state.levelMin !== null || state.levelMax !== null) {
     clauses.push({
@@ -301,11 +293,7 @@ function pushValues(
   });
 }
 
-function pushRange(
-  clauses: FilterClause[],
-  field: string,
-  range: NumericRangeState,
-) {
+function pushRange(clauses: FilterClause[], field: string, range: NumericRangeState) {
   if (range.min === null && range.max === null) {
     return;
   }
@@ -363,21 +351,20 @@ function rangeRecordValue(
     return fallback;
   }
   return Object.fromEntries(
-    Object.entries(value)
-      .flatMap(([field, entry]) => {
-        if (!isRecord(entry)) {
-          return [];
-        }
-        return [
-          [
-            field,
-            {
-              min: nullableFiniteNumber(entry.min, null),
-              max: nullableFiniteNumber(entry.max, null),
-            },
-          ],
-        ];
-      }),
+    Object.entries(value).flatMap(([field, entry]) => {
+      if (!isRecord(entry)) {
+        return [];
+      }
+      return [
+        [
+          field,
+          {
+            min: nullableFiniteNumber(entry.min, null),
+            max: nullableFiniteNumber(entry.max, null),
+          },
+        ],
+      ];
+    }),
   );
 }
 
@@ -405,10 +392,7 @@ function oneOf<T extends string>(
     : fallback;
 }
 
-function nullableFiniteNumber(
-  value: unknown,
-  fallback: number | null,
-): number | null {
+function nullableFiniteNumber(value: unknown, fallback: number | null): number | null {
   if (value === null || value === undefined) {
     return value === null ? null : fallback;
   }

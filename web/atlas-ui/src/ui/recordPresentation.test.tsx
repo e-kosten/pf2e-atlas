@@ -11,11 +11,7 @@ describe("RecordPresentation", () => {
     expect(screen.getByText("Loading record...")).toBeInTheDocument();
 
     rerender(
-      <RecordPresentation
-        detail={undefined}
-        loading={false}
-        onReference={vi.fn()}
-      />,
+      <RecordPresentation detail={undefined} loading={false} onReference={vi.fn()} />,
     );
 
     expect(screen.getByText("Select a result to inspect it.")).toBeInTheDocument();

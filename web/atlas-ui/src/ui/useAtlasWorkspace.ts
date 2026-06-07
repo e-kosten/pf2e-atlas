@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  useQueries,
-  useQuery,
-  type UseQueryResult,
-} from "@tanstack/react-query";
+import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
   discoverFilterFields,
   discoverFilterValues,
@@ -38,9 +34,11 @@ export type AtlasRequestTiming = {
 export type AtlasWorkspaceDiagnostics = {
   activeWindowId: string | null;
   detailRequest: AtlasRequestTiming | null;
-  resultRequest: (AtlasRequestTiming & {
-    kind: "open_window" | "page";
-  }) | null;
+  resultRequest:
+    | (AtlasRequestTiming & {
+        kind: "open_window" | "page";
+      })
+    | null;
   searchDebouncing: boolean;
 };
 
@@ -72,18 +70,18 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const [search, setSearchState] = useState<SearchFormState>(() =>
     decodeSearchState(new URLSearchParams(window.location.search).get("s")),
   );
-  const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(
-    () => recordKeyFromPath(window.location.pathname),
+  const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(() =>
+    recordKeyFromPath(window.location.pathname),
   );
   const [activeResultKey, setActiveResultKey] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(search.pageSize > 0 ? 1 : 1);
   const [windowId, setWindowId] = useState<bigint | null>(null);
   const [activeSearch, setActiveSearch] = useState(search);
-  const [lastDetailRequest, setLastDetailRequest] =
-    useState<AtlasRequestTiming | null>(null);
-  const [lastResultRequest, setLastResultRequest] = useState<
-    AtlasWorkspaceDiagnostics["resultRequest"]
-  >(null);
+  const [lastDetailRequest, setLastDetailRequest] = useState<AtlasRequestTiming | null>(
+    null,
+  );
+  const [lastResultRequest, setLastResultRequest] =
+    useState<AtlasWorkspaceDiagnostics["resultRequest"]>(null);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
     () => encodeSearchExecutionState(search),
@@ -165,13 +163,9 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const valueFieldIds = useMemo(() => {
     const fields = filterFieldsQuery.data?.fields ?? [];
     const countBackedFields = new Set(
-      fields
-        .filter((field) => field.supports_counts)
-        .map((field) => field.id),
+      fields.filter((field) => field.supports_counts).map((field) => field.id),
     );
-    return search.visibleFilterIds.filter((fieldId) =>
-      countBackedFields.has(fieldId),
-    );
+    return search.visibleFilterIds.filter((fieldId) => countBackedFields.has(fieldId));
   }, [filterFieldsQuery.data, search.visibleFilterIds]);
 
   const filterValueQueries = useQueries({
@@ -201,7 +195,10 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     enabled: selectedRecordKey !== null,
   });
 
-  const resultRows = resultsQuery.data?.rows ?? [];
+  const resultRows = useMemo(
+    () => resultsQuery.data?.rows ?? [],
+    [resultsQuery.data?.rows],
+  );
 
   useEffect(() => {
     if (resultRows.length === 0) {
@@ -269,10 +266,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const filterValuesByField = Object.fromEntries(
-    valueFieldIds.map((fieldId, index) => [
-      fieldId,
-      filterValueQueries[index]?.data,
-    ]),
+    valueFieldIds.map((fieldId, index) => [fieldId, filterValueQueries[index]?.data]),
   );
 
   return {
@@ -292,9 +286,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     filterValuesByField,
     readiness,
     resultsLoading:
-      resultsQuery.isLoading ||
-      resultsQuery.isFetching ||
-      searchDebouncing,
+      resultsQuery.isLoading || resultsQuery.isFetching || searchDebouncing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
     filterDiscoveryLoading:
       filterFieldsQuery.isLoading ||

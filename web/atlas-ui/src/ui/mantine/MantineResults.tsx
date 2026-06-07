@@ -2,14 +2,8 @@ import { Badge, Group, ScrollArea, Table } from "@mantine/core";
 import { handleResultKeyboard, useActiveResultScroll } from "../resultKeyboard";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
-export function MantineResults({
-  workspace,
-}: {
-  workspace: AtlasWorkspaceState;
-}) {
-  const scrollRef = useActiveResultScroll<HTMLDivElement>(
-    workspace.activeResultKey,
-  );
+export function MantineResults({ workspace }: { workspace: AtlasWorkspaceState }) {
+  const scrollRef = useActiveResultScroll<HTMLDivElement>(workspace.activeResultKey);
 
   return (
     <section className="results-panel">
