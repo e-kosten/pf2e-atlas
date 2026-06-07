@@ -123,10 +123,7 @@ export function addVisibleFilter(
   });
 }
 
-export function removeVisibleFilter(
-  workspace: AtlasWorkspaceState,
-  fieldId: string,
-) {
+export function removeVisibleFilter(workspace: AtlasWorkspaceState, fieldId: string) {
   if (STANDARD_FILTER_IDS.includes(fieldId)) {
     return;
   }
@@ -138,10 +135,7 @@ export function removeVisibleFilter(
   });
 }
 
-export function valuesForField(
-  search: SearchFormState,
-  fieldId: string,
-): string[] {
+export function valuesForField(search: SearchFormState, fieldId: string): string[] {
   switch (fieldId) {
     case "kind":
       return search.kinds;
@@ -322,10 +316,7 @@ function fallbackLabel(fieldId: string): string {
   }
 }
 
-function clearFieldValue(
-  search: SearchFormState,
-  fieldId: string,
-): SearchFormState {
+function clearFieldValue(search: SearchFormState, fieldId: string): SearchFormState {
   const { [fieldId]: _option, ...optionFilters } = search.optionFilters;
   const { [fieldId]: _range, ...rangeFilters } = search.rangeFilters;
   const { [fieldId]: _boolean, ...booleanFilters } = search.booleanFilters;

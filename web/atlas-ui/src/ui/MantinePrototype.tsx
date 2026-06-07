@@ -5,11 +5,7 @@ import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 import { WorkspaceLayout } from "./WorkspaceLayout";
 
-export function MantinePrototype({
-  workspace,
-}: {
-  workspace: AtlasWorkspaceState;
-}) {
+export function MantinePrototype({ workspace }: { workspace: AtlasWorkspaceState }) {
   return (
     <WorkspaceLayout
       variant="mantine"

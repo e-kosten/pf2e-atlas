@@ -66,9 +66,7 @@ export const atlasTheme = {
   } satisfies Record<ResolvedColorScheme, AtlasPalette>,
 };
 
-export function atlasCssVariables(
-  scheme: ResolvedColorScheme,
-): CSSProperties {
+export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
   const color = atlasTheme.color[scheme];
   return {
     colorScheme: scheme,
@@ -96,8 +94,7 @@ export function atlasCssVariables(
 export function antDesignTheme(scheme: ResolvedColorScheme): ThemeConfig {
   const color = atlasTheme.color[scheme];
   return {
-    algorithm:
-      scheme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+    algorithm: scheme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
       colorPrimary: color.accent,
       colorInfo: color.accent,
@@ -143,9 +140,7 @@ export function antDesignTheme(scheme: ResolvedColorScheme): ThemeConfig {
   };
 }
 
-export function mantineTheme(
-  scheme: ResolvedColorScheme,
-): MantineThemeOverride {
+export function mantineTheme(scheme: ResolvedColorScheme): MantineThemeOverride {
   const color = atlasTheme.color[scheme];
   return {
     primaryColor: "atlasTeal",

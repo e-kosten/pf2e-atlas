@@ -80,11 +80,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                   <Form.Item label="Kinds">
                     <Select
                       mode="multiple"
-                      options={discoveredOptions(
-                        workspace,
-                        "kind",
-                        KIND_OPTIONS,
-                      )}
+                      options={discoveredOptions(workspace, "kind", KIND_OPTIONS)}
                       value={search.kinds}
                       onChange={(kinds) => setSearch({ ...search, kinds })}
                     />
@@ -92,11 +88,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                   <Form.Item label="Rarity">
                     <Select
                       mode="multiple"
-                      options={discoveredOptions(
-                        workspace,
-                        "rarity",
-                        RARITY_OPTIONS,
-                      )}
+                      options={discoveredOptions(workspace, "rarity", RARITY_OPTIONS)}
                       value={search.rarity}
                       onChange={(rarity) => setSearch({ ...search, rarity })}
                     />
@@ -104,11 +96,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                   <Form.Item label="Traits">
                     <Select
                       mode="multiple"
-                      options={discoveredOptions(
-                        workspace,
-                        "traits",
-                        TRAIT_OPTIONS,
-                      )}
+                      options={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
                       value={search.traits}
                       onChange={(traits) => setSearch({ ...search, traits })}
                     />
@@ -129,11 +117,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                   <Form.Item label="Excluded traits">
                     <Select
                       mode="multiple"
-                      options={discoveredOptions(
-                        workspace,
-                        "traits",
-                        TRAIT_OPTIONS,
-                      )}
+                      options={discoveredOptions(workspace, "traits", TRAIT_OPTIONS)}
                       value={search.excludedTraits}
                       onChange={(excludedTraits) =>
                         setSearch({ ...search, excludedTraits })
@@ -168,9 +152,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
             {
               key: "more",
               label: `Added filters${
-                optionalFilterIds.length > 0
-                  ? ` (${optionalFilterIds.length})`
-                  : ""
+                optionalFilterIds.length > 0 ? ` (${optionalFilterIds.length})` : ""
               }`,
               children: (
                 <div className="filter-section">
@@ -186,17 +168,12 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                         label={
                           <div className="control-heading">
                             <span>
-                              {labelForField(
-                                workspace.filterFields?.fields,
-                                fieldId,
-                              )}
+                              {labelForField(workspace.filterFields?.fields, fieldId)}
                             </span>
                             <Button
                               size="small"
                               type="text"
-                              onClick={() =>
-                                removeVisibleFilter(workspace, fieldId)
-                              }
+                              onClick={() => removeVisibleFilter(workspace, fieldId)}
                             >
                               Remove
                             </Button>
@@ -222,9 +199,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                       options={addFilterGroups}
                       placeholder="Choose a filter"
                       value={null}
-                      onChange={(fieldId) =>
-                        addVisibleFilter(workspace, fieldId)
-                      }
+                      onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
                     />
                   </Form.Item>
                 </div>
@@ -328,9 +303,7 @@ function OptionalFilterControl({
       loading={workspace.filterDiscoveryLoading}
       options={discoveredOptions(workspace, fieldId, [])}
       value={valuesForField(search, fieldId)}
-      onChange={(values) =>
-        setSearch(setValuesForField(search, fieldId, values))
-      }
+      onChange={(values) => setSearch(setValuesForField(search, fieldId, values))}
     />
   );
 }

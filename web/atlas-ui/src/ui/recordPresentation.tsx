@@ -103,11 +103,7 @@ function ContentView({
   return (
     <>
       {content.blocks.map((block, index) => (
-        <ContentBlockView
-          block={block}
-          key={index}
-          onReference={onReference}
-        />
+        <ContentBlockView block={block} key={index} onReference={onReference} />
       ))}
     </>
   );

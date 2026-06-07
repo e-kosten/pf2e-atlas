@@ -179,9 +179,7 @@ describe("searchState", () => {
   it("falls back to defaults for missing or malformed encoded state", () => {
     expect(decodeSearchState(null)).toEqual(DEFAULT_SEARCH_STATE);
     expect(decodeSearchState("%E0%A4%A")).toEqual(DEFAULT_SEARCH_STATE);
-    expect(decodeSearchState(encodeURIComponent("{"))).toEqual(
-      DEFAULT_SEARCH_STATE,
-    );
+    expect(decodeSearchState(encodeURIComponent("{"))).toEqual(DEFAULT_SEARCH_STATE);
   });
 
   it("normalizes wrong-shaped encoded fields independently", () => {
@@ -212,8 +210,7 @@ describe("searchState", () => {
 
   it("clamps valid page sizes from encoded state", () => {
     expect(
-      decodeSearchState(encodeURIComponent(JSON.stringify({ pageSize: 250 })))
-        .pageSize,
+      decodeSearchState(encodeURIComponent(JSON.stringify({ pageSize: 250 }))).pageSize,
     ).toBe(100);
   });
 });

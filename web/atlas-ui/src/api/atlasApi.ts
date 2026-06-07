@@ -63,23 +63,21 @@ export async function readResultWindowPage(
   windowId: bigint,
   request: ReadResultWindowPageRequest,
 ): Promise<ResultWindowPage> {
-  const page = await atlasFetch<unknown>(`/api/result-windows/${windowId.toString()}/page`, {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
+  const page = await atlasFetch<unknown>(
+    `/api/result-windows/${windowId.toString()}/page`,
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    },
+  );
   return normalizeResultWindowPage(page);
 }
 
-export async function getRecordDetail(
-  recordKey: string,
-): Promise<RecordDetailView> {
+export async function getRecordDetail(recordKey: string): Promise<RecordDetailView> {
   return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
 }
 
-async function atlasFetch<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -195,9 +193,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isAppError(value: unknown): value is AppError {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    "code" in value &&
-    "message" in value
+    typeof value === "object" && value !== null && "code" in value && "message" in value
   );
 }

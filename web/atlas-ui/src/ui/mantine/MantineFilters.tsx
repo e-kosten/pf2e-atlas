@@ -31,11 +31,7 @@ import {
 } from "../filterControls";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
-export function MantineFilters({
-  workspace,
-}: {
-  workspace: AtlasWorkspaceState;
-}) {
+export function MantineFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
   const { search, setSearch } = workspace;
 
   return (
@@ -78,9 +74,7 @@ export function MantineFilters({
         onChange={(event) =>
           setSearch({
             ...search,
-            traitOperator: event.currentTarget.checked
-              ? "include_any"
-              : "include_all",
+            traitOperator: event.currentTarget.checked ? "include_any" : "include_all",
           })
         }
       />
@@ -234,9 +228,7 @@ function OptionalFilterControl({
       data={discoveredOptions(workspace, fieldId, [])}
       searchable
       value={valuesForField(search, fieldId)}
-      onChange={(values) =>
-        setSearch(setValuesForField(search, fieldId, values))
-      }
+      onChange={(values) => setSearch(setValuesForField(search, fieldId, values))}
     />
   );
 }

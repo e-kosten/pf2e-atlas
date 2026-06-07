@@ -199,7 +199,11 @@ function WorkspacePane({
   onToggle: () => void;
 }) {
   return (
-    <div className={collapsed ? "workspace-pane workspace-pane--collapsed" : "workspace-pane"}>
+    <div
+      className={
+        collapsed ? "workspace-pane workspace-pane--collapsed" : "workspace-pane"
+      }
+    >
       <div className="pane-header">
         <span>{label}</span>
         <div className="pane-header__actions">
