@@ -56,6 +56,7 @@ pub(crate) fn filter_editor_view(
             projected_field_ids.push(app_id);
         }
     }
+    sort_filter_editor_groups(&mut groups);
     groups.retain(|group| !group.fields.is_empty());
     FilterEditorView {
         matching_record_count: discovery.matching_record_count,
@@ -279,6 +280,34 @@ fn filter_editor_groups() -> Vec<FilterEditorGroupView> {
     .collect()
 }
 
+fn sort_filter_editor_groups(groups: &mut [FilterEditorGroupView]) {
+    for group in groups {
+        group
+            .fields
+            .sort_by_key(|field| filter_field_order(&group.id, &field.id));
+    }
+}
+
+fn filter_field_order(group_id: &str, field_id: &str) -> usize {
+    match group_id {
+        "standard" => match field_id {
+            "kind" => 0,
+            "level" => 1,
+            "rarity" => 2,
+            "traits" => 3,
+            _ => 100,
+        },
+        "source" => match field_id {
+            "pack" => 0,
+            "publication_title" => 1,
+            "publication_family" => 2,
+            "publication_remaster" => 3,
+            _ => 100,
+        },
+        _ => 100,
+    }
+}
+
 fn filter_editor_field_view(
     field: &FilterFieldInfo,
     applicability: FilterFieldApplicability,
@@ -474,10 +503,10 @@ mod tests {
             execution: FilterDiscoveryExecution::Dynamic,
             matching_record_count: 3,
             fields: vec![
-                field("record_kind", FilterFieldType::EnumString),
+                field("level", FilterFieldType::Number),
                 field("pack_label", FilterFieldType::EnumString),
                 field("traits", FilterFieldType::Set),
-                field("level", FilterFieldType::Number),
+                field("record_kind", FilterFieldType::EnumString),
                 field("metric", FilterFieldType::Metric),
                 field("foundry_document_type", FilterFieldType::EnumString),
             ],
@@ -500,7 +529,7 @@ mod tests {
             .chain(source.fields.iter())
             .map(|field| field.id.as_str())
             .collect::<Vec<_>>();
-        assert_eq!(ids, vec!["kind", "traits", "level", "pack"]);
+        assert_eq!(ids, vec!["kind", "level", "traits", "pack"]);
         let metrics = view
             .groups
             .iter()
@@ -517,14 +546,14 @@ mod tests {
         );
         assert_eq!(
             standard.fields[1].default_operator,
-            FilterClauseOperator::IncludeAll
+            FilterClauseOperator::Range
         );
         assert_eq!(
-            standard.fields[2].allowed_operators,
+            standard.fields[1].allowed_operators,
             vec![FilterClauseOperator::Range]
         );
         assert!(matches!(
-            standard.fields[2].control,
+            standard.fields[1].control,
             atlas_app_model::FilterControlView::Range {
                 min: Some(0.0),
                 max: Some(30.0),
@@ -532,6 +561,10 @@ mod tests {
                 ..
             }
         ));
+        assert_eq!(
+            standard.fields[2].default_operator,
+            FilterClauseOperator::IncludeAll
+        );
         assert_eq!(
             source.fields[0].placement,
             atlas_app_model::FilterFieldPlacement::InitiallyVisible
