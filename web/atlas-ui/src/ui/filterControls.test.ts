@@ -7,8 +7,10 @@ import {
   booleanForField,
   controlKindForField,
   discoveredOptions,
+  metricComparisonForField,
   rangeForField,
   removeVisibleFilter,
+  setMetricComparisonForField,
   setRangeForField,
   visibleEditorFilterFields,
 } from "./filterControls";
@@ -21,7 +23,21 @@ describe("filterControls", () => {
       search: {
         ...DEFAULT_SEARCH_STATE,
         visibleFilterIds: ["basic_save"],
-        optionFilters: { basic_save: ["true"], pack: ["Actions"] },
+        filterClauses: [
+          ...DEFAULT_SEARCH_STATE.filterClauses,
+          {
+            id: "basic_save-include_any",
+            field: "basic_save",
+            operator: "include_any",
+            values: ["true"],
+          },
+          {
+            id: "pack-include_any",
+            field: "pack",
+            operator: "include_any",
+            values: ["Actions"],
+          },
+        ],
       },
       setSearch,
     });
@@ -40,13 +56,19 @@ describe("filterControls", () => {
           { value: "publication_remaster", label: "Remaster" },
         ],
       },
+      {
+        label: "Metrics",
+        options: [{ value: "metric", label: "Metric" }],
+      },
     ]);
 
     removeVisibleFilter(workspace, "pack");
     expect(setSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({
         hiddenFilterIds: ["pack"],
-        optionFilters: { basic_save: ["true"] },
+        filterClauses: expect.not.arrayContaining([
+          expect.objectContaining({ field: "pack" }),
+        ]),
       }),
     );
 
@@ -96,6 +118,7 @@ describe("filterControls", () => {
 
     expect(controlKindForField(workspace, "level")).toBe("range");
     expect(controlKindForField(workspace, "publication_remaster")).toBe("boolean");
+    expect(controlKindForField(workspace, "metric")).toBe("metric");
     expect(controlKindForField(workspace, "kind")).toBe("option");
     expect(discoveredOptions(workspace, "kind")).toEqual([
       { value: "spell", label: "Spell (2)", disabled: false },
@@ -103,21 +126,50 @@ describe("filterControls", () => {
     expect(discoveredOptions(workspace, "rarity")).toEqual([]);
   });
 
-  it("keeps level range in named state and generic ranges in range filters", () => {
+  it("keeps range, boolean, and metric values in filter clauses", () => {
     const withLevel = setRangeForField(DEFAULT_SEARCH_STATE, "level", {
       min: 2,
       max: 6,
     });
-    expect(withLevel.levelMin).toBe(2);
-    expect(withLevel.levelMax).toBe(6);
     expect(rangeForField(withLevel, "level")).toEqual({ min: 2, max: 6 });
+    expect(withLevel.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "level",
+        operator: "range",
+        range: { min: 2, max: 6 },
+      }),
+    );
 
     const withBulk = setRangeForField(DEFAULT_SEARCH_STATE, "bulk_value", {
       min: 1,
       max: 3,
     });
-    expect(withBulk.rangeFilters.bulk_value).toEqual({ min: 1, max: 3 });
+    expect(withBulk.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "bulk_value",
+        operator: "range",
+        range: { min: 1, max: 3 },
+      }),
+    );
     expect(booleanForField(withBulk, "publication_remaster")).toBeNull();
+
+    const withMetric = setMetricComparisonForField(DEFAULT_SEARCH_STATE, "metric", {
+      key: "spell.area.value",
+      op: "gte",
+      value: 10,
+    });
+    expect(metricComparisonForField(withMetric, "metric")).toEqual({
+      key: "spell.area.value",
+      op: "gte",
+      value: 10,
+    });
+    expect(withMetric.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "metric",
+        operator: "metric_compare",
+        metric: { key: "spell.area.value", op: "gte", value: 10 },
+      }),
+    );
   });
 });
 
@@ -168,6 +220,18 @@ function editor(): FilterEditorView {
             kind: "boolean",
             true_label: "Yes",
             false_label: "No",
+          }),
+        ],
+      },
+      {
+        id: "metrics",
+        label: "Metrics",
+        fields: [
+          field("metric", "Metric", "addable", {
+            kind: "metric_comparison",
+            key_label: "Metric",
+            operator_label: "Operator",
+            value_label: "Value",
           }),
         ],
       },

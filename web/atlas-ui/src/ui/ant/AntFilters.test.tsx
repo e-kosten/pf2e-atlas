@@ -30,7 +30,15 @@ describe("AntFilters", () => {
           search: {
             ...DEFAULT_SEARCH_STATE,
             visibleFilterIds: ["publication_remaster"],
-            booleanFilters: { publication_remaster: "true" },
+            filterClauses: [
+              ...DEFAULT_SEARCH_STATE.filterClauses,
+              {
+                id: "publication_remaster-include_any",
+                field: "publication_remaster",
+                operator: "include_any",
+                values: ["true"],
+              },
+            ],
           },
           setSearch,
         })}
@@ -44,9 +52,29 @@ describe("AntFilters", () => {
     expect(setSearch).toHaveBeenCalledWith(
       expect.objectContaining({
         visibleFilterIds: [],
-        booleanFilters: {},
+        filterClauses: expect.not.arrayContaining([
+          expect.objectContaining({ field: "publication_remaster" }),
+        ]),
       }),
     );
+  });
+
+  it("renders metric comparison controls from the editor model", () => {
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            visibleFilterIds: ["metric"],
+          },
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Added filters (1)"));
+    expect(screen.getAllByText("Metric")).toHaveLength(2);
+    expect(screen.getByText("Operator")).toBeVisible();
+    expect(screen.getByText("Value")).toBeVisible();
   });
 });
 
@@ -79,6 +107,20 @@ function workspace(
             value: "true",
             label: "Yes",
             count: 1n,
+            selected: false,
+            disabled: false,
+            status: "available",
+          },
+        ],
+      },
+      metric: {
+        field_id: "metric",
+        matching_record_count: 2n,
+        options: [
+          {
+            value: "spell.area.value",
+            label: "Area",
+            count: 2n,
             selected: false,
             disabled: false,
             status: "available",
@@ -150,6 +192,20 @@ function editor(): FilterEditorView {
             placement: "addable",
             allowed_operators: ["include_any"],
             default_operator: "include_any",
+            supports_counts: true,
+          },
+          {
+            id: "metric",
+            label: "Metric",
+            control: {
+              kind: "metric_comparison",
+              key_label: "Metric",
+              operator_label: "Operator",
+              value_label: "Value",
+            },
+            placement: "addable",
+            allowed_operators: ["metric_compare"],
+            default_operator: "metric_compare",
             supports_counts: true,
           },
         ],

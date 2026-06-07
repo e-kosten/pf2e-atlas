@@ -1,5 +1,14 @@
-import type { FilterEditorFieldView, FilterValueOption } from "../generated/atlas";
-import type { NumericRangeState, SearchFormState } from "../state/searchState";
+import type {
+  FilterClause,
+  FilterClauseOperator,
+  FilterEditorFieldView,
+  FilterValueOption,
+} from "../generated/atlas";
+import type {
+  MetricComparisonState,
+  NumericRangeState,
+  SearchFormState,
+} from "../state/searchState";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
 export type FilterSelectOption = {
@@ -8,7 +17,7 @@ export type FilterSelectOption = {
   disabled?: boolean;
 };
 
-export type FilterControlKind = "option" | "range" | "boolean";
+export type FilterControlKind = "option" | "range" | "boolean" | "metric";
 
 export type FilterSelectGroup = {
   label: string;
@@ -112,20 +121,7 @@ export function removeVisibleFilter(workspace: AtlasWorkspaceState, fieldId: str
 }
 
 export function valuesForField(search: SearchFormState, fieldId: string): string[] {
-  switch (fieldId) {
-    case "kind":
-      return search.kinds;
-    case "rarity":
-      return search.rarity;
-    case "traits":
-      return search.traits;
-    case "pack":
-      return search.packLabels;
-    case "publication_title":
-      return search.publicationTitles;
-    default:
-      return search.optionFilters[fieldId] ?? [];
-  }
+  return valueClause(search, fieldId)?.values ?? [];
 }
 
 export function setValuesForField(
@@ -133,33 +129,54 @@ export function setValuesForField(
   fieldId: string,
   values: string[],
 ): SearchFormState {
-  switch (fieldId) {
-    case "kind":
-      return { ...search, kinds: values };
-    case "rarity":
-      return { ...search, rarity: values };
-    case "traits":
-      return { ...search, traits: values };
-    case "pack":
-      return { ...search, packLabels: values };
-    case "publication_title":
-      return { ...search, publicationTitles: values };
-    default:
-      return {
-        ...search,
-        optionFilters: { ...search.optionFilters, [fieldId]: values },
-      };
-  }
+  const operator =
+    valueClause(search, fieldId)?.operator ?? defaultValueOperator(fieldId);
+  return setValuesClause(search, fieldId, operator, values);
+}
+
+export function includeOperatorForField(
+  search: SearchFormState,
+  fieldId: string,
+): "include_all" | "include_any" {
+  const operator = valueClause(search, fieldId)?.operator;
+  return operator === "include_any" ? "include_any" : "include_all";
+}
+
+export function setIncludeOperatorForField(
+  search: SearchFormState,
+  fieldId: string,
+  operator: "include_all" | "include_any",
+): SearchFormState {
+  const values = valuesForField(search, fieldId);
+  return setValuesClause(
+    removeClauses(search, fieldId, ["include_all", "include_any"]),
+    fieldId,
+    operator,
+    values,
+  );
+}
+
+export function excludedValuesForField(
+  search: SearchFormState,
+  fieldId: string,
+): string[] {
+  return clauseForField(search, fieldId, "exclude_any")?.values ?? [];
+}
+
+export function setExcludedValuesForField(
+  search: SearchFormState,
+  fieldId: string,
+  values: string[],
+): SearchFormState {
+  return setValuesClause(search, fieldId, "exclude_any", values);
 }
 
 export function rangeForField(
   search: SearchFormState,
   fieldId: string,
 ): NumericRangeState {
-  if (fieldId === "level") {
-    return { min: search.levelMin, max: search.levelMax };
-  }
-  return search.rangeFilters[fieldId] ?? { min: null, max: null };
+  const range = clauseForField(search, fieldId, "range")?.range;
+  return { min: range?.min ?? null, max: range?.max ?? null };
 }
 
 export function setRangeForField(
@@ -167,24 +184,27 @@ export function setRangeForField(
   fieldId: string,
   range: NumericRangeState,
 ): SearchFormState {
-  if (fieldId === "level") {
-    return {
-      ...search,
-      levelMin: range.min,
-      levelMax: range.max,
-    };
+  if (range.min === null && range.max === null) {
+    return removeClauses(search, fieldId, ["range"]);
   }
-  return {
-    ...search,
-    rangeFilters: { ...search.rangeFilters, [fieldId]: range },
-  };
+  return upsertClause(search, {
+    id: `${fieldId}-range`,
+    field: fieldId,
+    operator: "range",
+    values: [],
+    range: {
+      min: range.min ?? undefined,
+      max: range.max ?? undefined,
+    },
+  });
 }
 
 export function booleanForField(
   search: SearchFormState,
   fieldId: string,
 ): string | null {
-  return search.booleanFilters[fieldId] ?? null;
+  const value = valuesForField(search, fieldId)[0] ?? null;
+  return value === "true" || value === "false" ? value : null;
 }
 
 export function setBooleanForField(
@@ -192,10 +212,44 @@ export function setBooleanForField(
   fieldId: string,
   value: string | null,
 ): SearchFormState {
+  return setValuesForField(search, fieldId, value ? [value] : []);
+}
+
+export function metricComparisonForField(
+  search: SearchFormState,
+  fieldId: string,
+): MetricComparisonState {
+  const metric = clauseForField(search, fieldId, "metric_compare")?.metric;
   return {
-    ...search,
-    booleanFilters: { ...search.booleanFilters, [fieldId]: value },
+    key: metric?.key ?? null,
+    op: metric?.op ?? "gte",
+    value: metric?.value ?? null,
   };
+}
+
+export function setMetricComparisonForField(
+  search: SearchFormState,
+  fieldId: string,
+  comparison: MetricComparisonState,
+): SearchFormState {
+  if (
+    !comparison.key ||
+    comparison.value === null ||
+    !Number.isFinite(comparison.value)
+  ) {
+    return removeClauses(search, fieldId, ["metric_compare"]);
+  }
+  return upsertClause(search, {
+    id: `${fieldId}-metric_compare`,
+    field: fieldId,
+    operator: "metric_compare",
+    values: [],
+    metric: {
+      key: comparison.key,
+      op: comparison.op,
+      value: comparison.value,
+    },
+  });
 }
 
 export function controlKindForField(
@@ -244,19 +298,88 @@ function controlKind(field: FilterEditorFieldView | undefined): FilterControlKin
       return "range";
     case "boolean":
       return "boolean";
+    case "metric_comparison":
+      return "metric";
     default:
       return "option";
   }
 }
 
-function clearFieldValue(search: SearchFormState, fieldId: string): SearchFormState {
-  const { [fieldId]: _option, ...optionFilters } = search.optionFilters;
-  const { [fieldId]: _range, ...rangeFilters } = search.rangeFilters;
-  const { [fieldId]: _boolean, ...booleanFilters } = search.booleanFilters;
+function valueClause(
+  search: SearchFormState,
+  fieldId: string,
+): FilterClause | undefined {
+  if (fieldId === "traits") {
+    return (
+      clauseForField(search, fieldId, "include_all") ??
+      clauseForField(search, fieldId, "include_any")
+    );
+  }
+  return clauseForField(search, fieldId, "include_any");
+}
+
+function clauseForField(
+  search: SearchFormState,
+  fieldId: string,
+  operator: FilterClauseOperator,
+): FilterClause | undefined {
+  return search.filterClauses.find(
+    (clause) => clause.field === fieldId && clause.operator === operator,
+  );
+}
+
+function setValuesClause(
+  search: SearchFormState,
+  fieldId: string,
+  operator: FilterClauseOperator,
+  values: string[],
+): SearchFormState {
+  if (values.length === 0) {
+    return removeClauses(search, fieldId, [operator]);
+  }
+  return upsertClause(search, {
+    id: `${fieldId}-${operator}`,
+    field: fieldId,
+    operator,
+    values,
+  });
+}
+
+function upsertClause(search: SearchFormState, clause: FilterClause): SearchFormState {
+  let replaced = false;
+  const filterClauses = search.filterClauses.map((existing) => {
+    if (existing.field === clause.field && existing.operator === clause.operator) {
+      replaced = true;
+      return clause;
+    }
+    return existing;
+  });
+  if (!replaced) {
+    filterClauses.push(clause);
+  }
+  return { ...search, filterClauses };
+}
+
+function removeClauses(
+  search: SearchFormState,
+  fieldId: string,
+  operators?: FilterClauseOperator[],
+): SearchFormState {
+  const operatorSet = operators ? new Set<FilterClauseOperator>(operators) : null;
   return {
-    ...setValuesForField(search, fieldId, []),
-    optionFilters,
-    rangeFilters,
-    booleanFilters,
+    ...search,
+    filterClauses: search.filterClauses.filter(
+      (clause) =>
+        clause.field !== fieldId ||
+        (operatorSet !== null && !operatorSet.has(clause.operator)),
+    ),
   };
+}
+
+function clearFieldValue(search: SearchFormState, fieldId: string): SearchFormState {
+  return removeClauses(search, fieldId);
+}
+
+function defaultValueOperator(fieldId: string): FilterClauseOperator {
+  return fieldId === "traits" ? "include_all" : "include_any";
 }

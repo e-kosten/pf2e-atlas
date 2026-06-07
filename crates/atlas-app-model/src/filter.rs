@@ -77,6 +77,12 @@ pub struct DiscoverFilterEditorRequest {
 pub struct DiscoverFilterValuesRequest {
     pub context: FilterDiscoveryContext,
     pub field_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub metric_query: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub metric_domain: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -127,6 +133,11 @@ pub enum FilterControlView {
     Boolean {
         true_label: String,
         false_label: String,
+    },
+    MetricComparison {
+        key_label: String,
+        operator_label: String,
+        value_label: String,
     },
 }
 

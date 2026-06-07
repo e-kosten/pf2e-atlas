@@ -78,6 +78,7 @@ fn supported_basic_field(field: &str) -> bool {
             | "immunities"
             | "resistances"
             | "weaknesses"
+            | "metric"
     )
 }
 
@@ -122,11 +123,15 @@ fn filter_field_label(field: &str) -> &'static str {
         "immunities" => "Immunities",
         "resistances" => "Resistances",
         "weaknesses" => "Weaknesses",
+        "metric" => "Metric",
         _ => "Filter",
     }
 }
 
 fn allowed_operators(field: &FilterFieldInfo) -> Vec<FilterClauseOperator> {
+    if field.field_type == FilterFieldType::Metric {
+        return vec![FilterClauseOperator::MetricCompare];
+    }
     if field.field_type == FilterFieldType::Number {
         return vec![FilterClauseOperator::Range];
     }
@@ -147,7 +152,9 @@ fn allowed_operators(field: &FilterFieldInfo) -> Vec<FilterClauseOperator> {
 }
 
 fn default_operator(field: &FilterFieldInfo) -> FilterClauseOperator {
-    if field.field == "traits" {
+    if field.field_type == FilterFieldType::Metric {
+        FilterClauseOperator::MetricCompare
+    } else if field.field == "traits" {
         FilterClauseOperator::IncludeAll
     } else if field.field_type == FilterFieldType::Number {
         FilterClauseOperator::Range
@@ -173,6 +180,31 @@ fn filter_value_options(
                 count: counts.r#false,
             },
         ],
+        FilterValuePayload::MetricKeys { metrics } => {
+            let selected = selected_metric_keys(context);
+            return Ok(metrics
+                .into_iter()
+                .map(|metric| {
+                    let is_selected = selected.contains(&metric.metric_key);
+                    FilterValueOption {
+                        label: metric
+                            .short_label
+                            .or(metric.label)
+                            .unwrap_or_else(|| filter_value_label(field_id, &metric.metric_key)),
+                        value: metric.metric_key,
+                        count: Some(metric.count),
+                        selected: is_selected,
+                        disabled: !is_selected && metric.count == 0,
+                        status: if metric.count == 0 {
+                            "empty"
+                        } else {
+                            "available"
+                        }
+                        .to_string(),
+                    }
+                })
+                .collect());
+        }
         _ => {
             return Ok(Vec::new());
         }
@@ -208,6 +240,7 @@ fn filter_editor_groups() -> Vec<FilterEditorGroupView> {
         ("spells_equipment", "Spells & Equipment"),
         ("equipment", "Equipment"),
         ("creatures", "Creatures"),
+        ("metrics", "Metrics"),
     ]
     .into_iter()
     .map(|(id, label)| FilterEditorGroupView {
@@ -229,7 +262,9 @@ fn filter_editor_field_view(field: &FilterFieldInfo) -> FilterEditorFieldView {
         default_operator: default_operator(field),
         supports_counts: matches!(
             field.value_policy,
-            FilterValuePolicy::Enumerable | FilterValuePolicy::BooleanCounts
+            FilterValuePolicy::Enumerable
+                | FilterValuePolicy::BooleanCounts
+                | FilterValuePolicy::MetricKeys
         ),
     }
 }
@@ -250,7 +285,11 @@ fn filter_control(field: &FilterFieldInfo) -> FilterControlView {
         FilterFieldType::Set | FilterFieldType::EnumString | FilterFieldType::Text => {
             FilterControlView::MultiSelect
         }
-        FilterFieldType::Metric => FilterControlView::MultiSelect,
+        FilterFieldType::Metric => FilterControlView::MetricComparison {
+            key_label: "Metric".to_string(),
+            operator_label: "Operator".to_string(),
+            value_label: "Value".to_string(),
+        },
     }
 }
 
@@ -294,6 +333,7 @@ fn field_group_id(field: &str) -> &'static str {
         | "base_item" => "equipment",
         "size" | "speed_types" | "languages" | "senses" | "immunities" | "resistances"
         | "weaknesses" => "creatures",
+        "metric" => "metrics",
         _ => "source",
     }
 }
@@ -323,6 +363,18 @@ fn selected_values(field_id: &str, context: &FilterDiscoveryContext) -> Vec<Stri
         .iter()
         .filter(|clause| app_field_id(&clause.field) == field_id)
         .flat_map(|clause| clause.values.iter().cloned())
+        .collect()
+}
+
+fn selected_metric_keys(context: &FilterDiscoveryContext) -> Vec<String> {
+    let filter = match context {
+        FilterDiscoveryContext::Filtered { filter } => filter,
+    };
+    filter
+        .clauses
+        .iter()
+        .filter_map(|clause| clause.metric.as_ref())
+        .map(|metric| metric.key.clone())
         .collect()
 }
 
@@ -375,9 +427,10 @@ fn title_case(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use atlas_app_model::{BasicSearchFilter, FilterClause};
+    use atlas_app_model::{BasicSearchFilter, FilterClause, MetricComparison};
     use atlas_domain::{
         BooleanFieldCounts, FilterDiscoveryExecution, FilterFieldGroup, FilterValueSort,
+        MetricKeyDiscovery,
     };
 
     use super::*;
@@ -393,6 +446,7 @@ mod tests {
                 field("pack_label", FilterFieldType::EnumString),
                 field("traits", FilterFieldType::Set),
                 field("level", FilterFieldType::Number),
+                field("metric", FilterFieldType::Metric),
                 field("foundry_document_type", FilterFieldType::EnumString),
             ],
         });
@@ -414,6 +468,11 @@ mod tests {
             .map(|field| field.id.as_str())
             .collect::<Vec<_>>();
         assert_eq!(ids, vec!["kind", "traits", "level", "pack"]);
+        let metrics = view
+            .groups
+            .iter()
+            .find(|group| group.id == "metrics")
+            .expect("metrics group should be present");
         assert_eq!(standard.fields[0].label, "Kinds");
         assert_eq!(
             standard.fields[0].placement,
@@ -440,6 +499,16 @@ mod tests {
             source.fields[0].placement,
             atlas_app_model::FilterFieldPlacement::InitiallyVisible
         );
+        assert_eq!(metrics.fields[0].id, "metric");
+        assert_eq!(
+            metrics.fields[0].default_operator,
+            FilterClauseOperator::MetricCompare
+        );
+        assert!(matches!(
+            metrics.fields[0].control,
+            atlas_app_model::FilterControlView::MetricComparison { .. }
+        ));
+        assert!(metrics.fields[0].supports_counts);
     }
 
     #[test]
@@ -561,6 +630,59 @@ mod tests {
         assert_eq!(remaster.options[1].label, "No");
     }
 
+    #[test]
+    fn metric_key_values_project_labels_counts_and_selection() {
+        let context = FilterDiscoveryContext::Filtered {
+            filter: BasicSearchFilter {
+                clauses: vec![FilterClause {
+                    id: "metric-metric_compare".to_string(),
+                    field: "metric".to_string(),
+                    operator: FilterClauseOperator::MetricCompare,
+                    values: vec![],
+                    range: None,
+                    metric: Some(MetricComparison {
+                        key: "spell.area.value".to_string(),
+                        op: "gte".to_string(),
+                        value: 10.0,
+                    }),
+                }],
+            },
+        };
+
+        let metrics = filter_value_list_view(
+            "metric",
+            &context,
+            FilterValueDiscovery {
+                field: "metric".to_string(),
+                filter: None,
+                execution: FilterDiscoveryExecution::Dynamic,
+                matching_record_count: 3,
+                payload: FilterValuePayload::MetricKeys {
+                    metrics: vec![MetricKeyDiscovery {
+                        metric_domain: "record".to_string(),
+                        kind: "spell".to_string(),
+                        namespace_prefix: "spell".to_string(),
+                        metric_key: "spell.area.value".to_string(),
+                        label: Some("Area Value".to_string()),
+                        short_label: Some("Area".to_string()),
+                        group: None,
+                        known: true,
+                        value_type: "number".to_string(),
+                        count: 2,
+                        numeric_stats: None,
+                    }],
+                },
+            },
+        )
+        .expect("metric key values should project");
+
+        assert_eq!(metrics.field_id, "metric");
+        assert_eq!(metrics.options[0].value, "spell.area.value");
+        assert_eq!(metrics.options[0].label, "Area");
+        assert_eq!(metrics.options[0].count, Some(2));
+        assert!(metrics.options[0].selected);
+    }
+
     fn field(name: &str, field_type: FilterFieldType) -> FilterFieldInfo {
         FilterFieldInfo {
             field: name.to_string(),
@@ -569,6 +691,7 @@ mod tests {
             value_policy: match field_type {
                 FilterFieldType::Boolean => FilterValuePolicy::BooleanCounts,
                 FilterFieldType::Number => FilterValuePolicy::NumericStats,
+                FilterFieldType::Metric => FilterValuePolicy::MetricKeys,
                 _ => FilterValuePolicy::Enumerable,
             },
             operators: vec![FilterOperator::Eq, FilterOperator::Includes],

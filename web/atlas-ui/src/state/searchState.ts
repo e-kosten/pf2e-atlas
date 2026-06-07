@@ -1,16 +1,22 @@
 import type {
   BasicSearchFilter,
-  FilterDiscoveryContext,
   FilterClause,
   FilterClauseOperator,
+  FilterDiscoveryContext,
+  MetricComparison,
   OpenResultWindowRequest,
   RecordListSortView,
 } from "../generated/atlas";
 
-export type TraitOperator = "include_all" | "include_any";
 export type NumericRangeState = {
   min: number | null;
   max: number | null;
+};
+
+export type MetricComparisonState = {
+  key: string | null;
+  op: MetricComparison["op"];
+  value: number | null;
 };
 
 export type SearchFormState = {
@@ -18,18 +24,7 @@ export type SearchFormState = {
   mode: "browse" | "text_search";
   visibleFilterIds: string[];
   hiddenFilterIds: string[];
-  kinds: string[];
-  rarity: string[];
-  traits: string[];
-  traitOperator: TraitOperator;
-  excludedTraits: string[];
-  packLabels: string[];
-  publicationTitles: string[];
-  levelMin: number | null;
-  levelMax: number | null;
-  optionFilters: Record<string, string[]>;
-  rangeFilters: Record<string, NumericRangeState>;
-  booleanFilters: Record<string, string | null>;
+  filterClauses: FilterClause[];
   sort: SortKey;
   pageSize: number;
   includeDiagnostics: boolean;
@@ -43,23 +38,21 @@ export type SortKey =
   | "price_asc"
   | "price_desc";
 
+export const DEFAULT_FILTER_CLAUSES: FilterClause[] = [
+  {
+    id: "kind-include_any",
+    field: "kind",
+    operator: "include_any",
+    values: ["spell", "feat", "equipment"],
+  },
+];
+
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
   mode: "browse",
   visibleFilterIds: [],
   hiddenFilterIds: [],
-  kinds: ["spell", "feat", "equipment"],
-  rarity: [],
-  traits: [],
-  traitOperator: "include_all",
-  excludedTraits: [],
-  packLabels: [],
-  publicationTitles: [],
-  levelMin: null,
-  levelMax: null,
-  optionFilters: {},
-  rangeFilters: {},
-  booleanFilters: {},
+  filterClauses: DEFAULT_FILTER_CLAUSES,
   sort: "record_key",
   pageSize: 25,
   includeDiagnostics: false,
@@ -75,8 +68,15 @@ export const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
 ];
 
 const MODE_VALUES = ["browse", "text_search"] as const;
-const TRAIT_OPERATOR_VALUES = ["include_all", "include_any"] as const;
 const SORT_VALUES = SORT_OPTIONS.map(({ value }) => value);
+const FILTER_OPERATORS: readonly FilterClauseOperator[] = [
+  "include_any",
+  "include_all",
+  "exclude_any",
+  "range",
+  "metric_compare",
+];
+const METRIC_OPERATORS = ["gt", "gte", "lt", "lte", "eq"] as const;
 const MIN_PAGE_SIZE = 1;
 const MAX_PAGE_SIZE = 100;
 
@@ -156,37 +156,8 @@ export function decodeSearchState(value: string | null): SearchFormState {
       hiddenFilterIds: dedupeStrings(
         stringArrayValue(decoded.hiddenFilterIds, DEFAULT_SEARCH_STATE.hiddenFilterIds),
       ),
-      kinds: stringArrayValue(decoded.kinds, DEFAULT_SEARCH_STATE.kinds),
-      rarity: stringArrayValue(decoded.rarity, DEFAULT_SEARCH_STATE.rarity),
-      traits: stringArrayValue(decoded.traits, DEFAULT_SEARCH_STATE.traits),
-      traitOperator: oneOf(
-        decoded.traitOperator,
-        TRAIT_OPERATOR_VALUES,
-        DEFAULT_SEARCH_STATE.traitOperator,
-      ),
-      excludedTraits: stringArrayValue(
-        decoded.excludedTraits,
-        DEFAULT_SEARCH_STATE.excludedTraits,
-      ),
-      packLabels: stringArrayValue(decoded.packLabels, DEFAULT_SEARCH_STATE.packLabels),
-      publicationTitles: stringArrayValue(
-        decoded.publicationTitles,
-        DEFAULT_SEARCH_STATE.publicationTitles,
-      ),
-      levelMin: nullableFiniteNumber(decoded.levelMin, DEFAULT_SEARCH_STATE.levelMin),
-      levelMax: nullableFiniteNumber(decoded.levelMax, DEFAULT_SEARCH_STATE.levelMax),
-      optionFilters: stringArrayRecordValue(
-        decoded.optionFilters,
-        DEFAULT_SEARCH_STATE.optionFilters,
-      ),
-      rangeFilters: rangeRecordValue(
-        decoded.rangeFilters,
-        DEFAULT_SEARCH_STATE.rangeFilters,
-      ),
-      booleanFilters: booleanFilterRecordValue(
-        decoded.booleanFilters,
-        DEFAULT_SEARCH_STATE.booleanFilters,
-      ),
+      filterClauses:
+        filterClausesValue(decoded.filterClauses) ?? DEFAULT_SEARCH_STATE.filterClauses,
       sort: oneOf(decoded.sort, SORT_VALUES, DEFAULT_SEARCH_STATE.sort),
       pageSize: pageSizeValue(decoded.pageSize, DEFAULT_SEARCH_STATE.pageSize),
       includeDiagnostics: booleanValue(
@@ -200,76 +171,91 @@ export function decodeSearchState(value: string | null): SearchFormState {
 }
 
 function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
-  const clauses: FilterClause[] = [];
-  pushValues(clauses, "kind", "include_any", state.kinds);
-  pushValues(clauses, "rarity", "include_any", state.rarity);
-  pushValues(clauses, "traits", state.traitOperator, state.traits);
-  pushValues(clauses, "traits", "exclude_any", state.excludedTraits);
-  pushValues(clauses, "pack", "include_any", state.packLabels);
-  pushValues(clauses, "publication_title", "include_any", state.publicationTitles);
+  return { clauses: filterClausesValue(state.filterClauses) ?? [] };
+}
 
-  if (state.levelMin !== null || state.levelMax !== null) {
-    clauses.push({
-      id: "level-range",
-      field: "level",
-      operator: "range",
-      values: [],
-      range: {
-        min: state.levelMin ?? undefined,
-        max: state.levelMax ?? undefined,
-      },
-    });
+function filterClausesValue(value: unknown): FilterClause[] | null {
+  if (!Array.isArray(value)) {
+    return null;
   }
-  for (const [field, values] of Object.entries(state.optionFilters)) {
-    pushValues(clauses, field, "include_any", values);
-  }
-  for (const [field, value] of Object.entries(state.booleanFilters)) {
-    if (value === "true" || value === "false") {
-      pushValues(clauses, field, "include_any", [value]);
+  return value.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
     }
-  }
-  for (const [field, range] of Object.entries(state.rangeFilters)) {
-    pushRange(clauses, field, range);
-  }
-
-  return { clauses };
+    const id = stringValue(item.id, "");
+    const field = stringValue(item.field, "");
+    const operator = oneOf<FilterClauseOperator>(
+      item.operator,
+      FILTER_OPERATORS,
+      "include_any",
+    );
+    if (!id || !field) {
+      return [];
+    }
+    const clause: FilterClause = {
+      id,
+      field,
+      operator,
+      values: stringArrayValue(item.values, []),
+    };
+    const values = clause.values ?? [];
+    if (operator === "range") {
+      const range = rangeValue(item.range);
+      if (!range) {
+        return [];
+      }
+      clause.range = {
+        min: range.min ?? undefined,
+        max: range.max ?? undefined,
+      };
+      clause.values = [];
+      return [clause];
+    }
+    if (operator === "metric_compare") {
+      const metric = metricValue(item.metric);
+      if (!metric) {
+        return [];
+      }
+      clause.metric = metric;
+      clause.values = [];
+      return [clause];
+    }
+    if (values.length === 0) {
+      return [];
+    }
+    return [clause];
+  });
 }
 
 function dedupeStrings(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function pushValues(
-  clauses: FilterClause[],
-  field: string,
-  operator: FilterClauseOperator,
-  values: string[],
-) {
-  if (values.length === 0) {
-    return;
+function rangeValue(value: unknown): NumericRangeState | null {
+  if (!isRecord(value)) {
+    return null;
   }
-  clauses.push({
-    id: `${field}-${operator}`,
-    field,
-    operator,
-    values,
-  });
+  const range = {
+    min: nullableFiniteNumber(value.min, null),
+    max: nullableFiniteNumber(value.max, null),
+  };
+  return range.min === null && range.max === null ? null : range;
 }
 
-function pushRange(clauses: FilterClause[], field: string, range: NumericRangeState) {
-  if (range.min === null && range.max === null) {
-    return;
+function metricValue(value: unknown): MetricComparison | null {
+  if (!isRecord(value)) {
+    return null;
   }
-  clauses.push({
-    id: `${field}-range`,
-    field,
-    operator: "range",
-    values: [],
-    range: {
-      min: range.min ?? undefined,
-      max: range.max ?? undefined,
-    },
-  });
+  const key = stringValue(value.key, "").trim();
+  const op = oneOf(value.op, METRIC_OPERATORS, "gte");
+  const metricValue =
+    typeof value.value === "number" && Number.isFinite(value.value)
+      ? value.value
+      : null;
+  if (!key || metricValue === null) {
+    return null;
+  }
+  return { key, op, value: metricValue };
 }
 
 function sortView(sort: SortKey): RecordListSortView {
@@ -289,60 +275,6 @@ function stringArrayValue(value: unknown, fallback: string[]): string[] {
     return fallback;
   }
   return value;
-}
-
-function stringArrayRecordValue(
-  value: unknown,
-  fallback: Record<string, string[]>,
-): Record<string, string[]> {
-  if (!isRecord(value)) {
-    return fallback;
-  }
-  return Object.fromEntries(
-    Object.entries(value).filter(
-      ([, entry]) =>
-        Array.isArray(entry) && entry.every((item) => typeof item === "string"),
-    ),
-  ) as Record<string, string[]>;
-}
-
-function rangeRecordValue(
-  value: unknown,
-  fallback: Record<string, NumericRangeState>,
-): Record<string, NumericRangeState> {
-  if (!isRecord(value)) {
-    return fallback;
-  }
-  return Object.fromEntries(
-    Object.entries(value).flatMap(([field, entry]) => {
-      if (!isRecord(entry)) {
-        return [];
-      }
-      return [
-        [
-          field,
-          {
-            min: nullableFiniteNumber(entry.min, null),
-            max: nullableFiniteNumber(entry.max, null),
-          },
-        ],
-      ];
-    }),
-  );
-}
-
-function booleanFilterRecordValue(
-  value: unknown,
-  fallback: Record<string, string | null>,
-): Record<string, string | null> {
-  if (!isRecord(value)) {
-    return fallback;
-  }
-  return Object.fromEntries(
-    Object.entries(value).filter(
-      ([, entry]) => entry === null || entry === "true" || entry === "false",
-    ),
-  ) as Record<string, string | null>;
 }
 
 function oneOf<T extends string>(
