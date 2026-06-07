@@ -17,6 +17,20 @@ import {
 
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
+export type AtlasRequestTiming = {
+  durationMs: number;
+  finishedAt: number;
+};
+
+export type AtlasWorkspaceDiagnostics = {
+  activeWindowId: string | null;
+  detailRequest: AtlasRequestTiming | null;
+  resultRequest: (AtlasRequestTiming & {
+    kind: "open_window" | "page";
+  }) | null;
+  searchDebouncing: boolean;
+};
+
 export type AtlasWorkspaceState = {
   search: SearchFormState;
   setSearch: (next: SearchFormState) => void;
@@ -29,6 +43,7 @@ export type AtlasWorkspaceState = {
   readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
   detailLoading: boolean;
+  diagnostics: AtlasWorkspaceDiagnostics;
   errorMessage: string | null;
   refresh: () => void;
 };
@@ -43,6 +58,11 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const [pageNumber, setPageNumber] = useState(search.pageSize > 0 ? 1 : 1);
   const [windowId, setWindowId] = useState<bigint | null>(null);
   const [activeSearch, setActiveSearch] = useState(search);
+  const [lastDetailRequest, setLastDetailRequest] =
+    useState<AtlasRequestTiming | null>(null);
+  const [lastResultRequest, setLastResultRequest] = useState<
+    AtlasWorkspaceDiagnostics["resultRequest"]
+  >(null);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const activeSearchToken = useMemo(
     () => encodeSearchState(activeSearch),
@@ -77,22 +97,49 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const resultsQuery = useQuery({
     queryKey: ["results", activeSearchToken, pageNumber],
     queryFn: async () => {
+      const startedAt = performance.now();
       if (windowId === null || pageNumber === 1) {
-        const page = await openResultWindow(
-          buildOpenRequest(activeSearch, pageNumber),
-        );
-        setWindowId(page.window_id);
-        return page;
+        try {
+          const page = await openResultWindow(
+            buildOpenRequest(activeSearch, pageNumber),
+          );
+          setWindowId(page.window_id);
+          return page;
+        } finally {
+          setLastResultRequest({
+            durationMs: elapsedMilliseconds(startedAt),
+            finishedAt: Date.now(),
+            kind: "open_window",
+          });
+        }
       }
-      return readResultWindowPage(windowId, {
-        page: { number: pageNumber, size: activeSearch.pageSize },
-      });
+      try {
+        return await readResultWindowPage(windowId, {
+          page: { number: pageNumber, size: activeSearch.pageSize },
+        });
+      } finally {
+        setLastResultRequest({
+          durationMs: elapsedMilliseconds(startedAt),
+          finishedAt: Date.now(),
+          kind: "page",
+        });
+      }
     },
   });
 
   const detailQuery = useQuery({
     queryKey: ["record-detail", selectedRecordKey],
-    queryFn: () => getRecordDetail(selectedRecordKey!),
+    queryFn: async () => {
+      const startedAt = performance.now();
+      try {
+        return await getRecordDetail(selectedRecordKey!);
+      } finally {
+        setLastDetailRequest({
+          durationMs: elapsedMilliseconds(startedAt),
+          finishedAt: Date.now(),
+        });
+      }
+    },
     enabled: selectedRecordKey !== null,
   });
 
@@ -117,6 +164,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     messageFromError(resultsQuery.error) ??
     messageFromError(detailQuery.error) ??
     messageFromError(readiness.error);
+  const searchDebouncing = activeSearchToken !== searchToken;
 
   return {
     search,
@@ -131,8 +179,14 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     resultsLoading:
       resultsQuery.isLoading ||
       resultsQuery.isFetching ||
-      activeSearchToken !== searchToken,
+      searchDebouncing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
+    diagnostics: {
+      activeWindowId: windowId?.toString() ?? null,
+      detailRequest: lastDetailRequest,
+      resultRequest: lastResultRequest,
+      searchDebouncing,
+    },
     errorMessage,
     refresh: () => {
       void readiness.refetch();
@@ -155,6 +209,10 @@ function messageFromError(error: unknown): string | null {
     return error.message;
   }
   return String(error);
+}
+
+function elapsedMilliseconds(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
 export function resetSearchState(): SearchFormState {

@@ -1,4 +1,5 @@
-import { Moon, RefreshCw, Sun } from "lucide-react";
+import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
+import { useState } from "react";
 import type { ColorSchemePreference, ResolvedColorScheme } from "./atlasTheme";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 import type { LibraryPrototype } from "../state/searchState";
@@ -22,6 +23,7 @@ export function PrototypeShell({
   workspace,
   children,
 }: PrototypeShellProps) {
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const readiness = workspace.readiness.data;
   const status = readiness?.status ?? "blocked";
   const nextColorScheme = cycleColorScheme(colorScheme);
@@ -36,7 +38,10 @@ export function PrototypeShell({
     );
 
   return (
-    <div className="atlas-app" data-theme={resolvedColorScheme}>
+    <div
+      className={diagnosticsOpen ? "atlas-app atlas-app--diagnostics" : "atlas-app"}
+      data-theme={resolvedColorScheme}
+    >
       <header className="topbar">
         <div>
           <h1>PF2e Atlas</h1>
@@ -62,6 +67,15 @@ export function PrototypeShell({
           </div>
           <button
             className="icon-button"
+            aria-pressed={diagnosticsOpen}
+            onClick={() => setDiagnosticsOpen(!diagnosticsOpen)}
+            title="Diagnostics"
+            type="button"
+          >
+            <Activity size={18} />
+          </button>
+          <button
+            className="icon-button"
             onClick={workspace.refresh}
             title="Refresh"
             type="button"
@@ -82,7 +96,56 @@ export function PrototypeShell({
       {workspace.errorMessage && (
         <div className="error-banner">{workspace.errorMessage}</div>
       )}
+      {diagnosticsOpen && <DiagnosticsPanel workspace={workspace} />}
       {children}
+    </div>
+  );
+}
+
+function DiagnosticsPanel({ workspace }: { workspace: AtlasWorkspaceState }) {
+  const { diagnostics, resultPage } = workspace;
+  return (
+    <section className="diagnostics-panel" aria-label="Diagnostics">
+      <DiagnosticItem label="Readiness" value={workspace.readiness.data?.status ?? "loading"} />
+      <DiagnosticItem
+        label="Search"
+        value={diagnostics.searchDebouncing ? "debouncing" : "settled"}
+      />
+      <DiagnosticItem
+        label="Result request"
+        value={
+          diagnostics.resultRequest
+            ? `${diagnostics.resultRequest.kind} ${diagnostics.resultRequest.durationMs}ms`
+            : "pending"
+        }
+      />
+      <DiagnosticItem
+        label="Window"
+        value={diagnostics.activeWindowId ?? "none"}
+      />
+      <DiagnosticItem
+        label="Page"
+        value={`${workspace.pageNumber}${resultPage ? ` / ${resultPage.page.total.toLocaleString()} records` : ""}`}
+      />
+      <DiagnosticItem
+        label="Detail request"
+        value={
+          diagnostics.detailRequest
+            ? `${diagnostics.detailRequest.durationMs}ms`
+            : workspace.selectedRecordKey
+              ? "pending"
+              : "none"
+        }
+      />
+    </section>
+  );
+}
+
+function DiagnosticItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="diagnostics-panel__item">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
