@@ -123,6 +123,7 @@ dependencies = [
  "atlas-runtime",
  "atlas-search",
  "atlas-sqlite-vec",
+ "atlas-tags",
  "atlas-web",
  "axum",
  "clap",

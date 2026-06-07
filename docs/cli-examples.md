@@ -172,6 +172,16 @@ requested:
 atlas index validate --json
 ```
 
+## Validate Authored Tag Data
+
+Validate the tag catalog, assignments, and ontology suggestions before an
+index build consumes them:
+
+```bash
+atlas tags validate --path data/tags
+atlas tags validate --path data/tags --json
+```
+
 ## Use JSON Safely
 
 Most JSON commands return a shared envelope:
@@ -183,4 +193,3 @@ Most JSON commands return a shared envelope:
 
 For agent workflows, check the top-level `status`, inspect `error` when
 present, and inspect per-result errors before trusting batch output.
-
