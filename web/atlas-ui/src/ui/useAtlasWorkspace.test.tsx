@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { OpenResultWindowRequest, ResultWindowPage } from "../generated/atlas";
-import { DEFAULT_SEARCH_STATE } from "../state/searchState";
+import { DEFAULT_SEARCH_STATE, encodeSearchState } from "../state/searchState";
 import { useAtlasWorkspace } from "./useAtlasWorkspace";
 
 const apiMocks = vi.hoisted(() => ({
@@ -40,6 +40,7 @@ describe("useAtlasWorkspace", () => {
       options: [],
     });
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
+    apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
     history.replaceState(null, "", "/");
   });
 
@@ -108,6 +109,104 @@ describe("useAtlasWorkspace", () => {
     expect(result.current.selectedRecordKey).toBeNull();
     expect(window.location.pathname).toBe("/");
   });
+
+  it("reads later pages from the current result window", async () => {
+    apiMocks.openResultWindow.mockResolvedValue(
+      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
+    );
+    apiMocks.readResultWindowPage.mockResolvedValue(
+      resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
+    );
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.setPageNumber(2));
+
+    await waitFor(() =>
+      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(7n, {
+        page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
+      }),
+    );
+    expect(result.current.pageNumber).toBe(2);
+    expect(result.current.diagnostics.resultRequest).toMatchObject({
+      kind: "page",
+    });
+  });
+
+  it("resets page execution when search changes from a later page", async () => {
+    apiMocks.openResultWindow.mockResolvedValue(
+      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
+    );
+    apiMocks.readResultWindowPage.mockResolvedValue(
+      resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
+    );
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(apiMocks.readResultWindowPage).toHaveBeenCalledTimes(1));
+
+    act(() =>
+      result.current.setSearch({
+        ...DEFAULT_SEARCH_STATE,
+        query: "heal",
+        mode: "text_search",
+      }),
+    );
+
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
+    expect(apiMocks.readResultWindowPage).toHaveBeenCalledTimes(1);
+    expect(result.current.pageNumber).toBe(1);
+    const request = apiMocks.openResultWindow.mock
+      .calls[1][0] as OpenResultWindowRequest;
+    expect(request.page).toEqual({
+      number: 1,
+      size: DEFAULT_SEARCH_STATE.pageSize,
+    });
+    expect(request.mode).toMatchObject({
+      kind: "text_search",
+      query: "heal",
+    });
+  });
+
+  it("restores URL search and selected record without waiting for typing debounce", async () => {
+    const restoredSearch = {
+      ...DEFAULT_SEARCH_STATE,
+      query: "acid",
+      mode: "text_search" as const,
+    };
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+
+    history.pushState(
+      null,
+      "",
+      `/records/spell%3Aacid-arrow?s=${encodeSearchState(restoredSearch)}`,
+    );
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+
+    expect(result.current.search.query).toBe("acid");
+    expect(result.current.selectedRecordKey).toBe("spell:acid-arrow");
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
+    const request = apiMocks.openResultWindow.mock
+      .calls[1][0] as OpenResultWindowRequest;
+    expect(request.page).toEqual({
+      number: 1,
+      size: DEFAULT_SEARCH_STATE.pageSize,
+    });
+    expect(request.mode).toMatchObject({
+      kind: "text_search",
+      query: "acid",
+    });
+  });
 });
 
 function queryClientWrapper() {
@@ -123,12 +222,15 @@ function queryClientWrapper() {
   };
 }
 
-function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
+function resultWindowPage(
+  recordKeys: string[] = [],
+  options: { pageNumber?: number; windowId?: bigint } = {},
+): ResultWindowPage {
   return {
-    window_id: 1n,
+    window_id: options.windowId ?? 1n,
     mode: { kind: "text_search", query: "" },
     page: {
-      number: 1,
+      number: options.pageNumber ?? 1,
       size: 25,
       count: 0,
       total: 0n,

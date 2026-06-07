@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
   discoverFilterFields,
@@ -17,12 +17,16 @@ import type {
 import {
   buildFilterDiscoveryContext,
   buildOpenRequest,
-  decodeSearchState,
   DEFAULT_SEARCH_STATE,
   encodeSearchExecutionState,
   encodeSearchState,
   type SearchFormState,
 } from "../state/searchState";
+import {
+  initialWorkspaceInteractionState,
+  recordKeyFromPath,
+  workspaceInteractionReducer,
+} from "./workspaceState";
 
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
@@ -40,6 +44,11 @@ export type AtlasWorkspaceDiagnostics = {
       })
     | null;
   searchDebouncing: boolean;
+};
+
+type ResultWindowHandle = {
+  searchExecutionToken: string;
+  windowId: bigint;
 };
 
 export type AtlasWorkspaceState = {
@@ -67,21 +76,19 @@ export type AtlasWorkspaceState = {
 };
 
 export function useAtlasWorkspace(): AtlasWorkspaceState {
-  const [search, setSearchState] = useState<SearchFormState>(() =>
-    decodeSearchState(new URLSearchParams(window.location.search).get("s")),
+  const [interaction, dispatch] = useReducer(
+    workspaceInteractionReducer,
+    undefined,
+    initialWorkspaceInteractionState,
   );
-  const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(() =>
-    recordKeyFromPath(window.location.pathname),
-  );
-  const [focusedResultKey, setFocusedResultKey] = useState<string | null>(null);
-  const [pageNumber, setPageNumber] = useState(search.pageSize > 0 ? 1 : 1);
-  const [windowId, setWindowId] = useState<bigint | null>(null);
-  const [activeSearch, setActiveSearch] = useState(search);
+  const { search, selectedRecordKey, focusedResultKey, pageNumber, activeSearch } =
+    interaction;
   const [lastDetailRequest, setLastDetailRequest] = useState<AtlasRequestTiming | null>(
     null,
   );
   const [lastResultRequest, setLastResultRequest] =
     useState<AtlasWorkspaceDiagnostics["resultRequest"]>(null);
+  const [resultWindow, setResultWindow] = useState<ResultWindowHandle | null>(null);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
     () => encodeSearchExecutionState(search),
@@ -91,13 +98,13 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     () => encodeSearchExecutionState(activeSearch),
     [activeSearch],
   );
-
   useEffect(() => {
     const onPopState = () => {
-      setSearchState(
-        decodeSearchState(new URLSearchParams(window.location.search).get("s")),
-      );
-      setSelectedRecordKey(recordKeyFromPath(window.location.pathname));
+      dispatch({
+        type: "url.restored",
+        search: initialWorkspaceInteractionState().search,
+        selectedRecordKey: recordKeyFromPath(window.location.pathname),
+      });
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -105,9 +112,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setWindowId(null);
-      setPageNumber(1);
-      setActiveSearch(search);
+      dispatch({ type: "search.executionCommitted", search });
     }, SEARCH_REQUEST_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [search, searchToken]);
@@ -121,12 +126,18 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
     queryFn: async () => {
       const startedAt = performance.now();
-      if (windowId === null || pageNumber === 1) {
+      if (
+        pageNumber === 1 ||
+        resultWindow?.searchExecutionToken !== activeSearchExecutionToken
+      ) {
         try {
           const page = await openResultWindow(
             buildOpenRequest(activeSearch, pageNumber),
           );
-          setWindowId(page.window_id);
+          setResultWindow({
+            searchExecutionToken: activeSearchExecutionToken,
+            windowId: page.window_id,
+          });
           return page;
         } finally {
           setLastResultRequest({
@@ -137,7 +148,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
         }
       }
       try {
-        return await readResultWindowPage(windowId, {
+        return await readResultWindowPage(resultWindow.windowId, {
           page: { number: pageNumber, size: activeSearch.pageSize },
         });
       } finally {
@@ -211,7 +222,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
-    setSearchState(next);
+    dispatch({ type: "search.changed", search: next });
     const url = selectedRecordKey
       ? `/records/${encodeURIComponent(selectedRecordKey)}?s=${encodeSearchState(next)}`
       : `/?s=${encodeSearchState(next)}`;
@@ -219,7 +230,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   }
 
   function selectRecord(recordKey: string | null) {
-    setSelectedRecordKey(recordKey);
+    dispatch({ type: "record.selected", recordKey });
     const url =
       recordKey === null
         ? `/?s=${searchToken}`
@@ -229,7 +240,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   function moveResultSelection(direction: "next" | "previous") {
     if (resultRows.length === 0) {
-      setFocusedResultKey(null);
+      dispatch({ type: "result.focused", recordKey: null });
       return;
     }
     const currentIndex = activeResultKey
@@ -243,11 +254,14 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
             resultRows.length - 1,
             Math.max(0, currentIndex + (direction === "next" ? 1 : -1)),
           );
-    setFocusedResultKey(resultRows[nextIndex].record.record_key);
+    dispatch({
+      type: "result.focused",
+      recordKey: resultRows[nextIndex].record.record_key,
+    });
   }
 
   function focusResult(recordKey: string) {
-    setFocusedResultKey(recordKey);
+    dispatch({ type: "result.focused", recordKey });
   }
 
   function openActiveResult() {
@@ -263,6 +277,10 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     filterValueQueries.map((query) => messageFromError(query.error)).find(Boolean) ??
     messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
+  const activeWindowId =
+    resultWindow?.searchExecutionToken === activeSearchExecutionToken
+      ? resultWindow.windowId.toString()
+      : null;
   const filterValuesByField = Object.fromEntries(
     valueFieldIds.map((fieldId, index) => [fieldId, filterValueQueries[index]?.data]),
   );
@@ -277,7 +295,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     selectedRecordKey,
     selectRecord,
     pageNumber,
-    setPageNumber,
+    setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
     resultPage: resultsQuery.data,
     recordDetail: detailQuery.data,
     filterFields: filterFieldsQuery.data,
@@ -291,7 +309,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
       filterFieldsQuery.isFetching ||
       filterValueQueries.some((query) => query.isLoading || query.isFetching),
     diagnostics: {
-      activeWindowId: windowId?.toString() ?? null,
+      activeWindowId,
       detailRequest: lastDetailRequest,
       resultRequest: lastResultRequest,
       searchDebouncing,
@@ -303,11 +321,6 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
       void detailQuery.refetch();
     },
   };
-}
-
-function recordKeyFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/records\/(.+)$/);
-  return match ? decodeURIComponent(match[1]) : null;
 }
 
 function messageFromError(error: unknown): string | null {
