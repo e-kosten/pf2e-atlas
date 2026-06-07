@@ -43,7 +43,7 @@ function workspace(overrides: Partial<AtlasWorkspaceState> = {}): AtlasWorkspace
     setPageNumber: vi.fn(),
     resultPage: resultWindowPage(),
     recordDetail: undefined,
-    filterFields: undefined,
+    filterEditor: undefined,
     filterValuesByField: {},
     readiness: {} as AtlasWorkspaceState["readiness"],
     resultsLoading: false,

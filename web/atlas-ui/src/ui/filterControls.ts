@@ -1,9 +1,5 @@
-import type { FilterFieldView, FilterValueOption } from "../generated/atlas";
-import {
-  STANDARD_FILTER_IDS,
-  type NumericRangeState,
-  type SearchFormState,
-} from "../state/searchState";
+import type { FilterEditorFieldView, FilterValueOption } from "../generated/atlas";
+import type { NumericRangeState, SearchFormState } from "../state/searchState";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
 export type FilterSelectOption = {
@@ -19,93 +15,53 @@ export type FilterSelectGroup = {
   options: FilterSelectOption[];
 };
 
-type FilterCatalogItem = {
-  id: string;
-  group: string;
-  control: FilterControlKind;
-  label?: string;
-};
-
-const FILTER_CATALOG: FilterCatalogItem[] = [
-  { id: "pack", group: "Source", control: "option" },
-  { id: "publication_title", group: "Source", control: "option" },
-  { id: "publication_family", group: "Source", control: "option" },
-  { id: "publication_remaster", group: "Source", control: "boolean" },
-  { id: "traditions", group: "Spells", control: "option" },
-  { id: "spell_kinds", group: "Spells", control: "option" },
-  { id: "save_type", group: "Spells", control: "option" },
-  { id: "basic_save", group: "Spells", control: "boolean" },
-  { id: "sustained", group: "Spells", control: "boolean" },
-  { id: "damage_types", group: "Spells & Equipment", control: "option" },
-  { id: "range_value", group: "Spells", control: "range" },
-  { id: "area_type", group: "Spells", control: "option" },
-  { id: "area_value", group: "Spells", control: "range" },
-  { id: "item_category", group: "Equipment", control: "option" },
-  { id: "item_group", group: "Equipment", control: "option" },
-  { id: "price_cp", group: "Equipment", control: "range" },
-  { id: "bulk_value", group: "Equipment", control: "range" },
-  { id: "hands", group: "Equipment", control: "option" },
-  { id: "usage", group: "Equipment", control: "option" },
-  { id: "base_item", group: "Equipment", control: "option" },
-  { id: "size", group: "Creatures", control: "option" },
-  { id: "speed_types", group: "Creatures", control: "option" },
-  { id: "languages", group: "Creatures", control: "option" },
-  { id: "senses", group: "Creatures", control: "option" },
-  { id: "immunities", group: "Creatures", control: "option" },
-  { id: "resistances", group: "Creatures", control: "option" },
-  { id: "weaknesses", group: "Creatures", control: "option" },
-];
-
-const OPTION_FIELD_IDS = new Set(
-  ["kind", "rarity", "traits"].concat(
-    FILTER_CATALOG.filter((field) => field.control === "option").map(
-      (field) => field.id,
-    ),
-  ),
-);
-
-export function optionFieldIds(search: SearchFormState): string[] {
-  return search.visibleFilterIds.filter((fieldId) => OPTION_FIELD_IDS.has(fieldId));
-}
-
-export function additionalFilterOptions(
-  workspace: AtlasWorkspaceState,
-): FilterSelectOption[] {
-  return additionalFilterGroups(workspace).flatMap((group) => group.options);
-}
-
 export function additionalFilterGroups(
   workspace: AtlasWorkspaceState,
 ): FilterSelectGroup[] {
   const visible = new Set(workspace.search.visibleFilterIds);
-  const discovered = new Set(
-    (workspace.filterFields?.fields ?? []).map((field) => field.id),
-  );
-  return FILTER_CATALOG.reduce<FilterSelectGroup[]>((groups, item) => {
-    if (visible.has(item.id) || !discovered.has(item.id)) {
-      return groups;
-    }
-    let group = groups.find((candidate) => candidate.label === item.group);
-    if (!group) {
-      group = { label: item.group, options: [] };
-      groups.push(group);
-    }
-    group.options.push({
-      value: item.id,
-      label: labelForField(workspace.filterFields?.fields, item.id),
-    });
-    return groups;
-  }, []);
+  const hidden = new Set(workspace.search.hiddenFilterIds);
+  return (workspace.filterEditor?.groups ?? [])
+    .map((group) => ({
+      label: group.label,
+      options: group.fields
+        .filter(
+          (field) =>
+            (field.placement === "addable" ||
+              (field.placement === "initially_visible" && hidden.has(field.id))) &&
+            !visible.has(field.id),
+        )
+        .map((field) => ({ value: field.id, label: field.label })),
+    }))
+    .filter((group) => group.options.length > 0);
+}
+
+export function visibleEditorFilterFields(
+  workspace: AtlasWorkspaceState,
+): FilterEditorFieldView[] {
+  const hidden = new Set(workspace.search.hiddenFilterIds);
+  return (workspace.filterEditor?.groups ?? [])
+    .flatMap((group) => group.fields)
+    .filter(
+      (field) =>
+        field.placement === "always_visible" ||
+        (field.placement === "initially_visible" && !hidden.has(field.id)),
+    );
+}
+
+export function additionalVisibleFilterIds(workspace: AtlasWorkspaceState): string[] {
+  return workspace.search.visibleFilterIds.filter((fieldId) => {
+    const field = fieldById(workspace, fieldId);
+    return field && field.placement === "addable";
+  });
 }
 
 export function discoveredOptions(
   workspace: AtlasWorkspaceState,
   fieldId: string,
-  fallback: FilterSelectOption[],
 ): FilterSelectOption[] {
   const options = workspace.filterValuesByField[fieldId]?.options;
   if (!options || options.length === 0) {
-    return fallback;
+    return [];
   }
   return options.map(valueOption);
 }
@@ -114,7 +70,20 @@ export function addVisibleFilter(
   workspace: AtlasWorkspaceState,
   fieldId: string | null,
 ) {
-  if (!fieldId || workspace.search.visibleFilterIds.includes(fieldId)) {
+  if (!fieldId) {
+    return;
+  }
+  const field = fieldById(workspace, fieldId);
+  if (!field || workspace.search.visibleFilterIds.includes(fieldId)) {
+    return;
+  }
+  if (field.placement === "initially_visible") {
+    workspace.setSearch({
+      ...workspace.search,
+      hiddenFilterIds: workspace.search.hiddenFilterIds.filter(
+        (hiddenFieldId) => hiddenFieldId !== fieldId,
+      ),
+    });
     return;
   }
   workspace.setSearch({
@@ -124,11 +93,18 @@ export function addVisibleFilter(
 }
 
 export function removeVisibleFilter(workspace: AtlasWorkspaceState, fieldId: string) {
-  if (STANDARD_FILTER_IDS.includes(fieldId)) {
+  const field = fieldById(workspace, fieldId);
+  if (field?.placement === "always_visible") {
     return;
   }
+  const hiddenFilterIds =
+    field?.placement === "initially_visible" &&
+    !workspace.search.hiddenFilterIds.includes(fieldId)
+      ? [...workspace.search.hiddenFilterIds, fieldId]
+      : workspace.search.hiddenFilterIds;
   workspace.setSearch({
     ...clearFieldValue(workspace.search, fieldId),
+    hiddenFilterIds,
     visibleFilterIds: workspace.search.visibleFilterIds.filter(
       (visibleFieldId) => visibleFieldId !== fieldId,
     ),
@@ -180,6 +156,9 @@ export function rangeForField(
   search: SearchFormState,
   fieldId: string,
 ): NumericRangeState {
+  if (fieldId === "level") {
+    return { min: search.levelMin, max: search.levelMax };
+  }
   return search.rangeFilters[fieldId] ?? { min: null, max: null };
 }
 
@@ -188,6 +167,13 @@ export function setRangeForField(
   fieldId: string,
   range: NumericRangeState,
 ): SearchFormState {
+  if (fieldId === "level") {
+    return {
+      ...search,
+      levelMin: range.min,
+      levelMax: range.max,
+    };
+  }
   return {
     ...search,
     rangeFilters: { ...search.rangeFilters, [fieldId]: range },
@@ -213,28 +199,22 @@ export function setBooleanForField(
 }
 
 export function controlKindForField(
-  fields: FilterFieldView[] | undefined,
+  workspace: AtlasWorkspaceState,
   fieldId: string,
 ): FilterControlKind {
-  const catalogItem = FILTER_CATALOG.find((field) => field.id === fieldId);
-  if (catalogItem) {
-    return catalogItem.control;
-  }
-  const field = fields?.find((candidate) => candidate.id === fieldId);
-  if (field?.value_kind === "number") {
-    return "range";
-  }
-  if (field?.value_kind === "boolean") {
-    return "boolean";
-  }
-  return "option";
+  const field = fieldById(workspace, fieldId);
+  return controlKind(field);
 }
 
-export function labelForField(
-  fields: FilterFieldView[] | undefined,
+export function labelForField(workspace: AtlasWorkspaceState, fieldId: string): string {
+  return fieldById(workspace, fieldId)?.label ?? fieldId;
+}
+
+export function editorFieldForId(
+  workspace: AtlasWorkspaceState,
   fieldId: string,
-): string {
-  return fields?.find((field) => field.id === fieldId)?.label ?? fallbackLabel(fieldId);
+): FilterEditorFieldView | undefined {
+  return fieldById(workspace, fieldId);
 }
 
 function valueOption(option: FilterValueOption): FilterSelectOption {
@@ -249,70 +229,23 @@ function valueOption(option: FilterValueOption): FilterSelectOption {
   };
 }
 
-function fallbackLabel(fieldId: string): string {
-  switch (fieldId) {
-    case "kind":
-      return "Kinds";
-    case "rarity":
-      return "Rarity";
-    case "traits":
-      return "Traits";
-    case "pack":
-      return "Pack";
-    case "publication_title":
-      return "Publication";
-    case "publication_family":
-      return "Publication Family";
-    case "publication_remaster":
-      return "Remaster";
-    case "traditions":
-      return "Traditions";
-    case "spell_kinds":
-      return "Spell Type";
-    case "save_type":
-      return "Save Type";
-    case "basic_save":
-      return "Basic Save";
-    case "sustained":
-      return "Sustained";
-    case "damage_types":
-      return "Damage Type";
-    case "range_value":
-      return "Range";
-    case "area_type":
-      return "Area Type";
-    case "area_value":
-      return "Area Size";
-    case "item_category":
-      return "Category";
-    case "item_group":
-      return "Group";
-    case "price_cp":
-      return "Price";
-    case "bulk_value":
-      return "Bulk";
-    case "hands":
-      return "Hands";
-    case "usage":
-      return "Usage";
-    case "base_item":
-      return "Base Item";
-    case "size":
-      return "Size";
-    case "speed_types":
-      return "Speeds";
-    case "languages":
-      return "Languages";
-    case "senses":
-      return "Senses";
-    case "immunities":
-      return "Immunities";
-    case "resistances":
-      return "Resistances";
-    case "weaknesses":
-      return "Weaknesses";
+function fieldById(
+  workspace: AtlasWorkspaceState,
+  fieldId: string,
+): FilterEditorFieldView | undefined {
+  return (workspace.filterEditor?.groups ?? [])
+    .flatMap((group) => group.fields)
+    .find((field) => field.id === fieldId);
+}
+
+function controlKind(field: FilterEditorFieldView | undefined): FilterControlKind {
+  switch (field?.control.kind) {
+    case "range":
+      return "range";
+    case "boolean":
+      return "boolean";
     default:
-      return "Filter";
+      return "option";
   }
 }
 

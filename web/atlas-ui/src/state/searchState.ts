@@ -17,6 +17,7 @@ export type SearchFormState = {
   query: string;
   mode: "browse" | "text_search";
   visibleFilterIds: string[];
+  hiddenFilterIds: string[];
   kinds: string[];
   rarity: string[];
   traits: string[];
@@ -45,7 +46,8 @@ export type SortKey =
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
   mode: "browse",
-  visibleFilterIds: ["kind", "rarity", "traits", "level"],
+  visibleFilterIds: [],
+  hiddenFilterIds: [],
   kinds: ["spell", "feat", "equipment"],
   rarity: [],
   traits: [],
@@ -63,49 +65,6 @@ export const DEFAULT_SEARCH_STATE: SearchFormState = {
   includeDiagnostics: false,
 };
 
-export const KIND_OPTIONS = [
-  { value: "creature", label: "Creature" },
-  { value: "character", label: "Character" },
-  { value: "companion", label: "Companion" },
-  { value: "army", label: "Army" },
-  { value: "hazard", label: "Hazard" },
-  { value: "vehicle", label: "Vehicle" },
-  { value: "equipment", label: "Equipment" },
-  { value: "feat", label: "Feat" },
-  { value: "spell", label: "Spell" },
-  { value: "affliction", label: "Affliction" },
-  { value: "rule", label: "Rule" },
-  { value: "character_option", label: "Character Option" },
-  { value: "lore", label: "Lore" },
-  { value: "tooling", label: "Tooling" },
-  { value: "campaign_feature", label: "Campaign Feature" },
-];
-
-export const RARITY_OPTIONS = [
-  { value: "common", label: "Common" },
-  { value: "uncommon", label: "Uncommon" },
-  { value: "rare", label: "Rare" },
-  { value: "unique", label: "Unique" },
-];
-
-export const TRAIT_OPTIONS = [
-  { value: "attack", label: "Attack" },
-  { value: "auditory", label: "Auditory" },
-  { value: "cantrip", label: "Cantrip" },
-  { value: "concentrate", label: "Concentrate" },
-  { value: "divine", label: "Divine" },
-  { value: "emotion", label: "Emotion" },
-  { value: "fire", label: "Fire" },
-  { value: "flourish", label: "Flourish" },
-  { value: "incapacitation", label: "Incapacitation" },
-  { value: "manipulate", label: "Manipulate" },
-  { value: "mental", label: "Mental" },
-  { value: "move", label: "Move" },
-  { value: "occult", label: "Occult" },
-  { value: "primal", label: "Primal" },
-  { value: "visual", label: "Visual" },
-];
-
 export const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: "record_key", label: "Record Key" },
   { value: "alphabetical", label: "Alphabetical" },
@@ -114,8 +73,6 @@ export const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: "price_asc", label: "Price Up" },
   { value: "price_desc", label: "Price Down" },
 ];
-
-export const STANDARD_FILTER_IDS = ["kind", "rarity", "traits", "level"];
 
 const MODE_VALUES = ["browse", "text_search"] as const;
 const TRAIT_OPERATOR_VALUES = ["include_all", "include_any"] as const;
@@ -169,7 +126,11 @@ export function encodeSearchState(state: SearchFormState): string {
 }
 
 export function encodeSearchExecutionState(state: SearchFormState): string {
-  const { visibleFilterIds: _visibleFilterIds, ...executionState } = state;
+  const {
+    visibleFilterIds: _visibleFilterIds,
+    hiddenFilterIds: _hiddenFilterIds,
+    ...executionState
+  } = state;
   return encodeURIComponent(JSON.stringify(executionState));
 }
 
@@ -191,6 +152,9 @@ export function decodeSearchState(value: string | null): SearchFormState {
           decoded.visibleFilterIds,
           DEFAULT_SEARCH_STATE.visibleFilterIds,
         ),
+      ),
+      hiddenFilterIds: dedupeStrings(
+        stringArrayValue(decoded.hiddenFilterIds, DEFAULT_SEARCH_STATE.hiddenFilterIds),
       ),
       kinds: stringArrayValue(decoded.kinds, DEFAULT_SEARCH_STATE.kinds),
       rarity: stringArrayValue(decoded.rarity, DEFAULT_SEARCH_STATE.rarity),

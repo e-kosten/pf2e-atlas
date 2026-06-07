@@ -5,8 +5,8 @@ use std::sync::mpsc;
 use std::thread;
 
 use atlas_app_model::{
-    AppErrorCode, AppReadinessStatus, AppReadinessView, DiscoverFilterFieldsRequest,
-    DiscoverFilterValuesRequest, FilterFieldListView, FilterValueListView, OpenResultWindowRequest,
+    AppErrorCode, AppReadinessStatus, AppReadinessView, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, FilterEditorView, FilterValueListView, OpenResultWindowRequest,
     ReadResultWindowPageRequest, RecordDetailView, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
 };
@@ -19,7 +19,7 @@ use atlas_search::{
     TextRetrieval, TextSearchMatch, TextSearchRequest,
 };
 
-use crate::discovery::{filter_field_list_view, filter_value_list_view};
+use crate::discovery::{filter_editor_view, filter_value_list_view};
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::{discovery_field_id, lower_basic_filter, lower_basic_filter_context};
 use crate::projection::{record_detail, record_summary, search_page_view, text_match_summary};
@@ -79,9 +79,9 @@ enum AppServiceCommand {
         record_key: String,
         reply: mpsc::Sender<AppServiceResult<RecordDetailView>>,
     },
-    DiscoverFilterFields {
-        request: DiscoverFilterFieldsRequest,
-        reply: mpsc::Sender<AppServiceResult<FilterFieldListView>>,
+    DiscoverFilterEditor {
+        request: DiscoverFilterEditorRequest,
+        reply: mpsc::Sender<AppServiceResult<FilterEditorView>>,
     },
     DiscoverFilterValues {
         request: DiscoverFilterValuesRequest,
@@ -160,11 +160,11 @@ impl AtlasAppService {
         })
     }
 
-    pub fn discover_filter_fields(
+    pub fn discover_filter_editor(
         &self,
-        request: DiscoverFilterFieldsRequest,
-    ) -> AppServiceResult<FilterFieldListView> {
-        self.call(|reply| AppServiceCommand::DiscoverFilterFields { request, reply })
+        request: DiscoverFilterEditorRequest,
+    ) -> AppServiceResult<FilterEditorView> {
+        self.call(|reply| AppServiceCommand::DiscoverFilterEditor { request, reply })
     }
 
     pub fn discover_filter_values(
@@ -231,8 +231,8 @@ impl AppServiceWorker {
                 AppServiceCommand::RecordDetail { record_key, reply } => {
                     let _ = reply.send(self.record_detail(&record_key));
                 }
-                AppServiceCommand::DiscoverFilterFields { request, reply } => {
-                    let _ = reply.send(self.discover_filter_fields(request));
+                AppServiceCommand::DiscoverFilterEditor { request, reply } => {
+                    let _ = reply.send(self.discover_filter_editor(request));
                 }
                 AppServiceCommand::DiscoverFilterValues { request, reply } => {
                     let _ = reply.send(self.discover_filter_values(request));
@@ -304,10 +304,10 @@ impl AppServiceWorker {
         record_detail(&record)
     }
 
-    fn discover_filter_fields(
+    fn discover_filter_editor(
         &self,
-        request: DiscoverFilterFieldsRequest,
-    ) -> AppServiceResult<FilterFieldListView> {
+        request: DiscoverFilterEditorRequest,
+    ) -> AppServiceResult<FilterEditorView> {
         let filter = lower_basic_filter_context(&request.context)?;
         let discovery =
             self.retrieval
@@ -315,7 +315,7 @@ impl AppServiceWorker {
                     filter: filter.as_ref(),
                     filter_json: None,
                 })?;
-        Ok(filter_field_list_view(discovery))
+        Ok(filter_editor_view(discovery))
     }
 
     fn discover_filter_values(
@@ -718,16 +718,21 @@ mod tests {
             },
         };
 
-        let fields = worker
-            .discover_filter_fields(atlas_app_model::DiscoverFilterFieldsRequest {
+        let editor = worker
+            .discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 context: context.clone(),
             })
-            .expect("fixture field discovery should succeed");
+            .expect("fixture editor discovery should succeed");
 
-        assert_eq!(fields.matching_record_count, 3);
-        assert!(fields.fields.iter().any(|field| field.id == "kind"));
-        assert!(fields.fields.iter().any(|field| field.id == "pack"));
-        assert!(!fields.fields.iter().any(|field| field.id == "pack_label"));
+        assert_eq!(editor.matching_record_count, 3);
+        let fields = editor
+            .groups
+            .iter()
+            .flat_map(|group| group.fields.iter())
+            .collect::<Vec<_>>();
+        assert!(fields.iter().any(|field| field.id == "kind"));
+        assert!(fields.iter().any(|field| field.id == "pack"));
+        assert!(!fields.iter().any(|field| field.id == "pack_label"));
 
         let values = worker
             .discover_filter_values(atlas_app_model::DiscoverFilterValuesRequest {

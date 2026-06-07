@@ -68,7 +68,7 @@ pub enum FilterDiscoveryContext {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct DiscoverFilterFieldsRequest {
+pub struct DiscoverFilterEditorRequest {
     pub context: FilterDiscoveryContext,
 }
 
@@ -81,22 +81,62 @@ pub struct DiscoverFilterValuesRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct FilterFieldListView {
+pub struct FilterEditorView {
     pub matching_record_count: u64,
-    pub fields: Vec<FilterFieldView>,
+    pub groups: Vec<FilterEditorGroupView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct FilterFieldView {
+pub struct FilterEditorGroupView {
     pub id: String,
     pub label: String,
-    pub cardinality: String,
-    pub value_kind: String,
+    pub fields: Vec<FilterEditorFieldView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct FilterEditorFieldView {
+    pub id: String,
+    pub label: String,
+    pub control: FilterControlView,
+    pub placement: FilterFieldPlacement,
     pub allowed_operators: Vec<FilterClauseOperator>,
     pub default_operator: FilterClauseOperator,
-    pub ui_hint: String,
     pub supports_counts: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum FilterControlView {
+    MultiSelect,
+    Range {
+        min_label: String,
+        max_label: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        min: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        max: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        step: Option<f64>,
+    },
+    Boolean {
+        true_label: String,
+        false_label: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum FilterFieldPlacement {
+    AlwaysVisible,
+    InitiallyVisible,
+    Addable,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

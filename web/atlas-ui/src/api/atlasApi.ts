@@ -1,9 +1,9 @@
 import type {
   AppError,
   AppReadinessView,
-  DiscoverFilterFieldsRequest,
+  DiscoverFilterEditorRequest,
   DiscoverFilterValuesRequest,
-  FilterFieldListView,
+  FilterEditorView,
   FilterValueListView,
   OpenResultWindowRequest,
   ReadResultWindowPageRequest,
@@ -29,14 +29,14 @@ export async function getReadiness(): Promise<AppReadinessView> {
   return atlasFetch("/api/readiness");
 }
 
-export async function discoverFilterFields(
-  request: DiscoverFilterFieldsRequest,
-): Promise<FilterFieldListView> {
-  const fields = await atlasFetch<unknown>("/api/filters/fields", {
+export async function discoverFilterEditor(
+  request: DiscoverFilterEditorRequest,
+): Promise<FilterEditorView> {
+  const editor = await atlasFetch<unknown>("/api/filters/editor", {
     method: "POST",
     body: JSON.stringify(request),
   });
-  return normalizeFilterFieldList(fields);
+  return normalizeFilterEditor(editor);
 }
 
 export async function discoverFilterValues(
@@ -150,14 +150,14 @@ function normalizeResultWindowPage(value: unknown): ResultWindowPage {
   } as ResultWindowPage;
 }
 
-function normalizeFilterFieldList(value: unknown): FilterFieldListView {
+function normalizeFilterEditor(value: unknown): FilterEditorView {
   if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid filter-field response");
+    throw new AtlasApiError(200, "Invalid filter-editor response");
   }
   return {
     ...value,
     matching_record_count: toBigInt(value.matching_record_count),
-  } as FilterFieldListView;
+  } as FilterEditorView;
 }
 
 function normalizeFilterValueList(value: unknown): FilterValueListView {

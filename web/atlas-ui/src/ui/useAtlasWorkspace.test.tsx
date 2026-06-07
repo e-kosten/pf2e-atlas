@@ -1,12 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { OpenResultWindowRequest, ResultWindowPage } from "../generated/atlas";
+import type {
+  FilterEditorView,
+  OpenResultWindowRequest,
+  ResultWindowPage,
+} from "../generated/atlas";
 import { DEFAULT_SEARCH_STATE, encodeSearchState } from "../state/searchState";
 import { useAtlasWorkspace } from "./useAtlasWorkspace";
 
 const apiMocks = vi.hoisted(() => ({
-  discoverFilterFields: vi.fn(),
+  discoverFilterEditor: vi.fn(),
   discoverFilterValues: vi.fn(),
   getRecordDetail: vi.fn(),
   getReadiness: vi.fn(),
@@ -15,7 +19,7 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/atlasApi", () => ({
-  discoverFilterFields: apiMocks.discoverFilterFields,
+  discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
@@ -30,9 +34,9 @@ describe("useAtlasWorkspace", () => {
       status: "ready",
       message: "Ready",
     });
-    apiMocks.discoverFilterFields.mockResolvedValue({
+    apiMocks.discoverFilterEditor.mockResolvedValue({
       matching_record_count: 0n,
-      fields: [],
+      groups: [],
     });
     apiMocks.discoverFilterValues.mockResolvedValue({
       field_id: "kind",
@@ -50,7 +54,7 @@ describe("useAtlasWorkspace", () => {
     });
 
     await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
-    expect(apiMocks.discoverFilterFields).toHaveBeenCalled();
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalled();
 
     act(() => {
       result.current.setSearch({
@@ -108,6 +112,42 @@ describe("useAtlasWorkspace", () => {
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     expect(window.location.pathname).toBe("/");
+  });
+
+  it("discovers values for count-backed visible editor fields", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
+        expect.objectContaining({ field_id: "kind" }),
+      ),
+    );
+    expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field_id: "pack" }),
+    );
+    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
+      expect.objectContaining({ field_id: "level" }),
+    );
+    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
+      expect.objectContaining({ field_id: "basic_save" }),
+    );
+
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        hiddenFilterIds: ["pack"],
+        visibleFilterIds: ["basic_save"],
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
+        expect.objectContaining({ field_id: "basic_save" }),
+      ),
+    );
   });
 
   it("reads later pages from the current result window", async () => {
@@ -278,6 +318,73 @@ function resultWindowPage(
         kind_label: "Spell",
       },
     })),
+  };
+}
+
+function filterEditor(): FilterEditorView {
+  return {
+    matching_record_count: 4n,
+    groups: [
+      {
+        id: "standard",
+        label: "Standard",
+        fields: [
+          {
+            id: "kind",
+            label: "Kinds",
+            control: { kind: "multi_select" },
+            placement: "always_visible",
+            allowed_operators: ["include_any"],
+            default_operator: "include_any",
+            supports_counts: true,
+          },
+          {
+            id: "level",
+            label: "Level",
+            control: {
+              kind: "range",
+              min_label: "Min",
+              max_label: "Max",
+              min: 0,
+              max: 30,
+              step: 1,
+            },
+            placement: "always_visible",
+            allowed_operators: ["range"],
+            default_operator: "range",
+            supports_counts: false,
+          },
+        ],
+      },
+      {
+        id: "source",
+        label: "Source",
+        fields: [
+          {
+            id: "pack",
+            label: "Pack",
+            control: { kind: "multi_select" },
+            placement: "initially_visible",
+            allowed_operators: ["include_any"],
+            default_operator: "include_any",
+            supports_counts: true,
+          },
+          {
+            id: "basic_save",
+            label: "Basic Save",
+            control: {
+              kind: "boolean",
+              true_label: "Yes",
+              false_label: "No",
+            },
+            placement: "addable",
+            allowed_operators: ["include_any"],
+            default_operator: "include_any",
+            supports_counts: true,
+          },
+        ],
+      },
+    ],
   };
 }
 
