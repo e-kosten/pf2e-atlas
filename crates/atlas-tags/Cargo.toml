@@ -1,0 +1,14 @@
+[package]
+name = "atlas-tags"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+atlas-domain.workspace = true
+atlas-record.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+yaml_serde.workspace = true

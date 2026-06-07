@@ -12,6 +12,7 @@ members = [
   "crates/atlas-runtime",
   "crates/atlas-search",
   "crates/atlas-sqlite-vec",
+  "crates/atlas-tags",
 ]
 resolver = "3"
 
@@ -35,6 +36,7 @@ atlas-record = { path = "crates/atlas-record" }
 atlas-runtime = { path = "crates/atlas-runtime" }
 atlas-search = { path = "crates/atlas-search" }
 atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
+atlas-tags = { path = "crates/atlas-tags" }
 axum = "0.8.7"
 clap = { version = "4.5.53", features = ["derive"] }
 clap_complete = "4.5.60"
@@ -48,6 +50,7 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 scraper = "0.24.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
+yaml_serde = "0.10.4"
 sha2 = "0.10.9"
 sqlite-vec = "0.1.6"
 thiserror = "2.0.17"

@@ -1,0 +1,46 @@
+tags:
+  - id: problem.counteract_magic
+    label: Counteract Magic
+    description: Helps suppress, dispel, counteract, or remove active magical effects.
+    display:
+      group: ProblemSolving
+      subgroup: Countermeasure
+    applicability:
+      any_of:
+        - record_kinds: [spell, equipment]
+    guidance:
+      applies_when:
+        - The record explicitly dispels, counteracts, suppresses, or removes magic.
+      does_not_apply_when:
+        - The record only deals magical damage.
+
+  - id: setting.darklands
+    label: Darklands
+    description: Closely associated with the Darklands, subterranean societies, or deep underground environments.
+    display:
+      group: SettingAndPlace
+      subgroup: Regional
+    applicability:
+      any_of:
+        - record_kinds: [creature, hazard, lore]
+    guidance:
+      applies_when:
+        - The record text, source context, or creature ecology closely ties it to the Darklands.
+      does_not_apply_when:
+        - The record merely can appear underground without specific Darklands association.
+
+  - id: equipment.party_support.defense
+    label: Defensive Party Support
+    description: Equipment that protects allies, improves group defense, or helps the party absorb danger.
+    display:
+      group: BuildAndEquipmentSupport
+      subgroup: PartyRole
+    applicability:
+      any_of:
+        - record_kinds: [equipment]
+          foundry_record_types: [armor, shield, consumable, equipment]
+    guidance:
+      applies_when:
+        - The item primarily improves durability, defense, mitigation, or ally protection.
+      does_not_apply_when:
+        - The item is only personally offensive or has no meaningful protective use.
