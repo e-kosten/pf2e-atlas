@@ -14,10 +14,15 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use tokio::sync::Semaphore;
+
+const MAX_BLOCKING_SERVICE_CALLS: usize = 64;
 
 #[derive(Clone)]
 struct AtlasWebState {
     service: Arc<dyn AtlasWebService>,
+    blocking_calls: Arc<Semaphore>,
+    blocking_call_capacity: usize,
 }
 
 impl AtlasWebState {
@@ -26,8 +31,17 @@ impl AtlasWebState {
     }
 
     fn from_service(service: impl AtlasWebService + 'static) -> Self {
+        Self::from_service_with_blocking_capacity(service, MAX_BLOCKING_SERVICE_CALLS)
+    }
+
+    fn from_service_with_blocking_capacity(
+        service: impl AtlasWebService + 'static,
+        blocking_call_capacity: usize,
+    ) -> Self {
         Self {
             service: Arc::new(service),
+            blocking_calls: Arc::new(Semaphore::new(blocking_call_capacity)),
+            blocking_call_capacity,
         }
     }
 }
@@ -122,8 +136,7 @@ async fn root() -> &'static str {
 }
 
 async fn readiness(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
-    Ok(Json(call_service(move || Ok(service.readiness())).await?))
+    Ok(Json(state.service.readiness()))
 }
 
 async fn discover_filter_editor(
@@ -133,7 +146,7 @@ async fn discover_filter_editor(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(move || service.discover_filter_editor(request)).await?,
+        call_service(state, move || service.discover_filter_editor(request)).await?,
     ))
 }
 
@@ -144,7 +157,7 @@ async fn discover_filter_values(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(move || service.discover_filter_values(request)).await?,
+        call_service(state, move || service.discover_filter_values(request)).await?,
     ))
 }
 
@@ -155,7 +168,7 @@ async fn open_result_window(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(move || service.open_result_window(request)).await?,
+        call_service(state, move || service.open_result_window(request)).await?,
     ))
 }
 
@@ -168,7 +181,10 @@ async fn read_result_window_page(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(move || service.read_result_window_page(window_id, request)).await?,
+        call_service(state, move || {
+            service.read_result_window_page(window_id, request)
+        })
+        .await?,
     ))
 }
 
@@ -178,7 +194,7 @@ async fn record_detail(
 ) -> Result<impl IntoResponse, WebError> {
     let service = state.service.clone();
     Ok(Json(
-        call_service(move || service.record_detail(&record_key)).await?,
+        call_service(state, move || service.record_detail(&record_key)).await?,
     ))
 }
 
@@ -229,6 +245,7 @@ fn status_for_error(code: AppErrorCode) -> StatusCode {
         AppErrorCode::IndexUnavailable
         | AppErrorCode::VectorReadinessRequired
         | AppErrorCode::EmbeddingModelUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+        AppErrorCode::ServiceBusy => StatusCode::SERVICE_UNAVAILABLE,
         AppErrorCode::OperationCancelled => StatusCode::REQUEST_TIMEOUT,
         AppErrorCode::OperationTimeout => StatusCode::REQUEST_TIMEOUT,
         AppErrorCode::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
@@ -242,17 +259,27 @@ fn parse_window_id(value: &str) -> Result<u64, WebError> {
 }
 
 async fn call_service<T: Send + 'static>(
+    state: AtlasWebState,
     call: impl FnOnce() -> Result<T, AppServiceError> + Send + 'static,
 ) -> Result<T, WebError> {
-    tokio::task::spawn_blocking(call)
-        .await
-        .map_err(|error| {
-            WebError(AppError::new(
-                AppErrorCode::InternalError,
-                format!("app-service task failed: {error}"),
-            ))
-        })?
-        .map_err(WebError::from)
+    let blocking_call_capacity = state.blocking_call_capacity;
+    let permit = state.blocking_calls.try_acquire_owned().map_err(|_| {
+        WebError::from(AppServiceError::service_busy(format!(
+            "atlas-web blocking service call limit is full; capacity is {blocking_call_capacity}",
+        )))
+    })?;
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        call()
+    })
+    .await
+    .map_err(|error| {
+        WebError(AppError::new(
+            AppErrorCode::InternalError,
+            format!("app-service task failed: {error}"),
+        ))
+    })?
+    .map_err(WebError::from)
 }
 
 #[cfg(test)]
@@ -296,6 +323,10 @@ mod tests {
             StatusCode::SERVICE_UNAVAILABLE
         );
         assert_eq!(
+            status_for_error(AppErrorCode::ServiceBusy),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        assert_eq!(
             status_for_error(AppErrorCode::InternalError),
             StatusCode::INTERNAL_SERVER_ERROR
         );
@@ -313,16 +344,18 @@ mod tests {
 
     #[tokio::test]
     async fn call_service_preserves_successful_result() {
-        let value = call_service(|| Ok::<_, AppServiceError>("ready"))
-            .await
-            .expect("successful app-service call should pass through");
+        let value = call_service(AtlasWebState::from_service(MockService), || {
+            Ok::<_, AppServiceError>("ready")
+        })
+        .await
+        .expect("successful app-service call should pass through");
 
         assert_eq!(value, "ready");
     }
 
     #[tokio::test]
     async fn call_service_maps_service_error_to_http_envelope() {
-        let error = call_service(|| {
+        let error = call_service(AtlasWebState::from_service(MockService), || {
             Err::<(), _>(AppServiceError::new(AppErrorCode::WindowExpired, "expired"))
         })
         .await
@@ -343,9 +376,12 @@ mod tests {
 
     #[tokio::test]
     async fn call_service_maps_panic_to_internal_error() {
-        let error = call_service(|| -> Result<(), AppServiceError> {
-            panic!("simulated app-service panic");
-        })
+        let error = call_service(
+            AtlasWebState::from_service(MockService),
+            || -> Result<(), AppServiceError> {
+                panic!("simulated app-service panic");
+            },
+        )
         .await
         .expect_err("join errors should map to web errors");
 
@@ -359,6 +395,33 @@ mod tests {
 
         assert_eq!(parts.status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(app_error.code, AppErrorCode::InternalError);
+    }
+
+    #[tokio::test]
+    async fn routes_return_service_busy_when_web_backpressure_is_full() {
+        let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
+            MockService,
+            0,
+        ));
+        let response = app
+            .oneshot(
+                Request::get("/api/records/actions:testAction1")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+        let (status, body) = response_json(response).await;
+
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(body["code"], "service_busy");
+        assert_eq!(body["retryable"], true);
+        assert!(
+            body["message"]
+                .as_str()
+                .expect("message should be string")
+                .contains("blocking service call limit is full")
+        );
     }
 
     #[tokio::test]

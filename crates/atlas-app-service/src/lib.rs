@@ -2,6 +2,7 @@
 
 mod discovery;
 mod error;
+mod executor;
 mod filter;
 mod filters;
 mod projection;
