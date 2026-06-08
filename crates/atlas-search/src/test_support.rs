@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use atlas_index::SqliteIndexReader;
 use atlas_index::test_support::{
@@ -9,6 +10,8 @@ use atlas_index::test_support::{
 use rusqlite::Connection;
 
 use crate::AtlasRetrievalService;
+
+static FIXTURE_ARTIFACT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub struct FixtureArtifact {
     path: PathBuf,
@@ -56,9 +59,6 @@ fn fixture_artifact_path() -> PathBuf {
     path
 }
 
-fn unique_suffix() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("system time should be after unix epoch")
-        .as_nanos()
+fn unique_suffix() -> u64 {
+    FIXTURE_ARTIFACT_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
