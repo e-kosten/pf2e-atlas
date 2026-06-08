@@ -206,6 +206,18 @@ pub(crate) fn format_bulk(value: f64) -> String {
     }
 }
 
+pub fn format_size(value: &str) -> String {
+    match value {
+        "tiny" => "Tiny".to_string(),
+        "sm" | "small" => "Small".to_string(),
+        "med" | "medium" => "Medium".to_string(),
+        "lg" | "large" => "Large".to_string(),
+        "huge" => "Huge".to_string(),
+        "grg" | "gargantuan" => "Gargantuan".to_string(),
+        _ => humanize(value),
+    }
+}
+
 pub(crate) fn humanize(value: &str) -> String {
     value
         .split(['_', '-'])
