@@ -1,4 +1,5 @@
 pub(crate) mod loader;
+pub(crate) mod localization;
 pub(crate) mod mechanics;
 pub(crate) mod model;
 pub(crate) mod normalize;

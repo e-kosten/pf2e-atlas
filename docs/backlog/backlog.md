@@ -52,6 +52,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust web record detail polish](./items/rust-web-record-detail-polish.md)
   Improve record detail readability, navigation, loading states, and shared presentation-contract usage in the web UI. Status: proposed.
 
+- [Rust localization-backed rules terms](./items/rust-localization-backed-rules-terms.md)
+  Persist selected localization-backed rules vocabulary such as traits and NPC ability glossary entries as canonical hoverable/linkable terms. Status: proposed.
+
 - [Rust web keyboard navigation and focus](./items/rust-web-keyboard-navigation-focus.md)
   Define a coherent keyboard-driven web workflow across search, filters, results, detail panes, and editable controls. Status: proposed.
 

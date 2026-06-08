@@ -30,7 +30,9 @@ use content_sources::extract_content_sources;
 use embedded_items::{attach_embedded_content_refs, extract_embedded_item_facts};
 use journal_pages::extract_journal_page_facts;
 
-pub(crate) use content::parse_foundry_content;
+pub(crate) use content::{
+    LocalizationResolver, parse_foundry_content, parse_foundry_content_with_localization,
+};
 pub(crate) use content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub(crate) use json::{
     normalized_pointer_string, pointer_bool, pointer_i64, pointer_string, string_array_at_pointer,
@@ -58,6 +60,7 @@ pub(crate) fn normalize_record(
     path: &Path,
     source_root: &Path,
     raw: Value,
+    localization: Option<&dyn LocalizationResolver>,
 ) -> Result<LoadedSourceRecord, IngestError> {
     let id = string_field(&raw, "_id").ok_or_else(|| normalization_error(path, "missing _id"))?;
     let name =
@@ -114,8 +117,8 @@ pub(crate) fn normalize_record(
         .and_then(normalize_time_text);
     let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
         .map_err(|message| normalization_error(path, &message))?;
-    let actor_data =
-        (manifest_pack.document_type == "Actor").then(|| mechanics::extract_actor_mechanics(&raw));
+    let actor_data = (manifest_pack.document_type == "Actor")
+        .then(|| mechanics::extract_actor_mechanics(&raw, localization));
     let item_data = (manifest_pack.document_type == "Item").then(|| {
         mechanics::extract_item_mechanics(
             &raw,
@@ -128,13 +131,13 @@ pub(crate) fn normalize_record(
         )
     });
     let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
-        .then(|| mechanics::extract_spell_mechanics(&raw, &traits));
+        .then(|| mechanics::extract_spell_mechanics(&raw, &traits, localization));
     let publication_title = pointer_string(&raw, "/system/publication/title")
         .or_else(|| pointer_string(&raw, "/system/details/publication/title"));
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster")
         .or_else(|| pointer_bool(&raw, "/system/details/publication/remaster"))
         .unwrap_or(false);
-    let content_sources = extract_content_sources(&raw);
+    let content_sources = extract_content_sources(&raw, localization);
     let mut source_facts = SourceRecordFacts {
         slug: normalized_pointer_string(&raw, "/system/slug"),
         compendium_source: normalized_pointer_string(&raw, "/_stats/compendiumSource"),
@@ -158,7 +161,7 @@ pub(crate) fn normalize_record(
         &source_facts.source_content,
     );
     let (journal_pages, skipped_journal_pages, journal_diagnostics) =
-        extract_journal_page_facts(&raw, &key);
+        extract_journal_page_facts(&raw, &key, localization);
     source_facts.journal_pages = journal_pages;
     source_facts.skipped_journal_pages = skipped_journal_pages;
     let folder_id = pointer_string(&raw, "/folder");

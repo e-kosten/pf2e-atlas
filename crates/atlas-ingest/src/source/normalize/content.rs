@@ -16,13 +16,21 @@ pub(crate) struct ParsedContentDocument {
     pub(crate) diagnostics: ContentParseDiagnostics,
 }
 
+pub(crate) trait LocalizationResolver {
+    fn localized_value(&self, key: &str) -> Option<&str>;
+}
+
 pub(crate) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
+    parse_foundry_content_with_localization(value, None)
+}
+
+pub(crate) fn parse_foundry_content_with_localization(
+    value: &str,
+    localization: Option<&dyn LocalizationResolver>,
+) -> ParsedContentDocument {
     let fragment = Html::parse_fragment(value);
-    let mut state = ParseState::default();
-    let mut nodes = Vec::new();
-    for child in fragment.tree.root().children() {
-        nodes.extend(convert_node_ref(child, &mut state));
-    }
+    let mut state = ParseState::new(localization);
+    let nodes = parse_fragment_nodes(&fragment, &mut state);
 
     let mut diagnostics = ContentParseDiagnostics::default();
     for tag in state.unsupported_tags {
@@ -35,12 +43,33 @@ pub(crate) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
     }
 }
 
-#[derive(Default)]
-struct ParseState {
+struct ParseState<'a> {
+    localization: Option<&'a dyn LocalizationResolver>,
+    localization_depth: usize,
+    active_localizations: BTreeSet<String>,
     unsupported_tags: BTreeSet<String>,
 }
 
-fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState) -> Vec<RichNode> {
+impl<'a> ParseState<'a> {
+    fn new(localization: Option<&'a dyn LocalizationResolver>) -> Self {
+        Self {
+            localization,
+            localization_depth: 0,
+            active_localizations: BTreeSet::new(),
+            unsupported_tags: BTreeSet::new(),
+        }
+    }
+}
+
+fn parse_fragment_nodes(fragment: &Html, state: &mut ParseState<'_>) -> Vec<RichNode> {
+    let mut nodes = Vec::new();
+    for child in fragment.tree.root().children() {
+        nodes.extend(convert_node_ref(child, state));
+    }
+    nodes
+}
+
+fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState<'_>) -> Vec<RichNode> {
     match node_ref.value() {
         Node::Text(text) => parse_text_nodes(text, state),
         Node::Element(element) => {
@@ -119,7 +148,7 @@ fn is_unusual_tag(tag: &str) -> bool {
     )
 }
 
-fn parse_text_nodes(value: &str, state: &mut ParseState) -> Vec<RichNode> {
+fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<RichNode> {
     let mut nodes = Vec::new();
     let mut offset = 0;
     while offset < value.len() {
@@ -176,7 +205,7 @@ struct ParsedFoundryNode {
 fn parse_inline_command(
     value: &str,
     start: usize,
-    state: &mut ParseState,
+    state: &mut ParseState<'_>,
 ) -> Option<ParsedFoundryNode> {
     let rest = &value[start..];
     let body_end_relative = rest.find("]]")?;
@@ -200,7 +229,11 @@ fn parse_inline_command(
     })
 }
 
-fn parse_foundry_macro(value: &str, start: usize, state: &mut ParseState) -> Option<ParsedMacro> {
+fn parse_foundry_macro(
+    value: &str,
+    start: usize,
+    state: &mut ParseState<'_>,
+) -> Option<ParsedMacro> {
     let name_start = start + 1;
     let mut name_end = name_start;
     for (relative, character) in value[name_start..].char_indices() {
@@ -311,7 +344,8 @@ fn parse_foundry_macro(value: &str, start: usize, state: &mut ParseState) -> Opt
         "localize" => RichNode::Foundry {
             node: FoundryNode::Localize {
                 key: body.to_string(),
-                value: label,
+                resolved: resolve_localization(body, state),
+                label,
             },
         },
         _ => RichNode::Foundry {
@@ -327,10 +361,30 @@ fn parse_foundry_macro(value: &str, start: usize, state: &mut ParseState) -> Opt
     Some(ParsedMacro { node, end })
 }
 
+fn resolve_localization(key: &str, state: &mut ParseState<'_>) -> Option<Vec<RichNode>> {
+    const MAX_LOCALIZATION_DEPTH: usize = 8;
+
+    if state.localization_depth >= MAX_LOCALIZATION_DEPTH
+        || state.active_localizations.contains(key)
+    {
+        return None;
+    }
+
+    let localized = state.localization?.localized_value(key)?.to_string();
+    state.active_localizations.insert(key.to_string());
+    state.localization_depth += 1;
+    let fragment = Html::parse_fragment(&localized);
+    let nodes = parse_fragment_nodes(&fragment, state);
+    state.localization_depth -= 1;
+    state.active_localizations.remove(key);
+
+    (!nodes.is_empty()).then_some(nodes)
+}
+
 fn parse_optional_label(
     value: &str,
     end: &mut usize,
-    state: &mut ParseState,
+    state: &mut ParseState<'_>,
 ) -> Option<Option<Vec<RichNode>>> {
     if value[*end..].starts_with('{') {
         let label_start = *end + 1;

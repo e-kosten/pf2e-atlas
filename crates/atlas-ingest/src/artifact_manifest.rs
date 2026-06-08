@@ -226,6 +226,11 @@ fn metadata_source_fingerprint(
     let mut fields = Vec::new();
     fields.push(relative_source_path(source_root, &manifest_path));
     fields.push(manifest_hash);
+    collect_optional_file_metadata(
+        source_root,
+        &source_root.join("static/lang/en.json"),
+        &mut fields,
+    )?;
 
     for pack in manifest.packs {
         fields.push("pack".to_string());
@@ -250,6 +255,24 @@ fn metadata_source_fingerprint(
         kind: "file_metadata_v1".to_string(),
         value: fingerprint_hash("atlas-source-fingerprint-file-metadata-v1", fields.iter()),
     })
+}
+
+fn collect_optional_file_metadata(
+    source_root: &Path,
+    path: &Path,
+    fields: &mut Vec<String>,
+) -> Result<(), IngestError> {
+    if !path.is_file() {
+        return Ok(());
+    }
+
+    let metadata =
+        fs::metadata(path).map_err(|error| IngestError::SourceUnavailable(error.to_string()))?;
+    fields.push("file".to_string());
+    fields.push(relative_source_path(source_root, path));
+    fields.push(metadata.len().to_string());
+    fields.push(modified_nanos(&metadata).to_string());
+    Ok(())
 }
 
 fn modified_nanos(metadata: &fs::Metadata) -> u128 {

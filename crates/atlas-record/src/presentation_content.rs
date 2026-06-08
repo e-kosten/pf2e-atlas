@@ -332,10 +332,17 @@ fn foundry_node_display_text(node: &FoundryNode) -> String {
         FoundryNode::Trait { label, traits } => {
             label_text(label).unwrap_or_else(|| traits.join(" "))
         }
-        FoundryNode::Localize { key, value } => value
-            .as_deref()
-            .map(render_nodes_plain_text)
-            .filter(|value| !value.trim().is_empty())
+        FoundryNode::Localize {
+            key,
+            label,
+            resolved,
+        } => label_text(label)
+            .or_else(|| {
+                resolved
+                    .as_deref()
+                    .map(render_nodes_plain_text)
+                    .filter(|resolved| !resolved.trim().is_empty())
+            })
             .unwrap_or_else(|| key.clone()),
         FoundryNode::UnknownFoundry {
             label, body, name, ..

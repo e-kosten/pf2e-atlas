@@ -11,6 +11,7 @@ use tracing::info;
 
 use crate::diagnostics::IngestDiagnostics;
 use crate::error::IngestError;
+use crate::source::localization::{LocalizationCatalog, LocalizationSourceFile};
 use crate::source::model::SkippedRecord;
 use crate::source::normalize::{ContentParseDiagnostics, DroppedContentMacro, normalize_record};
 use crate::source::{LoadedPack, ManifestPack, ParsedManifest, SourceLoad};
@@ -63,6 +64,7 @@ pub(crate) fn load_foundry_source_records(
         .map(Path::to_path_buf)
         .unwrap_or_else(|| default_manifest_path(source_root));
     let parsed_manifest = parse_manifest(&manifest_path)?;
+    let localization = LocalizationCatalog::load(source_root)?;
     let mut packs = Vec::new();
     let mut records = Vec::new();
     let mut source_signature_records = Vec::new();
@@ -120,8 +122,13 @@ pub(crate) fn load_foundry_source_records(
         let processed_files = paths
             .par_iter()
             .map(|path| {
-                let processed_file =
-                    process_source_file(source_root, &manifest_pack, &pack_name, path);
+                let processed_file = process_source_file(
+                    source_root,
+                    &manifest_pack,
+                    &pack_name,
+                    path,
+                    &localization,
+                );
                 let processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
                 if processed == paths.len() || processed.is_multiple_of(record_progress_interval) {
                     info!(target: "atlas_progress",
@@ -183,6 +190,7 @@ pub(crate) fn load_foundry_source_records(
         source_root,
         &manifest_path,
         &parsed_manifest.content_hash,
+        localization.source_files(),
         &packs,
         &source_signature_records,
         &skipped_records,
@@ -223,6 +231,7 @@ fn process_source_file(
     manifest_pack: &ManifestPack,
     pack_name: &PackName,
     path: &Path,
+    localization: &LocalizationCatalog,
 ) -> ProcessedSourceFile {
     let mut timing = SourceLoadTiming::default();
     let result = read_json_record(path, &mut timing).and_then(|raw_record| {
@@ -233,6 +242,7 @@ fn process_source_file(
             path,
             source_root,
             raw_record.value,
+            Some(localization),
         );
         timing.normalize_duration += normalize_started_at.elapsed();
         normalized_record.map(|record| LoadedSourceFile {
@@ -326,6 +336,7 @@ fn compute_source_signature(
     source_root: &Path,
     manifest_path: &Path,
     manifest_content_hash: &str,
+    localization_sources: &[LocalizationSourceFile],
     packs: &[LoadedPack],
     records: &[SourceSignatureRecord],
     skipped_records: &[SkippedRecord],
@@ -338,6 +349,15 @@ fn compute_source_signature(
         &relative_source_path(source_root, manifest_path),
     );
     hash_field(&mut hasher, manifest_content_hash);
+
+    for source in localization_sources {
+        hash_field(&mut hasher, "localization");
+        hash_field(
+            &mut hasher,
+            &relative_source_path(source_root, &source.path),
+        );
+        hash_field(&mut hasher, &source.content_hash);
+    }
 
     let mut sorted_packs = packs.iter().collect::<Vec<_>>();
     sorted_packs.sort_by(|left, right| left.name.as_str().cmp(right.name.as_str()));

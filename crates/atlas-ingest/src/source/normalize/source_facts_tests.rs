@@ -51,6 +51,7 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
         Path::new("packs/bestiary/actor.json"),
         Path::new("."),
         raw,
+        None,
     )
     .expect("actor normalizes");
     let record = &loaded.record;
@@ -124,6 +125,7 @@ fn normalizes_spell_item_into_nested_item_and_spell_shape() {
         Path::new("packs/spells/spell.json"),
         Path::new("."),
         raw,
+        None,
     )
     .expect("spell normalizes");
     let record = &loaded.record;
@@ -220,6 +222,7 @@ fn rejects_present_unsupported_rarity() {
         Path::new("packs/spells/spell.json"),
         Path::new("."),
         raw,
+        None,
     )
     .expect_err("unsupported rarity should fail normalization");
 
@@ -302,6 +305,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         Path::new("packs/bestiary/host.json"),
         Path::new("."),
         raw,
+        None,
     )
     .expect("record normalizes");
 
