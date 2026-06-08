@@ -72,7 +72,8 @@ describe("useAtlasWorkspace", () => {
 
     expect(result.current.search.query).toBe("fi");
     expect(result.current.diagnostics.searchDebouncing).toBe(true);
-    expect(window.location.search).toContain("fi");
+    expect(window.location.pathname).toBe("/search");
+    expect(window.location.search).toBe("?q=fi&mode=text");
     await delay(150);
     expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1);
 
@@ -108,11 +109,46 @@ describe("useAtlasWorkspace", () => {
 
     act(() => result.current.openActiveResult());
     expect(result.current.selectedRecordKey).toBe("spell:heal");
-    expect(window.location.pathname).toBe("/records/spell%3Aheal");
+    expect(window.location.pathname).toBe("/search/records/spell%3Aheal");
+    expect(window.location.search).toBe("");
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
-    expect(window.location.pathname).toBe("/");
+    expect(window.location.pathname).toBe("/search");
+    expect(window.location.search).toBe("");
+  });
+
+  it("writes simple filters as compact URL params", async () => {
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+
+    act(() =>
+      result.current.setSearch({
+        ...DEFAULT_SEARCH_STATE,
+        filterClauses: [
+          {
+            id: "kind-include_any",
+            field: "kind",
+            operator: "include_any",
+            values: ["affliction", "character"],
+          },
+          {
+            id: "kind-exclude_any",
+            field: "kind",
+            operator: "exclude_any",
+            values: ["character_option"],
+          },
+        ],
+      }),
+    );
+
+    expect(window.location.pathname).toBe("/search");
+    expect(window.location.search).toBe(
+      "?kind=affliction&kind=character&exclude-kind=character_option",
+    );
   });
 
   it("discovers values for count-backed visible editor fields", async () => {
