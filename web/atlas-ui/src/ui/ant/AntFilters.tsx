@@ -53,6 +53,8 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
   const optionalFilterIds = additionalVisibleFilterIds(workspace);
   const addFilterGroups = additionalFilterGroups(workspace);
   const activeFilters = hasActiveFilters(search);
+  const textSearchActive =
+    search.mode === "text_search" && search.query.trim().length > 0;
 
   return (
     <aside className="filter-panel">
@@ -168,13 +170,15 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
               label: "Result options",
               children: (
                 <div className="control-row">
-                  <Form.Item label="Sort">
-                    <Select
-                      options={SORT_OPTIONS}
-                      value={search.sort}
-                      onChange={(sort) => setSearch({ ...search, sort })}
-                    />
-                  </Form.Item>
+                  {textSearchActive ? null : (
+                    <Form.Item label="Sort">
+                      <Select
+                        options={SORT_OPTIONS}
+                        value={search.sort}
+                        onChange={(sort) => setSearch({ ...search, sort })}
+                      />
+                    </Form.Item>
+                  )}
                   <Form.Item label="Page size">
                     <InputNumber
                       min={10}
