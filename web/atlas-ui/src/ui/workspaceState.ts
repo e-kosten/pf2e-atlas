@@ -1,4 +1,7 @@
-import { decodeSearchState, type SearchFormState } from "../state/searchState";
+import {
+  decodeSearchStateFromParams,
+  type SearchFormState,
+} from "../state/searchState";
 
 export type WorkspaceInteractionState = {
   search: SearchFormState;
@@ -21,8 +24,8 @@ export type WorkspaceInteractionEvent =
   | { type: "record.selected"; recordKey: string | null };
 
 export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
-  const search = decodeSearchState(
-    new URLSearchParams(window.location.search).get("s"),
+  const search = decodeSearchStateFromParams(
+    new URLSearchParams(window.location.search),
   );
   return {
     search,
@@ -82,6 +85,12 @@ export function workspaceInteractionReducer(
 }
 
 export function recordKeyFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/records\/(.+)$/);
+  const match = pathname.match(/^\/(?:search\/)?records\/(.+)$/);
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+export function workspacePath(recordKey: string | null): string {
+  return recordKey === null
+    ? "/search"
+    : `/search/records/${encodeURIComponent(recordKey)}`;
 }

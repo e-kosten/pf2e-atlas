@@ -27,11 +27,13 @@ import {
   DEFAULT_SEARCH_STATE,
   encodeSearchExecutionState,
   encodeSearchState,
+  searchStateQueryString,
   type SearchFormState,
 } from "../state/searchState";
 import {
   initialWorkspaceInteractionState,
   recordKeyFromPath,
+  workspacePath,
   workspaceInteractionReducer,
 } from "./workspaceState";
 
@@ -250,18 +252,14 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   function setSearch(next: SearchFormState) {
     dispatch({ type: "search.changed", search: next });
-    const url = selectedRecordKey
-      ? `/records/${encodeURIComponent(selectedRecordKey)}?s=${encodeSearchState(next)}`
-      : `/?s=${encodeSearchState(next)}`;
+    const url = `${workspacePath(selectedRecordKey)}${searchStateQueryString(next)}`;
     history.replaceState(null, "", url);
   }
 
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
-    const url =
-      recordKey === null
-        ? `/?s=${searchToken}`
-        : `/records/${encodeURIComponent(recordKey)}?s=${searchToken}`;
+    const searchQuery = searchStateQueryString(search);
+    const url = `${workspacePath(recordKey)}${searchQuery}`;
     history.pushState(null, "", url);
   }
 
