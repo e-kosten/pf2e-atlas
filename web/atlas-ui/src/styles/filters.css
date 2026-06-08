@@ -1,0 +1,221 @@
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap);
+  padding: var(--panel-padding);
+  overflow: auto;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.control-group label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.filter-section {
+  display: grid;
+  gap: 10px;
+}
+
+.filter-option-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  gap: 8px;
+}
+
+.filter-option-row:hover,
+.filter-option-row:focus-visible {
+  background: var(--panel-subtle);
+  outline: none;
+}
+
+.filter-option-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.filter-option-state-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: transparent;
+  line-height: 1;
+}
+
+.filter-option-state-marker svg {
+  display: block;
+}
+
+.filter-option-row.is-included .filter-option-state-marker {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.filter-option-row.is-excluded .filter-option-state-marker {
+  border-color: color-mix(in srgb, var(--muted) 55%, var(--line));
+  background: var(--panel-subtle);
+  color: var(--muted);
+}
+
+.tri-state-filter-root {
+  display: grid;
+  position: relative;
+  gap: 6px;
+}
+
+.tri-state-filter-trigger {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 32px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.tri-state-filter-trigger:hover,
+.tri-state-filter-trigger.is-open,
+.tri-state-filter-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  outline: none;
+}
+
+.tri-state-filter-placeholder {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tri-state-filter-menu {
+  display: grid;
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-width: calc(100vw - 32px);
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.tri-state-filter-options {
+  display: grid;
+  gap: 2px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.tri-state-filter-empty {
+  margin: 8px 0;
+}
+
+.filter-value-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-inline-end: 0;
+}
+
+.filter-value-tag-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.filter-value-tag-marker svg {
+  display: block;
+}
+
+.filter-value-tag-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-value-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.filter-value-tag-remove:hover,
+.filter-value-tag-remove:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  outline: none;
+}
+
+.filter-value-tag-remove svg {
+  display: block;
+}
+
+.filter-value-tag.is-included {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.filter-value-tag.is-excluded {
+  border-color: color-mix(in srgb, var(--muted) 42%, transparent);
+  background: var(--panel-subtle);
+  color: var(--muted);
+}
+
+.filter-empty-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}

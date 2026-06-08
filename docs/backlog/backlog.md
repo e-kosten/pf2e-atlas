@@ -46,6 +46,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust web filter UX expansion](./items/rust-web-filter-ux-expansion.md)
   Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: proposed.
 
+- [Rust web filter state policy hardening](./items/rust-web-filter-state-policy-hardening.md)
+  Require backend-derived operator policy for option-field value mutations so frontend filter helpers cannot silently fall back to local operator assumptions. Status: proposed.
+
 - [Rust web record detail polish](./items/rust-web-record-detail-polish.md)
   Improve record detail readability, navigation, loading states, and shared presentation-contract usage in the web UI. Status: proposed.
 
