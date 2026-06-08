@@ -9,6 +9,7 @@ import {
   InputNumber,
   Select,
   Tag,
+  Tooltip,
 } from "antd";
 import { Minus, Plus, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -20,12 +21,16 @@ import {
   additionalFilterGroups,
   additionalVisibleFilterIds,
   booleanForField,
+  clearAllFilters,
+  clearFieldFilter,
   clearSelectedValueForField,
   controlKindForField,
   cycleSelectedValueForField,
   discoveredOptions,
   editorFieldForId,
   excludedValuesForField,
+  hasActiveFieldFilter,
+  hasActiveFilters,
   includeOperatorForField,
   labelForField,
   metricComparisonForField,
@@ -47,6 +52,7 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
   const standardFilterFields = visibleEditorFilterFields(workspace);
   const optionalFilterIds = additionalVisibleFilterIds(workspace);
   const addFilterGroups = additionalFilterGroups(workspace);
+  const activeFilters = hasActiveFilters(search);
 
   return (
     <aside className="filter-panel">
@@ -55,26 +61,36 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
       ) : null}
       <Form className="ant-filter-form" layout="vertical" size="middle">
         <Form.Item label="Search">
-          <Input.Search
-            allowClear
-            enterButton={<Search size={16} />}
-            placeholder="Search records"
-            value={search.query}
-            onChange={(event) =>
-              setSearch({
-                ...search,
-                query: event.target.value,
-                mode: event.target.value.trim() ? "text_search" : "browse",
-              })
-            }
-            onSearch={(query) =>
-              setSearch({
-                ...search,
-                query,
-                mode: query.trim() ? "text_search" : "browse",
-              })
-            }
-          />
+          <div className="filter-search-row">
+            <Input.Search
+              allowClear
+              enterButton={<Search size={16} />}
+              placeholder="Search records"
+              value={search.query}
+              onChange={(event) =>
+                setSearch({
+                  ...search,
+                  query: event.target.value,
+                  mode: event.target.value.trim() ? "text_search" : "browse",
+                })
+              }
+              onSearch={(query) =>
+                setSearch({
+                  ...search,
+                  query,
+                  mode: query.trim() ? "text_search" : "browse",
+                })
+              }
+            />
+            <Tooltip title="Clear search and filters">
+              <Button
+                aria-label="Clear search and filters"
+                icon={<X size={14} />}
+                disabled={!activeFilters}
+                onClick={() => setSearch(clearAllFilters(search))}
+              />
+            </Tooltip>
+          </div>
         </Form.Item>
         <Collapse
           className="ant-filter-collapse"
@@ -189,52 +205,57 @@ function FilterFieldControl({
 }) {
   const { search, setSearch } = workspace;
   const controlKind = controlKindForField(workspace, field.id);
+  const fieldLabel = (
+    <FilterFieldLabel workspace={workspace} fieldId={field.id} label={field.label} />
+  );
 
   if (controlKind === "range") {
     const range = rangeForField(search, field.id);
     const minLabel = field.control.kind === "range" ? field.control.min_label : "Min";
     const maxLabel = field.control.kind === "range" ? field.control.max_label : "Max";
     return (
-      <div className="control-row">
-        <Form.Item label={`${minLabel} ${field.label.toLowerCase()}`}>
-          <InputNumber
-            min={field.control.kind === "range" ? field.control.min : undefined}
-            max={field.control.kind === "range" ? field.control.max : undefined}
-            step={field.control.kind === "range" ? field.control.step : undefined}
-            value={range.min}
-            onChange={(min) =>
-              setSearch(
-                setRangeForField(search, field.id, {
-                  ...range,
-                  min: min ?? null,
-                }),
-              )
-            }
-          />
-        </Form.Item>
-        <Form.Item label={`${maxLabel} ${field.label.toLowerCase()}`}>
-          <InputNumber
-            min={field.control.kind === "range" ? field.control.min : undefined}
-            max={field.control.kind === "range" ? field.control.max : undefined}
-            step={field.control.kind === "range" ? field.control.step : undefined}
-            value={range.max}
-            onChange={(max) =>
-              setSearch(
-                setRangeForField(search, field.id, {
-                  ...range,
-                  max: max ?? null,
-                }),
-              )
-            }
-          />
-        </Form.Item>
-      </div>
+      <Form.Item label={fieldLabel}>
+        <div className="control-row">
+          <Form.Item label={`${minLabel} ${field.label.toLowerCase()}`}>
+            <InputNumber
+              min={field.control.kind === "range" ? field.control.min : undefined}
+              max={field.control.kind === "range" ? field.control.max : undefined}
+              step={field.control.kind === "range" ? field.control.step : undefined}
+              value={range.min}
+              onChange={(min) =>
+                setSearch(
+                  setRangeForField(search, field.id, {
+                    ...range,
+                    min: min ?? null,
+                  }),
+                )
+              }
+            />
+          </Form.Item>
+          <Form.Item label={`${maxLabel} ${field.label.toLowerCase()}`}>
+            <InputNumber
+              min={field.control.kind === "range" ? field.control.min : undefined}
+              max={field.control.kind === "range" ? field.control.max : undefined}
+              step={field.control.kind === "range" ? field.control.step : undefined}
+              value={range.max}
+              onChange={(max) =>
+                setSearch(
+                  setRangeForField(search, field.id, {
+                    ...range,
+                    max: max ?? null,
+                  }),
+                )
+              }
+            />
+          </Form.Item>
+        </div>
+      </Form.Item>
     );
   }
 
   if (controlKind === "boolean") {
     return (
-      <Form.Item label={field.label}>
+      <Form.Item label={fieldLabel}>
         <Select
           allowClear
           loading={workspace.filterDiscoveryLoading}
@@ -254,7 +275,7 @@ function FilterFieldControl({
 
   return (
     <>
-      <Form.Item label={field.label}>
+      <Form.Item label={fieldLabel}>
         <TriStateOptionFilter workspace={workspace} fieldId={field.id} />
       </Form.Item>
       {field.id === "traits" ? (
@@ -274,6 +295,36 @@ function FilterFieldControl({
         </Checkbox>
       ) : null}
     </>
+  );
+}
+
+function FilterFieldLabel({
+  workspace,
+  fieldId,
+  label,
+}: {
+  workspace: AtlasWorkspaceState;
+  fieldId: string;
+  label: string;
+}) {
+  const active = hasActiveFieldFilter(workspace.search, fieldId);
+  return (
+    <div className="control-heading">
+      <span>{label}</span>
+      {active ? (
+        <Button
+          aria-label={`Clear ${label} filter`}
+          icon={<X size={12} />}
+          size="small"
+          type="text"
+          onClick={() =>
+            workspace.setSearch(clearFieldFilter(workspace.search, fieldId))
+          }
+        >
+          Clear
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

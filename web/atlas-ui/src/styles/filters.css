@@ -19,6 +19,12 @@
   gap: 8px;
 }
 
+.filter-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .control-group label {
   color: var(--muted);
   font-size: 12px;

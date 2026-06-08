@@ -22,6 +22,126 @@ describe("AntFilters", () => {
     expect(levelInputs[1]).toHaveAttribute("step", "1");
   });
 
+  it("starts with no active filters and disables the global clear action", () => {
+    render(<AntFilters workspace={workspace()} />);
+
+    expect(
+      screen.getByRole("button", { name: /clear search and filters/i }),
+    ).toBeDisabled();
+  });
+
+  it("enables the global clear action for search text without filters", () => {
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            query: "doom",
+            mode: "text_search",
+          },
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /clear search and filters/i }),
+    ).toBeEnabled();
+  });
+
+  it("clears search and all filters without changing result options", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            query: "doom",
+            mode: "text_search",
+            sort: "alphabetical",
+            pageSize: 50,
+            visibleFilterIds: ["publication_remaster"],
+            hiddenFilterIds: ["pack"],
+            filterClauses: [
+              {
+                id: "kind-include_any",
+                field: "kind",
+                operator: "include_any",
+                values: ["spell"],
+              },
+              {
+                id: "level-range",
+                field: "level",
+                operator: "range",
+                values: [],
+                range: { min: 2 },
+              },
+            ],
+          },
+          setSearch,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /clear search and filters/i }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: "",
+        mode: "browse",
+        sort: "alphabetical",
+        pageSize: 50,
+        visibleFilterIds: [],
+        hiddenFilterIds: [],
+        filterClauses: [],
+      }),
+    );
+  });
+
+  it("clears a standard field without removing unrelated filter clauses", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            filterClauses: [
+              {
+                id: "kind-include_any",
+                field: "kind",
+                operator: "include_any",
+                values: ["spell"],
+              },
+              {
+                id: "level-range",
+                field: "level",
+                operator: "range",
+                values: [],
+                range: { min: 2 },
+              },
+            ],
+          },
+          setSearch,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /clear kinds filter/i }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filterClauses: expect.arrayContaining([
+          expect.objectContaining({
+            field: "level",
+            operator: "range",
+          }),
+        ]),
+      }),
+    );
+    expect(lastSearch(setSearch).filterClauses).not.toContainEqual(
+      expect.objectContaining({ field: "kind" }),
+    );
+  });
+
   it("renders added filters from backend labels and supports removal", () => {
     const setSearch = vi.fn();
     render(

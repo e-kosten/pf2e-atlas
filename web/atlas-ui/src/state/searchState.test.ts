@@ -16,14 +16,7 @@ describe("searchState", () => {
         kind: "list_records",
         sort: { kind: "record_key" },
         filter: {
-          clauses: [
-            {
-              id: "kind-include_any",
-              field: "kind",
-              operator: "include_any",
-              values: ["spell", "feat", "equipment"],
-            },
-          ],
+          clauses: [],
         },
       },
       page: { number: 3, size: 25 },
@@ -69,10 +62,7 @@ describe("searchState", () => {
     expect(context).toEqual({
       kind: "filtered",
       filter: {
-        clauses: expect.arrayContaining([
-          expect.objectContaining({ field: "kind" }),
-          expect.objectContaining({ field: "rarity", values: ["rare"] }),
-        ]),
+        clauses: [expect.objectContaining({ field: "rarity", values: ["rare"] })],
       },
     });
   });
@@ -152,7 +142,7 @@ describe("searchState", () => {
     expect(decodeSearchState(encoded)).toEqual(state);
   });
 
-  it("uses default clauses when encoded state does not include clause state", () => {
+  it("uses no filter clauses when encoded state does not include clause state", () => {
     const encoded = encodeURIComponent(
       JSON.stringify({
         rarity: ["uncommon", "rare"],
@@ -173,9 +163,7 @@ describe("searchState", () => {
       }),
     );
 
-    expect(decodeSearchState(encoded).filterClauses).toEqual(
-      DEFAULT_SEARCH_STATE.filterClauses,
-    );
+    expect(decodeSearchState(encoded).filterClauses).toEqual([]);
   });
 
   it("falls back to defaults for missing or malformed encoded state", () => {

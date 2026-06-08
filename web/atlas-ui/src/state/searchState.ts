@@ -38,21 +38,12 @@ export type SortKey =
   | "price_asc"
   | "price_desc";
 
-export const DEFAULT_FILTER_CLAUSES: FilterClause[] = [
-  {
-    id: "kind-include_any",
-    field: "kind",
-    operator: "include_any",
-    values: ["spell", "feat", "equipment"],
-  },
-];
-
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
   mode: "browse",
   visibleFilterIds: [],
   hiddenFilterIds: [],
-  filterClauses: DEFAULT_FILTER_CLAUSES,
+  filterClauses: [],
   sort: "record_key",
   pageSize: 25,
   includeDiagnostics: false,
