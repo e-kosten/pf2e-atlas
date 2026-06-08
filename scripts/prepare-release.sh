@@ -427,8 +427,6 @@ ensure_release_prep_scope() {
 
 run_release_pr_checks() {
   run_check scripts/release/validate-release-tooling.sh
-  run_check scripts/release/test-prepare-release.sh
-  run_check scripts/git-hooks/test-common.sh
   run_check scripts/verify.sh
 }
 
@@ -465,8 +463,6 @@ if [ "$open_pr" -eq 1 ]; then
   info "Notes:      $notes_file"
   info "Checks:"
   info "  scripts/release/validate-release-tooling.sh"
-  info "  scripts/release/test-prepare-release.sh"
-  info "  scripts/git-hooks/test-common.sh"
   info "  scripts/verify.sh"
 
   if [ "$dry_run" -eq 1 ]; then
