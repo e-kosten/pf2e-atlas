@@ -126,6 +126,40 @@ export function removeVisibleFilter(workspace: AtlasWorkspaceState, fieldId: str
   });
 }
 
+export function hasActiveFilters(search: SearchFormState): boolean {
+  return (
+    search.query.length > 0 ||
+    search.filterClauses.length > 0 ||
+    search.visibleFilterIds.length > 0 ||
+    search.hiddenFilterIds.length > 0
+  );
+}
+
+export function hasActiveFieldFilter(
+  search: SearchFormState,
+  fieldId: string,
+): boolean {
+  return search.filterClauses.some((clause) => clause.field === fieldId);
+}
+
+export function clearAllFilters(search: SearchFormState): SearchFormState {
+  return {
+    ...search,
+    query: "",
+    mode: "browse",
+    visibleFilterIds: [],
+    hiddenFilterIds: [],
+    filterClauses: [],
+  };
+}
+
+export function clearFieldFilter(
+  search: SearchFormState,
+  fieldId: string,
+): SearchFormState {
+  return clearFieldValue(search, fieldId);
+}
+
 export function valuesForField(search: SearchFormState, fieldId: string): string[] {
   return valueClause(search, fieldId)?.values ?? [];
 }
