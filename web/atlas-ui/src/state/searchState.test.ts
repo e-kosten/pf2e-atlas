@@ -4,6 +4,7 @@ import {
   decodeSearchStateFromParams,
   decodeSearchState,
   DEFAULT_SEARCH_STATE,
+  encodeSearchExecutionState,
   encodeSearchState,
   searchStateQueryString,
   type SearchFormState,
@@ -16,7 +17,7 @@ describe("searchState", () => {
     expect(request).toMatchObject({
       mode: {
         kind: "list_records",
-        sort: { kind: "record_key" },
+        sort: { kind: "alphabetical" },
         filter: {
           clauses: [],
         },
@@ -43,6 +44,45 @@ describe("searchState", () => {
     });
     expect("sort" in request.mode).toBe(false);
     expect(request.include_diagnostics).toBe(true);
+  });
+
+  it("builds a browse request with random list sort", () => {
+    const request = buildOpenRequest(
+      {
+        ...DEFAULT_SEARCH_STATE,
+        sort: "random",
+      },
+      1,
+    );
+
+    expect(request.mode.kind).toBe("list_records");
+    if (request.mode.kind === "list_records") {
+      expect(request.mode.sort.kind).toBe("random");
+      if (request.mode.sort.kind === "random") {
+        expect(typeof request.mode.sort.seed).toBe("bigint");
+      }
+    }
+  });
+
+  it("keeps text-search execution state independent from browse sort", () => {
+    const textState: SearchFormState = {
+      ...DEFAULT_SEARCH_STATE,
+      mode: "text_search",
+      query: "heal",
+      sort: "level_desc",
+    };
+    const browseState: SearchFormState = {
+      ...DEFAULT_SEARCH_STATE,
+      mode: "browse",
+      sort: "level_desc",
+    };
+
+    expect(decodeURIComponent(encodeSearchExecutionState(textState))).not.toContain(
+      "level_desc",
+    );
+    expect(decodeURIComponent(encodeSearchExecutionState(browseState))).toContain(
+      "level_desc",
+    );
   });
 
   it("builds filter discovery context from clauses only", () => {

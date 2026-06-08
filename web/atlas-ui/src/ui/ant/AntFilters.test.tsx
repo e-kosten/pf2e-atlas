@@ -48,6 +48,31 @@ describe("AntFilters", () => {
     ).toBeEnabled();
   });
 
+  it("shows browse sort options including random", () => {
+    render(<AntFilters workspace={workspace()} />);
+
+    fireEvent.mouseDown(screen.getByText("Alphabetical"));
+
+    expect(screen.getAllByTitle("Alphabetical").length).toBeGreaterThan(0);
+    expect(screen.getByTitle("Random")).toBeInTheDocument();
+  });
+
+  it("hides browse sort while text search ranking is active", () => {
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            query: "doom",
+            mode: "text_search",
+          },
+        })}
+      />,
+    );
+
+    expect(screen.queryByText("Sort")).not.toBeInTheDocument();
+  });
+
   it("clears search and all filters without changing result options", () => {
     const setSearch = vi.fn();
     render(

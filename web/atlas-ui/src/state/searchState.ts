@@ -31,12 +31,13 @@ export type SearchFormState = {
 };
 
 export type SortKey =
-  | "record_key"
   | "alphabetical"
   | "level_asc"
   | "level_desc"
   | "price_asc"
-  | "price_desc";
+  | "price_desc"
+  | "random"
+  | "record_key";
 
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
@@ -44,18 +45,19 @@ export const DEFAULT_SEARCH_STATE: SearchFormState = {
   visibleFilterIds: [],
   hiddenFilterIds: [],
   filterClauses: [],
-  sort: "record_key",
+  sort: "alphabetical",
   pageSize: 25,
   includeDiagnostics: false,
 };
 
 export const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
-  { value: "record_key", label: "Record Key" },
   { value: "alphabetical", label: "Alphabetical" },
   { value: "level_asc", label: "Level Up" },
   { value: "level_desc", label: "Level Down" },
   { value: "price_asc", label: "Price Up" },
   { value: "price_desc", label: "Price Down" },
+  { value: "random", label: "Random" },
+  { value: "record_key", label: "Record Key" },
 ];
 
 const MODE_VALUES = ["browse", "text_search"] as const;
@@ -122,9 +124,17 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
   const {
     visibleFilterIds: _visibleFilterIds,
     hiddenFilterIds: _hiddenFilterIds,
+    sort: _sort,
     ...executionState
   } = state;
-  return encodeURIComponent(JSON.stringify(executionState));
+  const payload: Omit<
+    SearchFormState,
+    "visibleFilterIds" | "hiddenFilterIds" | "sort"
+  > & { sort?: SortKey } = executionState;
+  if (executionState.mode === "browse" || !executionState.query.trim()) {
+    payload.sort = state.sort;
+  }
+  return encodeURIComponent(JSON.stringify(payload));
 }
 
 export function searchStateQueryString(state: SearchFormState): string {
@@ -709,7 +719,15 @@ function metricValue(value: unknown): MetricComparison | null {
 }
 
 function sortView(sort: SortKey): RecordListSortView {
+  if (sort === "random") {
+    return { kind: "random", seed: randomSortSeed() };
+  }
   return { kind: sort };
+}
+
+function randomSortSeed(): bigint {
+  const random = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+  return random === 0n ? 1n : random;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

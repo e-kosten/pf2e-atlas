@@ -54,6 +54,52 @@ describe("atlasApi", () => {
     expect(result.page.total).toBe(42n);
   });
 
+  it("serializes random sort seeds in result-window requests", async () => {
+    const fetchMock = mockFetch(resultWindowPayload());
+    const request: OpenResultWindowRequest = {
+      mode: {
+        kind: "list_records",
+        filter: { clauses: [] },
+        sort: { kind: "random", seed: 123n },
+      },
+      page: { number: 1, size: 25 },
+      include_diagnostics: false,
+    };
+
+    await openResultWindow(request);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/result-windows",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          ...request,
+          mode: {
+            ...request.mode,
+            sort: { kind: "random", seed: 123 },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects request bigint fields that exceed the JSON safe integer range", async () => {
+    const request: OpenResultWindowRequest = {
+      mode: {
+        kind: "list_records",
+        filter: { clauses: [] },
+        sort: { kind: "random", seed: BigInt(Number.MAX_SAFE_INTEGER) + 1n },
+      },
+      page: { number: 1, size: 25 },
+      include_diagnostics: false,
+    };
+
+    await expect(openResultWindow(request)).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
   it("posts filter-editor requests and normalizes record counts", async () => {
     const request = {
       context: { kind: "filtered" as const, filter: { clauses: [] } },

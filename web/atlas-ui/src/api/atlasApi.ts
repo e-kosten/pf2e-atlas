@@ -34,7 +34,7 @@ export async function discoverFilterEditor(
 ): Promise<FilterEditorView> {
   const editor = await atlasFetch<unknown>("/api/filters/editor", {
     method: "POST",
-    body: JSON.stringify(request),
+    body: jsonBody(request),
   });
   return normalizeFilterEditor(editor);
 }
@@ -44,7 +44,7 @@ export async function discoverFilterValues(
 ): Promise<FilterValueListView> {
   const values = await atlasFetch<unknown>("/api/filters/values", {
     method: "POST",
-    body: JSON.stringify(request),
+    body: jsonBody(request),
   });
   return normalizeFilterValueList(values);
 }
@@ -54,7 +54,7 @@ export async function openResultWindow(
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>("/api/result-windows", {
     method: "POST",
-    body: JSON.stringify(request),
+    body: jsonBody(request),
   });
   return normalizeResultWindowPage(page);
 }
@@ -67,7 +67,7 @@ export async function readResultWindowPage(
     `/api/result-windows/${windowId.toString()}/page`,
     {
       method: "POST",
-      body: JSON.stringify(request),
+      body: jsonBody(request),
     },
   );
   return normalizeResultWindowPage(page);
@@ -119,6 +119,21 @@ function parseJsonResponse(
   } catch (error) {
     return { ok: false, error };
   }
+}
+
+function jsonBody(value: unknown): string {
+  return JSON.stringify(value, (_key, nestedValue) => {
+    if (typeof nestedValue !== "bigint") {
+      return nestedValue;
+    }
+    if (nestedValue > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new AtlasApiError(
+        0,
+        "Request numeric field exceeds JSON safe integer range",
+      );
+    }
+    return Number(nestedValue);
+  });
 }
 
 function fallbackErrorMessage(
