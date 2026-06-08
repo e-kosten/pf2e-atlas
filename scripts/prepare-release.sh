@@ -303,7 +303,10 @@ ensure_release_identity_is_unused() {
       die "local tag $tag already exists"
     fi
   fi
+  ensure_release_identity_has_no_remote
+}
 
+ensure_release_identity_has_no_remote() {
   if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
     if [ "$dry_run" -eq 1 ]; then
       warn "remote tag $tag already exists"
@@ -319,6 +322,35 @@ ensure_release_identity_is_unused() {
       die "GitHub release $tag already exists"
     fi
   fi
+}
+
+prepare_publish_tag() {
+  if ! git rev-parse "$tag" >/dev/null 2>&1; then
+    return
+  fi
+
+  existing_target=$(git rev-parse "$tag^{}" 2>/dev/null || git rev-parse "$tag")
+  desired_target=$(git rev-parse HEAD)
+  if [ "$dry_run" -eq 1 ]; then
+    warn "real publish would ask to delete and recreate local tag $tag"
+    warn "local tag target: $existing_target"
+    warn "desired target:   $desired_target"
+    return
+  fi
+
+  info "Local tag $tag already exists."
+  info "Current target: $existing_target"
+  info "Desired target: $desired_target"
+  if ! can_prompt; then
+    die "local tag $tag already exists; rerun from a terminal to approve deleting and recreating it"
+  fi
+  printf 'Delete and recreate local tag %s at %s? [y/N] ' "$tag" "$desired_target"
+  read answer
+  case "$answer" in
+    y|Y|yes|YES) ;;
+    *) die "release cancelled; local tag $tag was left unchanged" ;;
+  esac
+  git tag -d "$tag"
 }
 
 write_release_notes_template() {
@@ -501,7 +533,11 @@ if [ -z "$version" ]; then
   fi
 fi
 set_release_vars
-ensure_release_identity_is_unused
+if [ "$publish" -eq 1 ]; then
+  ensure_release_identity_has_no_remote
+else
+  ensure_release_identity_is_unused
+fi
 
 if [ "$prepare_pr" -eq 1 ]; then
   if git rev-parse --verify "$release_branch" >/dev/null 2>&1; then
@@ -591,6 +627,7 @@ fi
 info "Local checks:"
 info "  scripts/verify.sh"
 info "  dist plan --verbose error --tag $tag --allow-dirty"
+prepare_publish_tag
 
 if [ "$dry_run" -eq 1 ]; then
   info "Dry run: would run checks, create annotated tag $tag, push it, and create draft GitHub release."

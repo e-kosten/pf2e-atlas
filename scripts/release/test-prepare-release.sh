@@ -92,6 +92,10 @@ case "$1" in
     fi
     case "$2" in
       HEAD|origin/main) printf 'abc123\n' ;;
+      v0.1.0^{})
+        [ "${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
+        exit 1
+        ;;
       v0.1.0)
         [ "${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
         exit 1
@@ -572,6 +576,22 @@ if [ "$dist_line" -ge "$post_check_status_line" ] || [ "$post_check_status_line"
   echo "prepare-release did not re-check worktree cleanliness after validation and before tagging" >&2
   exit 1
 fi
+
+: > "$log"
+ATLAS_TEST_LOCAL_TAG_EXISTS=1
+export ATLAS_TEST_LOCAL_TAG_EXISTS
+printf 'y\ny\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --publish --version 0.1.0 >/dev/null
+grep -q 'git tag -d v0.1.0' "$log" || {
+  echo "prepare-release did not delete an approved local tag before publishing" >&2
+  exit 1
+}
+delete_tag_line=$(first_log_line 'git tag -d v0.1.0')
+create_tag_line=$(first_log_line 'git tag -a v0.1.0')
+if [ "$delete_tag_line" -ge "$create_tag_line" ]; then
+  echo "prepare-release recreated the publish tag before deleting the stale local tag" >&2
+  exit 1
+fi
+reset_flags
 
 : > "$log"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_023'
