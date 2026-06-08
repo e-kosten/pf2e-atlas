@@ -314,10 +314,8 @@ grep -q 'scripts/release/validate-release-tooling.sh' "$log" || {
   echo "prepare-release --open-pr did not run release tooling validation" >&2
   exit 1
 }
-grep -q 'scripts/git-hooks/test-common.sh' "$log" || {
-  echo "prepare-release --open-pr did not run git-hook validation" >&2
-  exit 1
-}
+expect_log_absent 'scripts/release/test-prepare-release.sh' "prepare-release --open-pr ran recursive release-script smoke tests"
+expect_log_absent 'scripts/git-hooks/test-common.sh' "prepare-release --open-pr ran git-hook smoke tests"
 grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
   echo "prepare-release --open-pr did not run broad clippy validation" >&2
   exit 1
