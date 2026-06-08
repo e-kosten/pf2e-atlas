@@ -1,0 +1,44 @@
+.ant-filter-form {
+  display: grid;
+  gap: 8px;
+}
+
+.ant-filter-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.ant-filter-form .ant-form-item-label {
+  padding-bottom: 4px;
+}
+
+.ant-filter-form .ant-form-item-label > label {
+  width: 100%;
+  height: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ant-filter-collapse {
+  display: grid;
+  gap: 8px;
+}
+
+.ant-filter-collapse .ant-collapse-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-subtle);
+}
+
+.ant-filter-collapse .ant-collapse-header {
+  align-items: center !important;
+  min-height: 34px;
+  padding: 6px 8px !important;
+  color: var(--text) !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ant-filter-collapse .ant-collapse-content-box {
+  padding: 0 8px 10px !important;
+}

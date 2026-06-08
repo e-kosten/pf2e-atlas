@@ -1,0 +1,59 @@
+@media (max-width: 1180px) {
+  .diagnostics-panel {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+
+  .atlas-app--diagnostics .workspace-grid {
+    height: auto;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 290px minmax(0, 1fr);
+    height: auto;
+    min-height: calc(100vh - 77px);
+  }
+
+  .detail-panel {
+    grid-column: 1 / -1;
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 760px) {
+  .diagnostics-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topbar__actions {
+    justify-content: flex-start;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr !important;
+    padding: 10px;
+  }
+
+  .pane-resizer {
+    display: none;
+  }
+
+  .workspace-pane--collapsed {
+    min-height: 44px;
+  }
+
+  .pane-rail span {
+    writing-mode: initial;
+    transform: none;
+  }
+
+  .record-detail__header,
+  .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
