@@ -611,7 +611,7 @@ run_check dist plan --verbose error --tag "$tag" --allow-dirty
 ensure_clean_worktree
 
 git tag -a "$tag" -m "Release $tag"
-git push origin "$tag"
+git push --no-verify origin "$tag"
 
 if [ "$is_prerelease" -eq 1 ]; then
   gh release create "$tag" --draft --verify-tag --notes-file "$notes_file" --prerelease --latest=false --title "$tag"

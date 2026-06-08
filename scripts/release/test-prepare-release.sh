@@ -553,7 +553,7 @@ grep -q 'git tag -a v0.1.0 -m Release v0.1.0' "$log" || {
   echo "prepare-release did not create the expected annotated tag" >&2
   exit 1
 }
-grep -q 'git push origin v0.1.0' "$log" || {
+grep -q 'git push --no-verify origin v0.1.0' "$log" || {
   echo "prepare-release did not push the expected tag" >&2
   exit 1
 }
