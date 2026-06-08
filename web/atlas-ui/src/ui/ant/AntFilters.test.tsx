@@ -76,23 +76,242 @@ describe("AntFilters", () => {
     expect(screen.getByText("Operator")).toBeVisible();
     expect(screen.getByText("Value")).toBeVisible();
   });
+
+  it("selects neutral option rows as included values", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            filterClauses: [],
+          },
+          setSearch,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
+    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filterClauses: [
+          expect.objectContaining({
+            field: "kind",
+            operator: "include_any",
+            values: ["spell"],
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("cycles included option rows to excluded values", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            filterClauses: [
+              {
+                id: "kind-include_any",
+                field: "kind",
+                operator: "include_any",
+                values: ["spell", "feat"],
+              },
+            ],
+          },
+          setSearch,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
+    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filterClauses: expect.arrayContaining([
+          expect.objectContaining({
+            field: "kind",
+            operator: "exclude_any",
+            values: ["spell"],
+          }),
+        ]),
+      }),
+    );
+    expect(lastSearch(setSearch).filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "include_any",
+        values: ["feat"],
+      }),
+    );
+    expect(lastSearch(setSearch).filterClauses).not.toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "include_any",
+        values: expect.arrayContaining(["spell"]),
+      }),
+    );
+  });
+
+  it("cycles excluded option rows back to neutral", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            filterClauses: [
+              {
+                id: "kind-exclude_any",
+                field: "kind",
+                operator: "exclude_any",
+                values: ["spell"],
+              },
+            ],
+          },
+          setSearch,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
+    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filterClauses: [],
+      }),
+    );
+  });
+
+  it("clears included chips without advancing them to excluded", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            filterClauses: [
+              {
+                id: "kind-include_any",
+                field: "kind",
+                operator: "include_any",
+                values: ["spell"],
+              },
+            ],
+          },
+          setSearch,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /remove spell \(1\) filter/i }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filterClauses: [],
+      }),
+    );
+  });
+
+  it("does not cycle option rows to exclude when the field disallows exclusion", () => {
+    const setSearch = vi.fn();
+    render(
+      <AntFilters
+        workspace={workspace({
+          search: {
+            ...DEFAULT_SEARCH_STATE,
+            filterClauses: [
+              {
+                id: "kind-include_any",
+                field: "kind",
+                operator: "include_any",
+                values: ["spell"],
+              },
+            ],
+          },
+          setSearch,
+          filterEditor: includeOnlyKindEditor(),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
+    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+
+    expect(setSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filterClauses: [],
+      }),
+    );
+  });
+
+  it("closes option pickers when clicking outside the control", async () => {
+    render(<AntFilters workspace={workspace()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
+    expect(await screen.findByRole("button", { name: "spell (1)" })).toBeVisible();
+
+    fireEvent.click(document.body);
+
+    expect(screen.queryByRole("button", { name: "spell (1)" })).not.toBeInTheDocument();
+  });
+
+  it("keeps an open option picker stable while refreshed filter values narrow", async () => {
+    const { rerender } = render(<AntFilters workspace={workspace()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
+    expect(await screen.findByRole("button", { name: "spell (1)" })).toBeVisible();
+
+    rerender(
+      <AntFilters
+        workspace={workspace({
+          filterValuesByField: {
+            kind: {
+              field_id: "kind",
+              matching_record_count: 1n,
+              options: [],
+            },
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "spell (1)" })).toBeVisible();
+  });
 });
 
 function workspace(
   overrides: {
     search?: SearchFormState;
     setSearch?: (next: SearchFormState) => void;
+    filterEditor?: FilterEditorView;
+    filterValuesByField?: Partial<AtlasWorkspaceState["filterValuesByField"]>;
   } = {},
 ): AtlasWorkspaceState {
   return {
     search: overrides.search ?? DEFAULT_SEARCH_STATE,
     setSearch: overrides.setSearch ?? vi.fn(),
-    filterEditor: editor(),
+    filterEditor: overrides.filterEditor ?? editor(),
     filterValuesByField: {
       kind: {
         field_id: "kind",
         matching_record_count: 2n,
-        options: [],
+        options: [
+          {
+            value: "spell",
+            label: "spell",
+            count: 1n,
+            selected: false,
+            disabled: false,
+            status: "available",
+          },
+        ],
       },
       pack: {
         field_id: "pack",
@@ -127,10 +346,34 @@ function workspace(
           },
         ],
       },
+      ...overrides.filterValuesByField,
     },
     filterDiscoveryLoading: false,
     errorMessage: null,
   } as unknown as AtlasWorkspaceState;
+}
+
+function lastSearch(setSearch: ReturnType<typeof vi.fn>): SearchFormState {
+  return setSearch.mock.calls[setSearch.mock.calls.length - 1][0] as SearchFormState;
+}
+
+function includeOnlyKindEditor(): FilterEditorView {
+  const currentEditor = editor();
+  return {
+    ...currentEditor,
+    groups: currentEditor.groups.map((group) => ({
+      ...group,
+      fields: group.fields.map((field) =>
+        field.id === "kind"
+          ? {
+              ...field,
+              allowed_operators: ["include_any"],
+              default_operator: "include_any",
+            }
+          : field,
+      ),
+    })),
+  };
 }
 
 function editor(): FilterEditorView {
@@ -147,7 +390,7 @@ function editor(): FilterEditorView {
             control: { kind: "multi_select" },
             placement: "always_visible",
             applicability: "applicable",
-            allowed_operators: ["include_any"],
+            allowed_operators: ["include_any", "exclude_any"],
             default_operator: "include_any",
             supports_counts: true,
           },
@@ -180,7 +423,7 @@ function editor(): FilterEditorView {
             control: { kind: "multi_select" },
             placement: "initially_visible",
             applicability: "applicable",
-            allowed_operators: ["include_any"],
+            allowed_operators: ["include_any", "exclude_any"],
             default_operator: "include_any",
             supports_counts: true,
           },

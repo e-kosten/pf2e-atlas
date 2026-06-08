@@ -151,6 +151,41 @@ describe("useAtlasWorkspace", () => {
     );
   });
 
+  it("does not discover values for non-applicable count-backed fields", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue({
+      matching_record_count: 1n,
+      groups: [
+        {
+          id: "standard",
+          label: "Standard",
+          fields: [
+            {
+              id: "traits",
+              label: "Traits",
+              control: { kind: "multi_select" },
+              placement: "always_visible",
+              applicability: "selected_unavailable",
+              allowed_operators: ["include_any", "exclude_any"],
+              default_operator: "include_any",
+              supports_counts: true,
+            },
+          ],
+        },
+      ],
+    } satisfies FilterEditorView);
+
+    renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+    await delay(50);
+
+    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
+      expect.objectContaining({ field_id: "traits" }),
+    );
+  });
+
   it("passes selected visible fields to editor discovery", async () => {
     const { result } = renderHook(() => useAtlasWorkspace(), {
       wrapper: queryClientWrapper(),
@@ -212,6 +247,49 @@ describe("useAtlasWorkspace", () => {
     });
 
     await waitFor(() => expect(result.current.filterEditor?.groups).toEqual([]));
+  });
+
+  it("does not discover values from placeholder editor data during editor refresh", async () => {
+    const nextEditor = deferred<FilterEditorView>();
+    apiMocks.discoverFilterEditor
+      .mockResolvedValueOnce(filterEditor())
+      .mockReturnValueOnce(nextEditor.promise);
+    const { result } = renderHook(() => useAtlasWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.filterEditor).toEqual(filterEditor()));
+    await waitFor(() => expect(apiMocks.discoverFilterValues).toHaveBeenCalled());
+    const valueRequestsBeforeRefresh = apiMocks.discoverFilterValues.mock.calls.length;
+
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        filterClauses: [
+          {
+            id: "kind-include_any",
+            field: "kind",
+            operator: "include_any",
+            values: ["creature"],
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    await delay(50);
+
+    expect(apiMocks.discoverFilterValues).toHaveBeenCalledTimes(
+      valueRequestsBeforeRefresh,
+    );
+
+    await act(async () => {
+      nextEditor.resolve({
+        matching_record_count: 1n,
+        groups: [],
+      });
+      await nextEditor.promise;
+    });
   });
 
   it("keeps previous field values while refreshed value discovery is pending", async () => {

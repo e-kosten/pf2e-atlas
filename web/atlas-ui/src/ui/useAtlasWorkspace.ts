@@ -195,6 +195,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     return fields
       .filter(
         (field) =>
+          field.applicability === "applicable" &&
           field.supports_counts &&
           (field.placement === "always_visible" ||
             visibleFields.has(field.id) ||
@@ -206,6 +207,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const filterValueQueries = useQueries({
     queries: valueFieldIds.map((fieldId) => ({
       queryKey: ["filter-values", activeSearchExecutionToken, fieldId],
+      enabled: !filterEditorQuery.isPlaceholderData,
       placeholderData: () => retainedFilterValue(queryClient, fieldId),
       queryFn: () =>
         discoverFilterValues({

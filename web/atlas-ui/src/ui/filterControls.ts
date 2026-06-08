@@ -24,6 +24,11 @@ export type FilterSelectGroup = {
   options: FilterSelectOption[];
 };
 
+export type ValueFilterOperatorPolicy = {
+  defaultOperator: "include_all" | "include_any";
+  canExclude: boolean;
+};
+
 export function additionalFilterGroups(
   workspace: AtlasWorkspaceState,
 ): FilterSelectGroup[] {
@@ -129,10 +134,15 @@ export function setValuesForField(
   search: SearchFormState,
   fieldId: string,
   values: string[],
+  policy?: ValueFilterOperatorPolicy,
 ): SearchFormState {
-  const operator =
-    valueClause(search, fieldId)?.operator ?? defaultValueOperator(fieldId);
-  return setValuesClause(search, fieldId, operator, values);
+  const operator = valueClause(search, fieldId)?.operator ?? includeOperator(policy);
+  return setValuesClause(
+    removeValuesFromClause(search, fieldId, "exclude_any", values),
+    fieldId,
+    operator,
+    values,
+  );
 }
 
 export function includeOperatorForField(
@@ -164,12 +174,85 @@ export function excludedValuesForField(
   return clauseForField(search, fieldId, "exclude_any")?.values ?? [];
 }
 
-export function setExcludedValuesForField(
+function setExcludedValuesForField(
   search: SearchFormState,
   fieldId: string,
   values: string[],
 ): SearchFormState {
-  return setValuesClause(search, fieldId, "exclude_any", values);
+  return setValuesClause(
+    removeValuesFromClauses(search, fieldId, ["include_all", "include_any"], values),
+    fieldId,
+    "exclude_any",
+    values,
+  );
+}
+
+export function cycleSelectedValueForField(
+  search: SearchFormState,
+  fieldId: string,
+  value: string,
+  policy?: ValueFilterOperatorPolicy,
+): SearchFormState {
+  const excludedValues = excludedValuesForField(search, fieldId);
+  if (excludedValues.includes(value)) {
+    return setExcludedValuesForField(
+      search,
+      fieldId,
+      excludedValues.filter((excluded) => excluded !== value),
+    );
+  }
+  const values = valuesForField(search, fieldId);
+  if (values.includes(value)) {
+    if (policy?.canExclude ?? true) {
+      return setExcludedValueForField(search, fieldId, value);
+    }
+    return setValuesForField(
+      search,
+      fieldId,
+      values.filter((included) => included !== value),
+      policy,
+    );
+  }
+  return setValuesForField(search, fieldId, [...values, value], policy);
+}
+
+function setExcludedValueForField(
+  search: SearchFormState,
+  fieldId: string,
+  value: string,
+): SearchFormState {
+  const excludedValues = excludedValuesForField(search, fieldId);
+  if (excludedValues.includes(value)) {
+    return search;
+  }
+  return setExcludedValuesForField(search, fieldId, [...excludedValues, value]);
+}
+
+export function clearSelectedValueForField(
+  search: SearchFormState,
+  fieldId: string,
+  value: string,
+): SearchFormState {
+  return removeValuesFromClauses(
+    search,
+    fieldId,
+    ["include_all", "include_any", "exclude_any"],
+    [value],
+  );
+}
+
+export function valueFilterOperatorPolicy(
+  field: FilterEditorFieldView | undefined,
+): ValueFilterOperatorPolicy {
+  const defaultOperator =
+    field?.default_operator === "include_all" ||
+    field?.default_operator === "include_any"
+      ? field.default_operator
+      : "include_any";
+  return {
+    defaultOperator,
+    canExclude: field?.allowed_operators.includes("exclude_any") ?? true,
+  };
 }
 
 export function rangeForField(
@@ -310,13 +393,10 @@ function valueClause(
   search: SearchFormState,
   fieldId: string,
 ): FilterClause | undefined {
-  if (fieldId === "traits") {
-    return (
-      clauseForField(search, fieldId, "include_all") ??
-      clauseForField(search, fieldId, "include_any")
-    );
-  }
-  return clauseForField(search, fieldId, "include_any");
+  return (
+    clauseForField(search, fieldId, "include_all") ??
+    clauseForField(search, fieldId, "include_any")
+  );
 }
 
 function clauseForField(
@@ -361,6 +441,41 @@ function upsertClause(search: SearchFormState, clause: FilterClause): SearchForm
   return { ...search, filterClauses };
 }
 
+function removeValuesFromClauses(
+  search: SearchFormState,
+  fieldId: string,
+  operators: FilterClauseOperator[],
+  values: string[],
+): SearchFormState {
+  return operators.reduce(
+    (nextSearch, operator) =>
+      removeValuesFromClause(nextSearch, fieldId, operator, values),
+    search,
+  );
+}
+
+function removeValuesFromClause(
+  search: SearchFormState,
+  fieldId: string,
+  operator: FilterClauseOperator,
+  values: string[],
+): SearchFormState {
+  if (values.length === 0) {
+    return search;
+  }
+  const clause = clauseForField(search, fieldId, operator);
+  if (!clause) {
+    return search;
+  }
+  const valueSet = new Set(values);
+  return setValuesClause(
+    search,
+    fieldId,
+    operator,
+    (clause.values ?? []).filter((value) => !valueSet.has(value)),
+  );
+}
+
 function removeClauses(
   search: SearchFormState,
   fieldId: string,
@@ -381,6 +496,8 @@ function clearFieldValue(search: SearchFormState, fieldId: string): SearchFormSt
   return removeClauses(search, fieldId);
 }
 
-function defaultValueOperator(fieldId: string): FilterClauseOperator {
-  return fieldId === "traits" ? "include_all" : "include_any";
+function includeOperator(
+  policy: ValueFilterOperatorPolicy | undefined,
+): FilterClauseOperator {
+  return policy?.defaultOperator ?? "include_any";
 }

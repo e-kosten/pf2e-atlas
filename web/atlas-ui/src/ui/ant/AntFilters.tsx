@@ -8,9 +8,10 @@ import {
   Input,
   InputNumber,
   Select,
+  Tag,
 } from "antd";
-import { Search } from "lucide-react";
-import { useState } from "react";
+import { Minus, Plus, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { FilterEditorFieldView } from "../../generated/atlas";
 import type { MetricComparisonState } from "../../state/searchState";
 import { SORT_OPTIONS } from "../../state/searchState";
@@ -19,7 +20,9 @@ import {
   additionalFilterGroups,
   additionalVisibleFilterIds,
   booleanForField,
+  clearSelectedValueForField,
   controlKindForField,
+  cycleSelectedValueForField,
   discoveredOptions,
   editorFieldForId,
   excludedValuesForField,
@@ -29,13 +32,13 @@ import {
   rangeForField,
   removeVisibleFilter,
   setBooleanForField,
-  setExcludedValuesForField,
   setIncludeOperatorForField,
   setMetricComparisonForField,
   setRangeForField,
-  setValuesForField,
   valuesForField,
+  valueFilterOperatorPolicy,
   visibleEditorFilterFields,
+  type FilterSelectOption,
 } from "../filterControls";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
@@ -252,42 +255,23 @@ function FilterFieldControl({
   return (
     <>
       <Form.Item label={field.label}>
-        <Select
-          mode="multiple"
-          loading={workspace.filterDiscoveryLoading}
-          options={discoveredOptions(workspace, field.id)}
-          value={valuesForField(search, field.id)}
-          onChange={(values) => setSearch(setValuesForField(search, field.id, values))}
-        />
+        <TriStateOptionFilter workspace={workspace} fieldId={field.id} />
       </Form.Item>
       {field.id === "traits" ? (
-        <>
-          <Checkbox
-            checked={includeOperatorForField(search, field.id) === "include_any"}
-            onChange={(event) =>
-              setSearch(
-                setIncludeOperatorForField(
-                  search,
-                  field.id,
-                  event.target.checked ? "include_any" : "include_all",
-                ),
-              )
-            }
-          >
-            Match any selected trait
-          </Checkbox>
-          <Form.Item label={`Excluded ${field.label.toLowerCase()}`}>
-            <Select
-              mode="multiple"
-              loading={workspace.filterDiscoveryLoading}
-              options={discoveredOptions(workspace, field.id)}
-              value={excludedValuesForField(search, field.id)}
-              onChange={(excludedValues) =>
-                setSearch(setExcludedValuesForField(search, field.id, excludedValues))
-              }
-            />
-          </Form.Item>
-        </>
+        <Checkbox
+          checked={includeOperatorForField(search, field.id) === "include_any"}
+          onChange={(event) =>
+            setSearch(
+              setIncludeOperatorForField(
+                search,
+                field.id,
+                event.target.checked ? "include_any" : "include_all",
+              ),
+            )
+          }
+        >
+          Match any selected trait
+        </Checkbox>
       ) : null}
     </>
   );
@@ -361,15 +345,209 @@ function OptionalFilterControl({
     return field ? <MetricFilterControl workspace={workspace} field={field} /> : null;
   }
 
-  return (
-    <Select
-      mode="multiple"
-      loading={workspace.filterDiscoveryLoading}
-      options={discoveredOptions(workspace, fieldId)}
-      value={valuesForField(search, fieldId)}
-      onChange={(values) => setSearch(setValuesForField(search, fieldId, values))}
-    />
+  return <TriStateOptionFilter workspace={workspace} fieldId={fieldId} />;
+}
+
+function TriStateOptionFilter({
+  workspace,
+  fieldId,
+}: {
+  workspace: AtlasWorkspaceState;
+  fieldId: string;
+}) {
+  const { search, setSearch } = workspace;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const field = editorFieldForId(workspace, fieldId);
+  const operatorPolicy = valueFilterOperatorPolicy(field);
+  const options = discoveredOptions(workspace, fieldId);
+  const [openedOptions, setOpenedOptions] = useState(options);
+  const includedValues = valuesForField(search, fieldId);
+  const excludedValues = excludedValuesForField(search, fieldId);
+  const includedValueSet = new Set(includedValues);
+  const excludedValueSet = new Set(excludedValues);
+  const selectedValues = [...includedValues, ...excludedValues];
+  const displayedOptions = open
+    ? refreshedOptionSnapshot(openedOptions, options)
+    : options;
+  const filteredOptions = displayedOptions.filter((option) =>
+    option.label.toLowerCase().includes(query.trim().toLowerCase()),
   );
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function handleClick(event: MouseEvent) {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+
+    document.addEventListener("click", handleClick);
+    return () => {
+      document.removeEventListener("click", handleClick);
+    };
+  }, [open]);
+
+  function setMenuOpen(nextOpen: boolean) {
+    if (nextOpen) {
+      setOpenedOptions(options);
+    }
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setQuery("");
+    }
+  }
+
+  function stateIcon(state: "included" | "excluded" | "neutral") {
+    if (state === "included") {
+      return <Plus aria-hidden="true" size={12} strokeWidth={2.5} />;
+    }
+    if (state === "excluded") {
+      return <Minus aria-hidden="true" size={12} strokeWidth={2.5} />;
+    }
+    return null;
+  }
+
+  function optionState(value: string): "included" | "excluded" | "neutral" {
+    if (includedValueSet.has(value)) {
+      return "included";
+    }
+    if (excludedValueSet.has(value)) {
+      return "excluded";
+    }
+    return "neutral";
+  }
+
+  function optionLabel(value: string): string {
+    return (
+      displayedOptions.find((option) => option.value === value)?.label ??
+      options.find((option) => option.value === value)?.label ??
+      value
+    );
+  }
+
+  const content = (
+    <div className="tri-state-filter-menu">
+      <Input
+        allowClear
+        placeholder="Search options"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <div className="tri-state-filter-options">
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => {
+            const state = optionState(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-label={option.label}
+                className={`filter-option-row is-${state}`}
+                disabled={option.disabled}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSearch(
+                    cycleSelectedValueForField(
+                      search,
+                      fieldId,
+                      option.value,
+                      operatorPolicy,
+                    ),
+                  );
+                }}
+              >
+                <span className="filter-option-state-marker">{stateIcon(state)}</span>
+                <span>{option.label}</span>
+              </button>
+            );
+          })
+        ) : (
+          <Empty
+            description="No options"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            className="tri-state-filter-empty"
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="tri-state-filter-root" ref={rootRef}>
+      <div
+        className={`tri-state-filter-trigger ${open ? "is-open" : ""}`}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={`Edit ${labelForField(workspace, fieldId)} filter`}
+        onClick={() => setMenuOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setMenuOpen(true);
+          }
+          if (event.key === "Escape") {
+            setMenuOpen(false);
+          }
+        }}
+      >
+        {selectedValues.length > 0 ? (
+          selectedValues.map((value) => {
+            const excluded = excludedValueSet.has(value);
+            return (
+              <Tag
+                key={value}
+                className={`filter-value-tag ${
+                  excluded ? "is-excluded" : "is-included"
+                }`}
+              >
+                <span className="filter-value-tag-marker">
+                  {stateIcon(excluded ? "excluded" : "included")}
+                </span>
+                <span className="filter-value-tag-label">{optionLabel(value)}</span>
+                <button
+                  type="button"
+                  className="filter-value-tag-remove"
+                  aria-label={`Remove ${optionLabel(value)} filter`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSearch(clearSelectedValueForField(search, fieldId, value));
+                  }}
+                >
+                  <X aria-hidden="true" size={12} strokeWidth={2.25} />
+                </button>
+              </Tag>
+            );
+          })
+        ) : (
+          <span className="tri-state-filter-placeholder">
+            {workspace.filterDiscoveryLoading ? "Loading options" : "Select options"}
+          </span>
+        )}
+      </div>
+      {open ? content : null}
+    </div>
+  );
+}
+
+function refreshedOptionSnapshot(
+  openedOptions: FilterSelectOption[],
+  currentOptions: FilterSelectOption[],
+): FilterSelectOption[] {
+  if (openedOptions.length === 0) {
+    return currentOptions;
+  }
+  const currentByValue = new Map(
+    currentOptions.map((option) => [option.value, option] as const),
+  );
+  return openedOptions.map((option) => currentByValue.get(option.value) ?? option);
 }
 
 function MetricFilterControl({

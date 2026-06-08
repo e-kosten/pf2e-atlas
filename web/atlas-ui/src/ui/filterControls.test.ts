@@ -6,12 +6,15 @@ import {
   additionalVisibleFilterIds,
   booleanForField,
   controlKindForField,
+  cycleSelectedValueForField,
   discoveredOptions,
   metricComparisonForField,
   rangeForField,
   removeVisibleFilter,
   setMetricComparisonForField,
+  setValuesForField,
   setRangeForField,
+  valueFilterOperatorPolicy,
   visibleEditorFilterFields,
 } from "./filterControls";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
@@ -200,6 +203,156 @@ describe("filterControls", () => {
       }),
     );
   });
+
+  it("cycles option fields through neutral, included, and excluded states", () => {
+    const policy = valueFilterOperatorPolicy(
+      field("kind", "Kinds", "always_visible", {
+        kind: "multi_select",
+      }),
+    );
+    const neutralSearch = {
+      ...DEFAULT_SEARCH_STATE,
+      filterClauses: [],
+    };
+    const withIncludedKind = cycleSelectedValueForField(
+      neutralSearch,
+      "kind",
+      "spell",
+      policy,
+    );
+    expect(withIncludedKind.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "include_any",
+        values: expect.arrayContaining(["spell"]),
+      }),
+    );
+
+    const withExcludedKind = cycleSelectedValueForField(
+      setValuesForField(withIncludedKind, "kind", ["spell", "feat"], policy),
+      "kind",
+      "spell",
+      policy,
+    );
+
+    expect(withExcludedKind.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "include_any",
+        values: ["feat"],
+      }),
+    );
+    expect(withExcludedKind.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "exclude_any",
+        values: ["spell"],
+      }),
+    );
+
+    const withSpellNeutral = cycleSelectedValueForField(
+      withExcludedKind,
+      "kind",
+      "spell",
+      policy,
+    );
+    expect(withSpellNeutral.filterClauses).not.toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "exclude_any",
+        values: expect.arrayContaining(["spell"]),
+      }),
+    );
+  });
+
+  it("respects backend operator policy for value fields", () => {
+    const includeAllPolicy = valueFilterOperatorPolicy({
+      ...field("traits", "Traits", "always_visible", { kind: "multi_select" }),
+      allowed_operators: ["include_all", "include_any", "exclude_any"],
+      default_operator: "include_all",
+    });
+    const withIncludedTrait = cycleSelectedValueForField(
+      { ...DEFAULT_SEARCH_STATE, filterClauses: [] },
+      "traits",
+      "attack",
+      includeAllPolicy,
+    );
+    expect(withIncludedTrait.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "traits",
+        operator: "include_all",
+        values: ["attack"],
+      }),
+    );
+
+    const includeOnlyPolicy = valueFilterOperatorPolicy({
+      ...field("publication_title", "Publication", "addable", {
+        kind: "multi_select",
+      }),
+      allowed_operators: ["include_any"],
+      default_operator: "include_any",
+    });
+    const withIncludedPublication = cycleSelectedValueForField(
+      { ...DEFAULT_SEARCH_STATE, filterClauses: [] },
+      "publication_title",
+      "Player Core",
+      includeOnlyPolicy,
+    );
+    const withPublicationNeutral = cycleSelectedValueForField(
+      withIncludedPublication,
+      "publication_title",
+      "Player Core",
+      includeOnlyPolicy,
+    );
+    expect(withPublicationNeutral.filterClauses).not.toContainEqual(
+      expect.objectContaining({
+        field: "publication_title",
+        operator: "exclude_any",
+      }),
+    );
+    expect(withPublicationNeutral.filterClauses).not.toContainEqual(
+      expect.objectContaining({
+        field: "publication_title",
+        values: expect.arrayContaining(["Player Core"]),
+      }),
+    );
+  });
+
+  it("removes newly included values from existing exclusions", () => {
+    const policy = valueFilterOperatorPolicy(
+      field("kind", "Kinds", "always_visible", {
+        kind: "multi_select",
+      }),
+    );
+    const search = {
+      ...DEFAULT_SEARCH_STATE,
+      filterClauses: [
+        {
+          id: "kind-exclude_any",
+          field: "kind",
+          operator: "exclude_any",
+          values: ["spell", "feat"],
+        },
+      ],
+    } satisfies SearchFormState;
+
+    const withIncludedSpell = setValuesForField(search, "kind", ["spell"], policy);
+
+    expect(withIncludedSpell.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "include_any",
+        values: ["spell"],
+      }),
+    );
+    expect(withIncludedSpell.filterClauses).toContainEqual(
+      expect.objectContaining({
+        field: "kind",
+        operator: "exclude_any",
+        values: ["feat"],
+      }),
+    );
+  });
 });
 
 function workspaceFor(
@@ -285,14 +438,21 @@ function field(
   placement: FilterEditorFieldView["placement"],
   control: FilterEditorFieldView["control"],
 ): FilterEditorFieldView {
+  const operator =
+    control.kind === "range"
+      ? "range"
+      : control.kind === "metric_comparison"
+        ? "metric_compare"
+        : "include_any";
   return {
     id,
     label,
     control,
     placement,
     applicability: "applicable",
-    allowed_operators: ["include_any"],
-    default_operator: "include_any",
+    allowed_operators:
+      control.kind === "multi_select" ? ["include_any", "exclude_any"] : [operator],
+    default_operator: operator,
     supports_counts: control.kind !== "range",
   };
 }
