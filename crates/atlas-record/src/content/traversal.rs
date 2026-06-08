@@ -44,10 +44,14 @@ fn iter_foundry_node_links(node: &FoundryNode) -> FoundryLinkIter<'_> {
                 .iter()
                 .flat_map(|label| label.iter().flat_map(iter_node_links)),
         ),
-        FoundryNode::Localize { value, .. } => Box::new(
-            value
-                .iter()
-                .flat_map(|value| value.iter().flat_map(iter_node_links)),
+        FoundryNode::Localize {
+            label, resolved, ..
+        } => Box::new(
+            label
+                .as_ref()
+                .or(resolved.as_ref())
+                .into_iter()
+                .flat_map(|nodes| nodes.iter().flat_map(iter_node_links)),
         ),
         FoundryNode::ActionGlyph { .. } => Box::new(std::iter::empty()),
     }
@@ -90,9 +94,11 @@ fn visit_foundry_node_links_mut(
                 }
             }
         }
-        FoundryNode::Localize { value, .. } => {
-            if let Some(value) = value {
-                for node in value {
+        FoundryNode::Localize {
+            label, resolved, ..
+        } => {
+            if let Some(nodes) = label.as_mut().or(resolved.as_mut()) {
+                for node in nodes {
                     visit_node_links_mut(node, visitor);
                 }
             }

@@ -7,13 +7,18 @@ use atlas_record::{
 
 use crate::records::metrics::{first_number_like_at_paths, number_like_at_pointer};
 use crate::source::normalize::{
-    extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
-    normalized_pointer_string, parse_bulk_value, parse_foundry_content, parse_hands_requirement,
-    pointer_bool, pointer_string, string_array_at_pointer, typed_collection,
+    LocalizationResolver, extract_damage_types, extract_disable_skills, extract_sense_types,
+    extract_speed_types, normalized_pointer_string, parse_bulk_value,
+    parse_foundry_content_with_localization, parse_hands_requirement, pointer_bool, pointer_string,
+    string_array_at_pointer, typed_collection,
 };
 
-pub(super) fn extract_actor_mechanics(raw: &Value) -> ActorMechanics {
-    let disable_text = pointer_string(raw, "/system/details/disable").and_then(content_text);
+pub(super) fn extract_actor_mechanics(
+    raw: &Value,
+    localization: Option<&dyn LocalizationResolver>,
+) -> ActorMechanics {
+    let disable_text = pointer_string(raw, "/system/details/disable")
+        .and_then(|value| content_text(value, localization));
     ActorMechanics {
         size: normalized_pointer_string(raw, "/system/traits/size/value"),
         languages: string_array_at_pointer(raw, "/system/details/languages/value"),
@@ -51,11 +56,16 @@ pub(super) fn extract_item_mechanics(
     }
 }
 
-pub(super) fn extract_spell_mechanics(raw: &Value, traits: &[String]) -> SpellMechanics {
+pub(super) fn extract_spell_mechanics(
+    raw: &Value,
+    traits: &[String],
+    localization: Option<&dyn LocalizationResolver>,
+) -> SpellMechanics {
     let range_text = normalized_pointer_string(raw, "/system/range/value");
     let range_distance =
         first_number_like_at_paths(raw, &["/system/range/value", "/system/range/increment"]);
-    let target_text = pointer_string(raw, "/system/target/value").and_then(content_text);
+    let target_text = pointer_string(raw, "/system/target/value")
+        .and_then(|value| content_text(value, localization));
     let area_kind = normalized_pointer_string(raw, "/system/area/type");
     let area_value = number_like_at_pointer(raw, "/system/area/value");
     let save = normalized_pointer_string(raw, "/system/defense/save/statistic");
@@ -83,7 +93,8 @@ pub(super) fn extract_spell_mechanics(raw: &Value, traits: &[String]) -> SpellMe
     }
 }
 
-fn content_text(value: String) -> Option<String> {
-    let text = render_plain_text(&parse_foundry_content(&value).document);
+fn content_text(value: String, localization: Option<&dyn LocalizationResolver>) -> Option<String> {
+    let text =
+        render_plain_text(&parse_foundry_content_with_localization(&value, localization).document);
     (!text.trim().is_empty()).then_some(text)
 }

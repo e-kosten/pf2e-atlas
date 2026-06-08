@@ -187,7 +187,8 @@ pub enum FoundryNode {
     },
     Localize {
         key: String,
-        value: Option<Vec<RichNode>>,
+        label: Option<Vec<RichNode>>,
+        resolved: Option<Vec<RichNode>>,
     },
     UnknownFoundry {
         name: String,

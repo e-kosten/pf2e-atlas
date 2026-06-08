@@ -1,7 +1,10 @@
 use atlas_record::{ContentSourceKind, RecordContentDocument, RichDocument};
 use serde_json::Value;
 
-use super::{ContentParseDiagnostics, parse_foundry_content, pointer_string, string_field};
+use super::{
+    ContentParseDiagnostics, LocalizationResolver, parse_foundry_content_with_localization,
+    pointer_string, string_field,
+};
 
 pub(super) struct SourceContentProjection {
     pub description: Option<RichDocument>,
@@ -10,23 +13,35 @@ pub(super) struct SourceContentProjection {
     pub diagnostics: Vec<ContentParseDiagnostics>,
 }
 
-pub(super) fn extract_content_sources(raw: &Value) -> SourceContentProjection {
+struct ContentAccumulator {
+    content: Vec<(Option<String>, RecordContentDocument)>,
+    diagnostics: Vec<ContentParseDiagnostics>,
+}
+
+pub(super) fn extract_content_sources(
+    raw: &Value,
+    localization: Option<&dyn LocalizationResolver>,
+) -> SourceContentProjection {
     let source_description_raw = pointer_string(raw, "/system/description/value");
-    let parsed_description = source_description_raw.as_deref().map(parse_foundry_content);
+    let parsed_description = source_description_raw
+        .as_deref()
+        .map(|markup| parse_foundry_content_with_localization(markup, localization));
     let description = parsed_description
         .as_ref()
         .map(|parsed| parsed.document.clone())
         .filter(non_empty_document);
 
     let source_blurb_markup = pointer_string(raw, "/system/details/blurb");
-    let parsed_blurb = source_blurb_markup.as_deref().map(parse_foundry_content);
+    let parsed_blurb = source_blurb_markup
+        .as_deref()
+        .map(|markup| parse_foundry_content_with_localization(markup, localization));
     let blurb = parsed_blurb
         .as_ref()
         .map(|parsed| parsed.document.clone())
         .filter(non_empty_document);
 
     let (supplemental_content, supplemental_diagnostics) =
-        extract_supplemental_content(raw, source_description_raw.as_deref());
+        extract_supplemental_content(raw, source_description_raw.as_deref(), localization);
 
     SourceContentProjection {
         description,
@@ -48,43 +63,46 @@ fn non_empty_document(document: &RichDocument) -> bool {
 fn extract_supplemental_content(
     raw: &Value,
     source_description_raw: Option<&str>,
+    localization: Option<&dyn LocalizationResolver>,
 ) -> (
     Vec<(Option<String>, RecordContentDocument)>,
     Vec<ContentParseDiagnostics>,
 ) {
-    let mut content = Vec::new();
-    let mut diagnostics = Vec::new();
+    let mut accumulator = ContentAccumulator {
+        content: Vec::new(),
+        diagnostics: Vec::new(),
+    };
     collect_content_at_pointer(
         raw,
         "/system/details/disable",
         ContentSourceKind::Disable,
         None,
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     collect_content_at_pointer(
         raw,
         "/system/details/routine",
         ContentSourceKind::Routine,
         None,
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     collect_content_at_pointer(
         raw,
         "/system/details/reset",
         ContentSourceKind::Reset,
         None,
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     collect_content_at_pointer(
         raw,
         "/system/attributes/stealth/details",
         ContentSourceKind::StealthDetails,
         Some("Stealth".to_string()),
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     if pointer_string(raw, "/system/details/description").as_deref() != source_description_raw {
         collect_content_at_pointer(
@@ -92,8 +110,8 @@ fn extract_supplemental_content(
             "/system/details/description",
             ContentSourceKind::DetailsFieldDescription,
             None,
-            &mut content,
-            &mut diagnostics,
+            localization,
+            &mut accumulator,
         );
     }
     collect_content_at_pointer(
@@ -101,35 +119,35 @@ fn extract_supplemental_content(
         "/system/details/publicNotes",
         ContentSourceKind::PublicNotes,
         Some("Public Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     collect_content_at_pointer(
         raw,
         "/system/description/gm",
         ContentSourceKind::GmNotes,
         Some("GM Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     collect_content_at_pointer(
         raw,
         "/system/details/gmNotes",
         ContentSourceKind::GmNotes,
         Some("GM Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
     collect_content_at_pointer(
         raw,
         "/system/details/privateNotes",
         ContentSourceKind::PrivateNotes,
         Some("Private Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
+        localization,
+        &mut accumulator,
     );
-    collect_embedded_item_content(raw, &mut content, &mut diagnostics);
-    (content, diagnostics)
+    collect_embedded_item_content(raw, localization, &mut accumulator);
+    (accumulator.content, accumulator.diagnostics)
 }
 
 fn collect_content_at_pointer(
@@ -137,18 +155,18 @@ fn collect_content_at_pointer(
     pointer: &str,
     source_kind: ContentSourceKind,
     label: Option<String>,
-    content: &mut Vec<(Option<String>, RecordContentDocument)>,
-    diagnostics: &mut Vec<ContentParseDiagnostics>,
+    localization: Option<&dyn LocalizationResolver>,
+    accumulator: &mut ContentAccumulator,
 ) {
     let Some(markup) = pointer_string(raw, pointer) else {
         return;
     };
-    let parsed = parse_foundry_content(&markup);
+    let parsed = parse_foundry_content_with_localization(&markup, localization);
     if parsed.document.is_empty() {
         return;
     }
-    diagnostics.push(parsed.diagnostics.clone());
-    content.push((
+    accumulator.diagnostics.push(parsed.diagnostics.clone());
+    accumulator.content.push((
         None,
         supplemental_content(source_kind, label, parsed.document),
     ));
@@ -156,8 +174,8 @@ fn collect_content_at_pointer(
 
 fn collect_embedded_item_content(
     raw: &Value,
-    content: &mut Vec<(Option<String>, RecordContentDocument)>,
-    diagnostics: &mut Vec<ContentParseDiagnostics>,
+    localization: Option<&dyn LocalizationResolver>,
+    accumulator: &mut ContentAccumulator,
 ) {
     let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
         return;
@@ -171,8 +189,8 @@ fn collect_embedded_item_content(
             ContentSourceKind::EmbeddedItemDescription,
             label.clone(),
             embedded_item_content_key(&item_id, "description"),
-            content,
-            diagnostics,
+            localization,
+            accumulator,
         );
         collect_embedded_content_at_pointer(
             item,
@@ -180,8 +198,8 @@ fn collect_embedded_item_content(
             ContentSourceKind::EmbeddedSpellDescription,
             label,
             embedded_item_content_key(&item_id, "spell-description"),
-            content,
-            diagnostics,
+            localization,
+            accumulator,
         );
     }
 }
@@ -192,18 +210,18 @@ fn collect_embedded_content_at_pointer(
     source_kind: ContentSourceKind,
     label: Option<String>,
     local_key: String,
-    content: &mut Vec<(Option<String>, RecordContentDocument)>,
-    diagnostics: &mut Vec<ContentParseDiagnostics>,
+    localization: Option<&dyn LocalizationResolver>,
+    accumulator: &mut ContentAccumulator,
 ) {
     let Some(markup) = pointer_string(raw, pointer) else {
         return;
     };
-    let parsed = parse_foundry_content(&markup);
+    let parsed = parse_foundry_content_with_localization(&markup, localization);
     if parsed.document.is_empty() {
         return;
     }
-    diagnostics.push(parsed.diagnostics.clone());
-    content.push((
+    accumulator.diagnostics.push(parsed.diagnostics.clone());
+    accumulator.content.push((
         Some(local_key),
         supplemental_content(source_kind, label, parsed.document),
     ));

@@ -498,6 +498,14 @@ fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn st
     let third = analyze_foundry_source(&root, None)?.source.source_signature;
     assert_ne!(first, third);
 
+    fs::create_dir_all(root.join("static/lang"))?;
+    fs::write(
+        root.join("static/lang/en.json"),
+        r#"{ "PF2E": { "Test": "Localized text" } }"#,
+    )?;
+    let fourth = analyze_foundry_source(&root, None)?.source.source_signature;
+    assert_ne!(third, fourth);
+
     fs::remove_dir_all(root)?;
     Ok(())
 }

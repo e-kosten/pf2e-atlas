@@ -4,12 +4,14 @@ use serde_json::Value;
 use crate::records::{JournalPageFact, JournalPageSkipReason, SkippedJournalPageFact};
 
 use super::{
-    ContentParseDiagnostics, normalize_text, parse_foundry_content, pointer_string, string_field,
+    ContentParseDiagnostics, LocalizationResolver, normalize_text,
+    parse_foundry_content_with_localization, pointer_string, string_field,
 };
 
 pub(super) fn extract_journal_page_facts(
     raw: &Value,
     host_record_key: &RecordKey,
+    localization: Option<&dyn LocalizationResolver>,
 ) -> (
     Vec<JournalPageFact>,
     Vec<SkippedJournalPageFact>,
@@ -44,7 +46,7 @@ pub(super) fn extract_journal_page_facts(
             ));
             continue;
         }
-        let parsed = parse_foundry_content(&markup);
+        let parsed = parse_foundry_content_with_localization(&markup, localization);
         if parsed.document.is_empty() {
             skipped.push(skipped_journal_page(
                 host_record_key,
