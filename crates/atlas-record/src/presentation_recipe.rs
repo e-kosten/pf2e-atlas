@@ -10,7 +10,8 @@ use crate::{
     presentation_format::{
         action_count_text, activation_text, duration_text, format_ability_mods, format_area,
         format_bulk, format_list, format_number, format_price_cp, format_save, format_saves,
-        format_skill_mods, format_speeds, format_stealth, humanize, metric_number_for_definition,
+        format_size, format_skill_mods, format_speeds, format_stealth, humanize,
+        metric_number_for_definition,
     },
 };
 
@@ -301,7 +302,7 @@ fn creature_summary_facts(
             &mut facts,
             "size",
             "Size",
-            actor.size.as_deref().map(humanize),
+            actor.size.as_deref().map(format_size),
         );
         push_fact(
             &mut facts,

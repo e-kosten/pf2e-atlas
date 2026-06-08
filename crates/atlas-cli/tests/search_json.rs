@@ -97,7 +97,8 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("creatures:testCreature001  Test Guardian  creature 5"));
     assert!(
-        stdout.contains("Summary: Size Med; Languages Common; Senses Darkvision; Perception +12")
+        stdout
+            .contains("Summary: Size Medium; Languages Common; Senses Darkvision; Perception +12")
     );
     assert!(stdout.contains("Defense: AC 25; HP 80; Saves Fort +14, Ref +11, Will +12"));
     assert!(stdout.contains("Movement: Speed Land 25 feet; Speed Types Land"));

@@ -7,6 +7,7 @@ use atlas_domain::{
     FilterFieldDiscovery, FilterFieldInfo, FilterFieldType, FilterOperator, FilterValueCount,
     FilterValueDiscovery, FilterValuePayload, FilterValuePolicy,
 };
+use atlas_record::format_size;
 
 use crate::AppServiceResult;
 use crate::filter::app_filter_field_id;
@@ -400,8 +401,10 @@ fn field_group_id(field: &str) -> &'static str {
 }
 
 fn sort_filter_values(field_id: &str, values: &mut [FilterValueCount]) {
-    if field_id == "rarity" {
-        values.sort_by_key(|value| rarity_rank(&value.value));
+    match field_id {
+        "rarity" => values.sort_by_key(|value| rarity_rank(&value.value)),
+        "size" => values.sort_by_key(|value| size_rank(&value.value)),
+        _ => {}
     }
 }
 
@@ -412,6 +415,18 @@ fn rarity_rank(value: &str) -> usize {
         "rare" => 2,
         "unique" => 3,
         _ => 4,
+    }
+}
+
+fn size_rank(value: &str) -> usize {
+    match value {
+        "tiny" => 0,
+        "sm" | "small" => 1,
+        "med" | "medium" => 2,
+        "lg" | "large" => 3,
+        "huge" => 4,
+        "grg" | "gargantuan" => 5,
+        _ => 6,
     }
 }
 
@@ -462,10 +477,11 @@ fn filter_value_label(field_id: &str, value: &str) -> String {
             | "item_group"
             | "hands"
             | "usage"
-            | "size"
             | "speed_types"
     ) {
         title_case(value)
+    } else if field_id == "size" {
+        format_size(value)
     } else {
         value.to_string()
     }
@@ -660,6 +676,60 @@ mod tests {
             .map(|option| option.value.as_str())
             .collect::<Vec<_>>();
         assert_eq!(order, vec!["common", "uncommon", "rare", "unique"]);
+    }
+
+    #[test]
+    fn size_values_use_friendly_labels_and_domain_order() {
+        let values = filter_value_list_view(
+            "size",
+            &FilterDiscoveryContext::Filtered {
+                filter: BasicSearchFilter { clauses: vec![] },
+            },
+            FilterValueDiscovery {
+                field: "size".to_string(),
+                filter: None,
+                execution: FilterDiscoveryExecution::Dynamic,
+                matching_record_count: 4,
+                payload: FilterValuePayload::Enumerable {
+                    values: vec![
+                        FilterValueCount {
+                            value: "grg".to_string(),
+                            count: 1,
+                        },
+                        FilterValueCount {
+                            value: "lg".to_string(),
+                            count: 2,
+                        },
+                        FilterValueCount {
+                            value: "med".to_string(),
+                            count: 3,
+                        },
+                        FilterValueCount {
+                            value: "sm".to_string(),
+                            count: 4,
+                        },
+                    ],
+                    null_count: 0,
+                    sort: FilterValueSort::Alpha,
+                },
+            },
+        )
+        .expect("size values should project");
+
+        let options = values
+            .options
+            .iter()
+            .map(|option| (option.value.as_str(), option.label.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            options,
+            vec![
+                ("sm", "Small"),
+                ("med", "Medium"),
+                ("lg", "Large"),
+                ("grg", "Gargantuan"),
+            ]
+        );
     }
 
     #[test]

@@ -45,6 +45,7 @@ pub use presentation::{
     PresentationSectionKind, PresentationTableRow, PresentationText, RecordPresentationDocument,
 };
 pub use presentation_content::render_presentation_content_plain_text;
+pub use presentation_format::format_size;
 pub use presentation_recipe::{
     build_record_presentation_document, build_record_presentation_document_with_content_filter,
 };

@@ -216,6 +216,7 @@ fn creature_recipe_groups_defense_movement_and_offense_sections() {
             PresentationSectionKind::Details,
         ]
     );
+    assert_section_facts_include(&document.sections[0], "Size", "Medium");
     assert_section_facts_include(&document.sections[1], "AC", "19");
     assert_section_facts_include(&document.sections[1], "Saves", "Fort +12, Ref +8, Will +7");
     assert_section_facts_include(&document.sections[2], "Speed", "Land 25 feet");
