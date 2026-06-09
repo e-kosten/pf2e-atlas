@@ -15,6 +15,7 @@ def main() -> int:
     metadata = subprocess.check_output(
         ["cargo", "metadata", "--format-version", "1", "--locked"],
         cwd=root,
+        encoding="utf-8",
         text=True,
     )
     data = json.loads(metadata)
