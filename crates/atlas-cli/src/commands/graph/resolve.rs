@@ -1,17 +1,16 @@
 use std::process::ExitCode;
 
+use atlas_app_model::{AppError, AppErrorCode};
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_search::{
-    RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
-    ResolveVariantGroupRefRequest, SearchError, VariantGroupRefResolutionResult,
-    VariantGroupResult, VariantRetrieval,
+    RecordRefResolutionResult, RecordResolutionResult, VariantGroupRefResolutionResult,
+    VariantGroupResult,
 };
 use serde::Serialize;
 
+use crate::client::AtlasClient;
 use crate::output::{write_json_error, write_json_error_data};
-
-use super::super::record::{search_error, search_error_code};
 
 pub(super) enum GraphCommandOutcome<T> {
     Value(T),
@@ -19,14 +18,11 @@ pub(super) enum GraphCommandOutcome<T> {
 }
 
 pub(super) fn resolve_graph_record_ref(
-    service: &impl RecordRetrieval,
+    service: &impl AtlasClient,
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<RecordKey>, String> {
-    let resolution = match service.resolve_record_ref(ResolveRecordRefRequest {
-        record_ref,
-        filter: None,
-    }) {
+    let resolution = match service.resolve_record_ref(record_ref.to_string(), None) {
         Ok(resolution) => resolution,
         Err(error) => return graph_search_error(error, json),
     };
@@ -51,13 +47,11 @@ pub(super) fn resolve_graph_record_ref(
 }
 
 pub(super) fn resolve_graph_variant_group(
-    service: &impl VariantRetrieval,
+    service: &impl AtlasClient,
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<VariantGroupResult>, String> {
-    let resolution = match service.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
-        variant_group_ref: record_ref,
-    }) {
+    let resolution = match service.resolve_variant_group_ref(record_ref.to_string()) {
         Ok(resolution) => resolution,
         Err(error) => return graph_search_error(error, json),
     };
@@ -92,14 +86,29 @@ pub(super) fn resolve_graph_variant_group(
 }
 
 pub(super) fn graph_search_error<T>(
-    error: SearchError,
+    error: AppError,
     json: bool,
 ) -> Result<GraphCommandOutcome<T>, String> {
     if json {
-        write_json_error(search_error_code(&error), error.to_string())?;
+        write_json_error(graph_error_code(error.code), error.message)?;
         Ok(GraphCommandOutcome::Exit(ExitCode::from(3)))
     } else {
-        Err(search_error(error))
+        Err(error.message)
+    }
+}
+
+pub(super) fn graph_error_code(code: AppErrorCode) -> &'static str {
+    match code {
+        AppErrorCode::IndexUnavailable => "index_unavailable",
+        AppErrorCode::ArtifactIncompatible => "artifact_contract_violation",
+        AppErrorCode::FilterInvalid => "invalid_filter",
+        AppErrorCode::InvalidRequest => "invalid_option",
+        AppErrorCode::VectorReadinessRequired => "vector_readiness_required",
+        AppErrorCode::EmbeddingModelUnavailable | AppErrorCode::QueryFailed => "query_failed",
+        AppErrorCode::ArtifactNotReady
+        | AppErrorCode::SetupRequired
+        | AppErrorCode::SetupInProgress => "runtime_error",
+        _ => "query_failed",
     }
 }
 

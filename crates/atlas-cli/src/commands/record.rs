@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 use std::process::ExitCode;
 
+use atlas_app_model::{AppError, AppErrorCode};
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{
     PresentationContent, PresentationContentBlock, PresentationInline, RecordBlockJson,
     RecordJsonOptions, RecordSectionJson, record_json,
 };
-use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
-use atlas_search::{
-    GetRecordsRequest, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest, SearchError,
-    SearchErrorKind,
-};
+use atlas_search::RecordResolutionResult;
 use serde::Serialize;
 
+use crate::client::{
+    AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
+};
 use crate::output::{CliError, write_json_data, write_json_error, write_json_error_data};
 use crate::terminal::TerminalStyle;
 
@@ -126,29 +126,13 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
             }
         }
     }
-    let runtime = match record_runtime(options.path_mode.into(), options.index) {
-        Ok(runtime) => runtime,
-        Err(error) if options.json => {
-            write_json_error("runtime_error", error)?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error),
+    let client = match record_client(options.path_mode.into(), options.index, options.json)? {
+        RecordCommandStep::Ready(client) => client,
+        RecordCommandStep::Exit(code) => return Ok(code),
     };
-    let service = match open_record_service(&runtime) {
-        Ok(service) => service,
-        Err(error) if options.json => {
-            write_json_error("index_unavailable", error)?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error),
-    };
-    let records = match service.get_records(GetRecordsRequest { record_keys: &keys }) {
+    let records = match client.get_records(keys.clone()) {
         Ok(records) => records,
-        Err(error) if options.json => {
-            write_json_error(search_error_code(&error), error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(search_error(error)),
+        Err(error) => return app_error(error, options.json),
     };
     let by_key = records
         .into_iter()
@@ -246,21 +230,9 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
         }
         Err(error) => return Err(error.message),
     };
-    let runtime = match record_runtime(options.path_mode.into(), options.index) {
-        Ok(runtime) => runtime,
-        Err(error) if options.json => {
-            write_json_error("runtime_error", error)?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error),
-    };
-    let service = match open_record_service(&runtime) {
-        Ok(service) => service,
-        Err(error) if options.json => {
-            write_json_error("index_unavailable", error)?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error),
+    let client = match record_client(options.path_mode.into(), options.index, options.json)? {
+        RecordCommandStep::Ready(client) => client,
+        RecordCommandStep::Exit(code) => return Ok(code),
     };
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -270,16 +242,9 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     let mut failed = 0;
     let mut results = Vec::new();
     for query in &options.queries {
-        let matches = match service.resolve_record(ResolveRecordRequest {
-            query,
-            filter: filter.as_ref(),
-        }) {
+        let matches = match client.resolve_record(query.clone(), filter.clone()) {
             Ok(matches) => matches,
-            Err(error) if options.json => {
-                write_json_error(search_error_code(&error), error.to_string())?;
-                return Ok(ExitCode::from(3));
-            }
-            Err(error) => return Err(search_error(error)),
+            Err(error) => return app_error(error, options.json),
         };
         let item = resolve_item(query, matches, record_options, options.alternatives);
         if item.error.is_some() {
@@ -767,49 +732,94 @@ fn invalid_record_key(json: bool, key: &str, message: String) -> Result<ExitCode
     }
 }
 
+enum RecordCommandStep<T> {
+    Ready(T),
+    Exit(ExitCode),
+}
+
+fn record_client(
+    path_mode: atlas_runtime::AtlasPathMode,
+    index: Option<std::path::PathBuf>,
+    json: bool,
+) -> Result<RecordCommandStep<AtlasClientHandle>, String> {
+    match connect(AtlasClientConfig::Local(LocalAtlasClientOptions {
+        path_mode,
+        index_path: index,
+        embedding_cache_root: None,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+    })) {
+        Ok(client) => Ok(RecordCommandStep::Ready(client)),
+        Err(error) if json => {
+            write_app_json_error(error)?;
+            Ok(RecordCommandStep::Exit(ExitCode::from(3)))
+        }
+        Err(error) => Err(error.message),
+    }
+}
+
+fn app_error(error: AppError, json: bool) -> Result<ExitCode, String> {
+    let (code, exit) = app_error_code(error.code);
+    if json {
+        write_app_json_error(error)?;
+        return Ok(exit);
+    }
+    if exit == ExitCode::from(1) {
+        eprintln!("{}", error.message);
+        Ok(exit)
+    } else {
+        Err(format!("{code}: {}", error.message))
+    }
+}
+
+fn write_app_json_error(error: AppError) -> Result<(), String> {
+    let (code, _) = app_error_code(error.code);
+    if let Some(details) = error.details {
+        write_json_error_data(code, error.message, details)
+    } else {
+        write_json_error(code, error.message)
+    }
+}
+
+fn app_error_code(code: AppErrorCode) -> (&'static str, ExitCode) {
+    match code {
+        AppErrorCode::InvalidRecordKey => ("invalid_record_key", ExitCode::from(2)),
+        AppErrorCode::RecordNotFound => ("record_not_found", ExitCode::from(1)),
+        AppErrorCode::RecordResolutionMiss => ("record_resolution_miss", ExitCode::from(1)),
+        AppErrorCode::RecordResolutionAmbiguous => {
+            ("record_resolution_ambiguous", ExitCode::from(1))
+        }
+        AppErrorCode::IndexUnavailable => ("index_unavailable", ExitCode::from(3)),
+        AppErrorCode::QueryFailed | AppErrorCode::EmbeddingModelUnavailable => {
+            ("query_failed", ExitCode::from(3))
+        }
+        AppErrorCode::ArtifactIncompatible => ("artifact_contract_violation", ExitCode::from(3)),
+        AppErrorCode::InvalidRequest => ("invalid_input", ExitCode::from(2)),
+        AppErrorCode::FilterInvalid => ("invalid_filter", ExitCode::from(2)),
+        AppErrorCode::VectorReadinessRequired => ("vector_readiness_required", ExitCode::from(3)),
+        AppErrorCode::ArtifactNotReady
+        | AppErrorCode::SetupRequired
+        | AppErrorCode::SetupInProgress => ("runtime_error", ExitCode::from(3)),
+        AppErrorCode::SavedListNotFound
+        | AppErrorCode::SavedListAlreadyExists
+        | AppErrorCode::WindowNotFound
+        | AppErrorCode::WindowExpired
+        | AppErrorCode::FilterFieldInvalid
+        | AppErrorCode::FilterOptionInvalid
+        | AppErrorCode::FilterFieldNotApplicable
+        | AppErrorCode::FilterMetricAmbiguous
+        | AppErrorCode::FilterEditorConflict
+        | AppErrorCode::ServiceBusy
+        | AppErrorCode::OperationCancelled
+        | AppErrorCode::OperationTimeout
+        | AppErrorCode::InternalError => ("query_failed", ExitCode::from(3)),
+    }
+}
+
 fn invalid_input(json: bool, message: String) -> Result<ExitCode, String> {
     if json {
         write_json_error("invalid_input", message)?;
         Ok(ExitCode::from(2))
     } else {
         Err(message)
-    }
-}
-
-pub(crate) fn record_runtime(
-    path_mode: atlas_runtime::AtlasPathMode,
-    index: Option<std::path::PathBuf>,
-) -> Result<AtlasRuntime, String> {
-    AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode,
-        overrides: AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: None,
-            index_path: index,
-        },
-    })
-    .map_err(|error| error.to_string())
-}
-
-pub(crate) fn open_record_service(
-    runtime: &AtlasRuntime,
-) -> Result<atlas_search::AtlasRetrievalService, String> {
-    runtime
-        .open_retrieval_service_no_embeddings()
-        .map_err(|error| error.to_string())
-}
-
-pub(crate) fn search_error(error: SearchError) -> String {
-    error.to_string()
-}
-
-pub(crate) fn search_error_code(error: &SearchError) -> &'static str {
-    match error.kind() {
-        SearchErrorKind::IndexUnavailable => "index_unavailable",
-        SearchErrorKind::ArtifactContractViolation => "artifact_contract_violation",
-        SearchErrorKind::InvalidFilter => "invalid_filter",
-        SearchErrorKind::InvalidOptions => "invalid_option",
-        SearchErrorKind::VectorReadinessRequired => "vector_readiness_required",
-        SearchErrorKind::EmbeddingUnavailable | SearchErrorKind::QueryFailed => "query_failed",
     }
 }

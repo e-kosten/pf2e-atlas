@@ -7,7 +7,10 @@ use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntim
 use atlas_search::AtlasRetrievalService;
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::executor::{RetrievalExecutor, open_retrieval_service_no_embeddings};
+use crate::executor::{
+    RetrievalExecutor, open_retrieval_service_for_stored_vectors,
+    open_retrieval_service_no_embeddings,
+};
 use crate::windows::{MAX_RESULT_WINDOWS, ResultWindowStore};
 
 #[derive(Clone)]
@@ -32,6 +35,7 @@ pub struct AtlasAppServiceOptions {
 pub enum AppServiceRetrievalMode {
     FullPool,
     OnDemandNoEmbeddings,
+    OnDemandStoredVectors,
 }
 
 impl AtlasAppService {
@@ -43,6 +47,9 @@ impl AtlasAppService {
                 RetrievalBackend::Pooled(RetrievalExecutor::start(runtime_options.clone())?)
             }
             AppServiceRetrievalMode::OnDemandNoEmbeddings => RetrievalBackend::OnDemandNoEmbeddings,
+            AppServiceRetrievalMode::OnDemandStoredVectors => {
+                RetrievalBackend::OnDemandStoredVectors
+            }
         };
         Self::new(
             retrieval,
@@ -99,6 +106,11 @@ impl AtlasAppService {
                     open_retrieval_service_no_embeddings(self.runtime_options.clone())?;
                 task(&mut retrieval)
             }
+            RetrievalBackend::OnDemandStoredVectors => {
+                let mut retrieval =
+                    open_retrieval_service_for_stored_vectors(self.runtime_options.clone())?;
+                task(&mut retrieval)
+            }
         }
     }
 }
@@ -130,6 +142,7 @@ fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
 pub(super) enum RetrievalBackend {
     Pooled(RetrievalExecutor),
     OnDemandNoEmbeddings,
+    OnDemandStoredVectors,
 }
 
 #[cfg(test)]

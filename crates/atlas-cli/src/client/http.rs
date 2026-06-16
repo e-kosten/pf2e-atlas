@@ -3,6 +3,14 @@ use atlas_app_model::{
     RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
     SavedListItemMutationView,
 };
+use atlas_app_service::RawFilterValuesRequest;
+use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
+use atlas_search::{
+    GraphContextRequest, GraphContextResult, ListRecordsResult, RecordListSort,
+    RecordRefResolutionResult, RecordResolutionResult, RemasterLinksResult, SearchPage,
+    SimilarRecordRefResult, SimilarScoreWeights, TextSearchResult, TextSearchTuning,
+    VariantGroupRefResolutionResult,
+};
 
 use super::{AtlasClient, ClientResult};
 
@@ -27,6 +35,94 @@ impl HttpAtlasClient {
 impl AtlasClient for HttpAtlasClient {
     fn local_state_path(&self) -> Option<&str> {
         None
+    }
+
+    fn get_records(
+        &self,
+        _record_keys: Vec<RecordKey>,
+    ) -> ClientResult<Vec<atlas_record::AtlasRecord>> {
+        Err(not_implemented())
+    }
+
+    fn resolve_record(
+        &self,
+        _query: String,
+        _filter: Option<SearchFilterNode>,
+    ) -> ClientResult<Vec<RecordResolutionResult>> {
+        Err(not_implemented())
+    }
+
+    fn resolve_record_ref(
+        &self,
+        _record_ref: String,
+        _filter: Option<SearchFilterNode>,
+    ) -> ClientResult<RecordRefResolutionResult> {
+        Err(not_implemented())
+    }
+
+    fn list_records(
+        &self,
+        _filter: Option<SearchFilterNode>,
+        _sort: RecordListSort,
+        _page: SearchPage,
+    ) -> ClientResult<ListRecordsResult> {
+        Err(not_implemented())
+    }
+
+    fn search_text(
+        &self,
+        _query: String,
+        _exclude: Option<String>,
+        _filter: Option<SearchFilterNode>,
+        _page: SearchPage,
+        _tuning: Option<TextSearchTuning>,
+        _explain: bool,
+    ) -> ClientResult<TextSearchResult> {
+        Err(not_implemented())
+    }
+
+    fn similar_records_for_ref(
+        &self,
+        _record_ref: String,
+        _filter: Option<SearchFilterNode>,
+        _limit: u32,
+        _candidate_limit: u32,
+        _weights: SimilarScoreWeights,
+    ) -> ClientResult<SimilarRecordRefResult> {
+        Err(not_implemented())
+    }
+
+    fn graph_context(
+        &self,
+        _request: GraphContextRequest,
+    ) -> ClientResult<Option<GraphContextResult>> {
+        Err(not_implemented())
+    }
+
+    fn resolve_variant_group_ref(
+        &self,
+        _variant_group_ref: String,
+    ) -> ClientResult<VariantGroupRefResolutionResult> {
+        Err(not_implemented())
+    }
+
+    fn remaster_links(&self, _record_key: RecordKey) -> ClientResult<Option<RemasterLinksResult>> {
+        Err(not_implemented())
+    }
+
+    fn discover_raw_filter_fields(
+        &self,
+        _filter: Option<SearchFilterNode>,
+        _filter_json: Option<serde_json::Value>,
+    ) -> ClientResult<FilterFieldDiscovery> {
+        Err(not_implemented())
+    }
+
+    fn discover_raw_filter_values(
+        &self,
+        _request: RawFilterValuesRequest,
+    ) -> ClientResult<FilterValueDiscovery> {
+        Err(not_implemented())
     }
 
     fn saved_lists(&self) -> ClientResult<SavedListIndexView> {

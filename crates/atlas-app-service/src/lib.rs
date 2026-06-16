@@ -15,4 +15,5 @@ mod windows;
 mod test_support;
 
 pub use error::{AppServiceError, AppServiceResult};
+pub use records::RawFilterValuesRequest;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};

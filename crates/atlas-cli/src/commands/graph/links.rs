@@ -1,15 +1,17 @@
 use std::process::ExitCode;
 
-use atlas_search::{GraphContextRequest, GraphRetrieval};
+use atlas_search::GraphContextRequest;
 
-use crate::output::{write_json_data, write_json_error};
+use crate::client::AtlasClient;
+use crate::output::write_json_data;
 
-use super::super::record::{search_error, search_error_code};
 use super::args::GraphLinksOptions;
 use super::data::graph_links_data;
 use super::open_graph_service;
 use super::render::print_graph_links;
-use super::resolve::{GraphCommandOutcome, record_not_found, resolve_graph_record_ref};
+use super::resolve::{
+    GraphCommandOutcome, graph_search_error, record_not_found, resolve_graph_record_ref,
+};
 
 pub(crate) fn run_graph_links(options: GraphLinksOptions) -> Result<ExitCode, String> {
     let service = match open_graph_service(options.path_mode, options.index, options.json)? {
@@ -27,11 +29,10 @@ pub(crate) fn run_graph_links(options: GraphLinksOptions) -> Result<ExitCode, St
     ) {
         Ok(Some(result)) => result,
         Ok(None) => return record_not_found(&key, options.json),
-        Err(error) if options.json => {
-            write_json_error(search_error_code(&error), error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(search_error(error)),
+        Err(error) => match graph_search_error(error, options.json)? {
+            GraphCommandOutcome::Value(result) => result,
+            GraphCommandOutcome::Exit(code) => return Ok(code),
+        },
     };
     let data = graph_links_data(&result, options.detail);
     if options.json {

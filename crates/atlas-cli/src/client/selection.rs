@@ -33,6 +33,136 @@ impl AtlasClient for AtlasClientHandle {
         }
     }
 
+    fn get_records(
+        &self,
+        record_keys: Vec<atlas_domain::RecordKey>,
+    ) -> super::ClientResult<Vec<atlas_record::AtlasRecord>> {
+        match self {
+            Self::Local(client) => client.get_records(record_keys),
+            Self::Http(client) => client.get_records(record_keys),
+        }
+    }
+
+    fn resolve_record(
+        &self,
+        query: String,
+        filter: Option<atlas_domain::SearchFilterNode>,
+    ) -> super::ClientResult<Vec<atlas_search::RecordResolutionResult>> {
+        match self {
+            Self::Local(client) => client.resolve_record(query, filter),
+            Self::Http(client) => client.resolve_record(query, filter),
+        }
+    }
+
+    fn resolve_record_ref(
+        &self,
+        record_ref: String,
+        filter: Option<atlas_domain::SearchFilterNode>,
+    ) -> super::ClientResult<atlas_search::RecordRefResolutionResult> {
+        match self {
+            Self::Local(client) => client.resolve_record_ref(record_ref, filter),
+            Self::Http(client) => client.resolve_record_ref(record_ref, filter),
+        }
+    }
+
+    fn list_records(
+        &self,
+        filter: Option<atlas_domain::SearchFilterNode>,
+        sort: atlas_search::RecordListSort,
+        page: atlas_search::SearchPage,
+    ) -> super::ClientResult<atlas_search::ListRecordsResult> {
+        match self {
+            Self::Local(client) => client.list_records(filter, sort, page),
+            Self::Http(client) => client.list_records(filter, sort, page),
+        }
+    }
+
+    fn search_text(
+        &self,
+        query: String,
+        exclude: Option<String>,
+        filter: Option<atlas_domain::SearchFilterNode>,
+        page: atlas_search::SearchPage,
+        tuning: Option<atlas_search::TextSearchTuning>,
+        explain: bool,
+    ) -> super::ClientResult<atlas_search::TextSearchResult> {
+        match self {
+            Self::Local(client) => {
+                client.search_text(query, exclude, filter, page, tuning, explain)
+            }
+            Self::Http(client) => client.search_text(query, exclude, filter, page, tuning, explain),
+        }
+    }
+
+    fn similar_records_for_ref(
+        &self,
+        record_ref: String,
+        filter: Option<atlas_domain::SearchFilterNode>,
+        limit: u32,
+        candidate_limit: u32,
+        weights: atlas_search::SimilarScoreWeights,
+    ) -> super::ClientResult<atlas_search::SimilarRecordRefResult> {
+        match self {
+            Self::Local(client) => {
+                client.similar_records_for_ref(record_ref, filter, limit, candidate_limit, weights)
+            }
+            Self::Http(client) => {
+                client.similar_records_for_ref(record_ref, filter, limit, candidate_limit, weights)
+            }
+        }
+    }
+
+    fn graph_context(
+        &self,
+        request: atlas_search::GraphContextRequest,
+    ) -> super::ClientResult<Option<atlas_search::GraphContextResult>> {
+        match self {
+            Self::Local(client) => client.graph_context(request),
+            Self::Http(client) => client.graph_context(request),
+        }
+    }
+
+    fn resolve_variant_group_ref(
+        &self,
+        variant_group_ref: String,
+    ) -> super::ClientResult<atlas_search::VariantGroupRefResolutionResult> {
+        match self {
+            Self::Local(client) => client.resolve_variant_group_ref(variant_group_ref),
+            Self::Http(client) => client.resolve_variant_group_ref(variant_group_ref),
+        }
+    }
+
+    fn remaster_links(
+        &self,
+        record_key: atlas_domain::RecordKey,
+    ) -> super::ClientResult<Option<atlas_search::RemasterLinksResult>> {
+        match self {
+            Self::Local(client) => client.remaster_links(record_key),
+            Self::Http(client) => client.remaster_links(record_key),
+        }
+    }
+
+    fn discover_raw_filter_fields(
+        &self,
+        filter: Option<atlas_domain::SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+    ) -> super::ClientResult<atlas_domain::FilterFieldDiscovery> {
+        match self {
+            Self::Local(client) => client.discover_raw_filter_fields(filter, filter_json),
+            Self::Http(client) => client.discover_raw_filter_fields(filter, filter_json),
+        }
+    }
+
+    fn discover_raw_filter_values(
+        &self,
+        request: atlas_app_service::RawFilterValuesRequest,
+    ) -> super::ClientResult<atlas_domain::FilterValueDiscovery> {
+        match self {
+            Self::Local(client) => client.discover_raw_filter_values(request),
+            Self::Http(client) => client.discover_raw_filter_values(request),
+        }
+    }
+
     fn saved_lists(&self) -> super::ClientResult<atlas_app_model::SavedListIndexView> {
         match self {
             Self::Local(client) => client.saved_lists(),
