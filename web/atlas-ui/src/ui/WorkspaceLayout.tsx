@@ -1,12 +1,13 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { PaneFrame, ResizablePaneGroup } from "./PaneLayout";
 
 type PaneKey = "filter" | "results" | "detail";
 
 type PaneState = {
-  filter: number;
-  results: number;
-  detail: number;
+  filter: { defaultWidth: number; minWidth: number };
+  results: { defaultWidth: number; minWidth: number };
+  detail: { defaultWidth: number; minWidth: number };
 };
 
 type WorkspaceLayoutProps = {
@@ -20,15 +21,10 @@ type WorkspaceLayoutProps = {
 };
 
 const COLLAPSED_WIDTH = 44;
-const MIN_WIDTHS: PaneState = {
-  filter: 240,
-  results: 0,
-  detail: 320,
-};
-const DEFAULT_WIDTHS: PaneState = {
-  filter: 300,
-  results: 560,
-  detail: 420,
+const WIDTH_SPECS: PaneState = {
+  filter: { defaultWidth: 300, minWidth: 240 },
+  results: { defaultWidth: 560, minWidth: 0 },
+  detail: { defaultWidth: 420, minWidth: 320 },
 };
 
 export function WorkspaceLayout({
@@ -40,7 +36,6 @@ export function WorkspaceLayout({
   detailHeaderActions,
   selectedRecordKey,
 }: WorkspaceLayoutProps) {
-  const [widths, setWidths] = useState(DEFAULT_WIDTHS);
   const [collapsed, setCollapsed] = useState<Record<PaneKey, boolean>>({
     filter: false,
     results: false,
@@ -49,11 +44,6 @@ export function WorkspaceLayout({
   const [detailCollapsedForRecordKey, setDetailCollapsedForRecordKey] = useState<
     string | null
   >(null);
-  const dragState = useRef<{
-    handle: "filter-results" | "results-detail";
-    startX: number;
-    startWidths: PaneState;
-  } | null>(null);
 
   const effectiveCollapsed = useMemo(
     () => ({
@@ -66,20 +56,6 @@ export function WorkspaceLayout({
     [collapsed, detailCollapsedForRecordKey, selectedRecordKey],
   );
 
-  const gridTemplateColumns = useMemo(
-    () =>
-      [
-        paneColumn("filter", effectiveCollapsed, widths),
-        "var(--panel-gap)",
-        paneColumn("results", effectiveCollapsed, widths),
-        "var(--panel-gap)",
-        paneColumn("detail", effectiveCollapsed, widths),
-      ]
-        .map((value) => (typeof value === "number" ? `${value}px` : value))
-        .join(" "),
-    [effectiveCollapsed, widths],
-  );
-
   function togglePane(pane: PaneKey) {
     if (pane === "detail") {
       const nextDetailCollapsed = !effectiveCollapsed.detail;
@@ -90,94 +66,84 @@ export function WorkspaceLayout({
     setCollapsed((current) => ({ ...current, [pane]: !current[pane] }));
   }
 
-  function beginResize(
-    handle: "filter-results" | "results-detail",
-    event: React.PointerEvent<HTMLDivElement>,
-  ) {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragState.current = {
-      handle,
-      startX: event.clientX,
-      startWidths: widths,
-    };
-  }
-
-  function resize(event: React.PointerEvent<HTMLDivElement>) {
-    const drag = dragState.current;
-    if (!drag) {
-      return;
-    }
-    const delta = event.clientX - drag.startX;
-    setWidths((current) => {
-      if (drag.handle === "filter-results") {
-        return {
-          ...current,
-          filter: clamp(drag.startWidths.filter + delta, MIN_WIDTHS.filter),
-        };
-      }
-      return {
-        ...current,
-        detail: clamp(drag.startWidths.detail - delta, MIN_WIDTHS.detail),
-      };
-    });
-  }
-
-  function endResize(event: React.PointerEvent<HTMLDivElement>) {
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    dragState.current = null;
-  }
-
   return (
-    <main className="workspace-grid" style={{ gridTemplateColumns }}>
-      <WorkspacePane
-        collapsed={effectiveCollapsed.filter}
-        headerActions={filterHeaderActions}
-        label="Filters"
-        onToggle={() => togglePane("filter")}
-      >
-        {filter}
-      </WorkspacePane>
-      <ResizeHandle
-        disabled={effectiveCollapsed.filter && effectiveCollapsed.results}
-        label="Resize filters"
-        onPointerDown={(event) => beginResize("filter-results", event)}
-        onPointerMove={resize}
-        onPointerUp={endResize}
-      />
-      <WorkspacePane
-        collapsed={effectiveCollapsed.results}
-        headerActions={resultsHeaderActions}
-        label="Results"
-        onToggle={() => togglePane("results")}
-      >
-        {results}
-      </WorkspacePane>
-      <ResizeHandle
-        disabled={effectiveCollapsed.results && effectiveCollapsed.detail}
-        label="Resize results"
-        onPointerDown={(event) => beginResize("results-detail", event)}
-        onPointerMove={resize}
-        onPointerUp={endResize}
-      />
-      <WorkspacePane
-        collapsed={effectiveCollapsed.detail}
-        headerActions={detailHeaderActions}
-        label="Detail"
-        onToggle={() => togglePane("detail")}
-      >
-        {detail}
-      </WorkspacePane>
-    </main>
+    <ResizablePaneGroup
+      className="workspace-grid"
+      widthSpecs={WIDTH_SPECS}
+      items={(widths) => [
+        {
+          kind: "pane",
+          key: "filter",
+          column: paneColumn("filter", effectiveCollapsed, widths),
+          content: (
+            <WorkspacePane
+              collapsed={effectiveCollapsed.filter}
+              headerActions={filterHeaderActions}
+              label="Filters"
+              onToggle={() => togglePane("filter")}
+            >
+              {filter}
+            </WorkspacePane>
+          ),
+        },
+        {
+          kind: "handle",
+          key: "filter-results",
+          disabled: effectiveCollapsed.filter && effectiveCollapsed.results,
+          label: "Resize filters",
+          resizePane: "filter",
+          deltaMultiplier: 1,
+        },
+        {
+          kind: "pane",
+          key: "results",
+          column: paneColumn("results", effectiveCollapsed, widths),
+          content: (
+            <WorkspacePane
+              collapsed={effectiveCollapsed.results}
+              headerActions={resultsHeaderActions}
+              label="Results"
+              onToggle={() => togglePane("results")}
+            >
+              {results}
+            </WorkspacePane>
+          ),
+        },
+        {
+          kind: "handle",
+          key: "results-detail",
+          disabled: effectiveCollapsed.results && effectiveCollapsed.detail,
+          label: "Resize results",
+          resizePane: "detail",
+          deltaMultiplier: -1,
+        },
+        {
+          kind: "pane",
+          key: "detail",
+          column: paneColumn("detail", effectiveCollapsed, widths),
+          content: (
+            <WorkspacePane
+              collapsed={effectiveCollapsed.detail}
+              headerActions={detailHeaderActions}
+              label="Detail"
+              onToggle={() => togglePane("detail")}
+            >
+              {detail}
+            </WorkspacePane>
+          ),
+        },
+      ]}
+    />
   );
 }
 
 function paneColumn(
   pane: PaneKey,
   collapsed: Record<PaneKey, boolean>,
-  widths: PaneState,
-): number | string {
+  widths: Record<string, number>,
+): string {
   if (collapsed[pane]) {
-    return COLLAPSED_WIDTH;
+    return `${COLLAPSED_WIDTH}px`;
   }
   if (pane === "results") {
     return "minmax(0, 1fr)";
@@ -205,14 +171,12 @@ function WorkspacePane({
   onToggle: () => void;
 }) {
   return (
-    <div
+    <PaneFrame
       className={
         collapsed ? "workspace-pane workspace-pane--collapsed" : "workspace-pane"
       }
-    >
-      <div className="pane-header">
-        <span>{label}</span>
-        <div className="pane-header__actions">
+      headerActions={
+        <>
           {!collapsed && headerActions}
           <button
             aria-label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
@@ -223,8 +187,10 @@ function WorkspacePane({
           >
             {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           </button>
-        </div>
-      </div>
+        </>
+      }
+      label={label}
+    >
       {collapsed ? (
         <button
           aria-label={`Expand ${label}`}
@@ -238,37 +204,6 @@ function WorkspacePane({
       ) : (
         children
       )}
-    </div>
+    </PaneFrame>
   );
-}
-
-function ResizeHandle({
-  disabled,
-  label,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-}: {
-  disabled: boolean;
-  label: string;
-  onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
-}) {
-  return (
-    <div
-      aria-disabled={disabled}
-      aria-label={label}
-      aria-orientation="vertical"
-      className="pane-resizer"
-      onPointerDown={disabled ? undefined : onPointerDown}
-      onPointerMove={disabled ? undefined : onPointerMove}
-      onPointerUp={disabled ? undefined : onPointerUp}
-      role="separator"
-    />
-  );
-}
-
-function clamp(value: number, min: number): number {
-  return Math.max(min, Math.round(value));
 }

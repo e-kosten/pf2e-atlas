@@ -1,7 +1,5 @@
 import { DEFAULT_SEARCH_STATE } from "../state/searchState";
 import {
-  recordKeyFromPath,
-  workspacePath,
   workspaceInteractionReducer,
   type WorkspaceInteractionState,
 } from "./workspaceState";
@@ -111,21 +109,6 @@ describe("workspaceInteractionReducer", () => {
 
     expect(next.pageNumber).toBe(2);
     expect(next.focusedResultKey).toBeNull();
-  });
-});
-
-describe("recordKeyFromPath", () => {
-  it("decodes first-class record routes", () => {
-    expect(recordKeyFromPath("/search/records/spell%3Aheal")).toBe("spell:heal");
-    expect(recordKeyFromPath("/records/spell%3Aheal")).toBe("spell:heal");
-    expect(recordKeyFromPath("/")).toBeNull();
-  });
-});
-
-describe("workspacePath", () => {
-  it("builds search workspace routes", () => {
-    expect(workspacePath(null)).toBe("/search");
-    expect(workspacePath("spell:heal")).toBe("/search/records/spell%3Aheal");
   });
 });
 

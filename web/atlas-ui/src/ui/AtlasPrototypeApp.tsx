@@ -9,15 +9,23 @@ import {
 } from "./atlasTheme";
 import { AntPrototype } from "./AntPrototype";
 import { PrototypeShell } from "./PrototypeShell";
+import { ReaderView, RecordView } from "./RecordViews";
+import {
+  ATLAS_ROUTE_CHANGE_EVENT,
+  currentAtlasRoute,
+  navigateToAtlasRoute,
+  type AtlasRoute,
+} from "./routes";
 import { useAtlasWorkspace } from "./useAtlasWorkspace";
 
 export function AtlasPrototypeApp() {
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
+  const [route, setRoute] = useState<AtlasRoute>(currentAtlasRoute);
   const systemColorScheme = useSystemColorScheme();
   const resolvedColorScheme =
     colorScheme === "system" ? systemColorScheme : colorScheme;
-  const workspace = useAtlasWorkspace();
+  const workspace = useAtlasWorkspace({ enabled: route.kind === "search" });
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedColorScheme;
@@ -28,6 +36,16 @@ export function AtlasPrototypeApp() {
     );
   }, [resolvedColorScheme]);
 
+  useEffect(() => {
+    const onRouteChange = () => setRoute(currentAtlasRoute());
+    window.addEventListener("popstate", onRouteChange);
+    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
+    return () => {
+      window.removeEventListener("popstate", onRouteChange);
+      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
+    };
+  }, []);
+
   const updateColorScheme = (preference: ColorSchemePreference) => {
     setColorScheme(preference);
     localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, preference);
@@ -35,13 +53,19 @@ export function AtlasPrototypeApp() {
 
   return (
     <PrototypeShell
+      activeView={route.kind}
       colorScheme={colorScheme}
       onColorSchemeChange={updateColorScheme}
+      onNavigateSearch={() =>
+        navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
+      }
       resolvedColorScheme={resolvedColorScheme}
       workspace={workspace}
     >
       <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
-        <AntPrototype workspace={workspace} />
+        {route.kind === "search" && <AntPrototype workspace={workspace} />}
+        {route.kind === "record" && <RecordView route={route} />}
+        {route.kind === "reader" && <ReaderView route={route} />}
       </ConfigProvider>
     </PrototypeShell>
   );

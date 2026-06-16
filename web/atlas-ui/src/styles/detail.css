@@ -2,6 +2,53 @@
   overflow: auto;
 }
 
+.record-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 0;
+  row-gap: var(--panel-gap);
+  height: calc(100vh - 77px);
+  padding: var(--panel-gap);
+}
+
+.atlas-app--diagnostics .record-view {
+  height: calc(100vh - 77px - 54px);
+}
+
+.record-view__pane {
+  display: grid;
+  grid-template-rows: 34px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.record-view__pane > .detail-panel {
+  border: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--panel);
+}
+
+.record-view__link,
+.reader-preview__open {
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.record-view__link:hover,
+.record-view__link:focus-visible,
+.reader-preview__open:hover,
+.reader-preview__open:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reader-preview__open {
+  display: inline-flex;
+  margin: 12px 18px 0;
+}
+
 .detail-empty {
   display: grid;
   place-items: center;

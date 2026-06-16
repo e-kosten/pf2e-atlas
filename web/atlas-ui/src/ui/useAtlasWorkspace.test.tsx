@@ -90,6 +90,23 @@ describe("useAtlasWorkspace", () => {
     });
   });
 
+  it("can disable search workspace queries for non-search routes", async () => {
+    const { result } = renderHook(() => useAtlasWorkspace({ enabled: false }), {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
+    act(() => result.current.refresh());
+    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(2));
+    await delay(50);
+
+    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
+    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+    expect(result.current.resultsLoading).toBe(false);
+  });
+
   it("tracks keyboard result selection separately from opened detail routes", async () => {
     apiMocks.openResultWindow.mockResolvedValue(
       resultWindowPage(["spell:dirge-of-doom", "spell:heal"]),
@@ -492,7 +509,7 @@ describe("useAtlasWorkspace", () => {
     history.pushState(
       null,
       "",
-      `/records/spell%3Aacid-arrow?s=${encodeSearchState(restoredSearch)}`,
+      `/search/records/spell%3Aacid-arrow?s=${encodeSearchState(restoredSearch)}`,
     );
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
 

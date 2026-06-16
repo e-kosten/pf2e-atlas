@@ -5,16 +5,20 @@ import { pagePositionLabel } from "./pageMetrics";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
 type PrototypeShellProps = {
+  activeView: "search" | "record" | "reader";
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
+  onNavigateSearch: () => void;
   resolvedColorScheme: ResolvedColorScheme;
   workspace: AtlasWorkspaceState;
   children: React.ReactNode;
 };
 
 export function PrototypeShell({
+  activeView,
   colorScheme,
   onColorSchemeChange,
+  onNavigateSearch,
   resolvedColorScheme,
   workspace,
   children,
@@ -39,10 +43,20 @@ export function PrototypeShell({
       data-theme={resolvedColorScheme}
     >
       <header className="topbar">
-        <div>
+        <div className="topbar__identity">
           <h1>PF2e Atlas</h1>
           <p>{readiness?.message ?? "Waiting for the local Atlas service."}</p>
         </div>
+        <nav className="topbar__nav" aria-label="Atlas views">
+          <button
+            aria-current={activeView === "search" ? "page" : undefined}
+            className="topbar__nav-item"
+            onClick={onNavigateSearch}
+            type="button"
+          >
+            Search
+          </button>
+        </nav>
         <div className="topbar__actions">
           <span className={`status-pill status-pill--${status}`}>{status}</span>
           <button
