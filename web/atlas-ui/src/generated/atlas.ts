@@ -3,7 +3,10 @@ export type { AppErrorCode } from "../../../../crates/atlas-app-model/bindings/A
 export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bindings/AppReadinessStatus";
 export type { AppReadinessView } from "../../../../crates/atlas-app-model/bindings/AppReadinessView";
 export type { AppRecoverableAction } from "../../../../crates/atlas-app-model/bindings/AppRecoverableAction";
+export type { AddSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/AddSavedListItemRequest";
 export type { BasicSearchFilter } from "../../../../crates/atlas-app-model/bindings/BasicSearchFilter";
+export type { CreateSavedListRequest } from "../../../../crates/atlas-app-model/bindings/CreateSavedListRequest";
+export type { DeleteSavedListView } from "../../../../crates/atlas-app-model/bindings/DeleteSavedListView";
 export type { DiscoverFilterEditorRequest } from "../../../../crates/atlas-app-model/bindings/DiscoverFilterEditorRequest";
 export type { DiscoverFilterValuesRequest } from "../../../../crates/atlas-app-model/bindings/DiscoverFilterValuesRequest";
 export type { FilterClause } from "../../../../crates/atlas-app-model/bindings/FilterClause";
@@ -48,8 +51,12 @@ export type { ResultWindowMode } from "../../../../crates/atlas-app-model/bindin
 export type { ResultWindowModeSummary } from "../../../../crates/atlas-app-model/bindings/ResultWindowModeSummary";
 export type { ResultWindowPage } from "../../../../crates/atlas-app-model/bindings/ResultWindowPage";
 export type { ResultWindowRow } from "../../../../crates/atlas-app-model/bindings/ResultWindowRow";
+export type { RemoveSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/RemoveSavedListItemRequest";
+export type { SavedListCreateView } from "../../../../crates/atlas-app-model/bindings/SavedListCreateView";
 export type { SavedListDetailView } from "../../../../crates/atlas-app-model/bindings/SavedListDetailView";
 export type { SavedListIndexView } from "../../../../crates/atlas-app-model/bindings/SavedListIndexView";
+export type { SavedListItemMutationOutcomeView } from "../../../../crates/atlas-app-model/bindings/SavedListItemMutationOutcomeView";
+export type { SavedListItemMutationView } from "../../../../crates/atlas-app-model/bindings/SavedListItemMutationView";
 export type { SavedListItemSnapshotView } from "../../../../crates/atlas-app-model/bindings/SavedListItemSnapshotView";
 export type { SavedListItemStatusView } from "../../../../crates/atlas-app-model/bindings/SavedListItemStatusView";
 export type { SavedListItemView } from "../../../../crates/atlas-app-model/bindings/SavedListItemView";

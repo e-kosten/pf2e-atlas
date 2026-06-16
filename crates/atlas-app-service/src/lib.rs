@@ -15,4 +15,4 @@ mod windows;
 mod test_support;
 
 pub use error::{AppServiceError, AppServiceResult};
-pub use service::{AtlasAppService, AtlasAppServiceOptions};
+pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};

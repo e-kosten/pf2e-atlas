@@ -52,8 +52,8 @@ impl From<LocalStateError> for AppServiceError {
                 AppErrorCode::InvalidRequest
             }
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
-            LocalStateError::ListAlreadyExists(_)
-            | LocalStateError::UnsupportedMetadata { .. }
+            LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
+            LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
             | LocalStateError::Database(_)
             | LocalStateError::Filesystem(_)
@@ -73,7 +73,7 @@ impl From<SearchError> for AppServiceError {
             SearchErrorKind::InvalidOptions => AppErrorCode::InvalidRequest,
             SearchErrorKind::VectorReadinessRequired => AppErrorCode::VectorReadinessRequired,
             SearchErrorKind::EmbeddingUnavailable => AppErrorCode::EmbeddingModelUnavailable,
-            SearchErrorKind::QueryFailed => AppErrorCode::InternalError,
+            SearchErrorKind::QueryFailed => AppErrorCode::QueryFailed,
         };
         Self::new(code, error.to_string())
     }

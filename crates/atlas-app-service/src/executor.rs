@@ -164,6 +164,13 @@ fn open_retrieval_service(options: AtlasRuntimeOptions) -> AppServiceResult<Atla
     Ok(runtime.open_retrieval_service()?)
 }
 
+pub(super) fn open_retrieval_service_no_embeddings(
+    options: AtlasRuntimeOptions,
+) -> AppServiceResult<AtlasRetrievalService> {
+    let runtime = AtlasRuntime::resolve(options)?;
+    Ok(runtime.open_retrieval_service_no_embeddings()?)
+}
+
 fn retrieval_worker(
     retrieval: &mut AtlasRetrievalService,
     receiver: Arc<Mutex<Receiver<RetrievalJob>>>,

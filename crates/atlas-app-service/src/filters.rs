@@ -23,7 +23,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<FilterEditorView> {
         let filter = lower_basic_filter_context(&request.context)?;
         let selected_field_ids = selected_filter_field_ids(&request);
-        self.retrieval.submit(move |retrieval| {
+        self.submit_retrieval(move |retrieval| {
             let discovery =
                 retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
                     filter: filter.as_ref(),
@@ -48,7 +48,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<FilterValueListView> {
         let discovery_context = filter_context_excluding_field(&request.context, &request.field_id);
         let filter = lower_basic_filter_context(&discovery_context)?;
-        self.retrieval.submit(move |retrieval| {
+        self.submit_retrieval(move |retrieval| {
             let discovery =
                 retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
                     field: discovery_field_id(&request.field_id),

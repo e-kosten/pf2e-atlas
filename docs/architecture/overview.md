@@ -113,16 +113,16 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
 4. `atlas-runtime` resolves source, embedding cache, artifact, and local-state paths for setup and query commands.
 5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
-6. `atlas-local-state` opens and migrates mutable local-state storage for saved lists and future durable local data.
+6. `atlas-local-state` opens and migrates mutable local-state storage and exposes product APIs for saved lists and future durable local data.
 7. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
-8. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`.
-9. `atlas-app-service` holds long-lived retrieval state for interactive sessions, adapts app DTOs into `atlas-search` requests, and projects local-state saved lists into app-facing views.
+8. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`. Commands that need application workflows should call the CLI client facade, which currently has an in-process app-service implementation and a stubbed future HTTP implementation.
+9. `atlas-app-service` holds retrieval state for application workflows, adapts app DTOs into `atlas-search` requests, composes local-state product APIs with retrieval, and projects saved lists into app-facing views. It is an application workflow service, not a web-only service.
 10. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
 11. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
 
 ## Editing Guidance
 
-- Keep `atlas-cli` thin. Durable search, lookup, graph, validation, setup, and artifact behavior belongs below the CLI.
+- Keep `atlas-cli` thin. Durable search, lookup, graph, validation, setup, artifact behavior, and cross-layer local-state workflows belong below the CLI. CLI commands should own argument grammar, terminal/JSON envelopes, and exit-code mapping. When a command needs app workflow behavior, prefer the CLI client facade over direct runtime/search/local-state composition so future local and remote clients can share the same contracts.
 - Keep `atlas-app-model` thin. It should contain interactive workflow DTOs and generated TypeScript contracts, not duplicate domain logic or record presentation models.
 - Run `cargo test -p atlas-app-model` after app DTO changes; it fails when checked-in TypeScript bindings drift. Regenerate bindings intentionally with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
 - Keep `atlas-app-service` behind runtime/search boundaries. It should not import `atlas-index`, assemble SQLite readers, or use no-embeddings retrieval shortcuts. It owns the app filter editor projection, including field grouping, typed controls, placement, labels, discovery-scope semantics, selected-field preservation, and display ordering over product discovery results. The service facade owns shared app state and a bounded retrieval executor; workflow modules such as result windows, record detail, and filters own their orchestration and tests. Result-window metadata may be serialized through app-service state, but read-only retrieval execution should run through the bounded pool rather than a single global request lane.
@@ -131,7 +131,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 - Keep `atlas-cli/src/main.rs` as the binary entrypoint only. Top-level command composition and dispatch belong in `atlas-cli/src/cli.rs`; shared CLI argument groups and parsers belong under `atlas-cli/src/cli/`; command-specific argument grammar, execution, and presentation belong under `atlas-cli/src/commands/`.
 - Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
 - Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
-- Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. Artifact rebuilds must not be responsible for preserving saved lists or future user-authored local rows.
+- Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. `LocalStateStore` owns database lifecycle and feature handles such as `saved_lists()`, while feature modules own product behavior over their rows. Cross-layer workflows that need both active artifact records and local state belong in `atlas-app-service`, not in `atlas-runtime` or CLI command code. Artifact rebuilds must not be responsible for preserving saved lists or future user-authored local rows.
 - Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
 - Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
 - Add future crates only when their first real implementation slice lands.

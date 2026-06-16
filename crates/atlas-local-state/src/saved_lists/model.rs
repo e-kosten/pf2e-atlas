@@ -1,3 +1,4 @@
+use atlas_domain::RecordKey;
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -57,7 +58,15 @@ pub struct NewSavedList {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NewSavedListItem {
+pub struct ResolvedSavedListItem {
+    pub record_key: RecordKey,
+    pub title_snapshot: String,
+    pub kind_snapshot: Option<String>,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NewSavedListItem {
     pub record_key: String,
     pub note: Option<String>,
     pub record_title_snapshot: String,
@@ -69,26 +78,4 @@ pub struct NewSavedListItem {
 pub enum AddSavedListItemOutcome {
     Added,
     AlreadyPresent,
-}
-
-pub fn hydrate_saved_list_item<T>(
-    item: SavedListItem,
-    record: Option<T>,
-) -> HydratedSavedListItem<T> {
-    let status = if record.is_some() {
-        SavedListItemStatus::Active
-    } else {
-        SavedListItemStatus::Unresolved
-    };
-    HydratedSavedListItem {
-        record_key: item.record_key,
-        position: item.position,
-        note: item.note,
-        status,
-        snapshot: SavedListItemSnapshot {
-            title: item.record_title_snapshot,
-            kind: item.record_kind_snapshot,
-        },
-        record,
-    }
 }
