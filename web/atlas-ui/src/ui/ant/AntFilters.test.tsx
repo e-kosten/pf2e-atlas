@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { FilterEditorView } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "../../state/searchState";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
@@ -399,12 +399,14 @@ describe("AntFilters", () => {
   it("closes option pickers when clicking outside the control", async () => {
     render(<AntFilters workspace={workspace()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
-    expect(await screen.findByRole("button", { name: "spell (1)" })).toBeVisible();
+    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+    expect(screen.getByLabelText("spell (1)")).toBeInTheDocument();
 
     fireEvent.click(document.body);
 
-    expect(screen.queryByRole("button", { name: "spell (1)" })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByLabelText("spell (1)")).not.toBeInTheDocument(),
+    );
   });
 
   it("keeps an open option picker stable while refreshed filter values narrow", async () => {
