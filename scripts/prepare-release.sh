@@ -459,6 +459,8 @@ ensure_release_prep_scope() {
 
 run_release_pr_checks() {
   run_check scripts/release/validate-release-tooling.sh
+  run_check npm --prefix web/atlas-ui ci
+  run_check npm --prefix web/atlas-ui run build
   run_check scripts/verify.sh
 }
 
@@ -495,6 +497,8 @@ if [ "$open_pr" -eq 1 ]; then
   info "Notes:      $notes_file"
   info "Checks:"
   info "  scripts/release/validate-release-tooling.sh"
+  info "  npm --prefix web/atlas-ui ci"
+  info "  npm --prefix web/atlas-ui run build"
   info "  scripts/verify.sh"
 
   if [ "$dry_run" -eq 1 ]; then
@@ -625,6 +629,8 @@ else
 fi
 
 info "Local checks:"
+info "  npm --prefix web/atlas-ui ci"
+info "  npm --prefix web/atlas-ui run build"
 info "  scripts/verify.sh"
 info "  dist plan --verbose error --tag $tag --allow-dirty"
 prepare_publish_tag
@@ -643,6 +649,8 @@ if [ "$yes" -ne 1 ]; then
   esac
 fi
 
+run_check npm --prefix web/atlas-ui ci
+run_check npm --prefix web/atlas-ui run build
 run_check scripts/verify.sh
 run_check dist plan --verbose error --tag "$tag" --allow-dirty
 ensure_clean_worktree

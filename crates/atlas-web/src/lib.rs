@@ -10,13 +10,18 @@ use atlas_app_model::{
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use rust_embed::Embed;
 use tokio::sync::Semaphore;
 
 const MAX_BLOCKING_SERVICE_CALLS: usize = 64;
+
+#[derive(Embed)]
+#[folder = "../../web/atlas-ui/dist"]
+struct WebAssets;
 
 #[derive(Clone)]
 struct AtlasWebState {
@@ -62,6 +67,7 @@ fn router_with_state(state: AtlasWebState) -> Router {
             post(read_result_window_page),
         )
         .route("/api/records/{record_key}", get(record_detail))
+        .fallback(get(static_asset))
         .with_state(state)
 }
 
@@ -131,8 +137,25 @@ impl AtlasWebService for AtlasAppService {
     }
 }
 
-async fn root() -> &'static str {
-    "Atlas web API is running."
+async fn root() -> Response {
+    asset_response("index.html")
+}
+
+async fn static_asset(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
+    if path.starts_with("api/") {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    if path.is_empty() {
+        return asset_response("index.html");
+    }
+    if WebAssets::get(path).is_some() {
+        return asset_response(path);
+    }
+    if !path.contains('.') {
+        return asset_response("index.html");
+    }
+    StatusCode::NOT_FOUND.into_response()
 }
 
 async fn readiness(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
@@ -256,6 +279,45 @@ fn parse_window_id(value: &str) -> Result<u64, WebError> {
     value
         .parse()
         .map_err(|error| WebError::invalid_path(format!("invalid result window id: {error}")))
+}
+
+fn asset_response(path: &str) -> Response {
+    let Some(asset) = WebAssets::get(path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type(path))
+        .header(header::CACHE_CONTROL, cache_control(path))
+        .body(axum::body::Body::from(asset.data.into_owned()))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+}
+
+fn content_type(path: &str) -> &'static str {
+    match path.rsplit_once('.').map(|(_, extension)| extension) {
+        Some("css") => "text/css; charset=utf-8",
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") | Some("mjs") => "text/javascript; charset=utf-8",
+        Some("json") => "application/json; charset=utf-8",
+        Some("map") => "application/json; charset=utf-8",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("txt") => "text/plain; charset=utf-8",
+        Some("webmanifest") => "application/manifest+json; charset=utf-8",
+        Some("woff") => "font/woff",
+        Some("woff2") => "font/woff2",
+        _ => "application/octet-stream",
+    }
+}
+
+fn cache_control(path: &str) -> &'static str {
+    if path == "index.html" {
+        "no-cache"
+    } else if path.starts_with("assets/") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "public, max-age=300"
+    }
 }
 
 async fn call_service<T: Send + 'static>(
@@ -431,6 +493,94 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["status"], "ready");
         assert_eq!(body["message"], "fixture ready");
+    }
+
+    #[tokio::test]
+    async fn root_serves_embedded_frontend_index() {
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::get("/")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+        let (parts, body) = response.into_parts();
+        let body = to_bytes(body, usize::MAX)
+            .await
+            .expect("body should be readable");
+        let body = String::from_utf8(body.to_vec()).expect("body should be UTF-8");
+
+        assert_eq!(parts.status, StatusCode::OK);
+        assert_eq!(
+            parts.headers.get(header::CONTENT_TYPE).unwrap(),
+            "text/html; charset=utf-8"
+        );
+        assert_eq!(
+            parts.headers.get(header::CACHE_CONTROL).unwrap(),
+            "no-cache"
+        );
+        assert!(body.contains("<div id=\"root\"></div>"));
+    }
+
+    #[tokio::test]
+    async fn frontend_routes_fall_back_to_index_but_api_routes_do_not() {
+        let app = test_router();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::get("/search")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+        let (parts, body) = response.into_parts();
+        let body = to_bytes(body, usize::MAX)
+            .await
+            .expect("body should be readable");
+        let body = String::from_utf8(body.to_vec()).expect("body should be UTF-8");
+
+        assert_eq!(parts.status, StatusCode::OK);
+        assert!(body.contains("<div id=\"root\"></div>"));
+
+        let response = app
+            .oneshot(
+                Request::get("/api/no-such-route")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn embedded_frontend_assets_get_long_cache_headers() {
+        let asset_path = WebAssets::iter()
+            .find(|path| path.starts_with("assets/") && path.ends_with(".js"))
+            .expect("built frontend should include a JavaScript asset");
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::get(format!("/{asset_path}"))
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL).unwrap(),
+            "public, max-age=31536000, immutable"
+        );
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "text/javascript; charset=utf-8"
+        );
     }
 
     #[tokio::test]

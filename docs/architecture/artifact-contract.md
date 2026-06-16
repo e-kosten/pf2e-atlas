@@ -4,6 +4,8 @@ This document defines the runtime artifact boundary for PF2e Atlas. The Rust run
 
 For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md).
 
+Durable mutable local state is not part of this artifact contract. Saved lists and future user-authored or agent-authored local data live in the separate local-state database owned by `atlas-local-state`; artifact rebuilds do not copy, preserve, or validate those rows.
+
 ## Contract Version
 
 The first supported contract version is:

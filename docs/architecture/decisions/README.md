@@ -16,6 +16,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0027-rust-runtime-lint-policy.md`](./0027-rust-runtime-lint-policy.md): runtime Rust code denies panic-oriented Clippy lints outside tests, while tests keep assertion-oriented unwrap/expect ergonomics.
 - [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): Rust tagging is a typed authored-label subsystem with explicit crate ownership, record-centered assignments, and authoritative `record_tags` artifact rows.
 - [`0029-local-web-app-boundary.md`](./0029-local-web-app-boundary.md): the local web app uses Axum plus an app-model/app-service boundary over runtime/search, with generated TypeScript contracts and no no-embeddings fallback.
+- [`0030-local-state-database.md`](./0030-local-state-database.md): durable mutable local state such as saved lists lives in a separate local-state SQLite database beside the generated artifact.
 
 ## Historical ADRs
 

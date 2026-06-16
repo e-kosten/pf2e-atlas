@@ -50,6 +50,10 @@ impl AtlasRuntime {
         &self.paths.index_path
     }
 
+    pub fn local_state_path(&self) -> &Path {
+        &self.paths.local_state_path
+    }
+
     pub fn open_index(
         &self,
     ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexValidationError> {

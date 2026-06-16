@@ -23,6 +23,7 @@ pub struct ResolvedAtlasPaths {
     pub source_root: PathBuf,
     pub embedding_cache_root: PathBuf,
     pub index_path: PathBuf,
+    pub local_state_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,6 +89,11 @@ pub(crate) fn resolve_atlas_paths(
             }
         }
     };
+    let index_path = overrides
+        .index_path
+        .or(defaults.index_path)
+        .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::IndexPath))?;
+    let local_state_path = local_state_path_for_index(&index_path);
 
     Ok(ResolvedAtlasPaths {
         mode: resolved_mode,
@@ -106,11 +112,16 @@ pub(crate) fn resolve_atlas_paths(
             .ok_or_else(|| {
                 RuntimeError::path_default_unavailable(RuntimePathTarget::EmbeddingCacheRoot)
             })?,
-        index_path: overrides
-            .index_path
-            .or(defaults.index_path)
-            .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::IndexPath))?,
+        index_path,
+        local_state_path,
     })
+}
+
+fn local_state_path_for_index(index_path: &Path) -> PathBuf {
+    index_path
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .join("pf2e-local-state.sqlite")
 }
 
 fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
@@ -163,4 +174,36 @@ fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_state_path_resolves_beside_repo_default_artifact() {
+        let index = PathBuf::from("/workspace/.cache/pf2e-index.sqlite");
+        assert_eq!(
+            local_state_path_for_index(&index),
+            PathBuf::from("/workspace/.cache/pf2e-local-state.sqlite")
+        );
+    }
+
+    #[test]
+    fn local_state_path_resolves_beside_global_default_artifact() {
+        let index = PathBuf::from("/home/test/.cache/pf2e-atlas/pf2e-index.sqlite");
+        assert_eq!(
+            local_state_path_for_index(&index),
+            PathBuf::from("/home/test/.cache/pf2e-atlas/pf2e-local-state.sqlite")
+        );
+    }
+
+    #[test]
+    fn local_state_path_resolves_beside_index_override() {
+        let index = PathBuf::from("/tmp/custom-artifact.sqlite");
+        assert_eq!(
+            local_state_path_for_index(&index),
+            PathBuf::from("/tmp/pf2e-local-state.sqlite")
+        );
+    }
 }

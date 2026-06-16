@@ -1,0 +1,47 @@
+# ADR 0030: Local State Database
+
+Status: accepted  
+Date: 2026-06-16
+
+## Context
+
+PF2e Atlas writes a generated SQLite artifact from the Foundry PF2E source. Runtime retrieval opens that artifact read-only, and rebuilds publish a replacement artifact after writing a complete temporary database. That model keeps source-derived search, lookup, graph, filter, FTS, and embedding data deterministic and rebuildable.
+
+Saved lists introduce durable mutable state. Users and local agents need to create and edit lists over time, and those lists must survive artifact rebuilds. Storing that state inside the generated artifact would require rebuild-time preservation, user-table copying, write coordination with web/CLI processes, and validation rules that distinguish generated rows from mutable local rows.
+
+## Decision
+
+PF2e Atlas stores durable mutable local state in a separate local-state SQLite database, resolved beside the active generated artifact.
+
+The initial database file is:
+
+```text
+pf2e-local-state.sqlite
+```
+
+The generated artifact remains the owner of source-derived runtime data and is still rebuildable as a replaceable artifact. The local-state database owns user-authored or agent-authored durable local state such as saved lists.
+
+The initial implementation uses an `atlas-local-state` crate. It owns:
+
+- local-state schema metadata and migrations
+- saved-list storage tables and write APIs
+- durable item ordering
+- saved item snapshots used when an active artifact no longer contains a saved record key
+
+`atlas-runtime` resolves the local-state path beside the active index path. Product surfaces such as `atlas-cli`, `atlas-app-service`, and future TUI/web list workflows compose through runtime path resolution and local-state APIs; they do not store mutable user state in `atlas-index`.
+
+## Consequences
+
+Artifact rebuilds do not need to preserve saved-list rows because they never own those rows.
+
+Saved-list items store canonical record keys plus display snapshots. Adding an item requires strict resolution to a single record key, but later artifact rebuilds may make a key unresolved. Unresolved items are preserved and surfaced explicitly instead of being silently deleted.
+
+Import/export for local state remains a follow-up product feature. It should serialize local-state entities through stable, scriptable formats rather than making users copy generated artifacts or mutable SQLite files by hand.
+
+## Boundaries
+
+- `atlas-index` owns generated artifact schema, validation, read APIs, and artifact writing.
+- `atlas-local-state` owns mutable local-state schema and saved-list persistence.
+- `atlas-runtime` owns path resolution for both artifact and local-state paths.
+- `atlas-cli` owns command grammar, output, and exit codes for saved-list commands.
+- Future web/TUI saved-list UI should route through app-service/local-state APIs, not direct frontend SQLite access.

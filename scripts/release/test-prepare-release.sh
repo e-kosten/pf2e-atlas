@@ -175,7 +175,7 @@ esac
 EOF_GH
 chmod +x "$fake_bin/gh"
 
-for command in cargo dist; do
+for command in cargo dist npm; do
   cat > "$fake_bin/$command" <<'EOF_CMD'
 #!/bin/sh
 printf '%s %s\n' "$(basename "$0")" "$*" >> "$ATLAS_TEST_COMMAND_LOG"
@@ -316,6 +316,10 @@ open_pr_output=$(printf 'y\n' | ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --o
 }
 grep -q 'scripts/release/validate-release-tooling.sh' "$log" || {
   echo "prepare-release --open-pr did not run release tooling validation" >&2
+  exit 1
+}
+grep -q 'npm --prefix web/atlas-ui run build' "$log" || {
+  echo "prepare-release --open-pr did not build web UI assets" >&2
   exit 1
 }
 expect_log_absent 'scripts/release/test-prepare-release.sh' "prepare-release --open-pr ran recursive release-script smoke tests"

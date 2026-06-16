@@ -17,9 +17,28 @@ preflight:
 verify *args:
     scripts/verify.sh {{args}}
 
+[doc('Install frontend dependencies for the Atlas web UI')]
+[group('validation')]
+web-ui-install:
+    npm --prefix web/atlas-ui ci
+
+[doc('Build the Atlas web UI static bundle for embedding in atlas-web')]
+[group('validation')]
+web-ui-build:
+    npm --prefix web/atlas-ui run build
+
+[doc('Run the Atlas web UI format, lint, typecheck, test, and build gate')]
+[group('validation')]
+web-ui-verify:
+    npm --prefix web/atlas-ui run verify
+
+[doc('Run the full Rust and web UI validation gates')]
+[group('validation')]
+verify-all: web-ui-install web-ui-verify verify
+
 [doc('Install the local atlas CLI from this checkout')]
 [group('development')]
-install:
+install: web-ui-install web-ui-build
     cargo install --path crates/atlas-cli --locked
 
 [doc('Rebase, verify, fast-forward main, and verify main again')]

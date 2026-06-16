@@ -8,6 +8,7 @@ use crate::commands::completions::args::CompletionsArgs;
 use crate::commands::filter_discovery::args::{FiltersArgs, FiltersCommand};
 use crate::commands::graph::args::{GraphArgs, GraphCommand};
 use crate::commands::index::args::{IndexArgs, IndexCommand};
+use crate::commands::lists::args::{ListsArgs, ListsCommand};
 use crate::commands::record::args::{RecordArgs, RecordCommand};
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
@@ -58,6 +59,8 @@ pub(crate) enum Command {
     Web(WebArgs),
     #[command(about = "Discover filter fields and values")]
     Filters(FiltersArgs),
+    #[command(about = "Create and edit durable local saved lists")]
+    Lists(ListsArgs),
     #[command(about = "Validate and inspect authored tag data")]
     Tags(TagsArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
@@ -120,6 +123,14 @@ impl Command {
                 FiltersCommand::Fields(options) => options.json,
                 FiltersCommand::Values(options) => options.json,
             },
+            Self::Lists(lists) => match &lists.command {
+                ListsCommand::Create(options) => options.json,
+                ListsCommand::Ls(options) => options.json,
+                ListsCommand::Show(options) => options.json,
+                ListsCommand::Add(options) => options.json,
+                ListsCommand::Remove(options) => options.json,
+                ListsCommand::Delete(options) => options.json,
+            },
             Self::Tags(tags) => match &tags.command {
                 TagsCommand::Validate(options) => options.json,
             },
@@ -163,6 +174,14 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             FiltersCommand::Values(options) => {
                 commands::filter_discovery::run_filters_values(*options)
             }
+        },
+        Command::Lists(lists) => match lists.command {
+            ListsCommand::Create(options) => commands::lists::run_lists_create(options),
+            ListsCommand::Ls(options) => commands::lists::run_lists_ls(options),
+            ListsCommand::Show(options) => commands::lists::run_lists_show(options),
+            ListsCommand::Add(options) => commands::lists::run_lists_add(options),
+            ListsCommand::Remove(options) => commands::lists::run_lists_remove(options),
+            ListsCommand::Delete(options) => commands::lists::run_lists_delete(options),
         },
         Command::Tags(tags) => match tags.command {
             TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),

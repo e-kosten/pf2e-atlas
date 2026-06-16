@@ -19,6 +19,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile \
 python3 "$repo_root/scripts/release/generate-notices.py" --check >/dev/null
 
 ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' \
+  "$repo_root/.github/workflows/ci.yml" \
   "$repo_root/.github/workflows/release.yml" \
   "$repo_root/.github/workflows/release-build-check.yml"
 
@@ -31,6 +32,7 @@ fi
 
 if command -v actionlint >/dev/null 2>&1; then
   actionlint \
+    "$repo_root/.github/workflows/ci.yml" \
     "$repo_root/.github/workflows/release.yml" \
     "$repo_root/.github/workflows/release-build-check.yml"
 else

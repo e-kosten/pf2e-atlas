@@ -24,6 +24,7 @@ atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true
+atlas-local-state.workspace = true
 atlas-record.workspace = true
 atlas-runtime.workspace = true
 atlas-search.workspace = true
