@@ -31,6 +31,23 @@ pub struct RecordSummaryView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+pub struct RecordResolutionAmbiguousView {
+    pub record_ref: String,
+    pub matches: Vec<RecordResolutionCandidateView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordResolutionCandidateView {
+    pub record: RecordSummaryView,
+    pub query: String,
+    pub normalized_query: String,
+    pub match_kind: String,
+    pub matched_text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
 pub struct RecordBadgeView {
     pub kind: String,
     pub label: String,

@@ -39,6 +39,25 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
         local_state_path.display().to_string()
     );
 
+    let duplicate_create_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "lists",
+            "create",
+            "undead-research",
+            "--name",
+            "Duplicate",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(duplicate_create_output.status.code(), Some(1));
+    let duplicate_create_json: Value = serde_json::from_slice(&duplicate_create_output.stdout)?;
+    assert_eq!(
+        duplicate_create_json["error"]["code"],
+        "saved_list_already_exists"
+    );
+
     let add_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "lists",
@@ -88,7 +107,24 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     assert_eq!(show_data["items"][0]["note"], "Check skeleton options");
     assert_eq!(show_data["items"][0]["status"], "active");
     assert_eq!(show_data["items"][0]["snapshot"]["name"], "Test Action 1");
+    assert_eq!(
+        show_data["items"][0]["record"]["key"],
+        "actions:testAction1"
+    );
     assert_eq!(show_data["items"][0]["record"]["name"], "Test Action 1");
+    assert_eq!(show_data["items"][0]["record"]["kind"], "rule");
+    assert!(show_data["items"][0]["record"].get("record_key").is_none());
+
+    let ls_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "ls", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(ls_output.status.success());
+    let ls_json: Value = serde_json::from_slice(&ls_output.stdout)?;
+    let lists = ok_data(&ls_json)["lists"].as_array().unwrap();
+    assert_eq!(lists.len(), 1);
+    assert_eq!(lists[0]["name"], "Undead Research");
 
     let remove_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -274,6 +310,30 @@ fn lists_add_rejects_miss_and_ambiguity_without_inserting() -> Result<(), Box<dy
         ambiguous_json["error"]["data"]["matches"]
             .as_array()
             .is_some_and(|matches| matches.len() >= 2)
+    );
+    let matches = ambiguous_json["error"]["data"]["matches"]
+        .as_array()
+        .expect("ambiguous response should include matches");
+    assert!(
+        matches
+            .iter()
+            .any(|record| record["key"] == "actions:testAction1")
+    );
+    assert!(
+        matches
+            .iter()
+            .any(|record| record["key"] == "actions:testAction2")
+    );
+    assert!(
+        matches
+            .iter()
+            .all(|record| record["name"] == "Duplicate Action")
+    );
+    assert!(matches.iter().all(|record| record["kind"] == "rule"));
+    assert!(
+        matches
+            .iter()
+            .all(|record| record.get("record_key").is_none())
     );
 
     let show_output = Command::new(env!("CARGO_BIN_EXE_atlas"))

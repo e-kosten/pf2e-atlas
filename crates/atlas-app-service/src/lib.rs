@@ -8,6 +8,7 @@ mod filters;
 mod lists;
 mod projection;
 mod records;
+mod retrieval;
 mod service;
 mod windows;
 
@@ -15,5 +16,5 @@ mod windows;
 mod test_support;
 
 pub use error::{AppServiceError, AppServiceResult};
-pub use records::RawFilterValuesRequest;
+pub use filters::RawFilterValuesRequest;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};

@@ -2,6 +2,7 @@ use atlas_app_model::{
     DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterDiscoveryContext,
     FilterEditorView, FilterValueListView,
 };
+use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, SearchFilterNode};
 use atlas_search::{
     DiscoverFilterFieldsRequest as SearchDiscoverFilterFieldsRequest,
     DiscoverFilterValuesRequest as SearchDiscoverFilterValuesRequest, FilterDiscoveryRetrieval,
@@ -15,6 +16,17 @@ use crate::filter::{
     lower_basic_filter_context,
 };
 use crate::service::AtlasAppService;
+
+#[derive(Debug, Clone)]
+pub struct RawFilterValuesRequest {
+    pub field: String,
+    pub filter: Option<SearchFilterNode>,
+    pub filter_json: Option<serde_json::Value>,
+    pub sort: Option<atlas_domain::FilterValueSort>,
+    pub sample_limit: Option<usize>,
+    pub metric_selector: Option<atlas_search::MetricDiscoverySelector>,
+    pub metric_domain: Option<String>,
+}
 
 impl AtlasAppService {
     pub fn discover_filter_editor(
@@ -60,6 +72,40 @@ impl AtlasAppService {
                     metric_domain: request.metric_domain.clone(),
                 })?;
             filter_value_list_view(&request.field_id, &request.context, discovery)
+        })
+    }
+
+    pub fn discover_raw_filter_fields(
+        &self,
+        filter: Option<SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+    ) -> AppServiceResult<FilterFieldDiscovery> {
+        self.submit_retrieval(move |retrieval| {
+            Ok(
+                retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
+                    filter: filter.as_ref(),
+                    filter_json,
+                })?,
+            )
+        })
+    }
+
+    pub fn discover_raw_filter_values(
+        &self,
+        request: RawFilterValuesRequest,
+    ) -> AppServiceResult<FilterValueDiscovery> {
+        self.submit_retrieval(move |retrieval| {
+            Ok(
+                retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
+                    field: request.field,
+                    filter: request.filter.as_ref(),
+                    filter_json: request.filter_json,
+                    sort: request.sort,
+                    sample_limit: request.sample_limit,
+                    metric_selector: request.metric_selector,
+                    metric_domain: request.metric_domain,
+                })?,
+            )
         })
     }
 }
