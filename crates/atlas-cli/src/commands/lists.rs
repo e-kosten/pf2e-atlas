@@ -209,6 +209,8 @@ fn lists_client(
     let config = AtlasClientConfig::Local(LocalAtlasClientOptions {
         path_mode: paths.path_mode.into(),
         index_path: paths.index.clone(),
+        embedding_cache_root: None,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
     });
     match connect(config) {
         Ok(client) => Ok(ListCommandStep::Ready(client)),

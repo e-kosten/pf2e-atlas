@@ -1,12 +1,9 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use atlas_search::AtlasRetrievalService;
-
 use crate::cli::args::CliPathMode;
+use crate::client::{AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect};
 use crate::output::write_json_error;
-
-use super::record::{open_record_service, record_runtime};
 
 pub(crate) mod args;
 mod data;
@@ -26,21 +23,18 @@ fn open_graph_service(
     path_mode: CliPathMode,
     index: Option<PathBuf>,
     json: bool,
-) -> Result<resolve::GraphCommandOutcome<AtlasRetrievalService>, String> {
-    let runtime = match record_runtime(path_mode.into(), index) {
-        Ok(runtime) => runtime,
+) -> Result<resolve::GraphCommandOutcome<AtlasClientHandle>, String> {
+    match connect(AtlasClientConfig::Local(LocalAtlasClientOptions {
+        path_mode: path_mode.into(),
+        index_path: index,
+        embedding_cache_root: None,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+    })) {
+        Ok(client) => Ok(resolve::GraphCommandOutcome::Value(client)),
         Err(error) if json => {
-            write_json_error("runtime_error", error)?;
-            return Ok(resolve::GraphCommandOutcome::Exit(ExitCode::from(3)));
-        }
-        Err(error) => return Err(error),
-    };
-    match open_record_service(&runtime) {
-        Ok(service) => Ok(resolve::GraphCommandOutcome::Value(service)),
-        Err(error) if json => {
-            write_json_error("index_unavailable", error)?;
+            write_json_error(resolve::graph_error_code(error.code), error.message)?;
             Ok(resolve::GraphCommandOutcome::Exit(ExitCode::from(3)))
         }
-        Err(error) => Err(error),
+        Err(error) => Err(error.message),
     }
 }

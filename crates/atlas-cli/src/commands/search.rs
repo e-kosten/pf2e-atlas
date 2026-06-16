@@ -1,9 +1,7 @@
 use atlas_domain::{DetailLevel, SearchFilterNode};
 use atlas_record::{RecordJsonOptions, record_json};
-use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    ListRecordsRequest, RecordListSort, RecordRetrieval, RetrievalMode, SearchError,
-    SearchErrorKind, SearchPage, SearchPageInfo, TextRetrieval, TextSearchMatch, TextSearchRequest,
+    RecordListSort, RetrievalMode, SearchErrorKind, SearchPage, SearchPageInfo, TextSearchMatch,
     TextSearchTuning, expert::DEFAULT_FTS_FUSION_POLICY_NAME,
 };
 use serde::Serialize;
@@ -12,6 +10,11 @@ use std::collections::BTreeMap;
 use std::process::ExitCode;
 use tracing::info;
 
+use atlas_app_model::{AppError, AppErrorCode};
+
+use crate::client::{
+    AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
+};
 use crate::output::{write_json_data, write_json_error};
 use crate::terminal::TerminalStyle;
 
@@ -180,7 +183,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     };
 
     if let Some(query) = options.query.clone() {
-        return run_ranked_search_text(options, &query, filter.as_ref(), filter_value, page);
+        return run_ranked_search_text(options, &query, filter, filter_value, page);
     }
 
     let (sort, sort_json) = match parse_sort(options.sort, options.seed) {
@@ -191,42 +194,23 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error),
     };
-    let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode: options.path_mode.into(),
-        overrides: AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: None,
-            index_path: options.index,
-        },
-    }) {
-        Ok(runtime) => runtime,
-        Err(error) if options.json => {
-            complete_search_progress();
-            write_json_error("runtime_error", error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => {
-            complete_search_progress();
-            return Err(error.to_string());
-        }
+    let client = match search_client(
+        options.path_mode.into(),
+        options.index,
+        None,
+        atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        options.json,
+    )? {
+        SearchCommandStep::Ready(client) => client,
+        SearchCommandStep::Exit(code) => return Ok(code),
     };
-    let service = match runtime.open_retrieval_service_no_embeddings() {
-        Ok(service) => service,
-        Err(error) if options.json => {
-            write_json_error("index_unavailable", error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error.to_string()),
-    };
-    let list_result = match service
-        .list_records(ListRecordsRequest::new(filter.as_ref(), page).with_sort(sort))
-    {
+    let list_result = match client.list_records(filter, sort, page) {
         Ok(list_result) => list_result,
         Err(error) if options.json => {
-            write_json_error(search_error_code(&error), error.to_string())?;
-            return Ok(ExitCode::from(3));
+            write_json_error(app_search_error_code(error.code), error.message)?;
+            return Ok(app_search_error_exit_code(error.code));
         }
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return search_app_error(error, None),
     };
     let by_key = list_result
         .records
@@ -275,7 +259,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
 fn run_ranked_search_text(
     options: SearchOptions,
     query: &str,
-    filter: Option<&SearchFilterNode>,
+    filter: Option<SearchFilterNode>,
     filter_value: Option<Value>,
     page: SearchPage,
 ) -> Result<ExitCode, String> {
@@ -291,87 +275,50 @@ fn run_ranked_search_text(
     let explicit_fts = matches!(options.retrieval, Some(CliRetrievalMode::Fts));
     let retrieval = resolved_tuning.retrieval();
     search_progress("Resolving Atlas paths", "resolve");
-    let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode: options.path_mode.into(),
-        overrides: AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: options.embedding_cache_path,
-            index_path: options.index,
-        },
-    }) {
-        Ok(runtime) => runtime,
-        Err(error) if options.json => {
-            write_json_error("runtime_error", error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error.to_string()),
-    };
-    let mut search = if explicit_fts {
+    let retrieval_mode = if explicit_fts {
         search_progress("Opening index", "open-index");
-        match runtime.open_retrieval_service_no_embeddings() {
-            Ok(search) => search,
-            Err(error) if options.json => {
-                complete_search_progress();
-                write_json_error("index_unavailable", error.to_string())?;
-                return Ok(ExitCode::from(3));
-            }
-            Err(error) => {
-                complete_search_progress();
-                return Err(error.to_string());
-            }
-        }
+        atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
     } else {
         search_progress("Loading embedding model", "load-embeddings");
-        match runtime.open_retrieval_service() {
-            Ok(search) => search,
-            Err(error) if options.json && vector_readiness_error(&error) => {
-                complete_search_progress();
-                write_json_error(
-                    "vector_readiness_required",
-                    vector_readiness_message(&error),
-                )?;
-                return Ok(ExitCode::from(3));
-            }
-            Err(error) if options.json => {
-                complete_search_progress();
-                write_json_error(search_error_code(&error), error.to_string())?;
-                return Ok(ExitCode::from(3));
-            }
-            Err(error) => {
-                complete_search_progress();
-                if vector_readiness_error(&error) {
-                    return Err(vector_readiness_message(&error));
-                }
-                return Err(error.to_string());
-            }
-        }
+        atlas_app_service::AppServiceRetrievalMode::FullPool
+    };
+    let client = match search_client(
+        options.path_mode.into(),
+        options.index,
+        options.embedding_cache_path,
+        retrieval_mode,
+        options.json,
+    )? {
+        SearchCommandStep::Ready(client) => client,
+        SearchCommandStep::Exit(code) => return Ok(code),
     };
     search_progress("Searching records", "search");
-    let result = match search.search_text(TextSearchRequest {
-        query,
-        exclude: options.exclude.as_deref(),
+    let result = match client.search_text(
+        query.to_string(),
+        options.exclude.clone(),
         filter,
         page,
-        tuning: request_tuning,
-        explain: options.explain,
-    }) {
+        request_tuning,
+        options.explain,
+    ) {
         Ok(result) => result,
         Err(error) if options.json => {
             complete_search_progress();
-            let message = if retrieval != RetrievalMode::Fts && vector_readiness_error(&error) {
-                vector_readiness_message(&error)
-            } else {
-                error.to_string()
-            };
-            write_json_error(search_error_code_for_retrieval(&error, retrieval), message)?;
+            let message =
+                if retrieval != RetrievalMode::Fts && app_vector_readiness_error(error.code) {
+                    app_vector_readiness_message(&error.message)
+                } else {
+                    error.message
+                };
+            write_json_error(
+                app_search_error_code_for_retrieval(error.code, retrieval),
+                message,
+            )?;
             return Ok(ExitCode::from(3));
         }
         Err(error) => {
             complete_search_progress();
-            if retrieval != RetrievalMode::Fts && vector_readiness_error(&error) {
-                return Err(vector_readiness_message(&error));
-            }
-            return Err(error.to_string());
+            return search_app_error(error, Some(retrieval));
         }
     };
     search_progress("Rendering results", "render");
@@ -540,6 +487,98 @@ fn generated_seed() -> u64 {
     rand::random()
 }
 
+enum SearchCommandStep<T> {
+    Ready(T),
+    Exit(ExitCode),
+}
+
+fn search_client(
+    path_mode: atlas_runtime::AtlasPathMode,
+    index_path: Option<std::path::PathBuf>,
+    embedding_cache_root: Option<std::path::PathBuf>,
+    retrieval_mode: atlas_app_service::AppServiceRetrievalMode,
+    json: bool,
+) -> Result<SearchCommandStep<AtlasClientHandle>, String> {
+    match connect(AtlasClientConfig::Local(LocalAtlasClientOptions {
+        path_mode,
+        index_path,
+        embedding_cache_root,
+        retrieval_mode,
+    })) {
+        Ok(client) => Ok(SearchCommandStep::Ready(client)),
+        Err(error) if json => {
+            let message = if app_vector_readiness_error(error.code) {
+                app_vector_readiness_message(&error.message)
+            } else {
+                error.message
+            };
+            write_json_error(app_search_error_code(error.code), message)?;
+            Ok(SearchCommandStep::Exit(app_search_error_exit_code(
+                error.code,
+            )))
+        }
+        Err(error) => search_app_error(error, None).map(SearchCommandStep::Exit),
+    }
+}
+
+fn search_app_error(error: AppError, retrieval: Option<RetrievalMode>) -> Result<ExitCode, String> {
+    let message = if retrieval != Some(RetrievalMode::Fts) && app_vector_readiness_error(error.code)
+    {
+        app_vector_readiness_message(&error.message)
+    } else {
+        error.message
+    };
+    if app_search_error_exit_code(error.code) == ExitCode::from(2) {
+        return Err(message);
+    }
+    Err(message)
+}
+
+fn app_search_error_code(code: AppErrorCode) -> &'static str {
+    match code {
+        AppErrorCode::IndexUnavailable => "index_unavailable",
+        AppErrorCode::ArtifactIncompatible => "artifact_contract_violation",
+        AppErrorCode::FilterInvalid => "invalid_filter",
+        AppErrorCode::InvalidRequest => "invalid_option",
+        AppErrorCode::VectorReadinessRequired => "vector_readiness_required",
+        AppErrorCode::EmbeddingModelUnavailable | AppErrorCode::QueryFailed => "query_failed",
+        AppErrorCode::ArtifactNotReady
+        | AppErrorCode::SetupRequired
+        | AppErrorCode::SetupInProgress => "runtime_error",
+        _ => "query_failed",
+    }
+}
+
+fn app_search_error_exit_code(code: AppErrorCode) -> ExitCode {
+    match code {
+        AppErrorCode::InvalidRequest => ExitCode::from(2),
+        _ => ExitCode::from(3),
+    }
+}
+
+fn app_search_error_code_for_retrieval(
+    code: AppErrorCode,
+    retrieval: RetrievalMode,
+) -> &'static str {
+    if retrieval != RetrievalMode::Fts && app_vector_readiness_error(code) {
+        return "vector_readiness_required";
+    }
+    app_search_error_code(code)
+}
+
+fn app_vector_readiness_error(code: AppErrorCode) -> bool {
+    matches!(
+        code,
+        AppErrorCode::VectorReadinessRequired | AppErrorCode::EmbeddingModelUnavailable
+    )
+}
+
+fn app_vector_readiness_message(message: &str) -> String {
+    format!(
+        "{message}. Rebuild the Atlas artifact with embeddings or rerun the search with --retrieval fts."
+    )
+}
+
 fn search_pagination_json(page: SearchPageInfo) -> SearchPagination {
     SearchPagination {
         page: page.number,
@@ -678,43 +717,5 @@ fn search_error_code(error: &atlas_search::SearchError) -> &'static str {
         SearchErrorKind::InvalidOptions => "invalid_option",
         SearchErrorKind::VectorReadinessRequired => "vector_readiness_required",
         SearchErrorKind::EmbeddingUnavailable | SearchErrorKind::QueryFailed => "query_failed",
-    }
-}
-
-fn search_error_code_for_retrieval(error: &SearchError, retrieval: RetrievalMode) -> &'static str {
-    if retrieval != RetrievalMode::Fts && vector_readiness_error(error) {
-        return "vector_readiness_required";
-    }
-    search_error_code(error)
-}
-
-fn vector_readiness_error(error: &SearchError) -> bool {
-    error.is_vector_readiness_required()
-}
-
-fn vector_readiness_message(error: &SearchError) -> String {
-    format!(
-        "{error}. Rebuild the Atlas artifact with embeddings or rerun the search with --retrieval fts."
-    )
-}
-
-#[cfg(test)]
-mod tests {
-    use atlas_search::SearchError;
-
-    use super::vector_readiness_error;
-
-    #[test]
-    fn invalid_search_options_are_not_vector_readiness_errors() {
-        let error = SearchError::query_failed("fixture");
-
-        assert!(!vector_readiness_error(&error));
-    }
-
-    #[test]
-    fn embedding_failures_are_vector_readiness_errors() {
-        let error = SearchError::vector_readiness_required("missing model");
-
-        assert!(vector_readiness_error(&error));
     }
 }

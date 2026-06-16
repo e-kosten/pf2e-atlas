@@ -1,18 +1,19 @@
 use std::process::ExitCode;
 
+use atlas_app_model::{AppError, AppErrorCode};
+use atlas_app_service::RawFilterValuesRequest;
 use atlas_domain::{
     BooleanFieldCounts, FilterFieldDiscovery, FilterFieldGroup, FilterFieldInfo, FilterFieldType,
     FilterSample, FilterValueDiscovery, FilterValuePayload, FilterValuePolicy, MetricKeyDiscovery,
     MetricValuePayload, NumericFieldStats,
 };
-use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
-use atlas_search::{
-    DiscoverFilterFieldsRequest, DiscoverFilterValuesRequest, FilterDiscoveryError,
-    FilterDiscoveryRetrieval, MetricDiscoverySelector,
-};
+use atlas_search::MetricDiscoverySelector;
 use serde_json::Value;
 
 use crate::cli::args::FilterOptions;
+use crate::client::{
+    AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
+};
 use crate::output::{write_json_data, write_json_error};
 
 pub(crate) mod args;
@@ -31,21 +32,12 @@ pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCo
             return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
         }
     };
-    let service = match open_filter_discovery_service(options.index, options.path_mode.into()) {
-        Ok(service) => service,
-        Err(error) => {
-            return discovery_cli_error(
-                options.json,
-                "index_unavailable",
-                error,
-                ExitCode::from(3),
-            );
-        }
-    };
-    match service.discover_filter_fields(DiscoverFilterFieldsRequest {
-        filter: filter.as_ref(),
-        filter_json: filter_value,
-    }) {
+    let client =
+        match filter_discovery_client(options.index, options.path_mode.into(), options.json)? {
+            FilterDiscoveryCommandStep::Ready(client) => client,
+            FilterDiscoveryCommandStep::Exit(code) => return Ok(code),
+        };
+    match client.discover_raw_filter_fields(filter, filter_value) {
         Ok(data) => {
             if options.json {
                 write_json_data(data)?;
@@ -74,27 +66,21 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
             return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
         }
     };
-    let request = DiscoverFilterValuesRequest {
+    let request = RawFilterValuesRequest {
         field: options.field,
-        filter: filter.as_ref(),
+        filter,
         filter_json: filter_value,
         sort: options.sort.map(discovery_sort),
         sample_limit: options.sample_limit,
         metric_selector,
         metric_domain: options.metric_domain,
     };
-    let service = match open_filter_discovery_service(options.index, options.path_mode.into()) {
-        Ok(service) => service,
-        Err(error) => {
-            return discovery_cli_error(
-                options.json,
-                "index_unavailable",
-                error,
-                ExitCode::from(3),
-            );
-        }
-    };
-    match service.discover_filter_values(request) {
+    let client =
+        match filter_discovery_client(options.index, options.path_mode.into(), options.json)? {
+            FilterDiscoveryCommandStep::Ready(client) => client,
+            FilterDiscoveryCommandStep::Exit(code) => return Ok(code),
+        };
+    match client.discover_raw_filter_values(request) {
         Ok(data) => {
             if options.json {
                 write_json_data(data)?;
@@ -107,22 +93,29 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
     }
 }
 
-fn open_filter_discovery_service(
+enum FilterDiscoveryCommandStep<T> {
+    Ready(T),
+    Exit(ExitCode),
+}
+
+fn filter_discovery_client(
     index: Option<std::path::PathBuf>,
     path_mode: atlas_runtime::AtlasPathMode,
-) -> Result<atlas_search::AtlasRetrievalService, String> {
-    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+    json: bool,
+) -> Result<FilterDiscoveryCommandStep<AtlasClientHandle>, String> {
+    match connect(AtlasClientConfig::Local(LocalAtlasClientOptions {
         path_mode,
-        overrides: AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: None,
-            index_path: index,
-        },
-    })
-    .map_err(|error| error.to_string())?;
-    runtime
-        .open_retrieval_service_no_embeddings()
-        .map_err(|error| error.to_string())
+        index_path: index,
+        embedding_cache_root: None,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+    })) {
+        Ok(client) => Ok(FilterDiscoveryCommandStep::Ready(client)),
+        Err(error) if json => {
+            write_discovery_error(error, true)?;
+            Ok(FilterDiscoveryCommandStep::Exit(ExitCode::from(3)))
+        }
+        Err(error) => Err(error.message),
+    }
 }
 
 fn discovery_sort(sort: CliFilterValueSort) -> atlas_domain::FilterValueSort {
@@ -164,16 +157,41 @@ fn metric_selector_from_options(
     }
 }
 
-fn write_discovery_error(error: FilterDiscoveryError, json: bool) -> Result<ExitCode, String> {
-    let code = match error {
-        FilterDiscoveryError::InvalidField(_) => "invalid_field",
-        FilterDiscoveryError::InvalidOption(_) => "invalid_option",
-        FilterDiscoveryError::FieldNotApplicable(_) => "field_not_applicable",
-        FilterDiscoveryError::AmbiguousMetric(_) => "ambiguous_metric",
-        FilterDiscoveryError::InvalidFilter(_) => "invalid_filter",
-        FilterDiscoveryError::QueryFailed(_) => "query_failed",
-    };
-    discovery_cli_error(json, code, error.to_string(), ExitCode::from(2))
+fn write_discovery_error(error: AppError, json: bool) -> Result<ExitCode, String> {
+    discovery_cli_error(
+        json,
+        discovery_error_code(error.code),
+        error.message,
+        discovery_error_exit_code(error.code),
+    )
+}
+
+fn discovery_error_code(code: AppErrorCode) -> &'static str {
+    match code {
+        AppErrorCode::FilterFieldInvalid => "invalid_field",
+        AppErrorCode::FilterOptionInvalid | AppErrorCode::InvalidRequest => "invalid_option",
+        AppErrorCode::FilterFieldNotApplicable => "field_not_applicable",
+        AppErrorCode::FilterMetricAmbiguous => "ambiguous_metric",
+        AppErrorCode::FilterInvalid => "invalid_filter",
+        AppErrorCode::IndexUnavailable => "index_unavailable",
+        AppErrorCode::ArtifactIncompatible => "artifact_contract_violation",
+        AppErrorCode::SetupRequired
+        | AppErrorCode::SetupInProgress
+        | AppErrorCode::ArtifactNotReady => "runtime_error",
+        _ => "query_failed",
+    }
+}
+
+fn discovery_error_exit_code(code: AppErrorCode) -> ExitCode {
+    match code {
+        AppErrorCode::FilterFieldInvalid
+        | AppErrorCode::FilterOptionInvalid
+        | AppErrorCode::FilterFieldNotApplicable
+        | AppErrorCode::FilterMetricAmbiguous
+        | AppErrorCode::FilterInvalid
+        | AppErrorCode::InvalidRequest => ExitCode::from(2),
+        _ => ExitCode::from(3),
+    }
 }
 
 fn discovery_cli_error(

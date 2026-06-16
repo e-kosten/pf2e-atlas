@@ -1,19 +1,19 @@
 use std::process::ExitCode;
 
+use atlas_app_model::AppErrorCode;
 use atlas_domain::DetailLevel;
 use atlas_record::{RecordJsonOptions, record_json};
-use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    RecordResolutionResult, SearchError, SimilarRecordRefRequest, SimilarRecordRefResult,
-    SimilarRecordResult, SimilarRetrieval, SimilarScoreWeights,
+    RecordResolutionResult, SimilarRecordRefResult, SimilarRecordResult, SimilarScoreWeights,
 };
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::commands::filters::build_filter;
-use crate::commands::record::{
-    detail_outputs_description, print_record_for_detail, search_error, search_error_code,
+use crate::client::{
+    AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
+use crate::commands::filters::build_filter;
+use crate::commands::record::{detail_outputs_description, print_record_for_detail};
 use crate::output::{write_json_data, write_json_error, write_json_error_data};
 
 pub(crate) mod args;
@@ -78,36 +78,17 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             }
             Err(error) => return Err(error.message),
         };
-    let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode: options.path_mode.into(),
-        overrides: AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: None,
-            index_path: options.index,
-        },
-    }) {
-        Ok(runtime) => runtime,
-        Err(error) if options.json => {
-            write_json_error("runtime_error", error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error.to_string()),
+    let client = match similar_client(options.path_mode.into(), options.index, options.json)? {
+        SimilarCommandStep::Ready(client) => client,
+        SimilarCommandStep::Exit(code) => return Ok(code),
     };
-    let service = match runtime.open_retrieval_service_for_stored_vectors() {
-        Ok(service) => service,
-        Err(error) if options.json => {
-            write_json_error("index_unavailable", error.to_string())?;
-            return Ok(ExitCode::from(3));
-        }
-        Err(error) => return Err(error.to_string()),
-    };
-    let result = match service.similar_records_for_ref(SimilarRecordRefRequest {
-        record_ref: &options.record_ref,
-        filter: filter.as_ref(),
-        limit: options.limit,
-        candidate_limit: options.candidates,
+    let result = match client.similar_records_for_ref(
+        options.record_ref.clone(),
+        filter,
+        options.limit,
+        options.candidates,
         weights,
-    }) {
+    ) {
         Ok(SimilarRecordRefResult::Found(result)) => *result,
         Ok(SimilarRecordRefResult::RecordNotFound(seed)) if options.json => {
             write_json_error("record_not_found", format!("record not found: {seed}"))?;
@@ -142,11 +123,11 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             return Ok(ExitCode::from(1));
         }
         Err(error) if options.json => {
-            let exit_code = similar_error_exit_code(&error);
-            write_json_error(search_error_code(&error), error.to_string())?;
+            let exit_code = similar_error_exit_code(error.code);
+            write_json_error(similar_error_code(error.code), error.message)?;
             return Ok(exit_code);
         }
-        Err(error) => return Err(search_error(error)),
+        Err(error) => return Err(error.message),
     };
     let data = similar_data(&result, options.detail, options.include_raw, filter_value);
     if options.json {
@@ -157,11 +138,52 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn similar_error_exit_code(error: &SearchError) -> ExitCode {
-    match error.kind() {
-        atlas_search::SearchErrorKind::InvalidFilter
-        | atlas_search::SearchErrorKind::InvalidOptions => ExitCode::from(2),
+enum SimilarCommandStep<T> {
+    Ready(T),
+    Exit(ExitCode),
+}
+
+fn similar_client(
+    path_mode: atlas_runtime::AtlasPathMode,
+    index_path: Option<std::path::PathBuf>,
+    json: bool,
+) -> Result<SimilarCommandStep<AtlasClientHandle>, String> {
+    match connect(AtlasClientConfig::Local(LocalAtlasClientOptions {
+        path_mode,
+        index_path,
+        embedding_cache_root: None,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandStoredVectors,
+    })) {
+        Ok(client) => Ok(SimilarCommandStep::Ready(client)),
+        Err(error) if json => {
+            write_json_error(similar_error_code(error.code), error.message)?;
+            Ok(SimilarCommandStep::Exit(similar_error_exit_code(
+                error.code,
+            )))
+        }
+        Err(error) => Err(error.message),
+    }
+}
+
+fn similar_error_exit_code(code: AppErrorCode) -> ExitCode {
+    match code {
+        AppErrorCode::FilterInvalid | AppErrorCode::InvalidRequest => ExitCode::from(2),
         _ => ExitCode::from(3),
+    }
+}
+
+fn similar_error_code(code: AppErrorCode) -> &'static str {
+    match code {
+        AppErrorCode::IndexUnavailable => "index_unavailable",
+        AppErrorCode::ArtifactIncompatible => "index_unavailable",
+        AppErrorCode::FilterInvalid => "invalid_filter",
+        AppErrorCode::InvalidRequest => "invalid_option",
+        AppErrorCode::VectorReadinessRequired => "vector_readiness_required",
+        AppErrorCode::EmbeddingModelUnavailable | AppErrorCode::QueryFailed => "query_failed",
+        AppErrorCode::ArtifactNotReady
+        | AppErrorCode::SetupRequired
+        | AppErrorCode::SetupInProgress => "runtime_error",
+        _ => "query_failed",
     }
 }
 
