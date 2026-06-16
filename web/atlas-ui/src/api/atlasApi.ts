@@ -9,6 +9,8 @@ import type {
   ReadResultWindowPageRequest,
   RecordDetailView,
   ResultWindowPage,
+  SavedListDetailView,
+  SavedListIndexView,
 } from "../generated/atlas";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
@@ -75,6 +77,15 @@ export async function readResultWindowPage(
 
 export async function getRecordDetail(recordKey: string): Promise<RecordDetailView> {
   return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+}
+
+export async function getSavedLists(): Promise<SavedListIndexView> {
+  return atlasFetch("/api/lists");
+}
+
+export async function getSavedList(slug: string): Promise<SavedListDetailView> {
+  const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(slug)}`);
+  return normalizeSavedListDetail(list);
 }
 
 async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -190,6 +201,20 @@ function normalizeFilterValueList(value: unknown): FilterValueListView {
         )
       : [],
   } as FilterValueListView;
+}
+
+function normalizeSavedListDetail(value: unknown): SavedListDetailView {
+  if (!isRecord(value)) {
+    throw new AtlasApiError(200, "Invalid saved-list response");
+  }
+  return {
+    ...value,
+    items: Array.isArray(value.items)
+      ? value.items.map((item) =>
+          isRecord(item) ? { ...item, position: toBigInt(item.position) } : item,
+        )
+      : [],
+  } as SavedListDetailView;
 }
 
 function toBigInt(value: unknown): bigint {

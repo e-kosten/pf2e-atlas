@@ -556,6 +556,39 @@ mod tests {
     }
 
     #[test]
+    fn hydrated_item_projection_marks_active_and_unresolved_rows() {
+        let active = crate::hydrate_saved_list_item(
+            SavedListItem {
+                record_key: "actions:first".to_string(),
+                position: 1,
+                note: Some("note".to_string()),
+                record_title_snapshot: "First Snapshot".to_string(),
+                record_kind_snapshot: Some("rule".to_string()),
+                added_at: "2026-01-01T00:00:00Z".to_string(),
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+            Some("hydrated record"),
+        );
+        assert_eq!(active.status, crate::SavedListItemStatus::Active);
+        assert_eq!(active.snapshot.title, "First Snapshot");
+
+        let unresolved = crate::hydrate_saved_list_item::<&str>(
+            SavedListItem {
+                record_key: "actions:missing".to_string(),
+                position: 2,
+                note: None,
+                record_title_snapshot: "Missing Snapshot".to_string(),
+                record_kind_snapshot: None,
+                added_at: "2026-01-01T00:00:00Z".to_string(),
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+            None,
+        );
+        assert_eq!(unresolved.status, crate::SavedListItemStatus::Unresolved);
+        assert_eq!(unresolved.snapshot.title, "Missing Snapshot");
+    }
+
+    #[test]
     fn fresh_database_initializes_metadata() -> Result<(), Box<dyn std::error::Error>> {
         let path = temp_path("saved-lists-metadata");
         let store = LocalStateStore::open(&path)?;

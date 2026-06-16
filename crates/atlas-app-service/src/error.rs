@@ -1,4 +1,5 @@
 use atlas_app_model::{AppError, AppErrorCode};
+use atlas_local_state::LocalStateError;
 use atlas_search::{SearchError, SearchErrorKind};
 use thiserror::Error;
 
@@ -41,6 +42,25 @@ impl From<AppError> for AppServiceError {
 impl From<atlas_runtime::RuntimeError> for AppServiceError {
     fn from(error: atlas_runtime::RuntimeError) -> Self {
         Self::new(AppErrorCode::SetupRequired, error.to_string())
+    }
+}
+
+impl From<LocalStateError> for AppServiceError {
+    fn from(error: LocalStateError) -> Self {
+        let code = match &error {
+            LocalStateError::InvalidSlug { .. } | LocalStateError::InvalidRecordKey { .. } => {
+                AppErrorCode::InvalidRequest
+            }
+            LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
+            LocalStateError::ListAlreadyExists(_)
+            | LocalStateError::UnsupportedMetadata { .. }
+            | LocalStateError::IncompatibleSchema(_)
+            | LocalStateError::Database(_)
+            | LocalStateError::Filesystem(_)
+            | LocalStateError::Timestamp(_)
+            | LocalStateError::NonUtf8Path(_) => AppErrorCode::InternalError,
+        };
+        Self::new(code, error.to_string())
     }
 }
 

@@ -48,5 +48,11 @@ export type { ResultWindowMode } from "../../../../crates/atlas-app-model/bindin
 export type { ResultWindowModeSummary } from "../../../../crates/atlas-app-model/bindings/ResultWindowModeSummary";
 export type { ResultWindowPage } from "../../../../crates/atlas-app-model/bindings/ResultWindowPage";
 export type { ResultWindowRow } from "../../../../crates/atlas-app-model/bindings/ResultWindowRow";
+export type { SavedListDetailView } from "../../../../crates/atlas-app-model/bindings/SavedListDetailView";
+export type { SavedListIndexView } from "../../../../crates/atlas-app-model/bindings/SavedListIndexView";
+export type { SavedListItemSnapshotView } from "../../../../crates/atlas-app-model/bindings/SavedListItemSnapshotView";
+export type { SavedListItemStatusView } from "../../../../crates/atlas-app-model/bindings/SavedListItemStatusView";
+export type { SavedListItemView } from "../../../../crates/atlas-app-model/bindings/SavedListItemView";
+export type { SavedListSummaryView } from "../../../../crates/atlas-app-model/bindings/SavedListSummaryView";
 export type { SearchPageRequest } from "../../../../crates/atlas-app-model/bindings/SearchPageRequest";
 export type { SearchPageView } from "../../../../crates/atlas-app-model/bindings/SearchPageView";

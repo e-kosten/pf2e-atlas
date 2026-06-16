@@ -5,6 +5,8 @@ import {
   discoverFilterValues,
   getReadiness,
   getRecordDetail,
+  getSavedList,
+  getSavedLists,
   openResultWindow,
   readResultWindowPage,
 } from "./atlasApi";
@@ -194,6 +196,43 @@ describe("atlasApi", () => {
     );
   });
 
+  it("requests saved lists with the expected endpoint", async () => {
+    const fetchMock = mockFetch({ lists: [savedListSummary()] });
+
+    const result = await getSavedLists();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/lists", expect.any(Object));
+    expect(result.lists[0]?.slug).toBe("research");
+  });
+
+  it("url-encodes saved-list slugs and normalizes item positions", async () => {
+    const fetchMock = mockFetch({
+      list: savedListSummary({ slug: "campaign/research" }),
+      items: [
+        {
+          record_key: "actions:testAction1",
+          position: 2,
+          status: "active",
+          snapshot: { title: "Test Action 1", kind: "rule" },
+          record: {
+            record_key: "actions:testAction1",
+            title: "Test Action 1",
+            kind: "rule",
+            kind_label: "Rule",
+          },
+        },
+      ],
+    });
+
+    const result = await getSavedList("campaign/research");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/lists/campaign%2Fresearch",
+      expect.any(Object),
+    );
+    expect(result.items[0]?.position).toBe(2n);
+  });
+
   it("throws AtlasApiError with app-error details for app error responses", async () => {
     const appError: AppError = {
       code: "window_expired",
@@ -264,6 +303,17 @@ function resultWindowPayload(overrides: Record<string, unknown> = {}) {
       has_more: false,
     },
     rows: [],
+    ...overrides,
+  };
+}
+
+function savedListSummary(overrides: Record<string, unknown> = {}) {
+  return {
+    slug: "research",
+    name: "Research",
+    description: "Campaign prep",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }
