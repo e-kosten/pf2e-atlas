@@ -22,10 +22,41 @@
   font-weight: 700;
 }
 
+.topbar__identity {
+  min-width: 0;
+}
+
 .topbar p {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.topbar__nav-item {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.topbar__nav-item:hover,
+.topbar__nav-item:focus-visible,
+.topbar__nav-item[aria-current="page"] {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+  outline: none;
 }
 
 .topbar__actions {

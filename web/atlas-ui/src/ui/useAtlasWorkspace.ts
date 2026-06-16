@@ -32,10 +32,9 @@ import {
 } from "../state/searchState";
 import {
   initialWorkspaceInteractionState,
-  recordKeyFromPath,
-  workspacePath,
   workspaceInteractionReducer,
 } from "./workspaceState";
+import { ATLAS_ROUTE_CHANGE_EVENT, currentAtlasRoute, searchPath } from "./routes";
 
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
@@ -85,7 +84,13 @@ export type AtlasWorkspaceState = {
   refresh: () => void;
 };
 
-export function useAtlasWorkspace(): AtlasWorkspaceState {
+type UseAtlasWorkspaceOptions = {
+  enabled?: boolean;
+};
+
+export function useAtlasWorkspace({
+  enabled = true,
+}: UseAtlasWorkspaceOptions = {}): AtlasWorkspaceState {
   const [interaction, dispatch] = useReducer(
     workspaceInteractionReducer,
     undefined,
@@ -110,15 +115,20 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     [activeSearch],
   );
   useEffect(() => {
-    const onPopState = () => {
+    const onUrlStateChange = () => {
+      const route = currentAtlasRoute();
       dispatch({
         type: "url.restored",
         search: initialWorkspaceInteractionState().search,
-        selectedRecordKey: recordKeyFromPath(window.location.pathname),
+        selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,
       });
     };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener("popstate", onUrlStateChange);
+    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onUrlStateChange);
+    return () => {
+      window.removeEventListener("popstate", onUrlStateChange);
+      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onUrlStateChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -135,6 +145,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   const resultsQuery = useQuery({
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
+    enabled,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const startedAt = performance.now();
@@ -180,6 +191,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   const filterEditorQuery = useQuery({
     queryKey: ["filter-editor", activeSearchExecutionToken, search.visibleFilterIds],
+    enabled,
     placeholderData: keepPreviousData,
     queryFn: () =>
       discoverFilterEditor({
@@ -209,7 +221,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
   const filterValueQueries = useQueries({
     queries: valueFieldIds.map((fieldId) => ({
       queryKey: ["filter-values", activeSearchExecutionToken, fieldId],
-      enabled: !filterEditorQuery.isPlaceholderData,
+      enabled: enabled && !filterEditorQuery.isPlaceholderData,
       placeholderData: () => retainedFilterValue(queryClient, fieldId),
       queryFn: () =>
         discoverFilterValues({
@@ -232,7 +244,7 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
         });
       }
     },
-    enabled: selectedRecordKey !== null,
+    enabled: enabled && selectedRecordKey !== null,
   });
 
   const resultRows = useMemo(
@@ -252,14 +264,14 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
 
   function setSearch(next: SearchFormState) {
     dispatch({ type: "search.changed", search: next });
-    const url = `${workspacePath(selectedRecordKey)}${searchStateQueryString(next)}`;
+    const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
     history.replaceState(null, "", url);
   }
 
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
     const searchQuery = searchStateQueryString(search);
-    const url = `${workspacePath(recordKey)}${searchQuery}`;
+    const url = `${searchPath(recordKey)}${searchQuery}`;
     history.pushState(null, "", url);
   }
 
@@ -350,6 +362,9 @@ export function useAtlasWorkspace(): AtlasWorkspaceState {
     errorMessage,
     refresh: () => {
       void readiness.refetch();
+      if (!enabled) {
+        return;
+      }
       void resultsQuery.refetch();
       void detailQuery.refetch();
     },

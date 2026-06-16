@@ -13,6 +13,13 @@
     min-height: calc(100vh - 77px);
   }
 
+  .record-view,
+  .record-view--with-aux {
+    grid-template-columns: 1fr !important;
+    height: auto;
+    min-height: calc(100vh - 77px);
+  }
+
   .detail-panel {
     grid-column: 1 / -1;
     min-height: 420px;
@@ -35,6 +42,10 @@
 
   .workspace-grid {
     grid-template-columns: 1fr !important;
+    padding: 10px;
+  }
+
+  .record-view {
     padding: 10px;
   }
 

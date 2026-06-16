@@ -2,6 +2,7 @@ import {
   decodeSearchStateFromParams,
   type SearchFormState,
 } from "../state/searchState";
+import { currentAtlasRoute } from "./routes";
 
 export type WorkspaceInteractionState = {
   search: SearchFormState;
@@ -27,9 +28,10 @@ export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
   const search = decodeSearchStateFromParams(
     new URLSearchParams(window.location.search),
   );
+  const route = currentAtlasRoute();
   return {
     search,
-    selectedRecordKey: recordKeyFromPath(window.location.pathname),
+    selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,
     focusedResultKey: null,
     pageNumber: 1,
     activeSearch: search,
@@ -82,15 +84,4 @@ export function workspaceInteractionReducer(
         selectedRecordKey: event.recordKey,
       };
   }
-}
-
-export function recordKeyFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/(?:search\/)?records\/(.+)$/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-export function workspacePath(recordKey: string | null): string {
-  return recordKey === null
-    ? "/search"
-    : `/search/records/${encodeURIComponent(recordKey)}`;
 }
