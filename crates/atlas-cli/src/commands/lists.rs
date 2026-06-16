@@ -1,10 +1,13 @@
+use std::collections::BTreeMap;
 use std::process::ExitCode;
 
 use atlas_app_model::{
     AddSavedListItemRequest, AppError, AppErrorCode, CreateSavedListRequest, DeleteSavedListView,
-    RecordSummaryView, RemoveSavedListItemRequest, SavedListDetailView, SavedListItemMutationView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    RecordResolutionAmbiguousView, RemoveSavedListItemRequest, SavedListDetailView,
+    SavedListItemMutationView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
 };
+use atlas_domain::{DetailLevel, RecordKey};
+use atlas_record::{RecordJson, RecordJsonOptions, record_json};
 use serde::Serialize;
 
 use crate::client::{
@@ -61,7 +64,7 @@ struct ListShowItem {
     status: &'static str,
     snapshot: ListItemSnapshot,
     #[serde(skip_serializing_if = "Option::is_none")]
-    record: Option<ListItemRecord>,
+    record: Option<RecordJson>,
 }
 
 #[derive(Debug, Serialize)]
@@ -72,10 +75,9 @@ struct ListItemSnapshot {
 }
 
 #[derive(Debug, Serialize)]
-struct ListItemRecord {
-    record_key: String,
-    name: String,
-    kind: String,
+struct LegacyAmbiguousRecordRefs {
+    record_ref: String,
+    matches: Vec<serde_json::Value>,
 }
 
 enum ListCommandStep<T> {
@@ -94,7 +96,7 @@ pub(crate) fn run_lists_create(options: ListCreateOptions) -> Result<ExitCode, S
         description: options.description,
     }) {
         Ok(view) => view,
-        Err(error) => return app_error(error, options.json),
+        Err(error) => return app_error_with_client(&client, error, options.json),
     };
     let data = ListData {
         local_state_path: local_state_path(&client),
@@ -142,7 +144,10 @@ pub(crate) fn run_lists_show(options: ListShowOptions) -> Result<ExitCode, Strin
         Ok(view) => view,
         Err(error) => return app_error(error, options.json),
     };
-    let data = list_show_data(&client, view);
+    let data = match list_show_data(&client, view) {
+        Ok(data) => data,
+        Err(error) => return app_error(error, options.json),
+    };
     if options.json {
         write_json_data(data)?;
     } else {
@@ -162,7 +167,7 @@ pub(crate) fn run_lists_add(options: ListAddOptions) -> Result<ExitCode, String>
         note: options.note,
     }) {
         Ok(view) => view,
-        Err(error) => return app_error(error, options.json),
+        Err(error) => return app_error_with_client(&client, error, options.json),
     };
     write_mutation_result(&client, view, options.json)
 }
@@ -222,15 +227,48 @@ fn lists_client(
     }
 }
 
-fn list_show_data(client: &impl AtlasClient, view: SavedListDetailView) -> ListShowData {
-    ListShowData {
+fn list_show_data(
+    client: &impl AtlasClient,
+    view: SavedListDetailView,
+) -> Result<ListShowData, AppError> {
+    let records_by_key = hydrate_records(client, &view.items)?;
+    Ok(ListShowData {
         local_state_path: local_state_path(client),
         list: view.list,
-        items: view.items.into_iter().map(list_show_item).collect(),
-    }
+        items: view
+            .items
+            .into_iter()
+            .map(|item| list_show_item(item, &records_by_key))
+            .collect(),
+    })
 }
 
-fn list_show_item(item: SavedListItemView) -> ListShowItem {
+fn hydrate_records(
+    client: &impl AtlasClient,
+    items: &[SavedListItemView],
+) -> Result<BTreeMap<String, atlas_record::AtlasRecord>, AppError> {
+    let keys = items
+        .iter()
+        .filter(|item| item.record.is_some())
+        .filter_map(|item| RecordKey::parse(&item.record_key).ok())
+        .collect::<Vec<_>>();
+    if keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    Ok(client
+        .get_records(keys)?
+        .into_iter()
+        .map(|record| (record.identity.key.to_string(), record))
+        .collect())
+}
+
+fn list_show_item(
+    item: SavedListItemView,
+    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+) -> ListShowItem {
+    let record = records_by_key
+        .get(&item.record_key)
+        .map(|record| record_json(record, standard_record_json_options()));
     ListShowItem {
         record_key: item.record_key,
         position: item.position,
@@ -240,15 +278,7 @@ fn list_show_item(item: SavedListItemView) -> ListShowItem {
             name: item.snapshot.title,
             kind: item.snapshot.kind,
         },
-        record: item.record.map(list_item_record),
-    }
-}
-
-fn list_item_record(record: RecordSummaryView) -> ListItemRecord {
-    ListItemRecord {
-        record_key: record.record_key,
-        name: record.title,
-        kind: record.kind,
+        record,
     }
 }
 
@@ -315,7 +345,7 @@ fn print_saved_list(data: &ListShowData) {
         let kind = item
             .record
             .as_ref()
-            .map(|record| record.kind.as_str())
+            .map(|record| record.kind)
             .or(item.snapshot.kind.as_deref())
             .unwrap_or("unknown");
         println!(
@@ -343,6 +373,25 @@ fn app_error(error: AppError, json: bool) -> Result<ExitCode, String> {
     }
 }
 
+fn app_error_with_client(
+    client: &impl AtlasClient,
+    error: AppError,
+    json: bool,
+) -> Result<ExitCode, String> {
+    let (_, exit) = cli_error_code(error.code);
+    if json {
+        write_app_json_error_with_client(client, error)?;
+        return Ok(exit);
+    }
+    match exit {
+        code if code == ExitCode::from(1) => {
+            eprintln!("{}", error.message);
+            Ok(exit)
+        }
+        _ => Err(error.message),
+    }
+}
+
 fn write_app_json_error(error: AppError) -> Result<(), String> {
     let (code, _) = cli_error_code(error.code);
     if let Some(details) = error.details {
@@ -350,6 +399,93 @@ fn write_app_json_error(error: AppError) -> Result<(), String> {
     } else {
         write_json_error(code, error.message)
     }
+}
+
+fn write_app_json_error_with_client(
+    client: &impl AtlasClient,
+    error: AppError,
+) -> Result<(), String> {
+    let (code, _) = cli_error_code(error.code);
+    if error.code == AppErrorCode::RecordResolutionAmbiguous
+        && let Some(details) = error.details.as_ref()
+        && let Some(data) = legacy_ambiguous_record_refs(client, details)
+    {
+        return write_json_error_data(code, error.message, data);
+    }
+    write_app_json_error(error)
+}
+
+fn legacy_ambiguous_record_refs(
+    client: &impl AtlasClient,
+    details: &serde_json::Value,
+) -> Option<LegacyAmbiguousRecordRefs> {
+    let ambiguity = match serde_json::from_value::<RecordResolutionAmbiguousView>(details.clone()) {
+        Ok(ambiguity) => ambiguity,
+        Err(_) => return legacy_ambiguous_record_refs_from_value(details),
+    };
+    let keys = ambiguity
+        .matches
+        .iter()
+        .filter_map(|candidate| RecordKey::parse(&candidate.record.record_key).ok())
+        .collect::<Vec<_>>();
+    if keys.len() != ambiguity.matches.len() {
+        return None;
+    }
+    let records_by_key = client
+        .get_records(keys)
+        .ok()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|record| (record.identity.key.to_string(), record))
+        .collect::<BTreeMap<_, _>>();
+    let matches = ambiguity
+        .matches
+        .iter()
+        .map(|candidate| {
+            records_by_key
+                .get(&candidate.record.record_key)
+                .map(|record| {
+                    serde_json::json!(record_json(record, standard_record_json_options()))
+                })
+                .unwrap_or_else(|| {
+                    serde_json::json!({
+                        "key": candidate.record.record_key,
+                        "name": candidate.record.title,
+                        "kind": candidate.record.kind,
+                    })
+                })
+        })
+        .collect();
+    Some(LegacyAmbiguousRecordRefs {
+        record_ref: ambiguity.record_ref,
+        matches,
+    })
+}
+
+fn legacy_ambiguous_record_refs_from_value(
+    details: &serde_json::Value,
+) -> Option<LegacyAmbiguousRecordRefs> {
+    let record_ref = details.get("record_ref")?.as_str()?.to_string();
+    let matches = details
+        .get("matches")?
+        .as_array()?
+        .iter()
+        .map(|candidate| {
+            if candidate.get("key").is_some() {
+                return Some(candidate.clone());
+            }
+            let record = candidate.get("record")?;
+            Some(serde_json::json!({
+                "key": record.get("record_key")?,
+                "name": record.get("title")?,
+                "kind": record.get("kind")?,
+            }))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(LegacyAmbiguousRecordRefs {
+        record_ref,
+        matches,
+    })
 }
 
 fn cli_error_code(code: AppErrorCode) -> (&'static str, ExitCode) {
@@ -383,5 +519,12 @@ fn cli_error_code(code: AppErrorCode) -> (&'static str, ExitCode) {
         | AppErrorCode::WindowNotFound
         | AppErrorCode::WindowExpired
         | AppErrorCode::InternalError => ("local_state_error", ExitCode::from(3)),
+    }
+}
+
+fn standard_record_json_options() -> RecordJsonOptions {
+    RecordJsonOptions {
+        detail: DetailLevel::Standard,
+        include_source_json: false,
     }
 }

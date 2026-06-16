@@ -410,6 +410,14 @@ mod tests {
             StatusCode::BAD_REQUEST
         );
         assert_eq!(
+            status_for_error(AppErrorCode::RecordResolutionMiss),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            status_for_error(AppErrorCode::RecordResolutionAmbiguous),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
             status_for_error(AppErrorCode::WindowNotFound),
             StatusCode::NOT_FOUND
         );
@@ -420,6 +428,10 @@ mod tests {
         assert_eq!(
             status_for_error(AppErrorCode::WindowExpired),
             StatusCode::GONE
+        );
+        assert_eq!(
+            status_for_error(AppErrorCode::SavedListAlreadyExists),
+            StatusCode::CONFLICT
         );
         assert_eq!(
             status_for_error(AppErrorCode::ArtifactNotReady),
@@ -435,6 +447,10 @@ mod tests {
         );
         assert_eq!(
             status_for_error(AppErrorCode::InternalError),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            status_for_error(AppErrorCode::QueryFailed),
             StatusCode::INTERNAL_SERVER_ERROR
         );
     }

@@ -12,17 +12,49 @@ use serde::Serialize;
 use crate::client::AtlasClient;
 use crate::output::{write_json_error, write_json_error_data};
 
+pub(super) trait GraphRecordRefResolver {
+    fn resolve_graph_record_ref_query(
+        &self,
+        record_ref: String,
+    ) -> Result<RecordRefResolutionResult, AppError>;
+}
+
+pub(super) trait GraphVariantGroupResolver {
+    fn resolve_graph_variant_group_query(
+        &self,
+        variant_group_ref: String,
+    ) -> Result<VariantGroupRefResolutionResult, AppError>;
+}
+
+impl<T: AtlasClient> GraphRecordRefResolver for T {
+    fn resolve_graph_record_ref_query(
+        &self,
+        record_ref: String,
+    ) -> Result<RecordRefResolutionResult, AppError> {
+        AtlasClient::resolve_record_ref(self, record_ref, None)
+    }
+}
+
+impl<T: AtlasClient> GraphVariantGroupResolver for T {
+    fn resolve_graph_variant_group_query(
+        &self,
+        variant_group_ref: String,
+    ) -> Result<VariantGroupRefResolutionResult, AppError> {
+        AtlasClient::resolve_variant_group_ref(self, variant_group_ref)
+    }
+}
+
 pub(super) enum GraphCommandOutcome<T> {
     Value(T),
     Exit(ExitCode),
 }
 
 pub(super) fn resolve_graph_record_ref(
-    service: &impl AtlasClient,
+    service: &impl GraphRecordRefResolver,
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<RecordKey>, String> {
-    let resolution = match service.resolve_record_ref(record_ref.to_string(), None) {
+    let resolution = match service.resolve_graph_record_ref_query(record_ref.to_string()) {
         Ok(resolution) => resolution,
         Err(error) => return graph_search_error(error, json),
     };
@@ -47,11 +79,11 @@ pub(super) fn resolve_graph_record_ref(
 }
 
 pub(super) fn resolve_graph_variant_group(
-    service: &impl AtlasClient,
+    service: &impl GraphVariantGroupResolver,
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<VariantGroupResult>, String> {
-    let resolution = match service.resolve_variant_group_ref(record_ref.to_string()) {
+    let resolution = match service.resolve_graph_variant_group_query(record_ref.to_string()) {
         Ok(resolution) => resolution,
         Err(error) => return graph_search_error(error, json),
     };

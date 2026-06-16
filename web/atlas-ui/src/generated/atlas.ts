@@ -45,6 +45,8 @@ export type { RecordBadgeView } from "../../../../crates/atlas-app-model/binding
 export type { RecordDetailView } from "../../../../crates/atlas-app-model/bindings/RecordDetailView";
 export type { RecordListSortView } from "../../../../crates/atlas-app-model/bindings/RecordListSortView";
 export type { RecordPresentationDocument } from "../../../../crates/atlas-app-model/bindings/RecordPresentationDocument";
+export type { RecordResolutionAmbiguousView } from "../../../../crates/atlas-app-model/bindings/RecordResolutionAmbiguousView";
+export type { RecordResolutionCandidateView } from "../../../../crates/atlas-app-model/bindings/RecordResolutionCandidateView";
 export type { RecordSummaryView } from "../../../../crates/atlas-app-model/bindings/RecordSummaryView";
 export type { ResultMatchSummary } from "../../../../crates/atlas-app-model/bindings/ResultMatchSummary";
 export type { ResultWindowMode } from "../../../../crates/atlas-app-model/bindings/ResultWindowMode";

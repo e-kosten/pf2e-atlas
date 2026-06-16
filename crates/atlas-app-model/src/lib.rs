@@ -22,7 +22,10 @@ pub use list::{
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
-pub use record::{RecordBadgeView, RecordDetailView, RecordSummaryView};
+pub use record::{
+    RecordBadgeView, RecordDetailView, RecordResolutionAmbiguousView,
+    RecordResolutionCandidateView, RecordSummaryView,
+};
 pub use result_window::{
     OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
@@ -84,6 +87,8 @@ mod tests {
         ReadResultWindowPageRequest::export_all_to(path)
             .expect("ReadResultWindowPageRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
+        RecordResolutionAmbiguousView::export_all_to(path)
+            .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
         ResultWindowPage::export_all_to(path).expect("ResultWindowPage bindings should export");
         AddSavedListItemRequest::export_all_to(path)

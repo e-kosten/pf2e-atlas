@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 
 use atlas_app_model::{
     AddSavedListItemRequest, AppErrorCode, CreateSavedListRequest, DeleteSavedListView,
-    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationOutcomeView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RemoveSavedListItemRequest,
+    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationOutcomeView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -192,26 +193,38 @@ fn record_resolution_ambiguous_error(
     record_ref: &str,
     matches: Vec<atlas_search::RecordResolutionResult>,
 ) -> AppServiceError {
-    let matches = matches
-        .into_iter()
-        .map(|resolution| {
-            json!({
-                "record_key": resolution.record.identity.key.to_string(),
-                "title": resolution.record.identity.name,
-                "kind": resolution.record.classification.kind.as_str(),
-            })
+    let details = RecordResolutionAmbiguousView {
+        record_ref: record_ref.to_string(),
+        matches: matches
+            .into_iter()
+            .map(record_resolution_candidate_view)
+            .collect(),
+    };
+    let details = serde_json::to_value(details).unwrap_or_else(|_| {
+        json!({
+            "record_ref": record_ref,
+            "matches": [],
         })
-        .collect::<Vec<_>>();
+    });
     AppServiceError::from(
         atlas_app_model::AppError::new(
             AppErrorCode::RecordResolutionAmbiguous,
             format!("record resolution ambiguous: {record_ref}"),
         )
-        .with_details(json!({
-            "record_ref": record_ref,
-            "matches": matches,
-        })),
+        .with_details(details),
     )
+}
+
+fn record_resolution_candidate_view(
+    resolution: atlas_search::RecordResolutionResult,
+) -> RecordResolutionCandidateView {
+    RecordResolutionCandidateView {
+        record: record_summary(&resolution.record),
+        query: resolution.query,
+        normalized_query: resolution.normalized_query,
+        match_kind: resolution.match_kind.as_str().to_string(),
+        matched_text: resolution.matched_text,
+    }
 }
 
 fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
