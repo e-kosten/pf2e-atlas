@@ -8,6 +8,16 @@ It uses React, Ant Design, TanStack Query, and Rust-generated Atlas DTOs for the
 
 Ant Design is the selected component library for the prototype. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the decision note and retained comparison context.
 
+## Normal Use
+
+The installed Atlas CLI serves the built frontend through the Rust web service:
+
+```bash
+atlas web --open
+```
+
+Runtime use does not require Node, npm, or the Vite dev server.
+
 ## Development
 
 Start the Rust local service in another terminal:

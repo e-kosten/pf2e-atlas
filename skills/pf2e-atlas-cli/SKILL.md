@@ -119,6 +119,37 @@ atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --d
 atlas record resolve "Treat Wounds" "Trip" --pack-name actionspf2e --detail standard --json
 ```
 
+## Saved Lists
+
+Use `atlas lists` when the user asks you to persist a curated set of Atlas records for later review or editing. Saved lists are durable local state stored beside the active Atlas artifact; they are not part of the rebuildable index and can be edited by the CLI or other agents.
+
+Create lists with a stable slug and human-friendly name:
+
+```bash
+atlas lists create undead-research --name "Undead Research" --description "Campaign prep"
+```
+
+Add records by canonical key, strict name, or verified alias. `lists add` must resolve the record to one specific Atlas record before inserting it. If resolution misses or is ambiguous, inspect alternatives with `record resolve` or `search`; do not guess a key:
+
+```bash
+atlas lists add undead-research "Skeleton Guard" --note "Compare low-level undead options"
+atlas lists add undead-research actionspf2e:1kGNdIIhuglAjIp9
+```
+
+View lists with `lists ls` and `lists show`. `lists show` preserves list order and reports stale or removed records as `status: "unresolved"` while retaining the saved snapshot, so unresolved items are not automatically deleted:
+
+```bash
+atlas lists ls --json
+atlas lists show undead-research --json
+```
+
+Remove an item only when the user asks to edit membership or when the record is clearly not part of the requested list:
+
+```bash
+atlas lists remove undead-research actionspf2e:1kGNdIIhuglAjIp9
+atlas lists delete undead-research
+```
+
 Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Ambiguous strict resolution returns `status: "error"` with `error.code: "record_resolution_ambiguous"` and structured alternatives under `error.data.result.alternatives`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error` for successful batch-style commands. Batch `record get` and `record resolve` payloads also include `data.partial`; when it is `true`, inspect each `data.results[].error` before trusting the batch. Parse the JSON envelope instead of scraping human output: first check top-level `error`, then inspect `error.data` when present, then inspect `data.result.error` for single-record commands or each `data.results[].error` for batch commands before trusting record fields. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
 
 Use `--retrieval fts`, `--retrieval vector`, or `--retrieval hybrid` only when the user explicitly asks to diagnose or tune retrieval behavior. Do not silently fall back to FTS to work around missing embeddings for normal content questions. Add `--explain --json` when comparing retrieval behavior or investigating why a ranked result set looks wrong; JSON output carries the useful rank, score, and lane details.

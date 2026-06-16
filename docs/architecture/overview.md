@@ -15,6 +15,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-app-service` owns long-lived interactive workflow orchestration over `atlas-runtime` and `atlas-search`. It opens full retrieval services through runtime setup/readiness policy, owns result-window metadata, projects app filter editor groups/controls from product discovery, lowers app filters to canonical filters, and exposes native methods to web and future TUI surfaces.
 - `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
 - `web/atlas-ui` owns the TypeScript/React frontend prototype. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
+- `atlas-local-state` owns durable mutable local state stored outside the generated artifact, starting with saved-list schema, migrations, ordering, and item snapshots.
 - `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
@@ -36,6 +37,7 @@ flowchart TD
     pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, build input"]
     ingest --> indexWriter["atlas-index<br/>SqliteIndexWriter"]
     indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1"]
+    localStateDb["SQLite local state<br/>pf2e-local-state.sqlite"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
     cli --> web["atlas-web<br/>local Axum API"]
@@ -44,9 +46,13 @@ flowchart TD
     appService --> appModel["atlas-app-model<br/>interactive DTOs"]
     appService --> runtime
     appService --> search
+    appService --> localState["atlas-local-state<br/>saved lists and mutable local state"]
     cli --> runtime["atlas-runtime"]
+    cli --> localState
     runtime --> search["atlas-search"]
     runtime --> index["atlas-index"]
+    runtime --> localStateDb
+    localState --> localStateDb
     search --> index
     search --> embedding["atlas-embedding"]
     index --> artifactDb
@@ -76,7 +82,7 @@ It should not own durable retrieval semantics, filter discovery behavior, SQLite
 
 The app service starts a bounded pool of full `AtlasRetrievalService` workers through `AtlasRuntime::open_retrieval_service` and should fail startup when artifact, vector, or embedding readiness is not satisfied. It must not use `open_retrieval_service_no_embeddings`, which remains a CLI-only shortcut for short-lived commands that do not need semantic retrieval. `atlas-web` must apply explicit backpressure before dispatching blocking app-service work so frontend HTTP requests cannot accumulate in an unbounded transport-side queue ahead of the app-service executor.
 
-`web/atlas-ui` is a Vite/React prototype package. During frontend prototyping, run it as a Vite dev server that proxies `/api/*` to the local `atlas-web` service. It imports the Rust-generated TypeScript DTO surface through `web/atlas-ui/src/generated/atlas.ts`; frontend code should use those generated contracts rather than hand-written duplicate app DTOs. The filter palette is driven by the app-owned `FilterEditorView` contract from `/api/filters/editor`; the frontend may own local visibility, pending values, URL state, and component rendering, but not field grouping, control kind, labels, placement, discovery-scope semantics, or option ordering policy. Authored filter state in the UI should use app-model `FilterClause` values directly, including range and metric comparison clauses, rather than parallel field-specific buckets.
+`web/atlas-ui` is a Vite/React frontend package. Vite remains the frontend development and build tool, but normal `atlas web` usage serves the built frontend from `atlas-web` through embedded static assets. During frontend prototyping, contributors may still run the Vite dev server and proxy `/api/*` to the local `atlas-web` service for hot reload. The frontend imports the Rust-generated TypeScript DTO surface through `web/atlas-ui/src/generated/atlas.ts`; frontend code should use those generated contracts rather than hand-written duplicate app DTOs. The filter palette is driven by the app-owned `FilterEditorView` contract from `/api/filters/editor`; the frontend may own local visibility, pending values, URL state, and component rendering, but not field grouping, control kind, labels, placement, discovery-scope semantics, or option ordering policy. Authored filter state in the UI should use app-model `FilterClause` values directly, including range and metric comparison clauses, rather than parallel field-specific buckets.
 
 ### Agent Skill
 
@@ -87,6 +93,12 @@ Skill guidance should use installed `atlas` commands. Contributor-only `cargo ru
 ### Future TUI
 
 A future Ratatui workbench should consume `atlas-app-model` and `atlas-app-service` for shared interactive workflow contracts. TUI screen code should not open SQLite, load embedding models, or duplicate artifact/readiness policy.
+
+### Local State
+
+Durable mutable local state lives in a separate local-state SQLite database resolved beside the active generated artifact. The generated artifact remains rebuildable source-derived data; local state owns user-authored or agent-authored data such as saved lists.
+
+Saved-list items store canonical record keys plus display snapshots. Adding a saved-list item requires strict resolution to one active record key, but later artifact rebuilds may leave that key unresolved. Product surfaces must preserve unresolved local-state rows and report them explicitly rather than deleting them during artifact rebuilds or hydration.
 
 ### Tags
 
@@ -99,13 +111,14 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
 2. Ingest normalizes source records, parses rich content into `RichDocument`, resolves rich-content references, extracts traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
 3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
-4. `atlas-runtime` resolves source, embedding cache, and artifact paths for setup and query commands.
+4. `atlas-runtime` resolves source, embedding cache, artifact, and local-state paths for setup and query commands.
 5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
-6. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
-7. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`.
-8. `atlas-app-service` holds long-lived retrieval state for interactive sessions and adapts app DTOs into `atlas-search` requests.
-9. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
-10. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
+6. `atlas-local-state` opens and migrates mutable local-state storage for saved lists and future durable local data.
+7. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
+8. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`.
+9. `atlas-app-service` holds long-lived retrieval state for interactive sessions and adapts app DTOs into `atlas-search` requests.
+10. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
+11. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
 
 ## Editing Guidance
 
@@ -118,6 +131,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 - Keep `atlas-cli/src/main.rs` as the binary entrypoint only. Top-level command composition and dispatch belong in `atlas-cli/src/cli.rs`; shared CLI argument groups and parsers belong under `atlas-cli/src/cli/`; command-specific argument grammar, execution, and presentation belong under `atlas-cli/src/commands/`.
 - Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
 - Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
+- Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. Artifact rebuilds must not be responsible for preserving saved lists or future user-authored local rows.
 - Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
 - Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
 - Add future crates only when their first real implementation slice lands.

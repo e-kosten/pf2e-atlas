@@ -78,6 +78,11 @@ jobs:
             os: windows-2022
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/atlas-ui/package-lock.json
       - name: Install cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -86,6 +91,11 @@ jobs:
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
         run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
+      - name: Build web UI bundle
+        shell: bash
+        run: |
+          npm --prefix web/atlas-ui ci
+          npm --prefix web/atlas-ui run build
       - name: Generate notices
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash

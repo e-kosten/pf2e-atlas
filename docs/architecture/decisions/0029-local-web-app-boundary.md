@@ -20,7 +20,7 @@ Add three app-layer crates:
 
 Add `web/atlas-ui` as the TypeScript/React frontend package. It consumes generated app DTOs through a local aggregation file, uses a thin handwritten API client over `/api/*`, and renders the search-to-detail workflow with the selected Ant Design component library.
 
-`atlas web` starts the local service from the CLI. The app service starts a bounded pool of retrieval workers; each worker opens a full `AtlasRetrievalService` through `AtlasRuntime::open_retrieval_service`, and service startup fails when artifact/vector/embedding readiness is not satisfied. It must not call `open_retrieval_service_no_embeddings`.
+`atlas web` starts the local service from the CLI. `atlas-web` serves the built frontend as embedded static assets while reserving `/api/*` for app-service JSON routes. The app service starts a bounded pool of retrieval workers; each worker opens a full `AtlasRetrievalService` through `AtlasRuntime::open_retrieval_service`, and service startup fails when artifact/vector/embedding readiness is not satisfied. It must not call `open_retrieval_service_no_embeddings`.
 
 `atlas-app-service` must not import or assemble `atlas-index` internals. It adapts app DTOs into `atlas-search` request types and uses narrow retrieval capability traits where practical.
 
@@ -38,5 +38,5 @@ cargo test -p atlas-app-model export_typescript_bindings -- --ignored
 - TypeScript contracts are generated from Rust DTOs, reducing duplicate frontend interface maintenance.
 - The app-service boundary stays native-only and does not need WASM compatibility.
 - Local web startup is stricter than some CLI commands: missing vectors or embedding readiness is a startup error, not a degraded mode.
-- Static frontend serving remains future work. During prototyping, `web/atlas-ui` runs through Vite and proxies API calls to the local Axum service.
+- Vite remains the frontend development server and build tool. Normal installed `atlas web` usage does not require Node at runtime because the built frontend is embedded into `atlas-web`; during prototyping, contributors may still run `web/atlas-ui` through Vite and proxy API calls to the local Axum service for hot reload.
 - Component-library choice remains a frontend implementation detail above the app-service boundary. The prototype compared Ant Design and Mantine against the same app workflow, then selected Ant Design for the current web UI.

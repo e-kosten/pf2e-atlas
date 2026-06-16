@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: rust
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/atlas-ui/package-lock.json
+      - name: Build web UI bundle
+        run: |
+          npm --prefix web/atlas-ui ci
+          npm --prefix web/atlas-ui run build
+      - name: Rust verification
+        run: scripts/verify.sh
+
+  web-ui:
+    name: web ui
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/atlas-ui/package-lock.json
+      - name: Web UI verification
+        run: |
+          npm --prefix web/atlas-ui ci
+          npm --prefix web/atlas-ui run verify

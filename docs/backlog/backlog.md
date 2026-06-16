@@ -81,9 +81,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust web text-scoped filter counts](./items/rust-web-text-scoped-filter-counts.md)
   Design query-aware dynamic filter counts for the web search experience without duplicating text retrieval semantics in the app layer. Status: deferred.
 
-- [Rust web static frontend serving](./items/rust-web-static-frontend-serving.md)
-  Serve the built web UI through `atlas-web` for normal `atlas web` usage while preserving Vite as the development path. Status: deferred.
-
 - [Rust web Vite bundle cleanup](./items/rust-web-vite-bundle-cleanup.md)
   Evaluate and reduce large frontend chunks once the UI shape stabilizes. Status: proposed.
 
@@ -95,6 +92,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Rust optional PF2e art ingest](./items/rust-optional-pf2e-art-ingest.md)
   Track optional local ingestion of PF2e system icons and module-provided creature portrait/token art for future web presentation. Status: proposed.
+
+- [Rust local-state import and export](./items/rust-local-state-import-export.md)
+  Add scriptable import/export for saved lists and future durable local-state data without making artifact rebuilds responsible for user state. Status: proposed.
 
 - [Rust RichDocument child retrieval policy](./items/rust-rich-document-child-retrieval-policy.md)
   Evaluate whether targeted child embeddings for body or structured rich content improve retrieval beyond the overflow-only RichDocument baseline. Status: proposed.
