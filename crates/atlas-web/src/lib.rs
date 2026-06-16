@@ -286,6 +286,8 @@ fn status_for_error(code: AppErrorCode) -> StatusCode {
     match code {
         AppErrorCode::InvalidRequest
         | AppErrorCode::InvalidRecordKey
+        | AppErrorCode::RecordResolutionMiss
+        | AppErrorCode::RecordResolutionAmbiguous
         | AppErrorCode::FilterInvalid
         | AppErrorCode::FilterFieldInvalid
         | AppErrorCode::FilterOptionInvalid => StatusCode::BAD_REQUEST,
@@ -293,7 +295,9 @@ fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::SavedListNotFound
         | AppErrorCode::WindowNotFound => StatusCode::NOT_FOUND,
         AppErrorCode::WindowExpired => StatusCode::GONE,
-        AppErrorCode::FilterEditorConflict | AppErrorCode::SetupInProgress => StatusCode::CONFLICT,
+        AppErrorCode::SavedListAlreadyExists
+        | AppErrorCode::FilterEditorConflict
+        | AppErrorCode::SetupInProgress => StatusCode::CONFLICT,
         AppErrorCode::ArtifactNotReady
         | AppErrorCode::ArtifactIncompatible
         | AppErrorCode::SetupRequired
@@ -305,7 +309,9 @@ fn status_for_error(code: AppErrorCode) -> StatusCode {
         AppErrorCode::ServiceBusy => StatusCode::SERVICE_UNAVAILABLE,
         AppErrorCode::OperationCancelled => StatusCode::REQUEST_TIMEOUT,
         AppErrorCode::OperationTimeout => StatusCode::REQUEST_TIMEOUT,
-        AppErrorCode::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+        AppErrorCode::QueryFailed | AppErrorCode::InternalError => {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     }
 }
 

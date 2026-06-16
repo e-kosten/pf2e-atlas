@@ -19,6 +19,7 @@ path = "src/main.rs"
 
 [dependencies]
 atlas-app-service.workspace = true
+atlas-app-model.workspace = true
 atlas-web.workspace = true
 atlas-domain.workspace = true
 atlas-embedding.workspace = true

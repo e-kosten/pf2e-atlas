@@ -11,7 +11,7 @@ impl AtlasAppService {
         let record_key = RecordKey::parse(record_key).map_err(|error| {
             AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
         })?;
-        self.retrieval.submit(move |retrieval| {
+        self.submit_retrieval(move |retrieval| {
             let record = retrieval
                 .get_record(GetRecordRequest {
                     record_key: &record_key,

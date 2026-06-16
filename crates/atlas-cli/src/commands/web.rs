@@ -2,7 +2,7 @@ use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::Command;
 
-use atlas_app_service::{AtlasAppService, AtlasAppServiceOptions};
+use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
 use tokio::net::TcpListener;
 use tokio::runtime::Builder;
 
@@ -29,6 +29,7 @@ async fn run_web_async(args: WebArgs) -> Result<std::process::ExitCode, String> 
         source_root: args.source,
         embedding_cache_root: args.embedding_cache_path,
         index_path: args.index,
+        retrieval_mode: AppServiceRetrievalMode::FullPool,
     })
     .map_err(|error| {
         let app_error = error.into_app_error();

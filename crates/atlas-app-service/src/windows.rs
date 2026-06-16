@@ -46,7 +46,7 @@ impl AtlasAppService {
             include_diagnostics: request.include_diagnostics,
         };
         let window_for_render = window.clone();
-        let page = self.retrieval.submit(move |retrieval| {
+        let page = self.submit_retrieval(move |retrieval| {
             render_result_window_page(
                 retrieval,
                 window_id,
@@ -64,7 +64,7 @@ impl AtlasAppService {
         request: ReadResultWindowPageRequest,
     ) -> AppServiceResult<ResultWindowPage> {
         let window = self.windows()?.get(window_id)?;
-        self.retrieval.submit(move |retrieval| {
+        self.submit_retrieval(move |retrieval| {
             render_result_window_page(retrieval, window_id, &window, request)
         })
     }
