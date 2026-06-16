@@ -103,6 +103,7 @@ version = "0.1.0"
 dependencies = [
  "atlas-app-model",
  "atlas-domain",
+ "atlas-local-state",
  "atlas-record",
  "atlas-runtime",
  "atlas-search",

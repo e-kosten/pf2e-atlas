@@ -5,7 +5,8 @@ use std::sync::Arc;
 use atlas_app_model::{
     AppError, AppErrorCode, AppReadinessView, DiscoverFilterEditorRequest,
     DiscoverFilterValuesRequest, FilterEditorView, FilterValueListView, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, ResultWindowPage,
+    ReadResultWindowPageRequest, RecordDetailView, ResultWindowPage, SavedListDetailView,
+    SavedListIndexView,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use axum::extract::rejection::JsonRejection;
@@ -59,6 +60,8 @@ fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
+        .route("/api/lists", get(saved_lists))
+        .route("/api/lists/{slug}", get(saved_list))
         .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
         .route("/api/result-windows", post(open_result_window))
@@ -96,6 +99,10 @@ trait AtlasWebService: Send + Sync {
     ) -> Result<ResultWindowPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+
+    fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
+
+    fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError>;
 }
 
 impl AtlasWebService for AtlasAppService {
@@ -135,6 +142,14 @@ impl AtlasWebService for AtlasAppService {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(record_key)
     }
+
+    fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
+        self.saved_lists()
+    }
+
+    fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError> {
+        self.saved_list(slug)
+    }
 }
 
 async fn root() -> Response {
@@ -160,6 +175,23 @@ async fn static_asset(uri: Uri) -> Response {
 
 async fn readiness(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
     Ok(Json(state.service.readiness()))
+}
+
+async fn saved_lists(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.saved_lists()).await?,
+    ))
+}
+
+async fn saved_list(
+    State(state): State<AtlasWebState>,
+    Path(slug): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.saved_list(&slug)).await?,
+    ))
 }
 
 async fn discover_filter_editor(
@@ -257,7 +289,9 @@ fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::FilterInvalid
         | AppErrorCode::FilterFieldInvalid
         | AppErrorCode::FilterOptionInvalid => StatusCode::BAD_REQUEST,
-        AppErrorCode::RecordNotFound | AppErrorCode::WindowNotFound => StatusCode::NOT_FOUND,
+        AppErrorCode::RecordNotFound
+        | AppErrorCode::SavedListNotFound
+        | AppErrorCode::WindowNotFound => StatusCode::NOT_FOUND,
         AppErrorCode::WindowExpired => StatusCode::GONE,
         AppErrorCode::FilterEditorConflict | AppErrorCode::SetupInProgress => StatusCode::CONFLICT,
         AppErrorCode::ArtifactNotReady
@@ -349,7 +383,8 @@ mod tests {
     use atlas_app_model::{
         AppReadinessStatus, FilterControlView, FilterEditorFieldView, FilterEditorGroupView,
         FilterFieldPlacement, FilterValueOption, RecordSummaryView, ResultWindowModeSummary,
-        SearchPageView,
+        SavedListDetailView, SavedListIndexView, SavedListItemSnapshotView,
+        SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SearchPageView,
     };
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::RecordPresentationDocument;
@@ -370,6 +405,10 @@ mod tests {
         );
         assert_eq!(
             status_for_error(AppErrorCode::WindowNotFound),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            status_for_error(AppErrorCode::SavedListNotFound),
             StatusCode::NOT_FOUND
         );
         assert_eq!(
@@ -667,6 +706,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn saved_list_routes_use_real_router_wiring() {
+        let (status, body) = route_json(Method::GET, "/api/lists", None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["lists"][0]["slug"], "research");
+
+        let (status, body) = route_json(Method::GET, "/api/lists/research", None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list"]["slug"], "research");
+        assert_eq!(body["items"][0]["record_key"], "actions:testAction1");
+        assert_eq!(body["items"][0]["status"], "active");
+
+        let (status, body) = route_json(Method::GET, "/api/lists/missing", None).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["code"], "saved_list_not_found");
+    }
+
+    #[tokio::test]
     async fn malformed_json_route_body_returns_app_error_envelope() {
         let app = test_router();
         let response = app
@@ -806,6 +862,61 @@ mod tests {
                 },
             })
         }
+
+        fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
+            Ok(SavedListIndexView {
+                lists: vec![saved_list_summary()],
+            })
+        }
+
+        fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError> {
+            if slug == "missing" {
+                return Err(AppServiceError::new(
+                    AppErrorCode::SavedListNotFound,
+                    "saved list missing",
+                ));
+            }
+            Ok(SavedListDetailView {
+                list: saved_list_summary(),
+                items: vec![SavedListItemView {
+                    record_key: "actions:testAction1".to_string(),
+                    position: 1,
+                    note: Some("fixture note".to_string()),
+                    status: SavedListItemStatusView::Active,
+                    snapshot: SavedListItemSnapshotView {
+                        title: "Test Action 1".to_string(),
+                        kind: Some("rule".to_string()),
+                    },
+                    record: Some(record_summary()),
+                }],
+            })
+        }
+    }
+
+    fn saved_list_summary() -> SavedListSummaryView {
+        SavedListSummaryView {
+            slug: "research".to_string(),
+            name: "Research".to_string(),
+            description: Some("Campaign prep".to_string()),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+        }
+    }
+
+    fn record_summary() -> RecordSummaryView {
+        RecordSummaryView {
+            record_key: "actions:testAction1".to_string(),
+            title: "Test Action 1".to_string(),
+            kind: "rule".to_string(),
+            kind_label: "Rule".to_string(),
+            level_label: None,
+            rarity: None,
+            traits: vec![],
+            taxonomy: vec![],
+            publication: None,
+            pack: Some("Actions".to_string()),
+            preview: None,
+        }
     }
 
     fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
@@ -821,19 +932,7 @@ mod tests {
                 next_page: Some(page_number + 1),
             },
             rows: vec![atlas_app_model::ResultWindowRow {
-                record: RecordSummaryView {
-                    record_key: "actions:testAction1".to_string(),
-                    title: "Test Action 1".to_string(),
-                    kind: "rule".to_string(),
-                    kind_label: "Rule".to_string(),
-                    level_label: None,
-                    rarity: None,
-                    traits: vec![],
-                    taxonomy: vec![],
-                    publication: None,
-                    pack: Some("Actions".to_string()),
-                    preview: None,
-                },
+                record: record_summary(),
                 match_summary: None,
             }],
         }

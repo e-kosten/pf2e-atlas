@@ -3,8 +3,8 @@ use std::process::ExitCode;
 
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_local_state::{
-    AddSavedListItemOutcome, LocalStateError, LocalStateStore, NewSavedList, NewSavedListItem,
-    SavedList, SavedListItem,
+    AddSavedListItemOutcome, HydratedSavedListItem, LocalStateError, LocalStateStore, NewSavedList,
+    NewSavedListItem, SavedList, SavedListItem, SavedListItemStatus, hydrate_saved_list_item,
 };
 use atlas_record::{RecordJson, RecordJsonOptions, record_json};
 use atlas_search::{
@@ -452,21 +452,28 @@ fn show_item(
     let record = records_by_key
         .get(&item.record_key)
         .map(|record| record_json(record, standard_record_json_options()));
-    let status = if record.is_some() {
-        "active"
-    } else {
-        "unresolved"
-    };
+    let hydrated = hydrate_saved_list_item(item, record);
+    list_show_item_from_hydrated(hydrated)
+}
+
+fn list_show_item_from_hydrated(item: HydratedSavedListItem<RecordJson>) -> ListShowItem {
     ListShowItem {
         record_key: item.record_key,
         position: item.position,
         note: item.note,
-        status,
+        status: list_item_status_text(item.status),
         snapshot: ListItemSnapshot {
-            name: item.record_title_snapshot,
-            kind: item.record_kind_snapshot,
+            name: item.snapshot.title,
+            kind: item.snapshot.kind,
         },
-        record,
+        record: item.record,
+    }
+}
+
+fn list_item_status_text(status: SavedListItemStatus) -> &'static str {
+    match status {
+        SavedListItemStatus::Active => "active",
+        SavedListItemStatus::Unresolved => "unresolved",
     }
 }
 

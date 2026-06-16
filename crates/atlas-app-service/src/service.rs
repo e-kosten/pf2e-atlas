@@ -12,6 +12,7 @@ use crate::windows::{MAX_RESULT_WINDOWS, ResultWindowStore};
 #[derive(Clone)]
 pub struct AtlasAppService {
     pub(super) retrieval: RetrievalExecutor,
+    pub(super) local_state_path: PathBuf,
     pub(super) windows: Arc<Mutex<ResultWindowStore>>,
     pub(super) next_window_id: Arc<AtomicU64>,
 }
@@ -27,8 +28,11 @@ pub struct AtlasAppServiceOptions {
 impl AtlasAppService {
     pub fn start(options: AtlasAppServiceOptions) -> AppServiceResult<Self> {
         let runtime_options = runtime_options(options);
-        AtlasRuntime::resolve(runtime_options.clone())?;
-        Self::new(RetrievalExecutor::start(runtime_options))
+        let runtime = AtlasRuntime::resolve(runtime_options.clone())?;
+        Self::new(
+            RetrievalExecutor::start(runtime_options),
+            runtime.local_state_path().to_path_buf(),
+        )
     }
 
     pub fn readiness(&self) -> AppReadinessView {
@@ -38,9 +42,13 @@ impl AtlasAppService {
         }
     }
 
-    pub(super) fn new(retrieval: AppServiceResult<RetrievalExecutor>) -> AppServiceResult<Self> {
+    pub(super) fn new(
+        retrieval: AppServiceResult<RetrievalExecutor>,
+        local_state_path: PathBuf,
+    ) -> AppServiceResult<Self> {
         Ok(Self {
             retrieval: retrieval?,
+            local_state_path,
             windows: Arc::new(Mutex::new(ResultWindowStore::new(MAX_RESULT_WINDOWS))),
             next_window_id: Arc::new(AtomicU64::new(1)),
         })

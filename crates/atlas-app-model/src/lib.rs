@@ -2,6 +2,7 @@
 
 mod error;
 mod filter;
+mod list;
 mod readiness;
 mod record;
 mod result_window;
@@ -13,6 +14,10 @@ pub use filter::{
     FilterEditorGroupView, FilterEditorView, FilterFieldApplicability, FilterFieldPlacement,
     FilterRange, FilterValidationCode, FilterValidationMessage, FilterValidationResult,
     FilterValueListView, FilterValueOption, MetricComparison,
+};
+pub use list::{
+    SavedListDetailView, SavedListIndexView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{RecordBadgeView, RecordDetailView, RecordSummaryView};
@@ -79,6 +84,9 @@ mod tests {
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
         ResultWindowPage::export_all_to(path).expect("ResultWindowPage bindings should export");
+        SavedListDetailView::export_all_to(path)
+            .expect("SavedListDetailView bindings should export");
+        SavedListIndexView::export_all_to(path).expect("SavedListIndexView bindings should export");
     }
 
     fn read_binding_dir(path: &Path) -> BTreeMap<String, String> {

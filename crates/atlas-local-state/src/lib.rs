@@ -9,7 +9,8 @@ pub const LOCAL_STATE_CONTRACT_VERSION: &str = "pf2e-atlas-local-state/v1";
 
 pub use error::{LocalStateError, LocalStateResult};
 pub use model::{
-    AddSavedListItemOutcome, NewSavedList, NewSavedListItem, SavedList, SavedListItem,
-    SavedListWithItems,
+    AddSavedListItemOutcome, HydratedSavedListItem, NewSavedList, NewSavedListItem, SavedList,
+    SavedListItem, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
+    hydrate_saved_list_item,
 };
 pub use store::LocalStateStore;

@@ -41,6 +41,7 @@ pub enum AppErrorCode {
     InvalidRequest,
     InvalidRecordKey,
     RecordNotFound,
+    SavedListNotFound,
     WindowNotFound,
     WindowExpired,
     FilterInvalid,
