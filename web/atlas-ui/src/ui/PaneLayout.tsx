@@ -1,6 +1,9 @@
 import type React from "react";
 import { Fragment, useRef, useState } from "react";
 
+const KEYBOARD_RESIZE_STEP = 24;
+const KEYBOARD_RESIZE_LARGE_STEP = 96;
+
 type PaneWidthSpec = {
   defaultWidth: number;
   minWidth: number;
@@ -53,6 +56,14 @@ export function ResizablePaneGroup<PaneId extends string>({
     .map((item) => (item.kind === "pane" ? item.column : "var(--panel-gap)"))
     .join(" ");
 
+  function updatePaneWidth(resizePane: PaneId, width: number) {
+    const spec = widthSpecs[resizePane];
+    setWidths((current) => ({
+      ...current,
+      [resizePane]: clampPaneWidth(width, spec.minWidth),
+    }));
+  }
+
   function beginResize(
     item: Extract<ResizablePaneItem<PaneId>, { kind: "handle" }>,
     event: React.PointerEvent<HTMLDivElement>,
@@ -72,12 +83,8 @@ export function ResizablePaneGroup<PaneId extends string>({
     if (!drag) {
       return;
     }
-    const spec = widthSpecs[drag.resizePane];
     const delta = (event.clientX - drag.startX) * drag.deltaMultiplier;
-    setWidths((current) => ({
-      ...current,
-      [drag.resizePane]: clampPaneWidth(drag.startWidth + delta, spec.minWidth),
-    }));
+    updatePaneWidth(drag.resizePane, drag.startWidth + delta);
   }
 
   function endResize(event: React.PointerEvent<HTMLDivElement>, releaseCapture = true) {
@@ -85,6 +92,35 @@ export function ResizablePaneGroup<PaneId extends string>({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     dragState.current = null;
+  }
+
+  function resizeWithKeyboard(
+    item: Extract<ResizablePaneItem<PaneId>, { kind: "handle" }>,
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) {
+    const spec = widthSpecs[item.resizePane];
+    const currentWidth = widths[item.resizePane] ?? spec.defaultWidth;
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      updatePaneWidth(item.resizePane, spec.minWidth);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      updatePaneWidth(item.resizePane, spec.defaultWidth);
+      return;
+    }
+
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      return;
+    }
+
+    event.preventDefault();
+    const step = event.shiftKey ? KEYBOARD_RESIZE_LARGE_STEP : KEYBOARD_RESIZE_STEP;
+    const movement = event.key === "ArrowRight" ? step : -step;
+    updatePaneWidth(item.resizePane, currentWidth + movement * item.deltaMultiplier);
   }
 
   return (
@@ -97,11 +133,14 @@ export function ResizablePaneGroup<PaneId extends string>({
             key={item.key}
             disabled={item.disabled ?? false}
             label={item.label}
+            minWidth={widthSpecs[item.resizePane].minWidth}
             onPointerDown={(event) => beginResize(item, event)}
             onPointerCancel={endResize}
+            onKeyDown={(event) => resizeWithKeyboard(item, event)}
             onLostPointerCapture={(event) => endResize(event, false)}
             onPointerMove={resize}
             onPointerUp={endResize}
+            width={widths[item.resizePane] ?? widthSpecs[item.resizePane].defaultWidth}
           />
         ),
       )}
@@ -134,32 +173,43 @@ export function PaneFrame({
 function ResizeHandle({
   disabled,
   label,
+  minWidth,
+  onKeyDown,
   onLostPointerCapture,
   onPointerCancel,
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  width,
 }: {
   disabled: boolean;
   label: string;
+  minWidth: number;
+  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onLostPointerCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  width: number;
 }) {
   return (
     <div
       aria-disabled={disabled}
       aria-label={label}
       aria-orientation="vertical"
+      aria-valuemin={minWidth}
+      aria-valuenow={width}
+      aria-valuetext={`${width} pixels`}
       className="pane-resizer"
+      onKeyDown={disabled ? undefined : onKeyDown}
       onLostPointerCapture={disabled ? undefined : onLostPointerCapture}
       onPointerCancel={disabled ? undefined : onPointerCancel}
       onPointerDown={disabled ? undefined : onPointerDown}
       onPointerMove={disabled ? undefined : onPointerMove}
       onPointerUp={disabled ? undefined : onPointerUp}
       role="separator"
+      tabIndex={disabled ? -1 : 0}
     />
   );
 }

@@ -65,6 +65,57 @@ describe("ResizablePaneGroup", () => {
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
   });
+
+  it("resizes a pane from the keyboard", () => {
+    const { container } = render(<ResizableFixture />);
+    const group = paneGroup(container);
+    const handle = resizeHandle();
+
+    expect(handle).toHaveAttribute("tabindex", "0");
+    expect(handle).toHaveAttribute("aria-valuemin", "320");
+    expect(handle).toHaveAttribute("aria-valuenow", "420");
+    expect(handle).toHaveAttribute("aria-valuetext", "420 pixels");
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(group.style.gridTemplateColumns).toBe(
+      "minmax(0, 1fr) var(--panel-gap) minmax(0, 396px)",
+    );
+    expect(handle).toHaveAttribute("aria-valuenow", "396");
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft", shiftKey: true });
+    expect(group.style.gridTemplateColumns).toBe(
+      "minmax(0, 1fr) var(--panel-gap) minmax(0, 492px)",
+    );
+    expect(handle).toHaveAttribute("aria-valuenow", "492");
+
+    fireEvent.keyDown(handle, { key: "Home" });
+    expect(group.style.gridTemplateColumns).toBe(
+      "minmax(0, 1fr) var(--panel-gap) minmax(0, 320px)",
+    );
+    expect(handle).toHaveAttribute("aria-valuenow", "320");
+
+    fireEvent.keyDown(handle, { key: "Enter" });
+    expect(group.style.gridTemplateColumns).toBe(
+      "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
+    );
+    expect(handle).toHaveAttribute("aria-valuenow", "420");
+  });
+
+  it("ignores keyboard resizing from a disabled handle", () => {
+    const { container } = render(<ResizableFixture disabled />);
+    const group = paneGroup(container);
+    const handle = resizeHandle();
+
+    expect(handle).toHaveAttribute("tabindex", "-1");
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    fireEvent.keyDown(handle, { key: "Home" });
+
+    expect(group.style.gridTemplateColumns).toBe(
+      "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
+    );
+    expect(handle).toHaveAttribute("aria-valuenow", "420");
+  });
 });
 
 function ResizableFixture({ disabled = false }: { disabled?: boolean }) {
