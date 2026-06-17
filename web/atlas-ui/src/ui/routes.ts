@@ -2,6 +2,8 @@ import type React from "react";
 
 export type AtlasRoute =
   | { kind: "search"; selectedRecordKey: string | null }
+  | { kind: "lists" }
+  | { kind: "list"; slug: string; selectedRecordKey: string | null }
   | { kind: "record"; recordKey: string }
   | { kind: "reader"; recordKey: string; previewRecordKey: string | null };
 
@@ -19,6 +21,28 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
   const record = pathname.match(/^\/records\/(.+)$/);
   if (record) {
     return { kind: "record", recordKey: decodeURIComponent(record[1]) };
+  }
+
+  if (pathname === "/lists") {
+    return { kind: "lists" };
+  }
+
+  const listRecord = pathname.match(/^\/lists\/(.+)\/records\/(.+)$/);
+  if (listRecord) {
+    return {
+      kind: "list",
+      slug: decodeURIComponent(listRecord[1]),
+      selectedRecordKey: decodeURIComponent(listRecord[2]),
+    };
+  }
+
+  const list = pathname.match(/^\/lists\/(.+)$/);
+  if (list) {
+    return {
+      kind: "list",
+      slug: decodeURIComponent(list[1]),
+      selectedRecordKey: null,
+    };
   }
 
   const reader = pathname.match(/^\/reader\/(.+)$/);
@@ -42,6 +66,10 @@ export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
     case "search":
       return searchPath(route.selectedRecordKey);
+    case "lists":
+      return listsPath();
+    case "list":
+      return listPath(route.slug, route.selectedRecordKey);
     case "record":
       return recordPath(route.recordKey);
     case "reader": {
@@ -75,6 +103,15 @@ export function searchPath(recordKey: string | null = null): string {
   return recordKey === null
     ? "/search"
     : `/search/records/${encodeURIComponent(recordKey)}`;
+}
+
+export function listsPath(): string {
+  return "/lists";
+}
+
+export function listPath(slug: string, recordKey: string | null = null): string {
+  const path = `/lists/${encodeURIComponent(slug)}`;
+  return recordKey === null ? path : `${path}/records/${encodeURIComponent(recordKey)}`;
 }
 
 export function recordPath(recordKey: string): string {

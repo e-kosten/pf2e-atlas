@@ -9,19 +9,23 @@ import type {
 import { AtlasPrototypeApp } from "./AtlasPrototypeApp";
 
 const apiMocks = vi.hoisted(() => ({
+  addSavedListItem: vi.fn(),
   discoverFilterEditor: vi.fn(),
   discoverFilterValues: vi.fn(),
   getReadiness: vi.fn(),
   getRecordDetail: vi.fn(),
+  getSavedLists: vi.fn(),
   openResultWindow: vi.fn(),
   readResultWindowPage: vi.fn(),
 }));
 
 vi.mock("../api/atlasApi", () => ({
+  addSavedListItem: apiMocks.addSavedListItem,
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
+  getSavedLists: apiMocks.getSavedLists,
   openResultWindow: apiMocks.openResultWindow,
   readResultWindowPage: apiMocks.readResultWindowPage,
 }));
@@ -48,6 +52,12 @@ describe("AtlasPrototypeApp routing", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
+    apiMocks.getSavedLists.mockResolvedValue({ lists: [] });
+    apiMocks.addSavedListItem.mockResolvedValue({
+      slug: "research",
+      record_key: "spell:heal",
+      outcome: "added",
+    });
   });
 
   it("restores record and reader views from browser history without running search queries", async () => {

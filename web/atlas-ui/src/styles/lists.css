@@ -1,0 +1,112 @@
+.list-index-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--panel-gap);
+  height: calc(100vh - 77px);
+  padding: var(--panel-gap);
+}
+
+.atlas-app--diagnostics .list-index-view {
+  height: calc(100vh - 77px - 54px);
+}
+
+.list-index-view__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 58px;
+  padding: 0 4px;
+}
+
+.list-index-view__toolbar h2,
+.list-info-pane h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.list-index-view__toolbar p,
+.list-info-pane p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.list-index-view__table {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.list-info-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.list-info-pane__select {
+  width: 100%;
+}
+
+.list-info-pane__description {
+  color: var(--text) !important;
+  line-height: 1.45;
+}
+
+.list-info-pane dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.list-info-pane dl > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-subtle);
+}
+
+.list-info-pane dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.list-info-pane dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.list-info-pane > .ant-btn {
+  margin-top: auto;
+}
+
+.list-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.row-link--anchor {
+  text-decoration: none;
+}
+
+.row-link:hover span,
+.row-link:focus-visible span {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.row-link:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.75;
+}

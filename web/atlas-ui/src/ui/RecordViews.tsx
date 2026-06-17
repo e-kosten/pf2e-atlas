@@ -2,6 +2,7 @@ import { ExternalLink, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { getRecordDetail } from "../api/atlasApi";
+import { AddToListButton } from "./ListViews";
 import { PaneFrame, ResizablePaneGroup } from "./PaneLayout";
 import { RecordPresentation } from "./recordPresentation";
 import {
@@ -30,15 +31,18 @@ export function RecordView({ route }: RecordViewProps) {
       primary={
         <RecordPane
           actions={
-            <RouteLink
-              route={{
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey: null,
-              }}
-            >
-              Reader view
-            </RouteLink>
+            <>
+              <AddToListButton recordKey={route.recordKey} />
+              <RouteLink
+                route={{
+                  kind: "reader",
+                  recordKey: route.recordKey,
+                  previewRecordKey: null,
+                }}
+              >
+                Reader view
+              </RouteLink>
+            </>
           }
           title="Record Detail"
         >
@@ -64,9 +68,12 @@ export function ReaderView({ route }: ReaderViewProps) {
       primary={
         <RecordPane
           actions={
-            <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
-              Detail page
-            </RouteLink>
+            <>
+              <AddToListButton recordKey={route.recordKey} />
+              <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
+                Detail page
+              </RouteLink>
+            </>
           }
           title="Reader"
         >
@@ -89,6 +96,7 @@ export function ReaderView({ route }: ReaderViewProps) {
           actions={
             route.previewRecordKey && (
               <>
+                <AddToListButton recordKey={route.previewRecordKey} />
                 <RouteIconLink
                   label="Open preview as reader"
                   route={{

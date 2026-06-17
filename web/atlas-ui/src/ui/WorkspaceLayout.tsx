@@ -17,6 +17,9 @@ type WorkspaceLayoutProps = {
   resultsHeaderActions?: React.ReactNode;
   detail: React.ReactNode;
   detailHeaderActions?: React.ReactNode;
+  labels?: Partial<Record<PaneKey, string>>;
+  sizing?: "results-focus" | "detail-focus";
+  widthSpecs?: Partial<PaneState>;
   selectedRecordKey: string | null;
 };
 
@@ -34,8 +37,21 @@ export function WorkspaceLayout({
   resultsHeaderActions,
   detail,
   detailHeaderActions,
+  labels = {},
+  sizing = "results-focus",
   selectedRecordKey,
+  widthSpecs = {},
 }: WorkspaceLayoutProps) {
+  const effectiveWidthSpecs = {
+    filter: widthSpecs.filter ?? WIDTH_SPECS.filter,
+    results: widthSpecs.results ?? WIDTH_SPECS.results,
+    detail: widthSpecs.detail ?? WIDTH_SPECS.detail,
+  };
+  const paneLabels = {
+    filter: labels.filter ?? "Filters",
+    results: labels.results ?? "Results",
+    detail: labels.detail ?? "Detail",
+  };
   const [collapsed, setCollapsed] = useState<Record<PaneKey, boolean>>({
     filter: false,
     results: false,
@@ -69,17 +85,17 @@ export function WorkspaceLayout({
   return (
     <ResizablePaneGroup
       className="workspace-grid"
-      widthSpecs={WIDTH_SPECS}
+      widthSpecs={effectiveWidthSpecs}
       items={(widths) => [
         {
           kind: "pane",
           key: "filter",
-          column: paneColumn("filter", effectiveCollapsed, widths),
+          column: paneColumn("filter", effectiveCollapsed, widths, sizing),
           content: (
             <WorkspacePane
               collapsed={effectiveCollapsed.filter}
               headerActions={filterHeaderActions}
-              label="Filters"
+              label={paneLabels.filter}
               onToggle={() => togglePane("filter")}
             >
               {filter}
@@ -90,19 +106,19 @@ export function WorkspaceLayout({
           kind: "handle",
           key: "filter-results",
           disabled: effectiveCollapsed.filter && effectiveCollapsed.results,
-          label: "Resize filters",
+          label: `Resize ${paneLabels.filter.toLowerCase()}`,
           resizePane: "filter",
           deltaMultiplier: 1,
         },
         {
           kind: "pane",
           key: "results",
-          column: paneColumn("results", effectiveCollapsed, widths),
+          column: paneColumn("results", effectiveCollapsed, widths, sizing),
           content: (
             <WorkspacePane
               collapsed={effectiveCollapsed.results}
               headerActions={resultsHeaderActions}
-              label="Results"
+              label={paneLabels.results}
               onToggle={() => togglePane("results")}
             >
               {results}
@@ -113,19 +129,19 @@ export function WorkspaceLayout({
           kind: "handle",
           key: "results-detail",
           disabled: effectiveCollapsed.results && effectiveCollapsed.detail,
-          label: "Resize results",
-          resizePane: "detail",
-          deltaMultiplier: -1,
+          label: `Resize ${paneLabels.results.toLowerCase()}`,
+          resizePane: sizing === "detail-focus" ? "results" : "detail",
+          deltaMultiplier: sizing === "detail-focus" ? 1 : -1,
         },
         {
           kind: "pane",
           key: "detail",
-          column: paneColumn("detail", effectiveCollapsed, widths),
+          column: paneColumn("detail", effectiveCollapsed, widths, sizing),
           content: (
             <WorkspacePane
               collapsed={effectiveCollapsed.detail}
               headerActions={detailHeaderActions}
-              label="Detail"
+              label={paneLabels.detail}
               onToggle={() => togglePane("detail")}
             >
               {detail}
@@ -141,11 +157,15 @@ function paneColumn(
   pane: PaneKey,
   collapsed: Record<PaneKey, boolean>,
   widths: Record<string, number>,
+  sizing: "results-focus" | "detail-focus",
 ): string {
   if (collapsed[pane]) {
     return `${COLLAPSED_WIDTH}px`;
   }
-  if (pane === "results") {
+  if (sizing === "results-focus" && pane === "results") {
+    return "minmax(0, 1fr)";
+  }
+  if (sizing === "detail-focus" && pane === "detail") {
     return "minmax(0, 1fr)";
   }
   if (pane === "detail" && collapsed.results) {
