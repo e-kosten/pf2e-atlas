@@ -44,12 +44,38 @@ fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn st
     let list = lists
         .get_with_items("undead-research")?
         .expect("list should exist");
+    assert!(list.list.list_key.starts_with("list_"));
     assert_eq!(list.list.name, "Undead Research");
     assert_eq!(list.items.len(), 2);
     assert_eq!(list.items[0].record_key, "actions:first");
     assert_eq!(list.items[0].position, 1);
     assert_eq!(list.items[1].record_key, "actions:second");
     assert_eq!(list.items[1].position, 2);
+    Ok(())
+}
+
+#[test]
+fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-key"))?;
+    let lists = store.saved_lists();
+    let list = lists.create(NewSavedList {
+        slug: "keyed-list".to_string(),
+        name: "Keyed List".to_string(),
+        description: None,
+    })?;
+
+    lists.add_resolved_item(
+        &list.list_key,
+        resolved_item("actions:first", None, "First", Some("rule")),
+    )?;
+    let keyed = lists
+        .get_with_items(&list.list_key)?
+        .expect("list should load by key");
+    assert_eq!(keyed.list.slug, "keyed-list");
+    assert_eq!(keyed.items[0].record_key, "actions:first");
+
+    assert!(lists.delete(&list.list_key)?);
+    assert!(lists.get("keyed-list")?.is_none());
     Ok(())
 }
 

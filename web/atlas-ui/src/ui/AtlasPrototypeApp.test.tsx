@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
@@ -52,12 +52,16 @@ describe("AtlasPrototypeApp routing", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
-    apiMocks.getSavedLists.mockResolvedValue({ lists: [] });
-    apiMocks.addSavedListItem.mockResolvedValue({
-      slug: "research",
-      record_key: "spell:heal",
-      outcome: "added",
-    });
+    apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
+    apiMocks.addSavedListItem.mockImplementation(
+      ({ record_ref, list_ref }: { record_ref: string; list_ref: string }) =>
+        Promise.resolve({
+          list_key: list_ref,
+          slug: "research",
+          record_key: record_ref,
+          outcome: "added",
+        }),
+    );
   });
 
   it("restores record and reader views from browser history without running search queries", async () => {
@@ -107,6 +111,33 @@ describe("AtlasPrototypeApp routing", () => {
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+  });
+
+  it("adds the search side-detail record to a saved list", async () => {
+    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+    render(<AtlasPrototypeApp />, { wrapper: queryClientWrapper() });
+
+    const resultKey = await screen.findByText("spell:heal");
+    const resultButton = resultKey.closest("button");
+    if (!resultButton) {
+      throw new Error("result row button was not rendered");
+    }
+    fireEvent.click(resultButton);
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+    const selector = within(dialog).getByRole("combobox");
+    fireEvent.mouseDown(selector);
+    fireEvent.click(await screen.findByText("Research"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+        list_ref: "research",
+        record_ref: "spell:heal",
+      }),
+    );
   });
 });
 
@@ -171,6 +202,21 @@ function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
         kind_label: "Spell",
       },
     })),
+  };
+}
+
+function savedListIndexFixture() {
+  return {
+    lists: [
+      {
+        list_key: "list_research",
+        slug: "research",
+        name: "Research",
+        description: "Campaign prep",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-02T00:00:00Z",
+      },
+    ],
   };
 }
 

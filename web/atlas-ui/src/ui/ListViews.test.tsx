@@ -38,21 +38,25 @@ describe("list views", () => {
       Promise.resolve(recordDetailFixture(recordKey)),
     );
     apiMocks.addSavedListItem.mockResolvedValue({
+      list_key: "list_research",
       slug: "research",
       record_key: "actions:testAction1",
       outcome: "added",
     });
     apiMocks.removeSavedListItem.mockResolvedValue({
+      list_key: "list_research",
       slug: "research",
       record_key: "actions:testAction1",
       outcome: "removed",
     });
     apiMocks.deleteSavedList.mockResolvedValue({
+      list_key: "list_research",
       slug: "research",
       deleted: true,
     });
     apiMocks.createSavedList.mockResolvedValue({
       list: {
+        list_key: "list_boss_fight_prep",
         slug: "boss-fight-prep",
         name: "Boss Fight Prep",
         description: "Session prep",
@@ -105,10 +109,31 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
-        slug: "research",
+        list_ref: "research",
         record_ref: "actions:testAction1",
       }),
     );
+  });
+
+  it("deletes the current list and returns to the list index", async () => {
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: null,
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    await screen.findByRole("heading", { name: "Research" });
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() =>
+      expect(apiMocks.deleteSavedList).toHaveBeenCalledWith("research"),
+    );
+    await waitFor(() => expect(window.location.pathname).toBe("/lists"));
   });
 
   it("switches between saved lists from the list pane picker", async () => {
@@ -127,7 +152,9 @@ describe("list views", () => {
     fireEvent.mouseDown(selector);
     fireEvent.click(await screen.findByText("Encounters"));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/lists/encounters"));
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/lists/encounters"),
+    );
   });
 
   it("adds the current record to a selected list", async () => {
@@ -144,7 +171,7 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        slug: "research",
+        list_ref: "research",
         record_ref: "actions:testAction1",
       }),
     );
@@ -161,16 +188,13 @@ describe("list views", () => {
     fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "Boss Fight Prep!" },
     });
-    fireEvent.change(screen.getByLabelText("Description"), {
-      target: { value: "Session prep" },
-    });
+    expect(screen.queryByLabelText("Description")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() =>
       expect(apiMocks.createSavedList).toHaveBeenCalledWith({
         slug: "boss-fight-prep",
         name: "Boss Fight Prep!",
-        description: "Session prep",
       }),
     );
     await waitFor(() =>
@@ -196,6 +220,7 @@ function savedListIndexFixture(): SavedListIndexView {
   return {
     lists: [
       {
+        list_key: "list_research",
         slug: "research",
         name: "Research",
         description: "Campaign prep",
@@ -203,6 +228,7 @@ function savedListIndexFixture(): SavedListIndexView {
         updated_at: "2026-01-02T00:00:00Z",
       },
       {
+        list_key: "list_encounters",
         slug: "encounters",
         name: "Encounters",
         description: "Fight prep",

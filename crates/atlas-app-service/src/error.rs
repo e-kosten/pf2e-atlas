@@ -48,13 +48,14 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
 impl From<LocalStateError> for AppServiceError {
     fn from(error: LocalStateError) -> Self {
         let code = match &error {
-            LocalStateError::InvalidSlug { .. } | LocalStateError::InvalidRecordKey { .. } => {
-                AppErrorCode::InvalidRequest
-            }
+            LocalStateError::InvalidSlug { .. }
+            | LocalStateError::InvalidListRef { .. }
+            | LocalStateError::InvalidRecordKey { .. } => AppErrorCode::InvalidRequest,
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
             LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
             LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
+            | LocalStateError::ListKeyAllocationFailed
             | LocalStateError::Database(_)
             | LocalStateError::Filesystem(_)
             | LocalStateError::Timestamp(_)

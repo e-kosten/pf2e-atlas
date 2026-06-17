@@ -37,6 +37,7 @@ struct ListData {
 #[derive(Debug, Serialize)]
 struct ListDeleteData {
     local_state_path: Option<String>,
+    list_key: String,
     slug: String,
     deleted: bool,
 }
@@ -44,6 +45,7 @@ struct ListDeleteData {
 #[derive(Debug, Serialize)]
 struct ListItemMutationData {
     local_state_path: Option<String>,
+    list_key: String,
     slug: String,
     record_key: String,
     outcome: &'static str,
@@ -162,7 +164,7 @@ pub(crate) fn run_lists_add(options: ListAddOptions) -> Result<ExitCode, String>
         ListCommandStep::Exit(code) => return Ok(code),
     };
     let view = match client.add_saved_list_item(AddSavedListItemRequest {
-        slug: options.slug,
+        list_ref: options.slug,
         record_ref: options.record_ref,
         note: options.note,
     }) {
@@ -178,7 +180,7 @@ pub(crate) fn run_lists_remove(options: ListRemoveOptions) -> Result<ExitCode, S
         ListCommandStep::Exit(code) => return Ok(code),
     };
     let view = match client.remove_saved_list_item(RemoveSavedListItemRequest {
-        slug: options.slug,
+        list_ref: options.slug,
         record_ref: options.record_ref,
     }) {
         Ok(view) => view,
@@ -289,6 +291,7 @@ fn write_mutation_result(
 ) -> Result<ExitCode, String> {
     let data = ListItemMutationData {
         local_state_path: local_state_path(client),
+        list_key: view.list_key,
         slug: view.slug,
         record_key: view.record_key,
         outcome: mutation_outcome_text(view.outcome),
@@ -304,6 +307,7 @@ fn write_mutation_result(
 fn delete_data(client: &impl AtlasClient, view: DeleteSavedListView) -> ListDeleteData {
     ListDeleteData {
         local_state_path: local_state_path(client),
+        list_key: view.list_key,
         slug: view.slug,
         deleted: view.deleted,
     }

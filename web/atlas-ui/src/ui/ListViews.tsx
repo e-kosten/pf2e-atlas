@@ -37,7 +37,6 @@ type ListDetailViewProps = {
 
 type CreateListFormValues = {
   name: string;
-  description?: string;
 };
 
 const LIST_WORKSPACE_WIDTH_SPECS = {
@@ -72,7 +71,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
           loading={lists.isLoading || lists.isFetching}
           locale={{ emptyText: "No saved lists" }}
           pagination={false}
-          rowKey={(list) => list.slug}
+          rowKey={(list) => list.list_key}
           size="middle"
         />
       </section>
@@ -103,7 +102,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   );
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
-      removeSavedListItem({ slug: route.slug, record_ref: recordKey }),
+      removeSavedListItem({ list_ref: route.slug, record_ref: recordKey }),
     onSuccess: async (_view, recordKey) => {
       await queryClient.invalidateQueries({ queryKey: ["saved-list", route.slug] });
       await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
@@ -221,7 +220,8 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
   const queryClient = useQueryClient();
   const lists = useSavedLists({ enabled: open });
   const addItem = useMutation({
-    mutationFn: (slug: string) => addSavedListItem({ slug, record_ref: recordKey }),
+    mutationFn: (slug: string) =>
+      addSavedListItem({ list_ref: slug, record_ref: recordKey }),
     onSuccess: async (_view, slug) => {
       await queryClient.invalidateQueries({ queryKey: ["saved-list", slug] });
       await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
@@ -490,7 +490,6 @@ function CreateListModal({
           create.mutate({
             slug: slugify(values.name),
             name: values.name,
-            description: values.description || undefined,
           })
         }
       >
@@ -508,9 +507,6 @@ function CreateListModal({
           ]}
         >
           <Input />
-        </Form.Item>
-        <Form.Item label="Description" name="description">
-          <Input.TextArea rows={3} />
         </Form.Item>
       </Form>
       {create.error && <InlineError message={create.error.message} />}

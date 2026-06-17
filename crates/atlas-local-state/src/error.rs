@@ -6,12 +6,19 @@ pub enum LocalStateError {
     NonUtf8Path(String),
     #[error("invalid saved-list slug `{slug}`: {reason}")]
     InvalidSlug { slug: String, reason: &'static str },
+    #[error("invalid saved-list ref `{list_ref}`: {reason}")]
+    InvalidListRef {
+        list_ref: String,
+        reason: &'static str,
+    },
     #[error("invalid saved-list record key `{record_key}`: {reason}")]
     InvalidRecordKey { record_key: String, reason: String },
     #[error("saved list already exists: {0}")]
     ListAlreadyExists(String),
     #[error("saved list not found: {0}")]
     ListNotFound(String),
+    #[error("could not allocate a unique saved-list key")]
+    ListKeyAllocationFailed,
     #[error("unsupported local-state metadata `{key}` value `{value}`")]
     UnsupportedMetadata { key: &'static str, value: String },
     #[error("local-state database is incompatible: {0}")]
