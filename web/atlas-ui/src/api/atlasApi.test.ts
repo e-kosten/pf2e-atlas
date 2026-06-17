@@ -1,6 +1,9 @@
 import type { AppError, OpenResultWindowRequest } from "../generated/atlas";
 import {
+  addSavedListItem,
   AtlasApiError,
+  createSavedList,
+  deleteSavedList,
   discoverFilterEditor,
   discoverFilterValues,
   getReadiness,
@@ -9,6 +12,7 @@ import {
   getSavedLists,
   openResultWindow,
   readResultWindowPage,
+  removeSavedListItem,
 } from "./atlasApi";
 
 describe("atlasApi", () => {
@@ -233,6 +237,83 @@ describe("atlasApi", () => {
     expect(result.items[0]?.position).toBe(2n);
   });
 
+  it("writes saved-list mutations through encoded list routes", async () => {
+    const fetchMock = mockFetch({
+      list: savedListSummary({ slug: "campaign/research" }),
+    });
+
+    await createSavedList({
+      slug: "campaign/research",
+      name: "Campaign Research",
+      description: "Session prep",
+    });
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/lists",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          slug: "campaign/research",
+          name: "Campaign Research",
+          description: "Session prep",
+        }),
+      }),
+    );
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ slug: "campaign/research", deleted: true }),
+    );
+    await deleteSavedList("campaign/research");
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/lists/campaign%2Fresearch",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        slug: "campaign/research",
+        record_key: "spell:dirge/of doom",
+        outcome: "added",
+      }),
+    );
+    await addSavedListItem({
+      slug: "campaign/research",
+      record_ref: "spell:dirge/of doom",
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/lists/campaign%2Fresearch/items",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          slug: "campaign/research",
+          record_ref: "spell:dirge/of doom",
+        }),
+      }),
+    );
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        slug: "campaign/research",
+        record_key: "spell:dirge/of doom",
+        outcome: "removed",
+      }),
+    );
+    await removeSavedListItem({
+      slug: "campaign/research",
+      record_ref: "spell:dirge/of doom",
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/lists/campaign%2Fresearch/items",
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify({
+          slug: "campaign/research",
+          record_ref: "spell:dirge/of doom",
+        }),
+      }),
+    );
+  });
+
   it("throws AtlasApiError with app-error details for app error responses", async () => {
     const appError: AppError = {
       code: "window_expired",
@@ -289,6 +370,15 @@ function mockFetchText(
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
+}
+
+function jsonResponse(payload: unknown) {
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    text: vi.fn().mockResolvedValue(JSON.stringify(payload)),
+  };
 }
 
 function resultWindowPayload(overrides: Record<string, unknown> = {}) {

@@ -1,6 +1,9 @@
 import type {
+  AddSavedListItemRequest,
   AppError,
   AppReadinessView,
+  CreateSavedListRequest,
+  DeleteSavedListView,
   DiscoverFilterEditorRequest,
   DiscoverFilterValuesRequest,
   FilterEditorView,
@@ -8,9 +11,12 @@ import type {
   OpenResultWindowRequest,
   ReadResultWindowPageRequest,
   RecordDetailView,
+  RemoveSavedListItemRequest,
+  SavedListCreateView,
   ResultWindowPage,
   SavedListDetailView,
   SavedListIndexView,
+  SavedListItemMutationView,
 } from "../generated/atlas";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
@@ -86,6 +92,39 @@ export async function getSavedLists(): Promise<SavedListIndexView> {
 export async function getSavedList(slug: string): Promise<SavedListDetailView> {
   const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(slug)}`);
   return normalizeSavedListDetail(list);
+}
+
+export async function createSavedList(
+  request: CreateSavedListRequest,
+): Promise<SavedListCreateView> {
+  return atlasFetch("/api/lists", {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
+export async function deleteSavedList(slug: string): Promise<DeleteSavedListView> {
+  return atlasFetch(`/api/lists/${encodeURIComponent(slug)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addSavedListItem(
+  request: AddSavedListItemRequest,
+): Promise<SavedListItemMutationView> {
+  return atlasFetch(`/api/lists/${encodeURIComponent(request.slug)}/items`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
+export async function removeSavedListItem(
+  request: RemoveSavedListItemRequest,
+): Promise<SavedListItemMutationView> {
+  return atlasFetch(`/api/lists/${encodeURIComponent(request.slug)}/items`, {
+    method: "DELETE",
+    body: jsonBody(request),
+  });
 }
 
 async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

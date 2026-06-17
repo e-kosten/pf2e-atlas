@@ -1,403 +1,43 @@
 #![deny(unsafe_code)]
 
-use std::sync::Arc;
+mod assets;
+mod error;
+mod handlers;
+mod router;
+mod service;
 
-use atlas_app_model::{
-    AppError, AppErrorCode, AppReadinessView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, FilterEditorView, FilterValueListView, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, ResultWindowPage, SavedListDetailView,
-    SavedListIndexView,
-};
-use atlas_app_service::{AppServiceError, AtlasAppService};
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
-use axum::http::{StatusCode, Uri, header};
-use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
-use axum::{Json, Router};
-use rust_embed::Embed;
-use tokio::sync::Semaphore;
+pub use router::router;
 
-const MAX_BLOCKING_SERVICE_CALLS: usize = 64;
-
-#[derive(Embed)]
-#[folder = "../../web/atlas-ui/dist"]
-struct WebAssets;
-
-#[derive(Clone)]
-struct AtlasWebState {
-    service: Arc<dyn AtlasWebService>,
-    blocking_calls: Arc<Semaphore>,
-    blocking_call_capacity: usize,
-}
-
-impl AtlasWebState {
-    fn new(service: AtlasAppService) -> Self {
-        Self::from_service(service)
-    }
-
-    fn from_service(service: impl AtlasWebService + 'static) -> Self {
-        Self::from_service_with_blocking_capacity(service, MAX_BLOCKING_SERVICE_CALLS)
-    }
-
-    fn from_service_with_blocking_capacity(
-        service: impl AtlasWebService + 'static,
-        blocking_call_capacity: usize,
-    ) -> Self {
-        Self {
-            service: Arc::new(service),
-            blocking_calls: Arc::new(Semaphore::new(blocking_call_capacity)),
-            blocking_call_capacity,
-        }
-    }
-}
-
-pub fn router(service: AtlasAppService) -> Router {
-    router_with_state(AtlasWebState::new(service))
-}
-
-fn router_with_state(state: AtlasWebState) -> Router {
-    Router::new()
-        .route("/", get(root))
-        .route("/api/readiness", get(readiness))
-        .route("/api/lists", get(saved_lists))
-        .route("/api/lists/{slug}", get(saved_list))
-        .route("/api/filters/editor", post(discover_filter_editor))
-        .route("/api/filters/values", post(discover_filter_values))
-        .route("/api/result-windows", post(open_result_window))
-        .route(
-            "/api/result-windows/{window_id}/page",
-            post(read_result_window_page),
-        )
-        .route("/api/records/{record_key}", get(record_detail))
-        .fallback(get(static_asset))
-        .with_state(state)
-}
-
-trait AtlasWebService: Send + Sync {
-    fn readiness(&self) -> AppReadinessView;
-
-    fn discover_filter_editor(
-        &self,
-        request: DiscoverFilterEditorRequest,
-    ) -> Result<FilterEditorView, AppServiceError>;
-
-    fn discover_filter_values(
-        &self,
-        request: DiscoverFilterValuesRequest,
-    ) -> Result<FilterValueListView, AppServiceError>;
-
-    fn open_result_window(
-        &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
-
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
-
-    fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
-
-    fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError>;
-}
-
-impl AtlasWebService for AtlasAppService {
-    fn readiness(&self) -> AppReadinessView {
-        self.readiness()
-    }
-
-    fn discover_filter_editor(
-        &self,
-        request: DiscoverFilterEditorRequest,
-    ) -> Result<FilterEditorView, AppServiceError> {
-        self.discover_filter_editor(request)
-    }
-
-    fn discover_filter_values(
-        &self,
-        request: DiscoverFilterValuesRequest,
-    ) -> Result<FilterValueListView, AppServiceError> {
-        self.discover_filter_values(request)
-    }
-
-    fn open_result_window(
-        &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.open_result_window(request)
-    }
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.read_result_window_page(window_id, request)
-    }
-
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
-        self.record_detail(record_key)
-    }
-
-    fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
-        self.saved_lists()
-    }
-
-    fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError> {
-        self.saved_list(slug)
-    }
-}
-
-async fn root() -> Response {
-    asset_response("index.html")
-}
-
-async fn static_asset(uri: Uri) -> Response {
-    let path = uri.path().trim_start_matches('/');
-    if path.starts_with("api/") {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    if path.is_empty() {
-        return asset_response("index.html");
-    }
-    if WebAssets::get(path).is_some() {
-        return asset_response(path);
-    }
-    if !path.contains('.') {
-        return asset_response("index.html");
-    }
-    StatusCode::NOT_FOUND.into_response()
-}
-
-async fn readiness(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
-    Ok(Json(state.service.readiness()))
-}
-
-async fn saved_lists(State(state): State<AtlasWebState>) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.saved_lists()).await?,
-    ))
-}
-
-async fn saved_list(
-    State(state): State<AtlasWebState>,
-    Path(slug): Path<String>,
-) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.saved_list(&slug)).await?,
-    ))
-}
-
-async fn discover_filter_editor(
-    State(state): State<AtlasWebState>,
-    payload: Result<Json<DiscoverFilterEditorRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.discover_filter_editor(request)).await?,
-    ))
-}
-
-async fn discover_filter_values(
-    State(state): State<AtlasWebState>,
-    payload: Result<Json<DiscoverFilterValuesRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.discover_filter_values(request)).await?,
-    ))
-}
-
-async fn open_result_window(
-    State(state): State<AtlasWebState>,
-    payload: Result<Json<OpenResultWindowRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.open_result_window(request)).await?,
-    ))
-}
-
-async fn read_result_window_page(
-    State(state): State<AtlasWebState>,
-    Path(window_id): Path<String>,
-    payload: Result<Json<ReadResultWindowPageRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let window_id = parse_window_id(&window_id)?;
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || {
-            service.read_result_window_page(window_id, request)
-        })
-        .await?,
-    ))
-}
-
-async fn record_detail(
-    State(state): State<AtlasWebState>,
-    Path(record_key): Path<String>,
-) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.record_detail(&record_key)).await?,
-    ))
-}
-
-#[derive(Debug)]
-struct WebError(AppError);
-
-impl From<AppServiceError> for WebError {
-    fn from(error: AppServiceError) -> Self {
-        Self(error.into_app_error())
-    }
-}
-
-impl WebError {
-    fn invalid_request(error: JsonRejection) -> Self {
-        Self(AppError::new(
-            AppErrorCode::InvalidRequest,
-            format!("invalid JSON request body: {error}"),
-        ))
-    }
-
-    fn invalid_path(message: impl Into<String>) -> Self {
-        Self(AppError::new(AppErrorCode::InvalidRequest, message))
-    }
-}
-
-impl IntoResponse for WebError {
-    fn into_response(self) -> Response {
-        let status = status_for_error(self.0.code);
-        (status, Json(self.0)).into_response()
-    }
-}
-
-fn status_for_error(code: AppErrorCode) -> StatusCode {
-    match code {
-        AppErrorCode::InvalidRequest
-        | AppErrorCode::InvalidRecordKey
-        | AppErrorCode::RecordResolutionMiss
-        | AppErrorCode::RecordResolutionAmbiguous
-        | AppErrorCode::FilterInvalid
-        | AppErrorCode::FilterFieldInvalid
-        | AppErrorCode::FilterOptionInvalid => StatusCode::BAD_REQUEST,
-        AppErrorCode::RecordNotFound
-        | AppErrorCode::SavedListNotFound
-        | AppErrorCode::WindowNotFound => StatusCode::NOT_FOUND,
-        AppErrorCode::WindowExpired => StatusCode::GONE,
-        AppErrorCode::SavedListAlreadyExists
-        | AppErrorCode::FilterEditorConflict
-        | AppErrorCode::SetupInProgress => StatusCode::CONFLICT,
-        AppErrorCode::ArtifactNotReady
-        | AppErrorCode::ArtifactIncompatible
-        | AppErrorCode::SetupRequired
-        | AppErrorCode::FilterFieldNotApplicable
-        | AppErrorCode::FilterMetricAmbiguous => StatusCode::UNPROCESSABLE_ENTITY,
-        AppErrorCode::IndexUnavailable
-        | AppErrorCode::VectorReadinessRequired
-        | AppErrorCode::EmbeddingModelUnavailable => StatusCode::SERVICE_UNAVAILABLE,
-        AppErrorCode::ServiceBusy => StatusCode::SERVICE_UNAVAILABLE,
-        AppErrorCode::OperationCancelled => StatusCode::REQUEST_TIMEOUT,
-        AppErrorCode::OperationTimeout => StatusCode::REQUEST_TIMEOUT,
-        AppErrorCode::QueryFailed | AppErrorCode::InternalError => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
-    }
-}
-
-fn parse_window_id(value: &str) -> Result<u64, WebError> {
-    value
-        .parse()
-        .map_err(|error| WebError::invalid_path(format!("invalid result window id: {error}")))
-}
-
-fn asset_response(path: &str) -> Response {
-    let Some(asset) = WebAssets::get(path) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, content_type(path))
-        .header(header::CACHE_CONTROL, cache_control(path))
-        .body(axum::body::Body::from(asset.data.into_owned()))
-        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
-}
-
-fn content_type(path: &str) -> &'static str {
-    match path.rsplit_once('.').map(|(_, extension)| extension) {
-        Some("css") => "text/css; charset=utf-8",
-        Some("html") => "text/html; charset=utf-8",
-        Some("js") | Some("mjs") => "text/javascript; charset=utf-8",
-        Some("json") => "application/json; charset=utf-8",
-        Some("map") => "application/json; charset=utf-8",
-        Some("png") => "image/png",
-        Some("svg") => "image/svg+xml",
-        Some("txt") => "text/plain; charset=utf-8",
-        Some("webmanifest") => "application/manifest+json; charset=utf-8",
-        Some("woff") => "font/woff",
-        Some("woff2") => "font/woff2",
-        _ => "application/octet-stream",
-    }
-}
-
-fn cache_control(path: &str) -> &'static str {
-    if path == "index.html" {
-        "no-cache"
-    } else if path.starts_with("assets/") {
-        "public, max-age=31536000, immutable"
-    } else {
-        "public, max-age=300"
-    }
-}
-
-async fn call_service<T: Send + 'static>(
-    state: AtlasWebState,
-    call: impl FnOnce() -> Result<T, AppServiceError> + Send + 'static,
-) -> Result<T, WebError> {
-    let blocking_call_capacity = state.blocking_call_capacity;
-    let permit = state.blocking_calls.try_acquire_owned().map_err(|_| {
-        WebError::from(AppServiceError::service_busy(format!(
-            "atlas-web blocking service call limit is full; capacity is {blocking_call_capacity}",
-        )))
-    })?;
-    tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        call()
-    })
-    .await
-    .map_err(|error| {
-        WebError(AppError::new(
-            AppErrorCode::InternalError,
-            format!("app-service task failed: {error}"),
-        ))
-    })?
-    .map_err(WebError::from)
-}
+#[cfg(test)]
+use assets::WebAssets;
+#[cfg(test)]
+use error::{parse_window_id, status_for_error};
+#[cfg(test)]
+use router::router_with_state;
+#[cfg(test)]
+use service::{AtlasWebService, AtlasWebState, call_service};
 
 #[cfg(test)]
 mod tests {
     use atlas_app_model::{
-        AppReadinessStatus, FilterControlView, FilterEditorFieldView, FilterEditorGroupView,
-        FilterFieldPlacement, FilterValueOption, RecordSummaryView, ResultWindowModeSummary,
-        SavedListDetailView, SavedListIndexView, SavedListItemSnapshotView,
-        SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SearchPageView,
+        AddSavedListItemRequest, AppError, AppErrorCode, AppReadinessStatus, AppReadinessView,
+        CreateSavedListRequest, DeleteSavedListView, DiscoverFilterEditorRequest,
+        DiscoverFilterValuesRequest, FilterControlView, FilterEditorFieldView,
+        FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterValueListView,
+        FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
+        RecordSummaryView, RemoveSavedListItemRequest, ResultWindowModeSummary, ResultWindowPage,
+        SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+        SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
+        SavedListSummaryView, SearchPageView,
     };
+    use atlas_app_service::AppServiceError;
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::RecordPresentationDocument;
+    use axum::Router;
     use axum::body::Body;
     use axum::body::to_bytes;
-    use axum::http::{Method, Request};
-    use axum::response::IntoResponse;
+    use axum::http::{Method, Request, StatusCode, header};
+    use axum::response::{IntoResponse, Response};
     use serde_json::{Value, json};
     use tower::ServiceExt;
 
@@ -733,11 +373,58 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["lists"][0]["slug"], "research");
 
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/lists",
+            Some(json!({
+                "slug": "encounters",
+                "name": "Encounters",
+                "description": "Session prep"
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list"]["slug"], "encounters");
+
         let (status, body) = route_json(Method::GET, "/api/lists/research", None).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["list"]["slug"], "research");
         assert_eq!(body["items"][0]["record_key"], "actions:testAction1");
         assert_eq!(body["items"][0]["status"], "active");
+
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/lists/research/items",
+            Some(json!({
+                "slug": "ignored",
+                "record_ref": "actions:testAction2",
+                "note": null
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["slug"], "research");
+        assert_eq!(body["record_key"], "actions:testAction2");
+        assert_eq!(body["outcome"], "added");
+
+        let (status, body) = route_json(
+            Method::DELETE,
+            "/api/lists/research/items",
+            Some(json!({
+                "slug": "ignored",
+                "record_ref": "actions:testAction1"
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["slug"], "research");
+        assert_eq!(body["record_key"], "actions:testAction1");
+        assert_eq!(body["outcome"], "removed");
+
+        let (status, body) = route_json(Method::DELETE, "/api/lists/research", None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["slug"], "research");
+        assert_eq!(body["deleted"], true);
 
         let (status, body) = route_json(Method::GET, "/api/lists/missing", None).await;
         assert_eq!(status, StatusCode::NOT_FOUND);
@@ -911,6 +598,50 @@ mod tests {
                     },
                     record: Some(record_summary()),
                 }],
+            })
+        }
+
+        fn create_saved_list(
+            &self,
+            request: CreateSavedListRequest,
+        ) -> Result<SavedListCreateView, AppServiceError> {
+            Ok(SavedListCreateView {
+                list: SavedListSummaryView {
+                    slug: request.slug,
+                    name: request.name,
+                    description: request.description,
+                    created_at: "2026-01-01T00:00:00Z".to_string(),
+                    updated_at: "2026-01-01T00:00:00Z".to_string(),
+                },
+            })
+        }
+
+        fn add_saved_list_item(
+            &self,
+            request: AddSavedListItemRequest,
+        ) -> Result<SavedListItemMutationView, AppServiceError> {
+            Ok(SavedListItemMutationView {
+                slug: request.slug,
+                record_key: request.record_ref,
+                outcome: atlas_app_model::SavedListItemMutationOutcomeView::Added,
+            })
+        }
+
+        fn remove_saved_list_item(
+            &self,
+            request: RemoveSavedListItemRequest,
+        ) -> Result<SavedListItemMutationView, AppServiceError> {
+            Ok(SavedListItemMutationView {
+                slug: request.slug,
+                record_key: request.record_ref,
+                outcome: atlas_app_model::SavedListItemMutationOutcomeView::Removed,
+            })
+        }
+
+        fn delete_saved_list(&self, slug: &str) -> Result<DeleteSavedListView, AppServiceError> {
+            Ok(DeleteSavedListView {
+                slug: slug.to_string(),
+                deleted: true,
             })
         }
     }

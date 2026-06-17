@@ -7,11 +7,15 @@ import { ReaderView, RecordView } from "./RecordViews";
 import { ATLAS_ROUTE_CHANGE_EVENT, currentAtlasRoute } from "./routes";
 
 const apiMocks = vi.hoisted(() => ({
+  addSavedListItem: vi.fn(),
   getRecordDetail: vi.fn(),
+  getSavedLists: vi.fn(),
 }));
 
 vi.mock("../api/atlasApi", () => ({
+  addSavedListItem: apiMocks.addSavedListItem,
   getRecordDetail: apiMocks.getRecordDetail,
+  getSavedLists: apiMocks.getSavedLists,
 }));
 
 describe("record route views", () => {
@@ -21,6 +25,12 @@ describe("record route views", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
+    apiMocks.getSavedLists.mockResolvedValue({ lists: [] });
+    apiMocks.addSavedListItem.mockResolvedValue({
+      slug: "research",
+      record_key: "spell:heal",
+      outcome: "added",
+    });
   });
 
   it("renders a standalone record detail route", async () => {

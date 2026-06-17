@@ -5,9 +5,10 @@ import { pagePositionLabel } from "./pageMetrics";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
 type PrototypeShellProps = {
-  activeView: "search" | "record" | "reader";
+  activeView: "search" | "lists" | "list" | "record" | "reader";
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
+  onNavigateLists: () => void;
   onNavigateSearch: () => void;
   resolvedColorScheme: ResolvedColorScheme;
   workspace: AtlasWorkspaceState;
@@ -18,6 +19,7 @@ export function PrototypeShell({
   activeView,
   colorScheme,
   onColorSchemeChange,
+  onNavigateLists,
   onNavigateSearch,
   resolvedColorScheme,
   workspace,
@@ -55,6 +57,16 @@ export function PrototypeShell({
             type="button"
           >
             Search
+          </button>
+          <button
+            aria-current={
+              activeView === "lists" || activeView === "list" ? "page" : undefined
+            }
+            className="topbar__nav-item"
+            onClick={onNavigateLists}
+            type="button"
+          >
+            Lists
           </button>
         </nav>
         <div className="topbar__actions">

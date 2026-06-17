@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { AntFilters } from "./ant/AntFilters";
 import { AntResults } from "./ant/AntResults";
+import { AddToListButton } from "./ListViews";
 import { RecordPresentation } from "./recordPresentation";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import {
@@ -24,24 +25,27 @@ export function AntPrototype({ workspace }: AntPrototypeProps) {
       selectedRecordKey={workspace.selectedRecordKey}
       detailHeaderActions={
         workspace.selectedRecordKey ? (
-          <a
-            aria-label="Open full page"
-            className="pane-toggle"
-            href={recordPath(workspace.selectedRecordKey)}
-            onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) {
-                return;
-              }
-              event.preventDefault();
-              navigateToAtlasRoute({
-                kind: "record",
-                recordKey: workspace.selectedRecordKey!,
-              });
-            }}
-            title="Open full page"
-          >
-            <ExternalLink size={16} />
-          </a>
+          <>
+            <AddToListButton recordKey={workspace.selectedRecordKey} />
+            <a
+              aria-label="Open full page"
+              className="pane-toggle"
+              href={recordPath(workspace.selectedRecordKey)}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) {
+                  return;
+                }
+                event.preventDefault();
+                navigateToAtlasRoute({
+                  kind: "record",
+                  recordKey: workspace.selectedRecordKey!,
+                });
+              }}
+              title="Open full page"
+            >
+              <ExternalLink size={16} />
+            </a>
+          </>
         ) : null
       }
       detail={

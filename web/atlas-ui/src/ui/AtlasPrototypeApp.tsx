@@ -8,6 +8,7 @@ import {
   type ResolvedColorScheme,
 } from "./atlasTheme";
 import { AntPrototype } from "./AntPrototype";
+import { ListDetailView, ListIndexView } from "./ListViews";
 import { PrototypeShell } from "./PrototypeShell";
 import { ReaderView, RecordView } from "./RecordViews";
 import {
@@ -59,11 +60,14 @@ export function AtlasPrototypeApp() {
       onNavigateSearch={() =>
         navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
       }
+      onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
       resolvedColorScheme={resolvedColorScheme}
       workspace={workspace}
     >
       <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
         {route.kind === "search" && <AntPrototype workspace={workspace} />}
+        {route.kind === "lists" && <ListIndexView route={route} />}
+        {route.kind === "list" && <ListDetailView route={route} />}
         {route.kind === "record" && <RecordView route={route} />}
         {route.kind === "reader" && <ReaderView route={route} />}
       </ConfigProvider>

@@ -1,6 +1,8 @@
 import {
   atlasRoutePath,
   currentAtlasRoute,
+  listPath,
+  listsPath,
   navigateToAtlasRoute,
   searchPath,
 } from "./routes";
@@ -10,7 +12,7 @@ describe("atlas routes", () => {
     history.replaceState(null, "", "/");
   });
 
-  it("parses search, standalone record, and reader routes", () => {
+  it("parses search, lists, standalone record, and reader routes", () => {
     expect(currentAtlasRoute()).toEqual({ kind: "search", selectedRecordKey: null });
 
     history.replaceState(null, "", "/search?q=heal");
@@ -24,6 +26,23 @@ describe("atlas routes", () => {
 
     history.replaceState(null, "", "/records/spell%3Aheal");
     expect(currentAtlasRoute()).toEqual({ kind: "record", recordKey: "spell:heal" });
+
+    history.replaceState(null, "", "/lists");
+    expect(currentAtlasRoute()).toEqual({ kind: "lists" });
+
+    history.replaceState(null, "", "/lists/session-prep");
+    expect(currentAtlasRoute()).toEqual({
+      kind: "list",
+      slug: "session-prep",
+      selectedRecordKey: null,
+    });
+
+    history.replaceState(null, "", "/lists/session-prep/records/spell%3Aheal");
+    expect(currentAtlasRoute()).toEqual({
+      kind: "list",
+      slug: "session-prep",
+      selectedRecordKey: "spell:heal",
+    });
 
     history.replaceState(null, "", "/reader/spell%3Aheal?preview=condition%3Awounded");
     expect(currentAtlasRoute()).toEqual({
@@ -52,6 +71,13 @@ describe("atlas routes", () => {
     expect(atlasRoutePath({ kind: "search", selectedRecordKey: "spell:heal" })).toBe(
       "/search/records/spell%3Aheal",
     );
+    expect(
+      atlasRoutePath({
+        kind: "list",
+        slug: "session-prep",
+        selectedRecordKey: "spell:heal",
+      }),
+    ).toBe("/lists/session-prep/records/spell%3Aheal");
 
     window.removeEventListener("atlas-route-change", listener);
   });
@@ -60,5 +86,13 @@ describe("atlas routes", () => {
     expect(searchPath()).toBe("/search");
     expect(searchPath(null)).toBe("/search");
     expect(searchPath("spell:heal")).toBe("/search/records/spell%3Aheal");
+  });
+
+  it("builds list workspace paths", () => {
+    expect(listsPath()).toBe("/lists");
+    expect(listPath("session-prep")).toBe("/lists/session-prep");
+    expect(listPath("session-prep", "spell:heal")).toBe(
+      "/lists/session-prep/records/spell%3Aheal",
+    );
   });
 });
