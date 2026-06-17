@@ -12,6 +12,6 @@ pub use error::{LocalStateError, LocalStateResult};
 pub use saved_lists::{
     AddSavedListItemOutcome, HydratedSavedListItem, NewSavedList, ResolvedSavedListItem, SavedList,
     SavedListItem, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems, SavedLists,
-    hydrate_saved_list_item,
+    UpdateSavedList, hydrate_saved_list_item,
 };
 pub use store::LocalStateStore;

@@ -13,6 +13,7 @@ import {
   openResultWindow,
   readResultWindowPage,
   removeSavedListItem,
+  updateSavedList,
 } from "./atlasApi";
 
 describe("atlasApi", () => {
@@ -256,6 +257,35 @@ describe("atlasApi", () => {
           slug: "campaign/research",
           name: "Campaign Research",
           description: "Session prep",
+        }),
+      }),
+    );
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        list: savedListSummary({
+          list_key: "list_campaign/research",
+          slug: "renamed-research",
+          name: "Renamed Research",
+          description: "Updated prep",
+        }),
+      }),
+    );
+    await updateSavedList({
+      list_key: "list_campaign/research",
+      slug: "renamed-research",
+      name: "Renamed Research",
+      description: "Updated prep",
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/lists/list_campaign%2Fresearch",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          list_key: "list_campaign/research",
+          slug: "renamed-research",
+          name: "Renamed Research",
+          description: "Updated prep",
         }),
       }),
     );

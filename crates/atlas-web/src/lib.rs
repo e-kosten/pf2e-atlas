@@ -28,7 +28,7 @@ mod tests {
         RecordSummaryView, RemoveSavedListItemRequest, ResultWindowModeSummary, ResultWindowPage,
         SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
         SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
-        SavedListSummaryView, SearchPageView,
+        SavedListSummaryView, SavedListUpdateView, SearchPageView, UpdateSavedListRequest,
     };
     use atlas_app_service::AppServiceError;
     use atlas_domain::{RecordKey, RecordKind};
@@ -395,6 +395,23 @@ mod tests {
         assert_eq!(body["items"][0]["status"], "active");
 
         let (status, body) = route_json(
+            Method::PATCH,
+            "/api/lists/list_research",
+            Some(json!({
+                "list_key": "ignored",
+                "slug": "renamed-research",
+                "name": "Renamed Research",
+                "description": "Updated prep"
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list"]["list_key"], "list_research");
+        assert_eq!(body["list"]["slug"], "renamed-research");
+        assert_eq!(body["list"]["name"], "Renamed Research");
+        assert_eq!(body["list"]["description"], "Updated prep");
+
+        let (status, body) = route_json(
             Method::POST,
             "/api/lists/list_research/items",
             Some(json!({
@@ -618,6 +635,22 @@ mod tests {
                     description: request.description,
                     created_at: "2026-01-01T00:00:00Z".to_string(),
                     updated_at: "2026-01-01T00:00:00Z".to_string(),
+                },
+            })
+        }
+
+        fn update_saved_list(
+            &self,
+            request: UpdateSavedListRequest,
+        ) -> Result<SavedListUpdateView, AppServiceError> {
+            Ok(SavedListUpdateView {
+                list: SavedListSummaryView {
+                    list_key: request.list_key,
+                    slug: request.slug,
+                    name: request.name,
+                    description: request.description,
+                    created_at: "2026-01-01T00:00:00Z".to_string(),
+                    updated_at: "2026-01-02T00:00:00Z".to_string(),
                 },
             })
         }

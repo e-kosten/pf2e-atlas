@@ -19,7 +19,8 @@ pub use list::{
     AddSavedListItemRequest, CreateSavedListRequest, DeleteSavedListView,
     RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
     SavedListItemMutationOutcomeView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    UpdateSavedListRequest,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{
@@ -106,6 +107,10 @@ mod tests {
         SavedListIndexView::export_all_to(path).expect("SavedListIndexView bindings should export");
         SavedListItemMutationView::export_all_to(path)
             .expect("SavedListItemMutationView bindings should export");
+        SavedListUpdateView::export_all_to(path)
+            .expect("SavedListUpdateView bindings should export");
+        UpdateSavedListRequest::export_all_to(path)
+            .expect("UpdateSavedListRequest bindings should export");
     }
 
     fn read_binding_dir(path: &Path) -> BTreeMap<String, String> {

@@ -4,6 +4,7 @@ export type AtlasRoute =
   | { kind: "search"; selectedRecordKey: string | null }
   | { kind: "lists" }
   | { kind: "list"; slug: string; selectedRecordKey: string | null }
+  | { kind: "listEdit"; slug: string }
   | { kind: "record"; recordKey: string }
   | { kind: "reader"; recordKey: string; previewRecordKey: string | null };
 
@@ -25,6 +26,14 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
 
   if (pathname === "/lists") {
     return { kind: "lists" };
+  }
+
+  const listEdit = pathname.match(/^\/lists\/(.+)\/edit$/);
+  if (listEdit) {
+    return {
+      kind: "listEdit",
+      slug: decodeURIComponent(listEdit[1]),
+    };
   }
 
   const listRecord = pathname.match(/^\/lists\/(.+)\/records\/(.+)$/);
@@ -70,6 +79,8 @@ export function atlasRoutePath(route: AtlasRoute): string {
       return listsPath();
     case "list":
       return listPath(route.slug, route.selectedRecordKey);
+    case "listEdit":
+      return listEditPath(route.slug);
     case "record":
       return recordPath(route.recordKey);
     case "reader": {
@@ -112,6 +123,10 @@ export function listsPath(): string {
 export function listPath(slug: string, recordKey: string | null = null): string {
   const path = `/lists/${encodeURIComponent(slug)}`;
   return recordKey === null ? path : `${path}/records/${encodeURIComponent(recordKey)}`;
+}
+
+export function listEditPath(slug: string): string {
+  return `/lists/${encodeURIComponent(slug)}/edit`;
 }
 
 export function recordPath(recordKey: string): string {

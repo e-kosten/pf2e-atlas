@@ -6,7 +6,7 @@ use time::format_description::well_known::Rfc3339;
 
 use super::model::{
     AddSavedListItemOutcome, NewSavedList, NewSavedListItem, SavedList, SavedListItem,
-    SavedListWithItems,
+    SavedListWithItems, UpdateSavedList,
 };
 use crate::{LocalStateError, LocalStateResult};
 
@@ -85,6 +85,28 @@ pub(crate) fn delete(connection: &Connection, list_ref: &str) -> LocalStateResul
         params![list_ref],
     )?;
     Ok(removed > 0)
+}
+
+pub(crate) fn update_list(
+    connection: &Connection,
+    list: UpdateSavedList,
+) -> LocalStateResult<bool> {
+    let now = now_rfc3339()?;
+    let result = connection.execute(
+        "UPDATE saved_lists
+         SET slug = ?1, name = ?2, description = ?3, updated_at = ?4
+         WHERE list_key = ?5",
+        params![list.slug, list.name, list.description, now, list.list_key],
+    );
+    match result {
+        Ok(updated) => Ok(updated > 0),
+        Err(rusqlite::Error::SqliteFailure(error, _))
+            if error.code == rusqlite::ErrorCode::ConstraintViolation =>
+        {
+            Err(LocalStateError::ListAlreadyExists(list.slug))
+        }
+        Err(error) => Err(error.into()),
+    }
 }
 
 pub(crate) fn add_item(

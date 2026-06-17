@@ -3,7 +3,7 @@ use rusqlite::TransactionBehavior;
 use super::model::{
     AddSavedListItemOutcome, NewSavedList, NewSavedListItem, ResolvedSavedListItem,
 };
-use super::model::{SavedList, SavedListWithItems};
+use super::model::{SavedList, SavedListWithItems, UpdateSavedList};
 use super::storage;
 use crate::{LocalStateError, LocalStateResult, LocalStateStore};
 
@@ -46,6 +46,16 @@ impl<'a> SavedLists<'a> {
         storage::validate_list_ref(list_ref)?;
         let connection = self.store.connection()?;
         storage::delete(&connection, list_ref)
+    }
+
+    pub fn update(&self, list: UpdateSavedList) -> LocalStateResult<Option<SavedList>> {
+        storage::validate_list_ref(&list.list_key)?;
+        storage::validate_slug(&list.slug)?;
+        let connection = self.store.connection()?;
+        if !storage::update_list(&connection, list.clone())? {
+            return Ok(None);
+        }
+        self.get(&list.list_key)
     }
 
     pub fn add_resolved_item(

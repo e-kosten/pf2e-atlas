@@ -63,5 +63,7 @@ export type { SavedListItemSnapshotView } from "../../../../crates/atlas-app-mod
 export type { SavedListItemStatusView } from "../../../../crates/atlas-app-model/bindings/SavedListItemStatusView";
 export type { SavedListItemView } from "../../../../crates/atlas-app-model/bindings/SavedListItemView";
 export type { SavedListSummaryView } from "../../../../crates/atlas-app-model/bindings/SavedListSummaryView";
+export type { SavedListUpdateView } from "../../../../crates/atlas-app-model/bindings/SavedListUpdateView";
 export type { SearchPageRequest } from "../../../../crates/atlas-app-model/bindings/SearchPageRequest";
 export type { SearchPageView } from "../../../../crates/atlas-app-model/bindings/SearchPageView";
+export type { UpdateSavedListRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListRequest";

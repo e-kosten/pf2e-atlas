@@ -2,7 +2,7 @@ import { ExternalLink, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { getRecordDetail } from "../api/atlasApi";
-import { AddToListButton } from "./ListViews";
+import { AddToListButton } from "./AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "./PaneLayout";
 import { RecordPresentation } from "./recordPresentation";
 import {
