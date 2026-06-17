@@ -6,7 +6,16 @@
   padding: var(--panel-gap);
 }
 
-.atlas-app--diagnostics .list-index-view {
+.list-edit-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--panel-gap);
+  height: calc(100vh - 77px);
+  padding: var(--panel-gap);
+}
+
+.atlas-app--diagnostics .list-index-view,
+.atlas-app--diagnostics .list-edit-view {
   height: calc(100vh - 77px - 54px);
 }
 
@@ -39,6 +48,39 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel);
+}
+
+.list-edit-view__body {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  width: 100%;
+  min-height: 0;
+  padding: 4px;
+  overflow: auto;
+}
+
+.list-edit-view__form {
+  display: grid;
+  gap: 18px;
+  width: min(640px, 100%);
+}
+
+.list-edit-view__name {
+  width: min(480px, 100%);
+}
+
+.list-edit-view__actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.list-edit-view__danger {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
 }
 
 .list-info-pane {

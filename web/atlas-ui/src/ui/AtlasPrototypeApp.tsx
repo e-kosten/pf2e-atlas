@@ -1,5 +1,5 @@
 import { ConfigProvider } from "antd";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import {
   COLOR_SCHEME_STORAGE_KEY,
   antDesignTheme,
@@ -7,10 +7,7 @@ import {
   type ColorSchemePreference,
   type ResolvedColorScheme,
 } from "./atlasTheme";
-import { AntPrototype } from "./AntPrototype";
-import { ListDetailView, ListIndexView } from "./ListViews";
 import { PrototypeShell } from "./PrototypeShell";
-import { ReaderView, RecordView } from "./RecordViews";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   currentAtlasRoute,
@@ -18,6 +15,25 @@ import {
   type AtlasRoute,
 } from "./routes";
 import { useAtlasWorkspace } from "./useAtlasWorkspace";
+
+const AntPrototype = lazy(() =>
+  import("./AntPrototype").then((module) => ({ default: module.AntPrototype })),
+);
+const ListIndexView = lazy(() =>
+  import("./ListViews").then((module) => ({ default: module.ListIndexView })),
+);
+const ListDetailView = lazy(() =>
+  import("./ListViews").then((module) => ({ default: module.ListDetailView })),
+);
+const ListEditView = lazy(() =>
+  import("./ListViews").then((module) => ({ default: module.ListEditView })),
+);
+const RecordView = lazy(() =>
+  import("./RecordViews").then((module) => ({ default: module.RecordView })),
+);
+const ReaderView = lazy(() =>
+  import("./RecordViews").then((module) => ({ default: module.ReaderView })),
+);
 
 export function AtlasPrototypeApp() {
   const [colorScheme, setColorScheme] =
@@ -65,14 +81,21 @@ export function AtlasPrototypeApp() {
       workspace={workspace}
     >
       <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
-        {route.kind === "search" && <AntPrototype workspace={workspace} />}
-        {route.kind === "lists" && <ListIndexView route={route} />}
-        {route.kind === "list" && <ListDetailView route={route} />}
-        {route.kind === "record" && <RecordView route={route} />}
-        {route.kind === "reader" && <ReaderView route={route} />}
+        <Suspense fallback={<RouteLoading />}>
+          {route.kind === "search" && <AntPrototype workspace={workspace} />}
+          {route.kind === "lists" && <ListIndexView route={route} />}
+          {route.kind === "list" && <ListDetailView route={route} />}
+          {route.kind === "listEdit" && <ListEditView route={route} />}
+          {route.kind === "record" && <RecordView route={route} />}
+          {route.kind === "reader" && <ReaderView route={route} />}
+        </Suspense>
       </ConfigProvider>
     </PrototypeShell>
   );
+}
+
+function RouteLoading() {
+  return <main className="detail-empty">Loading</main>;
 }
 
 function readStoredColorScheme(): ColorSchemePreference {

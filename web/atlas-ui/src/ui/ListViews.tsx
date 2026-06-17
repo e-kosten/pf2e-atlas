@@ -1,30 +1,32 @@
-import { ExternalLink, ListPlus, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Modal, Select, Table, Tooltip } from "antd";
+import { Button, Form, Input, Modal, Select, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   CreateSavedListRequest,
   SavedListItemView,
   SavedListSummaryView,
+  UpdateSavedListRequest,
 } from "../generated/atlas";
 import {
-  addSavedListItem,
   createSavedList,
   deleteSavedList,
   getRecordDetail,
   getSavedList,
-  getSavedLists,
   removeSavedListItem,
+  updateSavedList,
 } from "../api/atlasApi";
 import { RecordPresentation } from "./recordPresentation";
 import {
+  listEditPath,
   listPath,
   navigateToAtlasRoute,
   recordPath,
   shouldHandleAtlasRouteClick,
   type AtlasRoute,
 } from "./routes";
+import { useSavedLists } from "./savedListQueries";
 import { WorkspaceLayout } from "./WorkspaceLayout";
 
 type ListIndexViewProps = {
@@ -35,8 +37,17 @@ type ListDetailViewProps = {
   route: Extract<AtlasRoute, { kind: "list" }>;
 };
 
+type ListEditViewProps = {
+  route: Extract<AtlasRoute, { kind: "listEdit" }>;
+};
+
 type CreateListFormValues = {
   name: string;
+};
+
+type EditListFormValues = {
+  name: string;
+  description?: string;
 };
 
 const LIST_WORKSPACE_WIDTH_SPECS = {
@@ -115,25 +126,16 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       }
     },
   });
-  const deleteListMutation = useMutation({
-    mutationFn: () => deleteSavedList(route.slug),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
-      navigateToAtlasRoute({ kind: "lists" });
-    },
-  });
 
   return (
     <WorkspaceLayout
       filter={
         <ListInfoPane
           currentSlug={route.slug}
-          deleting={deleteListMutation.isPending}
           list={list.data?.list}
           lists={lists.data?.lists ?? []}
           loading={list.isLoading}
           listsLoading={lists.isLoading || lists.isFetching}
-          onDelete={() => deleteListMutation.mutate()}
           onSelectList={(slug) =>
             navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null })
           }
@@ -205,94 +207,154 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           {list.error && <InlineError message={list.error.message} />}
           {detail.error && <InlineError message={detail.error.message} />}
           {removeItem.error && <InlineError message={removeItem.error.message} />}
-          {deleteListMutation.error && (
-            <InlineError message={deleteListMutation.error.message} />
-          )}
         </section>
       }
     />
   );
 }
 
-export function AddToListButton({ recordKey }: { recordKey: string }) {
-  const [open, setOpen] = useState(false);
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+export function ListEditView({ route }: ListEditViewProps) {
+  const [form] = Form.useForm<EditListFormValues>();
   const queryClient = useQueryClient();
-  const lists = useSavedLists({ enabled: open });
-  const addItem = useMutation({
-    mutationFn: (slug: string) =>
-      addSavedListItem({ list_ref: slug, record_ref: recordKey }),
-    onSuccess: async (_view, slug) => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-list", slug] });
+  const list = useQuery({
+    queryKey: ["saved-list", route.slug],
+    queryFn: () => getSavedList(route.slug),
+  });
+  const update = useMutation({
+    mutationFn: (request: UpdateSavedListRequest) => updateSavedList(request),
+    onSuccess: async (view) => {
       await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
-      setOpen(false);
-      setSelectedSlug(null);
+      await queryClient.invalidateQueries({ queryKey: ["saved-list", route.slug] });
+      await queryClient.invalidateQueries({ queryKey: ["saved-list", view.list.slug] });
+      navigateToAtlasRoute({
+        kind: "list",
+        slug: view.list.slug,
+        selectedRecordKey: null,
+      });
+    },
+  });
+  const deleteListMutation = useMutation({
+    mutationFn: () => deleteSavedList(list.data!.list.list_key),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
+      navigateToAtlasRoute({ kind: "lists" });
     },
   });
 
+  useEffect(() => {
+    if (!list.data) {
+      return;
+    }
+    form.setFieldsValue({
+      name: list.data.list.name,
+      description: list.data.list.description ?? undefined,
+    });
+  }, [form, list.data]);
+
   return (
-    <>
-      <Tooltip title="Add to saved list">
-        <button
-          aria-label="Add to saved list"
-          className="pane-toggle"
-          onClick={() => setOpen(true)}
-          title="Add to saved list"
-          type="button"
-        >
-          <ListPlus size={16} />
-        </button>
-      </Tooltip>
-      <Modal
-        okButtonProps={{ disabled: selectedSlug === null, loading: addItem.isPending }}
-        okText="Add"
-        onCancel={() => {
-          setOpen(false);
-          setSelectedSlug(null);
-        }}
-        onOk={() => {
-          if (selectedSlug !== null) {
-            addItem.mutate(selectedSlug);
-          }
-        }}
-        open={open}
-        title="Add to List"
-      >
-        <div className="list-picker">
-          <Select
-            loading={lists.isLoading || lists.isFetching}
-            onChange={(slug) => setSelectedSlug(slug)}
-            options={(lists.data?.lists ?? []).map((list) => ({
-              label: list.name,
-              value: list.slug,
-            }))}
-            placeholder="Select a saved list"
-            value={selectedSlug}
-          />
-          {addItem.error && <InlineError message={addItem.error.message} />}
+    <main className="list-edit-view">
+      <section className="list-index-view__toolbar">
+        <div>
+          <h2>Edit List</h2>
+          {list.data && <p>{list.data.list.name}</p>}
         </div>
-      </Modal>
-    </>
+      </section>
+      <section className="list-edit-view__body">
+        {list.isLoading ? (
+          <div className="detail-empty">Loading list</div>
+        ) : !list.data ? (
+          <div className="detail-empty">List not found</div>
+        ) : (
+          <div className="list-edit-view__form">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={(values) =>
+                update.mutate({
+                  list_key: list.data!.list.list_key,
+                  slug: slugify(values.name),
+                  name: values.name,
+                  description: normalizeOptionalText(values.description),
+                })
+              }
+            >
+              <Form.Item
+                label="Name"
+                name="name"
+                rules={[
+                  { required: true },
+                  {
+                    validator: (_, value: string | undefined) =>
+                      value === undefined || slugify(value).length > 0
+                        ? Promise.resolve()
+                        : Promise.reject(
+                            new Error("Use at least one letter or number."),
+                          ),
+                  },
+                ]}
+              >
+                <Input className="list-edit-view__name" />
+              </Form.Item>
+              <Form.Item label="Description" name="description">
+                <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+              </Form.Item>
+              <div className="list-edit-view__actions">
+                <Button htmlType="submit" loading={update.isPending} type="primary">
+                  Save
+                </Button>
+                <Button
+                  href={listPath(list.data.list.slug)}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) {
+                      return;
+                    }
+                    event.preventDefault();
+                    navigateToAtlasRoute({
+                      kind: "list",
+                      slug: list.data!.list.slug,
+                      selectedRecordKey: null,
+                    });
+                  }}
+                >
+                  Done
+                </Button>
+              </div>
+            </Form>
+            <div className="list-edit-view__danger">
+              <Button
+                danger
+                icon={<Trash2 size={16} />}
+                loading={deleteListMutation.isPending}
+                onClick={() => deleteListMutation.mutate()}
+              >
+                Delete List
+              </Button>
+            </div>
+          </div>
+        )}
+        {list.error && <InlineError message={list.error.message} />}
+        {update.error && <InlineError message={update.error.message} />}
+        {deleteListMutation.error && (
+          <InlineError message={deleteListMutation.error.message} />
+        )}
+      </section>
+    </main>
   );
 }
 
 function ListInfoPane({
   currentSlug,
-  deleting,
   list,
   lists,
   listsLoading,
   loading,
-  onDelete,
   onSelectList,
 }: {
   currentSlug: string;
-  deleting: boolean;
   list: SavedListSummaryView | undefined;
   lists: SavedListSummaryView[];
   listsLoading: boolean;
   loading: boolean;
-  onDelete: () => void;
   onSelectList: (slug: string) => void;
 }) {
   if (loading) {
@@ -333,8 +395,18 @@ function ListInfoPane({
           <dd>{formatDate(list.updated_at)}</dd>
         </div>
       </dl>
-      <Button danger icon={<Trash2 size={16} />} loading={deleting} onClick={onDelete}>
-        Delete
+      <Button
+        href={listEditPath(list.slug)}
+        icon={<Pencil size={16} />}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) {
+            return;
+          }
+          event.preventDefault();
+          navigateToAtlasRoute({ kind: "listEdit", slug: list.slug });
+        }}
+      >
+        Edit
       </Button>
     </section>
   );
@@ -366,7 +438,6 @@ function ListItemsPane({
           type="button"
         >
           <span>{item.record?.title ?? item.snapshot.title}</span>
-          <small>{item.record_key}</small>
         </button>
       ),
     },
@@ -451,6 +522,27 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       width: 180,
       render: (value) => formatDate(value),
     },
+    {
+      title: "",
+      width: 72,
+      render: (_, list) => (
+        <a
+          aria-label={`Edit ${list.name}`}
+          className="pane-toggle"
+          href={listEditPath(list.slug)}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) {
+              return;
+            }
+            event.preventDefault();
+            navigateToAtlasRoute({ kind: "listEdit", slug: list.slug });
+          }}
+          title="Edit"
+        >
+          <Pencil size={15} />
+        </a>
+      ),
+    },
   ];
 }
 
@@ -514,14 +606,6 @@ function CreateListModal({
   );
 }
 
-function useSavedLists(options: { enabled?: boolean } = {}) {
-  return useQuery({
-    queryKey: ["saved-lists"],
-    queryFn: getSavedLists,
-    enabled: options.enabled ?? true,
-  });
-}
-
 function useRecordDetail(recordKey: string | null) {
   return useQuery({
     queryKey: ["record-detail", recordKey],
@@ -549,4 +633,9 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }

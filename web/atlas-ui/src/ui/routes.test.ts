@@ -1,6 +1,7 @@
 import {
   atlasRoutePath,
   currentAtlasRoute,
+  listEditPath,
   listPath,
   listsPath,
   navigateToAtlasRoute,
@@ -35,6 +36,12 @@ describe("atlas routes", () => {
       kind: "list",
       slug: "session-prep",
       selectedRecordKey: null,
+    });
+
+    history.replaceState(null, "", "/lists/session-prep/edit");
+    expect(currentAtlasRoute()).toEqual({
+      kind: "listEdit",
+      slug: "session-prep",
     });
 
     history.replaceState(null, "", "/lists/session-prep/records/spell%3Aheal");
@@ -73,6 +80,12 @@ describe("atlas routes", () => {
     );
     expect(
       atlasRoutePath({
+        kind: "listEdit",
+        slug: "session-prep",
+      }),
+    ).toBe("/lists/session-prep/edit");
+    expect(
+      atlasRoutePath({
         kind: "list",
         slug: "session-prep",
         selectedRecordKey: "spell:heal",
@@ -94,5 +107,6 @@ describe("atlas routes", () => {
     expect(listPath("session-prep", "spell:heal")).toBe(
       "/lists/session-prep/records/spell%3Aheal",
     );
+    expect(listEditPath("session-prep")).toBe("/lists/session-prep/edit");
   });
 });

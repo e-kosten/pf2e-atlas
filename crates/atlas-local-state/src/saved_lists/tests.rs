@@ -80,6 +80,65 @@ fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>>
 }
 
 #[test]
+fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-update"))?;
+    let lists = store.saved_lists();
+    let list = lists.create(NewSavedList {
+        slug: "old-name".to_string(),
+        name: "Old Name".to_string(),
+        description: Some("Old description".to_string()),
+    })?;
+
+    let updated = lists
+        .update(UpdateSavedList {
+            list_key: list.list_key.clone(),
+            slug: "new-name".to_string(),
+            name: "New Name".to_string(),
+            description: Some("New description".to_string()),
+        })?
+        .expect("list should update");
+
+    assert_eq!(updated.list_key, list.list_key);
+    assert_eq!(updated.slug, "new-name");
+    assert_eq!(updated.name, "New Name");
+    assert_eq!(updated.description.as_deref(), Some("New description"));
+    assert!(lists.get("old-name")?.is_none());
+    assert_eq!(
+        lists
+            .get("new-name")?
+            .expect("new slug should resolve")
+            .list_key,
+        list.list_key
+    );
+    Ok(())
+}
+
+#[test]
+fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-update-conflict"))?;
+    let lists = store.saved_lists();
+    let first = lists.create(NewSavedList {
+        slug: "first".to_string(),
+        name: "First".to_string(),
+        description: None,
+    })?;
+    lists.create(NewSavedList {
+        slug: "second".to_string(),
+        name: "Second".to_string(),
+        description: None,
+    })?;
+
+    let result = lists.update(UpdateSavedList {
+        list_key: first.list_key,
+        slug: "second".to_string(),
+        name: "Conflict".to_string(),
+        description: None,
+    });
+    assert!(matches!(result, Err(LocalStateError::ListAlreadyExists(_))));
+    Ok(())
+}
+
+#[test]
 fn remove_item_compacts_positions() -> Result<(), Box<dyn std::error::Error>> {
     let store = LocalStateStore::open(temp_path("saved-lists-remove"))?;
     let lists = store.saved_lists();

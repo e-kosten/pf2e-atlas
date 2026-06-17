@@ -59,6 +59,14 @@ pub struct NewSavedList {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateSavedList {
+    pub list_key: String,
+    pub slug: String,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedSavedListItem {
     pub record_key: RecordKey,
     pub title_snapshot: String,

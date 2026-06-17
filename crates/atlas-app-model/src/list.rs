@@ -40,6 +40,23 @@ pub struct SavedListCreateView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+pub struct UpdateSavedListRequest {
+    pub list_key: String,
+    pub slug: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct SavedListUpdateView {
+    pub list: SavedListSummaryView,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
 pub struct SavedListDetailView {
     pub list: SavedListSummaryView,
     pub items: Vec<SavedListItemView>,

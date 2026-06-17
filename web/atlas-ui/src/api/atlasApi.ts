@@ -17,6 +17,8 @@ import type {
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
+  SavedListUpdateView,
+  UpdateSavedListRequest,
 } from "../generated/atlas";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
@@ -99,6 +101,15 @@ export async function createSavedList(
 ): Promise<SavedListCreateView> {
   return atlasFetch("/api/lists", {
     method: "POST",
+    body: jsonBody(request),
+  });
+}
+
+export async function updateSavedList(
+  request: UpdateSavedListRequest,
+): Promise<SavedListUpdateView> {
+  return atlasFetch(`/api/lists/${encodeURIComponent(request.list_key)}`, {
+    method: "PATCH",
     body: jsonBody(request),
   });
 }

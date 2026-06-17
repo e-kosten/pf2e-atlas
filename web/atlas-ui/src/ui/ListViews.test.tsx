@@ -6,7 +6,8 @@ import type {
   SavedListDetailView,
   SavedListIndexView,
 } from "../generated/atlas";
-import { AddToListButton, ListDetailView, ListIndexView } from "./ListViews";
+import { AddToListButton } from "./AddToListButton";
+import { ListDetailView, ListEditView, ListIndexView } from "./ListViews";
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -16,6 +17,7 @@ const apiMocks = vi.hoisted(() => ({
   getSavedList: vi.fn(),
   getSavedLists: vi.fn(),
   removeSavedListItem: vi.fn(),
+  updateSavedList: vi.fn(),
 }));
 
 vi.mock("../api/atlasApi", () => ({
@@ -26,6 +28,7 @@ vi.mock("../api/atlasApi", () => ({
   getSavedList: apiMocks.getSavedList,
   getSavedLists: apiMocks.getSavedLists,
   removeSavedListItem: apiMocks.removeSavedListItem,
+  updateSavedList: apiMocks.updateSavedList,
 }));
 
 describe("list views", () => {
@@ -54,6 +57,16 @@ describe("list views", () => {
       slug: "research",
       deleted: true,
     });
+    apiMocks.updateSavedList.mockResolvedValue({
+      list: {
+        list_key: "list_research",
+        slug: "renamed-research",
+        name: "Renamed Research",
+        description: "Updated prep",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-04T00:00:00Z",
+      },
+    });
     apiMocks.createSavedList.mockResolvedValue({
       list: {
         list_key: "list_boss_fight_prep",
@@ -71,12 +84,24 @@ describe("list views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const listLink = await screen.findByRole("link", { name: /Research/ });
+    const listLink = (await screen.findByText("research")).closest("a");
+    expect(listLink).not.toBeNull();
     expect(screen.getByText("2 saved lists")).toBeInTheDocument();
 
-    fireEvent.click(listLink);
+    fireEvent.click(listLink!);
 
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+  });
+
+  it("routes from the saved-list index to edit a list", async () => {
+    render(<ListIndexView route={{ kind: "lists" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const editLink = await screen.findByRole("link", { name: "Edit Research" });
+    fireEvent.click(editLink);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
   });
 
   it("renders list contents, loads selected detail, and removes items", async () => {
@@ -94,9 +119,7 @@ describe("list views", () => {
     expect(
       await screen.findByRole("heading", { name: "Test Action 1" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Test Action 1.*actions:testAction1/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
     expect(screen.getByText("List")).toBeInTheDocument();
     expect(screen.getByText("Items")).toBeInTheDocument();
     expect(
@@ -104,6 +127,8 @@ describe("list views", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.queryByText("research")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Edit" }));
+    await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
 
@@ -115,23 +140,57 @@ describe("list views", () => {
     );
   });
 
-  it("deletes the current list and returns to the list index", async () => {
+  it("edits list metadata and navigates to the updated slug", async () => {
     render(
-      <ListDetailView
+      <ListEditView
         route={{
-          kind: "list",
+          kind: "listEdit",
           slug: "research",
-          selectedRecordKey: null,
         }}
       />,
       { wrapper: queryClientWrapper() },
     );
 
-    await screen.findByRole("heading", { name: "Research" });
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByDisplayValue("Research")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Slug")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Renamed Research!" },
+    });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "Updated prep" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(apiMocks.deleteSavedList).toHaveBeenCalledWith("research"),
+      expect(apiMocks.updateSavedList).toHaveBeenCalledWith({
+        list_key: "list_research",
+        slug: "renamed-research",
+        name: "Renamed Research!",
+        description: "Updated prep",
+      }),
+    );
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/lists/renamed-research"),
+    );
+  });
+
+  it("deletes lists from the edit page and returns to the list index", async () => {
+    render(
+      <ListEditView
+        route={{
+          kind: "listEdit",
+          slug: "research",
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    await screen.findByDisplayValue("Research");
+    fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+
+    await waitFor(() =>
+      expect(apiMocks.deleteSavedList).toHaveBeenCalledWith("list_research"),
     );
     await waitFor(() => expect(window.location.pathname).toBe("/lists"));
   });
@@ -152,9 +211,7 @@ describe("list views", () => {
     fireEvent.mouseDown(selector);
     fireEvent.click(await screen.findByText("Encounters"));
 
-    await waitFor(() =>
-      expect(window.location.pathname).toBe("/lists/encounters"),
-    );
+    await waitFor(() => expect(window.location.pathname).toBe("/lists/encounters"));
   });
 
   it("adds the current record to a selected list", async () => {

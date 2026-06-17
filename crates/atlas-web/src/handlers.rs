@@ -1,7 +1,7 @@
 use atlas_app_model::{
     AddSavedListItemRequest, CreateSavedListRequest, DiscoverFilterEditorRequest,
     DiscoverFilterValuesRequest, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RemoveSavedListItemRequest,
+    RemoveSavedListItemRequest, UpdateSavedListRequest,
 };
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -44,6 +44,19 @@ pub(crate) async fn create_saved_list(
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.create_saved_list(request)).await?,
+    ))
+}
+
+pub(crate) async fn update_saved_list(
+    State(state): State<AtlasWebState>,
+    Path(list_ref): Path<String>,
+    payload: Result<Json<UpdateSavedListRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    request.list_key = list_ref;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.update_saved_list(request)).await?,
     ))
 }
 

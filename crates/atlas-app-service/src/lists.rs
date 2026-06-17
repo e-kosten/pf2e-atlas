@@ -5,12 +5,13 @@ use atlas_app_model::{
     RecordResolutionAmbiguousView, RecordResolutionCandidateView, RemoveSavedListItemRequest,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationOutcomeView,
     SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
-    SavedListItemView, SavedListSummaryView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, UpdateSavedListRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
     AddSavedListItemOutcome, HydratedSavedListItem, LocalStateStore, NewSavedList,
-    ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemStatus, hydrate_saved_list_item,
+    ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemStatus, UpdateSavedList,
+    hydrate_saved_list_item,
 };
 use atlas_search::{
     GetRecordsRequest, RecordRefResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
@@ -63,6 +64,26 @@ impl AtlasAppService {
             description: request.description,
         })?;
         Ok(SavedListCreateView {
+            list: saved_list_summary(list),
+        })
+    }
+
+    pub fn update_saved_list(
+        &self,
+        request: UpdateSavedListRequest,
+    ) -> AppServiceResult<SavedListUpdateView> {
+        let store = self.local_state_store()?;
+        let list_key = request.list_key;
+        let list = store
+            .saved_lists()
+            .update(UpdateSavedList {
+                list_key: list_key.clone(),
+                slug: request.slug,
+                name: request.name,
+                description: request.description,
+            })?
+            .ok_or_else(|| saved_list_not_found(&list_key))?;
+        Ok(SavedListUpdateView {
             list: saved_list_summary(list),
         })
     }
@@ -296,7 +317,7 @@ fn saved_list_item_status(status: SavedListItemStatus) -> SavedListItemStatusVie
 mod tests {
     use atlas_app_model::{
         AddSavedListItemRequest, AppErrorCode, CreateSavedListRequest, RemoveSavedListItemRequest,
-        SavedListItemMutationOutcomeView, SavedListItemStatusView,
+        SavedListItemMutationOutcomeView, SavedListItemStatusView, UpdateSavedListRequest,
     };
     use atlas_domain::RecordKey;
     use atlas_local_state::{NewSavedList, ResolvedSavedListItem};
@@ -447,16 +468,30 @@ mod tests {
         assert!(created.list.list_key.starts_with("list_"));
         assert_eq!(created.list.description.as_deref(), Some("Campaign prep"));
 
+        let updated = fixture
+            .worker
+            .update_saved_list(UpdateSavedListRequest {
+                list_key: created.list.list_key.clone(),
+                slug: "renamed-research".to_string(),
+                name: "Renamed Research".to_string(),
+                description: Some("Updated prep".to_string()),
+            })
+            .expect("list should update");
+        assert_eq!(updated.list.list_key, created.list.list_key);
+        assert_eq!(updated.list.slug, "renamed-research");
+        assert_eq!(updated.list.name, "Renamed Research");
+        assert_eq!(updated.list.description.as_deref(), Some("Updated prep"));
+
         let added = fixture
             .worker
             .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: "research".to_string(),
+                list_ref: "renamed-research".to_string(),
                 record_ref: "Test Action 1".to_string(),
                 note: Some("important".to_string()),
             })
             .expect("item should add");
         assert_eq!(added.list_key, created.list.list_key);
-        assert_eq!(added.slug, "research");
+        assert_eq!(added.slug, "renamed-research");
         assert_eq!(added.record_key, "actions:testAction1");
         assert_eq!(added.outcome, SavedListItemMutationOutcomeView::Added);
 
@@ -485,7 +520,7 @@ mod tests {
         let absent = fixture
             .worker
             .remove_saved_list_item(RemoveSavedListItemRequest {
-                list_ref: "research".to_string(),
+                list_ref: "renamed-research".to_string(),
                 record_ref: "actions:testAction1".to_string(),
             })
             .expect("absent item remove should be a no-op");
@@ -496,7 +531,7 @@ mod tests {
             .delete_saved_list(&created.list.list_key)
             .expect("list should delete");
         assert_eq!(deleted.list_key, created.list.list_key);
-        assert_eq!(deleted.slug, "research");
+        assert_eq!(deleted.slug, "renamed-research");
         assert!(deleted.deleted);
     }
 

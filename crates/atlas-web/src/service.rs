@@ -5,7 +5,8 @@ use atlas_app_model::{
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterEditorView, FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest,
     RecordDetailView, RemoveSavedListItemRequest, ResultWindowPage, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListUpdateView,
+    UpdateSavedListRequest,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use tokio::sync::Semaphore;
@@ -77,6 +78,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: CreateSavedListRequest,
     ) -> Result<SavedListCreateView, AppServiceError>;
 
+    fn update_saved_list(
+        &self,
+        request: UpdateSavedListRequest,
+    ) -> Result<SavedListUpdateView, AppServiceError>;
+
     fn add_saved_list_item(
         &self,
         request: AddSavedListItemRequest,
@@ -141,6 +147,13 @@ impl AtlasWebService for AtlasAppService {
         request: CreateSavedListRequest,
     ) -> Result<SavedListCreateView, AppServiceError> {
         self.create_saved_list(request)
+    }
+
+    fn update_saved_list(
+        &self,
+        request: UpdateSavedListRequest,
+    ) -> Result<SavedListUpdateView, AppServiceError> {
+        self.update_saved_list(request)
     }
 
     fn add_saved_list_item(
