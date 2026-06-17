@@ -89,8 +89,8 @@ export async function getSavedLists(): Promise<SavedListIndexView> {
   return atlasFetch("/api/lists");
 }
 
-export async function getSavedList(slug: string): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(slug)}`);
+export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
+  const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(listRef)}`);
   return normalizeSavedListDetail(list);
 }
 
@@ -103,8 +103,8 @@ export async function createSavedList(
   });
 }
 
-export async function deleteSavedList(slug: string): Promise<DeleteSavedListView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(slug)}`, {
+export async function deleteSavedList(listRef: string): Promise<DeleteSavedListView> {
+  return atlasFetch(`/api/lists/${encodeURIComponent(listRef)}`, {
     method: "DELETE",
   });
 }
@@ -112,7 +112,7 @@ export async function deleteSavedList(slug: string): Promise<DeleteSavedListView
 export async function addSavedListItem(
   request: AddSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(request.slug)}/items`, {
+  return atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/items`, {
     method: "POST",
     body: jsonBody(request),
   });
@@ -121,7 +121,7 @@ export async function addSavedListItem(
 export async function removeSavedListItem(
   request: RemoveSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(request.slug)}/items`, {
+  return atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/items`, {
     method: "DELETE",
     body: jsonBody(request),
   });

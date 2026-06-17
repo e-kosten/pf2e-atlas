@@ -28,11 +28,11 @@ pub(crate) async fn saved_lists(
 
 pub(crate) async fn saved_list(
     State(state): State<AtlasWebState>,
-    Path(slug): Path<String>,
+    Path(list_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.saved_list(&slug)).await?,
+        call_service(state, move || service.saved_list(&list_ref)).await?,
     ))
 }
 
@@ -49,11 +49,11 @@ pub(crate) async fn create_saved_list(
 
 pub(crate) async fn add_saved_list_item(
     State(state): State<AtlasWebState>,
-    Path(slug): Path<String>,
+    Path(list_ref): Path<String>,
     payload: Result<Json<AddSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.slug = slug;
+    request.list_ref = list_ref;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.add_saved_list_item(request)).await?,
@@ -62,11 +62,11 @@ pub(crate) async fn add_saved_list_item(
 
 pub(crate) async fn remove_saved_list_item(
     State(state): State<AtlasWebState>,
-    Path(slug): Path<String>,
+    Path(list_ref): Path<String>,
     payload: Result<Json<RemoveSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.slug = slug;
+    request.list_ref = list_ref;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.remove_saved_list_item(request)).await?,
@@ -75,11 +75,11 @@ pub(crate) async fn remove_saved_list_item(
 
 pub(crate) async fn delete_saved_list(
     State(state): State<AtlasWebState>,
-    Path(slug): Path<String>,
+    Path(list_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.delete_saved_list(&slug)).await?,
+        call_service(state, move || service.delete_saved_list(&list_ref)).await?,
     ))
 }
 

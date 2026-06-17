@@ -12,8 +12,11 @@ const METADATA_SCHEMA_VERSION: &str = "schema_version";
 
 pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
     if table_exists(connection, METADATA_TABLE)? {
+        validate_contract_metadata(connection)?;
+        migrate_to_current_schema(connection)?;
         validate_metadata(connection)?;
         validate_v1_tables(connection)?;
+        validate_v2_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -23,12 +26,12 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
             "saved-list tables exist without local-state metadata".to_string(),
         ));
     }
-    create_v1_schema(connection)?;
+    create_v2_schema(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
 
-fn create_v1_schema(connection: &Connection) -> LocalStateResult<()> {
+fn create_v2_schema(connection: &Connection) -> LocalStateResult<()> {
     connection.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -38,6 +41,7 @@ fn create_v1_schema(connection: &Connection) -> LocalStateResult<()> {
         );
         CREATE TABLE saved_lists (
           id INTEGER PRIMARY KEY,
+          list_key TEXT NOT NULL UNIQUE,
           slug TEXT NOT NULL UNIQUE,
           name TEXT NOT NULL,
           description TEXT,
@@ -76,16 +80,53 @@ fn write_current_metadata(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
-fn validate_metadata(connection: &Connection) -> LocalStateResult<()> {
+fn validate_contract_metadata(connection: &Connection) -> LocalStateResult<()> {
     validate_metadata_value(
         connection,
         METADATA_CONTRACT_VERSION,
         LOCAL_STATE_CONTRACT_VERSION,
     )?;
+    Ok(())
+}
+
+fn validate_metadata(connection: &Connection) -> LocalStateResult<()> {
+    validate_contract_metadata(connection)?;
     validate_metadata_value(
         connection,
         METADATA_SCHEMA_VERSION,
         LOCAL_STATE_SCHEMA_VERSION,
+    )?;
+    Ok(())
+}
+
+fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
+    let Some(schema_version) = metadata_value(connection, METADATA_SCHEMA_VERSION)? else {
+        return Err(LocalStateError::IncompatibleSchema(
+            "missing required local-state metadata `schema_version`".to_string(),
+        ));
+    };
+    match schema_version.as_str() {
+        LOCAL_STATE_SCHEMA_VERSION => Ok(()),
+        "1" => migrate_v1_to_v2(connection),
+        _ => Err(LocalStateError::UnsupportedMetadata {
+            key: METADATA_SCHEMA_VERSION,
+            value: schema_version,
+        }),
+    }
+}
+
+fn migrate_v1_to_v2(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "
+        ALTER TABLE saved_lists ADD COLUMN list_key TEXT;
+        UPDATE saved_lists
+           SET list_key = 'list_' || lower(hex(randomblob(8)))
+         WHERE list_key IS NULL;
+        CREATE UNIQUE INDEX saved_lists_list_key_idx ON saved_lists(list_key);
+        UPDATE local_state_metadata
+           SET value = '2'
+         WHERE key = 'schema_version';
+        ",
     )?;
     Ok(())
 }
@@ -117,6 +158,15 @@ fn validate_v1_tables(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
+fn validate_v2_tables(connection: &Connection) -> LocalStateResult<()> {
+    if !column_exists(connection, SAVED_LISTS_TABLE, "list_key")? {
+        return Err(LocalStateError::IncompatibleSchema(
+            "missing required saved_lists.list_key column".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 fn table_exists(connection: &Connection, table: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
@@ -126,6 +176,17 @@ fn table_exists(connection: &Connection, table: &str) -> rusqlite::Result<bool> 
         )
         .optional()
         .map(|value| value.is_some())
+}
+
+fn column_exists(connection: &Connection, table: &str, column: &str) -> rusqlite::Result<bool> {
+    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+    let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
+    for row in rows {
+        if row? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn metadata_value(connection: &Connection, key: &str) -> rusqlite::Result<Option<String>> {
@@ -190,6 +251,76 @@ mod tests {
             result,
             Err(LocalStateError::UnsupportedMetadata { .. })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn v1_database_migrates_to_list_keys() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_path("v1-migration");
+        {
+            let connection = Connection::open(&path)?;
+            connection.execute_batch(
+                "
+                PRAGMA foreign_keys = ON;
+                CREATE TABLE local_state_metadata (
+                  key TEXT PRIMARY KEY,
+                  value TEXT NOT NULL
+                );
+                INSERT INTO local_state_metadata (key, value)
+                  VALUES ('local_state_contract_version', 'pf2e-atlas-local-state/v1');
+                INSERT INTO local_state_metadata (key, value)
+                  VALUES ('schema_version', '1');
+                CREATE TABLE saved_lists (
+                  id INTEGER PRIMARY KEY,
+                  slug TEXT NOT NULL UNIQUE,
+                  name TEXT NOT NULL,
+                  description TEXT,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL
+                );
+                CREATE TABLE saved_list_items (
+                  list_id INTEGER NOT NULL,
+                  record_key TEXT NOT NULL,
+                  position INTEGER NOT NULL,
+                  note TEXT,
+                  record_title_snapshot TEXT NOT NULL,
+                  record_kind_snapshot TEXT,
+                  added_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL,
+                  PRIMARY KEY (list_id, record_key),
+                  UNIQUE (list_id, position),
+                  FOREIGN KEY (list_id) REFERENCES saved_lists(id) ON DELETE CASCADE
+                );
+                CREATE INDEX saved_list_items_position_idx
+                  ON saved_list_items(list_id, position);
+                INSERT INTO saved_lists (
+                  slug, name, description, created_at, updated_at
+                )
+                VALUES (
+                  'legacy-list',
+                  'Legacy List',
+                  NULL,
+                  '2026-01-01T00:00:00Z',
+                  '2026-01-01T00:00:00Z'
+                );
+                ",
+            )?;
+        }
+
+        let store = LocalStateStore::open(&path)?;
+        let list = store
+            .saved_lists()
+            .get("legacy-list")?
+            .expect("legacy list should survive migration");
+        assert!(list.list_key.starts_with("list_"));
+        drop(store);
+
+        let connection = Connection::open(&path)?;
+        assert_eq!(
+            metadata_value(&connection, METADATA_SCHEMA_VERSION)?,
+            Some(LOCAL_STATE_SCHEMA_VERSION.to_string())
+        );
+        assert!(column_exists(&connection, SAVED_LISTS_TABLE, "list_key")?);
         Ok(())
     }
 

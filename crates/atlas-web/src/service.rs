@@ -70,7 +70,7 @@ pub(crate) trait AtlasWebService: Send + Sync {
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
-    fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError>;
+    fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError>;
 
     fn create_saved_list(
         &self,
@@ -87,7 +87,7 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: RemoveSavedListItemRequest,
     ) -> Result<SavedListItemMutationView, AppServiceError>;
 
-    fn delete_saved_list(&self, slug: &str) -> Result<DeleteSavedListView, AppServiceError>;
+    fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError>;
 }
 
 impl AtlasWebService for AtlasAppService {
@@ -132,8 +132,8 @@ impl AtlasWebService for AtlasAppService {
         self.saved_lists()
     }
 
-    fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError> {
-        self.saved_list(slug)
+    fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError> {
+        self.saved_list(list_ref)
     }
 
     fn create_saved_list(
@@ -157,8 +157,8 @@ impl AtlasWebService for AtlasAppService {
         self.remove_saved_list_item(request)
     }
 
-    fn delete_saved_list(&self, slug: &str) -> Result<DeleteSavedListView, AppServiceError> {
-        self.delete_saved_list(slug)
+    fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError> {
+        self.delete_saved_list(list_ref)
     }
 }
 

@@ -208,6 +208,7 @@ name = "atlas-local-state"
 version = "0.1.0"
 dependencies = [
  "atlas-domain",
+ "rand 0.9.4",
  "rusqlite",
  "serde",
  "thiserror",

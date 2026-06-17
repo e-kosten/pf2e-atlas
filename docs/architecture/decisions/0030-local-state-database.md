@@ -25,6 +25,7 @@ The initial implementation uses an `atlas-local-state` crate. It owns:
 
 - local-state schema metadata and migrations
 - saved-list storage tables and product APIs
+- stable generated saved-list keys, CLI-friendly saved-list slugs, and list-ref resolution by key or slug
 - durable item ordering
 - saved item snapshots used when an active artifact no longer contains a saved record key
 - saved-list item insertion from already-resolved canonical record inputs

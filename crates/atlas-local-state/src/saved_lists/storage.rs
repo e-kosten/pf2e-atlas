@@ -1,4 +1,5 @@
 use atlas_domain::RecordKey;
+use rand::random;
 use rusqlite::{Connection, OptionalExtension, params};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
@@ -12,25 +13,31 @@ use crate::{LocalStateError, LocalStateResult};
 pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalStateResult<String> {
     let slug = list.slug;
     let now = now_rfc3339()?;
-    let result = connection.execute(
-        "INSERT INTO saved_lists (slug, name, description, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?4)",
-        params![slug, list.name, list.description, now],
-    );
-    match result {
-        Ok(_) => Ok(slug),
-        Err(rusqlite::Error::SqliteFailure(error, _))
-            if error.code == rusqlite::ErrorCode::ConstraintViolation =>
-        {
-            Err(LocalStateError::ListAlreadyExists(slug))
+    for _ in 0..5 {
+        let list_key = new_list_key();
+        let result = connection.execute(
+            "INSERT INTO saved_lists (list_key, slug, name, description, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+            params![list_key, slug, list.name, list.description, now],
+        );
+        match result {
+            Ok(_) => return Ok(list_key),
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                if slug_exists(connection, &slug)? {
+                    return Err(LocalStateError::ListAlreadyExists(slug));
+                }
+            }
+            Err(error) => return Err(error.into()),
         }
-        Err(error) => Err(error.into()),
     }
+    Err(LocalStateError::ListKeyAllocationFailed)
 }
 
 pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> {
     let mut statement = connection.prepare(
-        "SELECT slug, name, description, created_at, updated_at
+        "SELECT list_key, slug, name, description, created_at, updated_at
          FROM saved_lists
          ORDER BY slug",
     )?;
@@ -38,13 +45,13 @@ pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> 
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
-pub(crate) fn get(connection: &Connection, slug: &str) -> LocalStateResult<Option<SavedList>> {
+pub(crate) fn get(connection: &Connection, list_ref: &str) -> LocalStateResult<Option<SavedList>> {
     connection
         .query_row(
-            "SELECT slug, name, description, created_at, updated_at
+            "SELECT list_key, slug, name, description, created_at, updated_at
              FROM saved_lists
-             WHERE slug = ?1",
-            params![slug],
+             WHERE list_key = ?1 OR slug = ?1",
+            params![list_ref],
             saved_list_from_row,
         )
         .optional()
@@ -53,9 +60,9 @@ pub(crate) fn get(connection: &Connection, slug: &str) -> LocalStateResult<Optio
 
 pub(crate) fn get_with_items(
     connection: &Connection,
-    slug: &str,
+    list_ref: &str,
 ) -> LocalStateResult<Option<SavedListWithItems>> {
-    let Some(list) = get(connection, slug)? else {
+    let Some(list) = get(connection, list_ref)? else {
         return Ok(None);
     };
     let mut statement = connection.prepare(
@@ -64,26 +71,29 @@ pub(crate) fn get_with_items(
                 item.added_at, item.updated_at
          FROM saved_list_items item
          JOIN saved_lists list ON list.id = item.list_id
-         WHERE list.slug = ?1
+         WHERE list.list_key = ?1
          ORDER BY item.position ASC, item.record_key ASC",
     )?;
-    let rows = statement.query_map(params![slug], saved_list_item_from_row)?;
+    let rows = statement.query_map(params![list.list_key], saved_list_item_from_row)?;
     let items = rows.collect::<Result<Vec<_>, _>>()?;
     Ok(Some(SavedListWithItems { list, items }))
 }
 
-pub(crate) fn delete(connection: &Connection, slug: &str) -> LocalStateResult<bool> {
-    let removed = connection.execute("DELETE FROM saved_lists WHERE slug = ?1", params![slug])?;
+pub(crate) fn delete(connection: &Connection, list_ref: &str) -> LocalStateResult<bool> {
+    let removed = connection.execute(
+        "DELETE FROM saved_lists WHERE list_key = ?1 OR slug = ?1",
+        params![list_ref],
+    )?;
     Ok(removed > 0)
 }
 
 pub(crate) fn add_item(
     connection: &Connection,
-    slug: &str,
+    list_ref: &str,
     item: NewSavedListItem,
 ) -> LocalStateResult<AddSavedListItemOutcome> {
-    let Some(list_id) = list_id(connection, slug)? else {
-        return Err(LocalStateError::ListNotFound(slug.to_string()));
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     let existing: Option<i64> = connection
         .query_row(
@@ -123,11 +133,11 @@ pub(crate) fn add_item(
 
 pub(crate) fn remove_item(
     connection: &Connection,
-    slug: &str,
+    list_ref: &str,
     record_key: &str,
 ) -> LocalStateResult<bool> {
-    let Some(list_id) = list_id(connection, slug)? else {
-        return Err(LocalStateError::ListNotFound(slug.to_string()));
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     let removed = connection.execute(
         "DELETE FROM saved_list_items WHERE list_id = ?1 AND record_key = ?2",
@@ -176,6 +186,16 @@ pub(crate) fn validate_slug(slug: &str) -> LocalStateResult<()> {
     Ok(())
 }
 
+pub(crate) fn validate_list_ref(list_ref: &str) -> LocalStateResult<()> {
+    if list_ref.trim().is_empty() {
+        return Err(LocalStateError::InvalidListRef {
+            list_ref: list_ref.to_string(),
+            reason: "list ref must not be empty",
+        });
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_record_key(record_key: &str) -> LocalStateResult<()> {
     RecordKey::parse(record_key)
         .map(|_| ())
@@ -187,11 +207,12 @@ pub(crate) fn validate_record_key(record_key: &str) -> LocalStateResult<()> {
 
 fn saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedList> {
     Ok(SavedList {
-        slug: row.get(0)?,
-        name: row.get(1)?,
-        description: row.get(2)?,
-        created_at: row.get(3)?,
-        updated_at: row.get(4)?,
+        list_key: row.get(0)?,
+        slug: row.get(1)?,
+        name: row.get(2)?,
+        description: row.get(3)?,
+        created_at: row.get(4)?,
+        updated_at: row.get(5)?,
     })
 }
 
@@ -207,14 +228,29 @@ fn saved_list_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedLi
     })
 }
 
-fn list_id(connection: &Connection, slug: &str) -> rusqlite::Result<Option<i64>> {
+fn list_id(connection: &Connection, list_ref: &str) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
-            "SELECT id FROM saved_lists WHERE slug = ?1",
-            params![slug],
+            "SELECT id FROM saved_lists WHERE list_key = ?1 OR slug = ?1",
+            params![list_ref],
             |row| row.get(0),
         )
         .optional()
+}
+
+fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
+    connection
+        .query_row(
+            "SELECT 1 FROM saved_lists WHERE slug = ?1",
+            params![slug],
+            |_row| Ok(()),
+        )
+        .optional()
+        .map(|value| value.is_some())
+}
+
+fn new_list_key() -> String {
+    format!("list_{:016x}", random::<u64>())
 }
 
 fn next_position(connection: &Connection, list_id: i64) -> rusqlite::Result<i64> {

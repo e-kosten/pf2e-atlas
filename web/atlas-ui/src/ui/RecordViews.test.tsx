@@ -25,12 +25,16 @@ describe("record route views", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
-    apiMocks.getSavedLists.mockResolvedValue({ lists: [] });
-    apiMocks.addSavedListItem.mockResolvedValue({
-      slug: "research",
-      record_key: "spell:heal",
-      outcome: "added",
-    });
+    apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
+    apiMocks.addSavedListItem.mockImplementation(
+      ({ record_ref, list_ref }: { record_ref: string; list_ref: string }) =>
+        Promise.resolve({
+          list_key: list_ref,
+          slug: "research",
+          record_key: record_ref,
+          outcome: "added",
+        }),
+    );
   });
 
   it("renders a standalone record detail route", async () => {
@@ -41,6 +45,21 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(screen.getByText("spell:heal")).toBeInTheDocument();
     expect(screen.getByText("Reader view")).toBeInTheDocument();
+  });
+
+  it("adds a standalone record detail route record to a saved list", async () => {
+    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+
+    await addCurrentRecordToList();
+
+    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+      list_ref: "research",
+      record_ref: "spell:heal",
+    });
   });
 
   it("opens linked references in reader preview without replacing the primary record", async () => {
@@ -67,6 +86,34 @@ describe("record route views", () => {
       expect(window.location.pathname).toBe("/reader/spell%3Alinked"),
     );
     expect(window.location.search).toBe("");
+  });
+
+  it("adds the reader primary record to a saved list", async () => {
+    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
+    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
+
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+
+    await addCurrentRecordToList(0);
+
+    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+      list_ref: "research",
+      record_ref: "spell:heal",
+    });
+  });
+
+  it("adds the reader preview record to a saved list", async () => {
+    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
+    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
+
+    expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
+
+    await addCurrentRecordToList(1);
+
+    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+      list_ref: "research",
+      record_ref: "spell:linked",
+    });
   });
 
   it("closes the reader preview without replacing the primary reader record", async () => {
@@ -96,6 +143,18 @@ function ReaderHarness() {
   return route.kind === "reader" ? <ReaderView route={route} /> : null;
 }
 
+async function addCurrentRecordToList(buttonIndex = 0) {
+  const buttons = await screen.findAllByRole("button", {
+    name: "Add to saved list",
+  });
+  fireEvent.click(buttons[buttonIndex]!);
+
+  const selector = await screen.findByRole("combobox");
+  fireEvent.mouseDown(selector);
+  fireEvent.click(await screen.findByText("Research"));
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+}
+
 function queryClientWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -106,6 +165,21 @@ function queryClientWrapper() {
   });
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
+
+function savedListIndexFixture() {
+  return {
+    lists: [
+      {
+        list_key: "list_research",
+        slug: "research",
+        name: "Research",
+        description: "Campaign prep",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-02T00:00:00Z",
+      },
+    ],
   };
 }
 

@@ -371,6 +371,7 @@ mod tests {
     async fn saved_list_routes_use_real_router_wiring() {
         let (status, body) = route_json(Method::GET, "/api/lists", None).await;
         assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["lists"][0]["list_key"], "list_research");
         assert_eq!(body["lists"][0]["slug"], "research");
 
         let (status, body) = route_json(
@@ -384,9 +385,10 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list"]["list_key"], "list_created");
         assert_eq!(body["list"]["slug"], "encounters");
 
-        let (status, body) = route_json(Method::GET, "/api/lists/research", None).await;
+        let (status, body) = route_json(Method::GET, "/api/lists/list_research", None).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["list"]["slug"], "research");
         assert_eq!(body["items"][0]["record_key"], "actions:testAction1");
@@ -394,35 +396,38 @@ mod tests {
 
         let (status, body) = route_json(
             Method::POST,
-            "/api/lists/research/items",
+            "/api/lists/list_research/items",
             Some(json!({
-                "slug": "ignored",
+                "list_ref": "ignored",
                 "record_ref": "actions:testAction2",
                 "note": null
             })),
         )
         .await;
         assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list_key"], "list_research");
         assert_eq!(body["slug"], "research");
         assert_eq!(body["record_key"], "actions:testAction2");
         assert_eq!(body["outcome"], "added");
 
         let (status, body) = route_json(
             Method::DELETE,
-            "/api/lists/research/items",
+            "/api/lists/list_research/items",
             Some(json!({
-                "slug": "ignored",
+                "list_ref": "ignored",
                 "record_ref": "actions:testAction1"
             })),
         )
         .await;
         assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list_key"], "list_research");
         assert_eq!(body["slug"], "research");
         assert_eq!(body["record_key"], "actions:testAction1");
         assert_eq!(body["outcome"], "removed");
 
-        let (status, body) = route_json(Method::DELETE, "/api/lists/research", None).await;
+        let (status, body) = route_json(Method::DELETE, "/api/lists/list_research", None).await;
         assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list_key"], "list_research");
         assert_eq!(body["slug"], "research");
         assert_eq!(body["deleted"], true);
 
@@ -578,8 +583,8 @@ mod tests {
             })
         }
 
-        fn saved_list(&self, slug: &str) -> Result<SavedListDetailView, AppServiceError> {
-            if slug == "missing" {
+        fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError> {
+            if list_ref == "missing" {
                 return Err(AppServiceError::new(
                     AppErrorCode::SavedListNotFound,
                     "saved list missing",
@@ -607,6 +612,7 @@ mod tests {
         ) -> Result<SavedListCreateView, AppServiceError> {
             Ok(SavedListCreateView {
                 list: SavedListSummaryView {
+                    list_key: "list_created".to_string(),
                     slug: request.slug,
                     name: request.name,
                     description: request.description,
@@ -621,7 +627,8 @@ mod tests {
             request: AddSavedListItemRequest,
         ) -> Result<SavedListItemMutationView, AppServiceError> {
             Ok(SavedListItemMutationView {
-                slug: request.slug,
+                list_key: request.list_ref,
+                slug: "research".to_string(),
                 record_key: request.record_ref,
                 outcome: atlas_app_model::SavedListItemMutationOutcomeView::Added,
             })
@@ -632,15 +639,20 @@ mod tests {
             request: RemoveSavedListItemRequest,
         ) -> Result<SavedListItemMutationView, AppServiceError> {
             Ok(SavedListItemMutationView {
-                slug: request.slug,
+                list_key: request.list_ref,
+                slug: "research".to_string(),
                 record_key: request.record_ref,
                 outcome: atlas_app_model::SavedListItemMutationOutcomeView::Removed,
             })
         }
 
-        fn delete_saved_list(&self, slug: &str) -> Result<DeleteSavedListView, AppServiceError> {
+        fn delete_saved_list(
+            &self,
+            list_ref: &str,
+        ) -> Result<DeleteSavedListView, AppServiceError> {
             Ok(DeleteSavedListView {
-                slug: slug.to_string(),
+                list_key: list_ref.to_string(),
+                slug: "research".to_string(),
                 deleted: true,
             })
         }
@@ -648,6 +660,7 @@ mod tests {
 
     fn saved_list_summary() -> SavedListSummaryView {
         SavedListSummaryView {
+            list_key: "list_research".to_string(),
             slug: "research".to_string(),
             name: "Research".to_string(),
             description: Some("Campaign prep".to_string()),

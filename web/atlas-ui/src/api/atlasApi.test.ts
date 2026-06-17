@@ -209,7 +209,7 @@ describe("atlasApi", () => {
     expect(result.lists[0]?.slug).toBe("research");
   });
 
-  it("url-encodes saved-list slugs and normalizes item positions", async () => {
+  it("url-encodes saved-list refs and normalizes item positions", async () => {
     const fetchMock = mockFetch({
       list: savedListSummary({ slug: "campaign/research" }),
       items: [
@@ -228,10 +228,10 @@ describe("atlasApi", () => {
       ],
     });
 
-    const result = await getSavedList("campaign/research");
+    const result = await getSavedList("list_campaign/research");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/lists/campaign%2Fresearch",
+      "/api/lists/list_campaign%2Fresearch",
       expect.any(Object),
     );
     expect(result.items[0]?.position).toBe(2n);
@@ -261,31 +261,36 @@ describe("atlasApi", () => {
     );
 
     fetchMock.mockResolvedValueOnce(
-      jsonResponse({ slug: "campaign/research", deleted: true }),
+      jsonResponse({
+        list_key: "list_campaign/research",
+        slug: "campaign/research",
+        deleted: true,
+      }),
     );
-    await deleteSavedList("campaign/research");
+    await deleteSavedList("list_campaign/research");
     expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/campaign%2Fresearch",
+      "/api/lists/list_campaign%2Fresearch",
       expect.objectContaining({ method: "DELETE" }),
     );
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
+        list_key: "list_campaign/research",
         slug: "campaign/research",
         record_key: "spell:dirge/of doom",
         outcome: "added",
       }),
     );
     await addSavedListItem({
-      slug: "campaign/research",
+      list_ref: "list_campaign/research",
       record_ref: "spell:dirge/of doom",
     });
     expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/campaign%2Fresearch/items",
+      "/api/lists/list_campaign%2Fresearch/items",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          slug: "campaign/research",
+          list_ref: "list_campaign/research",
           record_ref: "spell:dirge/of doom",
         }),
       }),
@@ -293,21 +298,22 @@ describe("atlasApi", () => {
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
+        list_key: "list_campaign/research",
         slug: "campaign/research",
         record_key: "spell:dirge/of doom",
         outcome: "removed",
       }),
     );
     await removeSavedListItem({
-      slug: "campaign/research",
+      list_ref: "list_campaign/research",
       record_ref: "spell:dirge/of doom",
     });
     expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/campaign%2Fresearch/items",
+      "/api/lists/list_campaign%2Fresearch/items",
       expect.objectContaining({
         method: "DELETE",
         body: JSON.stringify({
-          slug: "campaign/research",
+          list_ref: "list_campaign/research",
           record_ref: "spell:dirge/of doom",
         }),
       }),
@@ -399,6 +405,7 @@ function resultWindowPayload(overrides: Record<string, unknown> = {}) {
 
 function savedListSummary(overrides: Record<string, unknown> = {}) {
   return {
+    list_key: "list_research",
     slug: "research",
     name: "Research",
     description: "Campaign prep",

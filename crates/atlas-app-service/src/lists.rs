@@ -30,15 +30,15 @@ impl AtlasAppService {
         })
     }
 
-    pub fn saved_list(&self, slug: &str) -> AppServiceResult<SavedListDetailView> {
+    pub fn saved_list(&self, list_ref: &str) -> AppServiceResult<SavedListDetailView> {
         let list = self
             .local_state_store()?
             .saved_lists()
-            .get_with_items(slug)?
+            .get_with_items(list_ref)?
             .ok_or_else(|| {
                 AppServiceError::new(
                     AppErrorCode::SavedListNotFound,
-                    format!("saved list `{slug}` was not found"),
+                    format!("saved list `{list_ref}` was not found"),
                 )
             })?;
         let records_by_key = hydrate_saved_list_records(self, &list.items)?;
@@ -75,7 +75,7 @@ impl AtlasAppService {
         let record_key = record.identity.key.to_string();
         let store = self.local_state_store()?;
         let outcome = store.saved_lists().add_resolved_item(
-            &request.slug,
+            &request.list_ref,
             ResolvedSavedListItem {
                 record_key: record.identity.key,
                 title_snapshot: record.identity.name,
@@ -83,8 +83,13 @@ impl AtlasAppService {
                 note: request.note,
             },
         )?;
+        let list = store
+            .saved_lists()
+            .get(&request.list_ref)?
+            .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
         Ok(SavedListItemMutationView {
-            slug: request.slug,
+            list_key: list.list_key,
+            slug: list.slug,
             record_key,
             outcome: match outcome {
                 AddSavedListItemOutcome::Added => SavedListItemMutationOutcomeView::Added,
@@ -107,9 +112,14 @@ impl AtlasAppService {
         let store = self.local_state_store()?;
         let removed = store
             .saved_lists()
-            .remove_item(&request.slug, &record_key.to_string())?;
+            .remove_item(&request.list_ref, &record_key.to_string())?;
+        let list = store
+            .saved_lists()
+            .get(&request.list_ref)?
+            .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
         Ok(SavedListItemMutationView {
-            slug: request.slug,
+            list_key: list.list_key,
+            slug: list.slug,
             record_key: record_key.to_string(),
             outcome: if removed {
                 SavedListItemMutationOutcomeView::Removed
@@ -119,11 +129,16 @@ impl AtlasAppService {
         })
     }
 
-    pub fn delete_saved_list(&self, slug: &str) -> AppServiceResult<DeleteSavedListView> {
+    pub fn delete_saved_list(&self, list_ref: &str) -> AppServiceResult<DeleteSavedListView> {
         let store = self.local_state_store()?;
-        let deleted = store.saved_lists().delete(slug)?;
+        let list = store
+            .saved_lists()
+            .get(list_ref)?
+            .ok_or_else(|| saved_list_not_found(list_ref))?;
+        let deleted = store.saved_lists().delete(&list.list_key)?;
         Ok(DeleteSavedListView {
-            slug: slug.to_string(),
+            list_key: list.list_key,
+            slug: list.slug,
             deleted,
         })
     }
@@ -227,8 +242,16 @@ fn record_resolution_candidate_view(
     }
 }
 
+fn saved_list_not_found(list_ref: &str) -> AppServiceError {
+    AppServiceError::new(
+        AppErrorCode::SavedListNotFound,
+        format!("saved list `{list_ref}` was not found"),
+    )
+}
+
 fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
     SavedListSummaryView {
+        list_key: list.list_key,
         slug: list.slug,
         name: list.name,
         description: list.description,
@@ -383,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    fn saved_list_reports_missing_slug() {
+    fn saved_list_reports_missing_ref() {
         let fixture = fixture_worker();
 
         let error = fixture
@@ -396,13 +419,13 @@ mod tests {
     }
 
     #[test]
-    fn saved_list_reports_invalid_slug() {
+    fn saved_list_reports_invalid_ref() {
         let fixture = fixture_worker();
 
         let error = fixture
             .worker
-            .saved_list("bad slug")
-            .expect_err("invalid slug should fail")
+            .saved_list("")
+            .expect_err("invalid ref should fail")
             .into_app_error();
 
         assert_eq!(error.code, AppErrorCode::InvalidRequest);
@@ -421,23 +444,26 @@ mod tests {
             })
             .expect("list should create");
         assert_eq!(created.list.slug, "research");
+        assert!(created.list.list_key.starts_with("list_"));
         assert_eq!(created.list.description.as_deref(), Some("Campaign prep"));
 
         let added = fixture
             .worker
             .add_saved_list_item(AddSavedListItemRequest {
-                slug: "research".to_string(),
+                list_ref: "research".to_string(),
                 record_ref: "Test Action 1".to_string(),
                 note: Some("important".to_string()),
             })
             .expect("item should add");
+        assert_eq!(added.list_key, created.list.list_key);
+        assert_eq!(added.slug, "research");
         assert_eq!(added.record_key, "actions:testAction1");
         assert_eq!(added.outcome, SavedListItemMutationOutcomeView::Added);
 
         let duplicate = fixture
             .worker
             .add_saved_list_item(AddSavedListItemRequest {
-                slug: "research".to_string(),
+                list_ref: created.list.list_key.clone(),
                 record_ref: "actions:testAction1".to_string(),
                 note: None,
             })
@@ -450,7 +476,7 @@ mod tests {
         let removed = fixture
             .worker
             .remove_saved_list_item(RemoveSavedListItemRequest {
-                slug: "research".to_string(),
+                list_ref: created.list.list_key.clone(),
                 record_ref: "Test Action 1".to_string(),
             })
             .expect("item should remove by resolvable name");
@@ -459,7 +485,7 @@ mod tests {
         let absent = fixture
             .worker
             .remove_saved_list_item(RemoveSavedListItemRequest {
-                slug: "research".to_string(),
+                list_ref: "research".to_string(),
                 record_ref: "actions:testAction1".to_string(),
             })
             .expect("absent item remove should be a no-op");
@@ -467,8 +493,10 @@ mod tests {
 
         let deleted = fixture
             .worker
-            .delete_saved_list("research")
+            .delete_saved_list(&created.list.list_key)
             .expect("list should delete");
+        assert_eq!(deleted.list_key, created.list.list_key);
+        assert_eq!(deleted.slug, "research");
         assert!(deleted.deleted);
     }
 
@@ -487,7 +515,7 @@ mod tests {
         let error = fixture
             .worker
             .add_saved_list_item(AddSavedListItemRequest {
-                slug: "research".to_string(),
+                list_ref: "research".to_string(),
                 record_ref: "No Such Record".to_string(),
                 note: None,
             })

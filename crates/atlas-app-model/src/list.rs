@@ -6,6 +6,7 @@ use crate::RecordSummaryView;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListSummaryView {
+    pub list_key: String,
     pub slug: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -47,7 +48,7 @@ pub struct SavedListDetailView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct AddSavedListItemRequest {
-    pub slug: String,
+    pub list_ref: String,
     pub record_ref: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -57,13 +58,14 @@ pub struct AddSavedListItemRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RemoveSavedListItemRequest {
-    pub slug: String,
+    pub list_ref: String,
     pub record_ref: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListItemMutationView {
+    pub list_key: String,
     pub slug: String,
     pub record_key: String,
     pub outcome: SavedListItemMutationOutcomeView,
@@ -82,6 +84,7 @@ pub enum SavedListItemMutationOutcomeView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct DeleteSavedListView {
+    pub list_key: String,
     pub slug: String,
     pub deleted: bool,
 }

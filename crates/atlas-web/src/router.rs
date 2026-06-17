@@ -20,11 +20,11 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/readiness", get(readiness))
         .route("/api/lists", get(saved_lists).post(create_saved_list))
         .route(
-            "/api/lists/{slug}",
+            "/api/lists/{list_ref}",
             get(saved_list).delete(delete_saved_list),
         )
         .route(
-            "/api/lists/{slug}/items",
+            "/api/lists/{list_ref}/items",
             post(add_saved_list_item).delete(remove_saved_list_item),
         )
         .route("/api/filters/editor", post(discover_filter_editor))

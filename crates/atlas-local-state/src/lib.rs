@@ -5,7 +5,7 @@ mod saved_lists;
 mod schema;
 mod store;
 
-pub const LOCAL_STATE_SCHEMA_VERSION: &str = "1";
+pub const LOCAL_STATE_SCHEMA_VERSION: &str = "2";
 pub const LOCAL_STATE_CONTRACT_VERSION: &str = "pf2e-atlas-local-state/v1";
 
 pub use error::{LocalStateError, LocalStateResult};
