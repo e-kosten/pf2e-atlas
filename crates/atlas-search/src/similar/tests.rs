@@ -382,6 +382,7 @@ impl FilterReadIndex for FakeSimilarIndex {
     fn list_filtered_record_keys(
         &self,
         _filter: Option<&SearchFilterNode>,
+        _record_keys: Option<&[RecordKey]>,
         _sort: FilteredRecordSort,
         _limit: u32,
         _offset: u32,
@@ -520,6 +521,7 @@ impl DiscoveryReadIndex for FakeSimilarIndex {
     fn list_filter_fields(
         &self,
         _filter: Option<&SearchFilterNode>,
+        _record_keys: Option<&[RecordKey]>,
         _filter_json: Option<serde_json::Value>,
     ) -> Result<atlas_domain::FilterFieldDiscovery, DiscoveryError> {
         unreachable!("similar tests do not call filter discovery")
@@ -528,6 +530,7 @@ impl DiscoveryReadIndex for FakeSimilarIndex {
     fn list_filter_values(
         &self,
         _filter: Option<&SearchFilterNode>,
+        _record_keys: Option<&[RecordKey]>,
         _request: FilterValueRequest,
     ) -> Result<atlas_domain::FilterValueDiscovery, DiscoveryError> {
         unreachable!("similar tests do not call filter discovery")

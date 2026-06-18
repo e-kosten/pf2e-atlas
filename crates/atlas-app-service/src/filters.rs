@@ -2,11 +2,12 @@ use atlas_app_model::{
     DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterDiscoveryContext,
     FilterEditorView, FilterValueListView,
 };
+use atlas_domain::RecordKey;
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, SearchFilterNode};
 use atlas_search::{
     DiscoverFilterFieldsRequest as SearchDiscoverFilterFieldsRequest,
     DiscoverFilterValuesRequest as SearchDiscoverFilterValuesRequest, FilterDiscoveryRetrieval,
-    MetricDiscoverySelector,
+    MetricDiscoverySelector, RecordScope,
 };
 
 use crate::discovery::{filter_editor_view, filter_value_list_view};
@@ -34,16 +35,20 @@ impl AtlasAppService {
         request: DiscoverFilterEditorRequest,
     ) -> AppServiceResult<FilterEditorView> {
         let filter = lower_basic_filter_context(&request.context)?;
+        let record_keys = record_scope_keys(self, &request.context)?;
         let selected_field_ids = selected_filter_field_ids(&request);
         self.submit_retrieval(move |retrieval| {
+            let scope = record_scope(record_keys.as_deref());
             let discovery =
                 retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
                     filter: filter.as_ref(),
+                    scope,
                     filter_json: None,
                 })?;
             let selected_candidates =
                 retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
                     filter: None,
+                    scope,
                     filter_json: None,
                 })?;
             Ok(filter_editor_view(
@@ -60,11 +65,13 @@ impl AtlasAppService {
     ) -> AppServiceResult<FilterValueListView> {
         let discovery_context = filter_context_excluding_field(&request.context, &request.field_id);
         let filter = lower_basic_filter_context(&discovery_context)?;
+        let record_keys = record_scope_keys(self, &discovery_context)?;
         self.submit_retrieval(move |retrieval| {
             let discovery =
                 retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
                     field: discovery_field_id(&request.field_id),
                     filter: filter.as_ref(),
+                    scope: record_scope(record_keys.as_deref()),
                     filter_json: None,
                     sort: None,
                     sample_limit: None,
@@ -84,6 +91,7 @@ impl AtlasAppService {
             Ok(
                 retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
                     filter: filter.as_ref(),
+                    scope: RecordScope::All,
                     filter_json,
                 })?,
             )
@@ -99,6 +107,7 @@ impl AtlasAppService {
                 retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
                     field: request.field,
                     filter: request.filter.as_ref(),
+                    scope: RecordScope::All,
                     filter_json: request.filter_json,
                     sort: request.sort,
                     sample_limit: request.sample_limit,
@@ -125,10 +134,37 @@ fn selected_filter_field_ids(request: &DiscoverFilterEditorRequest) -> Vec<Strin
                     .map(|clause| app_filter_field_id(&clause.field)),
             );
         }
+        FilterDiscoveryContext::SavedList { filter, .. } => {
+            fields.extend(
+                filter
+                    .clauses
+                    .iter()
+                    .map(|clause| app_filter_field_id(&clause.field)),
+            );
+        }
     }
     fields.sort();
     fields.dedup();
     fields
+}
+
+fn record_scope_keys(
+    service: &AtlasAppService,
+    context: &FilterDiscoveryContext,
+) -> AppServiceResult<Option<Vec<RecordKey>>> {
+    match context {
+        FilterDiscoveryContext::Filtered { .. } => Ok(None),
+        FilterDiscoveryContext::SavedList { list_ref, .. } => {
+            Ok(Some(service.saved_list_record_keys(list_ref)?))
+        }
+    }
+}
+
+fn record_scope(keys: Option<&[RecordKey]>) -> RecordScope<'_> {
+    match keys {
+        Some(keys) => RecordScope::Keys(keys),
+        None => RecordScope::All,
+    }
 }
 
 fn metric_selector(query: Option<&str>) -> Option<MetricDiscoverySelector> {

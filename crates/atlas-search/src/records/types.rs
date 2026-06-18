@@ -58,6 +58,7 @@ pub struct ResolveRecordRefRequest<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListRecordsRequest<'a> {
     pub filter: Option<&'a SearchFilterNode>,
+    pub scope: RecordScope<'a>,
     pub sort: RecordListSort,
     pub page: SearchPage,
 }
@@ -66,14 +67,36 @@ impl<'a> ListRecordsRequest<'a> {
     pub fn new(filter: Option<&'a SearchFilterNode>, page: SearchPage) -> Self {
         Self {
             filter,
+            scope: RecordScope::All,
             sort: RecordListSort::default(),
             page,
         }
     }
 
+    pub fn with_scope(mut self, scope: RecordScope<'a>) -> Self {
+        self.scope = scope;
+        self
+    }
+
     pub fn with_sort(mut self, sort: RecordListSort) -> Self {
         self.sort = sort;
         self
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RecordScope<'a> {
+    #[default]
+    All,
+    Keys(&'a [RecordKey]),
+}
+
+impl<'a> RecordScope<'a> {
+    pub fn keys(self) -> Option<&'a [RecordKey]> {
+        match self {
+            Self::All => None,
+            Self::Keys(keys) => Some(keys),
+        }
     }
 }
 

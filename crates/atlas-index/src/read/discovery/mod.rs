@@ -5,7 +5,7 @@ mod metrics;
 mod request;
 mod stats;
 
-use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, SearchFilterNode};
+use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
 use diesel::SqliteConnection;
 
 use crate::FilterCompileError;
@@ -18,12 +18,14 @@ pub trait DiscoveryReadIndex {
     fn list_filter_fields(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         filter_json: Option<serde_json::Value>,
     ) -> Result<FilterFieldDiscovery, DiscoveryError>;
 
     fn list_filter_values(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         request: FilterValueRequest,
     ) -> Result<FilterValueDiscovery, DiscoveryError>;
 }
@@ -31,17 +33,19 @@ pub trait DiscoveryReadIndex {
 pub(crate) fn list_filter_fields(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     filter_json: Option<serde_json::Value>,
 ) -> Result<FilterFieldDiscovery, DiscoveryError> {
-    request::list_filter_fields(connection, filter, filter_json)
+    request::list_filter_fields(connection, filter, record_keys, filter_json)
 }
 
 pub(crate) fn list_filter_values(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     request: FilterValueRequest,
 ) -> Result<FilterValueDiscovery, DiscoveryError> {
-    request::list_filter_values(connection, filter, request)
+    request::list_filter_values(connection, filter, record_keys, request)
 }
 
 pub(crate) fn resolve_filter_metrics(
@@ -65,18 +69,22 @@ impl DiscoveryReadIndex for SqliteIndexReader {
     fn list_filter_fields(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         filter_json: Option<serde_json::Value>,
     ) -> Result<FilterFieldDiscovery, DiscoveryError> {
         self.with_diesel_connection(|connection| {
-            list_filter_fields(connection, filter, filter_json)
+            list_filter_fields(connection, filter, record_keys, filter_json)
         })
     }
 
     fn list_filter_values(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         request: FilterValueRequest,
     ) -> Result<FilterValueDiscovery, DiscoveryError> {
-        self.with_diesel_connection(|connection| list_filter_values(connection, filter, request))
+        self.with_diesel_connection(|connection| {
+            list_filter_values(connection, filter, record_keys, request)
+        })
     }
 }

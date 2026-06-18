@@ -1,10 +1,17 @@
 import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Button, Form, Input, Modal, Select, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   CreateSavedListRequest,
+  FilterEditorView,
+  FilterValueListView,
   SavedListItemView,
   SavedListSummaryView,
   UpdateSavedListRequest,
@@ -12,11 +19,23 @@ import type {
 import {
   createSavedList,
   deleteSavedList,
+  discoverFilterEditor,
+  discoverFilterValues,
+  filterSavedList,
   getRecordDetail,
   getSavedList,
   removeSavedListItem,
   updateSavedList,
 } from "../api/atlasApi";
+import {
+  buildBasicFilter,
+  buildSavedListFilterDiscoveryContext,
+  DEFAULT_SEARCH_STATE,
+  encodeSearchExecutionState,
+  type SearchFormState,
+} from "../state/searchState";
+import { AntFilterControls } from "./ant/AntFilters";
+import type { FilterPanelState } from "./filterControls";
 import { RecordPresentation } from "./recordPresentation";
 import {
   listEditPath,
@@ -101,9 +120,16 @@ export function ListIndexView(_props: ListIndexViewProps) {
 export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const lists = useSavedLists();
+  const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
+  const filterToken = useMemo(() => encodeSearchExecutionState(filters), [filters]);
+  const filterDiscovery = useSavedListFilterDiscovery(route.slug, filters);
   const list = useQuery({
-    queryKey: ["saved-list", route.slug],
-    queryFn: () => getSavedList(route.slug),
+    queryKey: ["saved-list", route.slug, filterToken],
+    queryFn: () =>
+      filterSavedList({
+        list_ref: route.slug,
+        filter: buildBasicFilter(filters),
+      }),
   });
   const selectedItem = list.data?.items.find(
     (item) => item.record_key === route.selectedRecordKey,
@@ -132,6 +158,14 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       filter={
         <ListInfoPane
           currentSlug={route.slug}
+          filterState={{
+            search: filters,
+            setSearch: setFilters,
+            filterEditor: filterDiscovery.filterEditor,
+            filterValuesByField: filterDiscovery.filterValuesByField,
+            filterDiscoveryLoading: filterDiscovery.loading,
+            errorMessage: filterDiscovery.errorMessage,
+          }}
           list={list.data?.list}
           lists={lists.data?.lists ?? []}
           loading={list.isLoading}
@@ -320,6 +354,16 @@ export function ListEditView({ route }: ListEditViewProps) {
                 </Button>
               </div>
             </Form>
+            <dl className="list-edit-view__meta">
+              <div>
+                <dt>Created</dt>
+                <dd>{formatDate(list.data.list.created_at)}</dd>
+              </div>
+              <div>
+                <dt>Updated</dt>
+                <dd>{formatDate(list.data.list.updated_at)}</dd>
+              </div>
+            </dl>
             <div className="list-edit-view__danger">
               <Button
                 danger
@@ -344,6 +388,7 @@ export function ListEditView({ route }: ListEditViewProps) {
 
 function ListInfoPane({
   currentSlug,
+  filterState,
   list,
   lists,
   listsLoading,
@@ -351,6 +396,7 @@ function ListInfoPane({
   onSelectList,
 }: {
   currentSlug: string;
+  filterState: FilterPanelState;
   list: SavedListSummaryView | undefined;
   lists: SavedListSummaryView[];
   listsLoading: boolean;
@@ -385,16 +431,6 @@ function ListInfoPane({
       {list.description && (
         <p className="list-info-pane__description">{list.description}</p>
       )}
-      <dl>
-        <div>
-          <dt>Created</dt>
-          <dd>{formatDate(list.created_at)}</dd>
-        </div>
-        <div>
-          <dt>Updated</dt>
-          <dd>{formatDate(list.updated_at)}</dd>
-        </div>
-      </dl>
       <Button
         href={listEditPath(list.slug)}
         icon={<Pencil size={16} />}
@@ -408,8 +444,98 @@ function ListInfoPane({
       >
         Edit
       </Button>
+      <AntFilterControls
+        filterState={filterState}
+        includeResultOptions={false}
+        includeSearch={false}
+      />
     </section>
   );
+}
+
+function useSavedListFilterDiscovery(
+  listRef: string,
+  filters: SearchFormState,
+): {
+  filterEditor: FilterEditorView | undefined;
+  filterValuesByField: Record<string, FilterValueListView | undefined>;
+  loading: boolean;
+  errorMessage: string | null;
+} {
+  const queryClient = useQueryClient();
+  const filterToken = useMemo(() => encodeSearchExecutionState(filters), [filters]);
+  const context = useMemo(
+    () => buildSavedListFilterDiscoveryContext(listRef, filters),
+    [listRef, filters],
+  );
+  const filterEditorQuery = useQuery({
+    queryKey: [
+      "saved-list-filter-editor",
+      listRef,
+      filterToken,
+      filters.visibleFilterIds,
+    ],
+    queryFn: () =>
+      discoverFilterEditor({
+        context,
+        selected_field_ids: filters.visibleFilterIds,
+      }),
+  });
+  const valueFieldIds = useMemo(() => {
+    const fields = (filterEditorQuery.data?.groups ?? []).flatMap(
+      (group) => group.fields,
+    );
+    const visibleFields = new Set(filters.visibleFilterIds);
+    const hiddenFields = new Set(filters.hiddenFilterIds);
+    return fields
+      .filter(
+        (field) =>
+          field.applicability === "applicable" &&
+          field.supports_counts &&
+          (field.placement === "always_visible" ||
+            visibleFields.has(field.id) ||
+            (field.placement === "initially_visible" && !hiddenFields.has(field.id))),
+      )
+      .map((field) => field.id);
+  }, [filterEditorQuery.data, filters.hiddenFilterIds, filters.visibleFilterIds]);
+  const filterValueQueries = useQueries({
+    queries: valueFieldIds.map((fieldId) => ({
+      queryKey: ["saved-list-filter-values", listRef, filterToken, fieldId],
+      enabled: !filterEditorQuery.isPlaceholderData,
+      placeholderData: () =>
+        queryClient.getQueryData<FilterValueListView>([
+          "saved-list-filter-values",
+          listRef,
+          filterToken,
+          fieldId,
+        ]),
+      queryFn: () =>
+        discoverFilterValues({
+          context,
+          field_id: fieldId,
+        }),
+    })),
+  });
+  const filterValuesByField = useMemo(() => {
+    const pairs = valueFieldIds.map((fieldId, index) => [
+      fieldId,
+      filterValueQueries[index]?.data,
+    ]);
+    return Object.fromEntries(pairs);
+  }, [filterValueQueries, valueFieldIds]);
+  const errorMessage =
+    filterEditorQuery.error?.message ??
+    filterValueQueries.find((query) => query.error)?.error?.message ??
+    null;
+  return {
+    filterEditor: filterEditorQuery.data,
+    filterValuesByField,
+    loading:
+      filterEditorQuery.isLoading ||
+      filterEditorQuery.isFetching ||
+      filterValueQueries.some((query) => query.isLoading || query.isFetching),
+    errorMessage,
+  };
 }
 
 function ListItemsPane({

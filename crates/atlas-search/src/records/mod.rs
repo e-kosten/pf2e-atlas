@@ -8,7 +8,7 @@ use crate::SearchError;
 
 pub use types::{
     GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordListSort,
-    RecordRefResolutionResult, RecordResolutionMatchKind, RecordResolutionResult,
+    RecordRefResolutionResult, RecordResolutionMatchKind, RecordResolutionResult, RecordScope,
     ResolveRecordRefRequest, ResolveRecordRequest,
 };
 

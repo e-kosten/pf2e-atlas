@@ -44,7 +44,13 @@ where
         .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
     if let Some(filter) = filter {
         let allowed = index
-            .list_filtered_record_keys(Some(filter), FilteredRecordSort::RecordKey, u32::MAX, 0)
+            .list_filtered_record_keys(
+                Some(filter),
+                None,
+                FilteredRecordSort::RecordKey,
+                u32::MAX,
+                0,
+            )
             .map_err(SearchError::from_filter)?
             .record_keys
             .into_iter()

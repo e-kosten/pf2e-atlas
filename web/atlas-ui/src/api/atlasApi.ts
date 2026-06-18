@@ -7,6 +7,7 @@ import type {
   DiscoverFilterEditorRequest,
   DiscoverFilterValuesRequest,
   FilterEditorView,
+  FilterSavedListRequest,
   FilterValueListView,
   OpenResultWindowRequest,
   ReadResultWindowPageRequest,
@@ -93,6 +94,19 @@ export async function getSavedLists(): Promise<SavedListIndexView> {
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
   const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(listRef)}`);
+  return normalizeSavedListDetail(list);
+}
+
+export async function filterSavedList(
+  request: FilterSavedListRequest,
+): Promise<SavedListDetailView> {
+  const list = await atlasFetch<unknown>(
+    `/api/lists/${encodeURIComponent(request.list_ref)}/filter`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
   return normalizeSavedListDetail(list);
 }
 

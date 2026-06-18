@@ -23,10 +23,11 @@ mod tests {
         AddSavedListItemRequest, AppError, AppErrorCode, AppReadinessStatus, AppReadinessView,
         CreateSavedListRequest, DeleteSavedListView, DiscoverFilterEditorRequest,
         DiscoverFilterValuesRequest, FilterControlView, FilterEditorFieldView,
-        FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterValueListView,
-        FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-        RecordSummaryView, RemoveSavedListItemRequest, ResultWindowModeSummary, ResultWindowPage,
-        SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+        FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
+        FilterValueListView, FilterValueOption, OpenResultWindowRequest,
+        ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
+        RemoveSavedListItemRequest, ResultWindowModeSummary, ResultWindowPage, SavedListCreateView,
+        SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
         SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
         SavedListSummaryView, SavedListUpdateView, SearchPageView, UpdateSavedListRequest,
     };
@@ -395,6 +396,28 @@ mod tests {
         assert_eq!(body["items"][0]["status"], "active");
 
         let (status, body) = route_json(
+            Method::POST,
+            "/api/lists/list_research/filter",
+            Some(json!({
+                "list_ref": "ignored",
+                "filter": {
+                    "clauses": [
+                        {
+                            "id": "kind-include_any",
+                            "field": "kind",
+                            "operator": "include_any",
+                            "values": ["action"]
+                        }
+                    ]
+                }
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["list"]["list_key"], "list_research");
+        assert_eq!(body["items"][0]["record_key"], "actions:testAction1");
+
+        let (status, body) = route_json(
             Method::PATCH,
             "/api/lists/list_research",
             Some(json!({
@@ -621,6 +644,13 @@ mod tests {
                     record: Some(record_summary()),
                 }],
             })
+        }
+
+        fn filter_saved_list(
+            &self,
+            request: FilterSavedListRequest,
+        ) -> Result<SavedListDetailView, AppServiceError> {
+            self.saved_list(&request.list_ref)
         }
 
         fn create_saved_list(

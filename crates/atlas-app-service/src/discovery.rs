@@ -433,6 +433,7 @@ fn size_rank(value: &str) -> usize {
 fn selected_values(field_id: &str, context: &FilterDiscoveryContext) -> Vec<String> {
     let filter = match context {
         FilterDiscoveryContext::Filtered { filter } => filter,
+        FilterDiscoveryContext::SavedList { filter, .. } => filter,
     };
     filter
         .clauses
@@ -445,6 +446,7 @@ fn selected_values(field_id: &str, context: &FilterDiscoveryContext) -> Vec<Stri
 fn selected_metric_keys(context: &FilterDiscoveryContext) -> Vec<String> {
     let filter = match context {
         FilterDiscoveryContext::Filtered { filter } => filter,
+        FilterDiscoveryContext::SavedList { filter, .. } => filter,
     };
     filter
         .clauses

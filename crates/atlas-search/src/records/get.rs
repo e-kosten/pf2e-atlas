@@ -65,7 +65,13 @@ where
     let filter = resolved_filter.as_ref().or(request.filter);
     let offset = request.page.offset()?;
     let FilteredRecordKeyPage { record_keys, total } = index
-        .list_filtered_record_keys(filter, request.sort.into(), request.page.size(), offset)
+        .list_filtered_record_keys(
+            filter,
+            request.scope.keys(),
+            request.sort.into(),
+            request.page.size(),
+            offset,
+        )
         .map_err(SearchError::from_filter)?;
     let records = index
         .load_records_by_key(&record_keys)

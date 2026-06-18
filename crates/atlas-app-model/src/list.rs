@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::RecordSummaryView;
+use crate::{BasicSearchFilter, RecordSummaryView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -60,6 +60,15 @@ pub struct SavedListUpdateView {
 pub struct SavedListDetailView {
     pub list: SavedListSummaryView,
     pub items: Vec<SavedListItemView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct FilterSavedListRequest {
+    pub list_ref: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub filter: Option<BasicSearchFilter>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -83,6 +83,26 @@
   border-top: 1px solid var(--line);
 }
 
+.list-edit-view__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.list-edit-view__meta > div {
+  display: grid;
+  gap: 2px;
+}
+
+.list-edit-view__meta dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
 .list-info-pane {
   display: flex;
   flex-direction: column;
@@ -102,34 +122,13 @@
   line-height: 1.45;
 }
 
-.list-info-pane dl {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-}
-
-.list-info-pane dl > div {
-  display: grid;
-  gap: 3px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--panel-subtle);
-}
-
-.list-info-pane dt {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.list-info-pane dd {
-  margin: 0;
-  color: var(--text);
-  font-size: 13px;
-}
-
 .list-info-pane > .ant-btn {
-  margin-top: auto;
+  align-self: flex-start;
+}
+
+.list-info-pane .filter-panel {
+  padding: 0;
+  overflow: visible;
 }
 
 .list-picker {

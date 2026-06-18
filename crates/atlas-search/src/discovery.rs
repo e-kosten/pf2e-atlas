@@ -5,7 +5,7 @@ use atlas_index::{
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::AtlasRetrievalService;
+use crate::{AtlasRetrievalService, RecordScope};
 
 pub trait FilterDiscoveryRetrieval {
     fn discover_filter_fields(
@@ -22,6 +22,7 @@ pub trait FilterDiscoveryRetrieval {
 #[derive(Debug, Clone)]
 pub struct DiscoverFilterFieldsRequest<'a> {
     pub filter: Option<&'a SearchFilterNode>,
+    pub scope: RecordScope<'a>,
     pub filter_json: Option<Value>,
 }
 
@@ -29,6 +30,7 @@ pub struct DiscoverFilterFieldsRequest<'a> {
 pub struct DiscoverFilterValuesRequest<'a> {
     pub field: String,
     pub filter: Option<&'a SearchFilterNode>,
+    pub scope: RecordScope<'a>,
     pub filter_json: Option<Value>,
     pub sort: Option<FilterValueSort>,
     pub sample_limit: Option<usize>,
@@ -79,7 +81,7 @@ impl FilterDiscoveryRetrieval for AtlasRetrievalService {
         request: DiscoverFilterFieldsRequest<'_>,
     ) -> Result<FilterFieldDiscovery, FilterDiscoveryError> {
         self.index
-            .list_filter_fields(request.filter, request.filter_json)
+            .list_filter_fields(request.filter, request.scope.keys(), request.filter_json)
             .map_err(FilterDiscoveryError::from)
     }
 
@@ -88,9 +90,10 @@ impl FilterDiscoveryRetrieval for AtlasRetrievalService {
         request: DiscoverFilterValuesRequest<'_>,
     ) -> Result<FilterValueDiscovery, FilterDiscoveryError> {
         let filter = request.filter;
+        let record_keys = request.scope.keys();
         let index_request = index_filter_value_request(request)?;
         self.index
-            .list_filter_values(filter, index_request)
+            .list_filter_values(filter, record_keys, index_request)
             .map_err(FilterDiscoveryError::from)
     }
 }
@@ -139,6 +142,7 @@ mod tests {
         let error = index_filter_value_request(DiscoverFilterValuesRequest {
             field: "traits".to_string(),
             filter: None,
+            scope: RecordScope::All,
             filter_json: None,
             sort: None,
             sample_limit: None,
@@ -159,6 +163,7 @@ mod tests {
         let error = index_filter_value_request(DiscoverFilterValuesRequest {
             field: "traits".to_string(),
             filter: None,
+            scope: RecordScope::All,
             filter_json: None,
             sort: None,
             sample_limit: None,
@@ -179,6 +184,7 @@ mod tests {
         let request = index_filter_value_request(DiscoverFilterValuesRequest {
             field: "metric".to_string(),
             filter: None,
+            scope: RecordScope::All,
             filter_json: None,
             sort: None,
             sample_limit: None,

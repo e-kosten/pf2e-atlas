@@ -589,6 +589,7 @@ mod tests {
         fn list_filtered_record_keys(
             &self,
             _filter: Option<&atlas_domain::SearchFilterNode>,
+            _record_keys: Option<&[atlas_domain::RecordKey]>,
             _sort: FilteredRecordSort,
             _limit: u32,
             _offset: u32,
@@ -770,6 +771,7 @@ mod tests {
         fn list_filter_fields(
             &self,
             _filter: Option<&atlas_domain::SearchFilterNode>,
+            _record_keys: Option<&[atlas_domain::RecordKey]>,
             _filter_json: Option<serde_json::Value>,
         ) -> Result<atlas_domain::FilterFieldDiscovery, DiscoveryError> {
             unreachable!("variant tests do not call filter discovery")
@@ -778,6 +780,7 @@ mod tests {
         fn list_filter_values(
             &self,
             _filter: Option<&atlas_domain::SearchFilterNode>,
+            _record_keys: Option<&[atlas_domain::RecordKey]>,
             _request: FilterValueRequest,
         ) -> Result<atlas_domain::FilterValueDiscovery, DiscoveryError> {
             unreachable!("variant tests do not call filter discovery")

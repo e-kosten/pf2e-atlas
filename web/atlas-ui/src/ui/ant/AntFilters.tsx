@@ -44,10 +44,23 @@ import {
   valueFilterOperatorPolicy,
   visibleEditorFilterFields,
   type FilterSelectOption,
+  type FilterPanelState,
 } from "../filterControls";
 import type { AtlasWorkspaceState } from "../useAtlasWorkspace";
 
 export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
+  return <AntFilterControls filterState={workspace} />;
+}
+
+export function AntFilterControls({
+  filterState: workspace,
+  includeSearch = true,
+  includeResultOptions = true,
+}: {
+  filterState: FilterPanelState;
+  includeSearch?: boolean;
+  includeResultOptions?: boolean;
+}) {
   const { search, setSearch } = workspace;
   const standardFilterFields = visibleEditorFilterFields(workspace);
   const optionalFilterIds = additionalVisibleFilterIds(workspace);
@@ -62,41 +75,58 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
         <Alert showIcon type="error" message={workspace.errorMessage} />
       ) : null}
       <Form className="ant-filter-form" layout="vertical" size="middle">
-        <Form.Item label="Search">
-          <div className="filter-search-row">
-            <Input.Search
-              allowClear
-              enterButton={<Search size={16} />}
-              placeholder="Search records"
-              value={search.query}
-              onChange={(event) =>
-                setSearch({
-                  ...search,
-                  query: event.target.value,
-                  mode: event.target.value.trim() ? "text_search" : "browse",
-                })
-              }
-              onSearch={(query) =>
-                setSearch({
-                  ...search,
-                  query,
-                  mode: query.trim() ? "text_search" : "browse",
-                })
-              }
-            />
-            <Tooltip title="Clear search and filters">
+        {includeSearch ? (
+          <Form.Item label="Search">
+            <div className="filter-search-row">
+              <Input.Search
+                allowClear
+                enterButton={<Search size={16} />}
+                placeholder="Search records"
+                value={search.query}
+                onChange={(event) =>
+                  setSearch({
+                    ...search,
+                    query: event.target.value,
+                    mode: event.target.value.trim() ? "text_search" : "browse",
+                  })
+                }
+                onSearch={(query) =>
+                  setSearch({
+                    ...search,
+                    query,
+                    mode: query.trim() ? "text_search" : "browse",
+                  })
+                }
+              />
+              <Tooltip title="Clear search and filters">
+                <Button
+                  aria-label="Clear search and filters"
+                  icon={<X size={14} />}
+                  disabled={!activeFilters}
+                  onClick={() => setSearch(clearAllFilters(search))}
+                />
+              </Tooltip>
+            </div>
+          </Form.Item>
+        ) : (
+          <div className="filter-actions-row">
+            <Tooltip title="Clear filters">
               <Button
-                aria-label="Clear search and filters"
+                aria-label="Clear filters"
                 icon={<X size={14} />}
                 disabled={!activeFilters}
                 onClick={() => setSearch(clearAllFilters(search))}
-              />
+              >
+                Clear filters
+              </Button>
             </Tooltip>
           </div>
-        </Form.Item>
+        )}
         <Collapse
           className="ant-filter-collapse"
-          defaultActiveKey={["standard", "options"]}
+          defaultActiveKey={
+            includeResultOptions ? ["standard", "options"] : ["standard"]
+          }
           ghost
           items={[
             {
@@ -165,35 +195,37 @@ export function AntFilters({ workspace }: { workspace: AtlasWorkspaceState }) {
                 </div>
               ),
             },
-            {
-              key: "options",
-              label: "Result options",
-              children: (
-                <div className="control-row">
-                  {textSearchActive ? null : (
-                    <Form.Item label="Sort">
-                      <Select
-                        options={SORT_OPTIONS}
-                        value={search.sort}
-                        onChange={(sort) => setSearch({ ...search, sort })}
-                      />
-                    </Form.Item>
-                  )}
-                  <Form.Item label="Page size">
-                    <InputNumber
-                      min={10}
-                      max={100}
-                      step={5}
-                      value={search.pageSize}
-                      onChange={(pageSize) =>
-                        setSearch({ ...search, pageSize: pageSize ?? 25 })
-                      }
-                    />
-                  </Form.Item>
-                </div>
-              ),
-            },
-          ]}
+            includeResultOptions
+              ? {
+                  key: "options",
+                  label: "Result options",
+                  children: (
+                    <div className="control-row">
+                      {textSearchActive ? null : (
+                        <Form.Item label="Sort">
+                          <Select
+                            options={SORT_OPTIONS}
+                            value={search.sort}
+                            onChange={(sort) => setSearch({ ...search, sort })}
+                          />
+                        </Form.Item>
+                      )}
+                      <Form.Item label="Page size">
+                        <InputNumber
+                          min={10}
+                          max={100}
+                          step={5}
+                          value={search.pageSize}
+                          onChange={(pageSize) =>
+                            setSearch({ ...search, pageSize: pageSize ?? 25 })
+                          }
+                        />
+                      </Form.Item>
+                    </div>
+                  ),
+                }
+              : null,
+          ].filter((item) => item !== null)}
         />
       </Form>
     </aside>
@@ -204,7 +236,7 @@ function FilterFieldControl({
   workspace,
   field,
 }: {
-  workspace: AtlasWorkspaceState;
+  workspace: FilterPanelState;
   field: FilterEditorFieldView;
 }) {
   const { search, setSearch } = workspace;
@@ -307,7 +339,7 @@ function FilterFieldLabel({
   fieldId,
   label,
 }: {
-  workspace: AtlasWorkspaceState;
+  workspace: FilterPanelState;
   fieldId: string;
   label: string;
 }) {
@@ -336,7 +368,7 @@ function OptionalFilterControl({
   workspace,
   fieldId,
 }: {
-  workspace: AtlasWorkspaceState;
+  workspace: FilterPanelState;
   fieldId: string;
 }) {
   const { search, setSearch } = workspace;
@@ -407,7 +439,7 @@ function TriStateOptionFilter({
   workspace,
   fieldId,
 }: {
-  workspace: AtlasWorkspaceState;
+  workspace: FilterPanelState;
   fieldId: string;
 }) {
   const { search, setSearch } = workspace;
@@ -609,7 +641,7 @@ function MetricFilterControl({
   workspace,
   field,
 }: {
-  workspace: AtlasWorkspaceState;
+  workspace: FilterPanelState;
   field: FilterEditorFieldView;
 }) {
   const { search, setSearch } = workspace;

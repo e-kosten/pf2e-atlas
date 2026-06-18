@@ -1,5 +1,5 @@
 use atlas_domain::{
-    FilterDiscoveryExecution, FilterValueDiscovery, FilterValuePayload, SearchFilterNode,
+    FilterDiscoveryExecution, FilterValueDiscovery, FilterValuePayload, RecordKey, SearchFilterNode,
 };
 use diesel::SqliteConnection;
 
@@ -24,6 +24,7 @@ use values::metric_values;
 pub(super) fn values(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     request: FilterValueRequest,
 ) -> Result<FilterValueDiscovery, DiscoveryError> {
     if request.sort.is_some() {
@@ -36,9 +37,10 @@ pub(super) fn values(
             "--sample-limit applies only to sampled text fields".to_string(),
         ));
     }
-    let matching_record_count = super::dynamic::count_matching_records(connection, filter)?;
+    let matching_record_count =
+        super::dynamic::count_matching_records(connection, filter, record_keys)?;
     let catalog_scope = metric_catalog_scope(filter);
-    let execution = if catalog_scope.is_some() {
+    let execution = if record_keys.is_none() && catalog_scope.is_some() {
         FilterDiscoveryExecution::Catalog
     } else {
         FilterDiscoveryExecution::Dynamic
@@ -73,6 +75,7 @@ pub(super) fn values(
             let metrics = metric_keys(
                 connection,
                 filter,
+                record_keys,
                 None,
                 None,
                 None,
@@ -80,7 +83,7 @@ pub(super) fn values(
             )?;
             resolve_metric_from_candidates(metrics, metric)?
         };
-        let values = metric_values(connection, filter, catalog_scope, &metric)?;
+        let values = metric_values(connection, filter, record_keys, catalog_scope, &metric)?;
         FilterValuePayload::MetricValues {
             metric: Box::new(metric),
             values,
@@ -99,6 +102,7 @@ pub(super) fn values(
             metric_keys(
                 connection,
                 filter,
+                record_keys,
                 request.metric_prefix.as_deref(),
                 request.metric_label.as_deref(),
                 request.metric_query.as_deref(),
@@ -119,6 +123,7 @@ pub(super) fn values(
 pub(super) fn metric_key_count(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     prefix: Option<&str>,
     label_query: Option<&str>,
     metric_query: Option<&str>,
@@ -127,6 +132,7 @@ pub(super) fn metric_key_count(
     Ok(metric_keys(
         connection,
         filter,
+        record_keys,
         prefix,
         label_query,
         metric_query,

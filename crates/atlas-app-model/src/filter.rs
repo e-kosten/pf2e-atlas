@@ -63,7 +63,13 @@ pub struct MetricComparison {
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum FilterDiscoveryContext {
-    Filtered { filter: BasicSearchFilter },
+    Filtered {
+        filter: BasicSearchFilter,
+    },
+    SavedList {
+        list_ref: String,
+        filter: BasicSearchFilter,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
