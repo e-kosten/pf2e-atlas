@@ -152,6 +152,7 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
     let title_hits = SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(
         &title_query,
         None,
+        None,
         10,
     )?;
     assert!(title_hits.iter().any(|hit| {
@@ -167,6 +168,7 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
         FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
     let hits = SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(
         &facet_query,
+        None,
         None,
         10,
     )?;
@@ -192,6 +194,7 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
     let filtered_hits = SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(
         &facet_query,
         Some(&filter),
+        None,
         10,
     )?;
     assert!(filtered_hits.is_empty());
@@ -247,8 +250,8 @@ fn precision_query_applies_global_limit_after_lane_merge() -> Result<(), Box<dyn
 
     let query =
         FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
-    let hits =
-        SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(&query, None, 1)?;
+    let hits = SqliteIndexReader::open_read_only(&path)?
+        .query_precision_fts_index(&query, None, None, 1)?;
 
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].record_key.to_string(), "actions:testAction1");
@@ -305,8 +308,8 @@ fn precision_query_applies_limit_after_record_deduplication()
 
     let query =
         FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
-    let hits =
-        SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(&query, None, 3)?;
+    let hits = SqliteIndexReader::open_read_only(&path)?
+        .query_precision_fts_index(&query, None, None, 3)?;
 
     assert_eq!(
         record_key_strings(&hits),
@@ -326,8 +329,8 @@ fn precision_query_zero_limit_returns_no_hits() -> Result<(), Box<dyn std::error
     super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits =
-        SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(&query, None, 0)?;
+    let hits = SqliteIndexReader::open_read_only(&path)?
+        .query_precision_fts_index(&query, None, None, 0)?;
 
     assert!(hits.is_empty());
     fs::remove_file(path)?;

@@ -163,6 +163,7 @@ fn render_result_window_page(
                 query,
                 exclude: exclude.as_deref(),
                 filter: filter_ref,
+                scope: atlas_search::RecordScope::All,
                 page,
                 tuning: None,
                 explain: window.include_diagnostics,

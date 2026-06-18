@@ -45,13 +45,23 @@ impl TextRetrieval for AtlasRetrievalService {
         let query = analyze_text_query(request.query, request.exclude);
         let fts_query = FtsQuery::from_tokens(query.fts_tokens.clone());
         let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
-        let identity_matches = resolve_identity_tier(self, request.query, filter)?;
+        let scope_keys = request.scope.keys();
+        let scope_key_set = scope_keys.map(|keys| keys.iter().cloned().collect::<BTreeSet<_>>());
+        let identity_matches = resolve_identity_tier(self, request.query, filter)?
+            .into_iter()
+            .filter(|identity| {
+                scope_key_set
+                    .as_ref()
+                    .is_none_or(|keys| keys.contains(&identity.record.identity.key))
+            })
+            .collect::<Vec<_>>();
         let fts_hits = if tuning.retrieval.uses_fts() {
             match fts_query.as_ref() {
                 Some(fts_query) => query_precision_fts_index(
                     self.index.as_ref(),
                     fts_query,
                     filter,
+                    scope_keys,
                     tuning.fts_top_k,
                 )?,
                 None => Vec::new(),
@@ -69,6 +79,13 @@ impl TextRetrieval for AtlasRetrievalService {
                     mode: SemanticSearchMode::WeightedChunks,
                 },
             )?
+            .into_iter()
+            .filter(|hit| {
+                scope_key_set
+                    .as_ref()
+                    .is_none_or(|keys| keys.contains(&hit.record_key))
+            })
+            .collect()
         } else {
             Vec::new()
         };
@@ -318,6 +335,7 @@ mod tests {
                 query: "Identity Action",
                 exclude: None,
                 filter: None,
+                scope: crate::RecordScope::All,
                 page: crate::SearchPage::new(2, 1).expect("page should be valid"),
                 tuning: Some(TextSearchTuning {
                     retrieval: RetrievalMode::Fts,
@@ -375,6 +393,7 @@ mod tests {
                 query: "Identity Action",
                 exclude: None,
                 filter: None,
+                scope: crate::RecordScope::All,
                 page: crate::SearchPage::first(10).expect("page should be valid"),
                 tuning: Some(TextSearchTuning {
                     retrieval: RetrievalMode::Fts,
@@ -395,11 +414,42 @@ mod tests {
     }
 
     #[test]
+    fn search_text_pushes_record_scope_to_fts_index() {
+        let ranked = fake_record("actions:ranked", "Ranked Action");
+        let off_page = fake_record("actions:offPage", "Off Page Action");
+        let index = FakeTextIndex::new(vec![ranked, off_page]);
+        let fts_scope_calls = Rc::clone(&index.fts_scope_calls);
+        let scoped_key = RecordKey::parse("actions:ranked").expect("fixture key should parse");
+        let mut service =
+            AtlasRetrievalService::from_prepared_read_index_without_embeddings(Box::new(index));
+
+        service
+            .search_text(TextSearchRequest {
+                query: "Ranked",
+                exclude: None,
+                filter: None,
+                scope: crate::RecordScope::Keys(std::slice::from_ref(&scoped_key)),
+                page: crate::SearchPage::first(10).expect("page should be valid"),
+                tuning: Some(TextSearchTuning {
+                    retrieval: RetrievalMode::Fts,
+                    fusion: FusionOptions::default(),
+                    fts_top_k: 10,
+                    vector_top_k: 10,
+                }),
+                explain: false,
+            })
+            .expect("text search should succeed");
+
+        assert_eq!(fts_scope_calls.borrow().as_slice(), &[vec![scoped_key]]);
+    }
+
+    #[test]
     fn unweighted_rrf_rejects_lane_weights_at_runtime_boundary() {
         let request = TextSearchRequest {
             query: "healing",
             exclude: None,
             filter: None,
+            scope: crate::RecordScope::All,
             page: crate::SearchPage::first(10).expect("page should be valid"),
             tuning: Some(TextSearchTuning {
                 retrieval: RetrievalMode::Fts,
@@ -435,6 +485,7 @@ mod tests {
     struct FakeTextIndex {
         records: Vec<AtlasRecord>,
         candidate_calls: Rc<RefCell<Vec<Vec<RecordKey>>>>,
+        fts_scope_calls: Rc<RefCell<Vec<Vec<RecordKey>>>>,
         load_by_key_calls: Rc<RefCell<Vec<Vec<RecordKey>>>>,
     }
 
@@ -443,6 +494,7 @@ mod tests {
             Self {
                 records,
                 candidate_calls: Rc::new(RefCell::new(Vec::new())),
+                fts_scope_calls: Rc::new(RefCell::new(Vec::new())),
                 load_by_key_calls: Rc::new(RefCell::new(Vec::new())),
             }
         }
@@ -522,8 +574,12 @@ mod tests {
             &self,
             _fts_query: &FtsQuery,
             _filter: Option<&SearchFilterNode>,
+            record_keys: Option<&[RecordKey]>,
             _limit: u32,
         ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+            if let Some(record_keys) = record_keys {
+                self.fts_scope_calls.borrow_mut().push(record_keys.to_vec());
+            }
             Ok(vec![
                 FtsSearchHit {
                     record_key: RecordKey::parse("actions:ranked")

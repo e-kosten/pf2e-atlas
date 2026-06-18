@@ -242,6 +242,7 @@ describe("atlasApi", () => {
   it("posts saved-list filters through the encoded list route", async () => {
     const request = {
       list_ref: "list_campaign/research",
+      query: "Test Action 2",
       filter: {
         clauses: [
           {

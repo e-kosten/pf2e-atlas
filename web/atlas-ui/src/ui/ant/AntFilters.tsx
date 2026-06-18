@@ -108,20 +108,7 @@ export function AntFilterControls({
               </Tooltip>
             </div>
           </Form.Item>
-        ) : (
-          <div className="filter-actions-row">
-            <Tooltip title="Clear filters">
-              <Button
-                aria-label="Clear filters"
-                icon={<X size={14} />}
-                disabled={!activeFilters}
-                onClick={() => setSearch(clearAllFilters(search))}
-              >
-                Clear filters
-              </Button>
-            </Tooltip>
-          </div>
-        )}
+        ) : null}
         <Collapse
           className="ant-filter-collapse"
           defaultActiveKey={

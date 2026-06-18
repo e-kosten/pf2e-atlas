@@ -132,13 +132,14 @@ impl SqliteIndexReader {
         &self,
         fts_query: &FtsQuery,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         limit: u32,
     ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
         if limit == 0 {
             return Ok(Vec::new());
         }
         self.with_diesel_connection(|connection| {
-            query_precision_fts_index(connection, fts_query, filter, limit)
+            query_precision_fts_index(connection, fts_query, filter, record_keys, limit)
         })
     }
 

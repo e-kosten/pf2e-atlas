@@ -68,6 +68,9 @@ pub struct FilterSavedListRequest {
     pub list_ref: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub query: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub filter: Option<BasicSearchFilter>,
 }
 

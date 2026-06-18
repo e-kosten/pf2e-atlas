@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_app_model::{
     AddSavedListItemRequest, AppErrorCode, CreateSavedListRequest, DeleteSavedListView,
@@ -16,7 +16,8 @@ use atlas_local_state::{
 };
 use atlas_search::{
     GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordRetrieval, RecordScope,
-    ResolveRecordRefRequest, SearchPage,
+    ResolveRecordRefRequest, RetrievalMode, SearchPage, TextRetrieval, TextSearchRequest,
+    TextSearchTuning,
 };
 use serde_json::json;
 
@@ -61,8 +62,13 @@ impl AtlasAppService {
         request: FilterSavedListRequest,
     ) -> AppServiceResult<SavedListDetailView> {
         let filter = lower_basic_filter(request.filter.as_ref())?;
-        let has_filter = filter.is_some();
-        self.saved_list_with_filter(&request.list_ref, filter.as_ref(), has_filter)
+        let query = request
+            .query
+            .as_deref()
+            .map(str::trim)
+            .filter(|query| !query.is_empty());
+        let has_match_scope = filter.is_some() || query.is_some();
+        self.saved_list_with_filter(&request.list_ref, filter.as_ref(), query, has_match_scope)
     }
 
     pub fn create_saved_list(
@@ -195,7 +201,8 @@ impl AtlasAppService {
         &self,
         list_ref: &str,
         filter: Option<&atlas_domain::SearchFilterNode>,
-        has_filter: bool,
+        query: Option<&str>,
+        has_match_scope: bool,
     ) -> AppServiceResult<SavedListDetailView> {
         let list = self
             .local_state_store()?
@@ -207,7 +214,9 @@ impl AtlasAppService {
             .iter()
             .filter_map(|item| RecordKey::parse(&item.record_key).ok())
             .collect::<Vec<_>>();
-        let records_by_key = if has_filter {
+        let records_by_key = if let Some(query) = query {
+            searched_saved_list_records(self, &active_keys, filter, query)?
+        } else if has_match_scope {
             filtered_saved_list_records(self, &active_keys, filter)?
         } else {
             hydrate_saved_list_records(self, &list.items)?
@@ -217,7 +226,7 @@ impl AtlasAppService {
             items: list
                 .items
                 .into_iter()
-                .filter(|item| !has_filter || records_by_key.contains_key(&item.record_key))
+                .filter(|item| !has_match_scope || records_by_key.contains_key(&item.record_key))
                 .map(|item| saved_list_item_view(item, &records_by_key))
                 .collect(),
         })
@@ -272,6 +281,53 @@ fn filtered_saved_list_records(
             )?;
             for record in result.records {
                 records.insert(record.identity.key.to_string(), record);
+            }
+            if !result.page.has_more {
+                break;
+            }
+            page_number += 1;
+        }
+        Ok(records)
+    })
+}
+
+fn searched_saved_list_records(
+    service: &AtlasAppService,
+    record_keys: &[RecordKey],
+    filter: Option<&atlas_domain::SearchFilterNode>,
+    query: &str,
+) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+    if record_keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let record_keys = record_keys.to_vec();
+    let scoped_keys = record_keys.iter().cloned().collect::<BTreeSet<_>>();
+    let filter = filter.cloned();
+    let query = query.to_string();
+    service.submit_retrieval(move |retrieval| {
+        let mut records = BTreeMap::new();
+        let mut page_number = 1;
+        let tuning = TextSearchTuning::default()
+            .with_retrieval(RetrievalMode::Fts)
+            .with_candidate_windows(
+                atlas_search::MAX_RANKED_CANDIDATE_WINDOW,
+                atlas_search::MAX_RANKED_CANDIDATE_WINDOW,
+            );
+        loop {
+            let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
+            let result = retrieval.search_text(TextSearchRequest {
+                query: &query,
+                exclude: None,
+                filter: filter.as_ref(),
+                scope: RecordScope::Keys(&record_keys),
+                page,
+                tuning: Some(tuning),
+                explain: false,
+            })?;
+            for record in result.records {
+                if scoped_keys.contains(&record.record.identity.key) {
+                    records.insert(record.record.identity.key.to_string(), record.record);
+                }
             }
             if !result.page.has_more {
                 break;
@@ -552,6 +608,7 @@ mod tests {
             .worker
             .filter_saved_list(FilterSavedListRequest {
                 list_ref: "research".to_string(),
+                query: None,
                 filter: Some(BasicSearchFilter {
                     clauses: vec![FilterClause {
                         id: "kind-include_any".to_string(),
@@ -573,6 +630,63 @@ mod tests {
             vec!["actions:testAction1"]
         );
         assert_eq!(view.items[0].status, SavedListItemStatusView::Active);
+    }
+
+    #[test]
+    fn searched_saved_list_matches_only_records_in_the_list() {
+        let fixture = fixture_worker();
+        let store = fixture
+            .worker
+            .local_state_store()
+            .expect("fixture local state should open");
+        store
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "research".to_string(),
+                name: "Research".to_string(),
+                description: None,
+            })
+            .expect("list should create");
+        store
+            .saved_lists()
+            .add_resolved_item(
+                "research",
+                ResolvedSavedListItem {
+                    record_key: RecordKey::parse("actions:testAction2")
+                        .expect("fixture key should parse"),
+                    note: None,
+                    title_snapshot: "Test Action 2".to_string(),
+                    kind_snapshot: Some("rule".to_string()),
+                },
+            )
+            .expect("item should insert");
+
+        let missing = fixture
+            .worker
+            .filter_saved_list(FilterSavedListRequest {
+                list_ref: "research".to_string(),
+                query: Some("No Such Search Needle".to_string()),
+                filter: None,
+            })
+            .expect("searched saved list should load");
+        let matched = fixture
+            .worker
+            .filter_saved_list(FilterSavedListRequest {
+                list_ref: "research".to_string(),
+                query: Some("Test Action 2".to_string()),
+                filter: None,
+            })
+            .expect("searched saved list should load");
+
+        assert!(missing.items.is_empty());
+        assert_eq!(
+            matched
+                .items
+                .iter()
+                .map(|item| item.record_key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["actions:testAction2"]
+        );
     }
 
     #[test]
