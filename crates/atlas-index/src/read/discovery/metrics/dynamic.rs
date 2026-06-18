@@ -1,5 +1,6 @@
 use atlas_domain::{
-    BooleanFieldCounts, FilterValueCount, MetricKeyDiscovery, NumericFieldStats, SearchFilterNode,
+    BooleanFieldCounts, FilterValueCount, MetricKeyDiscovery, NumericFieldStats, RecordKey,
+    SearchFilterNode,
 };
 use diesel::sql_types::{BigInt, Double, Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
@@ -16,12 +17,14 @@ use super::query::{metric_matches_query, metric_query_tokens, normalize_metric_l
 pub(super) fn metric_keys(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     prefix: Option<&str>,
     label_query: Option<&str>,
     metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|builder| {
             let mut predicates = Vec::new();
@@ -87,9 +90,11 @@ pub(super) fn metric_keys(
 pub(super) fn metric_text_values(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     metric: &MetricKeyDiscovery,
 ) -> Result<Vec<FilterValueCount>, DiscoveryError> {
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|builder| {
             let domain_placeholder = builder.push_text(metric.metric_domain.clone());
@@ -116,9 +121,11 @@ pub(super) fn metric_text_values(
 pub(super) fn metric_boolean_counts(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     metric: &MetricKeyDiscovery,
 ) -> Result<BooleanFieldCounts, DiscoveryError> {
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|builder| {
             let domain_placeholder = builder.push_text(metric.metric_domain.clone());
@@ -149,9 +156,11 @@ pub(super) fn metric_boolean_counts(
 pub(super) fn metric_numeric_stats(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     metric: &MetricKeyDiscovery,
 ) -> Result<NumericFieldStats, DiscoveryError> {
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|builder| {
             let domain_placeholder = builder.push_text(metric.metric_domain.clone());
@@ -174,7 +183,8 @@ pub(super) fn metric_numeric_stats(
         .into_iter()
         .map(|row| row.number_value)
         .collect::<Vec<_>>();
-    let matching_record_count = field_dynamic::count_matching_records(connection, filter)?;
+    let matching_record_count =
+        field_dynamic::count_matching_records(connection, filter, record_keys)?;
     Ok(stats::numeric_stats_from_values(
         &values,
         matching_record_count,

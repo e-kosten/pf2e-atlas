@@ -11,6 +11,7 @@ use super::sql_render::{RECORDS_ALIAS, record_column};
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SqliteEligibleRecordKeyset<'a> {
     filter: Option<&'a SearchFilterNode>,
+    record_keys: Option<&'a [RecordKey]>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,22 +59,50 @@ pub struct FilteredRecordKeyPage {
 
 impl<'a> SqliteEligibleRecordKeyset<'a> {
     pub(crate) fn new(filter: Option<&'a SearchFilterNode>) -> Self {
-        Self { filter }
+        Self {
+            filter,
+            record_keys: None,
+        }
+    }
+
+    pub(crate) fn with_record_keys(mut self, record_keys: Option<&'a [RecordKey]>) -> Self {
+        self.record_keys = record_keys;
+        self
     }
 
     pub(crate) fn compile(self) -> Result<CompiledSqliteEligibleRecordKeyset, FilterCompileError> {
         let mut compiler = FilterCompiler::default();
-        let base = format!(
+        let mut select_sql = format!(
             "SELECT {record_key} FROM {records_table} {records_alias} WHERE {default_visible} = 1",
             record_key = record_column(records::columns::RECORD_KEY),
             records_table = records::TABLE.name(),
             records_alias = RECORDS_ALIAS,
             default_visible = record_column(records::columns::IS_DEFAULT_VISIBLE),
         );
-        let select_sql = match self.filter {
-            Some(filter) => format!("{base} AND ({})", compiler.compile_node(filter)?),
-            None => base,
-        };
+        if let Some(record_keys) = self.record_keys {
+            if record_keys.is_empty() {
+                select_sql.push_str(" AND 0 = 1");
+            } else {
+                let placeholders = record_keys
+                    .iter()
+                    .map(|key| {
+                        let placeholder = format!("?{}", compiler.parameters.len() + 1);
+                        compiler
+                            .parameters
+                            .push(SqlBindValue::Text(key.to_string()));
+                        placeholder
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                select_sql.push_str(&format!(
+                    " AND {} IN ({placeholders})",
+                    record_column(records::columns::RECORD_KEY)
+                ));
+            }
+        }
+        if let Some(filter) = self.filter {
+            select_sql.push_str(&format!(" AND ({})", compiler.compile_node(filter)?));
+        }
 
         Ok(CompiledSqliteEligibleRecordKeyset {
             select_sql,
@@ -228,12 +257,13 @@ impl SqliteIndexReader {
     pub fn list_filtered_record_keys(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         sort: FilteredRecordSort,
         limit: u32,
         offset: u32,
     ) -> Result<FilteredRecordKeyPage, FilterCompileError> {
         self.with_diesel_connection(|connection| {
-            list_filtered_record_keys(connection, filter, sort, limit, offset)
+            list_filtered_record_keys(connection, filter, record_keys, sort, limit, offset)
         })
     }
 }
@@ -241,6 +271,7 @@ impl SqliteIndexReader {
 fn list_filtered_record_keys(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     sort: FilteredRecordSort,
     limit: u32,
     offset: u32,
@@ -248,6 +279,7 @@ fn list_filtered_record_keys(
     match sort {
         FilteredRecordSort::Random { seed } => {
             let query = SqliteEligibleRecordKeyset::new(filter)
+                .with_record_keys(record_keys)
                 .compile()?
                 .into_record_keys_query(SqliteFilteredRecordSort::RecordKeyAsc, None, None);
             let mut record_keys = read_record_keys(connection, &query)?;
@@ -261,8 +293,9 @@ fn list_filtered_record_keys(
             Ok(FilteredRecordKeyPage { record_keys, total })
         }
         sort => {
-            let total = count_filtered_records(connection, filter)?;
+            let total = count_filtered_records(connection, filter, record_keys)?;
             let query = SqliteEligibleRecordKeyset::new(filter)
+                .with_record_keys(record_keys)
                 .compile()?
                 .into_record_keys_query(sql_sort(sort), Some(limit), Some(offset));
             Ok(FilteredRecordKeyPage {
@@ -276,8 +309,10 @@ fn list_filtered_record_keys(
 fn count_filtered_records(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<u64, FilterCompileError> {
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .count_query();
     bind_sql_query(query.sql, &query.parameters)

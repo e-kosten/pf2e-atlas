@@ -113,6 +113,38 @@ fn composes_filtered_record_key_queries_from_eligible_records()
 }
 
 #[test]
+fn eligible_record_keyset_intersects_filter_with_record_scope()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("filter-record-scope");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET level = CASE record_key
+             WHEN 'actions:testAction1' THEN 1
+             WHEN 'actions:testAction2' THEN 4
+             ELSE 3
+         END",
+        [],
+    )?;
+
+    let scope = vec![
+        RecordKey::parse("actions:testAction1")?,
+        RecordKey::parse("actions:testAction3")?,
+    ];
+    let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
+    let compiled = SqliteEligibleRecordKeyset::new(Some(&filter))
+        .with_record_keys(Some(&scope))
+        .compile()?
+        .into_record_keys_query(SqliteFilteredRecordSort::RecordKeyAsc, Some(10), Some(0));
+    let keys = query_filtered_record_keys(&connection, &compiled)?;
+
+    assert_eq!(keys, vec!["actions:testAction3"]);
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn shared_sqlite_keyset_applies_same_filter_to_lookup_fts_identity_and_vector()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-cross-surface");
@@ -135,8 +167,13 @@ fn shared_sqlite_keyset_applies_same_filter_to_lookup_fts_identity_and_vector()
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let reader = SqliteIndexReader::open_read_only(&path)?;
-    let filtered_keys =
-        reader.list_filtered_record_keys(Some(&filter), FilteredRecordSort::RecordKey, 10, 0)?;
+    let filtered_keys = reader.list_filtered_record_keys(
+        Some(&filter),
+        None,
+        FilteredRecordSort::RecordKey,
+        10,
+        0,
+    )?;
     let fts_query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("valid FTS query");
     let fts_keys = reader.query_fts_record_keys(&fts_query, Some(&filter), 10)?;
     let identity_matches =

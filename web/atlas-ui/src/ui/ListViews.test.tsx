@@ -13,6 +13,9 @@ const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
   createSavedList: vi.fn(),
   deleteSavedList: vi.fn(),
+  discoverFilterEditor: vi.fn(),
+  discoverFilterValues: vi.fn(),
+  filterSavedList: vi.fn(),
   getRecordDetail: vi.fn(),
   getSavedList: vi.fn(),
   getSavedLists: vi.fn(),
@@ -24,6 +27,9 @@ vi.mock("../api/atlasApi", () => ({
   addSavedListItem: apiMocks.addSavedListItem,
   createSavedList: apiMocks.createSavedList,
   deleteSavedList: apiMocks.deleteSavedList,
+  discoverFilterEditor: apiMocks.discoverFilterEditor,
+  discoverFilterValues: apiMocks.discoverFilterValues,
+  filterSavedList: apiMocks.filterSavedList,
   getRecordDetail: apiMocks.getRecordDetail,
   getSavedList: apiMocks.getSavedList,
   getSavedLists: apiMocks.getSavedLists,
@@ -37,6 +43,15 @@ describe("list views", () => {
     history.replaceState(null, "", "/lists");
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
     apiMocks.getSavedList.mockResolvedValue(savedListDetailFixture());
+    apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditorFixture());
+    apiMocks.discoverFilterValues.mockImplementation((request: { field_id: string }) =>
+      Promise.resolve({
+        field_id: request.field_id,
+        matching_record_count: 1n,
+        options: [],
+      }),
+    );
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
@@ -122,6 +137,13 @@ describe("list views", () => {
     expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
     expect(screen.getByText("List")).toBeInTheDocument();
     expect(screen.getByText("Items")).toBeInTheDocument();
+    expect(screen.getByText("Standard filters")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
+        list_ref: "research",
+        filter: { clauses: [] },
+      }),
+    );
     expect(
       screen.queryByRole("columnheader", { name: "Status" }),
     ).not.toBeInTheDocument();
@@ -316,6 +338,48 @@ function savedListDetailFixture(): SavedListDetailView {
         },
       },
     ],
+  };
+}
+
+function filterEditorFixture() {
+  return {
+    matching_record_count: 1n,
+    groups: [
+      {
+        id: "standard",
+        label: "Standard filters",
+        fields: [
+          filterField("level", "Level", "range"),
+          filterField("rarity", "Rarity", "option"),
+          filterField("kind", "Kind", "option"),
+          filterField("traits", "Traits", "option"),
+          filterField("pack", "Pack", "option"),
+        ],
+      },
+    ],
+  };
+}
+
+function filterField(id: string, label: string, controlKind: "option" | "range") {
+  return {
+    id,
+    label,
+    placement: "always_visible",
+    applicability: "applicable",
+    supports_counts: true,
+    allowed_operators: ["include_any", "include_all", "exclude_any"],
+    default_operator: "include_any",
+    control:
+      controlKind === "range"
+        ? {
+            kind: "range",
+            min: 0,
+            max: 25,
+            step: 1,
+            min_label: "Min",
+            max_label: "Max",
+          }
+        : { kind: "option" },
   };
 }
 

@@ -16,7 +16,7 @@ pub use filter::{
     FilterValueListView, FilterValueOption, MetricComparison,
 };
 pub use list::{
-    AddSavedListItemRequest, CreateSavedListRequest, DeleteSavedListView,
+    AddSavedListItemRequest, CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest,
     RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
     SavedListItemMutationOutcomeView, SavedListItemMutationView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
@@ -98,6 +98,8 @@ mod tests {
             .expect("CreateSavedListRequest bindings should export");
         DeleteSavedListView::export_all_to(path)
             .expect("DeleteSavedListView bindings should export");
+        FilterSavedListRequest::export_all_to(path)
+            .expect("FilterSavedListRequest bindings should export");
         RemoveSavedListItemRequest::export_all_to(path)
             .expect("RemoveSavedListItemRequest bindings should export");
         SavedListCreateView::export_all_to(path)

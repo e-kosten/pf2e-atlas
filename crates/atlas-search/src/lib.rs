@@ -31,7 +31,7 @@ pub use query::TextQueryDiagnostics;
 pub use records::{
     GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult, RecordListSort,
     RecordRefResolutionResult, RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval,
-    ResolveRecordRefRequest, ResolveRecordRequest,
+    RecordScope, ResolveRecordRefRequest, ResolveRecordRequest,
 };
 pub use remaster::{
     RemasterLinkResult, RemasterLinksRequest, RemasterLinksResult, RemasterRetrieval,

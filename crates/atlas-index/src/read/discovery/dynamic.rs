@@ -1,6 +1,6 @@
 use atlas_domain::{
     BooleanFieldCounts, FilterFieldInfo, FilterSample, FilterValueCount, FilterValuePayload,
-    FilterValuePolicy, SearchFilterNode,
+    FilterValuePolicy, RecordKey, SearchFilterNode,
 };
 use diesel::sql_types::{BigInt, Bool, Double, Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
@@ -16,10 +16,11 @@ use crate::discovery::definitions::{FieldDefinition, all_definitions};
 pub(super) fn fields(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<Vec<FilterFieldInfo>, DiscoveryError> {
     let mut fields = Vec::new();
     for definition in all_definitions() {
-        if field_applies(connection, *definition, filter)? {
+        if field_applies(connection, *definition, filter, record_keys)? {
             fields.push(definition.info(false));
         }
     }
@@ -30,24 +31,28 @@ pub(super) fn values(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     request: &FilterValueRequest,
 ) -> Result<FilterValuePayload, DiscoveryError> {
     match definition.value_policy {
         FilterValuePolicy::Enumerable => {
             let sort = request.sort.unwrap_or(definition.default_sort);
-            let (values, null_count) = enumerable_values(connection, definition, filter, sort)?;
+            let (values, null_count) =
+                enumerable_values(connection, definition, filter, record_keys, sort)?;
             Ok(FilterValuePayload::Enumerable {
                 values,
                 null_count,
                 sort,
             })
         }
-        FilterValuePolicy::Sample => sample_values(connection, definition, filter, request),
+        FilterValuePolicy::Sample => {
+            sample_values(connection, definition, filter, record_keys, request)
+        }
         FilterValuePolicy::NumericStats => Ok(FilterValuePayload::NumericStats {
-            stats: numeric_stats(connection, definition, filter)?,
+            stats: numeric_stats(connection, definition, filter, record_keys)?,
         }),
         FilterValuePolicy::BooleanCounts => Ok(FilterValuePayload::BooleanCounts {
-            counts: boolean_counts(connection, definition, filter)?,
+            counts: boolean_counts(connection, definition, filter, record_keys)?,
         }),
         _ => Err(DiscoveryError::InvalidOption(format!(
             "field `{}` is not a metadata value field",
@@ -59,8 +64,10 @@ pub(super) fn values(
 pub(super) fn count_matching_records(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<u64, DiscoveryError> {
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .count_query();
     bind_sql_query(query.sql, &query.parameters)
@@ -73,9 +80,11 @@ pub(super) fn field_applies(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<bool, DiscoveryError> {
     let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -100,6 +109,7 @@ fn enumerable_values(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     sort: DiscoveryValueSort,
 ) -> Result<(Vec<FilterValueCount>, u64), DiscoveryError> {
     let value_sql = definition.value_sql();
@@ -108,6 +118,7 @@ fn enumerable_values(
         DiscoveryValueSort::Count => "catalog_count DESC, value ASC",
     };
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -130,18 +141,27 @@ fn enumerable_values(
             count: row.catalog_count as u64,
         })
         .collect::<Vec<_>>();
-    Ok((values, null_count(connection, definition, filter)?))
+    Ok((
+        values,
+        null_count(connection, definition, filter, record_keys)?,
+    ))
 }
 
 fn sample_values(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     request: &FilterValueRequest,
 ) -> Result<FilterValuePayload, DiscoveryError> {
     let sample_limit = request.sample_limit.unwrap_or(20);
-    let (values, null_count) =
-        enumerable_values(connection, definition, filter, DiscoveryValueSort::Count)?;
+    let (values, null_count) = enumerable_values(
+        connection,
+        definition,
+        filter,
+        record_keys,
+        DiscoveryValueSort::Count,
+    )?;
     let mut field_stats = stats::stats_from_counts(&values);
     field_stats.null_count = null_count;
     let examples = values
@@ -168,9 +188,11 @@ fn numeric_stats(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
     let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -191,7 +213,7 @@ fn numeric_stats(
         .collect::<Vec<_>>();
     Ok(stats::numeric_stats_from_values(
         &values,
-        count_matching_records(connection, filter)?,
+        count_matching_records(connection, filter, record_keys)?,
     ))
 }
 
@@ -199,9 +221,11 @@ fn boolean_counts(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<BooleanFieldCounts, DiscoveryError> {
     let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -229,10 +253,13 @@ fn null_count(
     connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
 ) -> Result<u64, DiscoveryError> {
     let value_sql = definition.value_sql();
-    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
-        |_| {
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
+        .compile()?
+        .with_eligible_cte(|_| {
             format!(
                 ", field_values(record_key, value) AS ({values})
          SELECT COUNT(*) AS count
@@ -243,8 +270,7 @@ fn null_count(
          )",
                 values = value_sql,
             )
-        },
-    );
+        });
     bind_sql_query(query.sql, &query.parameters)
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)

@@ -40,6 +40,7 @@ pub trait FilterReadIndex {
     fn list_filtered_record_keys(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         sort: FilteredRecordSort,
         limit: u32,
         offset: u32,
@@ -144,11 +145,12 @@ impl FilterReadIndex for SqliteIndexReader {
     fn list_filtered_record_keys(
         &self,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         sort: FilteredRecordSort,
         limit: u32,
         offset: u32,
     ) -> Result<FilteredRecordKeyPage, FilterCompileError> {
-        SqliteIndexReader::list_filtered_record_keys(self, filter, sort, limit, offset)
+        SqliteIndexReader::list_filtered_record_keys(self, filter, record_keys, sort, limit, offset)
     }
 }
 

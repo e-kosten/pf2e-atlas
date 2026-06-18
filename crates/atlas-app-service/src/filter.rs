@@ -75,6 +75,7 @@ pub(crate) fn lower_basic_filter_context(
 ) -> AppServiceResult<Option<SearchFilterNode>> {
     match context {
         FilterDiscoveryContext::Filtered { filter } => lower_basic_filter(Some(filter)),
+        FilterDiscoveryContext::SavedList { filter, .. } => lower_basic_filter(Some(filter)),
     }
 }
 
@@ -94,6 +95,19 @@ pub(crate) fn filter_context_excluding_field(
                     .collect(),
             },
         },
+        FilterDiscoveryContext::SavedList { list_ref, filter } => {
+            FilterDiscoveryContext::SavedList {
+                list_ref: list_ref.clone(),
+                filter: BasicSearchFilter {
+                    clauses: filter
+                        .clauses
+                        .iter()
+                        .filter(|clause| app_filter_field_id(&clause.field) != excluded_field)
+                        .cloned()
+                        .collect(),
+                },
+            }
+        }
     }
 }
 
@@ -540,7 +554,12 @@ mod tests {
         };
 
         let filtered = filter_context_excluding_field(&context, "record_kind");
-        let atlas_app_model::FilterDiscoveryContext::Filtered { filter } = filtered;
+        let filter = match filtered {
+            atlas_app_model::FilterDiscoveryContext::Filtered { filter } => filter,
+            atlas_app_model::FilterDiscoveryContext::SavedList { .. } => {
+                panic!("filtered context should remain filtered")
+            }
+        };
 
         assert_eq!(
             filter

@@ -1,6 +1,6 @@
 use atlas_domain::{
     FilterDiscoveryExecution, FilterFieldDiscovery, FilterValueDiscovery, FilterValuePolicy,
-    FilterValueSort, RecordKind, SearchFilterNode,
+    FilterValueSort, RecordKey, RecordKind, SearchFilterNode,
 };
 use diesel::SqliteConnection;
 
@@ -31,17 +31,18 @@ pub struct FilterValueRequest {
 pub(super) fn list_filter_fields(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     filter_json: Option<serde_json::Value>,
 ) -> Result<FilterFieldDiscovery, DiscoveryError> {
     let scope = catalog_scope(filter);
-    let execution = execution_for(filter, scope);
-    let matching_record_count = dynamic::count_matching_records(connection, filter)?;
+    let execution = execution_for(filter, record_keys, scope);
+    let matching_record_count = dynamic::count_matching_records(connection, filter, record_keys)?;
     let mut fields = if execution == FilterDiscoveryExecution::Catalog {
         catalog::fields(connection, scope)?
     } else {
-        dynamic::fields(connection, filter)?
+        dynamic::fields(connection, filter, record_keys)?
     };
-    if metrics::metric_key_count(connection, filter, None, None, None, None)? > 0 {
+    if metrics::metric_key_count(connection, filter, record_keys, None, None, None, None)? > 0 {
         fields.push(metric_field_info(
             execution == FilterDiscoveryExecution::Catalog,
         ));
@@ -57,10 +58,11 @@ pub(super) fn list_filter_fields(
 pub(super) fn list_filter_values(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     request: FilterValueRequest,
 ) -> Result<FilterValueDiscovery, DiscoveryError> {
     if request.field == "metric" {
-        return metrics::values(connection, filter, request);
+        return metrics::values(connection, filter, record_keys, request);
     }
     let definition =
         definition_for(&request.field).ok_or_else(|| unknown_field_error(&request.field))?;
@@ -73,12 +75,14 @@ pub(super) fn list_filter_values(
     validate_options(definition, request.sort, request.sample_limit)?;
 
     let scope = catalog_scope(filter);
-    let mut execution = execution_for(filter, scope);
+    let mut execution = execution_for(filter, record_keys, scope);
     if definition.value_policy == FilterValuePolicy::BooleanCounts {
         execution = FilterDiscoveryExecution::Dynamic;
     }
-    let matching_record_count = dynamic::count_matching_records(connection, filter)?;
-    if matching_record_count > 0 && !dynamic::field_applies(connection, definition, filter)? {
+    let matching_record_count = dynamic::count_matching_records(connection, filter, record_keys)?;
+    if matching_record_count > 0
+        && !dynamic::field_applies(connection, definition, filter, record_keys)?
+    {
         return Err(DiscoveryError::FieldNotApplicable(format!(
             "field `{}` is not applicable in the current filter space",
             request.field
@@ -87,7 +91,7 @@ pub(super) fn list_filter_values(
     let payload = if execution == FilterDiscoveryExecution::Catalog {
         catalog::values(connection, definition, scope, &request)?
     } else {
-        dynamic::values(connection, definition, filter, &request)?
+        dynamic::values(connection, definition, filter, record_keys, &request)?
     };
     Ok(FilterValueDiscovery {
         field: definition.field.to_string(),
@@ -100,9 +104,10 @@ pub(super) fn list_filter_values(
 
 fn execution_for(
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     scope: Option<RecordKind>,
 ) -> FilterDiscoveryExecution {
-    if scope.is_some() || filter.is_none() {
+    if record_keys.is_none() && (scope.is_some() || filter.is_none()) {
         FilterDiscoveryExecution::Catalog
     } else {
         FilterDiscoveryExecution::Dynamic

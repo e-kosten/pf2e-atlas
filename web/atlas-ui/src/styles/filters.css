@@ -25,6 +25,11 @@
   gap: 8px;
 }
 
+.filter-actions-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .control-group label {
   color: var(--muted);
   font-size: 12px;

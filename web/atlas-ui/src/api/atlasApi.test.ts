@@ -6,6 +6,7 @@ import {
   deleteSavedList,
   discoverFilterEditor,
   discoverFilterValues,
+  filterSavedList,
   getReadiness,
   getRecordDetail,
   getSavedList,
@@ -236,6 +237,36 @@ describe("atlasApi", () => {
       expect.any(Object),
     );
     expect(result.items[0]?.position).toBe(2n);
+  });
+
+  it("posts saved-list filters through the encoded list route", async () => {
+    const request = {
+      list_ref: "list_campaign/research",
+      filter: {
+        clauses: [
+          {
+            id: "kind-include_any",
+            field: "kind",
+            operator: "include_any" as const,
+            values: ["action"],
+          },
+        ],
+      },
+    };
+    const fetchMock = mockFetch({
+      list: savedListSummary({ slug: "campaign/research" }),
+      items: [],
+    });
+
+    await filterSavedList(request);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/lists/list_campaign%2Fresearch/filter",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(request),
+      }),
+    );
   });
 
   it("writes saved-list mutations through encoded list routes", async () => {

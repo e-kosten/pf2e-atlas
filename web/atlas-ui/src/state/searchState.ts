@@ -116,6 +116,17 @@ export function buildFilterDiscoveryContext(
   };
 }
 
+export function buildSavedListFilterDiscoveryContext(
+  listRef: string,
+  state: SearchFormState,
+): FilterDiscoveryContext {
+  return {
+    kind: "saved_list",
+    list_ref: listRef,
+    filter: buildBasicFilter(state),
+  };
+}
+
 export function encodeSearchState(state: SearchFormState): string {
   return encodeURIComponent(JSON.stringify(searchStateUrlPayload(state)));
 }
@@ -206,7 +217,7 @@ export function decodeSearchState(value: string | null): SearchFormState {
   }
 }
 
-function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
+export function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
   return { clauses: filterClausesValue(state.filterClauses) ?? [] };
 }
 

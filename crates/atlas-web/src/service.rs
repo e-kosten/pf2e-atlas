@@ -3,10 +3,10 @@ use std::sync::Arc;
 use atlas_app_model::{
     AddSavedListItemRequest, AppError, AppErrorCode, AppReadinessView, CreateSavedListRequest,
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterEditorView, FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RecordDetailView, RemoveSavedListItemRequest, ResultWindowPage, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListUpdateView,
-    UpdateSavedListRequest,
+    FilterEditorView, FilterSavedListRequest, FilterValueListView, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RecordDetailView, RemoveSavedListItemRequest, ResultWindowPage,
+    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+    SavedListUpdateView, UpdateSavedListRequest,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use tokio::sync::Semaphore;
@@ -72,6 +72,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
     fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError>;
+
+    fn filter_saved_list(
+        &self,
+        request: FilterSavedListRequest,
+    ) -> Result<SavedListDetailView, AppServiceError>;
 
     fn create_saved_list(
         &self,
@@ -140,6 +145,13 @@ impl AtlasWebService for AtlasAppService {
 
     fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError> {
         self.saved_list(list_ref)
+    }
+
+    fn filter_saved_list(
+        &self,
+        request: FilterSavedListRequest,
+    ) -> Result<SavedListDetailView, AppServiceError> {
+        self.filter_saved_list(request)
     }
 
     fn create_saved_list(

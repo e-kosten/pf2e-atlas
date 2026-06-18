@@ -2,10 +2,11 @@ use std::collections::BTreeMap;
 
 use atlas_app_model::{
     AddSavedListItemRequest, AppErrorCode, CreateSavedListRequest, DeleteSavedListView,
-    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RemoveSavedListItemRequest,
-    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationOutcomeView,
-    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
-    SavedListItemView, SavedListSummaryView, SavedListUpdateView, UpdateSavedListRequest,
+    FilterSavedListRequest, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
+    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationOutcomeView, SavedListItemMutationView, SavedListItemSnapshotView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    UpdateSavedListRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -14,11 +15,13 @@ use atlas_local_state::{
     hydrate_saved_list_item,
 };
 use atlas_search::{
-    GetRecordsRequest, RecordRefResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
+    GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordRetrieval, RecordScope,
+    ResolveRecordRefRequest, SearchPage,
 };
 use serde_json::json;
 
 use crate::error::{AppServiceError, AppServiceResult};
+use crate::filter::lower_basic_filter;
 use crate::projection::record_summary;
 use crate::service::AtlasAppService;
 
@@ -51,6 +54,15 @@ impl AtlasAppService {
                 .map(|item| saved_list_item_view(item, &records_by_key))
                 .collect(),
         })
+    }
+
+    pub fn filter_saved_list(
+        &self,
+        request: FilterSavedListRequest,
+    ) -> AppServiceResult<SavedListDetailView> {
+        let filter = lower_basic_filter(request.filter.as_ref())?;
+        let has_filter = filter.is_some();
+        self.saved_list_with_filter(&request.list_ref, filter.as_ref(), has_filter)
     }
 
     pub fn create_saved_list(
@@ -164,7 +176,54 @@ impl AtlasAppService {
         })
     }
 
-    fn local_state_store(&self) -> AppServiceResult<LocalStateStore> {
+    pub(crate) fn saved_list_record_keys(
+        &self,
+        list_ref: &str,
+    ) -> AppServiceResult<Vec<RecordKey>> {
+        Ok(self
+            .local_state_store()?
+            .saved_lists()
+            .get_with_items(list_ref)?
+            .ok_or_else(|| saved_list_not_found(list_ref))?
+            .items
+            .into_iter()
+            .filter_map(|item| RecordKey::parse(&item.record_key).ok())
+            .collect())
+    }
+
+    fn saved_list_with_filter(
+        &self,
+        list_ref: &str,
+        filter: Option<&atlas_domain::SearchFilterNode>,
+        has_filter: bool,
+    ) -> AppServiceResult<SavedListDetailView> {
+        let list = self
+            .local_state_store()?
+            .saved_lists()
+            .get_with_items(list_ref)?
+            .ok_or_else(|| saved_list_not_found(list_ref))?;
+        let active_keys = list
+            .items
+            .iter()
+            .filter_map(|item| RecordKey::parse(&item.record_key).ok())
+            .collect::<Vec<_>>();
+        let records_by_key = if has_filter {
+            filtered_saved_list_records(self, &active_keys, filter)?
+        } else {
+            hydrate_saved_list_records(self, &list.items)?
+        };
+        Ok(SavedListDetailView {
+            list: saved_list_summary(list.list),
+            items: list
+                .items
+                .into_iter()
+                .filter(|item| !has_filter || records_by_key.contains_key(&item.record_key))
+                .map(|item| saved_list_item_view(item, &records_by_key))
+                .collect(),
+        })
+    }
+
+    pub(crate) fn local_state_store(&self) -> AppServiceResult<LocalStateStore> {
         LocalStateStore::open(self.local_state_path.clone()).map_err(Into::into)
     }
 }
@@ -188,6 +247,38 @@ fn hydrate_saved_list_records(
             .into_iter()
             .map(|record| (record.identity.key.to_string(), record))
             .collect())
+    })
+}
+
+fn filtered_saved_list_records(
+    service: &AtlasAppService,
+    record_keys: &[RecordKey],
+    filter: Option<&atlas_domain::SearchFilterNode>,
+) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+    if record_keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let record_keys = record_keys.to_vec();
+    let filter = filter.cloned();
+    service.submit_retrieval(move |retrieval| {
+        let mut records = BTreeMap::new();
+        let mut page_number = 1;
+        loop {
+            let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
+            let result = retrieval.list_records(
+                ListRecordsRequest::new(filter.as_ref(), page)
+                    .with_scope(RecordScope::Keys(&record_keys))
+                    .with_sort(atlas_search::RecordListSort::RecordKey),
+            )?;
+            for record in result.records {
+                records.insert(record.identity.key.to_string(), record);
+            }
+            if !result.page.has_more {
+                break;
+            }
+            page_number += 1;
+        }
+        Ok(records)
     })
 }
 
@@ -316,7 +407,8 @@ fn saved_list_item_status(status: SavedListItemStatus) -> SavedListItemStatusVie
 #[cfg(test)]
 mod tests {
     use atlas_app_model::{
-        AddSavedListItemRequest, AppErrorCode, CreateSavedListRequest, RemoveSavedListItemRequest,
+        AddSavedListItemRequest, AppErrorCode, BasicSearchFilter, CreateSavedListRequest,
+        FilterClause, FilterClauseOperator, FilterSavedListRequest, RemoveSavedListItemRequest,
         SavedListItemMutationOutcomeView, SavedListItemStatusView, UpdateSavedListRequest,
     };
     use atlas_domain::RecordKey;
@@ -424,6 +516,63 @@ mod tests {
         assert_eq!(view.items[1].status, SavedListItemStatusView::Unresolved);
         assert!(view.items[1].record.is_none());
         assert_eq!(view.items[1].snapshot.title, "Missing Action");
+    }
+
+    #[test]
+    fn filtered_saved_list_uses_record_scope_and_hides_unresolved_items() {
+        let fixture = fixture_worker();
+        let store = fixture
+            .worker
+            .local_state_store()
+            .expect("fixture local state should open");
+        store
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "research".to_string(),
+                name: "Research".to_string(),
+                description: None,
+            })
+            .expect("list should create");
+        for record_key in ["actions:testAction1", "actions:missing"] {
+            store
+                .saved_lists()
+                .add_resolved_item(
+                    "research",
+                    ResolvedSavedListItem {
+                        record_key: RecordKey::parse(record_key).expect("fixture key should parse"),
+                        note: None,
+                        title_snapshot: record_key.to_string(),
+                        kind_snapshot: Some("rule".to_string()),
+                    },
+                )
+                .expect("item should insert");
+        }
+
+        let view = fixture
+            .worker
+            .filter_saved_list(FilterSavedListRequest {
+                list_ref: "research".to_string(),
+                filter: Some(BasicSearchFilter {
+                    clauses: vec![FilterClause {
+                        id: "kind-include_any".to_string(),
+                        field: "kind".to_string(),
+                        operator: FilterClauseOperator::IncludeAny,
+                        values: vec!["rule".to_string()],
+                        range: None,
+                        metric: None,
+                    }],
+                }),
+            })
+            .expect("filtered saved list should load");
+
+        assert_eq!(
+            view.items
+                .iter()
+                .map(|item| item.record_key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["actions:testAction1"]
+        );
+        assert_eq!(view.items[0].status, SavedListItemStatusView::Active);
     }
 
     #[test]

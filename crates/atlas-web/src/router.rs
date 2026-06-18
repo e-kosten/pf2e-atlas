@@ -5,8 +5,8 @@ use axum::routing::{get, post};
 use crate::assets::{root, static_asset};
 use crate::handlers::{
     add_saved_list_item, create_saved_list, delete_saved_list, discover_filter_editor,
-    discover_filter_values, open_result_window, read_result_window_page, readiness, record_detail,
-    remove_saved_list_item, saved_list, saved_lists, update_saved_list,
+    discover_filter_values, filter_saved_list, open_result_window, read_result_window_page,
+    readiness, record_detail, remove_saved_list_item, saved_list, saved_lists, update_saved_list,
 };
 use crate::service::AtlasWebState;
 
@@ -25,6 +25,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
                 .patch(update_saved_list)
                 .delete(delete_saved_list),
         )
+        .route("/api/lists/{list_ref}/filter", post(filter_saved_list))
         .route(
             "/api/lists/{list_ref}/items",
             post(add_saved_list_item).delete(remove_saved_list_item),

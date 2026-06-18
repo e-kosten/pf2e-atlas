@@ -9,7 +9,7 @@ import type {
   NumericRangeState,
   SearchFormState,
 } from "../state/searchState";
-import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
+import type { FilterEditorView, FilterValueListView } from "../generated/atlas";
 
 export type FilterSelectOption = {
   value: string;
@@ -29,8 +29,17 @@ export type ValueFilterOperatorPolicy = {
   canExclude: boolean;
 };
 
+export type FilterPanelState = {
+  search: SearchFormState;
+  setSearch: (next: SearchFormState) => void;
+  filterEditor: FilterEditorView | undefined;
+  filterValuesByField: Record<string, FilterValueListView | undefined>;
+  filterDiscoveryLoading: boolean;
+  errorMessage: string | null;
+};
+
 export function additionalFilterGroups(
-  workspace: AtlasWorkspaceState,
+  workspace: FilterPanelState,
 ): FilterSelectGroup[] {
   const visible = new Set(workspace.search.visibleFilterIds);
   const hidden = new Set(workspace.search.hiddenFilterIds);
@@ -51,7 +60,7 @@ export function additionalFilterGroups(
 }
 
 export function visibleEditorFilterFields(
-  workspace: AtlasWorkspaceState,
+  workspace: FilterPanelState,
 ): FilterEditorFieldView[] {
   const hidden = new Set(workspace.search.hiddenFilterIds);
   return (workspace.filterEditor?.groups ?? [])
@@ -63,7 +72,7 @@ export function visibleEditorFilterFields(
     );
 }
 
-export function additionalVisibleFilterIds(workspace: AtlasWorkspaceState): string[] {
+export function additionalVisibleFilterIds(workspace: FilterPanelState): string[] {
   return workspace.search.visibleFilterIds.filter((fieldId) => {
     const field = fieldById(workspace, fieldId);
     return field && field.placement === "addable";
@@ -71,7 +80,7 @@ export function additionalVisibleFilterIds(workspace: AtlasWorkspaceState): stri
 }
 
 export function discoveredOptions(
-  workspace: AtlasWorkspaceState,
+  workspace: FilterPanelState,
   fieldId: string,
 ): FilterSelectOption[] {
   const options = workspace.filterValuesByField[fieldId]?.options;
@@ -81,10 +90,7 @@ export function discoveredOptions(
   return options.map(valueOption);
 }
 
-export function addVisibleFilter(
-  workspace: AtlasWorkspaceState,
-  fieldId: string | null,
-) {
+export function addVisibleFilter(workspace: FilterPanelState, fieldId: string | null) {
   if (!fieldId) {
     return;
   }
@@ -107,7 +113,7 @@ export function addVisibleFilter(
   });
 }
 
-export function removeVisibleFilter(workspace: AtlasWorkspaceState, fieldId: string) {
+export function removeVisibleFilter(workspace: FilterPanelState, fieldId: string) {
   const field = fieldById(workspace, fieldId);
   if (field?.placement === "always_visible") {
     return;
@@ -371,19 +377,19 @@ export function setMetricComparisonForField(
 }
 
 export function controlKindForField(
-  workspace: AtlasWorkspaceState,
+  workspace: FilterPanelState,
   fieldId: string,
 ): FilterControlKind {
   const field = fieldById(workspace, fieldId);
   return controlKind(field);
 }
 
-export function labelForField(workspace: AtlasWorkspaceState, fieldId: string): string {
+export function labelForField(workspace: FilterPanelState, fieldId: string): string {
   return fieldById(workspace, fieldId)?.label ?? fieldId;
 }
 
 export function editorFieldForId(
-  workspace: AtlasWorkspaceState,
+  workspace: FilterPanelState,
   fieldId: string,
 ): FilterEditorFieldView | undefined {
   return fieldById(workspace, fieldId);
@@ -402,7 +408,7 @@ function valueOption(option: FilterValueOption): FilterSelectOption {
 }
 
 function fieldById(
-  workspace: AtlasWorkspaceState,
+  workspace: FilterPanelState,
   fieldId: string,
 ): FilterEditorFieldView | undefined {
   return (workspace.filterEditor?.groups ?? [])
