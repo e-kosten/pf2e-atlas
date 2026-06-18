@@ -29,6 +29,7 @@ pub(crate) fn query_weighted_fts_index(
             connection,
             &strict_match_query,
             filter,
+            None,
             candidate_limit,
             weights,
             FtsMatchTier::Strict,
@@ -44,6 +45,7 @@ pub(crate) fn query_weighted_fts_index(
             connection,
             &fts_query.as_disjunction_match_query(),
             filter,
+            None,
             candidate_limit,
             weights,
             FtsMatchTier::Fallback,
@@ -76,6 +78,7 @@ pub(crate) fn query_precision_fts_index(
     connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     limit: u32,
 ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
     let candidate_limit = rerank_candidate_limit(limit);
@@ -84,19 +87,25 @@ pub(crate) fn query_precision_fts_index(
         connection,
         fts_query,
         filter,
+        record_keys,
         candidate_limit,
-        FtsSearchLane::TitleAlias,
-        &["title", "aliases"],
-        precision_title_alias_weights(),
+        PrecisionFtsLane {
+            lane: FtsSearchLane::TitleAlias,
+            columns: &["title", "aliases"],
+            weights: precision_title_alias_weights(),
+        },
     )?);
     hits.extend(query_precision_fts_lane(
         connection,
         fts_query,
         filter,
+        record_keys,
         candidate_limit,
-        FtsSearchLane::Facet,
-        &["traits", "taxonomy_terms"],
-        precision_facet_weights(),
+        PrecisionFtsLane {
+            lane: FtsSearchLane::Facet,
+            columns: &["traits", "taxonomy_terms"],
+            weights: precision_facet_weights(),
+        },
     )?);
     hits = best_precision_hit_per_record(hits);
     hits.sort_by(compare_precision_hits);
@@ -125,28 +134,34 @@ fn compare_precision_hits(left: &FtsSearchHit, right: &FtsSearchHit) -> std::cmp
         .then_with(|| left.record_key.cmp(&right.record_key))
 }
 
+struct PrecisionFtsLane<'a> {
+    lane: FtsSearchLane,
+    columns: &'a [&'a str],
+    weights: FtsColumnWeights,
+}
+
 fn query_precision_fts_lane(
     connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     limit: u32,
-    lane: FtsSearchLane,
-    columns: &[&str],
-    weights: FtsColumnWeights,
+    lane: PrecisionFtsLane<'_>,
 ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
     let mut hits = query_fts_documents(
         connection,
-        &scoped_match_query(columns, &fts_query.as_disjunction_match_query()),
+        &scoped_match_query(lane.columns, &fts_query.as_disjunction_match_query()),
         filter,
+        record_keys,
         limit,
-        weights,
+        lane.weights,
         FtsMatchTier::Fallback,
     )?;
 
     let tokens = tokenize_query(&fts_query.tokens.join(" "));
     let query_phrase = normalize_text(&fts_query.tokens.join(" "));
     for hit in &mut hits {
-        hit.rank = adjusted_rank(&tokens, &query_phrase, hit, weights);
+        hit.rank = adjusted_rank(&tokens, &query_phrase, hit, lane.weights);
     }
     hits.sort_by(compare_fts_document_hits);
     hits.truncate(limit as usize);
@@ -156,7 +171,7 @@ fn query_precision_fts_lane(
         .map(|(index, hit)| FtsSearchHit {
             record_key: hit.record_key,
             rank: hit.rank,
-            lane,
+            lane: lane.lane,
             lane_rank: (index + 1) as u32,
             title_alias_texts: title_alias_texts(&hit.document),
         })
@@ -275,12 +290,15 @@ fn query_fts_documents(
     connection: &mut SqliteConnection,
     match_query: &str,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     limit: u32,
     weights: FtsColumnWeights,
     tier: FtsMatchTier,
 ) -> Result<Vec<FtsDocumentHit>, FilterCompileError> {
-    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
-        |builder| {
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .with_record_keys(record_keys)
+        .compile()?
+        .with_eligible_cte(|builder| {
             let query_placeholder = builder.push_text(match_query.to_string());
             let limit_placeholder = builder.push_integer(i64::from(limit));
             format!(
@@ -322,8 +340,7 @@ fn query_fts_documents(
                 reference_terms = weights.reference_terms,
                 embedded_content = weights.embedded_content,
             )
-        },
-    );
+        });
 
     bind_sql_query(query.sql, &query.parameters)
         .load::<FtsDocumentRow>(connection)

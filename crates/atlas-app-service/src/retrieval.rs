@@ -37,6 +37,7 @@ impl AtlasAppService {
                 query: &query,
                 exclude: exclude.as_deref(),
                 filter: filter.as_ref(),
+                scope: atlas_search::RecordScope::All,
                 page,
                 tuning,
                 explain,

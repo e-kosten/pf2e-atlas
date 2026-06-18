@@ -1,5 +1,6 @@
 import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import {
+  keepPreviousData,
   useMutation,
   useQueries,
   useQuery,
@@ -74,6 +75,7 @@ const LIST_WORKSPACE_WIDTH_SPECS = {
   results: { defaultWidth: 420, minWidth: 280 },
   detail: { defaultWidth: 640, minWidth: 360 },
 };
+const LIST_SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
 export function ListIndexView(_props: ListIndexViewProps) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -121,15 +123,23 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const lists = useSavedLists();
   const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
-  const filterToken = useMemo(() => encodeSearchExecutionState(filters), [filters]);
+  const activeFilters = useDebouncedSearchFilters(filters);
+  const filterToken = useMemo(
+    () => encodeSearchExecutionState(activeFilters),
+    [activeFilters],
+  );
   const filterDiscovery = useSavedListFilterDiscovery(route.slug, filters);
   const list = useQuery({
     queryKey: ["saved-list", route.slug, filterToken],
-    queryFn: () =>
-      filterSavedList({
+    placeholderData: keepPreviousData,
+    queryFn: () => {
+      const query = listSearchQuery(activeFilters);
+      return filterSavedList({
         list_ref: route.slug,
-        filter: buildBasicFilter(filters),
-      }),
+        ...(query ? { query } : {}),
+        filter: buildBasicFilter(activeFilters),
+      });
+    },
   });
   const selectedItem = list.data?.items.find(
     (item) => item.record_key === route.selectedRecordKey,
@@ -447,7 +457,7 @@ function ListInfoPane({
       <AntFilterControls
         filterState={filterState}
         includeResultOptions={false}
-        includeSearch={false}
+        includeSearch
       />
     </section>
   );
@@ -536,6 +546,24 @@ function useSavedListFilterDiscovery(
       filterValueQueries.some((query) => query.isLoading || query.isFetching),
     errorMessage,
   };
+}
+
+function listSearchQuery(filters: SearchFormState): string | undefined {
+  const query = filters.query.trim();
+  return filters.mode === "text_search" && query.length > 0 ? query : undefined;
+}
+
+function useDebouncedSearchFilters(filters: SearchFormState): SearchFormState {
+  const [activeFilters, setActiveFilters] = useState(filters);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setActiveFilters(filters);
+    }, LIST_SEARCH_REQUEST_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [filters]);
+
+  return activeFilters;
 }
 
 function ListItemsPane({

@@ -52,6 +52,7 @@ pub trait FtsReadIndex {
         &self,
         fts_query: &FtsQuery,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         limit: u32,
     ) -> Result<Vec<FtsSearchHit>, FilterCompileError>;
 
@@ -159,9 +160,10 @@ impl FtsReadIndex for SqliteIndexReader {
         &self,
         fts_query: &FtsQuery,
         filter: Option<&SearchFilterNode>,
+        record_keys: Option<&[RecordKey]>,
         limit: u32,
     ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
-        SqliteIndexReader::query_precision_fts_index(self, fts_query, filter, limit)
+        SqliteIndexReader::query_precision_fts_index(self, fts_query, filter, record_keys, limit)
     }
 
     fn query_fts_candidate_record_keys(

@@ -162,6 +162,37 @@ describe("list views", () => {
     );
   });
 
+  it("searches within a saved list through the filter route", async () => {
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: null,
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
+        list_ref: "research",
+        filter: { clauses: [] },
+      }),
+    );
+    fireEvent.change(await screen.findByPlaceholderText("Search records"), {
+      target: { value: "Test Action 2" },
+    });
+
+    await waitFor(() =>
+      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
+        list_ref: "research",
+        query: "Test Action 2",
+        filter: { clauses: [] },
+      }),
+    );
+  });
+
   it("edits list metadata and navigates to the updated slug", async () => {
     render(
       <ListEditView

@@ -1,9 +1,9 @@
 use atlas_domain::SearchFilterNode;
 use serde::{Deserialize, Serialize};
 
-use crate::SearchError;
 use crate::fusion::{FusionMethod, FusionOptions};
 use crate::page::SearchPage;
+use crate::{RecordScope, SearchError};
 
 pub const DEFAULT_RANKED_CANDIDATE_WINDOW: u32 = 200;
 pub const MAX_RANKED_CANDIDATE_WINDOW: u32 = 5_000;
@@ -135,6 +135,7 @@ pub struct TextSearchRequest<'a> {
     pub query: &'a str,
     pub exclude: Option<&'a str>,
     pub filter: Option<&'a SearchFilterNode>,
+    pub scope: RecordScope<'a>,
     pub page: SearchPage,
     pub tuning: Option<TextSearchTuning>,
     pub explain: bool,

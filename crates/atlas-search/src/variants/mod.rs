@@ -610,6 +610,7 @@ mod tests {
             &self,
             _fts_query: &FtsQuery,
             _filter: Option<&atlas_domain::SearchFilterNode>,
+            _record_keys: Option<&[atlas_domain::RecordKey]>,
             _limit: u32,
         ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
             Ok(Vec::new())

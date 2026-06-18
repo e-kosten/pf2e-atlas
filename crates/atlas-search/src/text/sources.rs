@@ -46,13 +46,14 @@ pub(super) fn query_precision_fts_index<I>(
     index: &I,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
+    record_keys: Option<&[RecordKey]>,
     limit: u32,
 ) -> Result<Vec<FtsSearchHit>, SearchError>
 where
     I: FtsReadIndex + ?Sized,
 {
     index
-        .query_precision_fts_index(fts_query, filter, limit)
+        .query_precision_fts_index(fts_query, filter, record_keys, limit)
         .map_err(SearchError::from_filter)
 }
 

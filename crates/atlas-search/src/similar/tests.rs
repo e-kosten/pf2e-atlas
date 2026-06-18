@@ -403,6 +403,7 @@ impl FtsReadIndex for FakeSimilarIndex {
         &self,
         _fts_query: &FtsQuery,
         _filter: Option<&SearchFilterNode>,
+        _record_keys: Option<&[RecordKey]>,
         _limit: u32,
     ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
         Ok(Vec::new())
