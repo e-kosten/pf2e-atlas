@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod encounter;
 mod error;
 mod filter;
 mod list;
@@ -7,6 +8,17 @@ mod readiness;
 mod record;
 mod result_window;
 
+pub use encounter::{
+    AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
+    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DeleteEncounterView,
+    EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    EncounterParticipantConditionView, EncounterParticipantDetailView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+};
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     BasicSearchFilter, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterClause,
@@ -83,6 +95,37 @@ mod tests {
         FilterValueListView::export_all_to(path)
             .expect("FilterValueListView bindings should export");
         FilterValueOption::export_all_to(path).expect("FilterValueOption bindings should export");
+        AddEncounterManualParticipantRequest::export_all_to(path)
+            .expect("AddEncounterManualParticipantRequest bindings should export");
+        AddEncounterParticipantConditionRequest::export_all_to(path)
+            .expect("AddEncounterParticipantConditionRequest bindings should export");
+        AddEncounterRecordParticipantRequest::export_all_to(path)
+            .expect("AddEncounterRecordParticipantRequest bindings should export");
+        CreateEncounterRequest::export_all_to(path)
+            .expect("CreateEncounterRequest bindings should export");
+        DeleteEncounterView::export_all_to(path)
+            .expect("DeleteEncounterView bindings should export");
+        EncounterCreateView::export_all_to(path)
+            .expect("EncounterCreateView bindings should export");
+        EncounterDetailView::export_all_to(path)
+            .expect("EncounterDetailView bindings should export");
+        EncounterIndexView::export_all_to(path).expect("EncounterIndexView bindings should export");
+        EncounterParticipantConditionView::export_all_to(path)
+            .expect("EncounterParticipantConditionView bindings should export");
+        EncounterParticipantDetailView::export_all_to(path)
+            .expect("EncounterParticipantDetailView bindings should export");
+        EncounterUpdateView::export_all_to(path)
+            .expect("EncounterUpdateView bindings should export");
+        ReorderEncounterParticipantRequest::export_all_to(path)
+            .expect("ReorderEncounterParticipantRequest bindings should export");
+        SetEncounterTurnRequest::export_all_to(path)
+            .expect("SetEncounterTurnRequest bindings should export");
+        UpdateEncounterParticipantConditionRequest::export_all_to(path)
+            .expect("UpdateEncounterParticipantConditionRequest bindings should export");
+        UpdateEncounterRequest::export_all_to(path)
+            .expect("UpdateEncounterRequest bindings should export");
+        UpdateEncounterParticipantRequest::export_all_to(path)
+            .expect("UpdateEncounterParticipantRequest bindings should export");
         OpenResultWindowRequest::export_all_to(path)
             .expect("OpenResultWindowRequest bindings should export");
         ReadResultWindowPageRequest::export_all_to(path)

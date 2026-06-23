@@ -20,16 +20,21 @@ use service::{AtlasWebService, AtlasWebState, call_service};
 #[cfg(test)]
 mod tests {
     use atlas_app_model::{
-        AddSavedListItemRequest, AppError, AppErrorCode, AppReadinessStatus, AppReadinessView,
-        CreateSavedListRequest, DeleteSavedListView, DiscoverFilterEditorRequest,
-        DiscoverFilterValuesRequest, FilterControlView, FilterEditorFieldView,
+        AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
+        AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
+        AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
+        DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+        DiscoverFilterValuesRequest, EncounterCreateView, EncounterDetailView, EncounterIndexView,
+        EncounterParticipantView, EncounterUpdateView, FilterControlView, FilterEditorFieldView,
         FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
         FilterValueListView, FilterValueOption, OpenResultWindowRequest,
         ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
-        RemoveSavedListItemRequest, ResultWindowModeSummary, ResultWindowPage, SavedListCreateView,
-        SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-        SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
-        SavedListSummaryView, SavedListUpdateView, SearchPageView, UpdateSavedListRequest,
+        RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowModeSummary,
+        ResultWindowPage, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+        SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+        SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+        SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+        UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
     };
     use atlas_app_service::AppServiceError;
     use atlas_domain::{RecordKey, RecordKind};
@@ -617,6 +622,104 @@ mod tests {
             })
         }
 
+        fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
+            Ok(EncounterIndexView { encounters: vec![] })
+        }
+
+        fn encounter(&self, encounter_ref: &str) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn create_encounter(
+            &self,
+            request: CreateEncounterRequest,
+        ) -> Result<EncounterCreateView, AppServiceError> {
+            Err(encounter_not_found(&request.name))
+        }
+
+        fn delete_encounter(
+            &self,
+            encounter_ref: &str,
+        ) -> Result<DeleteEncounterView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn update_encounter(
+            &self,
+            request: UpdateEncounterRequest,
+        ) -> Result<EncounterUpdateView, AppServiceError> {
+            Err(encounter_not_found(&request.encounter_key))
+        }
+
+        fn add_encounter_record_participant(
+            &self,
+            request: AddEncounterRecordParticipantRequest,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(&request.encounter_ref))
+        }
+
+        fn add_encounter_manual_participant(
+            &self,
+            request: AddEncounterManualParticipantRequest,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(&request.encounter_ref))
+        }
+
+        fn update_encounter_participant(
+            &self,
+            encounter_ref: &str,
+            _request: UpdateEncounterParticipantRequest,
+        ) -> Result<EncounterParticipantView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn reorder_encounter_participant(
+            &self,
+            encounter_ref: &str,
+            _request: ReorderEncounterParticipantRequest,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn remove_encounter_participant(
+            &self,
+            encounter_ref: &str,
+            _participant_key: &str,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn set_encounter_turn(
+            &self,
+            request: SetEncounterTurnRequest,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(&request.encounter_ref))
+        }
+
+        fn add_encounter_participant_condition(
+            &self,
+            encounter_ref: &str,
+            _request: AddEncounterParticipantConditionRequest,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn update_encounter_participant_condition(
+            &self,
+            encounter_ref: &str,
+            _request: UpdateEncounterParticipantConditionRequest,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
+        fn remove_encounter_participant_condition(
+            &self,
+            encounter_ref: &str,
+            _condition_id: i64,
+        ) -> Result<EncounterDetailView, AppServiceError> {
+            Err(encounter_not_found(encounter_ref))
+        }
+
         fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
             Ok(SavedListIndexView {
                 lists: vec![saved_list_summary()],
@@ -719,6 +822,13 @@ mod tests {
                 deleted: true,
             })
         }
+    }
+
+    fn encounter_not_found(encounter_ref: &str) -> AppServiceError {
+        AppServiceError::new(
+            AppErrorCode::EncounterNotFound,
+            format!("encounter `{encounter_ref}` not found"),
+        )
     }
 
     fn saved_list_summary() -> SavedListSummaryView {

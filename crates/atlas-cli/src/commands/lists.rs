@@ -503,6 +503,9 @@ fn cli_error_code(code: AppErrorCode) -> (&'static str, ExitCode) {
         AppErrorCode::RecordNotFound => ("record_not_found", ExitCode::from(1)),
         AppErrorCode::SavedListNotFound => ("saved_list_not_found", ExitCode::from(1)),
         AppErrorCode::SavedListAlreadyExists => ("saved_list_already_exists", ExitCode::from(1)),
+        AppErrorCode::EncounterNotFound
+        | AppErrorCode::EncounterAlreadyExists
+        | AppErrorCode::EncounterParticipantNotFound => ("local_state_error", ExitCode::from(3)),
         AppErrorCode::IndexUnavailable => ("index_unavailable", ExitCode::from(3)),
         AppErrorCode::QueryFailed => ("query_failed", ExitCode::from(3)),
         AppErrorCode::ArtifactNotReady

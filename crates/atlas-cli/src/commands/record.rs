@@ -801,6 +801,9 @@ fn app_error_code(code: AppErrorCode) -> (&'static str, ExitCode) {
         | AppErrorCode::SetupInProgress => ("runtime_error", ExitCode::from(3)),
         AppErrorCode::SavedListNotFound
         | AppErrorCode::SavedListAlreadyExists
+        | AppErrorCode::EncounterNotFound
+        | AppErrorCode::EncounterAlreadyExists
+        | AppErrorCode::EncounterParticipantNotFound
         | AppErrorCode::WindowNotFound
         | AppErrorCode::WindowExpired
         | AppErrorCode::FilterFieldInvalid

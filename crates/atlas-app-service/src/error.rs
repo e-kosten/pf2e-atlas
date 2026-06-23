@@ -50,12 +50,18 @@ impl From<LocalStateError> for AppServiceError {
         let code = match &error {
             LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidListRef { .. }
+            | LocalStateError::InvalidEncounterRef { .. }
             | LocalStateError::InvalidRecordKey { .. } => AppErrorCode::InvalidRequest,
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
             LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
+            LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,
+            LocalStateError::EncounterAlreadyExists(_) => AppErrorCode::EncounterAlreadyExists,
+            LocalStateError::ParticipantNotFound(_) => AppErrorCode::EncounterParticipantNotFound,
             LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
             | LocalStateError::ListKeyAllocationFailed
+            | LocalStateError::EncounterKeyAllocationFailed
+            | LocalStateError::ParticipantKeyAllocationFailed
             | LocalStateError::Database(_)
             | LocalStateError::Filesystem(_)
             | LocalStateError::Timestamp(_)

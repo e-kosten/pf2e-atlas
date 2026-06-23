@@ -2,6 +2,8 @@ import type React from "react";
 
 export type AtlasRoute =
   | { kind: "search"; selectedRecordKey: string | null }
+  | { kind: "encounters" }
+  | { kind: "encounter"; slug: string }
   | { kind: "lists" }
   | { kind: "list"; slug: string; selectedRecordKey: string | null }
   | { kind: "listEdit"; slug: string }
@@ -26,6 +28,15 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
 
   if (pathname === "/lists") {
     return { kind: "lists" };
+  }
+
+  if (pathname === "/encounters") {
+    return { kind: "encounters" };
+  }
+
+  const encounter = pathname.match(/^\/encounters\/(.+)$/);
+  if (encounter) {
+    return { kind: "encounter", slug: decodeURIComponent(encounter[1]) };
   }
 
   const listEdit = pathname.match(/^\/lists\/(.+)\/edit$/);
@@ -75,6 +86,10 @@ export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
     case "search":
       return searchPath(route.selectedRecordKey);
+    case "encounters":
+      return encountersPath();
+    case "encounter":
+      return encounterPath(route.slug);
     case "lists":
       return listsPath();
     case "list":
@@ -118,6 +133,14 @@ export function searchPath(recordKey: string | null = null): string {
 
 export function listsPath(): string {
   return "/lists";
+}
+
+export function encountersPath(): string {
+  return "/encounters";
+}
+
+export function encounterPath(slug: string): string {
+  return `/encounters/${encodeURIComponent(slug)}`;
 }
 
 export function listPath(slug: string, recordKey: string | null = null): string {

@@ -1,11 +1,21 @@
 import type {
+  AddEncounterManualParticipantRequest,
+  AddEncounterParticipantConditionRequest,
+  AddEncounterRecordParticipantRequest,
   AddSavedListItemRequest,
   AppError,
   AppReadinessView,
+  CreateEncounterRequest,
   CreateSavedListRequest,
+  DeleteEncounterView,
   DeleteSavedListView,
   DiscoverFilterEditorRequest,
   DiscoverFilterValuesRequest,
+  EncounterCreateView,
+  EncounterDetailView,
+  EncounterIndexView,
+  EncounterParticipantView,
+  EncounterUpdateView,
   FilterEditorView,
   FilterSavedListRequest,
   FilterValueListView,
@@ -13,12 +23,17 @@ import type {
   ReadResultWindowPageRequest,
   RecordDetailView,
   RemoveSavedListItemRequest,
+  ReorderEncounterParticipantRequest,
   SavedListCreateView,
   ResultWindowPage,
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
   SavedListUpdateView,
+  SetEncounterTurnRequest,
+  UpdateEncounterParticipantConditionRequest,
+  UpdateEncounterParticipantRequest,
+  UpdateEncounterRequest,
   UpdateSavedListRequest,
 } from "../generated/atlas";
 
@@ -86,6 +101,150 @@ export async function readResultWindowPage(
 
 export async function getRecordDetail(recordKey: string): Promise<RecordDetailView> {
   return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+}
+
+export async function getEncounters(): Promise<EncounterIndexView> {
+  return atlasFetch("/api/encounters");
+}
+
+export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}`);
+}
+
+export async function createEncounter(
+  request: CreateEncounterRequest,
+): Promise<EncounterCreateView> {
+  return atlasFetch("/api/encounters", {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
+export async function deleteEncounter(
+  encounterRef: string,
+): Promise<DeleteEncounterView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateEncounter(
+  request: UpdateEncounterRequest,
+): Promise<EncounterUpdateView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(request.encounter_key)}`, {
+    method: "PATCH",
+    body: jsonBody(request),
+  });
+}
+
+export async function addEncounterRecordParticipant(
+  request: AddEncounterRecordParticipantRequest,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/record`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function addEncounterManualParticipant(
+  request: AddEncounterManualParticipantRequest,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/manual`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function updateEncounterParticipant(
+  encounterRef: string,
+  request: UpdateEncounterParticipantRequest,
+): Promise<EncounterParticipantView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}`,
+    {
+      method: "PATCH",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function reorderEncounterParticipant(
+  encounterRef: string,
+  request: ReorderEncounterParticipantRequest,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/reorder`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function removeEncounterParticipant(
+  encounterRef: string,
+  participantKey: string,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function setEncounterTurn(
+  request: SetEncounterTurnRequest,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(request.encounter_ref)}/turn`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function addEncounterParticipantCondition(
+  encounterRef: string,
+  request: AddEncounterParticipantConditionRequest,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/conditions`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function updateEncounterParticipantCondition(
+  encounterRef: string,
+  participantKey: string,
+  request: UpdateEncounterParticipantConditionRequest,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${request.condition_id.toString()}`,
+    {
+      method: "PATCH",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function removeEncounterParticipantCondition(
+  encounterRef: string,
+  participantKey: string,
+  conditionId: bigint,
+): Promise<EncounterDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
+    { method: "DELETE" },
+  );
 }
 
 export async function getSavedLists(): Promise<SavedListIndexView> {

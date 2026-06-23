@@ -67,7 +67,8 @@ describe("AtlasPrototypeApp routing", () => {
   it("restores record and reader views from browser history without running search queries", async () => {
     render(<AtlasPrototypeApp />, { wrapper: queryClientWrapper() });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
+    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     vi.clearAllMocks();
 
     history.pushState(null, "", "/records/spell%3Aheal");
@@ -91,6 +92,7 @@ describe("AtlasPrototypeApp routing", () => {
   });
 
   it("opens the search side-detail record as a full-page record route", async () => {
+    history.replaceState(null, "", "/search?q=heal&mode=text");
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasPrototypeApp />, { wrapper: queryClientWrapper() });
 
@@ -114,6 +116,7 @@ describe("AtlasPrototypeApp routing", () => {
   });
 
   it("adds the search side-detail record to a saved list", async () => {
+    history.replaceState(null, "", "/search?q=heal&mode=text");
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasPrototypeApp />, { wrapper: queryClientWrapper() });
 

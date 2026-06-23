@@ -107,6 +107,10 @@ export function buildOpenRequest(
   };
 }
 
+export function hasExecutableSearch(state: SearchFormState): boolean {
+  return state.query.trim().length > 0 || state.filterClauses.length > 0;
+}
+
 export function buildFilterDiscoveryContext(
   state: SearchFormState,
 ): FilterDiscoveryContext {
