@@ -6,6 +6,7 @@ import {
   DEFAULT_SEARCH_STATE,
   encodeSearchExecutionState,
   encodeSearchState,
+  hasExecutableSearch,
   searchStateQueryString,
   type SearchFormState,
 } from "./searchState";
@@ -25,6 +26,30 @@ describe("searchState", () => {
       page: { number: 3, size: 25 },
       include_diagnostics: false,
     });
+  });
+
+  it("requires query text or filters before executing result search", () => {
+    expect(hasExecutableSearch(DEFAULT_SEARCH_STATE)).toBe(false);
+    expect(
+      hasExecutableSearch({
+        ...DEFAULT_SEARCH_STATE,
+        mode: "text_search",
+        query: " heal ",
+      }),
+    ).toBe(true);
+    expect(
+      hasExecutableSearch({
+        ...DEFAULT_SEARCH_STATE,
+        filterClauses: [
+          {
+            id: "kind-include_any",
+            field: "kind",
+            operator: "include_any",
+            values: ["creature"],
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 
   it("builds a text-search request with a trimmed query and no list sort", () => {

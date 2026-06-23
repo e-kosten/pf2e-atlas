@@ -19,6 +19,16 @@ import { useAtlasWorkspace } from "./useAtlasWorkspace";
 const AntPrototype = lazy(() =>
   import("./AntPrototype").then((module) => ({ default: module.AntPrototype })),
 );
+const EncounterIndexView = lazy(() =>
+  import("./EncounterViews").then((module) => ({
+    default: module.EncounterIndexView,
+  })),
+);
+const EncounterDetailView = lazy(() =>
+  import("./EncounterViews").then((module) => ({
+    default: module.EncounterDetailView,
+  })),
+);
 const ListIndexView = lazy(() =>
   import("./ListViews").then((module) => ({ default: module.ListIndexView })),
 );
@@ -76,6 +86,7 @@ export function AtlasPrototypeApp() {
       onNavigateSearch={() =>
         navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
       }
+      onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
       onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
       resolvedColorScheme={resolvedColorScheme}
       workspace={workspace}
@@ -83,6 +94,8 @@ export function AtlasPrototypeApp() {
       <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
         <Suspense fallback={<RouteLoading />}>
           {route.kind === "search" && <AntPrototype workspace={workspace} />}
+          {route.kind === "encounters" && <EncounterIndexView route={route} />}
+          {route.kind === "encounter" && <EncounterDetailView route={route} />}
           {route.kind === "lists" && <ListIndexView route={route} />}
           {route.kind === "list" && <ListDetailView route={route} />}
           {route.kind === "listEdit" && <ListEditView route={route} />}

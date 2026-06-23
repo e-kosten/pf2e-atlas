@@ -7,6 +7,10 @@ use crate::{
 const METADATA_TABLE: &str = "local_state_metadata";
 const SAVED_LISTS_TABLE: &str = "saved_lists";
 const SAVED_LIST_ITEMS_TABLE: &str = "saved_list_items";
+const ENCOUNTERS_TABLE: &str = "encounters";
+const ENCOUNTER_PARTICIPANTS_TABLE: &str = "encounter_participants";
+const ENCOUNTER_PARTICIPANT_ADJUSTMENTS_TABLE: &str = "encounter_participant_adjustments";
+const ENCOUNTER_PARTICIPANT_CONDITIONS_TABLE: &str = "encounter_participant_conditions";
 const METADATA_CONTRACT_VERSION: &str = "local_state_contract_version";
 const METADATA_SCHEMA_VERSION: &str = "schema_version";
 
@@ -17,6 +21,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         validate_metadata(connection)?;
         validate_v1_tables(connection)?;
         validate_v2_tables(connection)?;
+        validate_v3_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -26,12 +31,12 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
             "saved-list tables exist without local-state metadata".to_string(),
         ));
     }
-    create_v2_schema(connection)?;
+    create_v3_schema(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
 
-fn create_v2_schema(connection: &Connection) -> LocalStateResult<()> {
+fn create_v3_schema(connection: &Connection) -> LocalStateResult<()> {
     connection.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -63,6 +68,70 @@ fn create_v2_schema(connection: &Connection) -> LocalStateResult<()> {
         );
         CREATE INDEX saved_list_items_position_idx
           ON saved_list_items(list_id, position);
+        CREATE TABLE encounters (
+          id INTEGER PRIMARY KEY,
+          encounter_key TEXT NOT NULL UNIQUE,
+          slug TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          description TEXT,
+          note TEXT,
+          status TEXT NOT NULL,
+          round_number INTEGER NOT NULL DEFAULT 1,
+          current_turn_participant_key TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE encounter_participants (
+          id INTEGER PRIMARY KEY,
+          encounter_id INTEGER NOT NULL,
+          participant_key TEXT NOT NULL UNIQUE,
+          record_key TEXT,
+          participant_kind TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          display_name TEXT NOT NULL,
+          record_title_snapshot TEXT,
+          record_kind_snapshot TEXT,
+          side TEXT NOT NULL DEFAULT 'enemy',
+          initiative INTEGER,
+          initiative_order INTEGER NOT NULL,
+          max_hp INTEGER,
+          current_hp INTEGER,
+          temporary_hp INTEGER NOT NULL DEFAULT 0,
+          defeated INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (encounter_id, position),
+          UNIQUE (encounter_id, initiative, initiative_order),
+          FOREIGN KEY (encounter_id) REFERENCES encounters(id) ON DELETE CASCADE
+        );
+        CREATE INDEX encounter_participants_order_idx
+          ON encounter_participants(encounter_id, initiative, initiative_order);
+        CREATE TABLE encounter_participant_adjustments (
+          participant_id INTEGER NOT NULL,
+          adjustment_key TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          value TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (participant_id, adjustment_key),
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        CREATE TABLE encounter_participant_conditions (
+          id INTEGER PRIMARY KEY,
+          participant_id INTEGER NOT NULL,
+          condition_key TEXT,
+          name TEXT NOT NULL,
+          value INTEGER,
+          source_participant_key TEXT,
+          duration_rounds INTEGER,
+          note TEXT,
+          source_note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
         ",
     )?;
     Ok(())
@@ -107,12 +176,91 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
     };
     match schema_version.as_str() {
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
-        "1" => migrate_v1_to_v2(connection),
+        "1" => {
+            migrate_v1_to_v2(connection)?;
+            migrate_v2_to_v3(connection)
+        }
+        "2" => migrate_v2_to_v3(connection),
         _ => Err(LocalStateError::UnsupportedMetadata {
             key: METADATA_SCHEMA_VERSION,
             value: schema_version,
         }),
     }
+}
+
+fn migrate_v2_to_v3(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "
+        CREATE TABLE encounters (
+          id INTEGER PRIMARY KEY,
+          encounter_key TEXT NOT NULL UNIQUE,
+          slug TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          description TEXT,
+          note TEXT,
+          status TEXT NOT NULL,
+          round_number INTEGER NOT NULL DEFAULT 1,
+          current_turn_participant_key TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE encounter_participants (
+          id INTEGER PRIMARY KEY,
+          encounter_id INTEGER NOT NULL,
+          participant_key TEXT NOT NULL UNIQUE,
+          record_key TEXT,
+          participant_kind TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          display_name TEXT NOT NULL,
+          record_title_snapshot TEXT,
+          record_kind_snapshot TEXT,
+          side TEXT NOT NULL DEFAULT 'enemy',
+          initiative INTEGER,
+          initiative_order INTEGER NOT NULL,
+          max_hp INTEGER,
+          current_hp INTEGER,
+          temporary_hp INTEGER NOT NULL DEFAULT 0,
+          defeated INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (encounter_id, position),
+          UNIQUE (encounter_id, initiative, initiative_order),
+          FOREIGN KEY (encounter_id) REFERENCES encounters(id) ON DELETE CASCADE
+        );
+        CREATE INDEX encounter_participants_order_idx
+          ON encounter_participants(encounter_id, initiative, initiative_order);
+        CREATE TABLE encounter_participant_adjustments (
+          participant_id INTEGER NOT NULL,
+          adjustment_key TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          value TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (participant_id, adjustment_key),
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        CREATE TABLE encounter_participant_conditions (
+          id INTEGER PRIMARY KEY,
+          participant_id INTEGER NOT NULL,
+          condition_key TEXT,
+          name TEXT NOT NULL,
+          value INTEGER,
+          source_participant_key TEXT,
+          duration_rounds INTEGER,
+          note TEXT,
+          source_note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        UPDATE local_state_metadata
+           SET value = '3'
+         WHERE key = 'schema_version';
+        ",
+    )?;
+    Ok(())
 }
 
 fn migrate_v1_to_v2(connection: &Connection) -> LocalStateResult<()> {
@@ -163,6 +311,22 @@ fn validate_v2_tables(connection: &Connection) -> LocalStateResult<()> {
         return Err(LocalStateError::IncompatibleSchema(
             "missing required saved_lists.list_key column".to_string(),
         ));
+    }
+    Ok(())
+}
+
+fn validate_v3_tables(connection: &Connection) -> LocalStateResult<()> {
+    for table in [
+        ENCOUNTERS_TABLE,
+        ENCOUNTER_PARTICIPANTS_TABLE,
+        ENCOUNTER_PARTICIPANT_ADJUSTMENTS_TABLE,
+        ENCOUNTER_PARTICIPANT_CONDITIONS_TABLE,
+    ] {
+        if !table_exists(connection, table)? {
+            return Err(LocalStateError::IncompatibleSchema(format!(
+                "missing required local-state table `{table}`"
+            )));
+        }
     }
     Ok(())
 }

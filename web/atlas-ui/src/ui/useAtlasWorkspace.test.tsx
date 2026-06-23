@@ -54,7 +54,8 @@ describe("useAtlasWorkspace", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).toHaveBeenCalled();
 
     act(() => {
@@ -75,15 +76,15 @@ describe("useAtlasWorkspace", () => {
     expect(window.location.pathname).toBe("/search");
     expect(window.location.search).toBe("?q=fi&mode=text");
     await delay(150);
-    expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1);
+    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
     expect(result.current.diagnostics.searchDebouncing).toBe(false);
     expect(result.current.diagnostics.resultRequest).toMatchObject({
       kind: "open_window",
     });
     const request = apiMocks.openResultWindow.mock
-      .calls[1][0] as OpenResultWindowRequest;
+      .calls[0][0] as OpenResultWindowRequest;
     expect(request.mode).toMatchObject({
       kind: "text_search",
       query: "fi",
@@ -108,6 +109,7 @@ describe("useAtlasWorkspace", () => {
   });
 
   it("tracks keyboard result selection separately from opened detail routes", async () => {
+    seedSearchUrl();
     apiMocks.openResultWindow.mockResolvedValue(
       resultWindowPage(["spell:dirge-of-doom", "spell:heal"]),
     );
@@ -127,12 +129,12 @@ describe("useAtlasWorkspace", () => {
     act(() => result.current.openActiveResult());
     expect(result.current.selectedRecordKey).toBe("spell:heal");
     expect(window.location.pathname).toBe("/search/records/spell%3Aheal");
-    expect(window.location.search).toBe("");
+    expect(window.location.search).toBe("?q=dirge&mode=text");
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("");
+    expect(window.location.search).toBe("?q=dirge&mode=text");
   });
 
   it("writes simple filters as compact URL params", async () => {
@@ -140,7 +142,7 @@ describe("useAtlasWorkspace", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
 
     act(() =>
       result.current.setSearch({
@@ -397,6 +399,7 @@ describe("useAtlasWorkspace", () => {
   });
 
   it("reads later pages from the current result window", async () => {
+    seedSearchUrl();
     apiMocks.openResultWindow.mockResolvedValue(
       resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
     );
@@ -423,6 +426,7 @@ describe("useAtlasWorkspace", () => {
   });
 
   it("keeps previous rows while marking page transitions as refreshing", async () => {
+    seedSearchUrl();
     const nextPage = deferred<ResultWindowPage>();
     apiMocks.openResultWindow.mockResolvedValue(
       resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
@@ -457,6 +461,7 @@ describe("useAtlasWorkspace", () => {
   });
 
   it("resets page execution when search changes from a later page", async () => {
+    seedSearchUrl();
     apiMocks.openResultWindow.mockResolvedValue(
       resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
     );
@@ -495,6 +500,7 @@ describe("useAtlasWorkspace", () => {
   });
 
   it("restores URL search and selected record without waiting for typing debounce", async () => {
+    seedSearchUrl();
     const restoredSearch = {
       ...DEFAULT_SEARCH_STATE,
       query: "acid",
@@ -540,6 +546,10 @@ function queryClientWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
+}
+
+function seedSearchUrl(query = "dirge") {
+  history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}&mode=text`);
 }
 
 function resultWindowPage(

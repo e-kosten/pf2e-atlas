@@ -12,10 +12,10 @@ Read this document first when you need to understand crate ownership, then follo
 ## Crate Map
 
 - `atlas-app-model` owns interactive app DTOs for local web/TUI-style workflows, including app errors, readiness, filter editor contracts, basic filters, result windows, and record view wrappers. It is the default Rust-to-TypeScript export boundary for app contracts.
-- `atlas-app-service` owns application workflow orchestration over `atlas-runtime`, `atlas-search`, and `atlas-local-state`. Web startup uses full pooled retrieval services through runtime setup/readiness policy; short-lived local CLI clients may choose explicit on-demand retrieval modes for workflows that do not need query embeddings. App-service owns result-window metadata, projects app filter editor groups/controls from product discovery, lowers app filters to canonical filters, hydrates saved-list rows from local state against the active artifact, and exposes native methods to web, CLI client, and future TUI surfaces.
+- `atlas-app-service` owns application workflow orchestration over `atlas-runtime`, `atlas-search`, and `atlas-local-state`. Web startup uses full pooled retrieval services through runtime setup/readiness policy; short-lived local CLI clients may choose explicit on-demand retrieval modes for workflows that do not need query embeddings. App-service owns result-window metadata, projects app filter editor groups/controls from product discovery, lowers app filters to canonical filters, hydrates saved-list and encounter rows from local state against the active artifact, and exposes native methods to web, CLI client, and future TUI surfaces.
 - `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
 - `web/atlas-ui` owns the TypeScript/React frontend prototype. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
-- `atlas-local-state` owns durable mutable local state stored outside the generated artifact, starting with saved-list schema, migrations, ordering, and item snapshots.
+- `atlas-local-state` owns durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants.
 - `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
@@ -46,7 +46,7 @@ flowchart TD
     appService --> appModel["atlas-app-model<br/>interactive DTOs"]
     appService --> runtime
     appService --> search
-    appService --> localState["atlas-local-state<br/>saved lists and mutable local state"]
+    appService --> localState["atlas-local-state<br/>saved lists, encounters,<br/>and mutable local state"]
     cli --> cliClient["atlas-cli client<br/>local app-service / future HTTP"]
     cliClient --> appService
     cli --> runtime["atlas-runtime<br/>setup/index control plane"]
@@ -81,7 +81,7 @@ It should not own durable retrieval semantics, filter discovery behavior, SQLite
 
 `atlas web` starts a long-lived localhost service for the interactive web app. CLI startup owns process flags such as path overrides, port selection, and `--open`; `atlas-web` owns HTTP routing; `atlas-app-service` owns long-lived retrieval workflow state.
 
-For `atlas web`, the app service starts a bounded pool of full `AtlasRetrievalService` workers through `AtlasRuntime::open_retrieval_service` and should fail startup when artifact, vector, or embedding readiness is not satisfied. The CLI local client may start app-service in explicit on-demand modes: no-embeddings for record/list/filter/graph reads and stored-vectors for similar-record reads. Those modes are for short-lived local CLI workflows, not for the web service. `atlas-web` must apply explicit backpressure before dispatching blocking app-service work so frontend HTTP requests cannot accumulate in an unbounded transport-side queue ahead of the app-service executor. Saved-list web reads go through app-service methods that open the runtime-resolved local-state database and hydrate active records through the app-service retrieval pool, preserving unresolved local-state rows with snapshots.
+For `atlas web`, the app service starts a bounded pool of full `AtlasRetrievalService` workers through `AtlasRuntime::open_retrieval_service` and should fail startup when artifact, vector, or embedding readiness is not satisfied. The CLI local client may start app-service in explicit on-demand modes: no-embeddings for record/list/filter/graph reads and stored-vectors for similar-record reads. Those modes are for short-lived local CLI workflows, not for the web service. `atlas-web` must apply explicit backpressure before dispatching blocking app-service work so frontend HTTP requests cannot accumulate in an unbounded transport-side queue ahead of the app-service executor. Saved-list and encounter web reads go through app-service methods that open the runtime-resolved local-state database and hydrate active records through the app-service retrieval pool, preserving unresolved local-state rows with snapshots.
 
 `web/atlas-ui` is a Vite/React frontend package. Vite remains the frontend development and build tool, but normal `atlas web` usage serves the built frontend from `atlas-web` through embedded static assets. During frontend prototyping, contributors may still run the Vite dev server and proxy `/api/*` to the local `atlas-web` service for hot reload. The frontend imports the Rust-generated TypeScript DTO surface through `web/atlas-ui/src/generated/atlas.ts`; frontend code should use those generated contracts rather than hand-written duplicate app DTOs. The filter palette is driven by the app-owned `FilterEditorView` contract from `/api/filters/editor`; the frontend may own local visibility, pending values, URL state, and component rendering, but not field grouping, control kind, labels, placement, discovery-scope semantics, or option ordering policy. Authored filter state in the UI should use app-model `FilterClause` values directly, including range and metric comparison clauses, rather than parallel field-specific buckets.
 
@@ -97,9 +97,11 @@ A future Ratatui workbench should consume `atlas-app-model` and `atlas-app-servi
 
 ### Local State
 
-Durable mutable local state lives in a separate local-state SQLite database resolved beside the active generated artifact. The generated artifact remains rebuildable source-derived data; local state owns user-authored or agent-authored data such as saved lists.
+Durable mutable local state lives in a separate local-state SQLite database resolved beside the active generated artifact. The generated artifact remains rebuildable source-derived data; local state owns user-authored or agent-authored data such as saved lists and runnable encounters.
 
 Saved lists expose a stable generated `list_key` for product identity plus a unique user-friendly slug for URL, CLI, and scriptable references. Saved-list operations accept list refs that resolve by `list_key` or slug, while responses include both values. Browser routes should use slugs for readability; update workflows can use `list_key` internally when they need stable identity across a slug change. Saved-list items store canonical record keys plus display snapshots. Adding a saved-list item requires strict resolution to one active record key, but later artifact rebuilds may leave that key unresolved. Product surfaces must preserve unresolved local-state rows and report them explicitly rather than deleting them during artifact rebuilds or hydration.
+
+Encounters expose a stable generated `encounter_key` plus a unique slug for URL and script-friendly references. Encounter participants are instance rows with their own `participant_key`, so multiple copies of the same creature or hazard can coexist with independent initiative, HP, notes, and defeated state. Record-backed encounter participants store canonical record keys plus snapshots and are hydrated through app-service when possible; manual PC participants are local-state rows without record keys.
 
 ### Tags
 
@@ -114,10 +116,10 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
 4. `atlas-runtime` resolves source, embedding cache, artifact, and local-state paths for setup and query commands.
 5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
-6. `atlas-local-state` opens and migrates mutable local-state storage and exposes product APIs for saved lists and future durable local data.
+6. `atlas-local-state` opens and migrates mutable local-state storage and exposes product APIs for saved lists, encounters, and future durable local data.
 7. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
 8. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`. Commands that need application workflows should call the CLI client facade, which currently has an in-process app-service implementation and a stubbed future HTTP implementation.
-9. `atlas-app-service` holds retrieval state for application workflows, adapts app DTOs into `atlas-search` requests, composes local-state product APIs with retrieval, and projects saved lists into app-facing views. It is an application workflow service, not a web-only service.
+9. `atlas-app-service` holds retrieval state for application workflows, adapts app DTOs into `atlas-search` requests, composes local-state product APIs with retrieval, and projects saved lists and encounters into app-facing views. It is an application workflow service, not a web-only service.
 10. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
 11. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
 
@@ -132,7 +134,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 - Keep `atlas-cli/src/main.rs` as the binary entrypoint only. Top-level command composition and dispatch belong in `atlas-cli/src/cli.rs`; shared CLI argument groups and parsers belong under `atlas-cli/src/cli/`; command-specific argument grammar, execution, and presentation belong under `atlas-cli/src/commands/`.
 - Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
 - Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
-- Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. `LocalStateStore` owns database lifecycle and feature handles such as `saved_lists()`, while feature modules own product behavior over their rows. Cross-layer workflows that need both active artifact records and local state belong in `atlas-app-service`, not in `atlas-runtime` or CLI command code. Artifact rebuilds must not be responsible for preserving saved lists or future user-authored local rows.
+- Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. `LocalStateStore` owns database lifecycle and feature handles such as `saved_lists()` and `encounters()`, while feature modules own product behavior over their rows. Cross-layer workflows that need both active artifact records and local state belong in `atlas-app-service`, not in `atlas-runtime` or CLI command code. Artifact rebuilds must not be responsible for preserving saved lists, encounters, or future user-authored local rows.
 - Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
 - Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
 - Add future crates only when their first real implementation slice lands.

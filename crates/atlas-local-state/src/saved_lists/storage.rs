@@ -175,39 +175,6 @@ pub(crate) fn remove_item(
     Ok(removed > 0)
 }
 
-pub(crate) fn validate_slug(slug: &str) -> LocalStateResult<()> {
-    if slug.is_empty() {
-        return Err(LocalStateError::InvalidSlug {
-            slug: slug.to_string(),
-            reason: "slug must not be empty",
-        });
-    }
-    if slug.starts_with('-') || slug.ends_with('-') {
-        return Err(LocalStateError::InvalidSlug {
-            slug: slug.to_string(),
-            reason: "slug must not start or end with '-'",
-        });
-    }
-    let mut previous_dash = false;
-    for byte in slug.bytes() {
-        let valid = byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-';
-        if !valid {
-            return Err(LocalStateError::InvalidSlug {
-                slug: slug.to_string(),
-                reason: "use lowercase ASCII letters, digits, and '-'",
-            });
-        }
-        if byte == b'-' && previous_dash {
-            return Err(LocalStateError::InvalidSlug {
-                slug: slug.to_string(),
-                reason: "slug must not contain consecutive '-'",
-            });
-        }
-        previous_dash = byte == b'-';
-    }
-    Ok(())
-}
-
 pub(crate) fn validate_list_ref(list_ref: &str) -> LocalStateResult<()> {
     if list_ref.trim().is_empty() {
         return Err(LocalStateError::InvalidListRef {

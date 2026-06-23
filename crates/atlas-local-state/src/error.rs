@@ -11,6 +11,11 @@ pub enum LocalStateError {
         list_ref: String,
         reason: &'static str,
     },
+    #[error("invalid encounter ref `{encounter_ref}`: {reason}")]
+    InvalidEncounterRef {
+        encounter_ref: String,
+        reason: &'static str,
+    },
     #[error("invalid saved-list record key `{record_key}`: {reason}")]
     InvalidRecordKey { record_key: String, reason: String },
     #[error("saved list already exists: {0}")]
@@ -19,6 +24,16 @@ pub enum LocalStateError {
     ListNotFound(String),
     #[error("could not allocate a unique saved-list key")]
     ListKeyAllocationFailed,
+    #[error("encounter already exists: {0}")]
+    EncounterAlreadyExists(String),
+    #[error("encounter not found: {0}")]
+    EncounterNotFound(String),
+    #[error("encounter participant not found: {0}")]
+    ParticipantNotFound(String),
+    #[error("could not allocate a unique encounter key")]
+    EncounterKeyAllocationFailed,
+    #[error("could not allocate a unique encounter participant key")]
+    ParticipantKeyAllocationFailed,
     #[error("unsupported local-state metadata `{key}` value `{value}`")]
     UnsupportedMetadata { key: &'static str, value: String },
     #[error("local-state database is incompatible: {0}")]

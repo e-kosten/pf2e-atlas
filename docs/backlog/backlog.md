@@ -58,6 +58,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust web keyboard navigation and focus](./items/rust-web-keyboard-navigation-focus.md)
   Define a coherent keyboard-driven web workflow across search, filters, results, detail panes, and editable controls. Status: proposed.
 
+- [Rust web form accessibility audit](./items/rust-web-form-accessibility-audit.md)
+  Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
+
 ## Later
 
 - [Rust derived-tag runtime and editorial redesign](./items/rust-derived-tag-redesign.md)

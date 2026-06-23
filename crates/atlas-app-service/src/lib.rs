@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 mod discovery;
+mod encounters;
 mod error;
 mod executor;
 mod filter;

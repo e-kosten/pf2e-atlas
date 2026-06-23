@@ -5,6 +5,7 @@ use super::model::{
 };
 use super::model::{SavedList, SavedListWithItems, UpdateSavedList};
 use super::storage;
+use crate::slug::validate_slug;
 use crate::{LocalStateError, LocalStateResult, LocalStateStore};
 
 #[derive(Debug, Clone, Copy)]
@@ -18,7 +19,7 @@ impl<'a> SavedLists<'a> {
     }
 
     pub fn create(&self, list: NewSavedList) -> LocalStateResult<SavedList> {
-        storage::validate_slug(&list.slug)?;
+        validate_slug(&list.slug)?;
         let connection = self.store.connection()?;
         let list_key = storage::insert_list(&connection, list)?;
         self.get(&list_key)?
@@ -50,7 +51,7 @@ impl<'a> SavedLists<'a> {
 
     pub fn update(&self, list: UpdateSavedList) -> LocalStateResult<Option<SavedList>> {
         storage::validate_list_ref(&list.list_key)?;
-        storage::validate_slug(&list.slug)?;
+        validate_slug(&list.slug)?;
         let connection = self.store.connection()?;
         if !storage::update_list(&connection, list.clone())? {
             return Ok(None);

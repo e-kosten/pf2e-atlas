@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 
 use crate::schema;
-use crate::{LocalStateResult, SavedLists};
+use crate::{Encounters, LocalStateResult, SavedLists};
 
 #[derive(Debug, Clone)]
 pub struct LocalStateStore {
@@ -30,6 +30,10 @@ impl LocalStateStore {
 
     pub fn saved_lists(&self) -> SavedLists<'_> {
         SavedLists::new(self)
+    }
+
+    pub fn encounters(&self) -> Encounters<'_> {
+        Encounters::new(self)
     }
 
     pub(crate) fn connection(&self) -> LocalStateResult<Connection> {

@@ -27,6 +27,7 @@ import {
   DEFAULT_SEARCH_STATE,
   encodeSearchExecutionState,
   encodeSearchState,
+  hasExecutableSearch,
   searchStateQueryString,
   type SearchFormState,
 } from "../state/searchState";
@@ -114,6 +115,7 @@ export function useAtlasWorkspace({
     () => encodeSearchExecutionState(activeSearch),
     [activeSearch],
   );
+  const canRunResultSearch = enabled && hasExecutableSearch(activeSearch);
   useEffect(() => {
     const onUrlStateChange = () => {
       const route = currentAtlasRoute();
@@ -145,7 +147,7 @@ export function useAtlasWorkspace({
 
   const resultsQuery = useQuery({
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
-    enabled,
+    enabled: canRunResultSearch,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const startedAt = performance.now();
@@ -248,8 +250,8 @@ export function useAtlasWorkspace({
   });
 
   const resultRows = useMemo(
-    () => resultsQuery.data?.rows ?? [],
-    [resultsQuery.data?.rows],
+    () => (canRunResultSearch ? (resultsQuery.data?.rows ?? []) : []),
+    [canRunResultSearch, resultsQuery.data?.rows],
   );
 
   const activeResultKey = useMemo(() => {
@@ -326,9 +328,10 @@ export function useAtlasWorkspace({
   );
 
   const resultsRefreshing =
-    searchDebouncing ||
-    resultsQuery.isPlaceholderData ||
-    (resultsQuery.isFetching && !resultsQuery.isLoading);
+    canRunResultSearch &&
+    (searchDebouncing ||
+      resultsQuery.isPlaceholderData ||
+      (resultsQuery.isFetching && !resultsQuery.isLoading));
 
   return {
     search,
@@ -341,12 +344,12 @@ export function useAtlasWorkspace({
     selectRecord,
     pageNumber,
     setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
-    resultPage: resultsQuery.data,
+    resultPage: canRunResultSearch ? resultsQuery.data : undefined,
     recordDetail: detailQuery.data,
     filterEditor: filterEditorQuery.data,
     filterValuesByField,
     readiness,
-    resultsLoading: resultsQuery.isLoading || searchDebouncing,
+    resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
     filterDiscoveryLoading:
@@ -365,7 +368,9 @@ export function useAtlasWorkspace({
       if (!enabled) {
         return;
       }
-      void resultsQuery.refetch();
+      if (canRunResultSearch) {
+        void resultsQuery.refetch();
+      }
       void detailQuery.refetch();
     },
   };

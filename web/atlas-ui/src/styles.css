@@ -4,5 +4,6 @@
 @import "./styles/ant-overrides.css";
 @import "./styles/results.css";
 @import "./styles/lists.css";
+@import "./styles/encounters.css";
 @import "./styles/detail.css";
 @import "./styles/responsive.css";

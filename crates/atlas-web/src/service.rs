@@ -1,12 +1,17 @@
 use std::sync::Arc;
 
 use atlas_app_model::{
-    AddSavedListItemRequest, AppError, AppErrorCode, AppReadinessView, CreateSavedListRequest,
+    AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
+    AppReadinessView, CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView,
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterEditorView, FilterSavedListRequest, FilterValueListView, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RemoveSavedListItemRequest, ResultWindowPage,
+    EncounterCreateView, EncounterDetailView, EncounterIndexView, EncounterParticipantView,
+    EncounterUpdateView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListUpdateView, UpdateSavedListRequest,
+    SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use tokio::sync::Semaphore;
@@ -68,6 +73,74 @@ pub(crate) trait AtlasWebService: Send + Sync {
     ) -> Result<ResultWindowPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+
+    fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
+
+    fn encounter(&self, encounter_ref: &str) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn create_encounter(
+        &self,
+        request: CreateEncounterRequest,
+    ) -> Result<EncounterCreateView, AppServiceError>;
+
+    fn delete_encounter(&self, encounter_ref: &str)
+    -> Result<DeleteEncounterView, AppServiceError>;
+
+    fn update_encounter(
+        &self,
+        request: UpdateEncounterRequest,
+    ) -> Result<EncounterUpdateView, AppServiceError>;
+
+    fn add_encounter_record_participant(
+        &self,
+        request: AddEncounterRecordParticipantRequest,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn add_encounter_manual_participant(
+        &self,
+        request: AddEncounterManualParticipantRequest,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn update_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        request: UpdateEncounterParticipantRequest,
+    ) -> Result<EncounterParticipantView, AppServiceError>;
+
+    fn reorder_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        request: ReorderEncounterParticipantRequest,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn remove_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn set_encounter_turn(
+        &self,
+        request: SetEncounterTurnRequest,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn add_encounter_participant_condition(
+        &self,
+        encounter_ref: &str,
+        request: AddEncounterParticipantConditionRequest,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn update_encounter_participant_condition(
+        &self,
+        encounter_ref: &str,
+        request: UpdateEncounterParticipantConditionRequest,
+    ) -> Result<EncounterDetailView, AppServiceError>;
+
+    fn remove_encounter_participant_condition(
+        &self,
+        encounter_ref: &str,
+        condition_id: i64,
+    ) -> Result<EncounterDetailView, AppServiceError>;
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
@@ -137,6 +210,104 @@ impl AtlasWebService for AtlasAppService {
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(record_key)
+    }
+
+    fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
+        self.encounters()
+    }
+
+    fn encounter(&self, encounter_ref: &str) -> Result<EncounterDetailView, AppServiceError> {
+        self.encounter(encounter_ref)
+    }
+
+    fn create_encounter(
+        &self,
+        request: CreateEncounterRequest,
+    ) -> Result<EncounterCreateView, AppServiceError> {
+        self.create_encounter(request)
+    }
+
+    fn delete_encounter(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<DeleteEncounterView, AppServiceError> {
+        self.delete_encounter(encounter_ref)
+    }
+
+    fn update_encounter(
+        &self,
+        request: UpdateEncounterRequest,
+    ) -> Result<EncounterUpdateView, AppServiceError> {
+        self.update_encounter(request)
+    }
+
+    fn add_encounter_record_participant(
+        &self,
+        request: AddEncounterRecordParticipantRequest,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.add_encounter_record_participant(request)
+    }
+
+    fn add_encounter_manual_participant(
+        &self,
+        request: AddEncounterManualParticipantRequest,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.add_encounter_manual_participant(request)
+    }
+
+    fn update_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        request: UpdateEncounterParticipantRequest,
+    ) -> Result<EncounterParticipantView, AppServiceError> {
+        self.update_encounter_participant(encounter_ref, request)
+    }
+
+    fn reorder_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        request: ReorderEncounterParticipantRequest,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.reorder_encounter_participant(encounter_ref, request)
+    }
+
+    fn remove_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.remove_encounter_participant(encounter_ref, participant_key)
+    }
+
+    fn set_encounter_turn(
+        &self,
+        request: SetEncounterTurnRequest,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.set_encounter_turn(request)
+    }
+
+    fn add_encounter_participant_condition(
+        &self,
+        encounter_ref: &str,
+        request: AddEncounterParticipantConditionRequest,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.add_encounter_participant_condition(encounter_ref, request)
+    }
+
+    fn update_encounter_participant_condition(
+        &self,
+        encounter_ref: &str,
+        request: UpdateEncounterParticipantConditionRequest,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.update_encounter_participant_condition(encounter_ref, request)
+    }
+
+    fn remove_encounter_participant_condition(
+        &self,
+        encounter_ref: &str,
+        condition_id: i64,
+    ) -> Result<EncounterDetailView, AppServiceError> {
+        self.remove_encounter_participant_condition(encounter_ref, condition_id)
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
