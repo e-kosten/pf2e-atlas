@@ -1,7 +1,52 @@
-.encounter-index-view {
+.encounter-index-view,
+.encounter-edit-view {
   margin: 0 auto;
   max-width: 1120px;
   padding: 24px;
+}
+
+.encounter-edit-view {
+  max-width: 760px;
+}
+
+.encounter-edit-view__header,
+.encounter-edit-view__content {
+  background: var(--surface);
+}
+
+.encounter-edit-view__header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.encounter-edit-view__header h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.encounter-edit-view__header p,
+.encounter-edit-view__metadata {
+  color: var(--muted);
+}
+
+.encounter-edit-view__header p {
+  margin: 4px 0 0;
+}
+
+.encounter-edit-view__content {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.encounter-edit-view__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 16px;
 }
 
 .encounter-pane {
@@ -46,6 +91,22 @@
 .encounter-roster__list {
   display: grid;
   gap: 6px;
+}
+
+.encounter-roster__group {
+  display: grid;
+  gap: 6px;
+}
+
+.encounter-roster__group + .encounter-roster__group {
+  margin-top: 10px;
+}
+
+.encounter-roster__group-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .encounter-roster__row {
@@ -110,6 +171,11 @@
 .encounter-roster__row-actions {
   display: flex;
   gap: 4px;
+}
+
+.encounter-row-actions {
+  display: inline-flex;
+  gap: 6px;
 }
 
 .encounter-record-picker__row {

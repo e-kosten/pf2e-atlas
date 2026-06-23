@@ -29,6 +29,11 @@ const EncounterDetailView = lazy(() =>
     default: module.EncounterDetailView,
   })),
 );
+const EncounterEditView = lazy(() =>
+  import("./EncounterViews").then((module) => ({
+    default: module.EncounterEditView,
+  })),
+);
 const ListIndexView = lazy(() =>
   import("./ListViews").then((module) => ({ default: module.ListIndexView })),
 );
@@ -96,6 +101,7 @@ export function AtlasPrototypeApp() {
           {route.kind === "search" && <AntPrototype workspace={workspace} />}
           {route.kind === "encounters" && <EncounterIndexView route={route} />}
           {route.kind === "encounter" && <EncounterDetailView route={route} />}
+          {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
           {route.kind === "lists" && <ListIndexView route={route} />}
           {route.kind === "list" && <ListDetailView route={route} />}
           {route.kind === "listEdit" && <ListEditView route={route} />}

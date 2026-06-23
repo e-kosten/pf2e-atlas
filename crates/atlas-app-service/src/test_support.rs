@@ -17,9 +17,20 @@ pub(super) fn fixture_worker_with_workers(worker_count: usize) -> FixtureWorker 
     let _guard = fixture_creation_lock()
         .lock()
         .expect("fixture creation lock should not be poisoned");
+    fixture_worker_with_executor(RetrievalExecutor::from_fixture_workers(worker_count, 16))
+}
+
+pub(super) fn encounter_fixture_worker() -> FixtureWorker {
+    let _guard = fixture_creation_lock()
+        .lock()
+        .expect("fixture creation lock should not be poisoned");
+    fixture_worker_with_executor(RetrievalExecutor::from_encounter_fixture_workers(1, 16))
+}
+
+fn fixture_worker_with_executor(executor: RetrievalExecutor) -> FixtureWorker {
     FixtureWorker {
         worker: AtlasAppService::new(
-            RetrievalBackend::Pooled(RetrievalExecutor::from_fixture_workers(worker_count, 16)),
+            RetrievalBackend::Pooled(executor),
             fixture_runtime_options(),
             fixture_local_state_path(),
         )

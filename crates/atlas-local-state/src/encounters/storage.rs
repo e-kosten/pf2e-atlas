@@ -423,7 +423,7 @@ pub(crate) fn set_current_turn(
     encounter_ref: &str,
     participant_key: Option<&str>,
 ) -> LocalStateResult<bool> {
-    set_turn_state(connection, encounter_ref, participant_key, None)
+    set_turn_state(connection, encounter_ref, participant_key, None, false)
 }
 
 pub(crate) fn set_turn_state(
@@ -431,6 +431,7 @@ pub(crate) fn set_turn_state(
     encounter_ref: &str,
     participant_key: Option<&str>,
     round_number: Option<i64>,
+    mark_running: bool,
 ) -> LocalStateResult<bool> {
     let Some(encounter_id) = encounter_id(connection, encounter_ref)? else {
         return Err(LocalStateError::EncounterNotFound(
@@ -446,19 +447,27 @@ pub(crate) fn set_turn_state(
     }
     let now = now_rfc3339()?;
     if let Some(round_number) = round_number {
+        let status = if mark_running { Some("running") } else { None };
         connection.execute(
             "UPDATE encounters
              SET current_turn_participant_key = ?1, round_number = ?2,
-                 status = 'running', updated_at = ?3
-             WHERE id = ?4",
-            params![participant_key, round_number.max(1), now, encounter_id],
+                 status = COALESCE(?3, status), updated_at = ?4
+             WHERE id = ?5",
+            params![
+                participant_key,
+                round_number.max(1),
+                status,
+                now,
+                encounter_id
+            ],
         )?;
     } else {
+        let status = if mark_running { Some("running") } else { None };
         connection.execute(
             "UPDATE encounters
-             SET current_turn_participant_key = ?1, status = 'running', updated_at = ?2
-             WHERE id = ?3",
-            params![participant_key, now, encounter_id],
+             SET current_turn_participant_key = ?1, status = COALESCE(?2, status), updated_at = ?3
+             WHERE id = ?4",
+            params![participant_key, status, now, encounter_id],
         )?;
     }
     Ok(true)

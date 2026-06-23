@@ -97,6 +97,38 @@ impl RetrievalExecutor {
     pub(super) fn from_fixture_workers(worker_count: usize, queue_capacity: usize) -> Self {
         use atlas_search::test_support::minimal_fixture_retrieval_service_without_embeddings;
 
+        Self::from_test_fixture_factory(worker_count, queue_capacity, || {
+            minimal_fixture_retrieval_service_without_embeddings()
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn from_encounter_fixture_workers(
+        worker_count: usize,
+        queue_capacity: usize,
+    ) -> Self {
+        use atlas_search::test_support::encounter_fixture_retrieval_service_without_embeddings;
+
+        Self::from_test_fixture_factory(worker_count, queue_capacity, || {
+            encounter_fixture_retrieval_service_without_embeddings()
+        })
+    }
+
+    #[cfg(test)]
+    fn from_test_fixture_factory(
+        worker_count: usize,
+        queue_capacity: usize,
+        open_fixture: impl Fn() -> Result<
+            (
+                AtlasRetrievalService,
+                atlas_search::test_support::FixtureArtifact,
+            ),
+            Box<dyn std::error::Error>,
+        > + Send
+        + Sync
+        + Copy
+        + 'static,
+    ) -> Self {
         let worker_count = worker_count.max(1);
         let (sender, receiver) = mpsc::sync_channel(queue_capacity);
         let receiver = Arc::new(Mutex::new(receiver));
@@ -108,8 +140,7 @@ impl RetrievalExecutor {
                 .name(format!("atlas-app-test-retrieval-{index}"))
                 .spawn(move || {
                     let (mut retrieval, _artifact) =
-                        minimal_fixture_retrieval_service_without_embeddings()
-                            .expect("fixture retrieval service should build");
+                        open_fixture().expect("fixture retrieval service should build");
                     let _ = startup_sender.send(());
                     retrieval_worker(&mut retrieval, receiver);
                 })

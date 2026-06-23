@@ -273,7 +273,7 @@ pub(crate) async fn add_encounter_participant_condition(
 
 pub(crate) async fn update_encounter_participant_condition(
     State(state): State<AtlasWebState>,
-    Path((encounter_ref, _participant_key, condition_id)): Path<(String, String, i64)>,
+    Path((encounter_ref, participant_key, condition_id)): Path<(String, String, i64)>,
     payload: Result<Json<UpdateEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(mut request) = payload.map_err(WebError::invalid_request)?;
@@ -281,7 +281,11 @@ pub(crate) async fn update_encounter_participant_condition(
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.update_encounter_participant_condition(&encounter_ref, request)
+            service.update_encounter_participant_condition(
+                &encounter_ref,
+                &participant_key,
+                request,
+            )
         })
         .await?,
     ))
@@ -289,12 +293,16 @@ pub(crate) async fn update_encounter_participant_condition(
 
 pub(crate) async fn remove_encounter_participant_condition(
     State(state): State<AtlasWebState>,
-    Path((encounter_ref, _participant_key, condition_id)): Path<(String, String, i64)>,
+    Path((encounter_ref, participant_key, condition_id)): Path<(String, String, i64)>,
 ) -> Result<impl IntoResponse, WebError> {
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.remove_encounter_participant_condition(&encounter_ref, condition_id)
+            service.remove_encounter_participant_condition(
+                &encounter_ref,
+                &participant_key,
+                condition_id,
+            )
         })
         .await?,
     ))

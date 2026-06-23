@@ -2,18 +2,11 @@ import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { ColorSchemePreference, ResolvedColorScheme } from "./atlasTheme";
 import { pagePositionLabel } from "./pageMetrics";
+import type { AtlasRoute } from "./routes";
 import type { AtlasWorkspaceState } from "./useAtlasWorkspace";
 
 type PrototypeShellProps = {
-  activeView:
-    | "search"
-    | "encounters"
-    | "encounter"
-    | "lists"
-    | "list"
-    | "listEdit"
-    | "record"
-    | "reader";
+  activeView: AtlasRoute["kind"];
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
   onNavigateLists: () => void;
@@ -70,7 +63,9 @@ export function PrototypeShell({
           </button>
           <button
             aria-current={
-              activeView === "encounters" || activeView === "encounter"
+              activeView === "encounters" ||
+              activeView === "encounter" ||
+              activeView === "encounterEdit"
                 ? "page"
                 : undefined
             }

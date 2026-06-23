@@ -166,6 +166,7 @@ impl<'a> Encounters<'a> {
         encounter_ref: &str,
         participant_key: Option<&str>,
         round_number: i64,
+        mark_running: bool,
     ) -> LocalStateResult<bool> {
         validate_ref(encounter_ref)?;
         let connection = self.store.connection()?;
@@ -174,6 +175,7 @@ impl<'a> Encounters<'a> {
             encounter_ref,
             participant_key,
             Some(round_number),
+            mark_running,
         )
     }
 
