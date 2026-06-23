@@ -96,6 +96,15 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust optional PF2e art ingest](./items/rust-optional-pf2e-art-ingest.md)
   Track optional local ingestion of PF2e system icons and module-provided creature portrait/token art for future web presentation. Status: proposed.
 
+- [Rust encounter saved-list import](./items/rust-encounter-saved-list-import.md)
+  Create runnable encounters from saved lists while preserving saved-list order and explicit unresolved-item handling. Status: proposed.
+
+- [Rust encounter elite and weak projection](./items/rust-encounter-elite-weak-projection.md)
+  Add creature-only effective stat projections for elite and weak encounter adjustments without persisting copied stat blocks. Status: proposed.
+
+- [Rust encounter condition mechanics](./items/rust-encounter-condition-mechanics.md)
+  Move beyond durable condition annotations into explicit, tested mechanical condition projections where PF2e rules are deterministic. Status: proposed.
+
 - [Rust local-state import and export](./items/rust-local-state-import-export.md)
   Add scriptable import/export for saved lists and future durable local-state data without making artifact rebuilds responsible for user state. Status: proposed.
 

@@ -133,12 +133,14 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> Result<EncounterDetailView, AppServiceError>;
 
     fn remove_encounter_participant_condition(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         condition_id: i64,
     ) -> Result<EncounterDetailView, AppServiceError>;
 
@@ -297,17 +299,19 @@ impl AtlasWebService for AtlasAppService {
     fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> Result<EncounterDetailView, AppServiceError> {
-        self.update_encounter_participant_condition(encounter_ref, request)
+        self.update_encounter_participant_condition(encounter_ref, participant_key, request)
     }
 
     fn remove_encounter_participant_condition(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         condition_id: i64,
     ) -> Result<EncounterDetailView, AppServiceError> {
-        self.remove_encounter_participant_condition(encounter_ref, condition_id)
+        self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {

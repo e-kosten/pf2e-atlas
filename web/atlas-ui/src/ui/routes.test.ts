@@ -1,6 +1,8 @@
 import {
   atlasRoutePath,
   currentAtlasRoute,
+  encounterEditPath,
+  encounterPath,
   listEditPath,
   listPath,
   listsPath,
@@ -30,6 +32,21 @@ describe("atlas routes", () => {
 
     history.replaceState(null, "", "/lists");
     expect(currentAtlasRoute()).toEqual({ kind: "lists" });
+
+    history.replaceState(null, "", "/encounters");
+    expect(currentAtlasRoute()).toEqual({ kind: "encounters" });
+
+    history.replaceState(null, "", "/encounters/balradon-ambush");
+    expect(currentAtlasRoute()).toEqual({
+      kind: "encounter",
+      slug: "balradon-ambush",
+    });
+
+    history.replaceState(null, "", "/encounters/balradon-ambush/edit");
+    expect(currentAtlasRoute()).toEqual({
+      kind: "encounterEdit",
+      slug: "balradon-ambush",
+    });
 
     history.replaceState(null, "", "/lists/session-prep");
     expect(currentAtlasRoute()).toEqual({
@@ -80,6 +97,12 @@ describe("atlas routes", () => {
     );
     expect(
       atlasRoutePath({
+        kind: "encounterEdit",
+        slug: "balradon-ambush",
+      }),
+    ).toBe("/encounters/balradon-ambush/edit");
+    expect(
+      atlasRoutePath({
         kind: "listEdit",
         slug: "session-prep",
       }),
@@ -102,6 +125,10 @@ describe("atlas routes", () => {
   });
 
   it("builds list workspace paths", () => {
+    expect(encounterPath("balradon-ambush")).toBe("/encounters/balradon-ambush");
+    expect(encounterEditPath("balradon-ambush")).toBe(
+      "/encounters/balradon-ambush/edit",
+    );
     expect(listsPath()).toBe("/lists");
     expect(listPath("session-prep")).toBe("/lists/session-prep");
     expect(listPath("session-prep", "spell:heal")).toBe(

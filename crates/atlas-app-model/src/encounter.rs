@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{RecordDetailView, RecordSummaryView};
+use crate::RecordSummaryView;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -178,15 +178,6 @@ pub struct EncounterParticipantConditionView {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct EncounterParticipantDetailView {
-    pub participant: EncounterParticipantView,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub record_detail: Option<RecordDetailView>,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct AddEncounterRecordParticipantRequest {
@@ -259,8 +250,10 @@ pub struct AddEncounterParticipantConditionRequest {
     pub participant_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub condition_key: Option<String>,
-    pub name: String,
+    pub condition_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub value: Option<i64>,
@@ -284,7 +277,7 @@ pub struct UpdateEncounterParticipantConditionRequest {
     pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub condition_key: Option<String>,
+    pub condition_ref: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
