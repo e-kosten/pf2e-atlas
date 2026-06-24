@@ -157,6 +157,48 @@ describe("encounter views", () => {
     );
   });
 
+  it("advances turns from the roster play control", async () => {
+    const { unmount } = render(
+      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+
+    fireEvent.click(await screen.findByText("Next"));
+    await waitFor(() =>
+      expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
+        encounter_ref: "ambush",
+      }),
+    );
+
+    unmount();
+    vi.clearAllMocks();
+    apiMocks.getEncounter.mockResolvedValue(encounterDetailFixture(undefined));
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click(await screen.findByText("Play"));
+    await waitFor(() =>
+      expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
+        encounter_ref: "ambush",
+      }),
+    );
+  });
+
+  it("marks the current roster row and omits max HP from roster text", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    await screen.findByText("Initiative set");
+    const goblinRow = rosterRow("Goblin");
+    expect(goblinRow).toHaveClass("encounter-roster__row--current");
+    expect(within(goblinRow).getByLabelText("Goblin current HP")).toHaveValue("10");
+    expect(within(goblinRow).queryByText("/ 12")).not.toBeInTheDocument();
+  });
+
   it("edits the selected participant in the right pane", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -190,7 +232,8 @@ describe("encounter views", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: "Edit encounter" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Complete" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit encounter" });
+    fireEvent.click(within(dialog).getByText("Complete"));
 
     await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
     expect(apiMocks.updateEncounter.mock.calls[0][0]).toEqual(
@@ -221,11 +264,93 @@ describe("encounter views", () => {
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
 
+    const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
+    if (!kyraRow) {
+      throw new Error("Kyra roster row was not rendered");
+    }
+    fireEvent.click(kyraRow);
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(await screen.findByText("Goblin"));
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("actors:goblin"),
+    );
+    const linkedRuleButtonAfterReselect = (
+      await screen.findByText("Linked Rule")
+    ).closest("button");
+    if (!linkedRuleButtonAfterReselect) {
+      throw new Error("Linked Rule button was not rendered after reselection");
+    }
+    fireEvent.click(linkedRuleButtonAfterReselect);
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+    );
+
     fireEvent.click(screen.getByLabelText("Reference preview overlay"));
 
     await waitFor(() =>
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
     );
+  });
+
+  it("renders HP meter segments and threshold states", async () => {
+    apiMocks.getEncounter.mockResolvedValue(
+      encounterDetailFixture("participant_a", {
+        current_hp: 6n,
+        temporary_hp: 5n,
+      }),
+    );
+    const { unmount } = render(
+      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+
+    const meter = await screen.findByLabelText("HP remaining");
+    const currentSegment = meter.querySelector<HTMLElement>(
+      ".encounter-hp-meter__current",
+    );
+    const missingSegment = meter.querySelector<HTMLElement>(
+      ".encounter-hp-meter__missing",
+    );
+    const temporarySegment = meter.querySelector<HTMLElement>(
+      ".encounter-hp-meter__temporary",
+    );
+    expect(currentSegment).not.toBeNull();
+    expect(missingSegment).not.toBeNull();
+    expect(temporarySegment).not.toBeNull();
+    expect(currentSegment).toHaveClass("encounter-hp-meter__current--bloodied");
+    expect(currentSegment).not.toHaveClass("encounter-hp-meter__current--critical");
+    expect(currentSegment).toHaveStyle({ width: "35.294117647058826%" });
+    expect(missingSegment).toHaveStyle({
+      left: "35.294117647058826%",
+      width: "35.294117647058826%",
+    });
+    expect(temporarySegment).toHaveStyle({
+      left: "70.58823529411765%",
+      width: "29.411764705882355%",
+    });
+
+    unmount();
+    apiMocks.getEncounter.mockResolvedValue(
+      encounterDetailFixture("participant_a", {
+        current_hp: 3n,
+        temporary_hp: 0n,
+      }),
+    );
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const criticalMeter = await screen.findAllByLabelText("HP remaining");
+    expect(
+      criticalMeter[criticalMeter.length - 1].querySelector(
+        ".encounter-hp-meter__current",
+      ),
+    ).toHaveClass("encounter-hp-meter__current--critical");
   });
 
   it("applies HP formulas and consumes temporary HP before current HP", async () => {
@@ -259,6 +384,7 @@ describe("encounter views", () => {
         expect.objectContaining({
           participant_key: "participant_a",
           temporary_hp: 6n,
+          current_hp: 43n,
         }),
       ),
     );
@@ -272,7 +398,7 @@ describe("encounter views", () => {
         expect.objectContaining({
           participant_key: "participant_a",
           temporary_hp: 0n,
-          current_hp: 7n,
+          current_hp: 41n,
         }),
       ),
     );
@@ -294,9 +420,8 @@ describe("encounter views", () => {
     });
     await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(
-      await within(dialog).findByRole("button", { name: /Goblin Warrior/i }),
-    );
+    const goblinOption = await within(dialog).findByText("Goblin Warrior");
+    fireEvent.click(goblinOption.closest('[role="button"]') ?? goblinOption);
     await screen.findByText("Selected: Goblin Warrior");
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
@@ -398,6 +523,17 @@ function conditionCombobox(label: string): HTMLElement {
     .find((element) => element.getAttribute("role") === "combobox")!;
 }
 
+function rosterRow(displayName: string): HTMLElement {
+  const row = screen
+    .getAllByText(displayName)
+    .map((element) => element.closest('[role="button"]'))
+    .find((element): element is HTMLElement => element instanceof HTMLElement);
+  if (!row) {
+    throw new Error(`${displayName} roster row was not rendered`);
+  }
+  return row;
+}
+
 function queryClientWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -439,6 +575,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
 
 function encounterDetailFixture(
   currentTurnParticipantKey: string | undefined = "participant_a",
+  firstParticipantOverrides: Partial<EncounterParticipantView> = {},
 ): EncounterDetailViewDto {
   return {
     encounter: encounterIndexFixture().encounters[0],
@@ -467,6 +604,7 @@ function encounterDetailFixture(
             updated_at: "2026-01-01T00:00:00Z",
           },
         ],
+        ...firstParticipantOverrides,
       }),
       participantFixture({
         participant_key: "participant_b",

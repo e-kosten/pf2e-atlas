@@ -236,8 +236,8 @@ describe("AntFilters", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
-    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+    fireEvent.click(filterOptionRow("spell (1)"));
 
     expect(setSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -273,8 +273,8 @@ describe("AntFilters", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
-    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+    fireEvent.click(filterOptionRow("spell (1)"));
 
     expect(setSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -324,8 +324,8 @@ describe("AntFilters", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
-    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+    fireEvent.click(filterOptionRow("spell (1)"));
 
     expect(setSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -386,8 +386,8 @@ describe("AntFilters", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
-    fireEvent.click(screen.getByRole("button", { name: "spell (1)" }));
+    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+    fireEvent.click(filterOptionRow("spell (1)"));
 
     expect(setSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -412,8 +412,8 @@ describe("AntFilters", () => {
   it("keeps an open option picker stable while refreshed filter values narrow", async () => {
     const { rerender } = render(<AntFilters workspace={workspace()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /edit kinds filter/i }));
-    expect(await screen.findByRole("button", { name: "spell (1)" })).toBeVisible();
+    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+    expect(filterOptionRow("spell (1)")).toBeVisible();
 
     rerender(
       <AntFilters
@@ -502,6 +502,19 @@ function workspace(
 
 function lastSearch(setSearch: ReturnType<typeof vi.fn>): SearchFormState {
   return setSearch.mock.calls[setSearch.mock.calls.length - 1][0] as SearchFormState;
+}
+
+function filterOptionRow(label: string): HTMLButtonElement {
+  const button = screen
+    .getAllByText(label)
+    .map((element) => element.closest("button.filter-option-row"))
+    .find(
+      (element): element is HTMLButtonElement => element instanceof HTMLButtonElement,
+    );
+  if (!button) {
+    throw new Error(`Filter option row not found for ${label}`);
+  }
+  return button;
 }
 
 function includeOnlyKindEditor(): FilterEditorView {

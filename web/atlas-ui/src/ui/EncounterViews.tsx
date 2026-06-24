@@ -275,7 +275,10 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
                 removeParticipant.mutate(participant.participant_key);
               }
             }}
-            onSelect={setSelectedParticipantKey}
+            onSelect={(participantKey) => {
+              setSelectedParticipantKey(participantKey);
+              setPreviewRecordKey(null);
+            }}
             onReorder={(participantKey, targetParticipantKey, placement) =>
               reorderParticipant.mutate({
                 participantKey,
