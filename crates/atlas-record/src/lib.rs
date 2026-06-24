@@ -11,6 +11,7 @@ mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
 mod reference_policy;
+mod stat_block;
 
 pub use content::{
     ContentFtsField, ContentSectionNode, ContentSectionOrigin, ContentSourceKind,
@@ -52,4 +53,7 @@ pub use presentation_recipe::{
 pub use reference_policy::{
     DEFAULT_EXCLUDED_SOURCE_KINDS, ReferenceEdgeFacts, ReferenceGraphMode, ReferenceGraphPolicy,
     ReferenceVisibilityPolicy, reference_edge_matches_mode, reference_graph_policy,
+};
+pub use stat_block::{
+    AbilityKind, SaveKind, StatBlock, StatScalar, StatTarget, StatValue, build_stat_block,
 };
