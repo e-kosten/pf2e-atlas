@@ -1,4 +1,5 @@
-import { Select } from "antd";
+import { Button, Select } from "antd";
+import { ExternalLink, X } from "lucide-react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   EncounterParticipantVariantView,
@@ -11,13 +12,25 @@ import { RecordPresentation } from "../recordPresentation";
 
 export function EncounterInspectorPane({
   detailLoading,
+  onCloseReferencePreview,
+  onOpenReferenceFullPage,
+  onReference,
   onUpdate,
   participant,
+  previewDetail,
+  previewLoading,
+  previewRecordKey,
   recordDetail,
 }: {
   detailLoading: boolean;
+  onCloseReferencePreview: () => void;
+  onOpenReferenceFullPage: (recordKey: string) => void;
+  onReference: (recordKey: string) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView | undefined;
+  previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
+  previewLoading: boolean;
+  previewRecordKey: string | null;
   recordDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
 }) {
   if (!participant) {
@@ -42,15 +55,82 @@ export function EncounterInspectorPane({
     );
   }
   return (
-    <section className="encounter-pane">
+    <section className="encounter-pane encounter-record-pane">
       <ParticipantHeader participant={participant} onUpdate={onUpdate} />
       {participant.stat_block && <AdjustedStats statBlock={participant.stat_block} />}
       <RecordPresentation
         detail={recordDetail}
         loading={detailLoading}
-        onReference={() => undefined}
+        onReference={onReference}
       />
+      {previewRecordKey && (
+        <ReferencePreview
+          detail={previewDetail}
+          loading={previewLoading}
+          onClose={onCloseReferencePreview}
+          onOpenFullPage={() => onOpenReferenceFullPage(previewRecordKey)}
+          onReference={onReference}
+        />
+      )}
     </section>
+  );
+}
+
+function ReferencePreview({
+  detail,
+  loading,
+  onClose,
+  onOpenFullPage,
+  onReference,
+}: {
+  detail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
+  loading: boolean;
+  onClose: () => void;
+  onOpenFullPage: () => void;
+  onReference: (recordKey: string) => void;
+}) {
+  return (
+    <div
+      aria-label="Reference preview overlay"
+      className="encounter-reference-preview__backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+      role="presentation"
+    >
+      <div
+        aria-label="Reference preview"
+        className="encounter-reference-preview"
+        role="dialog"
+      >
+        <header className="encounter-reference-preview__header">
+          <span>Reference</span>
+          <div className="encounter-actions">
+            <Button
+              aria-label="Open reference full page"
+              icon={<ExternalLink size={14} />}
+              onClick={onOpenFullPage}
+              size="small"
+            />
+            <Button
+              aria-label="Close reference preview"
+              icon={<X size={14} />}
+              onClick={onClose}
+              size="small"
+            />
+          </div>
+        </header>
+        <div className="encounter-reference-preview__body">
+          <RecordPresentation
+            detail={detail}
+            loading={loading}
+            onReference={onReference}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -68,30 +148,35 @@ function ParticipantHeader({
         <h2>{participant.display_name}</h2>
       </div>
       {participant.participant_kind === "creature" && (
-        <Select
-          aria-label="Variant"
-          className="encounter-variant-select"
-          onChange={(value: EncounterParticipantVariantView) =>
-            onUpdate(
-              participantUpdate(participant, {
-                participant_variant: value,
-              }),
-            )
-          }
-          options={[
-            { label: "Normal", value: "normal" },
-            { label: "Elite", value: "elite" },
-            { label: "Weak", value: "weak" },
-          ]}
-          size="small"
-          value={participant.participant_variant}
-        />
+        <div className="encounter-variant-control">
+          <span>Variant</span>
+          <Select
+            aria-label="Variant"
+            className="encounter-variant-select"
+            onChange={(value: EncounterParticipantVariantView) =>
+              onUpdate(
+                participantUpdate(participant, {
+                  participant_variant: value,
+                }),
+              )
+            }
+            options={[
+              { label: "Normal", value: "normal" },
+              { label: "Elite", value: "elite" },
+              { label: "Weak", value: "weak" },
+            ]}
+            size="small"
+            value={participant.participant_variant}
+          />
+        </div>
       )}
     </header>
   );
 }
 
-function participantKindLabel(kind: EncounterParticipantView["participant_kind"]): string {
+function participantKindLabel(
+  kind: EncounterParticipantView["participant_kind"],
+): string {
   if (kind === "pc") {
     return "PC";
   }
@@ -103,11 +188,13 @@ function AdjustedStats({ statBlock }: { statBlock: StatBlockView }) {
     <section className="encounter-adjusted-stats">
       <div className="encounter-adjusted-stats__title">
         <h3>Adjusted Stats</h3>
-        {statBlock.adjusted_level !== undefined && statBlock.adjusted_level !== statBlock.level && (
-          <span>
-            Level {displayNumber(statBlock.level)} to {displayNumber(statBlock.adjusted_level)}
-          </span>
-        )}
+        {statBlock.adjusted_level !== undefined &&
+          statBlock.adjusted_level !== statBlock.level && (
+            <span>
+              Level {displayNumber(statBlock.level)} to{" "}
+              {displayNumber(statBlock.adjusted_level)}
+            </span>
+          )}
       </div>
       <div className="encounter-stat-grid">
         {statBlock.values.map((value) => (
@@ -139,7 +226,9 @@ function StatValue({ value }: { value: StatValueView }) {
       {changed && <small>base {signed(value.base_value)}</small>}
       {value.modifiers.length > 0 && (
         <small>
-          {value.modifiers.map((modifier) => `${modifier.label} ${signed(modifier.value)}`).join(", ")}
+          {value.modifiers
+            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
+            .join(", ")}
         </small>
       )}
       {value.suppressed_modifiers.length > 0 && (
@@ -178,8 +267,7 @@ function signed(value: bigint | number | undefined): string {
   if (value === undefined) {
     return "--";
   }
-  const numeric = Number(value);
-  return numeric > 0 ? `+${numeric}` : numeric.toString();
+  return Number(value).toString();
 }
 
 function hpLabel(participant: EncounterParticipantView): string {

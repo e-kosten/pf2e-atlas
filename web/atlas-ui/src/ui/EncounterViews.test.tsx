@@ -9,7 +9,11 @@ import type {
   RecordSummaryView,
   ResultWindowPage,
 } from "../generated/atlas";
-import { EncounterDetailView, EncounterIndexView } from "./EncounterViews";
+import {
+  EncounterDetailView,
+  EncounterEditView,
+  EncounterIndexView,
+} from "./EncounterViews";
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -55,11 +59,19 @@ describe("encounter views", () => {
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
     apiMocks.getEncounter.mockResolvedValue(encounterDetailFixture());
-    apiMocks.getRecordDetail.mockResolvedValue(recordDetailFixture("actors:goblin"));
+    apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
+      Promise.resolve(recordDetailFixture(recordKey)),
+    );
     apiMocks.openResultWindow.mockResolvedValue(resultWindowFixture());
     apiMocks.setEncounterTurn.mockResolvedValue(
       encounterDetailFixture("participant_b"),
     );
+    apiMocks.updateEncounter.mockResolvedValue({
+      encounter: {
+        ...encounterIndexFixture().encounters[0],
+        name: "Renamed Ambush",
+      },
+    });
     apiMocks.updateEncounterParticipant.mockImplementation((_slug: string, request) =>
       Promise.resolve(request),
     );
@@ -83,12 +95,43 @@ describe("encounter views", () => {
     expect(await screen.findByText("Ambush")).toBeInTheDocument();
     expect(screen.queryByText("Old Fight")).not.toBeInTheDocument();
 
+    const encounterRow = screen.getByText("Ambush").closest("tr");
+    if (!encounterRow) {
+      throw new Error("encounter row was not rendered");
+    }
+    fireEvent.click(encounterRow);
+    await waitFor(() => expect(window.location.pathname).toBe("/encounters/ambush"));
+
+    history.replaceState(null, "", "/encounters");
     fireEvent.click(screen.getByRole("checkbox", { name: "Archived" }));
     expect(await screen.findByText("Old Fight")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Ambush" }));
     await waitFor(() =>
       expect(window.location.pathname).toBe("/encounters/ambush/edit"),
+    );
+  });
+
+  it("edits encounter metadata without exposing slug", async () => {
+    render(<EncounterEditView route={{ kind: "encounterEdit", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    expect(await screen.findByDisplayValue("Ambush")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Slug")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Renamed Ambush" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
+    expect(apiMocks.updateEncounter.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        encounter_key: "encounter_ambush",
+        slug: "ambush",
+        name: "Renamed Ambush",
+      }),
     );
   });
 
@@ -114,12 +157,84 @@ describe("encounter views", () => {
     );
   });
 
+  it("edits the selected participant in the right pane", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
+    if (!kyraRow) {
+      throw new Error("Kyra roster row was not rendered");
+    }
+    fireEvent.click(kyraRow);
+
+    const hpInput = await screen.findByLabelText("HP");
+    expect(hpInput).toHaveValue("24");
+    fireEvent.change(hpInput, { target: { value: "20" } });
+    fireEvent.keyDown(hpInput, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_b",
+          current_hp: 20n,
+        }),
+      ),
+    );
+  });
+
+  it("keeps encounter lifecycle actions in the edit modal", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit encounter" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Complete" }));
+
+    await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
+    expect(apiMocks.updateEncounter.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        encounter_key: "encounter_ambush",
+        slug: "ambush",
+        status: "complete",
+      }),
+    );
+  });
+
+  it("opens and dismisses linked record previews inside the encounter record pane", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("actors:goblin"),
+    );
+    const linkedRuleButton = (await screen.findByText("Linked Rule")).closest("button");
+    if (!linkedRuleButton) {
+      throw new Error("Linked Rule button was not rendered");
+    }
+    fireEvent.click(linkedRuleButton);
+
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+    );
+    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Reference preview overlay"));
+
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
+    );
+  });
+
   it("applies HP formulas and consumes temporary HP before current HP", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
-    const hpInput = await screen.findByLabelText("HP or formula");
+    const hpInput = await screen.findByLabelText("HP");
+    expect(hpInput).toHaveValue("10");
     fireEvent.change(hpInput, { target: { value: "50 - 7" } });
     fireEvent.keyDown(hpInput, { key: "Enter" });
 
@@ -133,7 +248,22 @@ describe("encounter views", () => {
       ),
     );
 
-    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "8" } });
+    const tempHpInput = screen.getByLabelText("Temp HP");
+    expect(tempHpInput).toHaveValue("5");
+    fireEvent.change(tempHpInput, { target: { value: "4 + 2" } });
+    fireEvent.keyDown(tempHpInput, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          temporary_hp: 6n,
+        }),
+      ),
+    );
+
+    fireEvent.change(screen.getByLabelText("HP change"), { target: { value: "8" } });
     fireEvent.click(screen.getByRole("button", { name: "Damage" }));
 
     await waitFor(() =>
@@ -191,12 +321,10 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await screen.findByDisplayValue("Frightened");
+    await screen.findByText("Frightened");
 
-    const conditionInputs = screen.getAllByLabelText("Condition");
-    fireEvent.change(conditionInputs[conditionInputs.length - 1], {
-      target: { value: "Sickened" },
-    });
+    fireEvent.click(screen.getByText("Add condition"));
+    await selectOption(conditionCombobox("Add condition"), "Sickened");
     const valueInputs = screen.getAllByLabelText("Value");
     fireEvent.change(valueInputs[valueInputs.length - 1], {
       target: { value: "2" },
@@ -227,9 +355,7 @@ describe("encounter views", () => {
       apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
     ).not.toHaveProperty("condition_key");
 
-    const existingConditionInput = screen.getByDisplayValue("Frightened");
-    fireEvent.change(existingConditionInput, { target: { value: "Frightened 2" } });
-    fireEvent.blur(existingConditionInput);
+    await selectOption(conditionCombobox("Edit condition"), "Stupefied");
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -237,7 +363,7 @@ describe("encounter views", () => {
         "participant_a",
         expect.objectContaining({
           condition_id: 7n,
-          name: "Frightened 2",
+          name: "Stupefied",
         }),
       ),
     );
@@ -256,6 +382,21 @@ describe("encounter views", () => {
     );
   }, 10_000);
 });
+
+async function selectOption(input: HTMLElement, option: string) {
+  fireEvent.mouseDown(input);
+  const options = await screen.findAllByText(option);
+  const visibleOption = options.find((element) =>
+    element.classList.contains("ant-select-item-option-content"),
+  );
+  fireEvent.click(visibleOption ?? options[0]);
+}
+
+function conditionCombobox(label: string): HTMLElement {
+  return screen
+    .getAllByLabelText(label)
+    .find((element) => element.getAttribute("role") === "combobox")!;
+}
 
 function queryClientWrapper() {
   const queryClient = new QueryClient({
@@ -393,17 +534,37 @@ function recordSummaryFixture(recordKey: string, title: string): RecordSummaryVi
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
+  const linked = recordKey === "rules:linked";
   return {
     record_key: recordKey,
-    title: "Goblin Warrior",
-    kind: "creature",
+    title: linked ? "Linked Rule" : "Goblin Warrior",
+    kind: linked ? "rule" : "creature",
     presentation: {
       record_key: recordKey,
-      kind: "creature",
-      title: "Goblin Warrior",
+      kind: linked ? "rule" : "creature",
+      title: linked ? "Linked Rule" : "Goblin Warrior",
       identity: [],
       badges: [],
-      sections: [],
+      sections: linked
+        ? []
+        : [
+            {
+              kind: "references",
+              title: "References",
+              blocks: [
+                {
+                  kind: "relationships",
+                  content: [
+                    {
+                      kind: "reference",
+                      label: "Linked Rule",
+                      record_key: "rules:linked",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
     },
   };
 }

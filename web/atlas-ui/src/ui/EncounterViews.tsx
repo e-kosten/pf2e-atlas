@@ -24,7 +24,11 @@ import type {
   UpdateEncounterParticipantRequest,
 } from "../generated/atlas";
 import { EncounterInspectorPane } from "./encounter/EncounterInspectorPane";
-import { CreateEncounterModal, EditEncounterForm } from "./encounter/EncounterModals";
+import {
+  CreateEncounterModal,
+  EditEncounterForm,
+  EditEncounterModal,
+} from "./encounter/EncounterModals";
 import { EncounterRosterPane } from "./encounter/EncounterRosterPane";
 import { EncounterTurnPane } from "./encounter/EncounterTurnPane";
 import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "./routes";
@@ -99,6 +103,17 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           loading={encounters.isLoading || encounters.isFetching}
           locale={{ emptyText: "No encounters" }}
           pagination={false}
+          onRow={(encounter) => ({
+            className: "encounter-index-row",
+            tabIndex: 0,
+            onClick: () =>
+              navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug }),
+            onKeyDown: (event) => {
+              if (event.key === "Enter") {
+                navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug });
+              }
+            },
+          })}
           rowKey={(encounter) => encounter.encounter_key}
           size="middle"
         />
@@ -120,6 +135,8 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
+  const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [previewRecordKey, setPreviewRecordKey] = useState<string | null>(null);
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -137,6 +154,11 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     queryKey: ["encounter-record-detail", selected?.record_key],
     enabled: Boolean(selected?.record_key && selected.status === "active"),
     queryFn: () => getRecordDetail(selected?.record_key ?? ""),
+  });
+  const referencePreview = useQuery({
+    queryKey: ["encounter-reference-preview", previewRecordKey],
+    enabled: previewRecordKey !== null,
+    queryFn: () => getRecordDetail(previewRecordKey!),
   });
   const invalidateEncounter = async () => {
     await queryClient.invalidateQueries({ queryKey: ["encounter", route.slug] });
@@ -203,79 +225,133 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       ),
     onSuccess: invalidateEncounter,
   });
+  const encounterSummary = encounter.data?.encounter ?? null;
+  const updateEncounterStatus = (status: EncounterSummaryView["status"]) => {
+    if (!encounterSummary) {
+      return;
+    }
+    updateEncounterMutation.mutate({
+      encounter_key: encounterSummary.encounter_key,
+      slug: encounterSummary.slug,
+      name: encounterSummary.name,
+      description: encounterSummary.description,
+      note: encounter.data?.note,
+      status,
+    });
+  };
 
   return (
-    <WorkspaceLayout
-      filter={
-        <EncounterRosterPane
-          currentTurnParticipantKey={
-            encounter.data?.current_turn_participant_key ?? null
-          }
-          loading={encounter.isLoading}
-          onAddComplete={invalidateEncounter}
-          onRemove={(participant) => {
-            if (confirm(`Remove ${participant.display_name}?`)) {
-              removeParticipant.mutate(participant.participant_key);
+    <>
+      <section className="encounter-detail-header">
+        <div>
+          <h2>{encounterSummary?.name ?? route.slug}</h2>
+          <p>
+            {encounterSummary
+              ? `${encounterSummary.status} - round ${
+                  encounterSummary.round_number ?? 1
+                } - ${encounterSummary.participant_count} participants`
+              : "Loading encounter"}
+          </p>
+        </div>
+        <Button
+          aria-label="Edit encounter"
+          icon={<Edit2 size={14} />}
+          onClick={() => setEditEncounterOpen(true)}
+        >
+          Edit
+        </Button>
+      </section>
+      <WorkspaceLayout
+        filter={
+          <EncounterRosterPane
+            currentTurnParticipantKey={
+              encounter.data?.current_turn_participant_key ?? null
             }
-          }}
-          onSelect={setSelectedParticipantKey}
-          onReorder={(participantKey, targetParticipantKey, placement) =>
-            reorderParticipant.mutate({
-              participantKey,
-              targetParticipantKey,
-              placement,
-            })
-          }
-          onSetTurn={(participant) => startTurn.mutate(participant.participant_key)}
-          onUpdate={(participant) => updateParticipant.mutate(participant)}
-          participants={encounter.data?.participants ?? []}
-          selectedParticipantKey={selected?.participant_key ?? null}
-          slug={route.slug}
-        />
-      }
-      results={
-        <EncounterInspectorPane
-          detailLoading={detail.isLoading || detail.isFetching}
-          onUpdate={(participant) => updateParticipant.mutate(participant)}
-          participant={selected}
-          recordDetail={detail.data}
-        />
-      }
-      detail={
-        <EncounterTurnPane
-          current={
-            encounter.data?.participants.find(
-              (participant) =>
-                participant.participant_key ===
-                encounter.data?.current_turn_participant_key,
-            ) ?? null
-          }
-          encounter={encounter.data?.encounter ?? null}
+            loading={encounter.isLoading}
+            onAddComplete={invalidateEncounter}
+            onAdvanceTurn={() => startTurn.mutate(null)}
+            onRemove={(participant) => {
+              if (confirm(`Remove ${participant.display_name}?`)) {
+                removeParticipant.mutate(participant.participant_key);
+              }
+            }}
+            onSelect={setSelectedParticipantKey}
+            onReorder={(participantKey, targetParticipantKey, placement) =>
+              reorderParticipant.mutate({
+                participantKey,
+                targetParticipantKey,
+                placement,
+              })
+            }
+            onSetTurn={(participant) => startTurn.mutate(participant.participant_key)}
+            onUpdate={(participant) => updateParticipant.mutate(participant)}
+            participants={encounter.data?.participants ?? []}
+            selectedParticipantKey={selected?.participant_key ?? null}
+            slug={route.slug}
+          />
+        }
+        results={
+          <EncounterInspectorPane
+            detailLoading={detail.isLoading || detail.isFetching}
+            onCloseReferencePreview={() => setPreviewRecordKey(null)}
+            onOpenReferenceFullPage={(recordKey) =>
+              navigateToAtlasRoute({ kind: "record", recordKey })
+            }
+            onReference={setPreviewRecordKey}
+            onUpdate={(participant) => updateParticipant.mutate(participant)}
+            participant={selected}
+            previewDetail={referencePreview.data}
+            previewLoading={referencePreview.isLoading || referencePreview.isFetching}
+            previewRecordKey={previewRecordKey}
+            recordDetail={detail.data}
+          />
+        }
+        detail={
+          <EncounterTurnPane
+            current={selected ?? null}
+            participants={encounter.data?.participants ?? []}
+            onAddCondition={(request) => addCondition.mutate(request)}
+            onRemoveCondition={(participantKey, conditionId) =>
+              removeCondition.mutate({ participantKey, conditionId })
+            }
+            onUpdateCondition={(participantKey, condition) =>
+              updateCondition.mutate({ participantKey, condition })
+            }
+            onUpdate={(participant) => updateParticipant.mutate(participant)}
+          />
+        }
+        labels={{ filter: "Roster", results: "Record", detail: "Selected" }}
+        selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
+        widthSpecs={ENCOUNTER_WIDTH_SPECS}
+      />
+      {encounterSummary && (
+        <EditEncounterModal
+          encounter={encounterSummary}
           encounterNote={encounter.data?.note}
-          participants={encounter.data?.participants ?? []}
-          onDeleteEncounter={() => {
-            if (confirm(`Delete ${encounter.data?.encounter.name ?? route.slug}?`)) {
+          open={editEncounterOpen}
+          onArchive={() => {
+            updateEncounterStatus("archived");
+            setEditEncounterOpen(false);
+          }}
+          onCancel={() => setEditEncounterOpen(false)}
+          onComplete={() => {
+            updateEncounterStatus("complete");
+            setEditEncounterOpen(false);
+          }}
+          onDelete={() => {
+            if (confirm(`Delete ${encounterSummary.name}?`)) {
               deleteEncounter(route.slug).then(() =>
                 navigateToAtlasRoute({ kind: "encounters" }),
               );
             }
           }}
-          onStart={() => startTurn.mutate(null)}
-          onUpdateEncounter={(request) => updateEncounterMutation.mutate(request)}
-          onAddCondition={(request) => addCondition.mutate(request)}
-          onRemoveCondition={(participantKey, conditionId) =>
-            removeCondition.mutate({ participantKey, conditionId })
-          }
-          onUpdateCondition={(participantKey, condition) =>
-            updateCondition.mutate({ participantKey, condition })
-          }
-          onUpdate={(participant) => updateParticipant.mutate(participant)}
+          onSave={(request) => {
+            updateEncounterMutation.mutate(request);
+            setEditEncounterOpen(false);
+          }}
         />
-      }
-      labels={{ filter: "Roster", results: "Record", detail: "Turn" }}
-      selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
-      widthSpecs={ENCOUNTER_WIDTH_SPECS}
-    />
+      )}
+    </>
   );
 }
 
@@ -365,14 +441,20 @@ function encounterColumns(
             aria-label={`Edit ${encounter.name}`}
             icon={<Edit2 size={14} />}
             size="small"
-            onClick={() => onEdit(encounter)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(encounter);
+            }}
           />
           <Button
             danger
             aria-label={`Delete ${encounter.name}`}
             icon={<Trash2 size={14} />}
             size="small"
-            onClick={() => onDelete(encounter)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(encounter);
+            }}
           />
         </span>
       ),

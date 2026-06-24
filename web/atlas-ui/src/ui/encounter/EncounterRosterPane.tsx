@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Form, Input, InputNumber, Modal, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Trash2 } from "lucide-react";
+import { GripVertical, Play, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   addEncounterManualParticipant,
@@ -32,6 +32,7 @@ export function EncounterRosterPane({
   currentTurnParticipantKey,
   loading,
   onAddComplete,
+  onAdvanceTurn,
   onRemove,
   onReorder,
   onSelect,
@@ -44,6 +45,7 @@ export function EncounterRosterPane({
   currentTurnParticipantKey: string | null;
   loading: boolean;
   onAddComplete: () => void;
+  onAdvanceTurn: () => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
     participantKey: string,
@@ -170,6 +172,9 @@ export function EncounterRosterPane({
       role="button"
       tabIndex={0}
     >
+      <span className="encounter-roster__drag-handle" aria-hidden="true">
+        <GripVertical size={16} />
+      </span>
       <Input
         aria-label={`${participant.display_name} initiative`}
         className="encounter-roster__initiative-input"
@@ -207,9 +212,6 @@ export function EncounterRosterPane({
         placeholder={participant.max_hp === undefined ? "" : "HP"}
         size="small"
       />
-      <span className="encounter-roster__max-hp">
-        {participant.max_hp === undefined ? "" : `/ ${participant.max_hp.toString()}`}
-      </span>
       <span className="encounter-roster__row-actions">
         <Button
           aria-label={`Set turn to ${participant.display_name}`}
@@ -243,6 +245,14 @@ export function EncounterRosterPane({
           <p>{participants.length} participants</p>
         </div>
         <div className="encounter-actions">
+          <Button
+            icon={<Play size={14} />}
+            size="small"
+            type="primary"
+            onClick={onAdvanceTurn}
+          >
+            {currentTurnParticipantKey ? "Next" : "Play"}
+          </Button>
           <Button size="small" onClick={() => setRecordOpen(true)}>
             Add Creature
           </Button>
