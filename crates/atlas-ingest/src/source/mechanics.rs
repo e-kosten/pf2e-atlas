@@ -1,9 +1,10 @@
 use serde_json::Value;
 
 use atlas_record::{
-    ActorMechanics, DamageExpression, ItemMechanics, MechanicActivity, MechanicActivityKind,
-    MechanicActivityUsage, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
-    SpellcastingEntryMechanics, SpellcastingPreparation, render_plain_text,
+    ActivityRoll, ActivityRollAbility, ActivityRollSurface, ActorMechanics, DamageExpression,
+    ItemMechanics, MechanicActivity, MechanicActivityKind, MechanicActivityUsage, SpellArea,
+    SpellDefense, SpellMechanics, SpellRange, SpellTarget, SpellcastingEntryMechanics,
+    SpellcastingPreparation, render_plain_text,
 };
 
 use crate::records::EmbeddedItemFact;
@@ -126,6 +127,8 @@ fn spellcasting_entry(item: &EmbeddedItemFact) -> Option<SpellcastingEntryMechan
         entry_id: item.item_id.clone(),
         label: item.name.clone(),
         preparation,
+        spell_attack: raw.pointer("/system/spelldc/value").and_then(Value::as_i64),
+        spell_dc: raw.pointer("/system/spelldc/dc").and_then(Value::as_i64),
     })
 }
 
@@ -154,6 +157,7 @@ fn strike_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActiv
         traits: item.traits.clone(),
         compendium_source: item.compendium_source.clone(),
         usage: MechanicActivityUsage::Unlimited,
+        rolls: strike_rolls(item, raw),
         damage,
     })
 }
@@ -175,6 +179,7 @@ fn spell_activity(
         traits: item.traits.clone(),
         compendium_source: item.compendium_source.clone(),
         usage,
+        rolls: spell_rolls(raw, spellcasting_entries),
         damage,
     })
 }
@@ -202,8 +207,75 @@ fn action_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActiv
         traits: item.traits.clone(),
         compendium_source: item.compendium_source.clone(),
         usage,
+        rolls: Vec::new(),
         damage,
     })
+}
+
+fn strike_rolls(item: &EmbeddedItemFact, raw: &Value) -> Vec<ActivityRoll> {
+    let Some(base_value) = raw.pointer("/system/bonus/value").and_then(Value::as_i64) else {
+        return Vec::new();
+    };
+    vec![ActivityRoll {
+        roll_id: "attack".to_string(),
+        label: "Attack".to_string(),
+        base_value,
+        surface: ActivityRollSurface::AttackRoll,
+        ability: strike_ability(item),
+    }]
+}
+
+fn strike_ability(item: &EmbeddedItemFact) -> Option<ActivityRollAbility> {
+    if item
+        .traits
+        .iter()
+        .any(|trait_slug| trait_slug.starts_with("thrown-"))
+    {
+        return Some(ActivityRollAbility::Strength);
+    }
+    if item.traits.iter().any(|trait_slug| {
+        trait_slug == "ranged"
+            || trait_slug.starts_with("range-")
+            || trait_slug.starts_with("reload-")
+    }) {
+        return Some(ActivityRollAbility::Dexterity);
+    }
+    Some(ActivityRollAbility::Strength)
+}
+
+fn spell_rolls(
+    raw: &Value,
+    spellcasting_entries: &[SpellcastingEntryMechanics],
+) -> Vec<ActivityRoll> {
+    let Some(entry_id) = normalized_pointer_string(raw, "/system/location/value") else {
+        return Vec::new();
+    };
+    let Some(entry) = spellcasting_entries
+        .iter()
+        .find(|entry| entry.entry_id == entry_id)
+    else {
+        return Vec::new();
+    };
+    let mut rolls = Vec::new();
+    if let Some(base_value) = entry.spell_attack {
+        rolls.push(ActivityRoll {
+            roll_id: "spell.attack".to_string(),
+            label: "Spell Attack".to_string(),
+            base_value,
+            surface: ActivityRollSurface::AttackRoll,
+            ability: None,
+        });
+    }
+    if let Some(base_value) = entry.spell_dc {
+        rolls.push(ActivityRoll {
+            roll_id: "spell.dc".to_string(),
+            label: "Spell DC".to_string(),
+            base_value,
+            surface: ActivityRollSurface::Dc,
+            ability: None,
+        });
+    }
+    rolls
 }
 
 fn spell_usage(

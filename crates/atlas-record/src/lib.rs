@@ -34,16 +34,16 @@ pub use metrics::{
     MetricVariableVocabulary, all_definitions, definition_for, is_known_key, label_for_row,
 };
 pub use model::{
-    ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, AtlasRecordSet,
-    DamageExpression, DefaultRetrievalVisibility, DurationTimeSourceField,
-    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-    ItemMechanics, ItemTypeMechanics, MechanicActivity, MechanicActivityKind,
-    MechanicActivityUsage, MetricRow, MetricValue, NormalizedTime, RecordActivationTiming,
-    RecordAlias, RecordClassification, RecordContent, RecordDurationTiming, RecordIdentity,
-    RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
-    RecordTiming, RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
-    RemasterLink, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
-    SpellcastingEntryMechanics, SpellcastingPreparation, VariantSource,
+    ActivationTimeSourceField, ActivityRoll, ActivityRollAbility, ActivityRollSurface,
+    ActorMechanics, AliasSource, AtlasRecord, AtlasRecordSet, DamageExpression,
+    DefaultRetrievalVisibility, DurationTimeSourceField, FoundryDocumentMechanics,
+    FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics,
+    MechanicActivity, MechanicActivityKind, MechanicActivityUsage, MetricRow, MetricValue,
+    NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
+    RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
+    RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership, RecordVisibility,
+    RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense, SpellMechanics,
+    SpellRange, SpellTarget, SpellcastingEntryMechanics, SpellcastingPreparation, VariantSource,
 };
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationContent,

@@ -2,6 +2,7 @@ import { Button, Select } from "antd";
 import { ExternalLink, X } from "lucide-react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
+  ActivityRollView,
   DamageExpressionView,
   EncounterParticipantVariantView,
   EncounterParticipantView,
@@ -231,9 +232,35 @@ function ActivityValue({ activity }: { activity: MechanicActivityView }) {
         <strong>{activity.label}</strong>
         <span>{activity.kind.replace(/_/g, " ")}</span>
       </div>
+      {activity.rolls.map((roll) => (
+        <ActivityRollValue key={roll.roll_id} roll={roll} />
+      ))}
       {activity.damage.map((damage) => (
         <DamageValue key={damage.damage_id} damage={damage} />
       ))}
+    </div>
+  );
+}
+
+function ActivityRollValue({ roll }: { roll: ActivityRollView }) {
+  const changed = roll.adjusted_value !== roll.base_value;
+  const decreased = roll.adjusted_value < roll.base_value;
+  return (
+    <div className="encounter-damage-row">
+      <span>
+        {roll.label}:{" "}
+        <strong className={decreased ? "encounter-stat-value--decreased" : undefined}>
+          {signed(roll.adjusted_value)}
+        </strong>
+      </span>
+      {changed && <small>base {signed(roll.base_value)}</small>}
+      {roll.modifiers.length > 0 && (
+        <small>
+          {roll.modifiers
+            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
+            .join(", ")}
+        </small>
+      )}
     </div>
   );
 }
