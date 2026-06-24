@@ -1,17 +1,14 @@
 import { Button, Form, Input, InputNumber, Select } from "antd";
-import { Edit2, Play, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterParticipantConditionView,
   EncounterParticipantSideView,
   EncounterParticipantView,
-  EncounterSummaryView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
-  UpdateEncounterRequest,
 } from "../../generated/atlas";
-import { EditEncounterModal } from "./EncounterModals";
 
 type AddConditionForm = {
   name: string;
@@ -22,26 +19,25 @@ type AddConditionForm = {
   sourceNote?: string;
 };
 
+const MODELED_CONDITION_OPTIONS = [
+  "Frightened",
+  "Sickened",
+  "Off-Guard",
+  "Clumsy",
+  "Enfeebled",
+  "Stupefied",
+].map((name) => ({ label: name, value: name }));
+
 export function EncounterTurnPane({
   current,
-  encounter,
-  encounterNote,
   participants,
-  onDeleteEncounter,
-  onStart,
-  onUpdateEncounter,
   onAddCondition,
   onRemoveCondition,
   onUpdateCondition,
   onUpdate,
 }: {
   current: EncounterParticipantView | null;
-  encounter: EncounterSummaryView | null;
-  encounterNote: string | undefined;
   participants: EncounterParticipantView[];
-  onDeleteEncounter: () => void;
-  onStart: () => void;
-  onUpdateEncounter: (encounter: UpdateEncounterRequest) => void;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
   onUpdateCondition: (
@@ -50,11 +46,32 @@ export function EncounterTurnPane({
   ) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
 }) {
-  const [hpInput, setHpInput] = useState("");
-  const [amount, setAmount] = useState<number | null>(null);
-  const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [hpDraft, setHpDraft] = useState<{
+    participantKey: string;
+    value: string;
+  } | null>(null);
+  const [tempHpDraft, setTempHpDraft] = useState<{
+    participantKey: string;
+    value: string;
+  } | null>(null);
+  const [amountDraft, setAmountDraft] = useState<{
+    participantKey: string;
+    value: number | null;
+  } | null>(null);
   const [conditionForm] = Form.useForm<AddConditionForm>();
-  const encounterName = encounter?.name ?? "Encounter";
+  const currentParticipantKey = current?.participant_key ?? null;
+  const hpInput =
+    currentParticipantKey && hpDraft?.participantKey === currentParticipantKey
+      ? hpDraft.value
+      : (current?.current_hp?.toString() ?? "");
+  const tempHpInput =
+    currentParticipantKey && tempHpDraft?.participantKey === currentParticipantKey
+      ? tempHpDraft.value
+      : (current?.temporary_hp?.toString() ?? "");
+  const amount =
+    currentParticipantKey && amountDraft?.participantKey === currentParticipantKey
+      ? amountDraft.value
+      : null;
   const applyHpInput = () => {
     if (!current) {
       return;
@@ -67,26 +84,53 @@ export function EncounterTurnPane({
           defeated: hp === 0 ? true : current.defeated,
         }),
       );
-      setHpInput("");
+      setHpDraft({ participantKey: current.participant_key, value: hp.toString() });
     }
   };
+  const applyTempHpInput = () => {
+    if (!current) {
+      return;
+    }
+    const temporaryHp = evaluateHpFormula(tempHpInput);
+    if (temporaryHp !== null) {
+      onUpdate(
+        participantUpdate(current, {
+          temporary_hp: BigInt(temporaryHp),
+        }),
+      );
+      setTempHpDraft({
+        participantKey: current.participant_key,
+        value: temporaryHp.toString(),
+      });
+    }
+  };
+  const currentHp = asNumber(current?.current_hp);
+  const maxHp = asNumber(current?.max_hp);
+  const temporaryHp = asNumber(current?.temporary_hp);
+  const missingHp = Math.max(0, maxHp - currentHp);
+  const hpMeterTotal = Math.max(maxHp, currentHp + missingHp + temporaryHp);
+  const hpPercent =
+    hpMeterTotal > 0 ? Math.min(100, Math.max(0, (currentHp / hpMeterTotal) * 100)) : 0;
+  const missingHpPercent =
+    hpMeterTotal > 0 ? Math.min(100, Math.max(0, (missingHp / hpMeterTotal) * 100)) : 0;
+  const tempHpPercent =
+    hpMeterTotal > 0
+      ? Math.min(100, Math.max(0, (temporaryHp / hpMeterTotal) * 100))
+      : 0;
+  const hpRatio = maxHp > 0 ? currentHp / maxHp : 1;
+  const hpMeterTone =
+    hpRatio <= 0.25
+      ? "encounter-hp-meter__current--critical"
+      : hpRatio <= 0.5
+        ? "encounter-hp-meter__current--bloodied"
+        : "";
 
   return (
     <section className="encounter-pane encounter-turn">
       <header className="encounter-pane__header">
         <div>
-          <h2>{encounterName}</h2>
-          <p>{current ? `Turn: ${current.display_name}` : "Not started"}</p>
-        </div>
-        <div className="encounter-actions">
-          <Button
-            aria-label="Edit encounter"
-            icon={<Edit2 size={14} />}
-            onClick={() => setEditEncounterOpen(true)}
-          />
-          <Button icon={<Play size={16} />} onClick={onStart} type="primary">
-            {current ? "Next" : "Play"}
-          </Button>
+          <h2>Selected</h2>
+          <p>{current ? current.display_name : "No participant selected"}</p>
         </div>
       </header>
       {current ? (
@@ -117,73 +161,129 @@ export function EncounterTurnPane({
                 }
               />
             </Form.Item>
-            <Form.Item label="Temp HP" layout="vertical">
-              <InputNumber
-                min={0}
-                defaultValue={optionalNumber(current.temporary_hp)}
-                onBlur={(event) =>
-                  onUpdate(
-                    participantUpdate(current, {
-                      temporary_hp: BigInt(
-                        Math.max(0, Number(event.target.value || 0)),
-                      ),
-                    }),
-                  )
-                }
-              />
-            </Form.Item>
           </div>
-          <div className="encounter-control-row">
-            <Form.Item label="HP or formula" layout="vertical">
-              <Input
-                aria-label="HP or formula"
-                value={hpInput}
-                onChange={(event) => setHpInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    applyHpInput();
-                  }
-                }}
+          <div className="encounter-hp-panel">
+            <h3>HP</h3>
+            <div className="encounter-hp-meter" aria-label="HP remaining">
+              <span
+                className={["encounter-hp-meter__current", hpMeterTone]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{ width: `${hpPercent}%` }}
               />
-            </Form.Item>
-            <Button onClick={applyHpInput}>Set</Button>
-          </div>
-          <div className="encounter-control-row">
-            <Form.Item label="Amount" layout="vertical">
-              <InputNumber
-                aria-label="Amount"
-                min={0}
-                value={amount}
-                onChange={(value) => setAmount(value)}
-              />
-            </Form.Item>
-            <Button
-              onClick={() => {
-                if (amount !== null) {
-                  onUpdate(applyDamage(current, amount));
-                  setAmount(null);
-                }
-              }}
-            >
-              Damage
-            </Button>
-            <Button
-              onClick={() => {
-                if (amount !== null) {
-                  onUpdate(
-                    participantUpdate(current, {
-                      current_hp: BigInt(
-                        Math.max(0, asNumber(current.current_hp) + amount),
-                      ),
-                    }),
-                  );
-                  setAmount(null);
-                }
-              }}
-            >
-              Heal
-            </Button>
+              {missingHp > 0 && (
+                <span
+                  className="encounter-hp-meter__missing"
+                  style={{ left: `${hpPercent}%`, width: `${missingHpPercent}%` }}
+                />
+              )}
+              {temporaryHp > 0 && (
+                <span
+                  className="encounter-hp-meter__temporary"
+                  style={{
+                    left: `${hpPercent + missingHpPercent}%`,
+                    width: `${tempHpPercent}%`,
+                  }}
+                />
+              )}
+            </div>
+            <div className="encounter-hp-grid">
+              <div className="encounter-hp-control">
+                <Form.Item label="HP" layout="vertical">
+                  <Input
+                    aria-label="HP"
+                    value={hpInput}
+                    onChange={(event) =>
+                      setHpDraft({
+                        participantKey: current.participant_key,
+                        value: event.target.value,
+                      })
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyHpInput();
+                      }
+                    }}
+                  />
+                </Form.Item>
+                <div className="encounter-hp-actions">
+                  <Button onClick={applyHpInput}>Set</Button>
+                </div>
+              </div>
+              <div className="encounter-hp-control">
+                <Form.Item label="Temp HP" layout="vertical">
+                  <Input
+                    aria-label="Temp HP"
+                    value={tempHpInput}
+                    onChange={(event) =>
+                      setTempHpDraft({
+                        participantKey: current.participant_key,
+                        value: event.target.value,
+                      })
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyTempHpInput();
+                      }
+                    }}
+                  />
+                </Form.Item>
+                <div className="encounter-hp-actions">
+                  <Button onClick={applyTempHpInput}>Set</Button>
+                </div>
+              </div>
+              <div className="encounter-hp-control encounter-hp-control--wide">
+                <Form.Item label="HP change" layout="vertical">
+                  <InputNumber
+                    aria-label="HP change"
+                    min={0}
+                    value={amount}
+                    onChange={(value) =>
+                      setAmountDraft({
+                        participantKey: current.participant_key,
+                        value,
+                      })
+                    }
+                  />
+                </Form.Item>
+                <div className="encounter-hp-actions">
+                  <Button
+                    onClick={() => {
+                      if (amount !== null) {
+                        onUpdate(applyDamage(current, amount));
+                        setAmountDraft({
+                          participantKey: current.participant_key,
+                          value: null,
+                        });
+                      }
+                    }}
+                  >
+                    Damage
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (amount !== null) {
+                        onUpdate(
+                          participantUpdate(current, {
+                            current_hp: BigInt(
+                              Math.max(0, asNumber(current.current_hp) + amount),
+                            ),
+                          }),
+                        );
+                        setAmountDraft({
+                          participantKey: current.participant_key,
+                          value: null,
+                        });
+                      }
+                    }}
+                  >
+                    Heal
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
           <Form.Item label="Participant note" layout="vertical">
             <Input.TextArea
@@ -217,7 +317,7 @@ export function EncounterTurnPane({
           <section className="encounter-conditions">
             <h3>Conditions</h3>
             {current.conditions.length === 0 ? (
-              <div className="detail-empty">No conditions</div>
+              <p className="encounter-empty-note">No conditions</p>
             ) : (
               <div className="encounter-condition-list">
                 {current.conditions.map((condition) => (
@@ -232,101 +332,69 @@ export function EncounterTurnPane({
                 ))}
               </div>
             )}
-            <Form
-              form={conditionForm}
-              layout="vertical"
-              onFinish={(values) => {
-                onAddCondition({
-                  participant_key: current.participant_key,
-                  name: values.name,
-                  ...(values.value === undefined
-                    ? {}
-                    : { value: BigInt(values.value) }),
-                  ...(values.duration === undefined
-                    ? {}
-                    : { duration_rounds: BigInt(values.duration) }),
-                  ...(values.sourceParticipantKey
-                    ? { source_participant_key: values.sourceParticipantKey }
-                    : {}),
-                  ...(values.note ? { note: values.note } : {}),
-                  ...(values.sourceNote ? { source_note: values.sourceNote } : {}),
-                });
-                conditionForm.resetFields();
-              }}
-            >
-              <Form.Item name="name" label="Condition" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-              <div className="encounter-control-row">
-                <Form.Item name="value" label="Value">
-                  <InputNumber min={0} />
+            <details className="encounter-add-condition">
+              <summary>Add condition</summary>
+              <Form
+                form={conditionForm}
+                layout="vertical"
+                onFinish={(values) => {
+                  onAddCondition({
+                    participant_key: current.participant_key,
+                    name: values.name,
+                    ...(values.value === undefined
+                      ? {}
+                      : { value: BigInt(values.value) }),
+                    ...(values.duration === undefined
+                      ? {}
+                      : { duration_rounds: BigInt(values.duration) }),
+                    ...(values.sourceParticipantKey
+                      ? { source_participant_key: values.sourceParticipantKey }
+                      : {}),
+                    ...(values.note ? { note: values.note } : {}),
+                    ...(values.sourceNote ? { source_note: values.sourceNote } : {}),
+                  });
+                  conditionForm.resetFields();
+                }}
+              >
+                <Form.Item name="name" label="Condition" rules={[{ required: true }]}>
+                  <Select
+                    aria-label="Add condition"
+                    showSearch
+                    optionFilterProp="label"
+                    options={MODELED_CONDITION_OPTIONS}
+                    placeholder="Select condition"
+                  />
                 </Form.Item>
-                <Form.Item name="duration" label="Rounds">
-                  <InputNumber min={0} />
+                <div className="encounter-control-row">
+                  <Form.Item name="value" label="Value">
+                    <InputNumber min={0} />
+                  </Form.Item>
+                  <Form.Item name="duration" label="Rounds">
+                    <InputNumber min={0} />
+                  </Form.Item>
+                </div>
+                <Form.Item name="note" label="Note">
+                  <Input />
                 </Form.Item>
-              </div>
-              <Form.Item name="note" label="Note">
-                <Input />
-              </Form.Item>
-              <Form.Item name="sourceParticipantKey" label="Source">
-                <Select
-                  allowClear
-                  options={participants.map((participant) => ({
-                    value: participant.participant_key,
-                    label: participant.display_name,
-                  }))}
-                />
-              </Form.Item>
-              <Form.Item name="sourceNote" label="Source Note">
-                <Input />
-              </Form.Item>
-              <Button onClick={() => conditionForm.submit()}>Add Condition</Button>
-            </Form>
+                <Form.Item name="sourceParticipantKey" label="Source">
+                  <Select
+                    allowClear
+                    options={participants.map((participant) => ({
+                      value: participant.participant_key,
+                      label: participant.display_name,
+                    }))}
+                  />
+                </Form.Item>
+                <Form.Item name="sourceNote" label="Source Note">
+                  <Input />
+                </Form.Item>
+                <Button onClick={() => conditionForm.submit()}>Add Condition</Button>
+              </Form>
+            </details>
           </section>
         </div>
       ) : (
-        <div className="detail-empty">Press play after setting initiative.</div>
-      )}
-      {encounter && (
-        <div className="encounter-actions">
-          <Button
-            onClick={() =>
-              onUpdateEncounter({
-                ...encounterUpdate(encounter),
-                note: encounterNote,
-                status: "complete",
-              })
-            }
-          >
-            Complete
-          </Button>
-          <Button
-            onClick={() =>
-              onUpdateEncounter({
-                ...encounterUpdate(encounter),
-                note: encounterNote,
-                status: "archived",
-              })
-            }
-          >
-            Archive
-          </Button>
-        </div>
-      )}
-      <Button danger onClick={onDeleteEncounter}>
-        Delete encounter
-      </Button>
-      {encounter && (
-        <EditEncounterModal
-          encounter={encounter}
-          encounterNote={encounterNote}
-          open={editEncounterOpen}
-          onCancel={() => setEditEncounterOpen(false)}
-          onSave={(request) => {
-            onUpdateEncounter(request);
-            setEditEncounterOpen(false);
-          }}
-        />
+        <div className="detail-empty">Select a participant to edit.</div>
       )}
     </section>
   );
@@ -362,9 +430,13 @@ function ConditionEditor({
   return (
     <div className="encounter-condition-row">
       <Form.Item label="Condition" layout="vertical">
-        <Input
-          defaultValue={condition.name}
-          onBlur={(event) => update({ name: event.target.value })}
+        <Select
+          aria-label="Edit condition"
+          showSearch
+          optionFilterProp="label"
+          options={MODELED_CONDITION_OPTIONS}
+          value={condition.name}
+          onChange={(name) => update({ name })}
         />
       </Form.Item>
       <Form.Item label="Value" layout="vertical">
@@ -429,15 +501,6 @@ function ConditionEditor({
   );
 }
 
-function encounterUpdate(encounter: EncounterSummaryView): UpdateEncounterRequest {
-  return {
-    encounter_key: encounter.encounter_key,
-    slug: encounter.slug,
-    name: encounter.name,
-    description: encounter.description,
-    status: encounter.status,
-  };
-}
 function participantUpdate(
   participant: EncounterParticipantView,
   changes: Partial<UpdateEncounterParticipantRequest>,

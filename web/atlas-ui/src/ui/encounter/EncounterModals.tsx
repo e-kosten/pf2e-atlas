@@ -14,7 +14,6 @@ type CreateEncounterForm = {
 
 type EditEncounterFormValues = {
   name: string;
-  slug: string;
   description?: string;
   note?: string;
   status: EncounterStatusView;
@@ -58,14 +57,20 @@ export function CreateEncounterModal({
 export function EditEncounterModal({
   encounter,
   encounterNote,
+  onArchive,
   open,
   onCancel,
+  onComplete,
+  onDelete,
   onSave,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
+  onArchive?: () => void;
   open: boolean;
   onCancel: () => void;
+  onComplete?: () => void;
+  onDelete?: () => void;
   onSave: (encounter: UpdateEncounterRequest) => void;
 }) {
   return (
@@ -73,7 +78,10 @@ export function EditEncounterModal({
       <EditEncounterForm
         encounter={encounter}
         encounterNote={encounterNote}
+        onArchive={onArchive}
         onCancel={onCancel}
+        onComplete={onComplete}
+        onDelete={onDelete}
         onSave={onSave}
       />
     </Modal>
@@ -83,19 +91,24 @@ export function EditEncounterModal({
 export function EditEncounterForm({
   encounter,
   encounterNote,
+  onArchive,
   onCancel,
+  onComplete,
+  onDelete,
   onSave,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
+  onArchive?: () => void;
   onCancel?: () => void;
+  onComplete?: () => void;
+  onDelete?: () => void;
   onSave: (encounter: UpdateEncounterRequest) => void;
 }) {
   const [form] = Form.useForm<EditEncounterFormValues>();
   useEffect(() => {
     form.setFieldsValue({
       name: encounter.name,
-      slug: encounter.slug,
       description: encounter.description,
       note: encounterNote,
       status: encounter.status,
@@ -108,7 +121,7 @@ export function EditEncounterForm({
       onFinish={(values) =>
         onSave({
           encounter_key: encounter.encounter_key,
-          slug: values.slug,
+          slug: encounter.slug,
           name: values.name,
           ...(values.description ? { description: values.description } : {}),
           ...(values.note ? { note: values.note } : {}),
@@ -117,9 +130,6 @@ export function EditEncounterForm({
       }
     >
       <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-        <Input />
-      </Form.Item>
-      <Form.Item name="slug" label="Slug" rules={[{ required: true }]}>
         <Input />
       </Form.Item>
       <Form.Item name="description" label="Description">
@@ -138,6 +148,13 @@ export function EditEncounterForm({
       </Form.Item>
       <div className="encounter-actions">
         {onCancel ? <Button onClick={onCancel}>Cancel</Button> : null}
+        {onComplete ? <Button onClick={onComplete}>Complete</Button> : null}
+        {onArchive ? <Button onClick={onArchive}>Archive</Button> : null}
+        {onDelete ? (
+          <Button danger onClick={onDelete}>
+            Delete
+          </Button>
+        ) : null}
         <Button type="primary" onClick={() => form.submit()}>
           Save
         </Button>
