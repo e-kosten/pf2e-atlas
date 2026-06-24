@@ -483,6 +483,7 @@ pub struct DamageExpression {
     pub label: Option<String>,
     pub formula: String,
     pub damage_type: Option<String>,
+    pub ability: Option<ActivityRollAbility>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
