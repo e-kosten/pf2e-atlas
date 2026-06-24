@@ -3,6 +3,8 @@ export type { AppErrorCode } from "../../../../crates/atlas-app-model/bindings/A
 export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bindings/AppReadinessStatus";
 export type { AppReadinessView } from "../../../../crates/atlas-app-model/bindings/AppReadinessView";
 export type { AppRecoverableAction } from "../../../../crates/atlas-app-model/bindings/AppRecoverableAction";
+export type { ActivityRollSurfaceView } from "../../../../crates/atlas-app-model/bindings/ActivityRollSurfaceView";
+export type { ActivityRollView } from "../../../../crates/atlas-app-model/bindings/ActivityRollView";
 export type { AddEncounterManualParticipantRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterManualParticipantRequest";
 export type { AddEncounterParticipantConditionRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterParticipantConditionRequest";
 export type { AddEncounterRecordParticipantRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterRecordParticipantRequest";

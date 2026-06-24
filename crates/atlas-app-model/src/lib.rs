@@ -9,13 +9,14 @@ mod record;
 mod result_window;
 
 pub use encounter::{
-    AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DamageExpressionView,
-    DeleteEncounterView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView,
-    MechanicActivityUsageView, MechanicActivityView, ReorderEncounterParticipantPlacementView,
+    ActivityRollSurfaceView, ActivityRollView, AddEncounterManualParticipantRequest,
+    AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
+    CreateEncounterRequest, DamageExpressionView, DeleteEncounterView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
+    EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView, MechanicActivityUsageView,
+    MechanicActivityView, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, SetEncounterTurnRequest, StatBlockView,
     StatModifierTypeView, StatModifierView, StatValueView, UnappliedEffectView,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
@@ -84,6 +85,9 @@ mod tests {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
         AppError::export_all_to(path).expect("AppError bindings should export");
         AppReadinessView::export_all_to(path).expect("AppReadinessView bindings should export");
+        ActivityRollSurfaceView::export_all_to(path)
+            .expect("ActivityRollSurfaceView bindings should export");
+        ActivityRollView::export_all_to(path).expect("ActivityRollView bindings should export");
         BasicSearchFilter::export_all_to(path).expect("BasicSearchFilter bindings should export");
         DiscoverFilterEditorRequest::export_all_to(path)
             .expect("DiscoverFilterEditorRequest bindings should export");

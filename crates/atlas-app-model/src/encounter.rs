@@ -124,6 +124,7 @@ pub struct MechanicActivityView {
     pub label: String,
     pub kind: MechanicActivityKindView,
     pub usage: MechanicActivityUsageView,
+    pub rolls: Vec<ActivityRollView>,
     pub damage: Vec<DamageExpressionView>,
 }
 
@@ -143,6 +144,26 @@ pub enum MechanicActivityUsageView {
     Unlimited,
     Limited,
     Ambiguous,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct ActivityRollView {
+    pub roll_id: String,
+    pub label: String,
+    pub base_value: i64,
+    pub adjusted_value: i64,
+    pub surface: ActivityRollSurfaceView,
+    pub modifiers: Vec<StatModifierView>,
+    pub suppressed_modifiers: Vec<StatModifierView>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ActivityRollSurfaceView {
+    AttackRoll,
+    Dc,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

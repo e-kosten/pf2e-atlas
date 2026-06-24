@@ -413,6 +413,8 @@ pub struct SpellcastingEntryMechanics {
     pub entry_id: String,
     pub label: String,
     pub preparation: SpellcastingPreparation,
+    pub spell_attack: Option<i64>,
+    pub spell_dc: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -432,6 +434,7 @@ pub struct MechanicActivity {
     pub traits: Vec<String>,
     pub compendium_source: Option<String>,
     pub usage: MechanicActivityUsage,
+    pub rolls: Vec<ActivityRoll>,
     pub damage: Vec<DamageExpression>,
 }
 
@@ -447,6 +450,31 @@ pub enum MechanicActivityUsage {
     Unlimited,
     Limited,
     Ambiguous,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActivityRoll {
+    pub roll_id: String,
+    pub label: String,
+    pub base_value: i64,
+    pub surface: ActivityRollSurface,
+    pub ability: Option<ActivityRollAbility>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivityRollSurface {
+    AttackRoll,
+    Dc,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivityRollAbility {
+    Strength,
+    Dexterity,
+    Constitution,
+    Intelligence,
+    Wisdom,
+    Charisma,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

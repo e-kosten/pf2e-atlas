@@ -282,6 +282,10 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
                 "type": "spellcastingEntry",
                 "system": {
                     "prepared": { "value": "spontaneous" },
+                    "spelldc": {
+                        "dc": 23,
+                        "value": 14
+                    },
                     "slots": {
                         "slot0": { "max": 5, "value": 5 }
                     }
@@ -292,6 +296,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
                 "name": "Claw",
                 "type": "melee",
                 "system": {
+                    "bonus": { "value": 12 },
                     "damageRolls": {
                         "main": {
                             "damage": "1d6+2",
@@ -409,6 +414,9 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         Some("void")
     );
     assert_eq!(spell_activity.usage, MechanicActivityUsage::Limited);
+    assert_eq!(spell_activity.rolls.len(), 2);
+    assert_eq!(spell_activity.rolls[0].base_value, 14);
+    assert_eq!(spell_activity.rolls[1].base_value, 23);
     let strike_activity = loaded
         .record
         .mechanics
@@ -422,6 +430,8 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         Some("slashing")
     );
     assert_eq!(strike_activity.usage, MechanicActivityUsage::Unlimited);
+    assert_eq!(strike_activity.rolls.len(), 1);
+    assert_eq!(strike_activity.rolls[0].base_value, 12);
 
     assert_eq!(facts.journal_pages.len(), 2);
     assert_eq!(facts.journal_pages[0].page_id.as_deref(), Some("page1"));

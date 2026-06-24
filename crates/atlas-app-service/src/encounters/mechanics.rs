@@ -1,15 +1,16 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::{
-    DamageExpressionView, EncounterParticipantVariantView, MechanicActivityKindView,
-    MechanicActivityUsageView, MechanicActivityView, StatBlockView, StatModifierTypeView,
-    StatModifierView, StatValueView, UnappliedEffectView,
+    ActivityRollSurfaceView, ActivityRollView, DamageExpressionView,
+    EncounterParticipantVariantView, MechanicActivityKindView, MechanicActivityUsageView,
+    MechanicActivityView, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
+    UnappliedEffectView,
 };
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
 use atlas_record::{
-    AbilityKind, DamageExpression, MechanicActivity, MechanicActivityKind, MechanicActivityUsage,
-    MechanicScalar, MechanicSurface, MechanicTarget, MechanicValue, MechanicsView,
-    build_mechanics_view,
+    AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, DamageExpression,
+    MechanicActivity, MechanicActivityKind, MechanicActivityUsage, MechanicScalar, MechanicSurface,
+    MechanicTarget, MechanicValue, MechanicsView, build_mechanics_view,
 };
 
 use super::projection::participant_variant_view;
@@ -17,6 +18,14 @@ use super::projection::participant_variant_view;
 #[derive(Debug, Clone)]
 struct CandidateModifier {
     target: MechanicTarget,
+    source: String,
+    label: String,
+    modifier_type: StatModifierTypeView,
+    value: i64,
+}
+
+#[derive(Debug, Clone)]
+struct RollModifier {
     source: String,
     label: String,
     modifier_type: StatModifierTypeView,
@@ -78,24 +87,68 @@ fn apply_participant_effects(
         activities: mechanics
             .activities
             .into_iter()
-            .map(|activity| activity_view(activity, participant.participant_variant))
+            .map(|activity| activity_view(activity, participant))
             .collect(),
         unapplied_effects,
     }
 }
 
-fn activity_view(activity: MechanicActivity, variant: ParticipantVariant) -> MechanicActivityView {
-    let damage_modifier = variant_damage_modifier(variant, activity.usage);
+fn activity_view(
+    activity: MechanicActivity,
+    participant: &EncounterParticipant,
+) -> MechanicActivityView {
+    let damage_modifier = variant_damage_modifier(participant.participant_variant, activity.usage);
+    let kind = activity.kind;
     MechanicActivityView {
         activity_id: activity.activity_id,
         label: activity.label,
-        kind: activity_kind_view(activity.kind),
+        kind: activity_kind_view(kind),
         usage: activity_usage_view(activity.usage),
+        rolls: activity
+            .rolls
+            .into_iter()
+            .map(|roll| activity_roll_view(roll, kind, participant))
+            .collect(),
         damage: activity
             .damage
             .into_iter()
             .map(|damage| damage_view(damage, damage_modifier.clone()))
             .collect(),
+    }
+}
+
+fn activity_roll_view(
+    roll: ActivityRoll,
+    activity_kind: MechanicActivityKind,
+    participant: &EncounterParticipant,
+) -> ActivityRollView {
+    let mut modifiers = Vec::new();
+    if let Some(modifier) = variant_roll_modifier(participant.participant_variant) {
+        modifiers.push(modifier);
+    }
+    for condition in &participant.conditions {
+        let Some(rule) = ConditionRule::from_condition(condition) else {
+            continue;
+        };
+        modifiers.extend(condition_roll_modifiers(
+            condition,
+            rule,
+            activity_kind,
+            &roll,
+        ));
+    }
+    let (applied, suppressed) = stack_roll_modifiers(modifiers);
+    let adjusted_value = applied
+        .iter()
+        .fold(roll.base_value, |total, modifier| total + modifier.value);
+    ActivityRollView {
+        roll_id: roll.roll_id,
+        label: roll.label,
+        base_value: roll.base_value,
+        adjusted_value,
+        surface: activity_roll_surface_view(roll.surface),
+        modifiers: applied.into_iter().map(roll_modifier_view).collect(),
+        suppressed_modifiers: suppressed.into_iter().map(roll_modifier_view).collect(),
     }
 }
 
@@ -135,11 +188,115 @@ fn variant_damage_modifier(
     })
 }
 
+fn variant_roll_modifier(variant: ParticipantVariant) -> Option<RollModifier> {
+    let value = variant_stat_delta(variant)?;
+    let source = variant_source(variant).to_string();
+    Some(RollModifier {
+        source: source.clone(),
+        label: format!("{source} adjustment"),
+        modifier_type: StatModifierTypeView::Adjustment,
+        value,
+    })
+}
+
+fn condition_roll_modifiers(
+    condition: &EncounterParticipantCondition,
+    rule: ConditionRule,
+    activity_kind: MechanicActivityKind,
+    roll: &ActivityRoll,
+) -> Vec<RollModifier> {
+    let amount = condition_value(condition);
+    let source = condition_source(condition);
+    let status_penalty = |value: i64| RollModifier {
+        source: source.clone(),
+        label: source.clone(),
+        modifier_type: StatModifierTypeView::Status,
+        value: -value,
+    };
+    match rule {
+        ConditionRule::Frightened | ConditionRule::Sickened => vec![status_penalty(amount)],
+        ConditionRule::Clumsy if roll_ability(roll) == Some(AbilityKind::Dexterity) => {
+            vec![status_penalty(amount)]
+        }
+        ConditionRule::Enfeebled if roll_ability(roll) == Some(AbilityKind::Strength) => {
+            vec![status_penalty(amount)]
+        }
+        ConditionRule::Stupefied if activity_kind == MechanicActivityKind::Spell => {
+            vec![status_penalty(amount)]
+        }
+        ConditionRule::OffGuard
+        | ConditionRule::Clumsy
+        | ConditionRule::Enfeebled
+        | ConditionRule::Stupefied => Vec::new(),
+    }
+}
+
+fn roll_ability(roll: &ActivityRoll) -> Option<AbilityKind> {
+    match roll.ability? {
+        ActivityRollAbility::Strength => Some(AbilityKind::Strength),
+        ActivityRollAbility::Dexterity => Some(AbilityKind::Dexterity),
+        ActivityRollAbility::Constitution => Some(AbilityKind::Constitution),
+        ActivityRollAbility::Intelligence => Some(AbilityKind::Intelligence),
+        ActivityRollAbility::Wisdom => Some(AbilityKind::Wisdom),
+        ActivityRollAbility::Charisma => Some(AbilityKind::Charisma),
+    }
+}
+
+fn stack_roll_modifiers(modifiers: Vec<RollModifier>) -> (Vec<RollModifier>, Vec<RollModifier>) {
+    let mut applied = Vec::new();
+    let mut suppressed = Vec::new();
+    let mut typed = BTreeMap::<(StatModifierTypeView, i8), RollModifier>::new();
+    for modifier in modifiers {
+        if modifier.modifier_type == StatModifierTypeView::Adjustment {
+            applied.push(modifier);
+            continue;
+        }
+        let sign = modifier.value.signum() as i8;
+        let key = (modifier.modifier_type, sign);
+        if let Some(existing) = typed.remove(&key) {
+            let replace = if sign < 0 {
+                modifier.value < existing.value
+            } else {
+                modifier.value > existing.value
+            };
+            if replace {
+                suppressed.push(existing);
+                typed.insert(key, modifier);
+            } else {
+                suppressed.push(modifier);
+                typed.insert(key, existing);
+            }
+        } else {
+            typed.insert(key, modifier);
+        }
+    }
+    applied.extend(typed.into_values());
+    applied.sort_by(|left, right| left.label.cmp(&right.label));
+    suppressed.sort_by(|left, right| left.label.cmp(&right.label));
+    (applied, suppressed)
+}
+
+fn roll_modifier_view(modifier: RollModifier) -> StatModifierView {
+    StatModifierView {
+        source: modifier.source,
+        label: modifier.label,
+        modifier_type: modifier.modifier_type,
+        value: modifier.value,
+    }
+}
+
 fn activity_kind_view(kind: MechanicActivityKind) -> MechanicActivityKindView {
     match kind {
         MechanicActivityKind::Strike => MechanicActivityKindView::Strike,
         MechanicActivityKind::Spell => MechanicActivityKindView::Spell,
         MechanicActivityKind::Other => MechanicActivityKindView::Other,
+    }
+}
+
+fn activity_roll_surface_view(surface: ActivityRollSurface) -> ActivityRollSurfaceView {
+    match surface {
+        ActivityRollSurface::AttackRoll => ActivityRollSurfaceView::AttackRoll,
+        ActivityRollSurface::Dc => ActivityRollSurfaceView::Dc,
     }
 }
 
@@ -381,19 +538,18 @@ fn condition_unapplied_effects(
     match rule {
         ConditionRule::Clumsy => vec![UnappliedEffectView {
             source: source.clone(),
-            label: format!("{source} ranged attack penalty"),
-            reason: "Ranged attack modifiers are not typed yet.".to_string(),
+            label: format!("{source} unmodeled Dexterity attack penalties"),
+            reason: "Only structured activity attack rolls are adjusted.".to_string(),
         }],
         ConditionRule::Enfeebled => vec![UnappliedEffectView {
             source: source.clone(),
-            label: format!("{source} melee attack and damage penalty"),
-            reason: "Strength-based attacks and damage are not typed yet.".to_string(),
+            label: format!("{source} Strength-based damage penalty"),
+            reason: "Strength-based damage expressions are not typed by ability yet.".to_string(),
         }],
         ConditionRule::Stupefied => vec![UnappliedEffectView {
             source: source.clone(),
-            label: format!("{source} spellcasting penalty"),
-            reason: "Spell attacks, spell DCs, and flat-check disruption are not typed yet."
-                .to_string(),
+            label: format!("{source} spell disruption flat check"),
+            reason: "Flat-check spell disruption is not automated yet.".to_string(),
         }],
         ConditionRule::Frightened | ConditionRule::Sickened | ConditionRule::OffGuard => Vec::new(),
     }
@@ -571,6 +727,36 @@ mod tests {
         assert_no_damage_modifier(&weak, "breath", "0");
     }
 
+    #[test]
+    fn activity_roll_surfaces_receive_variant_and_condition_modifiers() {
+        let elite = participant_stat_block(
+            &participant(ParticipantVariant::Elite, Vec::new()),
+            &record(),
+        )
+        .expect("stat block");
+        assert_roll(&elite, "claw", "attack", 12, 14, "Elite adjustment");
+        assert_roll(&elite, "fireball", "spell.dc", 22, 24, "Elite adjustment");
+
+        let conditions = vec![
+            condition("Frightened", Some(1)),
+            condition("Enfeebled", Some(2)),
+            condition("Stupefied", Some(2)),
+        ];
+        let projection = participant_stat_block(
+            &participant(ParticipantVariant::Normal, conditions),
+            &record(),
+        )
+        .expect("stat block");
+        assert_roll(&projection, "claw", "attack", 12, 10, "Enfeebled 2");
+        assert_roll(&projection, "fireball", "spell.dc", 22, 20, "Stupefied 2");
+        assert!(
+            roll(&projection, "fireball", "spell.dc")
+                .suppressed_modifiers
+                .iter()
+                .any(|modifier| modifier.label == "Frightened 1")
+        );
+    }
+
     fn assert_stat(
         projection: &StatBlockView,
         target: &str,
@@ -614,6 +800,37 @@ mod tests {
                 .modifiers
                 .is_empty()
         );
+    }
+
+    fn assert_roll(
+        projection: &StatBlockView,
+        activity_id: &str,
+        roll_id: &str,
+        base: i64,
+        adjusted: i64,
+        label: &str,
+    ) {
+        let roll = roll(projection, activity_id, roll_id);
+        assert_eq!(roll.base_value, base);
+        assert_eq!(roll.adjusted_value, adjusted);
+        assert!(
+            roll.modifiers
+                .iter()
+                .any(|modifier| modifier.label == label)
+        );
+    }
+
+    fn roll<'a>(
+        projection: &'a StatBlockView,
+        activity_id: &str,
+        roll_id: &str,
+    ) -> &'a ActivityRollView {
+        projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == activity_id)
+            .and_then(|activity| activity.rolls.iter().find(|roll| roll.roll_id == roll_id))
+            .expect("activity roll should exist")
     }
 
     fn damage<'a>(
@@ -710,6 +927,13 @@ mod tests {
                 traits: Vec::new(),
                 compendium_source: None,
                 usage: atlas_record::MechanicActivityUsage::Unlimited,
+                rolls: vec![atlas_record::ActivityRoll {
+                    roll_id: "attack".to_string(),
+                    label: "Attack".to_string(),
+                    base_value: 12,
+                    surface: atlas_record::ActivityRollSurface::AttackRoll,
+                    ability: Some(atlas_record::ActivityRollAbility::Strength),
+                }],
                 damage: vec![atlas_record::DamageExpression {
                     damage_id: "main".to_string(),
                     label: None,
@@ -724,6 +948,22 @@ mod tests {
                 traits: Vec::new(),
                 compendium_source: None,
                 usage: atlas_record::MechanicActivityUsage::Limited,
+                rolls: vec![
+                    atlas_record::ActivityRoll {
+                        roll_id: "spell.attack".to_string(),
+                        label: "Spell Attack".to_string(),
+                        base_value: 13,
+                        surface: atlas_record::ActivityRollSurface::AttackRoll,
+                        ability: None,
+                    },
+                    atlas_record::ActivityRoll {
+                        roll_id: "spell.dc".to_string(),
+                        label: "Spell DC".to_string(),
+                        base_value: 22,
+                        surface: atlas_record::ActivityRollSurface::Dc,
+                        ability: None,
+                    },
+                ],
                 damage: vec![atlas_record::DamageExpression {
                     damage_id: "0".to_string(),
                     label: None,
@@ -738,6 +978,7 @@ mod tests {
                 traits: Vec::new(),
                 compendium_source: None,
                 usage: atlas_record::MechanicActivityUsage::Ambiguous,
+                rolls: Vec::new(),
                 damage: vec![atlas_record::DamageExpression {
                     damage_id: "0".to_string(),
                     label: None,
