@@ -1,5 +1,6 @@
 import { Button, Select } from "antd";
 import { ExternalLink, X } from "lucide-react";
+import type React from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   ActivityRollView,
@@ -23,17 +24,19 @@ export function EncounterInspectorPane({
   previewDetail,
   previewLoading,
   previewRecordKey,
+  previewAnchor,
   recordDetail,
 }: {
   detailLoading: boolean;
   onCloseReferencePreview: () => void;
   onOpenReferenceFullPage: (recordKey: string) => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView | undefined;
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
   previewRecordKey: string | null;
+  previewAnchor: ReferenceAnchor | null;
   recordDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
 }) {
   if (!participant) {
@@ -68,6 +71,7 @@ export function EncounterInspectorPane({
       />
       {previewRecordKey && (
         <ReferencePreview
+          anchor={previewAnchor}
           detail={previewDetail}
           loading={previewLoading}
           onClose={onCloseReferencePreview}
@@ -80,18 +84,21 @@ export function EncounterInspectorPane({
 }
 
 function ReferencePreview({
+  anchor,
   detail,
   loading,
   onClose,
   onOpenFullPage,
   onReference,
 }: {
+  anchor: ReferenceAnchor | null;
   detail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   loading: boolean;
   onClose: () => void;
   onOpenFullPage: () => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 }) {
+  const position = referencePreviewPosition(anchor);
   return (
     <div
       aria-label="Reference preview overlay"
@@ -107,6 +114,7 @@ function ReferencePreview({
         aria-label="Reference preview"
         className="encounter-reference-preview"
         role="dialog"
+        style={position}
       >
         <header className="encounter-reference-preview__header">
           <span>Reference</span>
@@ -135,6 +143,47 @@ function ReferencePreview({
       </div>
     </div>
   );
+}
+
+export type ReferenceAnchor = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+function referencePreviewPosition(anchor: ReferenceAnchor | null): React.CSSProperties {
+  const margin = 16;
+  const gap = 8;
+  const width = Math.min(560, Math.max(360, window.innerWidth - margin * 2));
+  const maxHeight = Math.min(560, window.innerHeight - margin * 2);
+  if (!anchor) {
+    return {
+      maxHeight,
+      right: margin,
+      top: margin,
+      width,
+    };
+  }
+  const fitsRight = anchor.right + gap + width <= window.innerWidth - margin;
+  const fitsLeft = anchor.left - gap - width >= margin;
+  const left = fitsRight
+    ? anchor.right + gap
+    : fitsLeft
+      ? anchor.left - gap - width
+      : clamp(anchor.left, margin, window.innerWidth - margin - width);
+  return {
+    left,
+    maxHeight,
+    top: clamp(anchor.top, margin, window.innerHeight - margin - maxHeight),
+    width,
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
 function ParticipantHeader({
