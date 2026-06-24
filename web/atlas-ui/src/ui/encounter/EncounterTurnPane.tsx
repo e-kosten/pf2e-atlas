@@ -59,54 +59,73 @@ export function EncounterTurnPane({
     value: number | null;
   } | null>(null);
   const [conditionForm] = Form.useForm<AddConditionForm>();
-  const currentParticipantKey = current?.participant_key ?? null;
+  const [projectedCurrent, setProjectedCurrent] = useState<{
+    source: EncounterParticipantView | null;
+    participant: EncounterParticipantView | null;
+  }>({ source: null, participant: null });
+  const activeCurrent =
+    projectedCurrent.source === current &&
+    projectedCurrent.participant?.participant_key === current?.participant_key
+      ? projectedCurrent.participant
+      : current;
+  const currentParticipantKey = activeCurrent?.participant_key ?? null;
   const hpInput =
     currentParticipantKey && hpDraft?.participantKey === currentParticipantKey
       ? hpDraft.value
-      : (current?.current_hp?.toString() ?? "");
+      : (activeCurrent?.current_hp?.toString() ?? "");
   const tempHpInput =
     currentParticipantKey && tempHpDraft?.participantKey === currentParticipantKey
       ? tempHpDraft.value
-      : (current?.temporary_hp?.toString() ?? "");
+      : (activeCurrent?.temporary_hp?.toString() ?? "");
   const amount =
     currentParticipantKey && amountDraft?.participantKey === currentParticipantKey
       ? amountDraft.value
       : null;
   const applyHpInput = () => {
-    if (!current) {
+    if (!activeCurrent) {
       return;
     }
     const hp = evaluateHpFormula(hpInput);
     if (hp !== null) {
-      onUpdate(
-        participantUpdate(current, {
-          current_hp: BigInt(hp),
-          defeated: hp === 0 ? true : current.defeated,
-        }),
-      );
-      setHpDraft({ participantKey: current.participant_key, value: hp.toString() });
+      updateParticipant({
+        current_hp: BigInt(hp),
+        defeated: hp === 0 ? true : activeCurrent.defeated,
+      });
+      setHpDraft({
+        participantKey: activeCurrent.participant_key,
+        value: hp.toString(),
+      });
     }
   };
   const applyTempHpInput = () => {
-    if (!current) {
+    if (!activeCurrent) {
       return;
     }
     const temporaryHp = evaluateHpFormula(tempHpInput);
     if (temporaryHp !== null) {
-      onUpdate(
-        participantUpdate(current, {
-          temporary_hp: BigInt(temporaryHp),
-        }),
-      );
+      updateParticipant({
+        temporary_hp: BigInt(temporaryHp),
+      });
       setTempHpDraft({
-        participantKey: current.participant_key,
+        participantKey: activeCurrent.participant_key,
         value: temporaryHp.toString(),
       });
     }
   };
-  const currentHp = asNumber(current?.current_hp);
-  const maxHp = asNumber(current?.max_hp);
-  const temporaryHp = asNumber(current?.temporary_hp);
+  const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) => {
+    if (!activeCurrent) {
+      return;
+    }
+    const request = participantUpdate(activeCurrent, changes);
+    setProjectedCurrent({
+      source: current,
+      participant: applyParticipantUpdate(activeCurrent, request),
+    });
+    onUpdate(request);
+  };
+  const currentHp = asNumber(activeCurrent?.current_hp);
+  const maxHp = asNumber(activeCurrent?.max_hp);
+  const temporaryHp = asNumber(activeCurrent?.temporary_hp);
   const missingHp = Math.max(0, maxHp - currentHp);
   const hpMeterTotal = Math.max(maxHp, currentHp + missingHp + temporaryHp);
   const hpPercent =
@@ -133,31 +152,27 @@ export function EncounterTurnPane({
           <p>{current ? current.display_name : "No participant selected"}</p>
         </div>
       </header>
-      {current ? (
-        <div key={current.participant_key} className="encounter-turn__body">
+      {activeCurrent ? (
+        <div key={activeCurrent.participant_key} className="encounter-turn__body">
           <div className="encounter-form-grid">
             <Form.Item label="Name" layout="vertical">
               <Input
-                defaultValue={current.display_name}
+                defaultValue={activeCurrent.display_name}
                 onBlur={(event) =>
-                  onUpdate(
-                    participantUpdate(current, { display_name: event.target.value }),
-                  )
+                  updateParticipant({ display_name: event.target.value })
                 }
               />
             </Form.Item>
             <Form.Item label="Initiative" layout="vertical">
               <InputNumber
-                defaultValue={optionalNumber(current.initiative)}
+                defaultValue={optionalNumber(activeCurrent.initiative)}
                 onBlur={(event) =>
-                  onUpdate(
-                    participantUpdate(current, {
-                      initiative:
-                        event.target.value === ""
-                          ? undefined
-                          : BigInt(Number(event.target.value)),
-                    }),
-                  )
+                  updateParticipant({
+                    initiative:
+                      event.target.value === ""
+                        ? undefined
+                        : BigInt(Number(event.target.value)),
+                  })
                 }
               />
             </Form.Item>
@@ -195,7 +210,7 @@ export function EncounterTurnPane({
                     value={hpInput}
                     onChange={(event) =>
                       setHpDraft({
-                        participantKey: current.participant_key,
+                        participantKey: activeCurrent.participant_key,
                         value: event.target.value,
                       })
                     }
@@ -218,7 +233,7 @@ export function EncounterTurnPane({
                     value={tempHpInput}
                     onChange={(event) =>
                       setTempHpDraft({
-                        participantKey: current.participant_key,
+                        participantKey: activeCurrent.participant_key,
                         value: event.target.value,
                       })
                     }
@@ -242,7 +257,7 @@ export function EncounterTurnPane({
                     value={amount}
                     onChange={(value) =>
                       setAmountDraft({
-                        participantKey: current.participant_key,
+                        participantKey: activeCurrent.participant_key,
                         value,
                       })
                     }
@@ -252,9 +267,9 @@ export function EncounterTurnPane({
                   <Button
                     onClick={() => {
                       if (amount !== null) {
-                        onUpdate(applyDamage(current, amount));
+                        updateParticipant(damageChanges(activeCurrent, amount));
                         setAmountDraft({
-                          participantKey: current.participant_key,
+                          participantKey: activeCurrent.participant_key,
                           value: null,
                         });
                       }
@@ -265,15 +280,13 @@ export function EncounterTurnPane({
                   <Button
                     onClick={() => {
                       if (amount !== null) {
-                        onUpdate(
-                          participantUpdate(current, {
-                            current_hp: BigInt(
-                              Math.max(0, asNumber(current.current_hp) + amount),
-                            ),
-                          }),
-                        );
+                        updateParticipant({
+                          current_hp: BigInt(
+                            Math.max(0, asNumber(activeCurrent.current_hp) + amount),
+                          ),
+                        });
                         setAmountDraft({
-                          participantKey: current.participant_key,
+                          participantKey: activeCurrent.participant_key,
                           value: null,
                         });
                       }
@@ -287,20 +300,20 @@ export function EncounterTurnPane({
           </div>
           <Form.Item label="Participant note" layout="vertical">
             <Input.TextArea
-              key={`note-${current.participant_key}-${current.note ?? ""}`}
-              defaultValue={current.note ?? ""}
+              key={`note-${activeCurrent.participant_key}-${activeCurrent.note ?? ""}`}
+              defaultValue={activeCurrent.note ?? ""}
               onBlur={(event) => {
                 const nextNote = event.currentTarget.value;
-                if (nextNote !== (current.note ?? "")) {
-                  onUpdate(participantUpdate(current, { note: nextNote }));
+                if (nextNote !== (activeCurrent.note ?? "")) {
+                  updateParticipant({ note: nextNote });
                 }
               }}
             />
           </Form.Item>
           <Form.Item label="Side" layout="vertical">
             <Select<EncounterParticipantSideView>
-              value={current.side}
-              onChange={(side) => onUpdate(participantUpdate(current, { side }))}
+              value={activeCurrent.side}
+              onChange={(side) => updateParticipant({ side })}
               options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
                 value: value as EncounterParticipantSideView,
                 label: value,
@@ -308,23 +321,21 @@ export function EncounterTurnPane({
             />
           </Form.Item>
           <Button
-            onClick={() =>
-              onUpdate(participantUpdate(current, { defeated: !current.defeated }))
-            }
+            onClick={() => updateParticipant({ defeated: !activeCurrent.defeated })}
           >
-            {current.defeated ? "Mark active" : "Mark defeated"}
+            {activeCurrent.defeated ? "Mark active" : "Mark defeated"}
           </Button>
           <section className="encounter-conditions">
             <h3>Conditions</h3>
-            {current.conditions.length === 0 ? (
+            {activeCurrent.conditions.length === 0 ? (
               <p className="encounter-empty-note">No conditions</p>
             ) : (
               <div className="encounter-condition-list">
-                {current.conditions.map((condition) => (
+                {activeCurrent.conditions.map((condition) => (
                   <ConditionEditor
                     condition={condition}
                     key={condition.condition_id.toString()}
-                    participantKey={current.participant_key}
+                    participantKey={activeCurrent.participant_key}
                     participants={participants}
                     onRemove={onRemoveCondition}
                     onUpdate={onUpdateCondition}
@@ -339,7 +350,7 @@ export function EncounterTurnPane({
                 layout="vertical"
                 onFinish={(values) => {
                   onAddCondition({
-                    participant_key: current.participant_key,
+                    participant_key: activeCurrent.participant_key,
                     name: values.name,
                     ...(values.value === undefined
                       ? {}
@@ -520,20 +531,38 @@ function participantUpdate(
     ...changes,
   };
 }
-function applyDamage(
+function damageChanges(
   participant: EncounterParticipantView,
   amount: number,
-): UpdateEncounterParticipantRequest {
+): Partial<UpdateEncounterParticipantRequest> {
   const temporaryHp = asNumber(participant.temporary_hp);
   const currentHp = asNumber(participant.current_hp);
   const tempDamage = Math.min(temporaryHp, amount);
   const remaining = amount - tempDamage;
   const current_hp = BigInt(Math.max(0, currentHp - remaining));
-  return participantUpdate(participant, {
+  return {
     temporary_hp: BigInt(temporaryHp - tempDamage),
     current_hp,
     defeated: current_hp === BigInt(0) ? true : participant.defeated,
-  });
+  };
+}
+function applyParticipantUpdate(
+  participant: EncounterParticipantView,
+  request: UpdateEncounterParticipantRequest,
+): EncounterParticipantView {
+  return {
+    ...participant,
+    display_name: request.display_name,
+    side: request.side,
+    participant_variant: request.participant_variant,
+    initiative: request.initiative,
+    max_hp: request.max_hp,
+    current_hp: request.current_hp,
+    temporary_hp: request.temporary_hp,
+    defeated: request.defeated,
+    hidden: request.hidden,
+    note: request.note,
+  };
 }
 function evaluateHpFormula(value: string): number | null {
   const trimmed = value.trim();
