@@ -1,10 +1,10 @@
 use serde_json::Value;
 
 use atlas_record::{
-    ActivityRoll, ActivityRollAbility, ActivityRollSurface, ActorMechanics, DamageExpression,
-    ItemMechanics, MechanicActivity, MechanicActivityKind, MechanicActivityUsage, SpellArea,
-    SpellDefense, SpellMechanics, SpellRange, SpellTarget, SpellcastingEntryMechanics,
-    SpellcastingPreparation, render_plain_text,
+    ActivityRoll, ActivityRollAbility, ActivityRollSurface, ActorMechanics, DamageEffectKind,
+    DamageExpression, ItemMechanics, MechanicActivity, MechanicActivityKind, MechanicActivityMode,
+    MechanicActivityUsage, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
+    SpellcastingEntryMechanics, SpellcastingPreparation, render_plain_text,
 };
 
 use crate::records::EmbeddedItemFact;
@@ -147,7 +147,14 @@ fn activity(
 
 fn strike_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActivity> {
     let ability = strike_ability(item);
-    let damage = damage_rolls(raw, "/system/damageRolls", "damage", "damageType", ability);
+    let damage = damage_rolls(
+        raw,
+        "/system/damageRolls",
+        "damage",
+        "damageType",
+        ability,
+        DamageEffectKind::Damage,
+    );
     if damage.is_empty() {
         return None;
     }
@@ -160,6 +167,7 @@ fn strike_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActiv
         usage: MechanicActivityUsage::Unlimited,
         rolls: strike_rolls(item, raw),
         damage,
+        modes: Vec::new(),
     })
 }
 
@@ -168,11 +176,19 @@ fn spell_activity(
     raw: &Value,
     spellcasting_entries: &[SpellcastingEntryMechanics],
 ) -> Option<MechanicActivity> {
-    let damage = damage_rolls(raw, "/system/damage", "formula", "type", None);
+    let damage = damage_rolls(
+        raw,
+        "/system/damage",
+        "formula",
+        "type",
+        None,
+        DamageEffectKind::Unknown,
+    );
     if damage.is_empty() {
         return None;
     }
     let usage = spell_usage(item, raw, spellcasting_entries);
+    let modes = activity_modes(raw, &damage, None);
     Some(MechanicActivity {
         activity_id: item.item_id.clone(),
         label: item.name.clone(),
@@ -182,17 +198,33 @@ fn spell_activity(
         usage,
         rolls: spell_rolls(raw, spellcasting_entries),
         damage,
+        modes,
     })
 }
 
 fn action_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActivity> {
-    let damage = damage_rolls(raw, "/system/damageRolls", "damage", "damageType", None)
-        .into_iter()
-        .chain(damage_rolls(raw, "/system/damage", "formula", "type", None))
-        .collect::<Vec<_>>();
+    let damage = damage_rolls(
+        raw,
+        "/system/damageRolls",
+        "damage",
+        "damageType",
+        None,
+        DamageEffectKind::Damage,
+    )
+    .into_iter()
+    .chain(damage_rolls(
+        raw,
+        "/system/damage",
+        "formula",
+        "type",
+        None,
+        DamageEffectKind::Unknown,
+    ))
+    .collect::<Vec<_>>();
     if damage.is_empty() {
         return None;
     }
+    let modes = activity_modes(raw, &damage, None);
     let usage = if raw
         .pointer("/system/frequency")
         .is_some_and(|value| !value.is_null())
@@ -210,6 +242,7 @@ fn action_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActiv
         usage,
         rolls: Vec::new(),
         damage,
+        modes,
     })
 }
 
@@ -318,6 +351,7 @@ fn damage_rolls(
     formula_field: &str,
     damage_type_field: &str,
     ability: Option<ActivityRollAbility>,
+    default_effect_kind: DamageEffectKind,
 ) -> Vec<DamageExpression> {
     let Some(entries) = raw.pointer(pointer).and_then(Value::as_object) else {
         return Vec::new();
@@ -334,12 +368,112 @@ fn damage_rolls(
                 label: normalized_pointer_string(entry, "/category"),
                 formula,
                 damage_type: normalized_pointer_string(entry, &format!("/{damage_type_field}")),
+                effect_kind: damage_effect_kind(entry, default_effect_kind),
                 ability,
             })
         })
         .collect::<Vec<_>>();
     damage.sort_by(|left, right| left.damage_id.cmp(&right.damage_id));
     damage
+}
+
+fn activity_modes(
+    raw: &Value,
+    base_damage: &[DamageExpression],
+    ability: Option<ActivityRollAbility>,
+) -> Vec<MechanicActivityMode> {
+    let Some(overlays) = raw.pointer("/system/overlays").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut modes = overlays
+        .iter()
+        .filter_map(|(overlay_id, overlay)| {
+            let damage = overlay_damage_rolls(overlay, base_damage, ability);
+            if damage.is_empty() {
+                return None;
+            }
+            Some(MechanicActivityMode {
+                mode_id: normalized_pointer_string(overlay, "/_id")
+                    .unwrap_or_else(|| overlay_id.clone()),
+                label: normalized_pointer_string(overlay, "/name")
+                    .unwrap_or_else(|| overlay_id.clone()),
+                sort: overlay
+                    .pointer("/sort")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0),
+                target: normalized_pointer_string(overlay, "/system/target/value"),
+                range: normalized_pointer_string(overlay, "/system/range/value"),
+                time: normalized_pointer_string(overlay, "/system/time/value"),
+                damage,
+            })
+        })
+        .collect::<Vec<_>>();
+    modes.sort_by(|left, right| {
+        left.sort
+            .cmp(&right.sort)
+            .then_with(|| left.label.cmp(&right.label))
+            .then_with(|| left.mode_id.cmp(&right.mode_id))
+    });
+    modes
+}
+
+fn overlay_damage_rolls(
+    overlay: &Value,
+    base_damage: &[DamageExpression],
+    ability: Option<ActivityRollAbility>,
+) -> Vec<DamageExpression> {
+    let Some(entries) = overlay.pointer("/system/damage").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut damage = entries
+        .iter()
+        .filter_map(|(damage_id, entry)| {
+            let base = base_damage
+                .iter()
+                .find(|damage| damage.damage_id == *damage_id);
+            let formula = normalized_pointer_string(entry, "/formula")
+                .or_else(|| base.map(|base_damage| base_damage.formula.clone()))?;
+            if formula.is_empty() {
+                return None;
+            }
+            Some(DamageExpression {
+                damage_id: damage_id.clone(),
+                label: normalized_pointer_string(entry, "/category")
+                    .or_else(|| base.and_then(|base_damage| base_damage.label.clone())),
+                formula,
+                damage_type: normalized_pointer_string(entry, "/type")
+                    .or_else(|| base.and_then(|base_damage| base_damage.damage_type.clone())),
+                effect_kind: damage_effect_kind(
+                    entry,
+                    base.map(|base_damage| base_damage.effect_kind)
+                        .unwrap_or(DamageEffectKind::Unknown),
+                ),
+                ability,
+            })
+        })
+        .collect::<Vec<_>>();
+    damage.sort_by(|left, right| left.damage_id.cmp(&right.damage_id));
+    damage
+}
+
+fn damage_effect_kind(entry: &Value, default_effect_kind: DamageEffectKind) -> DamageEffectKind {
+    let Some(kinds) = entry.pointer("/kinds").and_then(Value::as_array) else {
+        return default_effect_kind;
+    };
+    let has_damage = kinds
+        .iter()
+        .filter_map(Value::as_str)
+        .any(|kind| kind == "damage");
+    let has_healing = kinds
+        .iter()
+        .filter_map(Value::as_str)
+        .any(|kind| kind == "healing");
+    match (has_damage, has_healing) {
+        (true, true) => DamageEffectKind::DamageOrHealing,
+        (true, false) => DamageEffectKind::Damage,
+        (false, true) => DamageEffectKind::Healing,
+        (false, false) => default_effect_kind,
+    }
 }
 
 fn content_text(value: String, localization: Option<&dyn LocalizationResolver>) -> Option<String> {

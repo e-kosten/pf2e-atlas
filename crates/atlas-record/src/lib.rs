@@ -35,15 +35,16 @@ pub use metrics::{
 };
 pub use model::{
     ActivationTimeSourceField, ActivityRoll, ActivityRollAbility, ActivityRollSurface,
-    ActorMechanics, AliasSource, AtlasRecord, AtlasRecordSet, DamageExpression,
+    ActorMechanics, AliasSource, AtlasRecord, AtlasRecordSet, DamageEffectKind, DamageExpression,
     DefaultRetrievalVisibility, DurationTimeSourceField, FoundryDocumentMechanics,
     FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics,
-    MechanicActivity, MechanicActivityKind, MechanicActivityUsage, MetricRow, MetricValue,
-    NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
-    RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
-    RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership, RecordVisibility,
-    RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense, SpellMechanics,
-    SpellRange, SpellTarget, SpellcastingEntryMechanics, SpellcastingPreparation, VariantSource,
+    MechanicActivity, MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricRow,
+    MetricValue, NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification,
+    RecordContent, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
+    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership,
+    RecordVisibility, RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense,
+    SpellMechanics, SpellRange, SpellTarget, SpellcastingEntryMechanics, SpellcastingPreparation,
+    VariantSource,
 };
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationContent,

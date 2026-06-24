@@ -223,6 +223,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+.encounter-activity-mode {
+  border-left: 2px solid var(--border);
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+  padding-left: 8px;
+}
+
+.encounter-activity-mode__title {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.encounter-activity-mode__title small {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
 .encounter-reference-preview__backdrop {
   background: rgb(15 23 42 / 18%);
   bottom: 0;

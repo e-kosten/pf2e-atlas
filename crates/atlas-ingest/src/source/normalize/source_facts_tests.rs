@@ -2,9 +2,9 @@ use std::path::Path;
 
 use atlas_domain::{PackName, Rarity, RecordKind};
 use atlas_record::{
-    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, FoundryDocumentMechanics,
-    FoundryDocumentType, FoundryRecordType, ItemTypeMechanics, MechanicActivityUsage,
-    render_plain_text,
+    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, DamageEffectKind,
+    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType, ItemTypeMechanics,
+    MechanicActivityUsage, render_plain_text,
 };
 use serde_json::json;
 
@@ -263,7 +263,40 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
                     "damage": {
                         "0": {
                             "formula": "1d4",
+                            "kinds": ["damage", "healing"],
                             "type": "void"
+                        }
+                    },
+                    "overlays": {
+                        "living": {
+                            "_id": "living",
+                            "name": "Staged Spell (Healing)",
+                            "sort": 2,
+                            "system": {
+                                "damage": {
+                                    "0": {
+                                        "formula": "1d4+4",
+                                        "kinds": ["healing"],
+                                        "type": "void"
+                                    }
+                                },
+                                "range": { "value": "30 feet" },
+                                "target": { "value": "1 ally" },
+                                "time": { "value": "2" }
+                            }
+                        },
+                        "undead": {
+                            "_id": "undead",
+                            "name": "Staged Spell (Damage)",
+                            "sort": 3,
+                            "system": {
+                                "damage": {
+                                    "0": {
+                                        "kinds": ["damage"]
+                                    }
+                                },
+                                "target": { "value": "1 enemy" }
+                            }
                         }
                     },
                     "location": {
@@ -413,6 +446,26 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
     assert_eq!(
         spell_activity.damage[0].damage_type.as_deref(),
         Some("void")
+    );
+    assert_eq!(
+        spell_activity.damage[0].effect_kind,
+        DamageEffectKind::DamageOrHealing
+    );
+    assert_eq!(spell_activity.modes.len(), 2);
+    assert_eq!(spell_activity.modes[0].mode_id, "living");
+    assert_eq!(spell_activity.modes[0].label, "Staged Spell (Healing)");
+    assert_eq!(spell_activity.modes[0].target.as_deref(), Some("1 ally"));
+    assert_eq!(spell_activity.modes[0].range.as_deref(), Some("30 feet"));
+    assert_eq!(spell_activity.modes[0].time.as_deref(), Some("2"));
+    assert_eq!(spell_activity.modes[0].damage[0].formula, "1d4+4");
+    assert_eq!(
+        spell_activity.modes[0].damage[0].effect_kind,
+        DamageEffectKind::Healing
+    );
+    assert_eq!(spell_activity.modes[1].mode_id, "undead");
+    assert_eq!(
+        spell_activity.modes[1].damage[0].effect_kind,
+        DamageEffectKind::Damage
     );
     assert_eq!(spell_activity.usage, MechanicActivityUsage::Limited);
     assert_eq!(spell_activity.rolls.len(), 2);

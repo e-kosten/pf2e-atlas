@@ -126,6 +126,24 @@ pub struct MechanicActivityView {
     pub usage: MechanicActivityUsageView,
     pub rolls: Vec<ActivityRollView>,
     pub damage: Vec<DamageExpressionView>,
+    pub modes: Vec<MechanicActivityModeView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct MechanicActivityModeView {
+    pub mode_id: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub target: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub range: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub time: Option<String>,
+    pub damage: Vec<DamageExpressionView>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -176,8 +194,22 @@ pub struct DamageExpressionView {
     pub formula: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub adjusted_formula: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub damage_type: Option<String>,
+    pub effect_kind: DamageEffectKindView,
     pub modifiers: Vec<StatModifierView>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum DamageEffectKindView {
+    Damage,
+    Healing,
+    DamageOrHealing,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

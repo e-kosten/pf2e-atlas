@@ -2,6 +2,7 @@
 import type { ActivityRollView } from "./ActivityRollView";
 import type { DamageExpressionView } from "./DamageExpressionView";
 import type { MechanicActivityKindView } from "./MechanicActivityKindView";
+import type { MechanicActivityModeView } from "./MechanicActivityModeView";
 import type { MechanicActivityUsageView } from "./MechanicActivityUsageView";
 
-export type MechanicActivityView = { activity_id: string, label: string, kind: MechanicActivityKindView, usage: MechanicActivityUsageView, rolls: Array<ActivityRollView>, damage: Array<DamageExpressionView>, };
+export type MechanicActivityView = { activity_id: string, label: string, kind: MechanicActivityKindView, usage: MechanicActivityUsageView, rolls: Array<ActivityRollView>, damage: Array<DamageExpressionView>, modes: Array<MechanicActivityModeView>, };

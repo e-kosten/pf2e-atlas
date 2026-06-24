@@ -238,8 +238,25 @@ function ActivityValue({ activity }: { activity: MechanicActivityView }) {
       {activity.damage.map((damage) => (
         <DamageValue key={damage.damage_id} damage={damage} />
       ))}
+      {activity.modes.map((mode) => (
+        <div key={mode.mode_id} className="encounter-activity-mode">
+          <div className="encounter-activity-mode__title">
+            <strong>{mode.label}</strong>
+            {modeMetadata(mode).length > 0 && (
+              <small>{modeMetadata(mode).join(" / ")}</small>
+            )}
+          </div>
+          {mode.damage.map((damage) => (
+            <DamageValue key={damage.damage_id} damage={damage} />
+          ))}
+        </div>
+      ))}
     </div>
   );
+}
+
+function modeMetadata(mode: MechanicActivityView["modes"][number]) {
+  return [mode.target, mode.range, mode.time].filter(Boolean);
 }
 
 function ActivityRollValue({ roll }: { roll: ActivityRollView }) {
@@ -266,12 +283,17 @@ function ActivityRollValue({ roll }: { roll: ActivityRollView }) {
 }
 
 function DamageValue({ damage }: { damage: DamageExpressionView }) {
+  const formula = damage.adjusted_formula ?? damage.formula;
+  const changed =
+    damage.adjusted_formula !== undefined && damage.adjusted_formula !== damage.formula;
   return (
     <div className="encounter-damage-row">
       <span>
-        {damage.formula}
+        {formula}
         {damage.damage_type ? ` ${damage.damage_type}` : ""}
       </span>
+      {changed && <small>base {damage.formula}</small>}
+      {damage.effect_kind === "damage_or_healing" && <small>choose mode</small>}
       {damage.modifiers.length > 0 && (
         <small>
           {damage.modifiers
