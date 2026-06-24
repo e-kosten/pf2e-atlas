@@ -29,4 +29,5 @@ Elite/weak is stored as a first-class participant variant (`normal`, `elite`, or
 ## Related
 
 - [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
+- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)

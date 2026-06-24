@@ -10,6 +10,7 @@ export type { AddSavedListItemRequest } from "../../../../crates/atlas-app-model
 export type { BasicSearchFilter } from "../../../../crates/atlas-app-model/bindings/BasicSearchFilter";
 export type { CreateSavedListRequest } from "../../../../crates/atlas-app-model/bindings/CreateSavedListRequest";
 export type { CreateEncounterRequest } from "../../../../crates/atlas-app-model/bindings/CreateEncounterRequest";
+export type { DamageExpressionView } from "../../../../crates/atlas-app-model/bindings/DamageExpressionView";
 export type { DeleteEncounterView } from "../../../../crates/atlas-app-model/bindings/DeleteEncounterView";
 export type { DeleteSavedListView } from "../../../../crates/atlas-app-model/bindings/DeleteSavedListView";
 export type { DiscoverFilterEditorRequest } from "../../../../crates/atlas-app-model/bindings/DiscoverFilterEditorRequest";
@@ -42,6 +43,9 @@ export type { EncounterParticipantView } from "../../../../crates/atlas-app-mode
 export type { EncounterStatusView } from "../../../../crates/atlas-app-model/bindings/EncounterStatusView";
 export type { EncounterSummaryView } from "../../../../crates/atlas-app-model/bindings/EncounterSummaryView";
 export type { EncounterUpdateView } from "../../../../crates/atlas-app-model/bindings/EncounterUpdateView";
+export type { MechanicActivityKindView } from "../../../../crates/atlas-app-model/bindings/MechanicActivityKindView";
+export type { MechanicActivityUsageView } from "../../../../crates/atlas-app-model/bindings/MechanicActivityUsageView";
+export type { MechanicActivityView } from "../../../../crates/atlas-app-model/bindings/MechanicActivityView";
 export type { MetricComparison } from "../../../../crates/atlas-app-model/bindings/MetricComparison";
 export type { OpenResultWindowRequest } from "../../../../crates/atlas-app-model/bindings/OpenResultWindowRequest";
 export type { PresentationBadge } from "../../../../crates/atlas-app-model/bindings/PresentationBadge";

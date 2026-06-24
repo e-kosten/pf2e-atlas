@@ -10,15 +10,16 @@ mod result_window;
 
 pub use encounter::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DeleteEncounterView,
-    EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DamageExpressionView,
+    DeleteEncounterView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
-    UnappliedEffectView, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView,
+    MechanicActivityUsageView, MechanicActivityView, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, SetEncounterTurnRequest, StatBlockView,
+    StatModifierTypeView, StatModifierView, StatValueView, UnappliedEffectView,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
@@ -104,6 +105,8 @@ mod tests {
             .expect("AddEncounterRecordParticipantRequest bindings should export");
         CreateEncounterRequest::export_all_to(path)
             .expect("CreateEncounterRequest bindings should export");
+        DamageExpressionView::export_all_to(path)
+            .expect("DamageExpressionView bindings should export");
         DeleteEncounterView::export_all_to(path)
             .expect("DeleteEncounterView bindings should export");
         EncounterCreateView::export_all_to(path)
@@ -117,6 +120,12 @@ mod tests {
             .expect("EncounterParticipantVariantView bindings should export");
         EncounterUpdateView::export_all_to(path)
             .expect("EncounterUpdateView bindings should export");
+        MechanicActivityKindView::export_all_to(path)
+            .expect("MechanicActivityKindView bindings should export");
+        MechanicActivityUsageView::export_all_to(path)
+            .expect("MechanicActivityUsageView bindings should export");
+        MechanicActivityView::export_all_to(path)
+            .expect("MechanicActivityView bindings should export");
         StatBlockView::export_all_to(path).expect("StatBlockView bindings should export");
         StatModifierView::export_all_to(path).expect("StatModifierView bindings should export");
         StatModifierTypeView::export_all_to(path)

@@ -1,25 +1,30 @@
 use atlas_domain::{MetricDomain, RecordKey, RecordKind};
 
-use crate::{AtlasRecord, MetricDefinitionMatch, MetricRow, MetricValue, definition_for, metrics};
+use crate::{
+    AtlasRecord, MechanicActivity, MetricDefinitionMatch, MetricRow, MetricValue, definition_for,
+    metrics,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StatBlock {
+pub struct MechanicsView {
     pub record_key: RecordKey,
     pub kind: RecordKind,
     pub title: String,
     pub level: Option<i64>,
-    pub values: Vec<StatValue>,
+    pub values: Vec<MechanicValue>,
+    pub activities: Vec<MechanicActivity>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StatValue {
-    pub target: StatTarget,
+pub struct MechanicValue {
+    pub target: MechanicTarget,
     pub label: String,
-    pub base_value: StatScalar,
+    pub base_value: MechanicScalar,
+    pub facets: MechanicFacets,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum StatTarget {
+pub enum MechanicTarget {
     ArmorClass,
     MaxHp,
     Perception,
@@ -28,7 +33,7 @@ pub enum StatTarget {
     AbilityModifier { ability: AbilityKind },
 }
 
-impl StatTarget {
+impl MechanicTarget {
     pub fn id(&self) -> String {
         match self {
             Self::ArmorClass => "ac".to_string(),
@@ -39,6 +44,96 @@ impl StatTarget {
             Self::AbilityModifier { ability } => format!("ability.{}", ability.as_str()),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MechanicFacets {
+    pub surface: MechanicSurface,
+    pub statistic: Option<MechanicStatistic>,
+    pub ability: Option<AbilityKind>,
+}
+
+impl MechanicFacets {
+    pub const fn armor_class() -> Self {
+        Self {
+            surface: MechanicSurface::ArmorClass,
+            statistic: None,
+            ability: Some(AbilityKind::Dexterity),
+        }
+    }
+
+    pub const fn hit_points() -> Self {
+        Self {
+            surface: MechanicSurface::HitPoints,
+            statistic: None,
+            ability: None,
+        }
+    }
+
+    pub const fn perception() -> Self {
+        Self {
+            surface: MechanicSurface::Check,
+            statistic: Some(MechanicStatistic::Perception),
+            ability: Some(AbilityKind::Wisdom),
+        }
+    }
+
+    pub const fn saving_throw(save: SaveKind) -> Self {
+        let ability = match save {
+            SaveKind::Fortitude => AbilityKind::Constitution,
+            SaveKind::Reflex => AbilityKind::Dexterity,
+            SaveKind::Will => AbilityKind::Wisdom,
+        };
+        Self {
+            surface: MechanicSurface::SavingThrow,
+            statistic: Some(MechanicStatistic::Save(save)),
+            ability: Some(ability),
+        }
+    }
+
+    pub fn skill(slug: &str) -> Self {
+        Self {
+            surface: MechanicSurface::Check,
+            statistic: None,
+            ability: skill_ability(slug),
+        }
+    }
+
+    pub const fn ability_modifier(ability: AbilityKind) -> Self {
+        Self {
+            surface: MechanicSurface::RawModifier,
+            statistic: Some(MechanicStatistic::Ability(ability)),
+            ability: Some(ability),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MechanicSurface {
+    RawModifier,
+    Check,
+    Dc,
+    ArmorClass,
+    SavingThrow,
+    AttackRoll,
+    Damage,
+    HitPoints,
+}
+
+impl MechanicSurface {
+    pub const fn is_check_or_dc(self) -> bool {
+        matches!(
+            self,
+            Self::Check | Self::Dc | Self::ArmorClass | Self::SavingThrow | Self::AttackRoll
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MechanicStatistic {
+    Ability(AbilityKind),
+    Perception,
+    Save(SaveKind),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -101,11 +196,11 @@ impl AbilityKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StatScalar {
+pub enum MechanicScalar {
     Number(i64),
 }
 
-pub fn build_stat_block(record: &AtlasRecord) -> Option<StatBlock> {
+pub fn build_mechanics_view(record: &AtlasRecord) -> Option<MechanicsView> {
     if record.classification.kind != RecordKind::Creature {
         return None;
     }
@@ -114,30 +209,34 @@ pub fn build_stat_block(record: &AtlasRecord) -> Option<StatBlock> {
         &mut values,
         &record.mechanics.metrics,
         metrics::actor::ARMOR_CLASS,
-        StatTarget::ArmorClass,
+        MechanicTarget::ArmorClass,
         "AC",
+        MechanicFacets::armor_class(),
     );
     push_exact(
         &mut values,
         &record.mechanics.metrics,
         metrics::actor::HP_MAX,
-        StatTarget::MaxHp,
+        MechanicTarget::MaxHp,
         "Max HP",
+        MechanicFacets::hit_points(),
     );
     push_exact(
         &mut values,
         &record.mechanics.metrics,
         metrics::actor::PERCEPTION_MOD,
-        StatTarget::Perception,
+        MechanicTarget::Perception,
         "Perception",
+        MechanicFacets::perception(),
     );
     for save in [SaveKind::Fortitude, SaveKind::Reflex, SaveKind::Will] {
         push_key(
             &mut values,
             &record.mechanics.metrics,
             &metrics::actor::save::mod_key(save.as_str()),
-            StatTarget::Save { save },
+            MechanicTarget::Save { save },
             save.label(),
+            MechanicFacets::saving_throw(save),
         );
     }
     for ability in [
@@ -152,8 +251,9 @@ pub fn build_stat_block(record: &AtlasRecord) -> Option<StatBlock> {
             &mut values,
             &record.mechanics.metrics,
             &metrics::actor::ability::mod_key(ability.as_str()),
-            StatTarget::AbilityModifier { ability },
+            MechanicTarget::AbilityModifier { ability },
             ability.label(),
+            MechanicFacets::ability_modifier(ability),
         );
     }
     let mut skill_values = record
@@ -167,33 +267,36 @@ pub fn build_stat_block(record: &AtlasRecord) -> Option<StatBlock> {
     if values.is_empty() {
         return None;
     }
-    Some(StatBlock {
+    Some(MechanicsView {
         record_key: record.identity.key.clone(),
         kind: record.classification.kind,
         title: record.identity.name.clone(),
         level: record.classification.level,
         values,
+        activities: record.mechanics.activities.clone(),
     })
 }
 
 fn push_exact(
-    values: &mut Vec<StatValue>,
+    values: &mut Vec<MechanicValue>,
     metrics: &[MetricRow],
     definition: crate::MetricDefinition,
-    target: StatTarget,
+    target: MechanicTarget,
     fallback_label: &str,
+    facets: MechanicFacets,
 ) {
     if let Some(key) = definition.exact_key() {
-        push_key(values, metrics, key, target, fallback_label);
+        push_key(values, metrics, key, target, fallback_label, facets);
     }
 }
 
 fn push_key(
-    values: &mut Vec<StatValue>,
+    values: &mut Vec<MechanicValue>,
     metrics: &[MetricRow],
     key: &str,
-    target: StatTarget,
+    target: MechanicTarget,
     fallback_label: &str,
+    facets: MechanicFacets,
 ) {
     let Some(metric) = metrics
         .iter()
@@ -204,14 +307,15 @@ fn push_key(
     let Some(value) = metric_i64(metric) else {
         return;
     };
-    values.push(StatValue {
+    values.push(MechanicValue {
         target,
         label: fallback_label.to_string(),
-        base_value: StatScalar::Number(value),
+        base_value: MechanicScalar::Number(value),
+        facets,
     });
 }
 
-fn skill_value(metric: &MetricRow) -> Option<StatValue> {
+fn skill_value(metric: &MetricRow) -> Option<MechanicValue> {
     if metric.domain != MetricDomain::Actor {
         return None;
     }
@@ -224,13 +328,32 @@ fn skill_value(metric: &MetricRow) -> Option<StatValue> {
     }
     let skill = captures.first()?;
     let value = metric_i64(metric)?;
-    Some(StatValue {
-        target: StatTarget::Skill {
+    Some(MechanicValue {
+        target: MechanicTarget::Skill {
             slug: skill.raw.clone(),
         },
         label: skill.label.clone(),
-        base_value: StatScalar::Number(value),
+        base_value: MechanicScalar::Number(value),
+        facets: MechanicFacets::skill(&skill.raw),
     })
+}
+
+fn skill_ability(slug: &str) -> Option<AbilityKind> {
+    match slug {
+        "acr" | "acrobatics" | "ste" | "stealth" | "thi" | "thievery" => {
+            Some(AbilityKind::Dexterity)
+        }
+        "ath" | "athletics" => Some(AbilityKind::Strength),
+        "arc" | "arcana" | "cra" | "crafting" | "occ" | "occultism" | "soc" | "society" => {
+            Some(AbilityKind::Intelligence)
+        }
+        "med" | "medicine" | "nat" | "nature" | "rel" | "religion" | "sur" | "survival" => {
+            Some(AbilityKind::Wisdom)
+        }
+        "dec" | "deception" | "dip" | "diplomacy" | "itm" | "intimidation" | "prf"
+        | "performance" => Some(AbilityKind::Charisma),
+        _ => None,
+    }
 }
 
 fn metric_i64(metric: &MetricRow) -> Option<i64> {
@@ -253,7 +376,7 @@ mod tests {
     };
 
     #[test]
-    fn creature_stat_block_extracts_typed_numeric_targets() {
+    fn creature_mechanics_view_extracts_typed_numeric_targets() {
         let mut record = base_record(RecordKind::Creature);
         record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
             size: Some("medium".to_string()),
@@ -280,53 +403,84 @@ mod tests {
             metric(&metrics::actor::skill::mod_key("stealth"), 8.0),
         ];
 
-        let block = build_stat_block(&record).expect("creature should project stats");
+        let view = build_mechanics_view(&record).expect("creature should project mechanics");
 
-        assert_eq!(block.record_key, record.identity.key);
-        assert_eq!(block.kind, RecordKind::Creature);
-        assert_eq!(block.level, Some(3));
-        assert_stat(&block, StatTarget::ArmorClass, "AC", 19);
-        assert_stat(&block, StatTarget::MaxHp, "Max HP", 45);
-        assert_stat(&block, StatTarget::Perception, "Perception", 9);
-        assert_stat(
-            &block,
-            StatTarget::Save {
+        assert_eq!(view.record_key, record.identity.key);
+        assert_eq!(view.kind, RecordKind::Creature);
+        assert_eq!(view.level, Some(3));
+        assert_value(
+            &view,
+            MechanicTarget::ArmorClass,
+            "AC",
+            19,
+            MechanicSurface::ArmorClass,
+            Some(AbilityKind::Dexterity),
+        );
+        assert_value(
+            &view,
+            MechanicTarget::MaxHp,
+            "Max HP",
+            45,
+            MechanicSurface::HitPoints,
+            None,
+        );
+        assert_value(
+            &view,
+            MechanicTarget::Perception,
+            "Perception",
+            9,
+            MechanicSurface::Check,
+            Some(AbilityKind::Wisdom),
+        );
+        assert_value(
+            &view,
+            MechanicTarget::Save {
                 save: SaveKind::Fortitude,
             },
             "Fortitude",
             12,
+            MechanicSurface::SavingThrow,
+            Some(AbilityKind::Constitution),
         );
-        assert_stat(
-            &block,
-            StatTarget::Save {
+        assert_value(
+            &view,
+            MechanicTarget::Save {
                 save: SaveKind::Reflex,
             },
             "Reflex",
             8,
+            MechanicSurface::SavingThrow,
+            Some(AbilityKind::Dexterity),
         );
-        assert_stat(
-            &block,
-            StatTarget::AbilityModifier {
+        assert_value(
+            &view,
+            MechanicTarget::AbilityModifier {
                 ability: AbilityKind::Strength,
             },
             "Strength",
             4,
+            MechanicSurface::RawModifier,
+            Some(AbilityKind::Strength),
         );
-        assert_stat(
-            &block,
-            StatTarget::Skill {
+        assert_value(
+            &view,
+            MechanicTarget::Skill {
                 slug: "athletics".to_string(),
             },
             "Athletics",
             11,
+            MechanicSurface::Check,
+            Some(AbilityKind::Strength),
         );
-        assert_stat(
-            &block,
-            StatTarget::Skill {
+        assert_value(
+            &view,
+            MechanicTarget::Skill {
                 slug: "stealth".to_string(),
             },
             "Stealth",
             8,
+            MechanicSurface::Check,
+            Some(AbilityKind::Dexterity),
         );
     }
 
@@ -334,17 +488,26 @@ mod tests {
     fn non_creature_records_do_not_project_creature_stats() {
         let record = base_record(RecordKind::Spell);
 
-        assert!(build_stat_block(&record).is_none());
+        assert!(build_mechanics_view(&record).is_none());
     }
 
-    fn assert_stat(block: &StatBlock, target: StatTarget, label: &str, value: i64) {
-        let stat = block
+    fn assert_value(
+        view: &MechanicsView,
+        target: MechanicTarget,
+        label: &str,
+        value: i64,
+        surface: MechanicSurface,
+        ability: Option<AbilityKind>,
+    ) {
+        let stat = view
             .values
             .iter()
             .find(|stat| stat.target == target)
             .unwrap_or_else(|| panic!("missing stat target {}", target.id()));
         assert_eq!(stat.label, label);
-        assert_eq!(stat.base_value, StatScalar::Number(value));
+        assert_eq!(stat.base_value, MechanicScalar::Number(value));
+        assert_eq!(stat.facets.surface, surface);
+        assert_eq!(stat.facets.ability, ability);
     }
 
     fn base_record(kind: RecordKind) -> AtlasRecord {

@@ -371,6 +371,8 @@ pub enum DurationTimeSourceField {
 pub struct RecordMechanics {
     pub metrics: Vec<MetricRow>,
     pub document: FoundryDocumentMechanics,
+    pub spellcasting_entries: Vec<SpellcastingEntryMechanics>,
+    pub activities: Vec<MechanicActivity>,
 }
 
 impl RecordMechanics {
@@ -404,6 +406,55 @@ pub enum FoundryDocumentMechanics {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ItemTypeMechanics {
     Spell(SpellMechanics),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpellcastingEntryMechanics {
+    pub entry_id: String,
+    pub label: String,
+    pub preparation: SpellcastingPreparation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpellcastingPreparation {
+    Prepared,
+    Spontaneous,
+    Focus,
+    Innate,
+    Other(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MechanicActivity {
+    pub activity_id: String,
+    pub label: String,
+    pub kind: MechanicActivityKind,
+    pub traits: Vec<String>,
+    pub compendium_source: Option<String>,
+    pub usage: MechanicActivityUsage,
+    pub damage: Vec<DamageExpression>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MechanicActivityKind {
+    Strike,
+    Spell,
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MechanicActivityUsage {
+    Unlimited,
+    Limited,
+    Ambiguous,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DamageExpression {
+    pub damage_id: String,
+    pub label: Option<String>,
+    pub formula: String,
+    pub damage_type: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

@@ -601,6 +601,8 @@ mod tests {
                     hands_requirement: Some("1".to_string()),
                     damage_types: vec!["mental".to_string()],
                 }),
+                spellcasting_entries: Vec::new(),
+                activities: Vec::new(),
             },
             content: RecordContent {
                 documents: vec![

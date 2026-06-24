@@ -43,4 +43,5 @@ Condition automation should prefer canonical `conditionitems` record identity wh
 ## Related
 
 - [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
+- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
 - [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)

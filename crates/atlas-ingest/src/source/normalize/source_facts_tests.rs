@@ -3,7 +3,7 @@ use std::path::Path;
 use atlas_domain::{PackName, Rarity, RecordKind};
 use atlas_record::{
     ActivationTimeSourceField, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
-    FoundryRecordType, ItemTypeMechanics, render_plain_text,
+    FoundryRecordType, ItemTypeMechanics, MechanicActivityUsage, render_plain_text,
 };
 use serde_json::json;
 
@@ -259,12 +259,46 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
                 "name": "Staged Spell",
                 "type": "spell",
                 "system": {
+                    "damage": {
+                        "0": {
+                            "formula": "1d4",
+                            "type": "void"
+                        }
+                    },
+                    "location": {
+                        "value": "casting1"
+                    },
                     "traits": { "value": ["curse"] },
                     "spell": {
                         "system": {
                             "description": { "value": "<p>Nested spell text.</p>" }
                         }
                     }
+                }
+            },
+            {
+                "_id": "casting1",
+                "name": "Occult Cantrips",
+                "type": "spellcastingEntry",
+                "system": {
+                    "prepared": { "value": "spontaneous" },
+                    "slots": {
+                        "slot0": { "max": 5, "value": 5 }
+                    }
+                }
+            },
+            {
+                "_id": "claw1",
+                "name": "Claw",
+                "type": "melee",
+                "system": {
+                    "damageRolls": {
+                        "main": {
+                            "damage": "1d6+2",
+                            "damageType": "slashing"
+                        }
+                    },
+                    "traits": { "value": ["agile"] }
                 }
             }
         ],
@@ -315,7 +349,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         facts.compendium_source.as_deref(),
         Some("Compendium.pf2e.bestiary.Actor.host1")
     );
-    assert_eq!(facts.embedded_items.len(), 2);
+    assert_eq!(facts.embedded_items.len(), 4);
 
     let affliction = &facts.embedded_items[0];
     assert_eq!(affliction.item_id, "bite1");
@@ -356,6 +390,38 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
             .as_deref(),
         Some("Nested spell text.")
     );
+    assert_eq!(loaded.record.mechanics.spellcasting_entries.len(), 1);
+    assert_eq!(
+        loaded.record.mechanics.spellcasting_entries[0].entry_id,
+        "casting1"
+    );
+    assert_eq!(loaded.record.mechanics.activities.len(), 2);
+    let spell_activity = loaded
+        .record
+        .mechanics
+        .activities
+        .iter()
+        .find(|activity| activity.activity_id == "spell1")
+        .expect("spell activity should project");
+    assert_eq!(spell_activity.damage[0].formula, "1d4");
+    assert_eq!(
+        spell_activity.damage[0].damage_type.as_deref(),
+        Some("void")
+    );
+    assert_eq!(spell_activity.usage, MechanicActivityUsage::Limited);
+    let strike_activity = loaded
+        .record
+        .mechanics
+        .activities
+        .iter()
+        .find(|activity| activity.activity_id == "claw1")
+        .expect("strike activity should project");
+    assert_eq!(strike_activity.damage[0].formula, "1d6+2");
+    assert_eq!(
+        strike_activity.damage[0].damage_type.as_deref(),
+        Some("slashing")
+    );
+    assert_eq!(strike_activity.usage, MechanicActivityUsage::Unlimited);
 
     assert_eq!(facts.journal_pages.len(), 2);
     assert_eq!(facts.journal_pages[0].page_id.as_deref(), Some("page1"));
