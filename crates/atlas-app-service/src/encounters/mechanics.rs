@@ -97,7 +97,8 @@ fn activity_view(
     activity: MechanicActivity,
     participant: &EncounterParticipant,
 ) -> MechanicActivityView {
-    let damage_modifier = variant_damage_modifier(participant.participant_variant, activity.usage);
+    let variant_damage_modifier =
+        variant_damage_modifier(participant.participant_variant, activity.usage);
     let kind = activity.kind;
     MechanicActivityView {
         activity_id: activity.activity_id,
@@ -112,7 +113,7 @@ fn activity_view(
         damage: activity
             .damage
             .into_iter()
-            .map(|damage| damage_view(damage, damage_modifier.clone()))
+            .map(|damage| damage_view(damage, kind, participant, variant_damage_modifier.clone()))
             .collect(),
     }
 }
@@ -154,14 +155,60 @@ fn activity_roll_view(
 
 fn damage_view(
     damage: DamageExpression,
-    modifier: Option<StatModifierView>,
+    activity_kind: MechanicActivityKind,
+    participant: &EncounterParticipant,
+    variant_modifier: Option<StatModifierView>,
 ) -> DamageExpressionView {
+    let mut modifiers = variant_modifier.into_iter().collect::<Vec<_>>();
+    for condition in &participant.conditions {
+        let Some(rule) = ConditionRule::from_condition(condition) else {
+            continue;
+        };
+        modifiers.extend(condition_damage_modifiers(
+            condition,
+            rule,
+            activity_kind,
+            &damage,
+        ));
+    }
     DamageExpressionView {
         damage_id: damage.damage_id,
         label: damage.label,
         formula: damage.formula,
         damage_type: damage.damage_type,
-        modifiers: modifier.into_iter().collect(),
+        modifiers,
+    }
+}
+
+fn condition_damage_modifiers(
+    condition: &EncounterParticipantCondition,
+    rule: ConditionRule,
+    activity_kind: MechanicActivityKind,
+    damage: &DamageExpression,
+) -> Vec<StatModifierView> {
+    if rule != ConditionRule::Enfeebled
+        || activity_kind != MechanicActivityKind::Strike
+        || damage_ability(damage) != Some(AbilityKind::Strength)
+    {
+        return Vec::new();
+    }
+    let source = condition_source(condition);
+    vec![StatModifierView {
+        source: source.clone(),
+        label: source,
+        modifier_type: StatModifierTypeView::Status,
+        value: -condition_value(condition),
+    }]
+}
+
+fn damage_ability(damage: &DamageExpression) -> Option<AbilityKind> {
+    match damage.ability? {
+        ActivityRollAbility::Strength => Some(AbilityKind::Strength),
+        ActivityRollAbility::Dexterity => Some(AbilityKind::Dexterity),
+        ActivityRollAbility::Constitution => Some(AbilityKind::Constitution),
+        ActivityRollAbility::Intelligence => Some(AbilityKind::Intelligence),
+        ActivityRollAbility::Wisdom => Some(AbilityKind::Wisdom),
+        ActivityRollAbility::Charisma => Some(AbilityKind::Charisma),
     }
 }
 
@@ -463,7 +510,7 @@ fn variant_source(variant: ParticipantVariant) -> &'static str {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConditionRule {
     Frightened,
     Sickened,
@@ -543,8 +590,8 @@ fn condition_unapplied_effects(
         }],
         ConditionRule::Enfeebled => vec![UnappliedEffectView {
             source: source.clone(),
-            label: format!("{source} Strength-based damage penalty"),
-            reason: "Strength-based damage expressions are not typed by ability yet.".to_string(),
+            label: format!("{source} untyped Strength-based damage penalties"),
+            reason: "Only structured Strength-based strike damage is adjusted.".to_string(),
         }],
         ConditionRule::Stupefied => vec![UnappliedEffectView {
             source: source.clone(),
@@ -755,6 +802,8 @@ mod tests {
                 .iter()
                 .any(|modifier| modifier.label == "Frightened 1")
         );
+        assert_damage_modifier(&projection, "claw", "main", -2);
+        assert_no_damage_modifier(&projection, "fireball", "0");
     }
 
     fn assert_stat(
@@ -939,6 +988,7 @@ mod tests {
                     label: None,
                     formula: "1d6+4".to_string(),
                     damage_type: Some("slashing".to_string()),
+                    ability: Some(atlas_record::ActivityRollAbility::Strength),
                 }],
             },
             atlas_record::MechanicActivity {
@@ -969,6 +1019,7 @@ mod tests {
                     label: None,
                     formula: "6d6".to_string(),
                     damage_type: Some("fire".to_string()),
+                    ability: None,
                 }],
             },
             atlas_record::MechanicActivity {
@@ -984,6 +1035,7 @@ mod tests {
                     label: None,
                     formula: "4d6".to_string(),
                     damage_type: Some("fire".to_string()),
+                    ability: None,
                 }],
             },
         ];

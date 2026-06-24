@@ -146,7 +146,8 @@ fn activity(
 }
 
 fn strike_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActivity> {
-    let damage = damage_rolls(raw, "/system/damageRolls", "damage", "damageType");
+    let ability = strike_ability(item);
+    let damage = damage_rolls(raw, "/system/damageRolls", "damage", "damageType", ability);
     if damage.is_empty() {
         return None;
     }
@@ -167,7 +168,7 @@ fn spell_activity(
     raw: &Value,
     spellcasting_entries: &[SpellcastingEntryMechanics],
 ) -> Option<MechanicActivity> {
-    let damage = damage_rolls(raw, "/system/damage", "formula", "type");
+    let damage = damage_rolls(raw, "/system/damage", "formula", "type", None);
     if damage.is_empty() {
         return None;
     }
@@ -185,9 +186,9 @@ fn spell_activity(
 }
 
 fn action_activity(item: &EmbeddedItemFact, raw: &Value) -> Option<MechanicActivity> {
-    let damage = damage_rolls(raw, "/system/damageRolls", "damage", "damageType")
+    let damage = damage_rolls(raw, "/system/damageRolls", "damage", "damageType", None)
         .into_iter()
-        .chain(damage_rolls(raw, "/system/damage", "formula", "type"))
+        .chain(damage_rolls(raw, "/system/damage", "formula", "type", None))
         .collect::<Vec<_>>();
     if damage.is_empty() {
         return None;
@@ -316,6 +317,7 @@ fn damage_rolls(
     pointer: &str,
     formula_field: &str,
     damage_type_field: &str,
+    ability: Option<ActivityRollAbility>,
 ) -> Vec<DamageExpression> {
     let Some(entries) = raw.pointer(pointer).and_then(Value::as_object) else {
         return Vec::new();
@@ -332,6 +334,7 @@ fn damage_rolls(
                 label: normalized_pointer_string(entry, "/category"),
                 formula,
                 damage_type: normalized_pointer_string(entry, &format!("/{damage_type_field}")),
+                ability,
             })
         })
         .collect::<Vec<_>>();

@@ -2,8 +2,9 @@ use std::path::Path;
 
 use atlas_domain::{PackName, Rarity, RecordKind};
 use atlas_record::{
-    ActivationTimeSourceField, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
-    FoundryRecordType, ItemTypeMechanics, MechanicActivityUsage, render_plain_text,
+    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, FoundryDocumentMechanics,
+    FoundryDocumentType, FoundryRecordType, ItemTypeMechanics, MechanicActivityUsage,
+    render_plain_text,
 };
 use serde_json::json;
 
@@ -428,6 +429,10 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
     assert_eq!(
         strike_activity.damage[0].damage_type.as_deref(),
         Some("slashing")
+    );
+    assert_eq!(
+        strike_activity.damage[0].ability,
+        Some(ActivityRollAbility::Strength)
     );
     assert_eq!(strike_activity.usage, MechanicActivityUsage::Unlimited);
     assert_eq!(strike_activity.rolls.len(), 1);
