@@ -902,6 +902,7 @@ impl AtlasWebService for MockService {
             note: request.note.clone(),
             note_hint: request.note,
             conditions: vec![],
+            stat_block: None,
             record: Some(record_summary()),
         })
     }
@@ -1165,6 +1166,7 @@ fn encounter_participant(
         } else {
             vec![]
         },
+        stat_block: None,
         record: Some(record_summary()),
     }
 }

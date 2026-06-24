@@ -16,7 +16,8 @@ pub use encounter::{
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
     EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
     ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    SetEncounterTurnRequest, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
+    UnappliedEffectView, UpdateEncounterParticipantConditionRequest,
     UpdateEncounterParticipantRequest, UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
@@ -116,6 +117,13 @@ mod tests {
             .expect("EncounterParticipantVariantView bindings should export");
         EncounterUpdateView::export_all_to(path)
             .expect("EncounterUpdateView bindings should export");
+        StatBlockView::export_all_to(path).expect("StatBlockView bindings should export");
+        StatModifierView::export_all_to(path).expect("StatModifierView bindings should export");
+        StatModifierTypeView::export_all_to(path)
+            .expect("StatModifierTypeView bindings should export");
+        StatValueView::export_all_to(path).expect("StatValueView bindings should export");
+        UnappliedEffectView::export_all_to(path)
+            .expect("UnappliedEffectView bindings should export");
         ReorderEncounterParticipantRequest::export_all_to(path)
             .expect("ReorderEncounterParticipantRequest bindings should export");
         SetEncounterTurnRequest::export_all_to(path)

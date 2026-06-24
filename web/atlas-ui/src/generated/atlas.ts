@@ -87,6 +87,11 @@ export type { SavedListUpdateView } from "../../../../crates/atlas-app-model/bin
 export type { SearchPageRequest } from "../../../../crates/atlas-app-model/bindings/SearchPageRequest";
 export type { SearchPageView } from "../../../../crates/atlas-app-model/bindings/SearchPageView";
 export type { SetEncounterTurnRequest } from "../../../../crates/atlas-app-model/bindings/SetEncounterTurnRequest";
+export type { StatBlockView } from "../../../../crates/atlas-app-model/bindings/StatBlockView";
+export type { StatModifierTypeView } from "../../../../crates/atlas-app-model/bindings/StatModifierTypeView";
+export type { StatModifierView } from "../../../../crates/atlas-app-model/bindings/StatModifierView";
+export type { StatValueView } from "../../../../crates/atlas-app-model/bindings/StatValueView";
+export type { UnappliedEffectView } from "../../../../crates/atlas-app-model/bindings/UnappliedEffectView";
 export type { UpdateEncounterParticipantConditionRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterParticipantConditionRequest";
 export type { UpdateEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterParticipantRequest";
 export type { UpdateEncounterRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterRequest";

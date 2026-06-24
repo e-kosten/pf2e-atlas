@@ -9,7 +9,7 @@ use atlas_app_model::{
 use atlas_domain::RecordKind;
 use atlas_local_state::{
     AddEncounterParticipant, AddEncounterParticipantCondition, EncounterParticipantCondition,
-    NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
+    EncounterStatus, NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
     UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition, derive_slug,
 };
@@ -19,6 +19,7 @@ use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
 
 use super::hydration::{default_hp, hydrate_participant_records, resolve_record_ref};
+use super::mechanics::variant_hp_adjustment_delta;
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, participant_view, reorder_placement,
@@ -197,8 +198,41 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: UpdateEncounterParticipantRequest,
     ) -> AppServiceResult<EncounterParticipantView> {
-        ensure_participant_in_encounter(self, encounter_ref, &request.participant_key)?;
-        let current_hp = request.current_hp.map(|value| value.max(0));
+        let detail = self
+            .local_state_store()?
+            .encounters()
+            .get_with_participants(encounter_ref)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        let existing = detail
+            .participants
+            .iter()
+            .find(|participant| participant.participant_key == request.participant_key)
+            .cloned()
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::EncounterParticipantNotFound,
+                    format!(
+                        "encounter participant `{}` was not found in encounter `{encounter_ref}`",
+                        request.participant_key
+                    ),
+                )
+            })?;
+        let new_variant = participant_variant(request.participant_variant);
+        let mut current_hp = request.current_hp.map(|value| value.max(0));
+        if detail.encounter.status == EncounterStatus::Draft
+            && existing.participant_variant != new_variant
+        {
+            let records_by_key =
+                hydrate_participant_records(self, std::slice::from_ref(&existing))?;
+            let level = existing
+                .record_key
+                .as_ref()
+                .and_then(|key| records_by_key.get(key))
+                .and_then(|record| record.classification.level);
+            let hp_delta =
+                variant_hp_adjustment_delta(existing.participant_variant, new_variant, level);
+            current_hp = current_hp.map(|value| (value + hp_delta).max(0));
+        }
         let participant = self
             .local_state_store()?
             .encounters()
@@ -206,7 +240,7 @@ impl AtlasAppService {
                 participant_key: request.participant_key.clone(),
                 display_name: request.display_name,
                 side: participant_side(request.side),
-                participant_variant: participant_variant(request.participant_variant),
+                participant_variant: new_variant,
                 initiative: request.initiative,
                 max_hp: request.max_hp,
                 current_hp,

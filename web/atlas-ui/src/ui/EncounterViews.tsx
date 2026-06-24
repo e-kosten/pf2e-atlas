@@ -236,6 +236,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       results={
         <EncounterInspectorPane
           detailLoading={detail.isLoading || detail.isFetching}
+          onUpdate={(participant) => updateParticipant.mutate(participant)}
           participant={selected}
           recordDetail={detail.data}
         />

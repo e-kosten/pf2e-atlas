@@ -64,6 +64,58 @@ pub enum EncounterParticipantVariantView {
     Weak,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum StatModifierTypeView {
+    Adjustment,
+    Status,
+    Circumstance,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct StatBlockView {
+    pub record_key: String,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub level: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub adjusted_level: Option<i64>,
+    pub values: Vec<StatValueView>,
+    pub unapplied_effects: Vec<UnappliedEffectView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct StatValueView {
+    pub target: String,
+    pub label: String,
+    pub base_value: i64,
+    pub adjusted_value: i64,
+    pub modifiers: Vec<StatModifierView>,
+    pub suppressed_modifiers: Vec<StatModifierView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct StatModifierView {
+    pub source: String,
+    pub label: String,
+    pub modifier_type: StatModifierTypeView,
+    pub value: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct UnappliedEffectView {
+    pub source: String,
+    pub label: String,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -156,6 +208,9 @@ pub struct EncounterParticipantView {
     pub note: Option<String>,
     pub note_hint: Option<String>,
     pub conditions: Vec<EncounterParticipantConditionView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub stat_block: Option<StatBlockView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub record: Option<RecordSummaryView>,
