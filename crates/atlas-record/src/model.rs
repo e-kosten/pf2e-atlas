@@ -436,6 +436,18 @@ pub struct MechanicActivity {
     pub usage: MechanicActivityUsage,
     pub rolls: Vec<ActivityRoll>,
     pub damage: Vec<DamageExpression>,
+    pub modes: Vec<MechanicActivityMode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MechanicActivityMode {
+    pub mode_id: String,
+    pub label: String,
+    pub sort: i64,
+    pub target: Option<String>,
+    pub range: Option<String>,
+    pub time: Option<String>,
+    pub damage: Vec<DamageExpression>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -483,7 +495,16 @@ pub struct DamageExpression {
     pub label: Option<String>,
     pub formula: String,
     pub damage_type: Option<String>,
+    pub effect_kind: DamageEffectKind,
     pub ability: Option<ActivityRollAbility>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DamageEffectKind {
+    Damage,
+    Healing,
+    DamageOrHealing,
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

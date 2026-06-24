@@ -11,16 +11,16 @@ mod result_window;
 pub use encounter::{
     ActivityRollSurfaceView, ActivityRollView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
-    CreateEncounterRequest, DamageExpressionView, DeleteEncounterView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView, MechanicActivityUsageView,
-    MechanicActivityView, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, SetEncounterTurnRequest, StatBlockView,
-    StatModifierTypeView, StatModifierView, StatValueView, UnappliedEffectView,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest,
+    CreateEncounterRequest, DamageEffectKindView, DamageExpressionView, DeleteEncounterView,
+    EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView,
+    MechanicActivityModeView, MechanicActivityUsageView, MechanicActivityView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    SetEncounterTurnRequest, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
+    UnappliedEffectView, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
@@ -109,6 +109,8 @@ mod tests {
             .expect("AddEncounterRecordParticipantRequest bindings should export");
         CreateEncounterRequest::export_all_to(path)
             .expect("CreateEncounterRequest bindings should export");
+        DamageEffectKindView::export_all_to(path)
+            .expect("DamageEffectKindView bindings should export");
         DamageExpressionView::export_all_to(path)
             .expect("DamageExpressionView bindings should export");
         DeleteEncounterView::export_all_to(path)
@@ -128,6 +130,8 @@ mod tests {
             .expect("MechanicActivityKindView bindings should export");
         MechanicActivityUsageView::export_all_to(path)
             .expect("MechanicActivityUsageView bindings should export");
+        MechanicActivityModeView::export_all_to(path)
+            .expect("MechanicActivityModeView bindings should export");
         MechanicActivityView::export_all_to(path)
             .expect("MechanicActivityView bindings should export");
         StatBlockView::export_all_to(path).expect("StatBlockView bindings should export");

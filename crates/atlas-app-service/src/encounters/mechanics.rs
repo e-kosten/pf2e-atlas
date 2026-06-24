@@ -1,16 +1,17 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::{
-    ActivityRollSurfaceView, ActivityRollView, DamageExpressionView,
-    EncounterParticipantVariantView, MechanicActivityKindView, MechanicActivityUsageView,
-    MechanicActivityView, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
-    UnappliedEffectView,
+    ActivityRollSurfaceView, ActivityRollView, DamageEffectKindView, DamageExpressionView,
+    EncounterParticipantVariantView, MechanicActivityKindView, MechanicActivityModeView,
+    MechanicActivityUsageView, MechanicActivityView, StatBlockView, StatModifierTypeView,
+    StatModifierView, StatValueView, UnappliedEffectView,
 };
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
 use atlas_record::{
-    AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, DamageExpression,
-    MechanicActivity, MechanicActivityKind, MechanicActivityUsage, MechanicScalar, MechanicSurface,
-    MechanicTarget, MechanicValue, MechanicsView, build_mechanics_view,
+    AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, DamageEffectKind,
+    DamageExpression, MechanicActivity, MechanicActivityKind, MechanicActivityMode,
+    MechanicActivityUsage, MechanicScalar, MechanicSurface, MechanicTarget, MechanicValue,
+    MechanicsView, build_mechanics_view,
 };
 
 use super::projection::participant_variant_view;
@@ -97,14 +98,13 @@ fn activity_view(
     activity: MechanicActivity,
     participant: &EncounterParticipant,
 ) -> MechanicActivityView {
-    let variant_damage_modifier =
-        variant_damage_modifier(participant.participant_variant, activity.usage);
     let kind = activity.kind;
+    let usage = activity.usage;
     MechanicActivityView {
         activity_id: activity.activity_id,
         label: activity.label,
         kind: activity_kind_view(kind),
-        usage: activity_usage_view(activity.usage),
+        usage: activity_usage_view(usage),
         rolls: activity
             .rolls
             .into_iter()
@@ -113,7 +113,32 @@ fn activity_view(
         damage: activity
             .damage
             .into_iter()
-            .map(|damage| damage_view(damage, kind, participant, variant_damage_modifier.clone()))
+            .map(|damage| damage_view(damage, kind, usage, participant))
+            .collect(),
+        modes: activity
+            .modes
+            .into_iter()
+            .map(|mode| activity_mode_view(mode, kind, usage, participant))
+            .collect(),
+    }
+}
+
+fn activity_mode_view(
+    mode: MechanicActivityMode,
+    activity_kind: MechanicActivityKind,
+    activity_usage: MechanicActivityUsage,
+    participant: &EncounterParticipant,
+) -> MechanicActivityModeView {
+    MechanicActivityModeView {
+        mode_id: mode.mode_id,
+        label: mode.label,
+        target: mode.target,
+        range: mode.range,
+        time: mode.time,
+        damage: mode
+            .damage
+            .into_iter()
+            .map(|damage| damage_view(damage, activity_kind, activity_usage, participant))
             .collect(),
     }
 }
@@ -156,10 +181,16 @@ fn activity_roll_view(
 fn damage_view(
     damage: DamageExpression,
     activity_kind: MechanicActivityKind,
+    activity_usage: MechanicActivityUsage,
     participant: &EncounterParticipant,
-    variant_modifier: Option<StatModifierView>,
 ) -> DamageExpressionView {
-    let mut modifiers = variant_modifier.into_iter().collect::<Vec<_>>();
+    let mut modifiers = variant_damage_modifier(
+        participant.participant_variant,
+        activity_usage,
+        damage.effect_kind,
+    )
+    .into_iter()
+    .collect::<Vec<_>>();
     for condition in &participant.conditions {
         let Some(rule) = ConditionRule::from_condition(condition) else {
             continue;
@@ -171,11 +202,16 @@ fn damage_view(
             &damage,
         ));
     }
+    let modifier_total = modifiers.iter().map(|modifier| modifier.value).sum::<i64>();
+    let adjusted_formula =
+        (modifier_total != 0).then(|| adjusted_formula(&damage.formula, modifier_total));
     DamageExpressionView {
         damage_id: damage.damage_id,
         label: damage.label,
         formula: damage.formula,
+        adjusted_formula,
         damage_type: damage.damage_type,
+        effect_kind: damage_effect_kind_view(damage.effect_kind),
         modifiers,
     }
 }
@@ -188,6 +224,7 @@ fn condition_damage_modifiers(
 ) -> Vec<StatModifierView> {
     if rule != ConditionRule::Enfeebled
         || activity_kind != MechanicActivityKind::Strike
+        || damage.effect_kind != DamageEffectKind::Damage
         || damage_ability(damage) != Some(AbilityKind::Strength)
     {
         return Vec::new();
@@ -215,7 +252,11 @@ fn damage_ability(damage: &DamageExpression) -> Option<AbilityKind> {
 fn variant_damage_modifier(
     variant: ParticipantVariant,
     usage: MechanicActivityUsage,
+    effect_kind: DamageEffectKind,
 ) -> Option<StatModifierView> {
+    if effect_kind != DamageEffectKind::Damage {
+        return None;
+    }
     let direction = match variant {
         ParticipantVariant::Normal => return None,
         ParticipantVariant::Elite => 1,
@@ -352,6 +393,60 @@ fn activity_usage_view(usage: MechanicActivityUsage) -> MechanicActivityUsageVie
         MechanicActivityUsage::Unlimited => MechanicActivityUsageView::Unlimited,
         MechanicActivityUsage::Limited => MechanicActivityUsageView::Limited,
         MechanicActivityUsage::Ambiguous => MechanicActivityUsageView::Ambiguous,
+    }
+}
+
+fn damage_effect_kind_view(effect_kind: DamageEffectKind) -> DamageEffectKindView {
+    match effect_kind {
+        DamageEffectKind::Damage => DamageEffectKindView::Damage,
+        DamageEffectKind::Healing => DamageEffectKindView::Healing,
+        DamageEffectKind::DamageOrHealing => DamageEffectKindView::DamageOrHealing,
+        DamageEffectKind::Unknown => DamageEffectKindView::Unknown,
+    }
+}
+
+fn adjusted_formula(formula: &str, delta: i64) -> String {
+    let trimmed = formula.trim();
+    if trimmed.is_empty() || delta == 0 {
+        return trimmed.to_string();
+    }
+    let (body, existing_constant) = split_formula_constant(trimmed);
+    let new_constant = existing_constant + delta;
+    if new_constant == 0 {
+        body.trim().to_string()
+    } else if new_constant > 0 {
+        format!("{} + {}", body.trim(), new_constant)
+    } else {
+        format!("{} - {}", body.trim(), new_constant.abs())
+    }
+}
+
+fn split_formula_constant(formula: &str) -> (&str, i64) {
+    let trimmed = formula.trim_end();
+    let bytes = trimmed.as_bytes();
+    let mut index = bytes.len();
+    while index > 0 && bytes[index - 1].is_ascii_digit() {
+        index -= 1;
+    }
+    if index == bytes.len() {
+        return (trimmed, 0);
+    }
+    let number = trimmed[index..].parse::<i64>().unwrap_or(0);
+    let prefix = trimmed[..index].trim_end();
+    let Some(operator) = prefix.as_bytes().last().copied() else {
+        return (trimmed, 0);
+    };
+    if operator != b'+' && operator != b'-' {
+        return (trimmed, 0);
+    }
+    let body = prefix[..prefix.len() - 1].trim_end();
+    if body.is_empty() {
+        return (trimmed, 0);
+    }
+    if operator == b'+' {
+        (body, number)
+    } else {
+        (body, -number)
     }
 }
 
@@ -761,8 +856,21 @@ mod tests {
         )
         .expect("stat block");
         assert_damage_modifier(&elite, "claw", "main", 2);
+        assert_eq!(
+            damage(&elite, "claw", "main").adjusted_formula.as_deref(),
+            Some("1d6 + 6")
+        );
         assert_damage_modifier(&elite, "fireball", "0", 4);
         assert_no_damage_modifier(&elite, "breath", "0");
+        assert_no_damage_modifier(&elite, "heal", "0");
+        assert_no_mode_damage_modifier(&elite, "heal", "living", "0");
+        assert_mode_damage_modifier(&elite, "heal", "undead", "0", 4);
+        assert_eq!(
+            mode_damage(&elite, "heal", "undead", "0")
+                .adjusted_formula
+                .as_deref(),
+            Some("1d8 + 4")
+        );
 
         let weak = participant_stat_block(
             &participant(ParticipantVariant::Weak, Vec::new()),
@@ -772,6 +880,7 @@ mod tests {
         assert_damage_modifier(&weak, "claw", "main", -2);
         assert_damage_modifier(&weak, "fireball", "0", -4);
         assert_no_damage_modifier(&weak, "breath", "0");
+        assert_no_damage_modifier(&weak, "heal", "0");
     }
 
     #[test]
@@ -851,6 +960,31 @@ mod tests {
         );
     }
 
+    fn assert_mode_damage_modifier(
+        projection: &StatBlockView,
+        activity_id: &str,
+        mode_id: &str,
+        damage_id: &str,
+        value: i64,
+    ) {
+        let damage = mode_damage(projection, activity_id, mode_id, damage_id);
+        assert_eq!(damage.modifiers.len(), 1);
+        assert_eq!(damage.modifiers[0].value, value);
+    }
+
+    fn assert_no_mode_damage_modifier(
+        projection: &StatBlockView,
+        activity_id: &str,
+        mode_id: &str,
+        damage_id: &str,
+    ) {
+        assert!(
+            mode_damage(projection, activity_id, mode_id, damage_id)
+                .modifiers
+                .is_empty()
+        );
+    }
+
     fn assert_roll(
         projection: &StatBlockView,
         activity_id: &str,
@@ -898,6 +1032,30 @@ mod tests {
                     .find(|damage| damage.damage_id == damage_id)
             })
             .expect("damage expression should exist")
+    }
+
+    fn mode_damage<'a>(
+        projection: &'a StatBlockView,
+        activity_id: &str,
+        mode_id: &str,
+        damage_id: &str,
+    ) -> &'a DamageExpressionView {
+        projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == activity_id)
+            .and_then(|activity| {
+                activity
+                    .modes
+                    .iter()
+                    .find(|mode| mode.mode_id == mode_id)
+                    .and_then(|mode| {
+                        mode.damage
+                            .iter()
+                            .find(|damage| damage.damage_id == damage_id)
+                    })
+            })
+            .expect("mode damage expression should exist")
     }
 
     fn participant(
@@ -988,8 +1146,10 @@ mod tests {
                     label: None,
                     formula: "1d6+4".to_string(),
                     damage_type: Some("slashing".to_string()),
+                    effect_kind: atlas_record::DamageEffectKind::Damage,
                     ability: Some(atlas_record::ActivityRollAbility::Strength),
                 }],
+                modes: Vec::new(),
             },
             atlas_record::MechanicActivity {
                 activity_id: "fireball".to_string(),
@@ -1019,8 +1179,61 @@ mod tests {
                     label: None,
                     formula: "6d6".to_string(),
                     damage_type: Some("fire".to_string()),
+                    effect_kind: atlas_record::DamageEffectKind::Damage,
                     ability: None,
                 }],
+                modes: Vec::new(),
+            },
+            atlas_record::MechanicActivity {
+                activity_id: "heal".to_string(),
+                label: "Heal".to_string(),
+                kind: atlas_record::MechanicActivityKind::Spell,
+                traits: vec!["healing".to_string(), "vitality".to_string()],
+                compendium_source: None,
+                usage: atlas_record::MechanicActivityUsage::Limited,
+                rolls: Vec::new(),
+                damage: vec![atlas_record::DamageExpression {
+                    damage_id: "0".to_string(),
+                    label: None,
+                    formula: "1d8".to_string(),
+                    damage_type: Some("vitality".to_string()),
+                    effect_kind: atlas_record::DamageEffectKind::DamageOrHealing,
+                    ability: None,
+                }],
+                modes: vec![
+                    atlas_record::MechanicActivityMode {
+                        mode_id: "living".to_string(),
+                        label: "Heal (vs. Living)".to_string(),
+                        sort: 2,
+                        target: Some("1 willing living creature".to_string()),
+                        range: Some("30 feet".to_string()),
+                        time: Some("2".to_string()),
+                        damage: vec![atlas_record::DamageExpression {
+                            damage_id: "0".to_string(),
+                            label: None,
+                            formula: "1d8+8".to_string(),
+                            damage_type: Some("vitality".to_string()),
+                            effect_kind: atlas_record::DamageEffectKind::Healing,
+                            ability: None,
+                        }],
+                    },
+                    atlas_record::MechanicActivityMode {
+                        mode_id: "undead".to_string(),
+                        label: "Heal (vs. Undead)".to_string(),
+                        sort: 3,
+                        target: Some("1 undead".to_string()),
+                        range: Some("30 feet".to_string()),
+                        time: Some("2".to_string()),
+                        damage: vec![atlas_record::DamageExpression {
+                            damage_id: "0".to_string(),
+                            label: None,
+                            formula: "1d8".to_string(),
+                            damage_type: Some("vitality".to_string()),
+                            effect_kind: atlas_record::DamageEffectKind::Damage,
+                            ability: None,
+                        }],
+                    },
+                ],
             },
             atlas_record::MechanicActivity {
                 activity_id: "breath".to_string(),
@@ -1035,8 +1248,10 @@ mod tests {
                     label: None,
                     formula: "4d6".to_string(),
                     damage_type: Some("fire".to_string()),
+                    effect_kind: atlas_record::DamageEffectKind::Damage,
                     ability: None,
                 }],
+                modes: Vec::new(),
             },
         ];
         record
