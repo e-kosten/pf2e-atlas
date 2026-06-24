@@ -1,17 +1,22 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::{
-    EncounterParticipantVariantView, StatBlockView, StatModifierTypeView, StatModifierView,
-    StatValueView, UnappliedEffectView,
+    DamageExpressionView, EncounterParticipantVariantView, MechanicActivityKindView,
+    MechanicActivityUsageView, MechanicActivityView, StatBlockView, StatModifierTypeView,
+    StatModifierView, StatValueView, UnappliedEffectView,
 };
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
-use atlas_record::{AbilityKind, StatBlock, StatScalar, StatTarget, build_stat_block};
+use atlas_record::{
+    AbilityKind, DamageExpression, MechanicActivity, MechanicActivityKind, MechanicActivityUsage,
+    MechanicScalar, MechanicSurface, MechanicTarget, MechanicValue, MechanicsView,
+    build_mechanics_view,
+};
 
 use super::projection::participant_variant_view;
 
 #[derive(Debug, Clone)]
 struct CandidateModifier {
-    target: StatTarget,
+    target: MechanicTarget,
     source: String,
     label: String,
     modifier_type: StatModifierTypeView,
@@ -22,8 +27,8 @@ pub(super) fn participant_stat_block(
     participant: &EncounterParticipant,
     record: &atlas_record::AtlasRecord,
 ) -> Option<StatBlockView> {
-    let stat_block = build_stat_block(record)?;
-    Some(apply_participant_effects(participant, stat_block))
+    let mechanics = build_mechanics_view(record)?;
+    Some(apply_participant_effects(participant, mechanics))
 }
 
 pub(super) fn variant_hp_adjustment_delta(
@@ -37,19 +42,19 @@ pub(super) fn variant_hp_adjustment_delta(
 
 fn apply_participant_effects(
     participant: &EncounterParticipant,
-    stat_block: StatBlock,
+    mechanics: MechanicsView,
 ) -> StatBlockView {
-    let mut modifiers = variant_modifiers(participant.participant_variant, &stat_block);
+    let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
     let mut unapplied_effects = variant_unapplied_effects(participant.participant_variant);
     for condition in &participant.conditions {
         let Some(condition_rule) = ConditionRule::from_condition(condition) else {
             continue;
         };
-        modifiers.extend(condition_modifiers(condition, condition_rule, &stat_block));
+        modifiers.extend(condition_modifiers(condition, condition_rule, &mechanics));
         unapplied_effects.extend(condition_unapplied_effects(condition, condition_rule));
     }
 
-    let mut by_target = BTreeMap::<StatTarget, Vec<CandidateModifier>>::new();
+    let mut by_target = BTreeMap::<MechanicTarget, Vec<CandidateModifier>>::new();
     for modifier in modifiers {
         by_target
             .entry(modifier.target.clone())
@@ -58,11 +63,11 @@ fn apply_participant_effects(
     }
 
     StatBlockView {
-        record_key: stat_block.record_key.to_string(),
-        title: stat_block.title,
-        level: stat_block.level,
-        adjusted_level: adjusted_level(stat_block.level, participant.participant_variant),
-        values: stat_block
+        record_key: mechanics.record_key.to_string(),
+        title: mechanics.title,
+        level: mechanics.level,
+        adjusted_level: adjusted_level(mechanics.level, participant.participant_variant),
+        values: mechanics
             .values
             .into_iter()
             .map(|value| {
@@ -70,15 +75,84 @@ fn apply_participant_effects(
                 stat_value_view(value, modifiers)
             })
             .collect(),
+        activities: mechanics
+            .activities
+            .into_iter()
+            .map(|activity| activity_view(activity, participant.participant_variant))
+            .collect(),
         unapplied_effects,
     }
 }
 
-fn stat_value_view(
-    value: atlas_record::StatValue,
-    modifiers: Vec<CandidateModifier>,
-) -> StatValueView {
-    let StatScalar::Number(base_value) = value.base_value;
+fn activity_view(activity: MechanicActivity, variant: ParticipantVariant) -> MechanicActivityView {
+    let damage_modifier = variant_damage_modifier(variant, activity.usage);
+    MechanicActivityView {
+        activity_id: activity.activity_id,
+        label: activity.label,
+        kind: activity_kind_view(activity.kind),
+        usage: activity_usage_view(activity.usage),
+        damage: activity
+            .damage
+            .into_iter()
+            .map(|damage| damage_view(damage, damage_modifier.clone()))
+            .collect(),
+    }
+}
+
+fn damage_view(
+    damage: DamageExpression,
+    modifier: Option<StatModifierView>,
+) -> DamageExpressionView {
+    DamageExpressionView {
+        damage_id: damage.damage_id,
+        label: damage.label,
+        formula: damage.formula,
+        damage_type: damage.damage_type,
+        modifiers: modifier.into_iter().collect(),
+    }
+}
+
+fn variant_damage_modifier(
+    variant: ParticipantVariant,
+    usage: MechanicActivityUsage,
+) -> Option<StatModifierView> {
+    let direction = match variant {
+        ParticipantVariant::Normal => return None,
+        ParticipantVariant::Elite => 1,
+        ParticipantVariant::Weak => -1,
+    };
+    let magnitude = match usage {
+        MechanicActivityUsage::Unlimited => 2,
+        MechanicActivityUsage::Limited => 4,
+        MechanicActivityUsage::Ambiguous => return None,
+    };
+    let source = variant_source(variant).to_string();
+    Some(StatModifierView {
+        source: source.clone(),
+        label: format!("{source} damage adjustment"),
+        modifier_type: StatModifierTypeView::Adjustment,
+        value: direction * magnitude,
+    })
+}
+
+fn activity_kind_view(kind: MechanicActivityKind) -> MechanicActivityKindView {
+    match kind {
+        MechanicActivityKind::Strike => MechanicActivityKindView::Strike,
+        MechanicActivityKind::Spell => MechanicActivityKindView::Spell,
+        MechanicActivityKind::Other => MechanicActivityKindView::Other,
+    }
+}
+
+fn activity_usage_view(usage: MechanicActivityUsage) -> MechanicActivityUsageView {
+    match usage {
+        MechanicActivityUsage::Unlimited => MechanicActivityUsageView::Unlimited,
+        MechanicActivityUsage::Limited => MechanicActivityUsageView::Limited,
+        MechanicActivityUsage::Ambiguous => MechanicActivityUsageView::Ambiguous,
+    }
+}
+
+fn stat_value_view(value: MechanicValue, modifiers: Vec<CandidateModifier>) -> StatValueView {
+    let MechanicScalar::Number(base_value) = value.base_value;
     let (applied, suppressed) = stack_modifiers(modifiers);
     let adjusted_value = applied
         .iter()
@@ -140,16 +214,21 @@ fn modifier_view(modifier: CandidateModifier) -> StatModifierView {
 
 fn variant_modifiers(
     variant: ParticipantVariant,
-    stat_block: &StatBlock,
+    mechanics: &MechanicsView,
 ) -> Vec<CandidateModifier> {
     let Some(value_delta) = variant_stat_delta(variant) else {
         return Vec::new();
     };
     let source = variant_source(variant);
-    let mut modifiers = stat_block
+    let mut modifiers = mechanics
         .values
         .iter()
-        .filter(|value| value.target != StatTarget::MaxHp)
+        .filter(|value| {
+            !matches!(
+                value.facets.surface,
+                MechanicSurface::HitPoints | MechanicSurface::RawModifier
+            )
+        })
         .map(|value| CandidateModifier {
             target: value.target.clone(),
             source: source.to_string(),
@@ -158,9 +237,9 @@ fn variant_modifiers(
             value: value_delta,
         })
         .collect::<Vec<_>>();
-    if let Some(hp_delta) = variant_hp_delta(variant, stat_block.level) {
+    if let Some(hp_delta) = variant_hp_delta(variant, mechanics.level) {
         modifiers.push(CandidateModifier {
-            target: StatTarget::MaxHp,
+            target: MechanicTarget::MaxHp,
             source: source.to_string(),
             label: format!("{source} HP adjustment"),
             modifier_type: StatModifierTypeView::Adjustment,
@@ -175,17 +254,11 @@ fn variant_unapplied_effects(variant: ParticipantVariant) -> Vec<UnappliedEffect
         ParticipantVariant::Normal => Vec::new(),
         ParticipantVariant::Elite | ParticipantVariant::Weak => {
             let source = variant_source(variant).to_string();
-            let direction = if variant == ParticipantVariant::Elite {
-                "increase"
-            } else {
-                "decrease"
-            };
             vec![UnappliedEffectView {
                 source: source.clone(),
-                label: format!("{source} attack, damage, DC, and spell adjustments"),
-                reason: format!(
-                    "Strike damage, offensive abilities, attack modifiers, and spell-specific {direction}s are not typed yet."
-                ),
+                label: format!("{source} ambiguous offensive damage adjustments"),
+                reason: "Ambiguous, prose-only, or unsupported offensive damage remains unapplied."
+                    .to_string(),
             }]
         }
     }
@@ -260,11 +333,11 @@ impl ConditionRule {
 fn condition_modifiers(
     condition: &EncounterParticipantCondition,
     rule: ConditionRule,
-    stat_block: &StatBlock,
+    mechanics: &MechanicsView,
 ) -> Vec<CandidateModifier> {
     let amount = condition_value(condition);
     let source = condition_source(condition);
-    let status_penalty = |target: StatTarget, label: String, value: i64| CandidateModifier {
+    let status_penalty = |target: MechanicTarget, label: String, value: i64| CandidateModifier {
         target,
         source: source.clone(),
         label,
@@ -272,28 +345,28 @@ fn condition_modifiers(
         value: -value,
     };
     match rule {
-        ConditionRule::Frightened | ConditionRule::Sickened => stat_block
+        ConditionRule::Frightened | ConditionRule::Sickened => mechanics
             .values
             .iter()
-            .filter(|value| value.target != StatTarget::MaxHp)
+            .filter(|value| value.facets.surface.is_check_or_dc())
             .map(|value| status_penalty(value.target.clone(), source.clone(), amount))
             .collect(),
         ConditionRule::OffGuard => vec![CandidateModifier {
-            target: StatTarget::ArmorClass,
+            target: MechanicTarget::ArmorClass,
             source: source.clone(),
             label: source,
             modifier_type: StatModifierTypeView::Circumstance,
             value: -2,
         }],
-        ConditionRule::Clumsy => dexterity_targets(stat_block)
+        ConditionRule::Clumsy => ability_targets(mechanics, AbilityKind::Dexterity)
             .into_iter()
             .map(|target| status_penalty(target, source.clone(), amount))
             .collect(),
-        ConditionRule::Enfeebled => strength_targets(stat_block)
+        ConditionRule::Enfeebled => ability_targets(mechanics, AbilityKind::Strength)
             .into_iter()
             .map(|target| status_penalty(target, source.clone(), amount))
             .collect(),
-        ConditionRule::Stupefied => mental_targets(stat_block)
+        ConditionRule::Stupefied => mental_targets(mechanics)
             .into_iter()
             .map(|target| status_penalty(target, source.clone(), amount))
             .collect(),
@@ -326,88 +399,31 @@ fn condition_unapplied_effects(
     }
 }
 
-fn dexterity_targets(stat_block: &StatBlock) -> Vec<StatTarget> {
-    stat_block
+fn ability_targets(mechanics: &MechanicsView, ability: AbilityKind) -> Vec<MechanicTarget> {
+    mechanics
         .values
         .iter()
-        .filter_map(|value| match &value.target {
-            StatTarget::ArmorClass => Some(value.target.clone()),
-            StatTarget::Save { save } if save.as_str() == "ref" => Some(value.target.clone()),
-            StatTarget::AbilityModifier {
-                ability: AbilityKind::Dexterity,
-            } => Some(value.target.clone()),
-            StatTarget::Skill { slug }
-                if matches!(
-                    slug.as_str(),
-                    "acr" | "acrobatics" | "ste" | "stealth" | "thi" | "thievery"
-                ) =>
-            {
-                Some(value.target.clone())
-            }
-            _ => None,
+        .filter(|value| {
+            value.facets.surface != MechanicSurface::RawModifier
+                && value.facets.ability == Some(ability)
         })
+        .map(|value| value.target.clone())
         .collect()
 }
 
-fn strength_targets(stat_block: &StatBlock) -> Vec<StatTarget> {
-    stat_block
+fn mental_targets(mechanics: &MechanicsView) -> Vec<MechanicTarget> {
+    mechanics
         .values
         .iter()
-        .filter_map(|value| match &value.target {
-            StatTarget::AbilityModifier {
-                ability: AbilityKind::Strength,
-            } => Some(value.target.clone()),
-            StatTarget::Skill { slug } if matches!(slug.as_str(), "ath" | "athletics") => {
-                Some(value.target.clone())
-            }
-            _ => None,
+        .filter(|value| {
+            value.facets.surface != MechanicSurface::RawModifier
+                && matches!(
+                    value.facets.ability,
+                    Some(AbilityKind::Intelligence | AbilityKind::Wisdom | AbilityKind::Charisma)
+                )
         })
+        .map(|value| value.target.clone())
         .collect()
-}
-
-fn mental_targets(stat_block: &StatBlock) -> Vec<StatTarget> {
-    stat_block
-        .values
-        .iter()
-        .filter_map(|value| match &value.target {
-            StatTarget::Save { save } if save.as_str() == "will" => Some(value.target.clone()),
-            StatTarget::AbilityModifier {
-                ability: AbilityKind::Intelligence | AbilityKind::Wisdom | AbilityKind::Charisma,
-            } => Some(value.target.clone()),
-            StatTarget::Skill { slug } if mental_skill(slug) => Some(value.target.clone()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn mental_skill(slug: &str) -> bool {
-    matches!(
-        slug,
-        "arc"
-            | "arcana"
-            | "cra"
-            | "crafting"
-            | "dec"
-            | "deception"
-            | "dip"
-            | "diplomacy"
-            | "itm"
-            | "intimidation"
-            | "med"
-            | "medicine"
-            | "nat"
-            | "nature"
-            | "occ"
-            | "occultism"
-            | "prf"
-            | "performance"
-            | "rel"
-            | "religion"
-            | "soc"
-            | "society"
-            | "sur"
-            | "survival"
-    )
 }
 
 fn condition_value(condition: &EncounterParticipantCondition) -> i64 {
@@ -517,6 +533,44 @@ mod tests {
         assert_eq!(projection.unapplied_effects.len(), 3);
     }
 
+    #[test]
+    fn frightened_penalizes_checks_and_dcs_but_not_raw_ability_modifiers() {
+        let participant = participant(
+            ParticipantVariant::Normal,
+            vec![condition("Frightened", Some(1))],
+        );
+        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+
+        assert_eq!(value(&projection, "ac").adjusted_value, 21);
+        assert_eq!(value(&projection, "perception").adjusted_value, 12);
+        assert_eq!(value(&projection, "save.will").adjusted_value, 11);
+        assert_eq!(value(&projection, "skill.athletics").adjusted_value, 8);
+        assert_eq!(value(&projection, "ability.str").adjusted_value, 4);
+        assert_eq!(value(&projection, "ability.dex").adjusted_value, 3);
+        assert!(value(&projection, "ability.str").modifiers.is_empty());
+    }
+
+    #[test]
+    fn elite_and_weak_project_structured_activity_damage_adjustments() {
+        let elite = participant_stat_block(
+            &participant(ParticipantVariant::Elite, Vec::new()),
+            &record(),
+        )
+        .expect("stat block");
+        assert_damage_modifier(&elite, "claw", "main", 2);
+        assert_damage_modifier(&elite, "fireball", "0", 4);
+        assert_no_damage_modifier(&elite, "breath", "0");
+
+        let weak = participant_stat_block(
+            &participant(ParticipantVariant::Weak, Vec::new()),
+            &record(),
+        )
+        .expect("stat block");
+        assert_damage_modifier(&weak, "claw", "main", -2);
+        assert_damage_modifier(&weak, "fireball", "0", -4);
+        assert_no_damage_modifier(&weak, "breath", "0");
+    }
+
     fn assert_stat(
         projection: &StatBlockView,
         target: &str,
@@ -541,6 +595,43 @@ mod tests {
             .iter()
             .find(|value| value.target == target)
             .expect("stat value should exist")
+    }
+
+    fn assert_damage_modifier(
+        projection: &StatBlockView,
+        activity_id: &str,
+        damage_id: &str,
+        value: i64,
+    ) {
+        let damage = damage(projection, activity_id, damage_id);
+        assert_eq!(damage.modifiers.len(), 1);
+        assert_eq!(damage.modifiers[0].value, value);
+    }
+
+    fn assert_no_damage_modifier(projection: &StatBlockView, activity_id: &str, damage_id: &str) {
+        assert!(
+            damage(projection, activity_id, damage_id)
+                .modifiers
+                .is_empty()
+        );
+    }
+
+    fn damage<'a>(
+        projection: &'a StatBlockView,
+        activity_id: &str,
+        damage_id: &str,
+    ) -> &'a DamageExpressionView {
+        projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == activity_id)
+            .and_then(|activity| {
+                activity
+                    .damage
+                    .iter()
+                    .find(|damage| damage.damage_id == damage_id)
+            })
+            .expect("damage expression should exist")
     }
 
     fn participant(
@@ -610,6 +701,50 @@ mod tests {
             metric("skill.athletics.mod", 9.0),
             metric("skill.stealth.mod", 8.0),
             metric("skill.arcana.mod", 7.0),
+        ];
+        record.mechanics.activities = vec![
+            atlas_record::MechanicActivity {
+                activity_id: "claw".to_string(),
+                label: "Claw".to_string(),
+                kind: atlas_record::MechanicActivityKind::Strike,
+                traits: Vec::new(),
+                compendium_source: None,
+                usage: atlas_record::MechanicActivityUsage::Unlimited,
+                damage: vec![atlas_record::DamageExpression {
+                    damage_id: "main".to_string(),
+                    label: None,
+                    formula: "1d6+4".to_string(),
+                    damage_type: Some("slashing".to_string()),
+                }],
+            },
+            atlas_record::MechanicActivity {
+                activity_id: "fireball".to_string(),
+                label: "Fireball".to_string(),
+                kind: atlas_record::MechanicActivityKind::Spell,
+                traits: Vec::new(),
+                compendium_source: None,
+                usage: atlas_record::MechanicActivityUsage::Limited,
+                damage: vec![atlas_record::DamageExpression {
+                    damage_id: "0".to_string(),
+                    label: None,
+                    formula: "6d6".to_string(),
+                    damage_type: Some("fire".to_string()),
+                }],
+            },
+            atlas_record::MechanicActivity {
+                activity_id: "breath".to_string(),
+                label: "Breath Weapon".to_string(),
+                kind: atlas_record::MechanicActivityKind::Other,
+                traits: Vec::new(),
+                compendium_source: None,
+                usage: atlas_record::MechanicActivityUsage::Ambiguous,
+                damage: vec![atlas_record::DamageExpression {
+                    damage_id: "0".to_string(),
+                    label: None,
+                    formula: "4d6".to_string(),
+                    damage_type: Some("fire".to_string()),
+                }],
+            },
         ];
         record
     }

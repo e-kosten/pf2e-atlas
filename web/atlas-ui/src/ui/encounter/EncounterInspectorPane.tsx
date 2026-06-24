@@ -2,8 +2,10 @@ import { Button, Select } from "antd";
 import { ExternalLink, X } from "lucide-react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
+  DamageExpressionView,
   EncounterParticipantVariantView,
   EncounterParticipantView,
+  MechanicActivityView,
   StatBlockView,
   StatValueView,
   UpdateEncounterParticipantRequest,
@@ -201,6 +203,14 @@ function AdjustedStats({ statBlock }: { statBlock: StatBlockView }) {
           <StatValue key={value.target} value={value} />
         ))}
       </div>
+      {statBlock.activities.length > 0 && (
+        <div className="encounter-activity-list">
+          <h4>Activities</h4>
+          {statBlock.activities.map((activity) => (
+            <ActivityValue key={activity.activity_id} activity={activity} />
+          ))}
+        </div>
+      )}
       {statBlock.unapplied_effects.length > 0 && (
         <div className="encounter-stat-notes">
           {statBlock.unapplied_effects.map((effect) => (
@@ -211,6 +221,38 @@ function AdjustedStats({ statBlock }: { statBlock: StatBlockView }) {
         </div>
       )}
     </section>
+  );
+}
+
+function ActivityValue({ activity }: { activity: MechanicActivityView }) {
+  return (
+    <div className="encounter-activity-row">
+      <div className="encounter-activity-row__title">
+        <strong>{activity.label}</strong>
+        <span>{activity.kind.replace(/_/g, " ")}</span>
+      </div>
+      {activity.damage.map((damage) => (
+        <DamageValue key={damage.damage_id} damage={damage} />
+      ))}
+    </div>
+  );
+}
+
+function DamageValue({ damage }: { damage: DamageExpressionView }) {
+  return (
+    <div className="encounter-damage-row">
+      <span>
+        {damage.formula}
+        {damage.damage_type ? ` ${damage.damage_type}` : ""}
+      </span>
+      {damage.modifiers.length > 0 && (
+        <small>
+          {damage.modifiers
+            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
+            .join(", ")}
+        </small>
+      )}
+    </div>
   );
 }
 

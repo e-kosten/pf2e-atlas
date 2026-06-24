@@ -210,6 +210,8 @@ pub(crate) fn normalize_record(
     } else {
         FoundryDocumentMechanics::None
     };
+    let (spellcasting_entries, activities) =
+        mechanics::extract_embedded_record_mechanics(&source_facts.embedded_items);
 
     let record = AtlasRecord {
         identity: RecordIdentity { key, name },
@@ -243,6 +245,8 @@ pub(crate) fn normalize_record(
         mechanics: RecordMechanics {
             metrics,
             document: document_mechanics,
+            spellcasting_entries,
+            activities,
         },
         content: RecordContent {
             documents: content_documents,

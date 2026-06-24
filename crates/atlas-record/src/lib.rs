@@ -2,6 +2,7 @@
 
 mod content;
 mod json_projection;
+mod mechanics_view;
 pub mod metrics;
 mod model;
 mod presentation;
@@ -11,7 +12,6 @@ mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
 mod reference_policy;
-mod stat_block;
 
 pub use content::{
     ContentFtsField, ContentSectionNode, ContentSectionOrigin, ContentSourceKind,
@@ -24,6 +24,10 @@ pub use content::{
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
 };
+pub use mechanics_view::{
+    AbilityKind, MechanicFacets, MechanicScalar, MechanicStatistic, MechanicSurface,
+    MechanicTarget, MechanicValue, MechanicsView, SaveKind, build_mechanics_view,
+};
 pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
     MetricKeyDefinition, MetricKeyPattern, MetricKeySegment, MetricLabelTemplate,
@@ -31,13 +35,15 @@ pub use metrics::{
 };
 pub use model::{
     ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, AtlasRecordSet,
-    DefaultRetrievalVisibility, DurationTimeSourceField, FoundryDocumentMechanics,
-    FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics,
-    MetricRow, MetricValue, NormalizedTime, RecordActivationTiming, RecordAlias,
-    RecordClassification, RecordContent, RecordDurationTiming, RecordIdentity, RecordMechanics,
-    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
-    RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge, RemasterLink,
-    SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget, VariantSource,
+    DamageExpression, DefaultRetrievalVisibility, DurationTimeSourceField,
+    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+    ItemMechanics, ItemTypeMechanics, MechanicActivity, MechanicActivityKind,
+    MechanicActivityUsage, MetricRow, MetricValue, NormalizedTime, RecordActivationTiming,
+    RecordAlias, RecordClassification, RecordContent, RecordDurationTiming, RecordIdentity,
+    RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
+    RecordTiming, RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
+    RemasterLink, SpellArea, SpellDefense, SpellMechanics, SpellRange, SpellTarget,
+    SpellcastingEntryMechanics, SpellcastingPreparation, VariantSource,
 };
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationContent,
@@ -53,7 +59,4 @@ pub use presentation_recipe::{
 pub use reference_policy::{
     DEFAULT_EXCLUDED_SOURCE_KINDS, ReferenceEdgeFacts, ReferenceGraphMode, ReferenceGraphPolicy,
     ReferenceVisibilityPolicy, reference_edge_matches_mode, reference_graph_policy,
-};
-pub use stat_block::{
-    AbilityKind, SaveKind, StatBlock, StatScalar, StatTarget, StatValue, build_stat_block,
 };

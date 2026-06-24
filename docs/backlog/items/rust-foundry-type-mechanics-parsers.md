@@ -47,3 +47,4 @@ Candidate shapes should preserve both roles:
 ## Related
 
 - [Rust Side Data And Metric Source Fact Convergence](./rust-side-data-metric-source-fact-convergence.md)
+- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)

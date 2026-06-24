@@ -85,6 +85,7 @@ pub struct StatBlockView {
     #[ts(optional)]
     pub adjusted_level: Option<i64>,
     pub values: Vec<StatValueView>,
+    pub activities: Vec<MechanicActivityView>,
     pub unapplied_effects: Vec<UnappliedEffectView>,
 }
 
@@ -114,6 +115,48 @@ pub struct UnappliedEffectView {
     pub source: String,
     pub label: String,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct MechanicActivityView {
+    pub activity_id: String,
+    pub label: String,
+    pub kind: MechanicActivityKindView,
+    pub usage: MechanicActivityUsageView,
+    pub damage: Vec<DamageExpressionView>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum MechanicActivityKindView {
+    Strike,
+    Spell,
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum MechanicActivityUsageView {
+    Unlimited,
+    Limited,
+    Ambiguous,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct DamageExpressionView {
+    pub damage_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub label: Option<String>,
+    pub formula: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub damage_type: Option<String>,
+    pub modifiers: Vec<StatModifierView>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
