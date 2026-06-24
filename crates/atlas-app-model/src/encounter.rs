@@ -58,6 +58,15 @@ pub enum EncounterParticipantSideView {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
+pub enum EncounterParticipantVariantView {
+    Normal,
+    Elite,
+    Weak,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
 pub enum EncounterParticipantStatusView {
     Active,
     Unresolved,
@@ -124,6 +133,7 @@ pub struct EncounterParticipantView {
     #[ts(optional)]
     pub record_key: Option<String>,
     pub participant_kind: EncounterParticipantKindView,
+    pub participant_variant: EncounterParticipantVariantView,
     pub status: EncounterParticipantStatusView,
     pub position: i64,
     pub display_name: String,
@@ -211,6 +221,7 @@ pub struct UpdateEncounterParticipantRequest {
     pub participant_key: String,
     pub display_name: String,
     pub side: EncounterParticipantSideView,
+    pub participant_variant: EncounterParticipantVariantView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub initiative: Option<i64>,

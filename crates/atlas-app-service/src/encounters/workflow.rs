@@ -21,7 +21,7 @@ use crate::service::AtlasAppService;
 use super::hydration::{default_hp, hydrate_participant_records, resolve_record_ref};
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
-    participant_side, participant_view, reorder_placement,
+    participant_side, participant_variant, participant_view, reorder_placement,
 };
 use super::turns::{next_turn, next_turn_after_removed};
 
@@ -206,6 +206,7 @@ impl AtlasAppService {
                 participant_key: request.participant_key.clone(),
                 display_name: request.display_name,
                 side: participant_side(request.side),
+                participant_variant: participant_variant(request.participant_variant),
                 initiative: request.initiative,
                 max_hp: request.max_hp,
                 current_hp,

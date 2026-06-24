@@ -12,7 +12,7 @@ use atlas_local_state::{
 
 use crate::test_support::{encounter_fixture_worker, fixture_worker};
 
-use super::projection::participant_side_view;
+use super::projection::{participant_side_view, participant_variant_view};
 
 #[test]
 fn set_encounter_turn_starts_advances_and_wraps_rounds() {
@@ -834,6 +834,7 @@ fn participant_update(
         participant_key: participant.participant_key.clone(),
         display_name: participant.display_name.clone(),
         side: participant_side_view(participant.side),
+        participant_variant: participant_variant_view(participant.participant_variant),
         initiative: participant.initiative,
         max_hp: participant.max_hp,
         current_hp: participant.current_hp,

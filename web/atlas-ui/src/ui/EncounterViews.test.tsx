@@ -347,6 +347,7 @@ function participantFixture(
   return {
     participant_key: "participant",
     participant_kind: "creature",
+    participant_variant: "normal",
     status: "active",
     position: 1n,
     display_name: "Participant",

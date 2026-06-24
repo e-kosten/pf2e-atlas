@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use atlas_app_model::{
     AppErrorCode, EncounterDetailView, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantView, EncounterStatusView, EncounterSummaryView,
-    ReorderEncounterParticipantPlacementView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
+    EncounterSummaryView, ReorderEncounterParticipantPlacementView,
 };
 use atlas_local_state::{
     Encounter, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
-    ParticipantKind, ParticipantSide, ReorderPlacement,
+    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderPlacement,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -78,6 +78,7 @@ pub(super) fn participant_view(
         participant_key: participant.participant_key,
         record_key: participant.record_key,
         participant_kind: participant_kind(participant.participant_kind),
+        participant_variant: participant_variant_view(participant.participant_variant),
         status,
         position: participant.position,
         display_name: participant.display_name,
@@ -133,6 +134,24 @@ pub(super) fn participant_side_view(side: ParticipantSide) -> EncounterParticipa
         ParticipantSide::Enemy => EncounterParticipantSideView::Enemy,
         ParticipantSide::Neutral => EncounterParticipantSideView::Neutral,
         ParticipantSide::Hazard => EncounterParticipantSideView::Hazard,
+    }
+}
+
+pub(super) fn participant_variant(variant: EncounterParticipantVariantView) -> ParticipantVariant {
+    match variant {
+        EncounterParticipantVariantView::Normal => ParticipantVariant::Normal,
+        EncounterParticipantVariantView::Elite => ParticipantVariant::Elite,
+        EncounterParticipantVariantView::Weak => ParticipantVariant::Weak,
+    }
+}
+
+pub(super) fn participant_variant_view(
+    variant: ParticipantVariant,
+) -> EncounterParticipantVariantView {
+    match variant {
+        ParticipantVariant::Normal => EncounterParticipantVariantView::Normal,
+        ParticipantVariant::Elite => EncounterParticipantVariantView::Elite,
+        ParticipantVariant::Weak => EncounterParticipantVariantView::Weak,
     }
 }
 

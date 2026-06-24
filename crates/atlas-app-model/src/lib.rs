@@ -13,11 +13,11 @@ pub use encounter::{
     AddEncounterRecordParticipantRequest, CreateEncounterRequest, DeleteEncounterView,
     EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
@@ -112,6 +112,8 @@ mod tests {
         EncounterIndexView::export_all_to(path).expect("EncounterIndexView bindings should export");
         EncounterParticipantConditionView::export_all_to(path)
             .expect("EncounterParticipantConditionView bindings should export");
+        EncounterParticipantVariantView::export_all_to(path)
+            .expect("EncounterParticipantVariantView bindings should export");
         EncounterUpdateView::export_all_to(path)
             .expect("EncounterUpdateView bindings should export");
         ReorderEncounterParticipantRequest::export_all_to(path)

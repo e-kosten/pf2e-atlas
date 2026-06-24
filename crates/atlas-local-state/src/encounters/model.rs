@@ -49,6 +49,7 @@ pub struct EncounterParticipant {
     pub participant_key: String,
     pub record_key: Option<String>,
     pub participant_kind: ParticipantKind,
+    pub participant_variant: ParticipantVariant,
     pub position: i64,
     pub display_name: String,
     pub record_title_snapshot: Option<String>,
@@ -65,6 +66,32 @@ pub struct EncounterParticipant {
     pub created_at: String,
     pub updated_at: String,
     pub conditions: Vec<EncounterParticipantCondition>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantVariant {
+    Normal,
+    Elite,
+    Weak,
+}
+
+impl ParticipantVariant {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Normal => "normal",
+            Self::Elite => "elite",
+            Self::Weak => "weak",
+        }
+    }
+
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "elite" => Self::Elite,
+            "weak" => Self::Weak,
+            _ => Self::Normal,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -183,6 +210,7 @@ pub struct UpdateEncounterParticipant {
     pub participant_key: String,
     pub display_name: String,
     pub side: ParticipantSide,
+    pub participant_variant: ParticipantVariant,
     pub initiative: Option<i64>,
     pub max_hp: Option<i64>,
     pub current_hp: Option<i64>,

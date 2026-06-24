@@ -439,6 +439,7 @@ function participantUpdate(
     participant_key: participant.participant_key,
     display_name: participant.display_name,
     side: participant.side,
+    participant_variant: participant.participant_variant,
     initiative: participant.initiative,
     max_hp: participant.max_hp,
     current_hp: participant.current_hp,
