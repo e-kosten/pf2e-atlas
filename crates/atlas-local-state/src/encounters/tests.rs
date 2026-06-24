@@ -225,6 +225,46 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
     Ok(())
 }
 
+#[test]
+fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("participant-variant"))?;
+    let encounters = store.encounters();
+    encounters.create(NewEncounter {
+        slug: "variants".to_string(),
+        name: "Variants".to_string(),
+        description: None,
+        note: None,
+    })?;
+    let participant = encounters.add_participant("variants", creature("Goblin", Some(12), 6))?;
+    assert_eq!(participant.participant_variant, ParticipantVariant::Normal);
+
+    let updated = encounters
+        .update_participant(UpdateEncounterParticipant {
+            participant_key: participant.participant_key.clone(),
+            display_name: participant.display_name,
+            side: participant.side,
+            participant_variant: ParticipantVariant::Elite,
+            initiative: participant.initiative,
+            max_hp: participant.max_hp,
+            current_hp: participant.current_hp,
+            temporary_hp: participant.temporary_hp,
+            defeated: participant.defeated,
+            hidden: participant.hidden,
+            note: participant.note,
+        })?
+        .expect("participant should update");
+    assert_eq!(updated.participant_variant, ParticipantVariant::Elite);
+
+    let detail = encounters
+        .get_with_participants("variants")?
+        .expect("encounter should exist");
+    assert_eq!(
+        detail.participants[0].participant_variant,
+        ParticipantVariant::Elite
+    );
+    Ok(())
+}
+
 fn creature(name: &str, initiative: Option<i64>, hp: i64) -> AddEncounterParticipant {
     AddEncounterParticipant {
         record_key: Some(RecordKey::parse("actors:goblinWarrior").expect("key should parse")),

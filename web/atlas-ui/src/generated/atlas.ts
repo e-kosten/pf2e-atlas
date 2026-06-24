@@ -37,6 +37,7 @@ export type { EncounterParticipantConditionView } from "../../../../crates/atlas
 export type { EncounterParticipantKindView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantKindView";
 export type { EncounterParticipantSideView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantSideView";
 export type { EncounterParticipantStatusView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantStatusView";
+export type { EncounterParticipantVariantView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantVariantView";
 export type { EncounterParticipantView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantView";
 export type { EncounterStatusView } from "../../../../crates/atlas-app-model/bindings/EncounterStatusView";
 export type { EncounterSummaryView } from "../../../../crates/atlas-app-model/bindings/EncounterSummaryView";

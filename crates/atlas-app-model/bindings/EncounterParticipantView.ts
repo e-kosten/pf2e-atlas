@@ -3,6 +3,7 @@ import type { EncounterParticipantConditionView } from "./EncounterParticipantCo
 import type { EncounterParticipantKindView } from "./EncounterParticipantKindView";
 import type { EncounterParticipantSideView } from "./EncounterParticipantSideView";
 import type { EncounterParticipantStatusView } from "./EncounterParticipantStatusView";
+import type { EncounterParticipantVariantView } from "./EncounterParticipantVariantView";
 import type { RecordSummaryView } from "./RecordSummaryView";
 
-export type EncounterParticipantView = { participant_key: string, record_key?: string, participant_kind: EncounterParticipantKindView, status: EncounterParticipantStatusView, position: bigint, display_name: string, side: EncounterParticipantSideView, initiative?: bigint, initiative_order: bigint, max_hp?: bigint, current_hp?: bigint, temporary_hp: bigint, defeated: boolean, hidden: boolean, note?: string, note_hint: string | null, conditions: Array<EncounterParticipantConditionView>, record?: RecordSummaryView, };
+export type EncounterParticipantView = { participant_key: string, record_key?: string, participant_kind: EncounterParticipantKindView, participant_variant: EncounterParticipantVariantView, status: EncounterParticipantStatusView, position: bigint, display_name: string, side: EncounterParticipantSideView, initiative?: bigint, initiative_order: bigint, max_hp?: bigint, current_hp?: bigint, temporary_hp: bigint, defeated: boolean, hidden: boolean, note?: string, note_hint: string | null, conditions: Array<EncounterParticipantConditionView>, record?: RecordSummaryView, };

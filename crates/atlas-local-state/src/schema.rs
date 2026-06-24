@@ -31,12 +31,12 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
             "saved-list tables exist without local-state metadata".to_string(),
         ));
     }
-    create_v3_schema(connection)?;
+    create_v4_schema(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
 
-fn create_v3_schema(connection: &Connection) -> LocalStateResult<()> {
+fn create_v4_schema(connection: &Connection) -> LocalStateResult<()> {
     connection.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -87,6 +87,7 @@ fn create_v3_schema(connection: &Connection) -> LocalStateResult<()> {
           participant_key TEXT NOT NULL UNIQUE,
           record_key TEXT,
           participant_kind TEXT NOT NULL,
+          participant_variant TEXT NOT NULL DEFAULT 'normal',
           position INTEGER NOT NULL,
           display_name TEXT NOT NULL,
           record_title_snapshot TEXT,
@@ -178,14 +179,32 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
         "1" => {
             migrate_v1_to_v2(connection)?;
-            migrate_v2_to_v3(connection)
+            migrate_v2_to_v3(connection)?;
+            migrate_v3_to_v4(connection)
         }
-        "2" => migrate_v2_to_v3(connection),
+        "2" => {
+            migrate_v2_to_v3(connection)?;
+            migrate_v3_to_v4(connection)
+        }
+        "3" => migrate_v3_to_v4(connection),
         _ => Err(LocalStateError::UnsupportedMetadata {
             key: METADATA_SCHEMA_VERSION,
             value: schema_version,
         }),
     }
+}
+
+fn migrate_v3_to_v4(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "
+        ALTER TABLE encounter_participants
+          ADD COLUMN participant_variant TEXT NOT NULL DEFAULT 'normal';
+        UPDATE local_state_metadata
+           SET value = '4'
+         WHERE key = 'schema_version';
+        ",
+    )?;
+    Ok(())
 }
 
 fn migrate_v2_to_v3(connection: &Connection) -> LocalStateResult<()> {
@@ -327,6 +346,15 @@ fn validate_v3_tables(connection: &Connection) -> LocalStateResult<()> {
                 "missing required local-state table `{table}`"
             )));
         }
+    }
+    if !column_exists(
+        connection,
+        ENCOUNTER_PARTICIPANTS_TABLE,
+        "participant_variant",
+    )? {
+        return Err(LocalStateError::IncompatibleSchema(
+            "missing required encounter_participants.participant_variant column".to_string(),
+        ));
     }
     Ok(())
 }

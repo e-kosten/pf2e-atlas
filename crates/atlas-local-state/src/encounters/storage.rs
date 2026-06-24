@@ -6,8 +6,9 @@ use time::format_description::well_known::Rfc3339;
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
     EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
-    ParticipantKind, ParticipantSide, ReorderEncounterParticipant, ReorderPlacement,
-    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
+    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderEncounterParticipant,
+    ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
+    UpdateEncounterParticipantCondition,
 };
 use crate::slug::validate_slug;
 use crate::{LocalStateError, LocalStateResult};
@@ -149,12 +150,12 @@ pub(crate) fn add_participant(
         let participant_key = new_participant_key();
         let result = connection.execute(
             "INSERT INTO encounter_participants (
-                encounter_id, participant_key, record_key, participant_kind, position,
+                encounter_id, participant_key, record_key, participant_kind, participant_variant, position,
                 display_name, record_title_snapshot, record_kind_snapshot, side,
                 initiative, initiative_order, max_hp, current_hp, temporary_hp,
                 defeated, hidden, note, created_at, updated_at
              )
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16)",
+             VALUES (?1, ?2, ?3, ?4, 'normal', ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16)",
             params![
                 encounter_id,
                 participant_key,
@@ -204,13 +205,14 @@ pub(crate) fn update_participant(
     let now = now_rfc3339()?;
     let updated = connection.execute(
         "UPDATE encounter_participants
-         SET display_name = ?1, side = ?2, initiative = ?3, initiative_order = ?4,
-             max_hp = ?5, current_hp = ?6, temporary_hp = ?7, defeated = ?8,
-             hidden = ?9, note = ?10, updated_at = ?11
-         WHERE participant_key = ?12",
+         SET display_name = ?1, side = ?2, participant_variant = ?3,
+             initiative = ?4, initiative_order = ?5, max_hp = ?6, current_hp = ?7,
+             temporary_hp = ?8, defeated = ?9, hidden = ?10, note = ?11, updated_at = ?12
+         WHERE participant_key = ?13",
         params![
             participant.display_name,
             participant.side.as_str(),
+            participant.participant_variant.as_str(),
             participant.initiative,
             initiative_order,
             participant.max_hp,
@@ -479,8 +481,8 @@ fn participants(
 ) -> LocalStateResult<Vec<EncounterParticipant>> {
     let mut statement = connection.prepare(
         "SELECT participant.participant_key, participant.record_key, participant.participant_kind,
-                participant.position, participant.display_name, participant.record_title_snapshot,
-                participant.record_kind_snapshot, participant.side, participant.initiative,
+                participant.participant_variant, participant.position, participant.display_name,
+                participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
                 participant.note, participant.created_at, participant.updated_at
@@ -519,26 +521,28 @@ fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
 
 fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterParticipant> {
     let participant_kind: String = row.get(2)?;
-    let side: String = row.get(7)?;
+    let participant_variant: String = row.get(3)?;
+    let side: String = row.get(8)?;
     Ok(EncounterParticipant {
         participant_key: row.get(0)?,
         record_key: row.get(1)?,
         participant_kind: ParticipantKind::from_str(&participant_kind),
-        position: row.get(3)?,
-        display_name: row.get(4)?,
-        record_title_snapshot: row.get(5)?,
-        record_kind_snapshot: row.get(6)?,
+        participant_variant: ParticipantVariant::from_str(&participant_variant),
+        position: row.get(4)?,
+        display_name: row.get(5)?,
+        record_title_snapshot: row.get(6)?,
+        record_kind_snapshot: row.get(7)?,
         side: ParticipantSide::from_str(&side),
-        initiative: row.get(8)?,
-        initiative_order: row.get(9)?,
-        max_hp: row.get(10)?,
-        current_hp: row.get(11)?,
-        temporary_hp: row.get(12)?,
-        defeated: row.get(13)?,
-        hidden: row.get(14)?,
-        note: row.get(15)?,
-        created_at: row.get(16)?,
-        updated_at: row.get(17)?,
+        initiative: row.get(9)?,
+        initiative_order: row.get(10)?,
+        max_hp: row.get(11)?,
+        current_hp: row.get(12)?,
+        temporary_hp: row.get(13)?,
+        defeated: row.get(14)?,
+        hidden: row.get(15)?,
+        note: row.get(16)?,
+        created_at: row.get(17)?,
+        updated_at: row.get(18)?,
         conditions: Vec::new(),
     })
 }
@@ -549,8 +553,8 @@ pub(crate) fn participant(
 ) -> LocalStateResult<Option<EncounterParticipant>> {
     let mut statement = connection.prepare(
         "SELECT participant.participant_key, participant.record_key, participant.participant_kind,
-                participant.position, participant.display_name, participant.record_title_snapshot,
-                participant.record_kind_snapshot, participant.side, participant.initiative,
+                participant.participant_variant, participant.position, participant.display_name,
+                participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
                 participant.note, participant.created_at, participant.updated_at
