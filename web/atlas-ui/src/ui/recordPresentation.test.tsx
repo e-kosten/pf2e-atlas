@@ -53,8 +53,14 @@ describe("RecordPresentation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Linked Spell" }));
     fireEvent.click(screen.getByRole("button", { name: "Fear" }));
 
-    expect(onReference).toHaveBeenCalledWith("spell:linked");
-    expect(onReference).toHaveBeenCalledWith("spell:fear");
+    expect(onReference).toHaveBeenCalledWith(
+      "spell:linked",
+      expect.objectContaining({ bottom: expect.any(Number), top: expect.any(Number) }),
+    );
+    expect(onReference).toHaveBeenCalledWith(
+      "spell:fear",
+      expect.objectContaining({ bottom: expect.any(Number), top: expect.any(Number) }),
+    );
   });
 });
 

@@ -24,6 +24,7 @@ import type {
   UpdateEncounterParticipantRequest,
 } from "../generated/atlas";
 import { EncounterInspectorPane } from "./encounter/EncounterInspectorPane";
+import type { ReferenceAnchor } from "./encounter/EncounterInspectorPane";
 import {
   CreateEncounterModal,
   EditEncounterForm,
@@ -137,6 +138,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
   const [previewRecordKey, setPreviewRecordKey] = useState<string | null>(null);
+  const [previewAnchor, setPreviewAnchor] = useState<ReferenceAnchor | null>(null);
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -278,6 +280,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             onSelect={(participantKey) => {
               setSelectedParticipantKey(participantKey);
               setPreviewRecordKey(null);
+              setPreviewAnchor(null);
             }}
             onReorder={(participantKey, targetParticipantKey, placement) =>
               reorderParticipant.mutate({
@@ -296,13 +299,20 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         results={
           <EncounterInspectorPane
             detailLoading={detail.isLoading || detail.isFetching}
-            onCloseReferencePreview={() => setPreviewRecordKey(null)}
+            onCloseReferencePreview={() => {
+              setPreviewRecordKey(null);
+              setPreviewAnchor(null);
+            }}
             onOpenReferenceFullPage={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
-            onReference={setPreviewRecordKey}
+            onReference={(recordKey, anchorRect) => {
+              setPreviewRecordKey(recordKey);
+              setPreviewAnchor(anchorRect ? referenceAnchorFromRect(anchorRect) : null);
+            }}
             onUpdate={(participant) => updateParticipant.mutate(participant)}
             participant={selected}
+            previewAnchor={previewAnchor}
             previewDetail={referencePreview.data}
             previewLoading={referencePreview.isLoading || referencePreview.isFetching}
             previewRecordKey={previewRecordKey}
@@ -356,6 +366,17 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       )}
     </>
   );
+}
+
+function referenceAnchorFromRect(rect: DOMRect): ReferenceAnchor {
+  return {
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+  };
 }
 
 export function EncounterEditView({ route }: EncounterEditViewProps) {

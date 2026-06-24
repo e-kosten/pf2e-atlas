@@ -12,7 +12,7 @@ import type React from "react";
 type RecordPresentationProps = {
   detail: RecordDetailView | undefined;
   loading: boolean;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 };
 
 export function RecordPresentation({
@@ -69,7 +69,7 @@ function PresentationBlockView({
   onReference,
 }: {
   block: PresentationBlock;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 }) {
   switch (block.kind) {
     case "fact_list":
@@ -98,7 +98,7 @@ function ContentView({
   onReference,
 }: {
   content: PresentationContent;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 }) {
   return (
     <>
@@ -114,7 +114,7 @@ function ContentBlockView({
   onReference,
 }: {
   block: PresentationContentBlock;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 }) {
   switch (block.kind) {
     case "heading": {
@@ -184,14 +184,19 @@ function RelationshipView({
   onReference,
 }: {
   relationship: PresentationRelationship;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 }) {
   if (relationship.record_key) {
     return (
       <button
         className="relationship-link"
         type="button"
-        onClick={() => onReference(relationship.record_key!)}
+        onClick={(event) =>
+          onReference(
+            relationship.record_key!,
+            event.currentTarget.getBoundingClientRect(),
+          )
+        }
       >
         {relationship.label}
       </button>
@@ -202,7 +207,7 @@ function RelationshipView({
 
 function renderSpans(
   spans: PresentationInline[],
-  onReference: (recordKey: string) => void,
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void,
 ): React.ReactNode {
   return spans.map((span, index) => {
     switch (span.kind) {
@@ -225,7 +230,9 @@ function renderSpans(
             className="inline-reference"
             key={index}
             type="button"
-            onClick={() => onReference(span.record_key!)}
+            onClick={(event) =>
+              onReference(span.record_key!, event.currentTarget.getBoundingClientRect())
+            }
           >
             {span.label}
           </button>
