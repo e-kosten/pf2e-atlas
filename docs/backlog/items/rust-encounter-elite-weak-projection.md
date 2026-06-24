@@ -3,24 +3,28 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-23
+Last reviewed: 2026-06-24
 
 ## Problem
 
-Encounter v1 tracks creature state but does not mutate stat blocks. PF2e elite and weak adjustments are common enough that the runner should eventually present adjusted creature stats, but doing that incorrectly would be worse than leaving the base record untouched.
+Encounter v1 tracks creature state and can project basic elite/weak adjustments for typed creature stats. PF2e elite and weak adjustments also affect attacks, damage, DCs, spells, and offensive abilities, and projecting those incorrectly would be worse than leaving the base record untouched.
 
 ## Desired Outcome
 
-Add creature-only effective stat projections for elite and weak encounter adjustments.
+Extend elite/weak projections beyond the initial typed-stat view.
 
-The first implementation should cover structurally available creature fields such as HP, AC, saves, skills, perception, attacks, and DCs, with tests for representative records. Unsupported or ambiguous text should remain clearly unmodified.
+The initial implementation covers structurally available creature fields such as HP, AC, saves, skills, perception, and ability modifiers, with tests for representative records. Unsupported or ambiguous text remains clearly unmodified through unapplied effect notes.
+
+Elite/weak is stored as a first-class participant variant (`normal`, `elite`, or `weak`) rather than as freeform condition state. The adjusted view is produced by the shared modifier engine so future condition effects and participant variants explain their changes in the same shape.
 
 ## Constraints
 
 - Store the selected adjustment in local state; derive the adjusted stat view from the active artifact at read time.
 - Do not persist copied or mutated stat blocks.
 - Do not silently rewrite freeform text unless the projection model can identify the value being changed.
-- Prefer a reusable projection owner such as `atlas-record` once reuse beyond the web runner is real.
+- Base typed stat extraction belongs in `atlas-record`; encounter-specific variant and condition application belongs in `atlas-app-service`.
+- In draft encounters, changing participant variant may update current HP by the projected HP delta; in running or completed encounters, changing participant variant must preserve current HP unless an explicit future mutation asks otherwise.
+- Attack, damage, spellcasting, and formula-bearing effects must remain unapplied notes until the underlying typed targets exist.
 
 ## Related
 
