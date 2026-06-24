@@ -1,9 +1,10 @@
 use atlas_app_model::{
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest, AppErrorCode,
-    CreateEncounterRequest, EncounterParticipantStatusView, EncounterStatusView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+    CreateEncounterRequest, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterStatusView, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -318,6 +319,105 @@ fn record_participant_add_rejects_unsupported_record_kind() {
         .encounter(&encounter.slug)
         .expect("encounter should remain readable");
     assert!(detail.participants.is_empty());
+}
+
+#[test]
+fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
+    let fixture = encounter_fixture_worker();
+    let encounter = fixture
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Variant Draft".to_string(),
+            description: None,
+            note: None,
+        })
+        .expect("encounter should create")
+        .encounter;
+    let detail = fixture
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:testCreature".to_string(),
+            quantity: 1,
+            initiative: Some(18),
+        })
+        .expect("creature should add");
+    let participant = &detail.participants[0];
+    let base_stats = participant
+        .stat_block
+        .as_ref()
+        .expect("stats should project");
+    assert_eq!(base_stats.level, Some(5));
+
+    let mut update = participant_update(
+        &local_participant(&fixture, &encounter.slug, &participant.participant_key),
+        false,
+    );
+    update.participant_variant = EncounterParticipantVariantView::Elite;
+    let updated = fixture
+        .worker
+        .update_encounter_participant(&encounter.slug, update)
+        .expect("participant should update");
+    assert_eq!(
+        updated.participant_variant,
+        EncounterParticipantVariantView::Elite
+    );
+    assert_eq!(updated.current_hp, Some(37));
+    let stats = updated.stat_block.as_ref().expect("stats should project");
+    assert_eq!(stats.adjusted_level, Some(6));
+    let ac = stats
+        .values
+        .iter()
+        .find(|value| value.target == "ac")
+        .expect("ac should project");
+    assert_eq!(ac.adjusted_value, 21);
+    let hp = stats
+        .values
+        .iter()
+        .find(|value| value.target == "hp.max")
+        .expect("hp should project");
+    assert_eq!(hp.adjusted_value, 45);
+
+    fixture
+        .worker
+        .set_encounter_turn(SetEncounterTurnRequest {
+            encounter_ref: encounter.slug.clone(),
+            participant_key: None,
+        })
+        .expect("encounter should start");
+    let mut running_update = participant_update(
+        &local_participant(&fixture, &encounter.slug, &participant.participant_key),
+        false,
+    );
+    running_update.participant_variant = EncounterParticipantVariantView::Weak;
+    let running_updated = fixture
+        .worker
+        .update_encounter_participant(&encounter.slug, running_update)
+        .expect("participant should update");
+    assert_eq!(
+        running_updated.participant_variant,
+        EncounterParticipantVariantView::Weak
+    );
+    assert_eq!(running_updated.current_hp, Some(37));
+}
+
+fn local_participant(
+    fixture: &crate::test_support::FixtureWorker,
+    encounter_ref: &str,
+    participant_key: &str,
+) -> EncounterParticipant {
+    fixture
+        .worker
+        .local_state_store()
+        .expect("store should open")
+        .encounters()
+        .get_with_participants(encounter_ref)
+        .expect("encounter lookup should succeed")
+        .expect("encounter should exist")
+        .participants
+        .into_iter()
+        .find(|participant| participant.participant_key == participant_key)
+        .expect("participant should exist")
 }
 
 #[test]

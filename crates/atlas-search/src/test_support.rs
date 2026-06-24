@@ -141,6 +141,12 @@ fn insert_encounter_fixture_rows(
     )?;
     insert_number_metric(connection, "actors:testCreature", "hp.max", 25.0)?;
     insert_number_metric(connection, "actors:testCreature", "hp.value", 17.0)?;
+    insert_number_metric(connection, "actors:testCreature", "ac.value", 19.0)?;
+    insert_number_metric(connection, "actors:testCreature", "perception.mod", 9.0)?;
+    connection.execute(
+        "UPDATE records SET level = 5 WHERE record_key = 'actors:testCreature'",
+        [],
+    )?;
     insert_number_metric(connection, "hazards:testHazard", "hp.max", 30.0)?;
     Ok(())
 }

@@ -1,4 +1,5 @@
 mod hydration;
+mod mechanics;
 mod projection;
 #[cfg(test)]
 mod tests;
