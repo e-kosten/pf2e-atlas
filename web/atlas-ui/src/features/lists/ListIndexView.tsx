@@ -1,4 +1,4 @@
-import { Button, Table } from "antd";
+import { Button } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import {
   shouldHandleAtlasRouteClick,
   type AtlasRoute,
 } from "../../app/routes";
+import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
 import { formatDate, listCountLabel } from "./listUtils";
@@ -38,33 +39,19 @@ export function ListIndexView(_props: ListIndexViewProps) {
         </Button>
       </section>
       <section className="list-index-view__table">
-        <Table
+        <IndexTable
           columns={listIndexColumns()}
           dataSource={lists.data?.lists ?? []}
           loading={lists.isLoading || lists.isFetching}
           locale={{ emptyText: "No saved lists" }}
-          pagination={false}
-          onRow={(list) => ({
-            className: "index-row",
-            tabIndex: 0,
-            onClick: () =>
-              navigateToAtlasRoute({
-                kind: "list",
-                slug: list.slug,
-                selectedRecordKey: null,
-              }),
-            onKeyDown: (event) => {
-              if (event.key === "Enter") {
-                navigateToAtlasRoute({
-                  kind: "list",
-                  slug: list.slug,
-                  selectedRecordKey: null,
-                });
-              }
-            },
-          })}
+          onActivateRow={(list) =>
+            navigateToAtlasRoute({
+              kind: "list",
+              slug: list.slug,
+              selectedRecordKey: null,
+            })
+          }
           rowKey={(list) => list.list_key}
-          size="middle"
         />
       </section>
       <CreateListModal
@@ -124,7 +111,7 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
           className="pane-toggle"
           href={listEditPath(list.slug)}
           onClick={(event) => {
-            event.stopPropagation();
+            stopIndexRowAction(event);
             if (!shouldHandleAtlasRouteClick(event)) {
               return;
             }

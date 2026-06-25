@@ -1,0 +1,8 @@
+.index-row {
+  cursor: pointer;
+}
+
+.index-row:hover > td,
+.index-row:focus-visible > td {
+  background: var(--panel-subtle);
+}

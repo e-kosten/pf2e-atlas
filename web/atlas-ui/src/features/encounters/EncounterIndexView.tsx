@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Checkbox, Table } from "antd";
+import { Button, Checkbox } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
 import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/confirm/confirmAction";
+import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
+import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { CreateEncounterModal } from "./EncounterModals";
 
 type EncounterIndexViewProps = {
@@ -50,7 +51,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
         </div>
       </section>
       <section className="list-index-view__table">
-        <Table
+        <IndexTable
           columns={encounterColumns(
             (encounter) =>
               navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
@@ -67,20 +68,10 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           dataSource={visible}
           loading={encounters.isLoading || encounters.isFetching}
           locale={{ emptyText: "No encounters" }}
-          pagination={false}
-          onRow={(encounter) => ({
-            className: "index-row",
-            tabIndex: 0,
-            onClick: () =>
-              navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug }),
-            onKeyDown: (event) => {
-              if (event.key === "Enter") {
-                navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug });
-              }
-            },
-          })}
+          onActivateRow={(encounter) =>
+            navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug })
+          }
           rowKey={(encounter) => encounter.encounter_key}
-          size="middle"
         />
       </section>
       <CreateEncounterModal
@@ -121,7 +112,7 @@ function encounterColumns(
             icon={<Edit2 size={14} />}
             size="small"
             onClick={(event) => {
-              event.stopPropagation();
+              stopIndexRowAction(event);
               onEdit(encounter);
             }}
           />
@@ -131,7 +122,7 @@ function encounterColumns(
             icon={<Trash2 size={14} />}
             size="small"
             onClick={(event) => {
-              event.stopPropagation();
+              stopIndexRowAction(event);
               onDelete(encounter);
             }}
           />
