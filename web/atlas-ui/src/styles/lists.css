@@ -50,6 +50,15 @@
   background: var(--panel);
 }
 
+.index-row {
+  cursor: pointer;
+}
+
+.index-row:hover > td,
+.index-row:focus-visible > td {
+  background: var(--panel-subtle);
+}
+
 .list-edit-view__body {
   display: grid;
   align-content: start;

@@ -44,6 +44,25 @@ export function ListIndexView(_props: ListIndexViewProps) {
           loading={lists.isLoading || lists.isFetching}
           locale={{ emptyText: "No saved lists" }}
           pagination={false}
+          onRow={(list) => ({
+            className: "index-row",
+            tabIndex: 0,
+            onClick: () =>
+              navigateToAtlasRoute({
+                kind: "list",
+                slug: list.slug,
+                selectedRecordKey: null,
+              }),
+            onKeyDown: (event) => {
+              if (event.key === "Enter") {
+                navigateToAtlasRoute({
+                  kind: "list",
+                  slug: list.slug,
+                  selectedRecordKey: null,
+                });
+              }
+            },
+          })}
           rowKey={(list) => list.list_key}
           size="middle"
         />
@@ -105,6 +124,7 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
           className="pane-toggle"
           href={listEditPath(list.slug)}
           onClick={(event) => {
+            event.stopPropagation();
             if (!shouldHandleAtlasRouteClick(event)) {
               return;
             }

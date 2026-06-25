@@ -6,6 +6,7 @@ import { useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
 import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
+import { confirmDangerAction } from "../../shared/confirm/confirmAction";
 import { CreateEncounterModal } from "./EncounterModals";
 
 type EncounterIndexViewProps = {
@@ -53,18 +54,22 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           columns={encounterColumns(
             (encounter) =>
               navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
-            (encounter) => {
-              if (confirm(`Delete ${encounter.name}?`)) {
-                deleteMutation.mutate(encounter.slug);
-              }
-            },
+            (encounter) =>
+              confirmDangerAction({
+                title: `Delete ${encounter.name}?`,
+                content: "This permanently deletes the encounter.",
+                okText: "Delete",
+                onConfirm: () => {
+                  deleteMutation.mutate(encounter.slug);
+                },
+              }),
           )}
           dataSource={visible}
           loading={encounters.isLoading || encounters.isFetching}
           locale={{ emptyText: "No encounters" }}
           pagination={false}
           onRow={(encounter) => ({
-            className: "encounter-index-row",
+            className: "index-row",
             tabIndex: 0,
             onClick: () =>
               navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug }),

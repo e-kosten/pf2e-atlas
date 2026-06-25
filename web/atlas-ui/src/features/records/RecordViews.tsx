@@ -1,10 +1,9 @@
 import { ExternalLink, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import type React from "react";
-import { getRecordDetail } from "../../api/atlasApi";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
+import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import {
   atlasRoutePath,
   navigateToAtlasRoute,
@@ -145,14 +144,6 @@ export function ReaderView({ route }: ReaderViewProps) {
       }
     />
   );
-}
-
-function useRecordDetail(recordKey: string | null) {
-  return useQuery({
-    queryKey: ["record-detail", recordKey],
-    queryFn: () => getRecordDetail(recordKey!),
-    enabled: recordKey !== null,
-  });
 }
 
 function RecordViewLayout({
