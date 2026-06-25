@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import {
   keepPreviousData,
-  useQueryClient,
-  useQueries,
   useQuery,
-  type QueryClient,
   type UseQueryResult,
 } from "@tanstack/react-query";
 import {
-  discoverFilterEditor,
-  discoverFilterValues,
   getReadiness,
   getRecordDetail,
   openResultWindow,
@@ -31,6 +26,7 @@ import {
   searchStateQueryString,
   type SearchFormState,
 } from "../state/searchState";
+import { useFilterDiscovery } from "../shared/filters/useFilterDiscovery";
 import {
   initialWorkspaceInteractionState,
   workspaceInteractionReducer,
@@ -105,7 +101,6 @@ export function useAtlasWorkspace({
   const [lastResultRequest, setLastResultRequest] =
     useState<AtlasWorkspaceDiagnostics["resultRequest"]>(null);
   const [resultWindow, setResultWindow] = useState<ResultWindowHandle | null>(null);
-  const queryClient = useQueryClient();
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
     () => encodeSearchExecutionState(search),
@@ -191,46 +186,14 @@ export function useAtlasWorkspace({
     [activeSearch],
   );
 
-  const filterEditorQuery = useQuery({
-    queryKey: ["filter-editor", activeSearchExecutionToken, search.visibleFilterIds],
+  const filterDiscovery = useFilterDiscovery({
+    context: filterDiscoveryContext,
     enabled,
-    placeholderData: keepPreviousData,
-    queryFn: () =>
-      discoverFilterEditor({
-        context: filterDiscoveryContext,
-        selected_field_ids: search.visibleFilterIds,
-      }),
-  });
-
-  const valueFieldIds = useMemo(() => {
-    const fields = (filterEditorQuery.data?.groups ?? []).flatMap(
-      (group) => group.fields,
-    );
-    const visibleFields = new Set(search.visibleFilterIds);
-    const hiddenFields = new Set(search.hiddenFilterIds);
-    return fields
-      .filter(
-        (field) =>
-          field.applicability === "applicable" &&
-          field.supports_counts &&
-          (field.placement === "always_visible" ||
-            visibleFields.has(field.id) ||
-            (field.placement === "initially_visible" && !hiddenFields.has(field.id))),
-      )
-      .map((field) => field.id);
-  }, [filterEditorQuery.data, search.hiddenFilterIds, search.visibleFilterIds]);
-
-  const filterValueQueries = useQueries({
-    queries: valueFieldIds.map((fieldId) => ({
-      queryKey: ["filter-values", activeSearchExecutionToken, fieldId],
-      enabled: enabled && !filterEditorQuery.isPlaceholderData,
-      placeholderData: () => retainedFilterValue(queryClient, fieldId),
-      queryFn: () =>
-        discoverFilterValues({
-          context: filterDiscoveryContext,
-          field_id: fieldId,
-        }),
-    })),
+    hiddenFieldIds: search.hiddenFilterIds,
+    queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
+    retainedValueQueryKeyPrefix: ["filter-discovery"],
+    selectedFieldIds: search.visibleFilterIds,
+    visibleFieldIds: search.visibleFilterIds,
   });
 
   const detailQuery = useQuery({
@@ -312,21 +275,13 @@ export function useAtlasWorkspace({
   const errorMessage =
     messageFromError(resultsQuery.error) ??
     messageFromError(detailQuery.error) ??
-    messageFromError(filterEditorQuery.error) ??
-    filterValueQueries.map((query) => messageFromError(query.error)).find(Boolean) ??
+    filterDiscovery.errorMessage ??
     messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const activeWindowId =
     resultWindow?.searchExecutionToken === activeSearchExecutionToken
       ? resultWindow.windowId.toString()
       : null;
-  const filterValuesByField = Object.fromEntries(
-    valueFieldIds.map((fieldId, index) => {
-      const data = filterValueQueries[index]?.data;
-      return [fieldId, data];
-    }),
-  );
-
   const resultsRefreshing =
     canRunResultSearch &&
     (searchDebouncing ||
@@ -346,16 +301,13 @@ export function useAtlasWorkspace({
     setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
     resultPage: canRunResultSearch ? resultsQuery.data : undefined,
     recordDetail: detailQuery.data,
-    filterEditor: filterEditorQuery.data,
-    filterValuesByField,
+    filterEditor: filterDiscovery.filterEditor,
+    filterValuesByField: filterDiscovery.filterValuesByField,
     readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
-    filterDiscoveryLoading:
-      filterEditorQuery.isLoading ||
-      filterEditorQuery.isFetching ||
-      filterValueQueries.some((query) => query.isLoading || query.isFetching),
+    filterDiscoveryLoading: filterDiscovery.loading,
     diagnostics: {
       activeWindowId,
       detailRequest: lastDetailRequest,
@@ -388,16 +340,6 @@ function messageFromError(error: unknown): string | null {
 
 function elapsedMilliseconds(startedAt: number): number {
   return Math.max(0, Math.round(performance.now() - startedAt));
-}
-
-function retainedFilterValue(
-  queryClient: QueryClient,
-  fieldId: string,
-): FilterValueListView | undefined {
-  return queryClient
-    .getQueriesData<FilterValueListView>({ queryKey: ["filter-values"] })
-    .map(([, data]) => data)
-    .find((data) => data?.field_id === fieldId);
 }
 
 export function resetSearchState(): SearchFormState {

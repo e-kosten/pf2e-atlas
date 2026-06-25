@@ -2,7 +2,6 @@ import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   keepPreviousData,
   useMutation,
-  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -20,8 +19,6 @@ import type {
 import {
   createSavedList,
   deleteSavedList,
-  discoverFilterEditor,
-  discoverFilterValues,
   filterSavedList,
   getRecordDetail,
   getSavedList,
@@ -35,6 +32,7 @@ import {
   encodeSearchExecutionState,
   type SearchFormState,
 } from "../state/searchState";
+import { useFilterDiscovery } from "../shared/filters/useFilterDiscovery";
 import { AntFilterControls } from "./ant/AntFilters";
 import type { FilterPanelState } from "./filterControls";
 import { RecordPresentation } from "./recordPresentation";
@@ -472,80 +470,19 @@ function useSavedListFilterDiscovery(
   loading: boolean;
   errorMessage: string | null;
 } {
-  const queryClient = useQueryClient();
   const filterToken = useMemo(() => encodeSearchExecutionState(filters), [filters]);
   const context = useMemo(
     () => buildSavedListFilterDiscoveryContext(listRef, filters),
     [listRef, filters],
   );
-  const filterEditorQuery = useQuery({
-    queryKey: [
-      "saved-list-filter-editor",
-      listRef,
-      filterToken,
-      filters.visibleFilterIds,
-    ],
-    queryFn: () =>
-      discoverFilterEditor({
-        context,
-        selected_field_ids: filters.visibleFilterIds,
-      }),
+  return useFilterDiscovery({
+    context,
+    hiddenFieldIds: filters.hiddenFilterIds,
+    queryKeyPrefix: ["saved-list-filter-discovery", listRef, filterToken],
+    retainedValueQueryKeyPrefix: ["saved-list-filter-discovery", listRef],
+    selectedFieldIds: filters.visibleFilterIds,
+    visibleFieldIds: filters.visibleFilterIds,
   });
-  const valueFieldIds = useMemo(() => {
-    const fields = (filterEditorQuery.data?.groups ?? []).flatMap(
-      (group) => group.fields,
-    );
-    const visibleFields = new Set(filters.visibleFilterIds);
-    const hiddenFields = new Set(filters.hiddenFilterIds);
-    return fields
-      .filter(
-        (field) =>
-          field.applicability === "applicable" &&
-          field.supports_counts &&
-          (field.placement === "always_visible" ||
-            visibleFields.has(field.id) ||
-            (field.placement === "initially_visible" && !hiddenFields.has(field.id))),
-      )
-      .map((field) => field.id);
-  }, [filterEditorQuery.data, filters.hiddenFilterIds, filters.visibleFilterIds]);
-  const filterValueQueries = useQueries({
-    queries: valueFieldIds.map((fieldId) => ({
-      queryKey: ["saved-list-filter-values", listRef, filterToken, fieldId],
-      enabled: !filterEditorQuery.isPlaceholderData,
-      placeholderData: () =>
-        queryClient.getQueryData<FilterValueListView>([
-          "saved-list-filter-values",
-          listRef,
-          filterToken,
-          fieldId,
-        ]),
-      queryFn: () =>
-        discoverFilterValues({
-          context,
-          field_id: fieldId,
-        }),
-    })),
-  });
-  const filterValuesByField = useMemo(() => {
-    const pairs = valueFieldIds.map((fieldId, index) => [
-      fieldId,
-      filterValueQueries[index]?.data,
-    ]);
-    return Object.fromEntries(pairs);
-  }, [filterValueQueries, valueFieldIds]);
-  const errorMessage =
-    filterEditorQuery.error?.message ??
-    filterValueQueries.find((query) => query.error)?.error?.message ??
-    null;
-  return {
-    filterEditor: filterEditorQuery.data,
-    filterValuesByField,
-    loading:
-      filterEditorQuery.isLoading ||
-      filterEditorQuery.isFetching ||
-      filterValueQueries.some((query) => query.isLoading || query.isFetching),
-    errorMessage,
-  };
 }
 
 function listSearchQuery(filters: SearchFormState): string | undefined {
