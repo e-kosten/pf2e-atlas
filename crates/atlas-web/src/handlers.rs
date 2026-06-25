@@ -122,6 +122,15 @@ pub(crate) async fn encounters(
     ))
 }
 
+pub(crate) async fn encounter_condition_definitions(
+    State(state): State<AtlasWebState>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.encounter_condition_definitions()).await?,
+    ))
+}
+
 pub(crate) async fn encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,

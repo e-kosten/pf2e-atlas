@@ -25,6 +25,56 @@ pub struct EncounterIndexView {
     pub encounters: Vec<EncounterSummaryView>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterConditionCatalogView {
+    pub conditions: Vec<EncounterConditionDefinitionView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterConditionDefinitionView {
+    pub condition_ref: String,
+    pub name: String,
+    pub automation_level: EncounterConditionAutomationLevelView,
+    pub applies_to: Vec<EncounterConditionApplicabilityView>,
+    pub categories: Vec<EncounterConditionCategoryView>,
+    pub has_value: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub default_value: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterConditionAutomationLevelView {
+    Automated,
+    Tracked,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterConditionApplicabilityView {
+    Creature,
+    Hazard,
+    Object,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterConditionCategoryView {
+    ActionEconomy,
+    Attitude,
+    DeathAndDying,
+    Detection,
+    ObjectState,
+    RuntimeState,
+    StatModifier,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]

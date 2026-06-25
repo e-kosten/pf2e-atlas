@@ -14,6 +14,7 @@ use atlas_record::{
     MechanicsView, build_mechanics_view,
 };
 
+use super::conditions::{ConditionRule, condition_rule_for_key};
 use super::projection::participant_variant_view;
 
 #[derive(Debug, Clone)]
@@ -57,7 +58,8 @@ fn apply_participant_effects(
     let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
     let mut unapplied_effects = variant_unapplied_effects(participant.participant_variant);
     for condition in &participant.conditions {
-        let Some(condition_rule) = ConditionRule::from_condition(condition) else {
+        let Some(condition_rule) = condition_rule_for_key(condition.condition_key.as_deref())
+        else {
             continue;
         };
         modifiers.extend(condition_modifiers(condition, condition_rule, &mechanics));
@@ -153,7 +155,7 @@ fn activity_roll_view(
         modifiers.push(modifier);
     }
     for condition in &participant.conditions {
-        let Some(rule) = ConditionRule::from_condition(condition) else {
+        let Some(rule) = condition_rule_for_key(condition.condition_key.as_deref()) else {
             continue;
         };
         modifiers.extend(condition_roll_modifiers(
@@ -192,7 +194,7 @@ fn damage_view(
     .into_iter()
     .collect::<Vec<_>>();
     for condition in &participant.conditions {
-        let Some(rule) = ConditionRule::from_condition(condition) else {
+        let Some(rule) = condition_rule_for_key(condition.condition_key.as_deref()) else {
             continue;
         };
         modifiers.extend(condition_damage_modifiers(
@@ -605,30 +607,6 @@ fn variant_source(variant: ParticipantVariant) -> &'static str {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ConditionRule {
-    Frightened,
-    Sickened,
-    OffGuard,
-    Clumsy,
-    Enfeebled,
-    Stupefied,
-}
-
-impl ConditionRule {
-    fn from_condition(condition: &EncounterParticipantCondition) -> Option<Self> {
-        match condition_slug(condition).as_str() {
-            "frightened" => Some(Self::Frightened),
-            "sickened" => Some(Self::Sickened),
-            "off-guard" | "offguard" => Some(Self::OffGuard),
-            "clumsy" => Some(Self::Clumsy),
-            "enfeebled" => Some(Self::Enfeebled),
-            "stupefied" => Some(Self::Stupefied),
-            _ => None,
-        }
-    }
-}
-
 fn condition_modifiers(
     condition: &EncounterParticipantCondition,
     rule: ConditionRule,
@@ -739,10 +717,7 @@ fn condition_source(condition: &EncounterParticipantCondition) -> String {
     }
 }
 
-fn condition_slug(condition: &EncounterParticipantCondition) -> String {
-    slugify(&condition.name)
-}
-
+#[cfg(test)]
 fn slugify(value: &str) -> String {
     let mut slug = String::new();
     let mut previous_separator = false;
@@ -846,6 +821,19 @@ mod tests {
         assert_eq!(value(&projection, "ability.str").adjusted_value, 4);
         assert_eq!(value(&projection, "ability.dex").adjusted_value, 3);
         assert!(value(&projection, "ability.str").modifiers.is_empty());
+    }
+
+    #[test]
+    fn condition_names_without_modeled_keys_remain_annotation_only() {
+        let participant = participant(
+            ParticipantVariant::Normal,
+            vec![unmodeled_condition("Frightened", Some(3))],
+        );
+        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+
+        assert_eq!(value(&projection, "ac").adjusted_value, 22);
+        assert_eq!(value(&projection, "perception").adjusted_value, 13);
+        assert_eq!(value(&projection, "skill.athletics").adjusted_value, 9);
     }
 
     #[test]
@@ -1089,7 +1077,7 @@ mod tests {
     fn condition(name: &str, value: Option<i64>) -> EncounterParticipantCondition {
         EncounterParticipantCondition {
             condition_id: 1,
-            condition_key: Some(format!("conditionitems:{}", slugify(name))),
+            condition_key: Some(condition_key(name).to_string()),
             name: name.to_string(),
             value,
             source_participant_key: None,
@@ -1098,6 +1086,33 @@ mod tests {
             source_note: None,
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
+        }
+    }
+
+    fn unmodeled_condition(name: &str, value: Option<i64>) -> EncounterParticipantCondition {
+        EncounterParticipantCondition {
+            condition_id: 1,
+            condition_key: None,
+            name: name.to_string(),
+            value,
+            source_participant_key: None,
+            duration_rounds: None,
+            note: None,
+            source_note: None,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+        }
+    }
+
+    fn condition_key(name: &str) -> &'static str {
+        match slugify(name).as_str() {
+            "frightened" => "conditionitems:TBSHQspnbcqxsmjL",
+            "sickened" => "conditionitems:fesd1n5eVhpCSS18",
+            "off-guard" => "conditionitems:AJh5ex99aV6VTggg",
+            "clumsy" => "conditionitems:i3OJZU2nk64Df3xm",
+            "enfeebled" => "conditionitems:MIRkyAjyBeXivMa7",
+            "stupefied" => "conditionitems:e1XGnhKNSQIm5IXg",
+            _ => "conditionitems:unsupported",
         }
     }
 

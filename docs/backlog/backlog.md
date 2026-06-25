@@ -105,6 +105,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust encounter condition mechanics](./items/rust-encounter-condition-mechanics.md)
   Move beyond durable condition annotations into explicit, tested mechanical condition projections where PF2e rules are deterministic. Status: proposed.
 
+- [Rust encounter actor context effects](./items/rust-encounter-actor-context-effects.md)
+  Model future actor-vs-actor encounter effects such as visibility, targeting, and situational condition reminders without forcing them into participant-local stat mutation. Status: proposed.
+
 - [Rust local-state import and export](./items/rust-local-state-import-export.md)
   Add scriptable import/export for saved lists and future durable local-state data without making artifact rebuilds responsible for user state. Status: proposed.
 

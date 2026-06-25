@@ -1,10 +1,11 @@
 use atlas_app_model::{
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest, AppErrorCode,
-    CreateEncounterRequest, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterStatusView, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest,
+    CreateEncounterRequest, EncounterConditionApplicabilityView,
+    EncounterConditionAutomationLevelView, EncounterConditionCategoryView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterStatusView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -551,6 +552,59 @@ fn condition_add_resolves_condition_records_and_rejects_other_records() {
         .expect_err("non-condition record should reject");
 
     assert!(error.into_app_error().message.contains("condition records"));
+}
+
+#[test]
+fn encounter_condition_definitions_expose_modeled_canonical_conditions() {
+    let fixture = fixture_worker();
+
+    let catalog = fixture
+        .worker
+        .encounter_condition_definitions()
+        .expect("condition catalog should load");
+
+    assert_eq!(catalog.conditions.len(), 43);
+
+    let frightened = catalog
+        .conditions
+        .iter()
+        .find(|condition| condition.name == "Frightened")
+        .expect("frightened should be in catalog");
+    assert_eq!(frightened.condition_ref, "conditionitems:TBSHQspnbcqxsmjL");
+    assert_eq!(
+        frightened.automation_level,
+        EncounterConditionAutomationLevelView::Automated
+    );
+    assert_eq!(frightened.default_value, Some(1));
+    assert!(
+        frightened
+            .categories
+            .contains(&EncounterConditionCategoryView::StatModifier)
+    );
+
+    let broken = catalog
+        .conditions
+        .iter()
+        .find(|condition| condition.name == "Broken")
+        .expect("broken should be in catalog");
+    assert_eq!(
+        broken.automation_level,
+        EncounterConditionAutomationLevelView::Tracked
+    );
+    assert_eq!(
+        broken.applies_to,
+        vec![EncounterConditionApplicabilityView::Object]
+    );
+
+    let persistent_damage = catalog
+        .conditions
+        .iter()
+        .find(|condition| condition.name == "Persistent Damage")
+        .expect("persistent damage should be in catalog");
+    assert_eq!(
+        persistent_damage.automation_level,
+        EncounterConditionAutomationLevelView::Tracked
+    );
 }
 
 #[test]

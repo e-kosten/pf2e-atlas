@@ -3,13 +3,16 @@ use atlas_app_model::{
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
     AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
     DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
-    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
-    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
+    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
+    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
+    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
+    EncounterSummaryView, EncounterUpdateView, FilterControlView, FilterEditorFieldView,
+    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
+    FilterValueListView, FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest,
+    RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
     ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
     ResultWindowModeSummary, ResultWindowPage, SavedListCreateView, SavedListDetailView,
     SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
@@ -470,6 +473,14 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["encounters"][0]["slug"], "ambush");
 
+    let (status, body) =
+        route_json(Method::GET, "/api/encounters/condition-definitions", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["conditions"][0]["condition_ref"],
+        "conditionitems:TBSHQspnbcqxsmjL"
+    );
+
     let (status, body) = route_json(
         Method::POST,
         "/api/encounters",
@@ -812,6 +823,22 @@ impl AtlasWebService for MockService {
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         Ok(EncounterIndexView {
             encounters: vec![encounter_summary("ambush", "Ambush")],
+        })
+    }
+
+    fn encounter_condition_definitions(
+        &self,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError> {
+        Ok(EncounterConditionCatalogView {
+            conditions: vec![EncounterConditionDefinitionView {
+                condition_ref: "conditionitems:TBSHQspnbcqxsmjL".to_string(),
+                name: "Frightened".to_string(),
+                automation_level: EncounterConditionAutomationLevelView::Automated,
+                applies_to: vec![EncounterConditionApplicabilityView::Creature],
+                categories: vec![EncounterConditionCategoryView::StatModifier],
+                has_value: true,
+                default_value: Some(1),
+            }],
         })
     }
 

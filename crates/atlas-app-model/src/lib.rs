@@ -12,7 +12,9 @@ pub use encounter::{
     ActivityRollSurfaceView, ActivityRollView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
     CreateEncounterRequest, DamageEffectKindView, DamageExpressionView, DeleteEncounterView,
-    EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
+    EncounterConditionCatalogView, EncounterConditionCategoryView,
+    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
     EncounterStatusView, EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView,
@@ -117,6 +119,16 @@ mod tests {
             .expect("DeleteEncounterView bindings should export");
         EncounterCreateView::export_all_to(path)
             .expect("EncounterCreateView bindings should export");
+        EncounterConditionCatalogView::export_all_to(path)
+            .expect("EncounterConditionCatalogView bindings should export");
+        EncounterConditionAutomationLevelView::export_all_to(path)
+            .expect("EncounterConditionAutomationLevelView bindings should export");
+        EncounterConditionApplicabilityView::export_all_to(path)
+            .expect("EncounterConditionApplicabilityView bindings should export");
+        EncounterConditionCategoryView::export_all_to(path)
+            .expect("EncounterConditionCategoryView bindings should export");
+        EncounterConditionDefinitionView::export_all_to(path)
+            .expect("EncounterConditionDefinitionView bindings should export");
         EncounterDetailView::export_all_to(path)
             .expect("EncounterDetailView bindings should export");
         EncounterIndexView::export_all_to(path).expect("EncounterIndexView bindings should export");

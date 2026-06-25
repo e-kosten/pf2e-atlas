@@ -63,6 +63,19 @@
   white-space: nowrap;
 }
 
+.encounter-condition-row__name-button {
+  background: transparent;
+  border: 0;
+  color: var(--ant-color-link);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.encounter-condition-row__name-button:hover {
+  text-decoration: underline;
+}
+
 .encounter-condition-row .ant-input-number {
   width: 72px;
 }

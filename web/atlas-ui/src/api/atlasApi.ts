@@ -12,6 +12,7 @@ import type {
   DiscoverFilterEditorRequest,
   DiscoverFilterValuesRequest,
   EncounterCreateView,
+  EncounterConditionCatalogView,
   EncounterDetailView,
   EncounterIndexView,
   EncounterParticipantView,
@@ -105,6 +106,10 @@ export async function getRecordDetail(recordKey: string): Promise<RecordDetailVi
 
 export async function getEncounters(): Promise<EncounterIndexView> {
   return atlasFetch("/api/encounters");
+}
+
+export async function getEncounterConditionDefinitions(): Promise<EncounterConditionCatalogView> {
+  return atlasFetch("/api/encounters/condition-definitions");
 }
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
