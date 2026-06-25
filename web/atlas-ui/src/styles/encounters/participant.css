@@ -4,7 +4,7 @@
   gap: 12px;
 }
 
-.encounter-turn__body,
+.encounter-participant-controls__body,
 .encounter-conditions,
 .encounter-condition-list {
   display: grid;
@@ -134,14 +134,4 @@
 
 .encounter-hp-actions .ant-btn {
   min-width: 68px;
-}
-
-.manual-participant dl {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: max-content 1fr;
-}
-
-.manual-participant dt {
-  color: var(--muted);
 }
