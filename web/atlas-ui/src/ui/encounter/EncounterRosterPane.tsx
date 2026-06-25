@@ -242,7 +242,6 @@ export function EncounterRosterPane({
       <header className="encounter-pane__header">
         <div>
           <h2>Initiative</h2>
-          <p>{participants.length} participants</p>
         </div>
         <div className="encounter-actions">
           <Button
