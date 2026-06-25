@@ -14,6 +14,10 @@ import type {
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import {
+  displayNumber,
+  participantUpdate,
+} from "../../features/encounters/participantEdits";
 import { RecordPresentation } from "../recordPresentation";
 import { EncounterParticipantControls } from "./EncounterParticipantControls";
 
@@ -394,33 +398,9 @@ function StatValue({ value }: { value: StatValueView }) {
   );
 }
 
-function participantUpdate(
-  participant: EncounterParticipantView,
-  changes: Partial<UpdateEncounterParticipantRequest>,
-): UpdateEncounterParticipantRequest {
-  return {
-    participant_key: participant.participant_key,
-    display_name: participant.display_name,
-    side: participant.side,
-    participant_variant: participant.participant_variant,
-    initiative: participant.initiative,
-    max_hp: participant.max_hp,
-    current_hp: participant.current_hp,
-    temporary_hp: participant.temporary_hp,
-    defeated: participant.defeated,
-    hidden: participant.hidden,
-    note: participant.note,
-    ...changes,
-  };
-}
-
 function signed(value: bigint | number | undefined): string {
   if (value === undefined) {
     return "--";
   }
   return Number(value).toString();
-}
-
-function displayNumber(value: bigint | undefined): string {
-  return value === undefined ? "--" : value.toString();
 }
