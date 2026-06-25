@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "antd";
 import { deleteEncounter, getEncounter, updateEncounter } from "../../api/atlasApi";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
+import { confirmDangerAction } from "../../shared/confirm/confirmAction";
 import { EditEncounterForm } from "./EncounterModals";
 
 type EncounterEditViewProps = {
@@ -55,11 +56,16 @@ export function EncounterEditView({ route }: EncounterEditViewProps) {
           </div>
           <Button
             danger
-            onClick={() => {
-              if (confirm(`Delete ${encounter.data.encounter.name}?`)) {
-                deleteMutation.mutate(route.slug);
-              }
-            }}
+            onClick={() =>
+              confirmDangerAction({
+                title: `Delete ${encounter.data.encounter.name}?`,
+                content: "This permanently deletes the encounter.",
+                okText: "Delete",
+                onConfirm: () => {
+                  deleteMutation.mutate(route.slug);
+                },
+              })
+            }
           >
             Delete encounter
           </Button>

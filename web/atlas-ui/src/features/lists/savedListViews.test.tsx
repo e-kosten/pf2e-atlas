@@ -110,6 +110,19 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
   });
 
+  it("routes from the saved-list index when clicking the row", async () => {
+    render(<ListIndexView route={{ kind: "lists" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const row = (await screen.findByText("Campaign prep")).closest("tr");
+    expect(row).not.toBeNull();
+
+    fireEvent.click(row!);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+  });
+
   it("routes from the saved-list index to edit a list", async () => {
     render(<ListIndexView route={{ kind: "lists" }} />, {
       wrapper: queryClientWrapper(),

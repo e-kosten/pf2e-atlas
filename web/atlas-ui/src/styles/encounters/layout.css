@@ -73,15 +73,6 @@
   height: calc(100vh - 77px - 65px);
 }
 
-.encounter-index-row {
-  cursor: pointer;
-}
-
-.encounter-index-row:hover > td,
-.encounter-index-row:focus-visible > td {
-  background: var(--panel-subtle);
-}
-
 .encounter-pane {
   background: var(--panel);
   min-height: 100%;

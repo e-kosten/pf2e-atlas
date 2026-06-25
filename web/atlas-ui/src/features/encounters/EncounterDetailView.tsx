@@ -25,6 +25,7 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
+import { confirmDangerAction } from "../../shared/confirm/confirmAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import type { RecordPreviewAnchor } from "../../shared/records/RecordPreviewPopover";
 
@@ -179,11 +180,16 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             loading={encounter.isLoading}
             onAddComplete={invalidateEncounter}
             onAdvanceTurn={() => startTurn.mutate(null)}
-            onRemove={(participant) => {
-              if (confirm(`Remove ${participant.display_name}?`)) {
-                removeParticipant.mutate(participant.participant_key);
-              }
-            }}
+            onRemove={(participant) =>
+              confirmDangerAction({
+                title: `Remove ${participant.display_name}?`,
+                content: "This removes the participant from the encounter.",
+                okText: "Remove",
+                onConfirm: () => {
+                  removeParticipant.mutate(participant.participant_key);
+                },
+              })
+            }
             onSelect={(participantKey) => {
               setSelectedParticipantKey(participantKey);
               setPreviewRecordKey(null);
@@ -252,13 +258,18 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             updateEncounterStatus("complete");
             setEditEncounterOpen(false);
           }}
-          onDelete={() => {
-            if (confirm(`Delete ${encounterSummary.name}?`)) {
-              deleteEncounter(route.slug).then(() =>
-                navigateToAtlasRoute({ kind: "encounters" }),
-              );
-            }
-          }}
+          onDelete={() =>
+            confirmDangerAction({
+              title: `Delete ${encounterSummary.name}?`,
+              content: "This permanently deletes the encounter.",
+              okText: "Delete",
+              onConfirm: () => {
+                deleteEncounter(route.slug).then(() =>
+                  navigateToAtlasRoute({ kind: "encounters" }),
+                );
+              },
+            })
+          }
           onSave={(request) => {
             updateEncounterMutation.mutate(request);
             setEditEncounterOpen(false);
