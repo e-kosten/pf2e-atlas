@@ -480,12 +480,20 @@ function commitRosterHp(
   if (hp === null) {
     return;
   }
+  const clampedHp = hp === undefined ? undefined : clampCurrentHp(participant, hp);
   onUpdate(
     participantUpdate(participant, {
-      current_hp: hp,
-      defeated: hp === BigInt(0) ? true : participant.defeated,
+      current_hp: clampedHp,
+      defeated: clampedHp === BigInt(0) ? true : participant.defeated,
     }),
   );
+}
+function clampCurrentHp(participant: EncounterParticipantView, hp: bigint): bigint {
+  const lowerBounded = hp < BigInt(0) ? BigInt(0) : hp;
+  if (participant.max_hp === undefined) {
+    return lowerBounded;
+  }
+  return lowerBounded > participant.max_hp ? participant.max_hp : lowerBounded;
 }
 function evaluateHpFormula(value: string): number | null {
   const trimmed = value.trim();
