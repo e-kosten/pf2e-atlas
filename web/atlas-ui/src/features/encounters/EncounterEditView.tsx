@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "antd";
 import { deleteEncounter, getEncounter, updateEncounter } from "../../api/atlasApi";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/confirm/confirmAction";
+import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { EditEncounterForm } from "./EncounterModals";
 
 type EncounterEditViewProps = {

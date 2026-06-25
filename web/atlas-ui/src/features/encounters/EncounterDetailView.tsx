@@ -25,7 +25,7 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/confirm/confirmAction";
+import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import type { RecordPreviewAnchor } from "../../shared/records/RecordPreviewPopover";
 

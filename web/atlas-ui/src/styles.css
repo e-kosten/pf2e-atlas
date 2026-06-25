@@ -2,6 +2,7 @@
 @import "./styles/base.css";
 @import "./styles/shell.css";
 @import "./styles/filters.css";
+@import "./styles/ui/tables.css";
 @import "./styles/ant-overrides.css";
 @import "./styles/results.css";
 @import "./styles/lists.css";
