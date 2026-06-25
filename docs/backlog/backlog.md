@@ -43,6 +43,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust web UI architecture review](./items/rust-web-ui-architecture-review.md)
   Review the first web UI vertical slice for DTO/API boundaries, state ownership, AntD composition, module layout, and tests before substantial follow-up feature work. Status: proposed.
 
+- [Rust web UI frontend architecture cleanup](./items/rust-web-ui-frontend-architecture-cleanup.md)
+  Refactor the web UI into feature-oriented modules with shared filter discovery, encounter edit helpers, record/detail primitives, and clear theme ownership. Status: proposed.
+
 - [Rust web filter UX expansion](./items/rust-web-filter-ux-expansion.md)
   Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: proposed.
 
