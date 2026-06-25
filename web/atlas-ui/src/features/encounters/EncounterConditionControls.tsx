@@ -7,6 +7,7 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
+import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { optionalNumber } from "./participantEdits";
 
 type AddConditionForm = {
@@ -264,18 +265,12 @@ function ConditionEditor({
     >
       <span className="encounter-condition-row__name">{condition.name}</span>
       {hasValue && (
-        <InputNumber
-          aria-label={`${condition.name} value`}
-          min={0}
-          defaultValue={optionalNumber(condition.value)}
-          onBlur={(event) =>
-            update({
-              value:
-                event.target.value === ""
-                  ? undefined
-                  : BigInt(Number(event.target.value)),
-            })
-          }
+        <EditableCommitField
+          ariaLabel={`${condition.name} value`}
+          inputMode="numeric"
+          onCommit={(value) => commitConditionValue(value, update)}
+          size="small"
+          value={inputNumberValue(condition.value)}
         />
       )}
       {condition.duration_rounds !== undefined && (
@@ -324,4 +319,23 @@ function conditionTakesValue(name: string | undefined): boolean {
   return (
     MODELED_CONDITIONS.find((condition) => condition.value === name)?.hasValue ?? true
   );
+}
+
+function commitConditionValue(
+  value: string,
+  update: (changes: Partial<UpdateEncounterParticipantConditionRequest>) => void,
+) {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    update({ value: undefined });
+    return;
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return;
+  }
+  update({ value: BigInt(trimmed) });
+}
+
+function inputNumberValue(value: bigint | undefined): string {
+  return value === undefined ? "" : value.toString();
 }

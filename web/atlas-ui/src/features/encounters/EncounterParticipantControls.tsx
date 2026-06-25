@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Select } from "antd";
+import { Button, Form, Input, Select } from "antd";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
@@ -9,9 +9,10 @@ import type {
 } from "../../generated/atlas";
 import {
   applyParticipantUpdate,
-  optionalNumber,
+  optionalBigIntInput,
   participantUpdate,
 } from "./participantEdits";
+import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
 
@@ -63,24 +64,25 @@ export function EncounterParticipantControls({
         >
           <div className="encounter-form-grid">
             <Form.Item label="Name" layout="vertical">
-              <Input
-                defaultValue={activeCurrent.display_name}
-                onBlur={(event) =>
-                  updateParticipant({ display_name: event.target.value })
+              <EditableCommitField
+                ariaLabel="Participant name"
+                onCommit={(displayName) =>
+                  updateParticipant({ display_name: displayName })
                 }
+                value={activeCurrent.display_name}
               />
             </Form.Item>
             <Form.Item label="Initiative" layout="vertical">
-              <InputNumber
-                defaultValue={optionalNumber(activeCurrent.initiative)}
-                onBlur={(event) =>
-                  updateParticipant({
-                    initiative:
-                      event.target.value === ""
-                        ? undefined
-                        : BigInt(Number(event.target.value)),
-                  })
-                }
+              <EditableCommitField
+                ariaLabel="Participant initiative"
+                inputMode="numeric"
+                onCommit={(value) => {
+                  const initiative = optionalBigIntInput(value);
+                  if (initiative !== null) {
+                    updateParticipant({ initiative });
+                  }
+                }}
+                value={inputNumberValue(activeCurrent.initiative)}
               />
             </Form.Item>
           </div>
@@ -125,4 +127,8 @@ export function EncounterParticipantControls({
       )}
     </section>
   );
+}
+
+function inputNumberValue(value: bigint | undefined): string {
+  return value === undefined ? "" : value.toString();
 }
