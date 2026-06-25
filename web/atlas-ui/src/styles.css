@@ -3,6 +3,7 @@
 @import "./styles/shell.css";
 @import "./styles/filters.css";
 @import "./styles/ui/tables.css";
+@import "./styles/ui/search-picker.css";
 @import "./styles/ant-overrides.css";
 @import "./styles/results.css";
 @import "./styles/lists.css";

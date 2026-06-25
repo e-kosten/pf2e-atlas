@@ -1,0 +1,25 @@
+.search-picker__row {
+  cursor: pointer;
+}
+
+.search-picker__row--selected > td {
+  background: var(--panel-subtle);
+}
+
+.search-picker__title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.search-picker__title small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-picker__selection {
+  color: var(--muted);
+  margin: 8px 0 12px;
+}

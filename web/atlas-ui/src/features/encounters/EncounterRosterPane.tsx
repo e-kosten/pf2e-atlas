@@ -1,28 +1,24 @@
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Modal, Table } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { useMutation } from "@tanstack/react-query";
+import { Button, Form, Input, InputNumber, Modal } from "antd";
 import { GripVertical, Play, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
   addEncounterManualParticipant,
   addEncounterRecordParticipant,
-  openResultWindow,
 } from "../../api/atlasApi";
 import type {
   EncounterParticipantView,
   OpenResultWindowRequest,
-  ResultWindowRow,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
+import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 import {
   clampCurrentHp,
   optionalBigIntInput,
   optionalHpFormulaInput,
   participantUpdate,
 } from "./participantEdits";
-
-const ENCOUNTER_RECORD_PICKER_DEBOUNCE_MS = 250;
 
 type AddRecordForm = {
   quantity?: number;
@@ -71,34 +67,9 @@ export function EncounterRosterPane({
   const [draggingParticipantKey, setDraggingParticipantKey] = useState<string | null>(
     null,
   );
-  const [recordSearch, setRecordSearch] = useState("");
-  const [activeRecordSearch, setActiveRecordSearch] = useState("");
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
-  useEffect(() => {
-    if (!recordOpen) {
-      return;
-    }
-    const timeout = window.setTimeout(
-      () => setActiveRecordSearch(recordSearch),
-      ENCOUNTER_RECORD_PICKER_DEBOUNCE_MS,
-    );
-    return () => window.clearTimeout(timeout);
-  }, [recordOpen, recordSearch]);
-  const recordResults = useQuery({
-    queryKey: ["encounter-record-picker", activeRecordSearch],
-    enabled: recordOpen && activeRecordSearch.trim().length > 0,
-    placeholderData: keepPreviousData,
-    queryFn: () => openResultWindow(encounterRecordPickerRequest(activeRecordSearch)),
-  });
-  const selectedRecord = useMemo(
-    () =>
-      recordResults.data?.rows.find(
-        (row) => row.record.record_key === selectedRecordKey,
-      ) ?? null,
-    [recordResults.data?.rows, selectedRecordKey],
-  );
   const addRecord = useMutation({
     mutationFn: (values: AddRecordForm) =>
       addEncounterRecordParticipant({
@@ -112,8 +83,6 @@ export function EncounterRosterPane({
     onSuccess: () => {
       setRecordOpen(false);
       recordForm.resetFields();
-      setRecordSearch("");
-      setActiveRecordSearch("");
       setSelectedRecordKey(null);
       onAddComplete();
     },
@@ -273,72 +242,28 @@ export function EncounterRosterPane({
           )}
         </div>
       )}
-      <Modal
-        title="Add creature or hazard"
-        open={recordOpen}
-        onCancel={() => {
-          setRecordOpen(false);
-          setRecordSearch("");
-          setActiveRecordSearch("");
-          setSelectedRecordKey(null);
-        }}
-        onOk={() => recordForm.submit()}
+      <SearchPickerModal<AddRecordForm>
+        buildRequest={encounterRecordPickerRequest}
+        emptyPrompt="Search for a creature or hazard"
+        emptyResults="No creatures or hazards"
+        form={recordForm}
         okButtonProps={{ disabled: !selectedRecordKey }}
+        onCancel={() => setRecordOpen(false)}
+        onFinish={(values) => addRecord.mutate(values)}
+        onSelectedRecordKeyChange={setSelectedRecordKey}
+        open={recordOpen}
+        selectedLabel={(row) => `Selected: ${row.record.title}`}
+        selectedPrompt="Select a creature or hazard."
+        selectedRecordKey={selectedRecordKey}
+        title="Add creature or hazard"
       >
-        <Form form={recordForm} layout="vertical" onFinish={(v) => addRecord.mutate(v)}>
-          <Form.Item label="Search" layout="vertical">
-            <Input
-              allowClear
-              aria-label="Search"
-              value={recordSearch}
-              onChange={(event) => {
-                setRecordSearch(event.target.value);
-                setSelectedRecordKey(null);
-              }}
-            />
-          </Form.Item>
-          <Table
-            columns={encounterRecordPickerColumns((recordKey) =>
-              setSelectedRecordKey(recordKey),
-            )}
-            dataSource={
-              activeRecordSearch.trim().length > 0
-                ? (recordResults.data?.rows ?? [])
-                : []
-            }
-            loading={recordResults.isLoading || recordResults.isFetching}
-            locale={{
-              emptyText:
-                activeRecordSearch.trim().length > 0
-                  ? "No creatures or hazards"
-                  : "Search for a creature or hazard",
-            }}
-            pagination={false}
-            rowClassName={(row) =>
-              row.record.record_key === selectedRecordKey
-                ? "encounter-record-picker__row encounter-record-picker__row--selected"
-                : "encounter-record-picker__row"
-            }
-            onRow={(row) => ({
-              onClick: () => setSelectedRecordKey(row.record.record_key),
-            })}
-            rowKey={(row) => row.record.record_key}
-            scroll={{ y: 280 }}
-            size="small"
-          />
-          <p className="encounter-record-picker__selection">
-            {selectedRecord
-              ? `Selected: ${selectedRecord.record.title}`
-              : "Select a creature or hazard."}
-          </p>
-          <Form.Item name="quantity" label="Quantity">
-            <InputNumber aria-label="Quantity" min={1} max={50} />
-          </Form.Item>
-          <Form.Item name="initiative" label="Initiative">
-            <InputNumber aria-label="Initiative" />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Form.Item name="quantity" label="Quantity">
+          <InputNumber aria-label="Quantity" min={1} max={50} />
+        </Form.Item>
+        <Form.Item name="initiative" label="Initiative">
+          <InputNumber aria-label="Initiative" />
+        </Form.Item>
+      </SearchPickerModal>
       <Modal
         title="Add PC"
         open={pcOpen}
@@ -359,48 +284,6 @@ export function EncounterRosterPane({
       </Modal>
     </section>
   );
-}
-
-function encounterRecordPickerColumns(
-  onSelectRecord: (recordKey: string) => void,
-): ColumnsType<ResultWindowRow> {
-  return [
-    {
-      title: "Name",
-      dataIndex: ["record", "title"],
-      render: (_, row) => (
-        <span
-          className="encounter-record-picker__title"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectRecord(row.record.record_key);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onSelectRecord(row.record.record_key);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <span>{row.record.title}</span>
-          {row.record.preview ? <small>{row.record.preview}</small> : null}
-        </span>
-      ),
-    },
-    {
-      title: "Kind",
-      dataIndex: ["record", "kind_label"],
-      width: 100,
-    },
-    {
-      title: "Level",
-      dataIndex: ["record", "level_label"],
-      width: 90,
-      render: (value) => value ?? "",
-    },
-  ];
 }
 
 function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {

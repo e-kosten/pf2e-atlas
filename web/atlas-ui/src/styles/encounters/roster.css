@@ -105,29 +105,3 @@
   display: inline-flex;
   gap: 6px;
 }
-
-.encounter-record-picker__row {
-  cursor: pointer;
-}
-
-.encounter-record-picker__row--selected > td {
-  background: var(--panel-subtle);
-}
-
-.encounter-record-picker__title {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.encounter-record-picker__title small {
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.encounter-record-picker__selection {
-  color: var(--muted);
-  margin: 8px 0 12px;
-}
