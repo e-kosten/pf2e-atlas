@@ -8,6 +8,8 @@ It uses React, Ant Design, TanStack Query, and Rust-generated Atlas DTOs for the
 
 Ant Design is the selected component library for the current web UI. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the decision note and retained comparison context.
 
+Frontend implementation guidance lives in [docs/frontend-guidelines.md](docs/frontend-guidelines.md). In particular, repeated Atlas interactions should use the shared primitives under `src/shared/ui` before adding feature-local component behavior.
+
 ## Normal Use
 
 The installed Atlas CLI serves the built frontend through the Rust web service:

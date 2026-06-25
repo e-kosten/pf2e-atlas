@@ -17,6 +17,11 @@ preflight:
 verify *args:
     scripts/verify.sh {{args}}
 
+[doc('Run path-sensitive validation for staged changes, a git range, or all surfaces')]
+[group('validation')]
+verify-changed *args:
+    scripts/verify-changed.sh {{args}}
+
 [doc('Install frontend dependencies for the Atlas web UI')]
 [group('validation')]
 web-ui-install:

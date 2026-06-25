@@ -51,7 +51,12 @@ staged_changes_are_docs_only() {
 }
 
 run_required_verification() {
-  "$(repo_root)/scripts/verify.sh"
+  "$(repo_root)/scripts/verify-changed.sh" --staged
+}
+
+run_full_verification_for_range() {
+  range="$1"
+  "$(repo_root)/scripts/verify-changed.sh" --range "$range" --full
 }
 
 push_range_is_docs_only() {
@@ -63,6 +68,17 @@ push_range_is_docs_only() {
   fi
 
   git diff --name-only --relative "$remote_oid" "$local_oid" | paths_are_docs_only
+}
+
+push_range() {
+  local_oid="$1"
+  remote_oid="$2"
+
+  if is_zero_oid "$local_oid" || is_zero_oid "$remote_oid"; then
+    return 1
+  fi
+
+  printf '%s..%s\n' "$remote_oid" "$local_oid"
 }
 
 require_linked_worktree() {

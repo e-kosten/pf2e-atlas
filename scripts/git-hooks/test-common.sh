@@ -19,36 +19,71 @@ exit 0
 EOF_CARGO
 chmod +x "$fake_bin/cargo"
 
-quiet_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" sh -c ". '$script_dir/common.sh'; run_required_verification" 2>&1)
-if printf '%s\n' "$quiet_output" | grep -q 'cargo detail output'; then
-  echo "quiet verification surfaced successful cargo detail output" >&2
-  exit 1
-fi
+cat > "$fake_bin/npm" <<'EOF_NPM'
+#!/bin/sh
+printf 'npm %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
+printf 'npm detail output for %s\n' "$*"
+exit 0
+EOF_NPM
+chmod +x "$fake_bin/npm"
 
-verbose_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify.sh" --verbose 2>&1)
-if ! printf '%s\n' "$verbose_output" | grep -q 'cargo detail output'; then
-  echo "verbose verification did not surface cargo detail output" >&2
+: >"$log"
+quiet_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --all 2>&1)
+if printf '%s\n' "$quiet_output" | grep -Eq '(cargo|npm) detail output'; then
+  echo "quiet changed-path verification surfaced successful command detail output" >&2
   exit 1
 fi
 
 grep -q 'cargo fmt --check' "$log" || {
-  echo "git-hook verification did not run cargo fmt" >&2
+  echo "fast changed-path verification did not run cargo fmt" >&2
   exit 1
 }
 grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
-  echo "git-hook verification did not run broad clippy validation" >&2
+  echo "fast changed-path verification did not run broad clippy validation" >&2
   exit 1
 }
 grep -q 'cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
-  echo "git-hook verification did not run strict runtime clippy validation" >&2
+  echo "fast changed-path verification did not run strict runtime clippy validation" >&2
   exit 1
 }
+grep -q 'npm --prefix web/atlas-ui run format:check' "$log" || {
+  echo "fast changed-path verification did not run web format check" >&2
+  exit 1
+}
+grep -q 'npm --prefix web/atlas-ui run lint' "$log" || {
+  echo "fast changed-path verification did not run web lint" >&2
+  exit 1
+}
+grep -q 'npm --prefix web/atlas-ui run typecheck' "$log" || {
+  echo "fast changed-path verification did not run web typecheck" >&2
+  exit 1
+}
+if grep -q 'cargo test --workspace' "$log" || grep -q 'cargo build --workspace' "$log"; then
+  echo "fast changed-path verification unexpectedly ran full Rust integration checks" >&2
+  exit 1
+fi
+if grep -q 'npm --prefix web/atlas-ui run verify' "$log"; then
+  echo "fast changed-path verification unexpectedly ran full web verify" >&2
+  exit 1
+fi
+
+: >"$log"
+verbose_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --all --full --verbose 2>&1)
+if ! printf '%s\n' "$verbose_output" | grep -Eq '(cargo|npm) detail output'; then
+  echo "verbose full changed-path verification did not surface command detail output" >&2
+  exit 1
+fi
+
 grep -q 'cargo test --workspace' "$log" || {
-  echo "git-hook verification did not run cargo tests" >&2
+  echo "full changed-path verification did not run cargo tests" >&2
   exit 1
 }
 grep -q 'cargo build --workspace' "$log" || {
-  echo "git-hook verification did not run cargo build" >&2
+  echo "full changed-path verification did not run cargo build" >&2
+  exit 1
+}
+grep -q 'npm --prefix web/atlas-ui run verify' "$log" || {
+  echo "full changed-path verification did not run web verify" >&2
   exit 1
 }
 
