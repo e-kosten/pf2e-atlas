@@ -1,0 +1,147 @@
+.encounter-participant-controls {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.encounter-turn__body,
+.encounter-conditions,
+.encounter-condition-list {
+  display: grid;
+  gap: 12px;
+}
+
+.encounter-form-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 96px;
+}
+
+.encounter-form-grid .ant-form-item,
+.encounter-hp-grid .ant-form-item {
+  margin-bottom: 0;
+}
+
+.encounter-hp-panel {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 12px;
+  padding: 10px;
+}
+
+.encounter-hp-panel__header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  justify-content: space-between;
+}
+
+.encounter-hp-panel h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.encounter-hp-panel__header span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.encounter-hp-meter {
+  background: var(--panel-subtle);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.encounter-hp-meter__current,
+.encounter-hp-meter__missing,
+.encounter-hp-meter__temporary {
+  bottom: 0;
+  display: block;
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.encounter-hp-meter__current {
+  background: var(--hp-current);
+}
+
+.encounter-hp-meter__current--bloodied {
+  background: var(--hp-bloodied);
+}
+
+.encounter-hp-meter__current--critical {
+  background: var(--hp-critical);
+}
+
+.encounter-hp-meter__missing {
+  background: var(--hp-missing);
+}
+
+.encounter-hp-meter__temporary {
+  background: var(--hp-temp);
+  opacity: 0.75;
+}
+
+.encounter-hp-grid {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.encounter-hp-control {
+  flex: 1 1 190px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.encounter-hp-control--wide {
+  flex-basis: 280px;
+}
+
+.encounter-hp-control__label {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.encounter-hp-control__row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(118px, 1fr) auto;
+  min-width: 0;
+}
+
+.encounter-hp-control--wide .encounter-hp-control__row {
+  grid-template-columns: minmax(132px, 1fr) auto;
+}
+
+.encounter-hp-grid .ant-input-number {
+  width: 100%;
+}
+
+.encounter-hp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.encounter-hp-actions .ant-btn {
+  min-width: 68px;
+}
+
+.manual-participant dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: max-content 1fr;
+}
+
+.manual-participant dt {
+  color: var(--muted);
+}

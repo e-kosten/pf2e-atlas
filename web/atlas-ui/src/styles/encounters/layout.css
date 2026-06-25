@@ -1,0 +1,129 @@
+.encounter-index-view,
+.encounter-edit-view {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 24px;
+}
+
+.encounter-edit-view {
+  max-width: 760px;
+}
+
+.encounter-edit-view__header,
+.encounter-edit-view__content {
+  background: var(--panel);
+}
+
+.encounter-edit-view__header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.encounter-edit-view__header h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.encounter-edit-view__header p,
+.encounter-edit-view__metadata {
+  color: var(--muted);
+}
+
+.encounter-edit-view__header p {
+  margin: 4px 0 0;
+}
+
+.encounter-edit-view__content {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.encounter-edit-view__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 16px;
+}
+
+.encounter-detail-header {
+  align-items: flex-start;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.encounter-detail-header h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.encounter-detail-header p {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.encounter-detail-header + .workspace-grid {
+  height: calc(100vh - 77px - 65px);
+}
+
+.encounter-index-row {
+  cursor: pointer;
+}
+
+.encounter-index-row:hover > td,
+.encounter-index-row:focus-visible > td {
+  background: var(--panel-subtle);
+}
+
+.encounter-pane {
+  background: var(--panel);
+  min-height: 100%;
+  overflow: auto;
+  padding: 16px;
+}
+
+.encounter-record-pane {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  position: relative;
+}
+
+.encounter-pane__header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+}
+
+.encounter-pane__header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.encounter-pane__header p {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.encounter-variant-select {
+  min-width: 104px;
+}
+
+.encounter-variant-control {
+  align-items: flex-start;
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  gap: 4px;
+}

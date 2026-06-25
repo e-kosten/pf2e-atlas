@@ -1,0 +1,133 @@
+.encounter-actions,
+.encounter-control-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.encounter-control-row .ant-form-item {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.encounter-roster__list {
+  display: grid;
+  gap: 6px;
+}
+
+.encounter-roster__group {
+  display: grid;
+  gap: 6px;
+}
+
+.encounter-roster__group + .encounter-roster__group {
+  margin-top: 10px;
+}
+
+.encounter-roster__group-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.encounter-roster__row {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 18px 52px minmax(0, 1fr) 60px auto;
+  min-height: 48px;
+  padding: 8px;
+  text-align: left;
+}
+
+.encounter-roster__row--current {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.encounter-roster__row--selected {
+  background: var(--panel-subtle);
+}
+
+.encounter-roster__row--current.encounter-roster__row--selected {
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel-subtle));
+}
+
+.encounter-roster__row--defeated {
+  opacity: 0.52;
+}
+
+.encounter-roster__main {
+  display: grid;
+  min-width: 0;
+}
+
+.encounter-roster__drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.encounter-roster__main span,
+.encounter-roster__main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.encounter-roster__main small {
+  color: var(--muted);
+}
+
+.encounter-roster__initiative-input,
+.encounter-roster__hp-input {
+  font-variant-numeric: tabular-nums;
+}
+
+.encounter-roster__initiative-input input,
+.encounter-roster__hp-input input {
+  text-align: right;
+}
+
+.encounter-roster__row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.encounter-row-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.encounter-record-picker__row {
+  cursor: pointer;
+}
+
+.encounter-record-picker__row--selected > td {
+  background: var(--panel-subtle);
+}
+
+.encounter-record-picker__title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.encounter-record-picker__title small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.encounter-record-picker__selection {
+  color: var(--muted);
+  margin: 8px 0 12px;
+}

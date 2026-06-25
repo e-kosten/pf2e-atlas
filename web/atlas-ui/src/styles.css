@@ -1,4 +1,5 @@
-@import "./styles/tokens.css";
+@import "./styles/theme.css";
+@import "./styles/base.css";
 @import "./styles/shell.css";
 @import "./styles/filters.css";
 @import "./styles/ant-overrides.css";
