@@ -1,0 +1,9 @@
+.encounter-source-record {
+  display: grid;
+  gap: 10px;
+}
+
+.encounter-source-record > h3 {
+  font-size: 14px;
+  margin: 0;
+}

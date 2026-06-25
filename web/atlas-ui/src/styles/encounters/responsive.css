@@ -1,0 +1,27 @@
+.encounter-empty-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: -4px 0 0;
+}
+
+@media (max-width: 900px) {
+  .encounter-form-grid,
+  .encounter-hp-grid,
+  .encounter-add-condition__row,
+  .encounter-condition-row {
+    grid-template-columns: 1fr;
+  }
+
+  .encounter-add-condition__row {
+    min-width: 0;
+  }
+
+  .encounter-hp-control,
+  .encounter-hp-control--wide {
+    flex-basis: 100%;
+  }
+
+  .encounter-hp-actions .ant-btn {
+    flex: 1 1 0;
+  }
+}

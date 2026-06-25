@@ -1,0 +1,38 @@
+.encounter-reference-preview__backdrop {
+  background: var(--overlay-backdrop);
+  bottom: 0;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 40;
+}
+
+.encounter-reference-preview {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-width: calc(100vw - 32px);
+  min-width: min(320px, calc(100vw - 32px));
+  overflow: hidden;
+  position: absolute;
+}
+
+.encounter-reference-preview__header {
+  align-items: center;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  font-weight: 600;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.encounter-reference-preview__body {
+  background: var(--panel);
+  overflow: auto;
+  padding: 12px;
+}
