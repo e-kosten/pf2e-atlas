@@ -31,12 +31,12 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
             "saved-list tables exist without local-state metadata".to_string(),
         ));
     }
-    create_v4_schema(connection)?;
+    create_v5_schema(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
 
-fn create_v4_schema(connection: &Connection) -> LocalStateResult<()> {
+fn create_v5_schema(connection: &Connection) -> LocalStateResult<()> {
     connection.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -128,7 +128,6 @@ fn create_v4_schema(connection: &Connection) -> LocalStateResult<()> {
           source_participant_key TEXT,
           duration_rounds INTEGER,
           note TEXT,
-          source_note TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
@@ -180,18 +179,58 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
         "1" => {
             migrate_v1_to_v2(connection)?;
             migrate_v2_to_v3(connection)?;
-            migrate_v3_to_v4(connection)
+            migrate_v3_to_v4(connection)?;
+            migrate_v4_to_v5(connection)
         }
         "2" => {
             migrate_v2_to_v3(connection)?;
-            migrate_v3_to_v4(connection)
+            migrate_v3_to_v4(connection)?;
+            migrate_v4_to_v5(connection)
         }
-        "3" => migrate_v3_to_v4(connection),
+        "3" => {
+            migrate_v3_to_v4(connection)?;
+            migrate_v4_to_v5(connection)
+        }
+        "4" => migrate_v4_to_v5(connection),
         _ => Err(LocalStateError::UnsupportedMetadata {
             key: METADATA_SCHEMA_VERSION,
             value: schema_version,
         }),
     }
+}
+
+fn migrate_v4_to_v5(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "
+        CREATE TABLE encounter_participant_conditions_v5 (
+          id INTEGER PRIMARY KEY,
+          participant_id INTEGER NOT NULL,
+          condition_key TEXT,
+          name TEXT NOT NULL,
+          value INTEGER,
+          source_participant_key TEXT,
+          duration_rounds INTEGER,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        INSERT INTO encounter_participant_conditions_v5 (
+          id, participant_id, condition_key, name, value, source_participant_key,
+          duration_rounds, note, created_at, updated_at
+        )
+        SELECT id, participant_id, condition_key, name, value, source_participant_key,
+               duration_rounds, note, created_at, updated_at
+          FROM encounter_participant_conditions;
+        DROP TABLE encounter_participant_conditions;
+        ALTER TABLE encounter_participant_conditions_v5
+          RENAME TO encounter_participant_conditions;
+        UPDATE local_state_metadata
+           SET value = '5'
+         WHERE key = 'schema_version';
+        ",
+    )?;
+    Ok(())
 }
 
 fn migrate_v3_to_v4(connection: &Connection) -> LocalStateResult<()> {
@@ -269,7 +308,6 @@ fn migrate_v2_to_v3(connection: &Connection) -> LocalStateResult<()> {
           source_participant_key TEXT,
           duration_rounds INTEGER,
           note TEXT,
-          source_note TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE

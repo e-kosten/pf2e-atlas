@@ -103,7 +103,6 @@ pub struct EncounterParticipantCondition {
     pub source_participant_key: Option<String>,
     pub duration_rounds: Option<i64>,
     pub note: Option<String>,
-    pub source_note: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -242,7 +241,6 @@ pub struct AddEncounterParticipantCondition {
     pub source_participant_key: Option<String>,
     pub duration_rounds: Option<i64>,
     pub note: Option<String>,
-    pub source_note: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,5 +252,4 @@ pub struct UpdateEncounterParticipantCondition {
     pub source_participant_key: Option<String>,
     pub duration_rounds: Option<i64>,
     pub note: Option<String>,
-    pub source_note: Option<String>,
 }

@@ -556,10 +556,10 @@ describe("encounter views", () => {
     ).not.toHaveProperty("condition_key");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Frightened details" }));
-    fireEvent.change(lastInputByAriaLabel("Duration rounds"), {
+    fireEvent.change(lastFieldByAriaLabel("Duration rounds"), {
       target: { value: "4" },
     });
-    fireEvent.change(lastInputByAriaLabel("Condition note"), {
+    fireEvent.change(lastFieldByAriaLabel("Condition note"), {
       target: { value: "aura" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -610,15 +610,17 @@ function conditionCombobox(label: string): HTMLElement {
     .find((element) => element.getAttribute("role") === "combobox")!;
 }
 
-function lastInputByAriaLabel(label: string): HTMLInputElement {
-  const inputs = Array.from(
-    document.querySelectorAll<HTMLInputElement>(`input[aria-label="${label}"]`),
+function lastFieldByAriaLabel(label: string): HTMLInputElement | HTMLTextAreaElement {
+  const fields = Array.from(
+    document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      `input[aria-label="${label}"], textarea[aria-label="${label}"]`,
+    ),
   );
-  const input = inputs[inputs.length - 1];
-  if (!input) {
-    throw new Error(`${label} input was not rendered`);
+  const field = fields[fields.length - 1];
+  if (!field) {
+    throw new Error(`${label} field was not rendered`);
   }
-  return input;
+  return field;
 }
 
 function rosterRow(displayName: string): HTMLElement {

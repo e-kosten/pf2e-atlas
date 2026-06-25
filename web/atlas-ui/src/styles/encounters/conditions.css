@@ -34,6 +34,10 @@
   margin-bottom: 0;
 }
 
+.encounter-condition-note-input {
+  resize: vertical;
+}
+
 .encounter-condition-details__actions {
   display: flex;
   justify-content: flex-end;

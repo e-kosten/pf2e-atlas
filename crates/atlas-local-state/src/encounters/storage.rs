@@ -341,9 +341,9 @@ pub(crate) fn add_condition(
     connection.execute(
         "INSERT INTO encounter_participant_conditions (
             participant_id, condition_key, name, value, source_participant_key,
-            duration_rounds, note, source_note, created_at, updated_at
+            duration_rounds, note, created_at, updated_at
          )
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
         params![
             participant_id,
             condition.condition_key,
@@ -352,7 +352,6 @@ pub(crate) fn add_condition(
             condition.source_participant_key,
             condition.duration_rounds,
             condition.note,
-            condition.source_note,
             now,
         ],
     )?;
@@ -382,8 +381,8 @@ pub(crate) fn update_condition(
     let updated = connection.execute(
         "UPDATE encounter_participant_conditions
          SET condition_key = ?1, name = ?2, value = ?3, source_participant_key = ?4,
-             duration_rounds = ?5, note = ?6, source_note = ?7, updated_at = ?8
-         WHERE id = ?9 AND participant_id = ?10",
+             duration_rounds = ?5, note = ?6, updated_at = ?7
+         WHERE id = ?8 AND participant_id = ?9",
         params![
             condition.condition_key,
             condition.name,
@@ -391,7 +390,6 @@ pub(crate) fn update_condition(
             condition.source_participant_key,
             condition.duration_rounds,
             condition.note,
-            condition.source_note,
             now,
             condition.condition_id,
             participant_id,
@@ -578,7 +576,7 @@ fn participant_conditions(
     let mut statement = connection.prepare(
         "SELECT condition.id, condition.condition_key, condition.name, condition.value,
                 condition.source_participant_key, condition.duration_rounds, condition.note,
-                condition.source_note, condition.created_at, condition.updated_at
+                condition.created_at, condition.updated_at
          FROM encounter_participant_conditions condition
          JOIN encounter_participants participant ON participant.id = condition.participant_id
          WHERE participant.participant_key = ?1
@@ -597,9 +595,8 @@ fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPart
         source_participant_key: row.get(4)?,
         duration_rounds: row.get(5)?,
         note: row.get(6)?,
-        source_note: row.get(7)?,
-        created_at: row.get(8)?,
-        updated_at: row.get(9)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
     })
 }
 

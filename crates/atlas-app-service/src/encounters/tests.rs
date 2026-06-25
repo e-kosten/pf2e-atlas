@@ -522,7 +522,6 @@ fn condition_add_resolves_condition_records_and_rejects_other_records() {
                 source_participant_key: None,
                 duration_rounds: Some(2),
                 note: None,
-                source_note: None,
             },
         )
         .expect("condition record should add");
@@ -546,7 +545,6 @@ fn condition_add_resolves_condition_records_and_rejects_other_records() {
                 source_participant_key: None,
                 duration_rounds: None,
                 note: None,
-                source_note: None,
             },
         )
         .expect_err("non-condition record should reject");
@@ -639,7 +637,6 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
                 source_participant_key: None,
                 duration_rounds: Some(2),
                 note: None,
-                source_note: None,
             },
         )
         .expect("record-backed condition should add");
@@ -663,7 +660,6 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
                 source_participant_key: None,
                 duration_rounds: Some(1),
                 note: None,
-                source_note: None,
             },
         )
         .expect("manual condition update should preserve key");
@@ -687,7 +683,6 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
                 source_participant_key: None,
                 duration_rounds: Some(4),
                 note: None,
-                source_note: None,
             },
         )
         .expect("condition ref update should resolve stored key and name");
@@ -711,7 +706,6 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
                 source_participant_key: None,
                 duration_rounds: None,
                 note: None,
-                source_note: None,
             },
         )
         .expect_err("non-condition ref should reject on update");
@@ -813,7 +807,6 @@ fn encounter_conditions_and_reorder_route_through_app_service() {
                 source_participant_key: Some(low.participant_key.clone()),
                 duration_rounds: Some(2),
                 note: Some("spell".to_string()),
-                source_note: Some("source text".to_string()),
             },
         )
         .expect("condition should add");
@@ -837,7 +830,6 @@ fn encounter_conditions_and_reorder_route_through_app_service() {
                 source_participant_key: None,
                 duration_rounds: Some(1),
                 note: None,
-                source_note: None,
             },
         )
         .expect("condition should update");
@@ -890,7 +882,6 @@ fn condition_update_and_delete_reject_wrong_participant_without_mutating() {
                 source_participant_key: None,
                 duration_rounds: Some(2),
                 note: Some("original".to_string()),
-                source_note: None,
             },
         )
         .expect("condition should add");
@@ -909,7 +900,6 @@ fn condition_update_and_delete_reject_wrong_participant_without_mutating() {
                 source_participant_key: None,
                 duration_rounds: None,
                 note: None,
-                source_note: None,
             },
         )
         .expect_err("wrong participant update should reject")

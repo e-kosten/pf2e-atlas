@@ -227,7 +227,9 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             }
             onReference={(recordKey, anchorRect) => {
               setPreviewRecordKey(recordKey);
-              setPreviewAnchor(anchorRect ? referenceAnchorFromRect(anchorRect) : null);
+              if (anchorRect) {
+                setPreviewAnchor(referenceAnchorFromRect(anchorRect));
+              }
             }}
             onRemoveCondition={(participantKey, conditionId) =>
               removeCondition.mutate({ participantKey, conditionId })

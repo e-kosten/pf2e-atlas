@@ -17,14 +17,12 @@ type AddConditionForm = {
   duration?: number;
   sourceParticipantKey?: string;
   note?: string;
-  sourceNote?: string;
 };
 
 type ConditionDetailsForm = {
   duration?: number;
   sourceParticipantKey?: string;
   note?: string;
-  sourceNote?: string;
 };
 
 export function EncounterConditionControls({
@@ -83,7 +81,6 @@ export function EncounterConditionControls({
                     ? { source_participant_key: values.sourceParticipantKey }
                     : {}),
                   ...(values.note ? { note: values.note } : {}),
-                  ...(values.sourceNote ? { source_note: values.sourceNote } : {}),
                 });
                 conditionForm.resetFields();
                 setAddDetailsOpen(false);
@@ -121,12 +118,7 @@ export function EncounterConditionControls({
                   </Form.Item>
                 )}
                 <Popover
-                  content={
-                    <ConditionDetailsFields
-                      participants={participants}
-                      sourceLabel="Source"
-                    />
-                  }
+                  content={<ConditionDetailsFields participants={participants} />}
                   open={addDetailsOpen}
                   onOpenChange={setAddDetailsOpen}
                   placement="bottomRight"
@@ -175,20 +167,18 @@ export function EncounterConditionControls({
 
 function ConditionDetailsFields({
   participants,
-  sourceLabel,
 }: {
   participants: EncounterParticipantView[];
-  sourceLabel: string;
 }) {
   return (
     <div className="encounter-condition-details">
       <Form.Item name="duration" label="Duration">
         <InputNumber aria-label="Duration rounds" min={0} />
       </Form.Item>
-      <Form.Item name="sourceParticipantKey" label={sourceLabel}>
+      <Form.Item name="sourceParticipantKey" label="Source">
         <Select
           allowClear
-          aria-label={sourceLabel}
+          aria-label="Source"
           options={participants.map((participant) => ({
             value: participant.participant_key,
             label: participant.display_name,
@@ -196,10 +186,11 @@ function ConditionDetailsFields({
         />
       </Form.Item>
       <Form.Item name="note" label="Note">
-        <Input aria-label="Condition note" />
-      </Form.Item>
-      <Form.Item name="sourceNote" label="Source Note">
-        <Input aria-label="Condition source note" />
+        <Input.TextArea
+          aria-label="Condition note"
+          autoSize={{ minRows: 2, maxRows: 8 }}
+          className="encounter-condition-note-input"
+        />
       </Form.Item>
     </div>
   );
@@ -231,8 +222,7 @@ function ConditionEditor({
   const hasDetails = Boolean(
     condition.duration_rounds !== undefined ||
     condition.source_participant_key ||
-    condition.note ||
-    condition.source_note,
+    condition.note,
   );
   const update = (changes: Partial<UpdateEncounterParticipantConditionRequest>) =>
     onUpdate(participantKey, {
@@ -242,7 +232,6 @@ function ConditionEditor({
       source_participant_key: condition.source_participant_key,
       duration_rounds: condition.duration_rounds,
       note: condition.note,
-      source_note: condition.source_note,
       ...changes,
     });
   const saveDetails = () => {
@@ -252,7 +241,6 @@ function ConditionEditor({
         values.duration === undefined ? undefined : BigInt(values.duration),
       source_participant_key: values.sourceParticipantKey,
       note: values.note || undefined,
-      source_note: values.sourceNote || undefined,
     });
     setDetailsOpen(false);
   };
@@ -262,7 +250,6 @@ function ConditionEditor({
         duration: optionalNumber(condition.duration_rounds),
         sourceParticipantKey: condition.source_participant_key,
         note: condition.note,
-        sourceNote: condition.source_note,
       });
     }
     setDetailsOpen(open);
@@ -310,10 +297,7 @@ function ConditionEditor({
       <Popover
         content={
           <Form form={detailsForm} layout="vertical">
-            <ConditionDetailsFields
-              participants={participants}
-              sourceLabel="Condition source"
-            />
+            <ConditionDetailsFields participants={participants} />
             <div className="encounter-condition-details__actions">
               <Button type="primary" onClick={saveDetails}>
                 Save
