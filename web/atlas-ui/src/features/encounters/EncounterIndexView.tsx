@@ -6,7 +6,7 @@ import { useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
 import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
+import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { CreateEncounterModal } from "./EncounterModals";
@@ -65,15 +65,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
         columns={encounterColumns(
           (encounter) =>
             navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
-          (encounter) =>
-            confirmDangerAction({
-              title: `Delete ${encounter.name}?`,
-              content: "This permanently deletes the encounter.",
-              okText: "Delete",
-              onConfirm: () => {
-                deleteMutation.mutate(encounter.slug);
-              },
-            }),
+          (encounter) => deleteMutation.mutate(encounter.slug),
         )}
         dataSource={visible}
         loading={encounters.isLoading || encounters.isFetching}
@@ -117,15 +109,17 @@ function encounterColumns(
               onEdit(encounter);
             }}
           />
-          <Button
-            danger
+          <DangerActionButton
             aria-label={`Delete ${encounter.name}`}
+            confirmContent="This permanently deletes the encounter."
+            confirmOkText="Delete"
+            confirmTitle={`Delete ${encounter.name}?`}
             icon={<Trash2 size={14} />}
-            size="small"
-            onClick={(event) => {
+            onBeforeConfirm={(event) => {
               stopIndexRowAction(event);
-              onDelete(encounter);
             }}
+            onConfirm={() => onDelete(encounter)}
+            size="small"
           />
         </span>
       ),
