@@ -14,9 +14,9 @@ import type {
   ResultWindowRow,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import {
   clampCurrentHp,
-  displayNumber,
   optionalBigIntInput,
   optionalHpFormulaInput,
   participantUpdate,
@@ -182,42 +182,28 @@ export function EncounterRosterPane({
       <span className="encounter-roster__drag-handle" aria-hidden="true">
         <GripVertical size={16} />
       </span>
-      <Input
-        aria-label={`${participant.display_name} initiative`}
+      <EditableCommitField
+        ariaLabel={`${participant.display_name} initiative`}
         className="encounter-roster__initiative-input"
-        defaultValue={inputNumberValue(participant.initiative)}
-        key={`initiative-${participant.participant_key}-${displayNumber(participant.initiative)}`}
-        onBlur={(event) =>
-          commitRosterInitiative(participant, event.target.value, onUpdate)
-        }
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === "Enter") {
-            commitRosterInitiative(participant, event.currentTarget.value, onUpdate);
-          }
-        }}
+        inputMode="numeric"
+        onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
         size="small"
+        stopPropagation
+        value={inputNumberValue(participant.initiative)}
       />
       <span className="encounter-roster__main">
         <span>{participant.display_name}</span>
         <small>{participant.note_hint ?? participant.side}</small>
       </span>
-      <Input
-        aria-label={`${participant.display_name} current HP`}
+      <EditableCommitField
+        ariaLabel={`${participant.display_name} current HP`}
         className="encounter-roster__hp-input"
-        defaultValue={inputNumberValue(participant.current_hp)}
-        key={`hp-${participant.participant_key}-${displayNumber(participant.current_hp)}`}
-        onBlur={(event) => commitRosterHp(participant, event.target.value, onUpdate)}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === "Enter") {
-            commitRosterHp(participant, event.currentTarget.value, onUpdate);
-          }
-        }}
+        inputMode="numeric"
+        onCommit={(value) => commitRosterHp(participant, value, onUpdate)}
         placeholder={participant.max_hp === undefined ? "" : "HP"}
         size="small"
+        stopPropagation
+        value={inputNumberValue(participant.current_hp)}
       />
       <span className="encounter-roster__row-actions">
         <Button
