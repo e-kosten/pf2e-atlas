@@ -1,6 +1,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PaneFrame, ResizablePaneGroup } from "./PaneLayout";
+import type { ResizablePaneItem } from "./PaneLayout";
 
 type PaneKey = "filter" | "results" | "detail";
 
@@ -15,7 +16,7 @@ type WorkspaceLayoutProps = {
   filterHeaderActions?: React.ReactNode;
   results: React.ReactNode;
   resultsHeaderActions?: React.ReactNode;
-  detail: React.ReactNode;
+  detail?: React.ReactNode;
   detailHeaderActions?: React.ReactNode;
   labels?: Partial<Record<PaneKey, string>>;
   sizing?: "results-focus" | "detail-focus";
@@ -82,73 +83,84 @@ export function WorkspaceLayout({
     setCollapsed((current) => ({ ...current, [pane]: !current[pane] }));
   }
 
+  const hasDetail = detail !== undefined;
+
   return (
     <ResizablePaneGroup
       className="workspace-grid"
       widthSpecs={effectiveWidthSpecs}
-      items={(widths) => [
-        {
-          kind: "pane",
-          key: "filter",
-          column: paneColumn("filter", effectiveCollapsed, widths, sizing),
-          content: (
-            <WorkspacePane
-              collapsed={effectiveCollapsed.filter}
-              headerActions={filterHeaderActions}
-              label={paneLabels.filter}
-              onToggle={() => togglePane("filter")}
-            >
-              {filter}
-            </WorkspacePane>
-          ),
-        },
-        {
-          kind: "handle",
-          key: "filter-results",
-          disabled: effectiveCollapsed.filter && effectiveCollapsed.results,
-          label: `Resize ${paneLabels.filter.toLowerCase()}`,
-          resizePane: "filter",
-          deltaMultiplier: 1,
-        },
-        {
-          kind: "pane",
-          key: "results",
-          column: paneColumn("results", effectiveCollapsed, widths, sizing),
-          content: (
-            <WorkspacePane
-              collapsed={effectiveCollapsed.results}
-              headerActions={resultsHeaderActions}
-              label={paneLabels.results}
-              onToggle={() => togglePane("results")}
-            >
-              {results}
-            </WorkspacePane>
-          ),
-        },
-        {
-          kind: "handle",
-          key: "results-detail",
-          disabled: effectiveCollapsed.results && effectiveCollapsed.detail,
-          label: `Resize ${paneLabels.results.toLowerCase()}`,
-          resizePane: sizing === "detail-focus" ? "results" : "detail",
-          deltaMultiplier: sizing === "detail-focus" ? 1 : -1,
-        },
-        {
-          kind: "pane",
-          key: "detail",
-          column: paneColumn("detail", effectiveCollapsed, widths, sizing),
-          content: (
-            <WorkspacePane
-              collapsed={effectiveCollapsed.detail}
-              headerActions={detailHeaderActions}
-              label={paneLabels.detail}
-              onToggle={() => togglePane("detail")}
-            >
-              {detail}
-            </WorkspacePane>
-          ),
-        },
-      ]}
+      items={(widths) => {
+        const items: ResizablePaneItem<PaneKey>[] = [
+          {
+            kind: "pane" as const,
+            key: "filter",
+            column: paneColumn("filter", effectiveCollapsed, widths, sizing),
+            content: (
+              <WorkspacePane
+                collapsed={effectiveCollapsed.filter}
+                headerActions={filterHeaderActions}
+                label={paneLabels.filter}
+                onToggle={() => togglePane("filter")}
+              >
+                {filter}
+              </WorkspacePane>
+            ),
+          },
+          {
+            kind: "handle" as const,
+            key: "filter-results",
+            disabled: effectiveCollapsed.filter && effectiveCollapsed.results,
+            label: `Resize ${paneLabels.filter.toLowerCase()}`,
+            resizePane: "filter",
+            deltaMultiplier: 1,
+          },
+          {
+            kind: "pane" as const,
+            key: "results",
+            column: hasDetail
+              ? paneColumn("results", effectiveCollapsed, widths, sizing)
+              : twoPaneResultsColumn(effectiveCollapsed),
+            content: (
+              <WorkspacePane
+                collapsed={effectiveCollapsed.results}
+                headerActions={resultsHeaderActions}
+                label={paneLabels.results}
+                onToggle={() => togglePane("results")}
+              >
+                {results}
+              </WorkspacePane>
+            ),
+          },
+        ];
+        if (hasDetail) {
+          items.push(
+            {
+              kind: "handle" as const,
+              key: "results-detail",
+              disabled: effectiveCollapsed.results && effectiveCollapsed.detail,
+              label: `Resize ${paneLabels.results.toLowerCase()}`,
+              resizePane: sizing === "detail-focus" ? "results" : "detail",
+              deltaMultiplier: sizing === "detail-focus" ? 1 : -1,
+            },
+            {
+              kind: "pane" as const,
+              key: "detail",
+              column: paneColumn("detail", effectiveCollapsed, widths, sizing),
+              content: (
+                <WorkspacePane
+                  collapsed={effectiveCollapsed.detail}
+                  headerActions={detailHeaderActions}
+                  label={paneLabels.detail}
+                  onToggle={() => togglePane("detail")}
+                >
+                  {detail}
+                </WorkspacePane>
+              ),
+            },
+          );
+        }
+        return items;
+      }}
     />
   );
 }
@@ -175,6 +187,16 @@ function paneColumn(
     return "minmax(0, 1fr)";
   }
   return `minmax(0, ${widths[pane]}px)`;
+}
+
+function twoPaneResultsColumn(collapsed: Record<PaneKey, boolean>): string {
+  if (collapsed.results) {
+    return `${COLLAPSED_WIDTH}px`;
+  }
+  if (collapsed.filter) {
+    return "minmax(0, 1fr)";
+  }
+  return "minmax(0, 1fr)";
 }
 
 function WorkspacePane({

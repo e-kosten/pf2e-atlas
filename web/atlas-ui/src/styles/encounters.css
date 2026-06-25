@@ -90,6 +90,9 @@
 }
 
 .encounter-record-pane {
+  display: grid;
+  gap: 14px;
+  align-content: start;
   position: relative;
 }
 
@@ -129,7 +132,6 @@
   border-bottom: 1px solid var(--line);
   display: grid;
   gap: 10px;
-  margin-bottom: 14px;
   padding-bottom: 14px;
 }
 
@@ -417,7 +419,7 @@
   margin: 8px 0 12px;
 }
 
-.encounter-turn {
+.encounter-participant-controls {
   display: grid;
   align-content: start;
   gap: 12px;
@@ -494,21 +496,38 @@
 }
 
 .encounter-hp-grid {
-  display: grid;
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
 .encounter-hp-control {
-  align-items: end;
+  flex: 1 1 190px;
   display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
   min-width: 0;
 }
 
 .encounter-hp-control--wide {
-  grid-template-columns: minmax(0, 1fr) minmax(138px, auto);
+  flex-basis: 280px;
+}
+
+.encounter-hp-control__label {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.encounter-hp-control__row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(118px, 1fr) auto;
+  min-width: 0;
+}
+
+.encounter-hp-control--wide .encounter-hp-control__row {
+  grid-template-columns: minmax(132px, 1fr) auto;
 }
 
 .encounter-hp-grid .ant-input-number {
@@ -562,6 +581,16 @@
   margin: 4px 0 0;
 }
 
+.encounter-source-record {
+  display: grid;
+  gap: 10px;
+}
+
+.encounter-source-record > h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
 .encounter-empty-note {
   color: var(--muted);
   font-size: 13px;
@@ -577,7 +606,7 @@
 
   .encounter-hp-control,
   .encounter-hp-control--wide {
-    grid-template-columns: 1fr;
+    flex-basis: 100%;
   }
 
   .encounter-hp-actions .ant-btn {

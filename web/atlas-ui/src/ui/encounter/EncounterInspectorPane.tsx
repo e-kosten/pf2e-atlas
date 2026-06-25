@@ -3,6 +3,7 @@ import { ExternalLink, X } from "lucide-react";
 import type React from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
+  AddEncounterParticipantConditionRequest,
   ActivityRollView,
   DamageExpressionView,
   EncounterParticipantVariantView,
@@ -10,17 +11,23 @@ import type {
   MechanicActivityView,
   StatBlockView,
   StatValueView,
+  UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { RecordPresentation } from "../recordPresentation";
+import { EncounterParticipantControls } from "./EncounterParticipantControls";
 
 export function EncounterInspectorPane({
   detailLoading,
   onCloseReferencePreview,
   onOpenReferenceFullPage,
   onReference,
+  onAddCondition,
+  onRemoveCondition,
+  onUpdateCondition,
   onUpdate,
   participant,
+  participants,
   previewDetail,
   previewLoading,
   previewRecordKey,
@@ -31,8 +38,15 @@ export function EncounterInspectorPane({
   onCloseReferencePreview: () => void;
   onOpenReferenceFullPage: (recordKey: string) => void;
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
+  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onUpdateCondition: (
+    participantKey: string,
+    condition: UpdateEncounterParticipantConditionRequest,
+  ) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView | undefined;
+  participants: EncounterParticipantView[];
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
   previewRecordKey: string | null;
@@ -44,31 +58,28 @@ export function EncounterInspectorPane({
       <section className="encounter-pane detail-empty">Select a participant.</section>
     );
   }
-  if (participant.participant_kind === "pc") {
-    return (
-      <section className="encounter-pane manual-participant">
-        <ParticipantHeader participant={participant} onUpdate={onUpdate} />
-        <dl>
-          <dt>Initiative</dt>
-          <dd>{displayNumber(participant.initiative)}</dd>
-          <dt>HP</dt>
-          <dd>{hpLabel(participant)}</dd>
-          <dt>Side</dt>
-          <dd>{participant.side}</dd>
-        </dl>
-        {participant.note && <p>{participant.note}</p>}
-      </section>
-    );
-  }
   return (
     <section className="encounter-pane encounter-record-pane">
       <ParticipantHeader participant={participant} onUpdate={onUpdate} />
-      {participant.stat_block && <AdjustedStats statBlock={participant.stat_block} />}
-      <RecordPresentation
-        detail={recordDetail}
-        loading={detailLoading}
-        onReference={onReference}
+      <EncounterParticipantControls
+        current={participant}
+        onAddCondition={onAddCondition}
+        onRemoveCondition={onRemoveCondition}
+        onUpdate={onUpdate}
+        onUpdateCondition={onUpdateCondition}
+        participants={participants}
       />
+      {participant.stat_block && <AdjustedStats statBlock={participant.stat_block} />}
+      {participant.record_key && participant.status === "active" && (
+        <section className="encounter-source-record">
+          <h3>Source Record</h3>
+          <RecordPresentation
+            detail={recordDetail}
+            loading={detailLoading}
+            onReference={onReference}
+          />
+        </section>
+      )}
       {previewRecordKey && (
         <ReferencePreview
           anchor={previewAnchor}
@@ -198,6 +209,7 @@ function ParticipantHeader({
       <div>
         <p className="eyebrow">{participantKindLabel(participant.participant_kind)}</p>
         <h2>{participant.display_name}</h2>
+        <p>{hpLabel(participant)}</p>
       </div>
       {participant.participant_kind === "creature" && (
         <div className="encounter-variant-control">

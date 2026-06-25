@@ -31,7 +31,6 @@ import {
   EditEncounterModal,
 } from "./encounter/EncounterModals";
 import { EncounterRosterPane } from "./encounter/EncounterRosterPane";
-import { EncounterTurnPane } from "./encounter/EncounterTurnPane";
 import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "./routes";
 import { WorkspaceLayout } from "./WorkspaceLayout";
 
@@ -299,6 +298,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         results={
           <EncounterInspectorPane
             detailLoading={detail.isLoading || detail.isFetching}
+            onAddCondition={(request) => addCondition.mutate(request)}
             onCloseReferencePreview={() => {
               setPreviewRecordKey(null);
               setPreviewAnchor(null);
@@ -310,8 +310,15 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
               setPreviewRecordKey(recordKey);
               setPreviewAnchor(anchorRect ? referenceAnchorFromRect(anchorRect) : null);
             }}
+            onRemoveCondition={(participantKey, conditionId) =>
+              removeCondition.mutate({ participantKey, conditionId })
+            }
             onUpdate={(participant) => updateParticipant.mutate(participant)}
+            onUpdateCondition={(participantKey, condition) =>
+              updateCondition.mutate({ participantKey, condition })
+            }
             participant={selected}
+            participants={encounter.data?.participants ?? []}
             previewAnchor={previewAnchor}
             previewDetail={referencePreview.data}
             previewLoading={referencePreview.isLoading || referencePreview.isFetching}
@@ -319,21 +326,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             recordDetail={detail.data}
           />
         }
-        detail={
-          <EncounterTurnPane
-            current={selected ?? null}
-            participants={encounter.data?.participants ?? []}
-            onAddCondition={(request) => addCondition.mutate(request)}
-            onRemoveCondition={(participantKey, conditionId) =>
-              removeCondition.mutate({ participantKey, conditionId })
-            }
-            onUpdateCondition={(participantKey, condition) =>
-              updateCondition.mutate({ participantKey, condition })
-            }
-            onUpdate={(participant) => updateParticipant.mutate(participant)}
-          />
-        }
-        labels={{ filter: "Roster", results: "Record", detail: "Selected" }}
+        labels={{ filter: "Roster", results: "Participant" }}
         selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
         widthSpecs={ENCOUNTER_WIDTH_SPECS}
       />

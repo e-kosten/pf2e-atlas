@@ -28,7 +28,7 @@ const MODELED_CONDITION_OPTIONS = [
   "Stupefied",
 ].map((name) => ({ label: name, value: name }));
 
-export function EncounterTurnPane({
+export function EncounterParticipantControls({
   current,
   participants,
   onAddCondition,
@@ -145,13 +145,7 @@ export function EncounterTurnPane({
         : "";
 
   return (
-    <section className="encounter-pane encounter-turn">
-      <header className="encounter-pane__header">
-        <div>
-          <h2>Selected</h2>
-          <p>{current ? current.display_name : "No participant selected"}</p>
-        </div>
-      </header>
+    <section className="encounter-participant-controls">
       {activeCurrent ? (
         <div key={activeCurrent.participant_key} className="encounter-turn__body">
           <div className="encounter-form-grid">
@@ -204,96 +198,105 @@ export function EncounterTurnPane({
             </div>
             <div className="encounter-hp-grid">
               <div className="encounter-hp-control">
-                <Form.Item label="HP" layout="vertical">
-                  <Input
-                    aria-label="HP"
-                    value={hpInput}
-                    onChange={(event) =>
-                      setHpDraft({
-                        participantKey: activeCurrent.participant_key,
-                        value: event.target.value,
-                      })
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        applyHpInput();
+                <span className="encounter-hp-control__label">HP</span>
+                <div className="encounter-hp-control__row">
+                  <Form.Item layout="vertical">
+                    <Input
+                      aria-label="HP"
+                      value={hpInput}
+                      onChange={(event) =>
+                        setHpDraft({
+                          participantKey: activeCurrent.participant_key,
+                          value: event.target.value,
+                        })
                       }
-                    }}
-                  />
-                </Form.Item>
-                <div className="encounter-hp-actions">
-                  <Button onClick={applyHpInput}>Set</Button>
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          applyHpInput();
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                  <div className="encounter-hp-actions">
+                    <Button onClick={applyHpInput}>Set</Button>
+                  </div>
                 </div>
               </div>
               <div className="encounter-hp-control">
-                <Form.Item label="Temp HP" layout="vertical">
-                  <Input
-                    aria-label="Temp HP"
-                    value={tempHpInput}
-                    onChange={(event) =>
-                      setTempHpDraft({
-                        participantKey: activeCurrent.participant_key,
-                        value: event.target.value,
-                      })
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        applyTempHpInput();
+                <span className="encounter-hp-control__label">Temp HP</span>
+                <div className="encounter-hp-control__row">
+                  <Form.Item layout="vertical">
+                    <Input
+                      aria-label="Temp HP"
+                      value={tempHpInput}
+                      onChange={(event) =>
+                        setTempHpDraft({
+                          participantKey: activeCurrent.participant_key,
+                          value: event.target.value,
+                        })
                       }
-                    }}
-                  />
-                </Form.Item>
-                <div className="encounter-hp-actions">
-                  <Button onClick={applyTempHpInput}>Set</Button>
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          applyTempHpInput();
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                  <div className="encounter-hp-actions">
+                    <Button onClick={applyTempHpInput}>Set</Button>
+                  </div>
                 </div>
               </div>
               <div className="encounter-hp-control encounter-hp-control--wide">
-                <Form.Item label="HP change" layout="vertical">
-                  <InputNumber
-                    aria-label="HP change"
-                    min={0}
-                    value={amount}
-                    onChange={(value) =>
-                      setAmountDraft({
-                        participantKey: activeCurrent.participant_key,
-                        value,
-                      })
-                    }
-                  />
-                </Form.Item>
-                <div className="encounter-hp-actions">
-                  <Button
-                    onClick={() => {
-                      if (amount !== null) {
-                        updateParticipant(damageChanges(activeCurrent, amount));
+                <span className="encounter-hp-control__label">HP change</span>
+                <div className="encounter-hp-control__row">
+                  <Form.Item layout="vertical">
+                    <InputNumber
+                      aria-label="HP change"
+                      min={0}
+                      value={amount}
+                      onChange={(value) =>
                         setAmountDraft({
                           participantKey: activeCurrent.participant_key,
-                          value: null,
-                        });
+                          value,
+                        })
                       }
-                    }}
-                  >
-                    Damage
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (amount !== null) {
-                        updateParticipant({
-                          current_hp: BigInt(
-                            Math.max(0, asNumber(activeCurrent.current_hp) + amount),
-                          ),
-                        });
-                        setAmountDraft({
-                          participantKey: activeCurrent.participant_key,
-                          value: null,
-                        });
-                      }
-                    }}
-                  >
-                    Heal
-                  </Button>
+                    />
+                  </Form.Item>
+                  <div className="encounter-hp-actions">
+                    <Button
+                      onClick={() => {
+                        if (amount !== null) {
+                          updateParticipant(damageChanges(activeCurrent, amount));
+                          setAmountDraft({
+                            participantKey: activeCurrent.participant_key,
+                            value: null,
+                          });
+                        }
+                      }}
+                    >
+                      Damage
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (amount !== null) {
+                          updateParticipant({
+                            current_hp: BigInt(
+                              Math.max(0, asNumber(activeCurrent.current_hp) + amount),
+                            ),
+                          });
+                          setAmountDraft({
+                            participantKey: activeCurrent.participant_key,
+                            value: null,
+                          });
+                        }
+                      }}
+                    >
+                      Heal
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
