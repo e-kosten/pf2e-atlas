@@ -22,6 +22,7 @@ import {
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
+import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
 import { ListItemsPane } from "./ListItemsPane";
 import { useSavedLists } from "./savedListQueries";
@@ -134,10 +135,10 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       widthSpecs={LIST_WORKSPACE_WIDTH_SPECS}
       detailHeaderActions={
         route.selectedRecordKey ? (
-          <a
-            aria-label="Open full page"
-            className="pane-toggle"
+          <PaneIconLink
             href={recordPath(route.selectedRecordKey)}
+            icon={<ExternalLink size={16} />}
+            label="Open full page"
             onClick={(event) => {
               if (!shouldHandleAtlasRouteClick(event)) {
                 return;
@@ -148,10 +149,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
                 recordKey: route.selectedRecordKey!,
               });
             }}
-            title="Open full page"
-          >
-            <ExternalLink size={16} />
-          </a>
+          />
         ) : null
       }
       detail={

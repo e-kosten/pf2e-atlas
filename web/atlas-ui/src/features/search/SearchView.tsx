@@ -4,6 +4,7 @@ import { FilterPanel } from "../../shared/filters/FilterPanel";
 import { ResultTable } from "./ResultTable";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import { ResultPaneHeader } from "./ResultPaneHeader";
+import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import {
   navigateToAtlasRoute,
   recordPath,
@@ -27,10 +28,10 @@ export function SearchView({ workspace }: SearchViewProps) {
         workspace.selectedRecordKey ? (
           <>
             <AddToListButton recordKey={workspace.selectedRecordKey} />
-            <a
-              aria-label="Open full page"
-              className="pane-toggle"
+            <PaneIconLink
               href={recordPath(workspace.selectedRecordKey)}
+              icon={<ExternalLink size={16} />}
+              label="Open full page"
               onClick={(event) => {
                 if (!shouldHandleAtlasRouteClick(event)) {
                   return;
@@ -41,10 +42,7 @@ export function SearchView({ workspace }: SearchViewProps) {
                   recordKey: workspace.selectedRecordKey!,
                 });
               }}
-              title="Open full page"
-            >
-              <ExternalLink size={16} />
-            </a>
+            />
           </>
         ) : null
       }

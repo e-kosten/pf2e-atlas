@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal, Select, Tooltip } from "antd";
 import { useState } from "react";
 import { addSavedListItem } from "../../api/atlasApi";
+import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { useSavedLists } from "./savedListQueries";
 
 export function AddToListButton({ recordKey }: { recordKey: string }) {
@@ -24,15 +25,11 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
   return (
     <>
       <Tooltip title="Add to saved list">
-        <button
-          aria-label="Add to saved list"
-          className="pane-toggle"
+        <PaneIconButton
+          icon={<ListPlus size={16} />}
+          label="Add to saved list"
           onClick={() => setOpen(true)}
-          title="Add to saved list"
-          type="button"
-        >
-          <ListPlus size={16} />
-        </button>
+        />
       </Tooltip>
       <Modal
         okButtonProps={{ disabled: selectedSlug === null, loading: addItem.isPending }}

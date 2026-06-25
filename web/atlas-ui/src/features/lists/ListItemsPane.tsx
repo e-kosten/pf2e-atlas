@@ -2,6 +2,7 @@ import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Trash2 } from "lucide-react";
 import type { SavedListItemView } from "../../generated/atlas";
+import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 
 export function ListItemsPane({
   items,
@@ -41,16 +42,13 @@ export function ListItemsPane({
       title: "",
       width: 52,
       render: (_, item) => (
-        <button
-          aria-label={`Remove ${item.snapshot.title}`}
-          className="pane-toggle"
+        <PaneIconButton
           disabled={removingKey === item.record_key}
+          icon={<Trash2 size={15} />}
+          label={`Remove ${item.snapshot.title}`}
           onClick={() => onRemove(item.record_key)}
           title="Remove"
-          type="button"
-        >
-          <Trash2 size={15} />
-        </button>
+        />
       ),
     },
   ];
