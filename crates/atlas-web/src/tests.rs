@@ -1186,7 +1186,6 @@ fn encounter_participant(
                 source_participant_key: None,
                 duration_rounds: Some(2),
                 note: None,
-                source_note: None,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-01T00:00:00Z".to_string(),
             }]

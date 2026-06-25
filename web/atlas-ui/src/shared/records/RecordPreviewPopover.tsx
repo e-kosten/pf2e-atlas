@@ -67,7 +67,7 @@ export function RecordPreviewPopover({
           <RecordPresentation
             detail={detail}
             loading={loading}
-            onReference={onReference}
+            onReference={(recordKey) => onReference(recordKey)}
           />
         </div>
       </div>

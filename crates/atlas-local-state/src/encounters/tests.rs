@@ -178,7 +178,6 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         source_participant_key: None,
         duration_rounds: Some(2),
         note: Some("From spell".to_string()),
-        source_note: None,
     })?;
     assert_eq!(condition.name, "Frightened");
 
@@ -191,7 +190,6 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
             source_participant_key: None,
             duration_rounds: Some(1),
             note: Some("Raised".to_string()),
-            source_note: None,
         })?
         .expect("condition should update");
     assert_eq!(updated.value, Some(2));
@@ -218,7 +216,6 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         source_participant_key: None,
         duration_rounds: None,
         note: None,
-        source_note: None,
     })?;
     assert!(condition.condition_id > 0);
     assert!(encounters.delete("conditions")?);

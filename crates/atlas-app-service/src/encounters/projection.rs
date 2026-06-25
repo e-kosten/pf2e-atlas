@@ -176,7 +176,6 @@ fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticip
         source_participant_key: condition.source_participant_key,
         duration_rounds: condition.duration_rounds,
         note: condition.note,
-        source_note: condition.source_note,
         created_at: condition.created_at,
         updated_at: condition.updated_at,
     }

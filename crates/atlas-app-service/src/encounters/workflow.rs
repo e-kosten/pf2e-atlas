@@ -341,7 +341,6 @@ impl AtlasAppService {
                 source_participant_key: request.source_participant_key,
                 duration_rounds: request.duration_rounds.map(|value| value.max(0)),
                 note: request.note,
-                source_note: request.source_note,
             })?;
         self.encounter(encounter_ref)
     }
@@ -372,7 +371,6 @@ impl AtlasAppService {
                 source_participant_key: request.source_participant_key,
                 duration_rounds: request.duration_rounds.map(|value| value.max(0)),
                 note: request.note,
-                source_note: request.source_note,
             },
         )?;
         if updated.is_none() {
