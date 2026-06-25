@@ -11,6 +11,7 @@ import {
   type AtlasRoute,
 } from "../../app/routes";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
+import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
 import { formatDate, listCountLabel } from "./listUtils";
@@ -106,10 +107,10 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       title: "",
       width: 72,
       render: (_, list) => (
-        <a
-          aria-label={`Edit ${list.name}`}
-          className="pane-toggle"
+        <PaneIconLink
           href={listEditPath(list.slug)}
+          icon={<Pencil size={15} />}
+          label={`Edit ${list.name}`}
           onClick={(event) => {
             stopIndexRowAction(event);
             if (!shouldHandleAtlasRouteClick(event)) {
@@ -119,9 +120,7 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
             navigateToAtlasRoute({ kind: "listEdit", slug: list.slug });
           }}
           title="Edit"
-        >
-          <Pencil size={15} />
-        </a>
+        />
       ),
     },
   ];

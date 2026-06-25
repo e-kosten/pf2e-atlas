@@ -1,5 +1,6 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useMemo, useState } from "react";
+import { PaneIconButton } from "../ui/actions/PaneAction";
 import { PaneFrame, ResizablePaneGroup } from "./PaneLayout";
 import type { ResizablePaneItem } from "./PaneLayout";
 
@@ -220,15 +221,13 @@ function WorkspacePane({
       headerActions={
         <>
           {!collapsed && headerActions}
-          <button
-            aria-label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
-            className="pane-toggle"
+          <PaneIconButton
+            icon={
+              collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />
+            }
+            label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
             onClick={onToggle}
-            title={collapsed ? `Expand ${label}` : `Collapse ${label}`}
-            type="button"
-          >
-            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-          </button>
+          />
         </>
       }
       label={label}

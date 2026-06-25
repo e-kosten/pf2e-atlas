@@ -4,6 +4,7 @@ import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
+import { PaneIconButton, PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import {
   atlasRoutePath,
   navigateToAtlasRoute,
@@ -104,9 +105,9 @@ export function ReaderView({ route }: ReaderViewProps) {
                     previewRecordKey: null,
                   }}
                 />
-                <button
-                  aria-label="Close preview"
-                  className="pane-toggle"
+                <PaneIconButton
+                  icon={<X size={16} />}
+                  label="Close preview"
                   onClick={() =>
                     navigateToAtlasRoute({
                       kind: "reader",
@@ -114,11 +115,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                       previewRecordKey: null,
                     })
                   }
-                  title="Close preview"
-                  type="button"
-                >
-                  <X size={16} />
-                </button>
+                />
               </>
             )
           }
@@ -206,10 +203,10 @@ function InlineError({ message }: { message: string }) {
 
 function RouteIconLink({ label, route }: { label: string; route: AtlasRoute }) {
   return (
-    <a
-      aria-label={label}
-      className="pane-toggle"
+    <PaneIconLink
       href={atlasRoutePath(route)}
+      icon={<ExternalLink size={16} />}
+      label={label}
       onClick={(event) => {
         if (!shouldHandleAtlasRouteClick(event)) {
           return;
@@ -217,10 +214,7 @@ function RouteIconLink({ label, route }: { label: string; route: AtlasRoute }) {
         event.preventDefault();
         navigateToAtlasRoute(route);
       }}
-      title={label}
-    >
-      <ExternalLink size={16} />
-    </a>
+    />
   );
 }
 
