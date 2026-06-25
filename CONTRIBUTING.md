@@ -139,7 +139,7 @@ core.editor` after creating the file. Edit the release notes, validate, commit,
 and open the PR to `main`.
 
 2. After editing the release notes, have the helper validate, commit, push, and
-open the release-preparation PR:
+   open the release-preparation PR:
 
 ```bash
 scripts/prepare-release.sh --open-pr
@@ -210,7 +210,7 @@ Local validation covers Rust checks, `dist plan`, release-helper dry runs, insta
 
 ## Validation Before Commit
 
-Run these before opening a branch for review, merging back to `main`, or preparing a commit manually:
+Run the full Rust gate before opening a branch for review, merging back to `main`, or preparing a Rust-heavy commit manually:
 
 ```bash
 just verify
@@ -220,12 +220,26 @@ just verify
 Use `just verify --verbose` or `scripts/verify.sh --verbose` to stream detailed
 Cargo output for every successful gate.
 
+For web UI changes, run the frontend gate:
+
+```bash
+just web-ui-verify
+# or: npm --prefix web/atlas-ui run verify
+```
+
+For the same path-sensitive validation used by hooks:
+
+```bash
+just verify-changed --staged
+just verify-changed --range origin/main...HEAD --full
+```
+
 Tracked git hooks live in `.githooks/` and enforce:
 
-- `pre-commit`: run Rust fmt, clippy, tests, and build for non-docs commits; docs-only commits are allowed without the full suite
+- `pre-commit`: run path-sensitive fast checks for staged Rust and web UI changes; docs-only commits are allowed without code validation
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
-- `pre-merge-commit`: rerun Rust fmt, clippy, tests, and build for non-docs merge commits
-- `pre-push`: rerun Rust fmt, clippy, tests, and build
+- `pre-merge-commit`: run the same path-sensitive fast checks for non-docs merge commits
+- `pre-push`: run path-sensitive full checks for pushed Rust and web UI changes
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 

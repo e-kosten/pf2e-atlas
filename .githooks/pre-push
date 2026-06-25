@@ -7,19 +7,31 @@ HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 
 docs_only_push=1
 saw_ref=0
+validation_range=
 
 while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
   [ -n "${local_ref:-}" ] || continue
   saw_ref=1
   if ! push_range_is_docs_only "$local_oid" "$remote_oid"; then
     docs_only_push=0
+    validation_range="$(push_range "$local_oid" "$remote_oid" || true)"
     break
   fi
 done
 
-if [ "$saw_ref" -eq 0 ] || [ "$docs_only_push" -ne 1 ]; then
-  echo "Running pre-push checks (Rust fmt + clippy + test + build)..." >&2
-  run_required_verification
+if [ "$saw_ref" -eq 0 ]; then
+  echo "Running full pre-push checks..." >&2
+  "$(repo_root)/scripts/verify-changed.sh" --all --full
+  exit 0
+fi
+
+if [ "$docs_only_push" -ne 1 ]; then
+  echo "Running path-sensitive full pre-push checks..." >&2
+  if [ -n "$validation_range" ]; then
+    run_full_verification_for_range "$validation_range"
+  else
+    "$(repo_root)/scripts/verify-changed.sh" --all --full
+  fi
   exit 0
 fi
 
