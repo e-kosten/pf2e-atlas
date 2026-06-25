@@ -402,6 +402,34 @@ describe("encounter views", () => {
         }),
       ),
     );
+
+    const hpChangeInput = screen.getByLabelText("HP change");
+    fireEvent.change(hpChangeInput, { target: { value: "-3" } });
+    fireEvent.keyDown(hpChangeInput, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          temporary_hp: 0n,
+          current_hp: 7n,
+        }),
+      ),
+    );
+
+    fireEvent.change(hpChangeInput, { target: { value: "10" } });
+    fireEvent.keyDown(hpChangeInput, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          current_hp: 12n,
+        }),
+      ),
+    );
   });
 
   it("searches before adding a record-backed participant", async () => {
@@ -441,28 +469,27 @@ describe("encounter views", () => {
     );
   }, 10_000);
 
-  it("adds, edits, and removes conditions for the current participant", async () => {
+  it("adds conditions with compact fields and details", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
     await screen.findByText("Frightened");
 
-    fireEvent.click(screen.getByText("Add condition"));
+    fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
     await selectOption(conditionCombobox("Add condition"), "Sickened");
-    const valueInputs = screen.getAllByLabelText("Value");
-    fireEvent.change(valueInputs[valueInputs.length - 1], {
+    expect(screen.getByLabelText("Condition value")).toHaveValue("1");
+    fireEvent.change(screen.getByLabelText("Condition value"), {
       target: { value: "2" },
     });
-    const roundsInputs = screen.getAllByLabelText("Rounds");
-    fireEvent.change(roundsInputs[roundsInputs.length - 1], {
+    fireEvent.click(screen.getByRole("button", { name: "Condition details" }));
+    fireEvent.change(await screen.findByLabelText("Duration rounds"), {
       target: { value: "3" },
     });
-    const noteInputs = screen.getAllByLabelText("Note");
-    fireEvent.change(noteInputs[noteInputs.length - 1], {
+    fireEvent.change(screen.getByLabelText("Condition note"), {
       target: { value: "poison" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -479,8 +506,20 @@ describe("encounter views", () => {
     expect(
       apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
     ).not.toHaveProperty("condition_key");
+  }, 10_000);
 
-    await selectOption(conditionCombobox("Edit condition"), "Stupefied");
+  it("edits and removes conditions for the current participant", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    await screen.findByText("Frightened");
+
+    const frightenedValue = screen.getByLabelText("Frightened value");
+    fireEvent.change(frightenedValue, {
+      target: { value: "2" },
+    });
+    fireEvent.blur(frightenedValue);
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -488,7 +527,8 @@ describe("encounter views", () => {
         "participant_a",
         expect.objectContaining({
           condition_id: 7n,
-          name: "Stupefied",
+          name: "Frightened",
+          value: 2n,
         }),
       ),
     );
@@ -496,7 +536,35 @@ describe("encounter views", () => {
       apiMocks.updateEncounterParticipantCondition.mock.calls[0][2],
     ).not.toHaveProperty("condition_key");
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Frightened" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Frightened details" }));
+    fireEvent.change(lastInputByAriaLabel("Duration rounds"), {
+      target: { value: "4" },
+    });
+    fireEvent.change(lastInputByAriaLabel("Condition note"), {
+      target: { value: "aura" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
+        "ambush",
+        "participant_a",
+        expect.objectContaining({
+          condition_id: 7n,
+          name: "Frightened",
+          duration_rounds: 4n,
+          note: "aura",
+        }),
+      ),
+    );
+
+    const frightenedRow = screen
+      .getByText("Frightened")
+      .closest(".encounter-condition-row");
+    expect(frightenedRow).not.toBeNull();
+    fireEvent.click(
+      within(frightenedRow as HTMLElement).getByLabelText("Remove Frightened"),
+    );
 
     await waitFor(() =>
       expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -521,6 +589,17 @@ function conditionCombobox(label: string): HTMLElement {
   return screen
     .getAllByLabelText(label)
     .find((element) => element.getAttribute("role") === "combobox")!;
+}
+
+function lastInputByAriaLabel(label: string): HTMLInputElement {
+  const inputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>(`input[aria-label="${label}"]`),
+  );
+  const input = inputs[inputs.length - 1];
+  if (!input) {
+    throw new Error(`${label} input was not rendered`);
+  }
+  return input;
 }
 
 function rosterRow(displayName: string): HTMLElement {

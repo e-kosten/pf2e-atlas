@@ -1,5 +1,5 @@
-import { Button, Form, Input, InputNumber, Select } from "antd";
-import { Trash2 } from "lucide-react";
+import { Button, Form, Input, InputNumber, Popover, Select } from "antd";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
@@ -19,14 +19,26 @@ type AddConditionForm = {
   sourceNote?: string;
 };
 
-const MODELED_CONDITION_OPTIONS = [
-  "Frightened",
-  "Sickened",
-  "Off-Guard",
-  "Clumsy",
-  "Enfeebled",
-  "Stupefied",
-].map((name) => ({ label: name, value: name }));
+type ConditionDetailsForm = {
+  duration?: number;
+  sourceParticipantKey?: string;
+  note?: string;
+  sourceNote?: string;
+};
+
+const MODELED_CONDITIONS = [
+  { label: "Frightened", value: "Frightened", hasValue: true },
+  { label: "Sickened", value: "Sickened", hasValue: true },
+  { label: "Off-Guard", value: "Off-Guard", hasValue: false },
+  { label: "Clumsy", value: "Clumsy", hasValue: true },
+  { label: "Enfeebled", value: "Enfeebled", hasValue: true },
+  { label: "Stupefied", value: "Stupefied", hasValue: true },
+];
+
+const MODELED_CONDITION_OPTIONS = MODELED_CONDITIONS.map(({ label, value }) => ({
+  label,
+  value,
+}));
 
 export function EncounterParticipantControls({
   current,
@@ -59,6 +71,8 @@ export function EncounterParticipantControls({
     value: number | null;
   } | null>(null);
   const [conditionForm] = Form.useForm<AddConditionForm>();
+  const [addConditionOpen, setAddConditionOpen] = useState(false);
+  const [addDetailsOpen, setAddDetailsOpen] = useState(false);
   const [projectedCurrent, setProjectedCurrent] = useState<{
     source: EncounterParticipantView | null;
     participant: EncounterParticipantView | null;
@@ -113,6 +127,20 @@ export function EncounterParticipantControls({
       });
     }
   };
+  const applyHpChangeInput = () => {
+    if (!activeCurrent || amount === null || amount === 0) {
+      return;
+    }
+    const changes =
+      amount < 0
+        ? damageChanges(activeCurrent, Math.abs(amount))
+        : healChanges(activeCurrent, amount);
+    updateParticipant(changes);
+    setAmountDraft({
+      participantKey: activeCurrent.participant_key,
+      value: null,
+    });
+  };
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) => {
     if (!activeCurrent) {
       return;
@@ -139,6 +167,8 @@ export function EncounterParticipantControls({
       : 0;
   const hpRatio = maxHp > 0 ? currentHp / maxHp : 1;
   const hpSummary = hpLabel(activeCurrent);
+  const addConditionName = Form.useWatch("name", conditionForm);
+  const addConditionHasValue = conditionTakesValue(addConditionName);
   const hpMeterTone =
     hpRatio <= 0.25
       ? "encounter-hp-meter__current--critical"
@@ -263,7 +293,6 @@ export function EncounterParticipantControls({
                   <Form.Item layout="vertical">
                     <InputNumber
                       aria-label="HP change"
-                      min={0}
                       value={amount}
                       onChange={(value) =>
                         setAmountDraft({
@@ -271,13 +300,21 @@ export function EncounterParticipantControls({
                           value,
                         })
                       }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          applyHpChangeInput();
+                        }
+                      }}
                     />
                   </Form.Item>
                   <div className="encounter-hp-actions">
                     <Button
                       onClick={() => {
                         if (amount !== null) {
-                          updateParticipant(damageChanges(activeCurrent, amount));
+                          updateParticipant(
+                            damageChanges(activeCurrent, Math.abs(amount)),
+                          );
                           setAmountDraft({
                             participantKey: activeCurrent.participant_key,
                             value: null,
@@ -290,13 +327,9 @@ export function EncounterParticipantControls({
                     <Button
                       onClick={() => {
                         if (amount !== null) {
-                          const currentHp = clampCurrentHp(
-                            activeCurrent,
-                            asNumber(activeCurrent.current_hp) + amount,
+                          updateParticipant(
+                            healChanges(activeCurrent, Math.abs(amount)),
                           );
-                          updateParticipant({
-                            current_hp: BigInt(currentHp),
-                          });
                           setAmountDraft({
                             participantKey: activeCurrent.participant_key,
                             value: null,
@@ -339,7 +372,88 @@ export function EncounterParticipantControls({
             {activeCurrent.defeated ? "Mark active" : "Mark defeated"}
           </Button>
           <section className="encounter-conditions">
-            <h3>Conditions</h3>
+            <div className="encounter-conditions__header">
+              <h3>Conditions</h3>
+              <Popover
+                content={
+                  <Form
+                    form={conditionForm}
+                    onFinish={(values) => {
+                      const conditionHasValue = conditionTakesValue(values.name);
+                      onAddCondition({
+                        participant_key: activeCurrent.participant_key,
+                        name: values.name,
+                        ...(!conditionHasValue || values.value === undefined
+                          ? {}
+                          : { value: BigInt(values.value) }),
+                        ...(values.duration === undefined
+                          ? {}
+                          : { duration_rounds: BigInt(values.duration) }),
+                        ...(values.sourceParticipantKey
+                          ? { source_participant_key: values.sourceParticipantKey }
+                          : {}),
+                        ...(values.note ? { note: values.note } : {}),
+                        ...(values.sourceNote
+                          ? { source_note: values.sourceNote }
+                          : {}),
+                      });
+                      conditionForm.resetFields();
+                      setAddDetailsOpen(false);
+                      setAddConditionOpen(false);
+                    }}
+                  >
+                    <div className="encounter-add-condition__row">
+                      <Form.Item name="name" rules={[{ required: true }]}>
+                        <Select
+                          aria-label="Add condition"
+                          showSearch
+                          optionFilterProp="label"
+                          options={MODELED_CONDITION_OPTIONS}
+                          placeholder="Condition"
+                          onChange={(name) =>
+                            conditionForm.setFieldValue(
+                              "value",
+                              conditionTakesValue(name) ? 1 : undefined,
+                            )
+                          }
+                        />
+                      </Form.Item>
+                      {addConditionHasValue && (
+                        <Form.Item name="value">
+                          <InputNumber aria-label="Condition value" min={0} />
+                        </Form.Item>
+                      )}
+                      <Popover
+                        content={
+                          <ConditionDetailsFields
+                            participants={participants}
+                            sourceLabel="Source"
+                          />
+                        }
+                        open={addDetailsOpen}
+                        onOpenChange={setAddDetailsOpen}
+                        placement="bottomRight"
+                        trigger="click"
+                      >
+                        <Button
+                          aria-label="Condition details"
+                          icon={<MoreHorizontal size={14} />}
+                        />
+                      </Popover>
+                      <Button type="primary" onClick={() => conditionForm.submit()}>
+                        Add
+                      </Button>
+                    </div>
+                  </Form>
+                }
+                open={addConditionOpen}
+                onOpenChange={setAddConditionOpen}
+                placement="bottomRight"
+                trigger="click"
+              >
+                <Button size="small">Add Condition</Button>
+              </Popover>
+            </div>
             {activeCurrent.conditions.length === 0 ? (
               <p className="encounter-empty-note">No conditions</p>
             ) : (
@@ -356,71 +470,44 @@ export function EncounterParticipantControls({
                 ))}
               </div>
             )}
-            <details className="encounter-add-condition">
-              <summary>Add condition</summary>
-              <Form
-                form={conditionForm}
-                layout="vertical"
-                onFinish={(values) => {
-                  onAddCondition({
-                    participant_key: activeCurrent.participant_key,
-                    name: values.name,
-                    ...(values.value === undefined
-                      ? {}
-                      : { value: BigInt(values.value) }),
-                    ...(values.duration === undefined
-                      ? {}
-                      : { duration_rounds: BigInt(values.duration) }),
-                    ...(values.sourceParticipantKey
-                      ? { source_participant_key: values.sourceParticipantKey }
-                      : {}),
-                    ...(values.note ? { note: values.note } : {}),
-                    ...(values.sourceNote ? { source_note: values.sourceNote } : {}),
-                  });
-                  conditionForm.resetFields();
-                }}
-              >
-                <Form.Item name="name" label="Condition" rules={[{ required: true }]}>
-                  <Select
-                    aria-label="Add condition"
-                    showSearch
-                    optionFilterProp="label"
-                    options={MODELED_CONDITION_OPTIONS}
-                    placeholder="Select condition"
-                  />
-                </Form.Item>
-                <div className="encounter-control-row">
-                  <Form.Item name="value" label="Value">
-                    <InputNumber min={0} />
-                  </Form.Item>
-                  <Form.Item name="duration" label="Rounds">
-                    <InputNumber min={0} />
-                  </Form.Item>
-                </div>
-                <Form.Item name="note" label="Note">
-                  <Input />
-                </Form.Item>
-                <Form.Item name="sourceParticipantKey" label="Source">
-                  <Select
-                    allowClear
-                    options={participants.map((participant) => ({
-                      value: participant.participant_key,
-                      label: participant.display_name,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item name="sourceNote" label="Source Note">
-                  <Input />
-                </Form.Item>
-                <Button onClick={() => conditionForm.submit()}>Add Condition</Button>
-              </Form>
-            </details>
           </section>
         </div>
       ) : (
         <div className="detail-empty">Select a participant to edit.</div>
       )}
     </section>
+  );
+}
+
+function ConditionDetailsFields({
+  participants,
+  sourceLabel,
+}: {
+  participants: EncounterParticipantView[];
+  sourceLabel: string;
+}) {
+  return (
+    <div className="encounter-condition-details">
+      <Form.Item name="duration" label="Duration">
+        <InputNumber aria-label="Duration rounds" min={0} />
+      </Form.Item>
+      <Form.Item name="sourceParticipantKey" label={sourceLabel}>
+        <Select
+          allowClear
+          aria-label={sourceLabel}
+          options={participants.map((participant) => ({
+            value: participant.participant_key,
+            label: participant.display_name,
+          }))}
+        />
+      </Form.Item>
+      <Form.Item name="note" label="Note">
+        <Input aria-label="Condition note" />
+      </Form.Item>
+      <Form.Item name="sourceNote" label="Source Note">
+        <Input aria-label="Condition source note" />
+      </Form.Item>
+    </div>
   );
 }
 
@@ -440,6 +527,15 @@ function ConditionEditor({
     condition: UpdateEncounterParticipantConditionRequest,
   ) => void;
 }) {
+  const [detailsForm] = Form.useForm<ConditionDetailsForm>();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const hasValue = conditionTakesValue(condition.name);
+  const hasDetails = Boolean(
+    condition.duration_rounds !== undefined ||
+    condition.source_participant_key ||
+    condition.note ||
+    condition.source_note,
+  );
   const update = (changes: Partial<UpdateEncounterParticipantConditionRequest>) =>
     onUpdate(participantKey, {
       condition_id: condition.condition_id,
@@ -451,20 +547,41 @@ function ConditionEditor({
       source_note: condition.source_note,
       ...changes,
     });
+  const saveDetails = () => {
+    const values = detailsForm.getFieldsValue();
+    update({
+      duration_rounds:
+        values.duration === undefined ? undefined : BigInt(values.duration),
+      source_participant_key: values.sourceParticipantKey,
+      note: values.note || undefined,
+      source_note: values.sourceNote || undefined,
+    });
+    setDetailsOpen(false);
+  };
+  const openDetails = (open: boolean) => {
+    if (open) {
+      detailsForm.setFieldsValue({
+        duration: optionalNumber(condition.duration_rounds),
+        sourceParticipantKey: condition.source_participant_key,
+        note: condition.note,
+        sourceNote: condition.source_note,
+      });
+    }
+    setDetailsOpen(open);
+  };
   return (
-    <div className="encounter-condition-row">
-      <Form.Item label="Condition" layout="vertical">
-        <Select
-          aria-label="Edit condition"
-          showSearch
-          optionFilterProp="label"
-          options={MODELED_CONDITION_OPTIONS}
-          value={condition.name}
-          onChange={(name) => update({ name })}
-        />
-      </Form.Item>
-      <Form.Item label="Value" layout="vertical">
+    <div
+      className={[
+        "encounter-condition-row",
+        hasValue ? "" : "encounter-condition-row--no-value",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span className="encounter-condition-row__name">{condition.name}</span>
+      {hasValue && (
         <InputNumber
+          aria-label={`${condition.name} value`}
           min={0}
           defaultValue={optionalNumber(condition.value)}
           onBlur={(event) =>
@@ -476,44 +593,38 @@ function ConditionEditor({
             })
           }
         />
-      </Form.Item>
-      <Form.Item label="Rounds" layout="vertical">
-        <InputNumber
-          min={0}
-          defaultValue={optionalNumber(condition.duration_rounds)}
-          onBlur={(event) =>
-            update({
-              duration_rounds:
-                event.target.value === ""
-                  ? undefined
-                  : BigInt(Number(event.target.value)),
-            })
-          }
+      )}
+      {condition.duration_rounds !== undefined && (
+        <span className="encounter-condition-chip">
+          {condition.duration_rounds.toString()} rounds
+        </span>
+      )}
+      {hasDetails && <span className="encounter-condition-meta">Details</span>}
+      <Popover
+        content={
+          <Form form={detailsForm} layout="vertical">
+            <ConditionDetailsFields
+              participants={participants}
+              sourceLabel="Condition source"
+            />
+            <div className="encounter-condition-details__actions">
+              <Button type="primary" onClick={saveDetails}>
+                Save
+              </Button>
+            </div>
+          </Form>
+        }
+        open={detailsOpen}
+        onOpenChange={openDetails}
+        placement="bottomRight"
+        trigger="click"
+      >
+        <Button
+          aria-label={`Edit ${condition.name} details`}
+          icon={<MoreHorizontal size={14} />}
+          size="small"
         />
-      </Form.Item>
-      <Form.Item label="Source" layout="vertical">
-        <Select
-          allowClear
-          defaultValue={condition.source_participant_key}
-          onChange={(value) => update({ source_participant_key: value })}
-          options={participants.map((participant) => ({
-            value: participant.participant_key,
-            label: participant.display_name,
-          }))}
-        />
-      </Form.Item>
-      <Form.Item label="Note" layout="vertical">
-        <Input
-          defaultValue={condition.note}
-          onBlur={(event) => update({ note: event.target.value || undefined })}
-        />
-      </Form.Item>
-      <Form.Item label="Source Note" layout="vertical">
-        <Input
-          defaultValue={condition.source_note}
-          onBlur={(event) => update({ source_note: event.target.value || undefined })}
-        />
-      </Form.Item>
+      </Popover>
       <Button
         danger
         aria-label={`Remove ${condition.name}`}
@@ -522,6 +633,12 @@ function ConditionEditor({
         onClick={() => onRemove(participantKey, condition.condition_id)}
       />
     </div>
+  );
+}
+
+function conditionTakesValue(name: string | undefined): boolean {
+  return (
+    MODELED_CONDITIONS.find((condition) => condition.value === name)?.hasValue ?? true
   );
 }
 
@@ -557,6 +674,18 @@ function damageChanges(
     temporary_hp: BigInt(temporaryHp - tempDamage),
     current_hp,
     defeated: current_hp === BigInt(0) ? true : participant.defeated,
+  };
+}
+function healChanges(
+  participant: EncounterParticipantView,
+  amount: number,
+): Partial<UpdateEncounterParticipantRequest> {
+  const currentHp = clampCurrentHp(
+    participant,
+    asNumber(participant.current_hp) + amount,
+  );
+  return {
+    current_hp: BigInt(currentHp),
   };
 }
 function clampCurrentHp(participant: EncounterParticipantView, hp: number): number {
