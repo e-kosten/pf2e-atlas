@@ -9,6 +9,17 @@ import type {
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import {
+  applyParticipantUpdate,
+  asNumber,
+  clampCurrentHp,
+  damageChanges,
+  displayNumber,
+  evaluateHpFormula,
+  healChanges,
+  optionalNumber,
+  participantUpdate,
+} from "../../features/encounters/participantEdits";
 
 type AddConditionForm = {
   name: string;
@@ -645,97 +656,6 @@ function conditionTakesValue(name: string | undefined): boolean {
   );
 }
 
-function participantUpdate(
-  participant: EncounterParticipantView,
-  changes: Partial<UpdateEncounterParticipantRequest>,
-): UpdateEncounterParticipantRequest {
-  return {
-    participant_key: participant.participant_key,
-    display_name: participant.display_name,
-    side: participant.side,
-    participant_variant: participant.participant_variant,
-    initiative: participant.initiative,
-    max_hp: participant.max_hp,
-    current_hp: participant.current_hp,
-    temporary_hp: participant.temporary_hp,
-    defeated: participant.defeated,
-    hidden: participant.hidden,
-    note: participant.note,
-    ...changes,
-  };
-}
-function damageChanges(
-  participant: EncounterParticipantView,
-  amount: number,
-): Partial<UpdateEncounterParticipantRequest> {
-  const temporaryHp = asNumber(participant.temporary_hp);
-  const currentHp = asNumber(participant.current_hp);
-  const tempDamage = Math.min(temporaryHp, amount);
-  const remaining = amount - tempDamage;
-  const current_hp = BigInt(Math.max(0, currentHp - remaining));
-  return {
-    temporary_hp: BigInt(temporaryHp - tempDamage),
-    current_hp,
-    defeated: current_hp === BigInt(0) ? true : participant.defeated,
-  };
-}
-function healChanges(
-  participant: EncounterParticipantView,
-  amount: number,
-): Partial<UpdateEncounterParticipantRequest> {
-  const currentHp = clampCurrentHp(
-    participant,
-    asNumber(participant.current_hp) + amount,
-  );
-  return {
-    current_hp: BigInt(currentHp),
-  };
-}
-function clampCurrentHp(participant: EncounterParticipantView, hp: number): number {
-  const lowerBounded = Math.max(0, hp);
-  if (participant.max_hp === undefined) {
-    return lowerBounded;
-  }
-  return Math.min(lowerBounded, Number(participant.max_hp));
-}
-function applyParticipantUpdate(
-  participant: EncounterParticipantView,
-  request: UpdateEncounterParticipantRequest,
-): EncounterParticipantView {
-  return {
-    ...participant,
-    display_name: request.display_name,
-    side: request.side,
-    participant_variant: request.participant_variant,
-    initiative: request.initiative,
-    max_hp: request.max_hp,
-    current_hp: request.current_hp,
-    temporary_hp: request.temporary_hp,
-    defeated: request.defeated,
-    hidden: request.hidden,
-    note: request.note,
-  };
-}
-function evaluateHpFormula(value: string): number | null {
-  const trimmed = value.trim();
-  if (!/^\d+(\s*[+-]\s*\d+)*$/.test(trimmed)) {
-    return null;
-  }
-  const tokens = trimmed.match(/\d+|[+-]/g);
-  if (!tokens || tokens.length === 0) {
-    return null;
-  }
-  let result = Number(tokens[0]);
-  for (let index = 1; index < tokens.length; index += 2) {
-    const operator = tokens[index];
-    const next = Number(tokens[index + 1]);
-    result = operator === "-" ? result - next : result + next;
-  }
-  return Math.max(0, result);
-}
-function asNumber(value: bigint | undefined): number {
-  return value === undefined ? 0 : Number(value);
-}
 function hpLabel(participant: EncounterParticipantView | null): string {
   if (!participant) {
     return "--/--";
@@ -744,10 +664,4 @@ function hpLabel(participant: EncounterParticipantView | null): string {
   const max = displayNumber(participant.max_hp);
   const temporaryHp = asNumber(participant.temporary_hp);
   return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
-}
-function displayNumber(value: bigint | undefined): string {
-  return value === undefined ? "--" : value.toString();
-}
-function optionalNumber(value: bigint | undefined): number | undefined {
-  return value === undefined ? undefined : Number(value);
 }

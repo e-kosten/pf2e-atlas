@@ -14,6 +14,13 @@ import type {
   ResultWindowRow,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import {
+  clampCurrentHp,
+  displayNumber,
+  optionalBigIntInput,
+  optionalHpFormulaInput,
+  participantUpdate,
+} from "../../features/encounters/participantEdits";
 
 const ENCOUNTER_RECORD_PICKER_DEBOUNCE_MS = 250;
 
@@ -440,25 +447,6 @@ function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {
   };
 }
 
-function participantUpdate(
-  participant: EncounterParticipantView,
-  changes: Partial<UpdateEncounterParticipantRequest>,
-): UpdateEncounterParticipantRequest {
-  return {
-    participant_key: participant.participant_key,
-    display_name: participant.display_name,
-    side: participant.side,
-    participant_variant: participant.participant_variant,
-    initiative: participant.initiative,
-    max_hp: participant.max_hp,
-    current_hp: participant.current_hp,
-    temporary_hp: participant.temporary_hp,
-    defeated: participant.defeated,
-    hidden: participant.hidden,
-    note: participant.note,
-    ...changes,
-  };
-}
 function commitRosterInitiative(
   participant: EncounterParticipantView,
   value: string,
@@ -479,7 +467,8 @@ function commitRosterHp(
   if (hp === null) {
     return;
   }
-  const clampedHp = hp === undefined ? undefined : clampCurrentHp(participant, hp);
+  const clampedHp =
+    hp === undefined ? undefined : BigInt(clampCurrentHp(participant, Number(hp)));
   onUpdate(
     participantUpdate(participant, {
       current_hp: clampedHp,
@@ -487,53 +476,8 @@ function commitRosterHp(
     }),
   );
 }
-function clampCurrentHp(participant: EncounterParticipantView, hp: bigint): bigint {
-  const lowerBounded = hp < BigInt(0) ? BigInt(0) : hp;
-  if (participant.max_hp === undefined) {
-    return lowerBounded;
-  }
-  return lowerBounded > participant.max_hp ? participant.max_hp : lowerBounded;
-}
-function evaluateHpFormula(value: string): number | null {
-  const trimmed = value.trim();
-  if (!/^\d+(\s*[+-]\s*\d+)*$/.test(trimmed)) {
-    return null;
-  }
-  const tokens = trimmed.match(/\d+|[+-]/g);
-  if (!tokens || tokens.length === 0) {
-    return null;
-  }
-  let result = Number(tokens[0]);
-  for (let index = 1; index < tokens.length; index += 2) {
-    const operator = tokens[index];
-    const next = Number(tokens[index + 1]);
-    result = operator === "-" ? result - next : result + next;
-  }
-  return Math.max(0, result);
-}
-function optionalBigIntInput(value: string): bigint | undefined | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return undefined;
-  }
-  if (!/^-?\d+$/.test(trimmed)) {
-    return null;
-  }
-  return BigInt(trimmed);
-}
-function optionalHpFormulaInput(value: string): bigint | undefined | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return undefined;
-  }
-  const hp = evaluateHpFormula(trimmed);
-  return hp === null ? null : BigInt(hp);
-}
 function inputNumberValue(value: bigint | undefined): string {
   return value === undefined ? "" : value.toString();
-}
-function displayNumber(value: bigint | undefined): string {
-  return value === undefined ? "--" : value.toString();
 }
 function isInteractiveEventTarget(target: EventTarget): boolean {
   return (
