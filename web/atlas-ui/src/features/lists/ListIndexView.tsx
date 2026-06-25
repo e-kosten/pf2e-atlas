@@ -12,6 +12,7 @@ import {
 } from "../../app/routes";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
+import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
 import { formatDate, listCountLabel } from "./listUtils";
@@ -25,12 +26,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const lists = useSavedLists();
 
   return (
-    <main className="list-index-view">
-      <section className="list-index-view__toolbar">
-        <div>
-          <h2>Saved Lists</h2>
-          <p>{listCountLabel(lists.data?.lists.length ?? 0)}</p>
-        </div>
+    <EntityIndexPage
+      actions={
         <Button
           icon={<Plus size={16} />}
           onClick={() => setCreateOpen(true)}
@@ -38,32 +35,36 @@ export function ListIndexView(_props: ListIndexViewProps) {
         >
           New List
         </Button>
-      </section>
-      <section className="list-index-view__table">
-        <IndexTable
-          columns={listIndexColumns()}
-          dataSource={lists.data?.lists ?? []}
-          loading={lists.isLoading || lists.isFetching}
-          locale={{ emptyText: "No saved lists" }}
-          onActivateRow={(list) =>
-            navigateToAtlasRoute({
-              kind: "list",
-              slug: list.slug,
-              selectedRecordKey: null,
-            })
-          }
-          rowKey={(list) => list.list_key}
+      }
+      className="list-index-view"
+      overlays={
+        <CreateListModal
+          open={createOpen}
+          onCancel={() => setCreateOpen(false)}
+          onCreated={(slug) => {
+            setCreateOpen(false);
+            navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null });
+          }}
         />
-      </section>
-      <CreateListModal
-        open={createOpen}
-        onCancel={() => setCreateOpen(false)}
-        onCreated={(slug) => {
-          setCreateOpen(false);
-          navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null });
-        }}
+      }
+      summary={listCountLabel(lists.data?.lists.length ?? 0)}
+      title="Saved Lists"
+    >
+      <IndexTable
+        columns={listIndexColumns()}
+        dataSource={lists.data?.lists ?? []}
+        loading={lists.isLoading || lists.isFetching}
+        locale={{ emptyText: "No saved lists" }}
+        onActivateRow={(list) =>
+          navigateToAtlasRoute({
+            kind: "list",
+            slug: list.slug,
+            selectedRecordKey: null,
+          })
+        }
+        rowKey={(list) => list.list_key}
       />
-    </main>
+    </EntityIndexPage>
   );
 }
 

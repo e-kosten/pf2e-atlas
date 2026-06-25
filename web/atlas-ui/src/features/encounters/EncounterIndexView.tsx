@@ -8,6 +8,7 @@ import type { EncounterSummaryView } from "../../generated/atlas";
 import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
+import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { CreateEncounterModal } from "./EncounterModals";
 
 type EncounterIndexViewProps = {
@@ -28,12 +29,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   });
 
   return (
-    <main className="encounter-index-view">
-      <section className="list-index-view__toolbar">
-        <div>
-          <h2>Encounters</h2>
-          <p>{visible.length} active encounters</p>
-        </div>
+    <EntityIndexPage
+      actions={
         <div className="encounter-actions">
           <Checkbox
             checked={showArchived}
@@ -49,40 +46,44 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             New Encounter
           </Button>
         </div>
-      </section>
-      <section className="list-index-view__table">
-        <IndexTable
-          columns={encounterColumns(
-            (encounter) =>
-              navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
-            (encounter) =>
-              confirmDangerAction({
-                title: `Delete ${encounter.name}?`,
-                content: "This permanently deletes the encounter.",
-                okText: "Delete",
-                onConfirm: () => {
-                  deleteMutation.mutate(encounter.slug);
-                },
-              }),
-          )}
-          dataSource={visible}
-          loading={encounters.isLoading || encounters.isFetching}
-          locale={{ emptyText: "No encounters" }}
-          onActivateRow={(encounter) =>
-            navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug })
-          }
-          rowKey={(encounter) => encounter.encounter_key}
+      }
+      className="encounter-index-view"
+      overlays={
+        <CreateEncounterModal
+          open={createOpen}
+          onCancel={() => setCreateOpen(false)}
+          onCreated={(slug) => {
+            setCreateOpen(false);
+            navigateToAtlasRoute({ kind: "encounter", slug });
+          }}
         />
-      </section>
-      <CreateEncounterModal
-        open={createOpen}
-        onCancel={() => setCreateOpen(false)}
-        onCreated={(slug) => {
-          setCreateOpen(false);
-          navigateToAtlasRoute({ kind: "encounter", slug });
-        }}
+      }
+      summary={`${visible.length} active encounters`}
+      title="Encounters"
+    >
+      <IndexTable
+        columns={encounterColumns(
+          (encounter) =>
+            navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
+          (encounter) =>
+            confirmDangerAction({
+              title: `Delete ${encounter.name}?`,
+              content: "This permanently deletes the encounter.",
+              okText: "Delete",
+              onConfirm: () => {
+                deleteMutation.mutate(encounter.slug);
+              },
+            }),
+        )}
+        dataSource={visible}
+        loading={encounters.isLoading || encounters.isFetching}
+        locale={{ emptyText: "No encounters" }}
+        onActivateRow={(encounter) =>
+          navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug })
+        }
+        rowKey={(encounter) => encounter.encounter_key}
       />
-    </main>
+    </EntityIndexPage>
   );
 }
 
