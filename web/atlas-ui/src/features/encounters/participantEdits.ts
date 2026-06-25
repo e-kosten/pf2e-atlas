@@ -63,7 +63,9 @@ export function healChanges(
   amount: number,
 ): Partial<UpdateEncounterParticipantRequest> {
   return {
-    current_hp: BigInt(clampCurrentHp(participant, asNumber(participant.current_hp) + amount)),
+    current_hp: BigInt(
+      clampCurrentHp(participant, asNumber(participant.current_hp) + amount),
+    ),
   };
 }
 

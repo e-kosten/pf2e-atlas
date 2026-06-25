@@ -5,10 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import {
-  discoverFilterEditor,
-  discoverFilterValues,
-} from "../../api/atlasApi";
+import { discoverFilterEditor, discoverFilterValues } from "../../api/atlasApi";
 import type {
   FilterDiscoveryContext,
   FilterEditorView,
