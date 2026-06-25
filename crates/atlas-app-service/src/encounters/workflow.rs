@@ -18,6 +18,7 @@ use atlas_record::FoundryRecordType;
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
 
+use super::conditions::{condition_catalog, modeled_condition_by_ref};
 use super::hydration::{default_hp, hydrate_participant_records, resolve_record_ref};
 use super::mechanics::variant_hp_adjustment_delta;
 use super::projection::{
@@ -29,6 +30,12 @@ use super::turns::{next_turn, next_turn_after_removed};
 const MAX_ADD_QUANTITY: u32 = 50;
 
 impl AtlasAppService {
+    pub fn encounter_condition_definitions(
+        &self,
+    ) -> AppServiceResult<atlas_app_model::EncounterConditionCatalogView> {
+        Ok(condition_catalog())
+    }
+
     pub fn encounters(&self) -> AppServiceResult<EncounterIndexView> {
         let store = self.local_state_store()?;
         let details = store
@@ -470,6 +477,12 @@ fn resolve_condition_input(
     name: Option<String>,
 ) -> AppServiceResult<ConditionInput> {
     if let Some(condition_ref) = condition_ref {
+        if let Some(condition) = modeled_condition_by_ref(&condition_ref) {
+            return Ok(ConditionInput {
+                key: Some(condition.condition_ref.to_string()),
+                name: condition.name.to_string(),
+            });
+        }
         let record = resolve_record_ref(service, &condition_ref)?;
         if record.foundry.record_type != FoundryRecordType::Condition {
             return Err(AppServiceError::invalid_request(

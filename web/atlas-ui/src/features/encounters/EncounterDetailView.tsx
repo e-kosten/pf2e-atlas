@@ -6,6 +6,7 @@ import {
   addEncounterParticipantCondition,
   deleteEncounter,
   getEncounter,
+  getEncounterConditionDefinitions,
   getRecordDetail,
   removeEncounterParticipant,
   removeEncounterParticipantCondition,
@@ -50,6 +51,10 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
+  });
+  const conditionDefinitions = useQuery({
+    queryKey: ["encounter-condition-definitions"],
+    queryFn: getEncounterConditionDefinitions,
   });
   const selected =
     encounter.data?.participants.find(
@@ -233,6 +238,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             }
             participant={selected}
             participants={encounter.data?.participants ?? []}
+            conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             previewAnchor={previewAnchor}
             previewDetail={referencePreview.data}
             previewLoading={referencePreview.isLoading || referencePreview.isFetching}

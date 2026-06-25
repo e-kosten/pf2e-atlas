@@ -2,6 +2,7 @@ import { Button, Form, Input, Select } from "antd";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
+  EncounterConditionDefinitionView,
   EncounterParticipantSideView,
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
@@ -19,15 +20,19 @@ import { EncounterHpControls } from "./EncounterHpControls";
 export function EncounterParticipantControls({
   current,
   participants,
+  conditionDefinitions,
   onAddCondition,
   onRemoveCondition,
+  onReference,
   onUpdateCondition,
   onUpdate,
 }: {
   current: EncounterParticipantView | null;
   participants: EncounterParticipantView[];
+  conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -118,8 +123,10 @@ export function EncounterParticipantControls({
             current={activeCurrent}
             onAddCondition={onAddCondition}
             onRemoveCondition={onRemoveCondition}
+            onReference={onReference}
             onUpdateCondition={onUpdateCondition}
             participants={participants}
+            conditionDefinitions={conditionDefinitions}
           />
         </div>
       ) : (

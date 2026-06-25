@@ -5,9 +5,9 @@ use atlas_app_model::{
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
     AppReadinessView, CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView,
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    EncounterCreateView, EncounterDetailView, EncounterIndexView, EncounterParticipantView,
-    EncounterUpdateView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
+    EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    EncounterParticipantView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
+    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
     RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
     SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
@@ -75,6 +75,10 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
+
+    fn encounter_condition_definitions(
+        &self,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError>;
 
     fn encounter(&self, encounter_ref: &str) -> Result<EncounterDetailView, AppServiceError>;
 
@@ -216,6 +220,12 @@ impl AtlasWebService for AtlasAppService {
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         self.encounters()
+    }
+
+    fn encounter_condition_definitions(
+        &self,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError> {
+        self.encounter_condition_definitions()
     }
 
     fn encounter(&self, encounter_ref: &str) -> Result<EncounterDetailView, AppServiceError> {

@@ -3,6 +3,7 @@ import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
+  EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
@@ -11,7 +12,7 @@ import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { optionalNumber } from "./participantEdits";
 
 type AddConditionForm = {
-  name: string;
+  conditionRef: string;
   value?: number;
   duration?: number;
   sourceParticipantKey?: string;
@@ -26,30 +27,20 @@ type ConditionDetailsForm = {
   sourceNote?: string;
 };
 
-const MODELED_CONDITIONS = [
-  { label: "Frightened", value: "Frightened", hasValue: true },
-  { label: "Sickened", value: "Sickened", hasValue: true },
-  { label: "Off-Guard", value: "Off-Guard", hasValue: false },
-  { label: "Clumsy", value: "Clumsy", hasValue: true },
-  { label: "Enfeebled", value: "Enfeebled", hasValue: true },
-  { label: "Stupefied", value: "Stupefied", hasValue: true },
-];
-
-const MODELED_CONDITION_OPTIONS = MODELED_CONDITIONS.map(({ label, value }) => ({
-  label,
-  value,
-}));
-
 export function EncounterConditionControls({
   current,
+  conditionDefinitions,
   onAddCondition,
   onRemoveCondition,
+  onReference,
   onUpdateCondition,
   participants,
 }: {
   current: EncounterParticipantView;
+  conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -59,8 +50,9 @@ export function EncounterConditionControls({
   const [conditionForm] = Form.useForm<AddConditionForm>();
   const [addConditionOpen, setAddConditionOpen] = useState(false);
   const [addDetailsOpen, setAddDetailsOpen] = useState(false);
-  const addConditionName = Form.useWatch("name", conditionForm);
-  const addConditionHasValue = conditionTakesValue(addConditionName);
+  const addConditionRef = Form.useWatch("conditionRef", conditionForm);
+  const addCondition = conditionDefinition(addConditionRef, conditionDefinitions);
+  const addConditionHasValue = addCondition?.has_value ?? false;
 
   return (
     <section className="encounter-conditions">
@@ -71,11 +63,17 @@ export function EncounterConditionControls({
             <Form
               form={conditionForm}
               onFinish={(values) => {
-                const conditionHasValue = conditionTakesValue(values.name);
+                const condition = conditionDefinition(
+                  values.conditionRef,
+                  conditionDefinitions,
+                );
+                if (!condition) {
+                  return;
+                }
                 onAddCondition({
                   participant_key: current.participant_key,
-                  name: values.name,
-                  ...(!conditionHasValue || values.value === undefined
+                  condition_ref: condition.condition_ref,
+                  ...(!condition.has_value || values.value === undefined
                     ? {}
                     : { value: BigInt(values.value) }),
                   ...(values.duration === undefined
@@ -93,19 +91,28 @@ export function EncounterConditionControls({
               }}
             >
               <div className="encounter-add-condition__row">
-                <Form.Item name="name" rules={[{ required: true }]}>
+                <Form.Item name="conditionRef" rules={[{ required: true }]}>
                   <Select
                     aria-label="Add condition"
                     showSearch
                     optionFilterProp="label"
-                    options={MODELED_CONDITION_OPTIONS}
+                    options={conditionDefinitions.map((condition) => ({
+                      label: condition.name,
+                      value: condition.condition_ref,
+                    }))}
                     placeholder="Condition"
-                    onChange={(name) =>
+                    onChange={(conditionRef) => {
+                      const condition = conditionDefinition(
+                        conditionRef,
+                        conditionDefinitions,
+                      );
                       conditionForm.setFieldValue(
                         "value",
-                        conditionTakesValue(name) ? 1 : undefined,
-                      )
-                    }
+                        condition?.has_value
+                          ? (optionalNumber(condition.default_value) ?? 1)
+                          : undefined,
+                      );
+                    }}
                   />
                 </Form.Item>
                 {addConditionHasValue && (
@@ -154,6 +161,8 @@ export function EncounterConditionControls({
               key={condition.condition_id.toString()}
               participantKey={current.participant_key}
               participants={participants}
+              conditionDefinitions={conditionDefinitions}
+              onReference={onReference}
               onRemove={onRemoveCondition}
               onUpdate={onUpdateCondition}
             />
@@ -200,12 +209,16 @@ function ConditionEditor({
   condition,
   participantKey,
   participants,
+  conditionDefinitions,
+  onReference,
   onRemove,
   onUpdate,
 }: {
   condition: EncounterParticipantConditionView;
   participantKey: string;
   participants: EncounterParticipantView[];
+  conditionDefinitions: EncounterConditionDefinitionView[];
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onRemove: (participantKey: string, conditionId: bigint) => void;
   onUpdate: (
     participantKey: string,
@@ -214,7 +227,7 @@ function ConditionEditor({
 }) {
   const [detailsForm] = Form.useForm<ConditionDetailsForm>();
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const hasValue = conditionTakesValue(condition.name);
+  const hasValue = conditionTakesValue(condition, conditionDefinitions);
   const hasDetails = Boolean(
     condition.duration_rounds !== undefined ||
     condition.source_participant_key ||
@@ -263,7 +276,22 @@ function ConditionEditor({
         .filter(Boolean)
         .join(" ")}
     >
-      <span className="encounter-condition-row__name">{condition.name}</span>
+      {condition.condition_key ? (
+        <button
+          className="encounter-condition-row__name encounter-condition-row__name-button"
+          onClick={(event) =>
+            onReference(
+              condition.condition_key!,
+              event.currentTarget.getBoundingClientRect(),
+            )
+          }
+          type="button"
+        >
+          {condition.name}
+        </button>
+      ) : (
+        <span className="encounter-condition-row__name">{condition.name}</span>
+      )}
       {hasValue && (
         <EditableCommitField
           ariaLabel={`${condition.name} value`}
@@ -315,10 +343,19 @@ function ConditionEditor({
   );
 }
 
-function conditionTakesValue(name: string | undefined): boolean {
-  return (
-    MODELED_CONDITIONS.find((condition) => condition.value === name)?.hasValue ?? true
-  );
+function conditionDefinition(
+  conditionRef: string | undefined,
+  definitions: EncounterConditionDefinitionView[],
+): EncounterConditionDefinitionView | undefined {
+  return definitions.find((condition) => condition.condition_ref === conditionRef);
+}
+
+function conditionTakesValue(
+  condition: EncounterParticipantConditionView,
+  definitions: EncounterConditionDefinitionView[],
+): boolean {
+  const definition = conditionDefinition(condition.condition_key, definitions);
+  return definition?.has_value ?? condition.value !== undefined;
 }
 
 function commitConditionValue(

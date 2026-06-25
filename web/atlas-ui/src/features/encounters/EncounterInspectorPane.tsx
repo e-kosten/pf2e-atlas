@@ -6,6 +6,7 @@ import type {
   DamageExpressionView,
   EncounterParticipantVariantView,
   EncounterParticipantView,
+  EncounterConditionDefinitionView,
   MechanicActivityView,
   StatBlockView,
   StatValueView,
@@ -31,6 +32,7 @@ export function EncounterInspectorPane({
   onUpdate,
   participant,
   participants,
+  conditionDefinitions,
   previewDetail,
   previewLoading,
   previewRecordKey,
@@ -50,6 +52,7 @@ export function EncounterInspectorPane({
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
+  conditionDefinitions: EncounterConditionDefinitionView[];
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
   previewRecordKey: string | null;
@@ -70,7 +73,9 @@ export function EncounterInspectorPane({
         onRemoveCondition={onRemoveCondition}
         onUpdate={onUpdate}
         onUpdateCondition={onUpdateCondition}
+        onReference={onReference}
         participants={participants}
+        conditionDefinitions={conditionDefinitions}
       />
       {participant.stat_block && <AdjustedStats statBlock={participant.stat_block} />}
       {participant.record_key && participant.status === "active" && (

@@ -34,6 +34,11 @@ export type { FilterValidationMessage } from "../../../../crates/atlas-app-model
 export type { FilterValidationResult } from "../../../../crates/atlas-app-model/bindings/FilterValidationResult";
 export type { FilterValueListView } from "../../../../crates/atlas-app-model/bindings/FilterValueListView";
 export type { FilterValueOption } from "../../../../crates/atlas-app-model/bindings/FilterValueOption";
+export type { EncounterConditionApplicabilityView } from "../../../../crates/atlas-app-model/bindings/EncounterConditionApplicabilityView";
+export type { EncounterConditionAutomationLevelView } from "../../../../crates/atlas-app-model/bindings/EncounterConditionAutomationLevelView";
+export type { EncounterConditionCatalogView } from "../../../../crates/atlas-app-model/bindings/EncounterConditionCatalogView";
+export type { EncounterConditionCategoryView } from "../../../../crates/atlas-app-model/bindings/EncounterConditionCategoryView";
+export type { EncounterConditionDefinitionView } from "../../../../crates/atlas-app-model/bindings/EncounterConditionDefinitionView";
 export type { EncounterCreateView } from "../../../../crates/atlas-app-model/bindings/EncounterCreateView";
 export type { EncounterDetailView } from "../../../../crates/atlas-app-model/bindings/EncounterDetailView";
 export type { EncounterIndexView } from "../../../../crates/atlas-app-model/bindings/EncounterIndexView";

@@ -20,6 +20,7 @@ const apiMocks = vi.hoisted(() => ({
   createEncounter: vi.fn(),
   deleteEncounter: vi.fn(),
   getEncounter: vi.fn(),
+  getEncounterConditionDefinitions: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
   openResultWindow: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("../../api/atlasApi", () => ({
   createEncounter: apiMocks.createEncounter,
   deleteEncounter: apiMocks.deleteEncounter,
   getEncounter: apiMocks.getEncounter,
+  getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
   openResultWindow: apiMocks.openResultWindow,
@@ -57,6 +59,9 @@ describe("encounter views", () => {
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
     apiMocks.getEncounter.mockResolvedValue(encounterDetailFixture());
+    apiMocks.getEncounterConditionDefinitions.mockResolvedValue(
+      conditionDefinitionsFixture(),
+    );
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
@@ -293,6 +298,22 @@ describe("encounter views", () => {
     );
   });
 
+  it("opens condition reference previews from canonical condition rows", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Frightened" }));
+
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "conditionitems:TBSHQspnbcqxsmjL",
+      ),
+    );
+    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await screen.findByText("Frightened Condition")).toBeInTheDocument();
+  });
+
   it("renders HP meter segments and threshold states", async () => {
     apiMocks.getEncounter.mockResolvedValue(
       encounterDetailFixture("participant_a", {
@@ -494,7 +515,7 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          name: "Sickened",
+          condition_ref: "conditionitems:fesd1n5eVhpCSS18",
           value: 2n,
           duration_rounds: 3n,
           note: "poison",
@@ -503,7 +524,7 @@ describe("encounter views", () => {
     );
     expect(
       apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
-    ).not.toHaveProperty("condition_key");
+    ).not.toHaveProperty("name");
   }, 10_000);
 
   it("edits and removes conditions for the current participant", async () => {
@@ -650,6 +671,54 @@ function encounterIndexFixture(): EncounterIndexViewDto {
   };
 }
 
+function conditionDefinitionsFixture() {
+  return {
+    conditions: [
+      conditionDefinitionFixture(
+        "conditionitems:TBSHQspnbcqxsmjL",
+        "Frightened",
+        true,
+        "automated",
+      ),
+      conditionDefinitionFixture(
+        "conditionitems:fesd1n5eVhpCSS18",
+        "Sickened",
+        true,
+        "automated",
+      ),
+      conditionDefinitionFixture(
+        "conditionitems:AJh5ex99aV6VTggg",
+        "Off-Guard",
+        false,
+        "automated",
+      ),
+      conditionDefinitionFixture(
+        "conditionitems:j91X7x0XSomq8d60",
+        "Prone",
+        false,
+        "tracked",
+      ),
+    ],
+  };
+}
+
+function conditionDefinitionFixture(
+  conditionRef: string,
+  name: string,
+  hasValue: boolean,
+  automationLevel: "automated" | "tracked",
+) {
+  return {
+    condition_ref: conditionRef,
+    name,
+    automation_level: automationLevel,
+    applies_to: ["creature"],
+    categories: [automationLevel === "automated" ? "stat_modifier" : "runtime_state"],
+    has_value: hasValue,
+    ...(hasValue ? { default_value: 1n } : {}),
+  };
+}
+
 function encounterDetailFixture(
   currentTurnParticipantKey: string | undefined = "participant_a",
   firstParticipantOverrides: Partial<EncounterParticipantView> = {},
@@ -673,7 +742,7 @@ function encounterDetailFixture(
         conditions: [
           {
             condition_id: 7n,
-            condition_key: "conditionitems:frightened",
+            condition_key: "conditionitems:TBSHQspnbcqxsmjL",
             name: "Frightened",
             value: 1n,
             duration_rounds: 2n,
@@ -750,36 +819,46 @@ function recordSummaryFixture(recordKey: string, title: string): RecordSummaryVi
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const linked = recordKey === "rules:linked";
+  const condition = recordKey.startsWith("conditionitems:");
   return {
     record_key: recordKey,
-    title: linked ? "Linked Rule" : "Goblin Warrior",
-    kind: linked ? "rule" : "creature",
+    title: condition
+      ? "Frightened Condition"
+      : linked
+        ? "Linked Rule"
+        : "Goblin Warrior",
+    kind: condition || linked ? "rule" : "creature",
     presentation: {
       record_key: recordKey,
-      kind: linked ? "rule" : "creature",
-      title: linked ? "Linked Rule" : "Goblin Warrior",
+      kind: condition || linked ? "rule" : "creature",
+      title: condition
+        ? "Frightened Condition"
+        : linked
+          ? "Linked Rule"
+          : "Goblin Warrior",
       identity: [],
       badges: [],
-      sections: linked
-        ? []
-        : [
-            {
-              kind: "references",
-              title: "References",
-              blocks: [
-                {
-                  kind: "relationships",
-                  content: [
-                    {
-                      kind: "reference",
-                      label: "Linked Rule",
-                      record_key: "rules:linked",
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
+      sections:
+        linked || condition
+          ? []
+          : [
+              {
+                kind: "references",
+                title: "References",
+                blocks: [
+                  {
+                    kind: "relationships",
+                    content: [
+                      {
+                        kind: "reference",
+                        label: "Linked Rule",
+                        record_key: "rules:linked",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
     },
   };
 }
