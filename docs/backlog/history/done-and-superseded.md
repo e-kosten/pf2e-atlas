@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Rust web UI frontend architecture cleanup](./items/rust-web-ui-frontend-architecture-cleanup.md)
+  The React frontend now uses `app`, `features`, and `shared` module ownership with shared filter discovery, record/detail primitives, and feature-local route modules. Status: done.
+
 - [Rust rich source content model](../items/rust-rich-source-content-model.md)
   The lossy `ContentDocument` storage model has been replaced by canonical `RichDocument` content stored in `record_content`, with projections for CLI presentation, FTS, references, and embedding units. Status: done.
 
