@@ -2,7 +2,7 @@ import { ExternalLink, X } from "lucide-react";
 import type React from "react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
-import { RecordPresentation } from "../../shared/records/RecordPresentation";
+import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconButton, PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import {
@@ -46,14 +46,14 @@ export function RecordView({ route }: RecordViewProps) {
           }
           title="Record Detail"
         >
-          <RecordPresentation
+          <RecordDetailPane
             detail={detail.data}
+            errors={[detail.error]}
             loading={detail.isLoading || detail.isFetching}
             onReference={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
           />
-          {detail.error && <InlineError message={detail.error.message} />}
         </RecordPane>
       }
     />
@@ -77,8 +77,9 @@ export function ReaderView({ route }: ReaderViewProps) {
           }
           title="Reader"
         >
-          <RecordPresentation
+          <RecordDetailPane
             detail={detail.data}
+            errors={[detail.error]}
             loading={detail.isLoading || detail.isFetching}
             onReference={(previewRecordKey) =>
               navigateToAtlasRoute({
@@ -88,7 +89,6 @@ export function ReaderView({ route }: ReaderViewProps) {
               })
             }
           />
-          {detail.error && <InlineError message={detail.error.message} />}
         </RecordPane>
       }
       auxiliary={
@@ -121,22 +121,21 @@ export function ReaderView({ route }: ReaderViewProps) {
           }
           title="Preview"
         >
-          {route.previewRecordKey ? (
-            <RecordPresentation
-              detail={preview.data}
-              loading={preview.isLoading || preview.isFetching}
-              onReference={(previewRecordKey) =>
-                navigateToAtlasRoute({
-                  kind: "reader",
-                  recordKey: route.recordKey,
-                  previewRecordKey,
-                })
-              }
-            />
-          ) : (
-            <div className="detail-empty">Select a linked record to preview it.</div>
-          )}
-          {preview.error && <InlineError message={preview.error.message} />}
+          <RecordDetailPane
+            detail={route.previewRecordKey ? preview.data : undefined}
+            emptyMessage="Select a linked record to preview it."
+            errors={[preview.error]}
+            loading={
+              route.previewRecordKey ? preview.isLoading || preview.isFetching : false
+            }
+            onReference={(previewRecordKey) =>
+              navigateToAtlasRoute({
+                kind: "reader",
+                recordKey: route.recordKey,
+                previewRecordKey,
+              })
+            }
+          />
         </RecordPane>
       }
     />
@@ -192,13 +191,9 @@ function RecordPane({
 }) {
   return (
     <PaneFrame className="record-view__pane" headerActions={actions} label={title}>
-      <div className="detail-panel">{children}</div>
+      {children}
     </PaneFrame>
   );
-}
-
-function InlineError({ message }: { message: string }) {
-  return <div className="error-banner">{message}</div>;
 }
 
 function RouteIconLink({ label, route }: { label: string; route: AtlasRoute }) {
