@@ -451,9 +451,22 @@
   padding: 10px;
 }
 
+.encounter-hp-panel__header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  justify-content: space-between;
+}
+
 .encounter-hp-panel h3 {
   font-size: 14px;
   margin: 0;
+}
+
+.encounter-hp-panel__header span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .encounter-hp-meter {

@@ -209,7 +209,6 @@ function ParticipantHeader({
       <div>
         <p className="eyebrow">{participantKindLabel(participant.participant_kind)}</p>
         <h2>{participant.display_name}</h2>
-        <p>{hpLabel(participant)}</p>
       </div>
       {participant.participant_kind === "creature" && (
         <div className="encounter-variant-control">
@@ -422,22 +421,6 @@ function signed(value: bigint | number | undefined): string {
   return Number(value).toString();
 }
 
-function hpLabel(participant: EncounterParticipantView): string {
-  if (
-    participant.current_hp === undefined &&
-    participant.max_hp === undefined &&
-    asNumber(participant.temporary_hp) === 0
-  ) {
-    return "";
-  }
-  const current = displayNumber(participant.current_hp);
-  const max = displayNumber(participant.max_hp);
-  const temporaryHp = asNumber(participant.temporary_hp);
-  return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
-}
 function displayNumber(value: bigint | undefined): string {
   return value === undefined ? "--" : value.toString();
-}
-function asNumber(value: bigint | undefined): number {
-  return value === undefined ? 0 : Number(value);
 }

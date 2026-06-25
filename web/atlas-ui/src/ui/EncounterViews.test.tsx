@@ -309,7 +309,7 @@ describe("encounter views", () => {
       },
     );
 
-    const meter = await screen.findByLabelText("HP remaining");
+    const meter = await screen.findByLabelText("HP remaining: 6/12 +5");
     const currentSegment = meter.querySelector<HTMLElement>(
       ".encounter-hp-meter__current",
     );
@@ -345,7 +345,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const criticalMeter = await screen.findAllByLabelText("HP remaining");
+    const criticalMeter = await screen.findAllByLabelText(/HP remaining:/);
     expect(
       criticalMeter[criticalMeter.length - 1].querySelector(
         ".encounter-hp-meter__current",
@@ -368,7 +368,7 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          current_hp: 43n,
+          current_hp: 12n,
         }),
       ),
     );
@@ -384,7 +384,7 @@ describe("encounter views", () => {
         expect.objectContaining({
           participant_key: "participant_a",
           temporary_hp: 6n,
-          current_hp: 43n,
+          current_hp: 12n,
         }),
       ),
     );
@@ -398,7 +398,7 @@ describe("encounter views", () => {
         expect.objectContaining({
           participant_key: "participant_a",
           temporary_hp: 0n,
-          current_hp: 41n,
+          current_hp: 10n,
         }),
       ),
     );

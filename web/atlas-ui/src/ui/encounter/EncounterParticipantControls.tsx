@@ -87,13 +87,14 @@ export function EncounterParticipantControls({
     }
     const hp = evaluateHpFormula(hpInput);
     if (hp !== null) {
+      const clampedHp = clampCurrentHp(activeCurrent, hp);
       updateParticipant({
-        current_hp: BigInt(hp),
-        defeated: hp === 0 ? true : activeCurrent.defeated,
+        current_hp: BigInt(clampedHp),
+        defeated: clampedHp === 0 ? true : activeCurrent.defeated,
       });
       setHpDraft({
         participantKey: activeCurrent.participant_key,
-        value: hp.toString(),
+        value: clampedHp.toString(),
       });
     }
   };
@@ -137,6 +138,7 @@ export function EncounterParticipantControls({
       ? Math.min(100, Math.max(0, (temporaryHp / hpMeterTotal) * 100))
       : 0;
   const hpRatio = maxHp > 0 ? currentHp / maxHp : 1;
+  const hpSummary = hpLabel(activeCurrent);
   const hpMeterTone =
     hpRatio <= 0.25
       ? "encounter-hp-meter__current--critical"
@@ -172,8 +174,14 @@ export function EncounterParticipantControls({
             </Form.Item>
           </div>
           <div className="encounter-hp-panel">
-            <h3>HP</h3>
-            <div className="encounter-hp-meter" aria-label="HP remaining">
+            <div className="encounter-hp-panel__header">
+              <h3>HP</h3>
+              <span>{hpSummary}</span>
+            </div>
+            <div
+              className="encounter-hp-meter"
+              aria-label={`HP remaining: ${hpSummary}`}
+            >
               <span
                 className={["encounter-hp-meter__current", hpMeterTone]
                   .filter(Boolean)
@@ -282,10 +290,12 @@ export function EncounterParticipantControls({
                     <Button
                       onClick={() => {
                         if (amount !== null) {
+                          const currentHp = clampCurrentHp(
+                            activeCurrent,
+                            asNumber(activeCurrent.current_hp) + amount,
+                          );
                           updateParticipant({
-                            current_hp: BigInt(
-                              Math.max(0, asNumber(activeCurrent.current_hp) + amount),
-                            ),
+                            current_hp: BigInt(currentHp),
                           });
                           setAmountDraft({
                             participantKey: activeCurrent.participant_key,
@@ -549,6 +559,13 @@ function damageChanges(
     defeated: current_hp === BigInt(0) ? true : participant.defeated,
   };
 }
+function clampCurrentHp(participant: EncounterParticipantView, hp: number): number {
+  const lowerBounded = Math.max(0, hp);
+  if (participant.max_hp === undefined) {
+    return lowerBounded;
+  }
+  return Math.min(lowerBounded, Number(participant.max_hp));
+}
 function applyParticipantUpdate(
   participant: EncounterParticipantView,
   request: UpdateEncounterParticipantRequest,
@@ -586,6 +603,18 @@ function evaluateHpFormula(value: string): number | null {
 }
 function asNumber(value: bigint | undefined): number {
   return value === undefined ? 0 : Number(value);
+}
+function hpLabel(participant: EncounterParticipantView | null): string {
+  if (!participant) {
+    return "--/--";
+  }
+  const current = displayNumber(participant.current_hp);
+  const max = displayNumber(participant.max_hp);
+  const temporaryHp = asNumber(participant.temporary_hp);
+  return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
+}
+function displayNumber(value: bigint | undefined): string {
+  return value === undefined ? "--" : value.toString();
 }
 function optionalNumber(value: bigint | undefined): number | undefined {
   return value === undefined ? undefined : Number(value);
