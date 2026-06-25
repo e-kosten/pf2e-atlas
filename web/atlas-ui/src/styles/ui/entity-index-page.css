@@ -1,0 +1,28 @@
+.entity-index-page__toolbar {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 0 4px;
+}
+
+.entity-index-page__toolbar h2 {
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.entity-index-page__toolbar p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 3px 0 0;
+}
+
+.entity-index-page__table {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  min-height: 0;
+  overflow: auto;
+}
