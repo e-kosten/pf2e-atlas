@@ -11,7 +11,7 @@ type PaneWidthSpec = {
 
 type PaneWidths<PaneId extends string> = Record<PaneId, number>;
 
-type ResizablePaneItem<PaneId extends string> =
+export type ResizablePaneItem<PaneId extends string> =
   | {
       kind: "pane";
       key: string;

@@ -199,7 +199,7 @@ describe("encounter views", () => {
     expect(within(goblinRow).queryByText("/ 12")).not.toBeInTheDocument();
   });
 
-  it("edits the selected participant in the right pane", async () => {
+  it("edits the selected participant in the participant sheet", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
