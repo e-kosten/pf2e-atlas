@@ -1,12 +1,12 @@
-# Atlas UI Prototype
+# Atlas UI
 
-This package is the first frontend prototype for the local Atlas web app.
+This package is the React frontend for the local Atlas web app.
 
 It uses React, Ant Design, TanStack Query, and Rust-generated Atlas DTOs for the local search-to-detail workflow.
 
 ## Component Library
 
-Ant Design is the selected component library for the prototype. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the decision note and retained comparison context.
+Ant Design is the selected component library for the current web UI. See [docs/component-library-evaluation.md](docs/component-library-evaluation.md) for the decision note and retained comparison context.
 
 ## Normal Use
 

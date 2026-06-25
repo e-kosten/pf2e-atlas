@@ -48,7 +48,9 @@ describe("participantEdits", () => {
   });
 
   it("marks defeated when damage reaches zero hp", () => {
-    expect(damageChanges(participantFixture({ current_hp: BigInt(5) }), 10)).toMatchObject({
+    expect(
+      damageChanges(participantFixture({ current_hp: BigInt(5) }), 10),
+    ).toMatchObject({
       current_hp: BigInt(0),
       defeated: true,
     });
@@ -61,7 +63,9 @@ describe("participantEdits", () => {
   });
 
   it("preserves unchanged participant update fields", () => {
-    expect(participantUpdate(participantFixture(), { current_hp: BigInt(12) })).toMatchObject({
+    expect(
+      participantUpdate(participantFixture(), { current_hp: BigInt(12) }),
+    ).toMatchObject({
       participant_key: "participant-1",
       display_name: "Goblin 1",
       side: "enemy",

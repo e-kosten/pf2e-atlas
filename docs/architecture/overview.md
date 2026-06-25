@@ -14,7 +14,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-app-model` owns interactive app DTOs for local web/TUI-style workflows, including app errors, readiness, filter editor contracts, basic filters, result windows, and record view wrappers. It is the default Rust-to-TypeScript export boundary for app contracts.
 - `atlas-app-service` owns application workflow orchestration over `atlas-runtime`, `atlas-search`, and `atlas-local-state`. Web startup uses full pooled retrieval services through runtime setup/readiness policy; short-lived local CLI clients may choose explicit on-demand retrieval modes for workflows that do not need query embeddings. App-service owns result-window metadata, projects app filter editor groups/controls from product discovery, lowers app filters to canonical filters, hydrates saved-list and encounter rows from local state against the active artifact, and exposes native methods to web, CLI client, and future TUI surfaces.
 - `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
-- `web/atlas-ui` owns the TypeScript/React frontend prototype. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
+- `web/atlas-ui` owns the TypeScript/React frontend. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
 - `atlas-local-state` owns durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants.
 - `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
@@ -41,7 +41,7 @@ flowchart TD
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
     cli --> web["atlas-web<br/>local Axum API"]
-    browser["web/atlas-ui<br/>React prototype"] --> web
+    browser["web/atlas-ui<br/>React frontend"] --> web
     web --> appService["atlas-app-service<br/>application workflow service"]
     appService --> appModel["atlas-app-model<br/>interactive DTOs"]
     appService --> runtime
