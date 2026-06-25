@@ -179,7 +179,10 @@ export function EncounterParticipantControls({
   return (
     <section className="encounter-participant-controls">
       {activeCurrent ? (
-        <div key={activeCurrent.participant_key} className="encounter-turn__body">
+        <div
+          key={activeCurrent.participant_key}
+          className="encounter-participant-controls__body"
+        >
           <div className="encounter-form-grid">
             <Form.Item label="Name" layout="vertical">
               <Input
