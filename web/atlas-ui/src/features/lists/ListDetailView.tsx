@@ -20,13 +20,12 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
-import { RecordPresentation } from "../../shared/records/RecordPresentation";
+import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
 import { ListItemsPane } from "./ListItemsPane";
 import { useSavedLists } from "./savedListQueries";
-import { InlineError } from "./listUtils";
 import {
   listSearchQuery,
   useDebouncedSearchFilters,
@@ -153,26 +152,27 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         ) : null
       }
       detail={
-        <section className="detail-panel">
-          {selectedItem?.status === "unresolved" ? (
-            <div className="detail-empty">This saved record is unresolved.</div>
-          ) : (
-            <RecordPresentation
-              detail={detail.data}
-              loading={detail.isLoading || detail.isFetching}
-              onReference={(recordKey) =>
-                navigateToAtlasRoute({
-                  kind: "list",
-                  slug: route.slug,
-                  selectedRecordKey: recordKey,
-                })
-              }
-            />
-          )}
-          {list.error && <InlineError message={list.error.message} />}
-          {detail.error && <InlineError message={detail.error.message} />}
-          {removeItem.error && <InlineError message={removeItem.error.message} />}
-        </section>
+        <RecordDetailPane
+          detail={selectedItem?.status === "unresolved" ? undefined : detail.data}
+          emptyMessage={
+            selectedItem?.status === "unresolved"
+              ? "This saved record is unresolved."
+              : undefined
+          }
+          errors={[list.error, detail.error, removeItem.error]}
+          loading={
+            selectedItem?.status === "unresolved"
+              ? false
+              : detail.isLoading || detail.isFetching
+          }
+          onReference={(recordKey) =>
+            navigateToAtlasRoute({
+              kind: "list",
+              slug: route.slug,
+              selectedRecordKey: recordKey,
+            })
+          }
+        />
       }
     />
   );

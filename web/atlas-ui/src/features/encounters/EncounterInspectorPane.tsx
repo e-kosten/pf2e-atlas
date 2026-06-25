@@ -13,7 +13,7 @@ import type {
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { displayNumber, participantUpdate } from "./participantEdits";
-import { RecordPresentation } from "../../shared/records/RecordPresentation";
+import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import {
   RecordPreviewPopover,
   type RecordPreviewAnchor,
@@ -76,7 +76,7 @@ export function EncounterInspectorPane({
       {participant.record_key && participant.status === "active" && (
         <section className="encounter-source-record">
           <h3>Source Record</h3>
-          <RecordPresentation
+          <RecordDetailPane
             detail={recordDetail}
             loading={detailLoading}
             onReference={onReference}

@@ -11,20 +11,24 @@ import type React from "react";
 
 type RecordPresentationProps = {
   detail: RecordDetailView | undefined;
+  emptyMessage?: string;
   loading: boolean;
+  loadingMessage?: string;
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 };
 
 export function RecordPresentation({
   detail,
+  emptyMessage = "Select a result to inspect it.",
   loading,
+  loadingMessage = "Loading record...",
   onReference,
 }: RecordPresentationProps) {
   if (loading) {
-    return <div className="detail-empty">Loading record...</div>;
+    return <div className="detail-empty">{loadingMessage}</div>;
   }
   if (!detail) {
-    return <div className="detail-empty">Select a result to inspect it.</div>;
+    return <div className="detail-empty">{emptyMessage}</div>;
   }
 
   return (

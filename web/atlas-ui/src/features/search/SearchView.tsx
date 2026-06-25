@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterPanel } from "../../shared/filters/FilterPanel";
 import { ResultTable } from "./ResultTable";
-import { RecordPresentation } from "../../shared/records/RecordPresentation";
+import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import {
@@ -47,13 +47,11 @@ export function SearchView({ workspace }: SearchViewProps) {
         ) : null
       }
       detail={
-        <section className="detail-panel">
-          <RecordPresentation
-            detail={workspace.recordDetail}
-            loading={workspace.detailLoading}
-            onReference={workspace.selectRecord}
-          />
-        </section>
+        <RecordDetailPane
+          detail={workspace.recordDetail}
+          loading={workspace.detailLoading}
+          onReference={workspace.selectRecord}
+        />
       }
     />
   );
