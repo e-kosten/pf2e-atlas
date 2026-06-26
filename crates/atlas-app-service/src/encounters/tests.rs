@@ -129,6 +129,23 @@ fn set_encounter_turn_falls_back_to_pcs_when_everyone_is_defeated() {
         started.current_turn_participant_key.as_deref(),
         Some(pc.participant_key.as_str())
     );
+    let pc_view = started
+        .participants
+        .iter()
+        .find(|participant| participant.participant_key == pc.participant_key)
+        .expect("pc should remain in encounter");
+    let pc_stats = pc_view
+        .stat_block
+        .as_ref()
+        .expect("manual pc should project runtime state");
+    assert!(pc_stats.values.is_empty());
+    assert!(pc_stats.speeds.is_empty());
+    let action_budget = pc_stats
+        .action_budget
+        .as_ref()
+        .expect("manual pc should have action budget");
+    assert_eq!(action_budget.actions.adjusted_value, 3);
+    assert_eq!(action_budget.reactions.adjusted_value, 1);
 }
 
 #[test]
@@ -748,6 +765,7 @@ fn unresolved_record_backed_participant_preserves_stored_state() {
         EncounterParticipantStatusView::Unresolved
     );
     assert!(participant.record.is_none());
+    assert!(participant.stat_block.is_none());
 }
 
 #[test]

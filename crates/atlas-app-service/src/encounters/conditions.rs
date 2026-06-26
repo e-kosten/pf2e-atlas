@@ -12,6 +12,14 @@ pub(super) enum ConditionRule {
     Clumsy,
     Enfeebled,
     Stupefied,
+    Slowed,
+    Quickened,
+    Stunned,
+    Immobilized,
+    Grabbed,
+    Restrained,
+    Encumbered,
+    Prone,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -139,13 +147,14 @@ const MODELED_CONDITIONS: &[ModeledCondition] = &[
         CREATURES,
         DEATH_AND_DYING,
     ),
-    tracked(
+    automated(
         "conditionitems:D5mg6Tc7Jzrj6ro7",
         "Encumbered",
         false,
         None,
         CREATURES,
         RUNTIME_STATE,
+        ConditionRule::Encumbered,
     ),
     automated(
         "conditionitems:MIRkyAjyBeXivMa7",
@@ -197,13 +206,14 @@ const MODELED_CONDITIONS: &[ModeledCondition] = &[
         STAT_MODIFIER,
         ConditionRule::Frightened,
     ),
-    tracked(
+    automated(
         "conditionitems:kWc1fhmv9LBiTuei",
         "Grabbed",
         false,
         None,
         CREATURES,
         RUNTIME_STATE,
+        ConditionRule::Grabbed,
     ),
     tracked(
         "conditionitems:v44P3WUcU1j0115l",
@@ -229,13 +239,14 @@ const MODELED_CONDITIONS: &[ModeledCondition] = &[
         CREATURES,
         ATTITUDE,
     ),
-    tracked(
+    automated(
         "conditionitems:eIcWbB5o3pP6OIMe",
         "Immobilized",
         false,
         None,
         CREATURES,
         RUNTIME_STATE,
+        ConditionRule::Immobilized,
     ),
     tracked(
         "conditionitems:fuG8dgthlDWfWjIA",
@@ -294,29 +305,32 @@ const MODELED_CONDITIONS: &[ModeledCondition] = &[
         CREATURES_AND_HAZARDS,
         RUNTIME_STATE,
     ),
-    tracked(
+    automated(
         "conditionitems:j91X7x0XSomq8d60",
         "Prone",
         false,
         None,
         CREATURES,
         RUNTIME_STATE,
+        ConditionRule::Prone,
     ),
-    tracked(
+    automated(
         "conditionitems:nlCjDvLMf2EkV2dl",
         "Quickened",
         false,
         None,
         CREATURES,
         ACTION_ECONOMY,
+        ConditionRule::Quickened,
     ),
-    tracked(
+    automated(
         "conditionitems:VcDeM8A5oI6VqhbM",
         "Restrained",
         false,
         None,
         CREATURES,
         RUNTIME_STATE,
+        ConditionRule::Restrained,
     ),
     automated(
         "conditionitems:fesd1n5eVhpCSS18",
@@ -327,21 +341,23 @@ const MODELED_CONDITIONS: &[ModeledCondition] = &[
         STAT_MODIFIER,
         ConditionRule::Sickened,
     ),
-    tracked(
+    automated(
         "conditionitems:xYTAsEpcJE1Ccni3",
         "Slowed",
         true,
         Some(1),
         CREATURES,
         ACTION_ECONOMY,
+        ConditionRule::Slowed,
     ),
-    tracked(
+    automated(
         "conditionitems:dfCMdR4wnpbYNTix",
         "Stunned",
         true,
         Some(1),
         CREATURES,
         ACTION_ECONOMY,
+        ConditionRule::Stunned,
     ),
     automated(
         "conditionitems:e1XGnhKNSQIm5IXg",

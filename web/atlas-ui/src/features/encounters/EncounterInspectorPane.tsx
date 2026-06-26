@@ -8,6 +8,8 @@ import type {
   EncounterParticipantView,
   EncounterConditionDefinitionView,
   MechanicActivityView,
+  MovementSpeedView,
+  RuntimeCountView,
   StatBlockView,
   StatValueView,
   UpdateEncounterParticipantConditionRequest,
@@ -154,6 +156,9 @@ function participantKindLabel(
 function AdjustedStats({ statBlock }: { statBlock: StatBlockView }) {
   return (
     <section className="encounter-adjusted-stats">
+      {(statBlock.action_budget || statBlock.speeds.length > 0) && (
+        <RuntimeStats statBlock={statBlock} />
+      )}
       <div className="encounter-adjusted-stats__title">
         <h3>Adjusted Stats</h3>
         {statBlock.adjusted_level !== undefined &&
@@ -187,6 +192,134 @@ function AdjustedStats({ statBlock }: { statBlock: StatBlockView }) {
         </div>
       )}
     </section>
+  );
+}
+
+function RuntimeStats({ statBlock }: { statBlock: StatBlockView }) {
+  return (
+    <section className="encounter-runtime">
+      <div className="encounter-adjusted-stats__title">
+        <h3>Runtime</h3>
+      </div>
+      {statBlock.action_budget && (
+        <div className="encounter-runtime-grid">
+          <RuntimeCount count={statBlock.action_budget.actions} />
+          <RuntimeCount count={statBlock.action_budget.reactions} />
+          {!statBlock.action_budget.can_act.available && (
+            <RuntimeCapability
+              label="Can act"
+              reason={statBlock.action_budget.can_act.reason}
+            />
+          )}
+          {!statBlock.action_budget.can_react.available && (
+            <RuntimeCapability
+              label="Can react"
+              reason={statBlock.action_budget.can_react.reason}
+            />
+          )}
+        </div>
+      )}
+      {statBlock.speeds.length > 0 && (
+        <div className="encounter-runtime-grid">
+          {statBlock.speeds.map((speed) => (
+            <MovementSpeed key={speed.movement_type} speed={speed} />
+          ))}
+        </div>
+      )}
+      {statBlock.action_budget && statBlock.action_budget.notes.length > 0 && (
+        <RuntimeNotes notes={statBlock.action_budget.notes} />
+      )}
+    </section>
+  );
+}
+
+function RuntimeCount({ count }: { count: RuntimeCountView }) {
+  const changed = count.adjusted_value !== count.base_value;
+  return (
+    <div className="encounter-stat-row encounter-runtime-row">
+      <span>{count.label}</span>
+      <strong>{count.adjusted_value.toString()}</strong>
+      {count.segments.some((segment) => segment.restricted) && (
+        <small>
+          {count.segments
+            .filter((segment) => segment.restricted)
+            .map((segment) => `${segment.label}: ${segment.value.toString()}`)
+            .join(", ")}
+        </small>
+      )}
+      {changed && <small>base {count.base_value.toString()}</small>}
+      {count.adjustments.length > 0 && (
+        <small>
+          {count.adjustments
+            .map((adjustment) => `${adjustment.source} ${signed(adjustment.value)}`)
+            .join(", ")}
+        </small>
+      )}
+      {count.suppressed_adjustments.length > 0 && (
+        <small>
+          Suppressed:{" "}
+          {count.suppressed_adjustments
+            .map((adjustment) => adjustment.source)
+            .join(", ")}
+        </small>
+      )}
+    </div>
+  );
+}
+
+function RuntimeCapability({
+  label,
+  reason,
+}: {
+  label: string;
+  reason: string | undefined;
+}) {
+  return (
+    <div className="encounter-stat-row encounter-runtime-row">
+      <span>{label}</span>
+      <strong className="encounter-stat-value--decreased">No</strong>
+      {reason && <small>{reason}</small>}
+    </div>
+  );
+}
+
+function MovementSpeed({ speed }: { speed: MovementSpeedView }) {
+  const changed = speed.adjusted_value_feet !== speed.base_value_feet;
+  const decreased = speed.adjusted_value_feet < speed.base_value_feet;
+  return (
+    <div className="encounter-stat-row encounter-runtime-row">
+      <span>{speed.label}</span>
+      <strong className={decreased ? "encounter-stat-value--decreased" : undefined}>
+        {speed.adjusted_value_feet.toString()} ft
+      </strong>
+      {changed && <small>base {speed.base_value_feet.toString()} ft</small>}
+      {speed.adjustments.length > 0 && (
+        <small>
+          {speed.adjustments
+            .map((adjustment) => `${adjustment.source} ${signed(adjustment.value)}`)
+            .join(", ")}
+        </small>
+      )}
+      {speed.notes.map((note) => (
+        <small key={`${note.source}:${note.label}`}>{note.reason}</small>
+      ))}
+    </div>
+  );
+}
+
+function RuntimeNotes({
+  notes,
+}: {
+  notes: NonNullable<StatBlockView["action_budget"]>["notes"];
+}) {
+  return (
+    <div className="encounter-stat-notes">
+      {notes.map((note) => (
+        <p key={`${note.source}:${note.label}`}>
+          <strong>{note.label}</strong>: {note.reason}
+        </p>
+      ))}
+    </div>
   );
 }
 

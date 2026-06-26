@@ -26,7 +26,7 @@ pub use json_projection::{
 };
 pub use mechanics_view::{
     AbilityKind, MechanicFacets, MechanicScalar, MechanicStatistic, MechanicSurface,
-    MechanicTarget, MechanicValue, MechanicsView, SaveKind, build_mechanics_view,
+    MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, SaveKind, build_mechanics_view,
 };
 pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,

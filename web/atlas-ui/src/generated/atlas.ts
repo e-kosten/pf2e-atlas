@@ -3,6 +3,7 @@ export type { AppErrorCode } from "../../../../crates/atlas-app-model/bindings/A
 export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bindings/AppReadinessStatus";
 export type { AppReadinessView } from "../../../../crates/atlas-app-model/bindings/AppReadinessView";
 export type { AppRecoverableAction } from "../../../../crates/atlas-app-model/bindings/AppRecoverableAction";
+export type { ActionBudgetView } from "../../../../crates/atlas-app-model/bindings/ActionBudgetView";
 export type { ActivityRollSurfaceView } from "../../../../crates/atlas-app-model/bindings/ActivityRollSurfaceView";
 export type { ActivityRollView } from "../../../../crates/atlas-app-model/bindings/ActivityRollView";
 export type { AddEncounterManualParticipantRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterManualParticipantRequest";
@@ -55,6 +56,7 @@ export type { MechanicActivityKindView } from "../../../../crates/atlas-app-mode
 export type { MechanicActivityModeView } from "../../../../crates/atlas-app-model/bindings/MechanicActivityModeView";
 export type { MechanicActivityUsageView } from "../../../../crates/atlas-app-model/bindings/MechanicActivityUsageView";
 export type { MechanicActivityView } from "../../../../crates/atlas-app-model/bindings/MechanicActivityView";
+export type { MovementSpeedView } from "../../../../crates/atlas-app-model/bindings/MovementSpeedView";
 export type { MetricComparison } from "../../../../crates/atlas-app-model/bindings/MetricComparison";
 export type { OpenResultWindowRequest } from "../../../../crates/atlas-app-model/bindings/OpenResultWindowRequest";
 export type { PresentationBadge } from "../../../../crates/atlas-app-model/bindings/PresentationBadge";
@@ -84,6 +86,11 @@ export type { ResultWindowMode } from "../../../../crates/atlas-app-model/bindin
 export type { ResultWindowModeSummary } from "../../../../crates/atlas-app-model/bindings/ResultWindowModeSummary";
 export type { ResultWindowPage } from "../../../../crates/atlas-app-model/bindings/ResultWindowPage";
 export type { ResultWindowRow } from "../../../../crates/atlas-app-model/bindings/ResultWindowRow";
+export type { RuntimeAdjustmentView } from "../../../../crates/atlas-app-model/bindings/RuntimeAdjustmentView";
+export type { RuntimeCapabilityView } from "../../../../crates/atlas-app-model/bindings/RuntimeCapabilityView";
+export type { RuntimeCountSegmentView } from "../../../../crates/atlas-app-model/bindings/RuntimeCountSegmentView";
+export type { RuntimeCountView } from "../../../../crates/atlas-app-model/bindings/RuntimeCountView";
+export type { RuntimeEffectNoteView } from "../../../../crates/atlas-app-model/bindings/RuntimeEffectNoteView";
 export type { RemoveSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/RemoveSavedListItemRequest";
 export type { ReorderEncounterParticipantPlacementView } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantPlacementView";
 export type { ReorderEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantRequest";
