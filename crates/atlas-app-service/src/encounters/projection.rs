@@ -16,7 +16,7 @@ use crate::projection::record_summary;
 use crate::service::AtlasAppService;
 
 use super::hydration::hydrate_participant_records;
-use super::mechanics::participant_stat_block;
+use super::mechanics::{participant_runtime_block, participant_stat_block};
 
 pub(super) fn encounter_detail_view(
     service: &AtlasAppService,
@@ -64,7 +64,12 @@ pub(super) fn participant_view(
         .as_ref()
         .and_then(|key| records_by_key.get(key));
     let record = record_detail.map(record_summary);
-    let stat_block = record_detail.and_then(|record| participant_stat_block(&participant, record));
+    let stat_block = record_detail
+        .and_then(|record| participant_stat_block(&participant, record))
+        .or_else(|| {
+            (participant.participant_kind == ParticipantKind::Pc)
+                .then(|| participant_runtime_block(&participant))
+        });
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
     } else if record.is_some() {

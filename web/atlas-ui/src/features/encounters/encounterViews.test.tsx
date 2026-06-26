@@ -202,6 +202,46 @@ describe("encounter views", () => {
     expect(within(goblinRow).queryByText("/ 12")).not.toBeInTheDocument();
   });
 
+  it("renders runtime action budget and speed projections", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    await screen.findByText("Runtime");
+    const runtimeSection = screen.getByText("Runtime").closest(".encounter-runtime");
+    if (!(runtimeSection instanceof HTMLElement)) {
+      throw new Error("Runtime section was not rendered");
+    }
+
+    expect(within(runtimeSection).getByText("Actions")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("2")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("base 3")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("Slowed 1 -1")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("Reactions")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("Land Speed")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("15 ft")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("base 25 ft")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("Encumbered -10")).toBeInTheDocument();
+  });
+
+  it("renders manual PC runtime state without inferred speed rows", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
+
+    await screen.findByText("Runtime");
+    const runtimeSection = screen.getByText("Runtime").closest(".encounter-runtime");
+    if (!(runtimeSection instanceof HTMLElement)) {
+      throw new Error("Runtime section was not rendered");
+    }
+    expect(within(runtimeSection).getByText("Actions")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("3")).toBeInTheDocument();
+    expect(within(runtimeSection).getByText("Reactions")).toBeInTheDocument();
+    expect(within(runtimeSection).queryByText("Land Speed")).not.toBeInTheDocument();
+  });
+
   it("edits the selected participant in the participant sheet", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -741,6 +781,62 @@ function encounterDetailFixture(
         current_hp: 10n,
         temporary_hp: 5n,
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
+        stat_block: {
+          record_key: "actors:goblin",
+          title: "Goblin Warrior",
+          level: 1n,
+          adjusted_level: 1n,
+          values: [],
+          speeds: [
+            {
+              movement_type: "land",
+              label: "Land Speed",
+              base_value_feet: 25n,
+              adjusted_value_feet: 15n,
+              adjustments: [
+                {
+                  source: "Encumbered",
+                  label: "Speed penalty",
+                  value: -10n,
+                  reason:
+                    "Encumbered reduces speeds by 10 feet, to a minimum of 5 feet.",
+                },
+              ],
+              suppressed_adjustments: [],
+              notes: [],
+            },
+          ],
+          action_budget: {
+            actions: {
+              label: "Actions",
+              base_value: 3n,
+              adjusted_value: 2n,
+              segments: [{ label: "Base", value: 2n, restricted: false }],
+              adjustments: [
+                {
+                  source: "Slowed 1",
+                  label: "Reduced actions regained",
+                  value: -1n,
+                  reason: "Applied to the next action-regain step.",
+                },
+              ],
+              suppressed_adjustments: [],
+            },
+            reactions: {
+              label: "Reactions",
+              base_value: 1n,
+              adjusted_value: 1n,
+              segments: [{ label: "Base", value: 1n, restricted: false }],
+              adjustments: [],
+              suppressed_adjustments: [],
+            },
+            can_act: { available: true },
+            can_react: { available: true },
+            notes: [],
+          },
+          activities: [],
+          unapplied_effects: [],
+        },
         conditions: [
           {
             condition_id: 7n,
@@ -763,6 +859,35 @@ function encounterDetailFixture(
         initiative: 15n,
         max_hp: 24n,
         current_hp: 24n,
+        stat_block: {
+          record_key: "participant_b",
+          title: "Kyra",
+          values: [],
+          speeds: [],
+          action_budget: {
+            actions: {
+              label: "Actions",
+              base_value: 3n,
+              adjusted_value: 3n,
+              segments: [{ label: "Base", value: 3n, restricted: false }],
+              adjustments: [],
+              suppressed_adjustments: [],
+            },
+            reactions: {
+              label: "Reactions",
+              base_value: 1n,
+              adjusted_value: 1n,
+              segments: [{ label: "Base", value: 1n, restricted: false }],
+              adjustments: [],
+              suppressed_adjustments: [],
+            },
+            can_act: { available: true },
+            can_react: { available: true },
+            notes: [],
+          },
+          activities: [],
+          unapplied_effects: [],
+        },
       }),
     ],
   };

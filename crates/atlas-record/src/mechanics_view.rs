@@ -12,7 +12,15 @@ pub struct MechanicsView {
     pub title: String,
     pub level: Option<i64>,
     pub values: Vec<MechanicValue>,
+    pub speeds: Vec<MovementSpeed>,
     pub activities: Vec<MechanicActivity>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MovementSpeed {
+    pub movement_type: String,
+    pub label: String,
+    pub value_feet: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -264,7 +272,8 @@ pub fn build_mechanics_view(record: &AtlasRecord) -> Option<MechanicsView> {
         .collect::<Vec<_>>();
     skill_values.sort_by(|left, right| left.label.cmp(&right.label));
     values.extend(skill_values);
-    if values.is_empty() {
+    let speeds = speed_values(&record.mechanics.metrics);
+    if values.is_empty() && speeds.is_empty() {
         return None;
     }
     Some(MechanicsView {
@@ -273,6 +282,7 @@ pub fn build_mechanics_view(record: &AtlasRecord) -> Option<MechanicsView> {
         title: record.identity.name.clone(),
         level: record.classification.level,
         values,
+        speeds,
         activities: record.mechanics.activities.clone(),
     })
 }
@@ -338,6 +348,45 @@ fn skill_value(metric: &MetricRow) -> Option<MechanicValue> {
     })
 }
 
+fn speed_values(metrics: &[MetricRow]) -> Vec<MovementSpeed> {
+    let mut speeds = metrics.iter().filter_map(speed_value).collect::<Vec<_>>();
+    speeds.sort_by(|left, right| {
+        speed_sort_key(&left.movement_type).cmp(&speed_sort_key(&right.movement_type))
+    });
+    speeds
+}
+
+fn speed_value(metric: &MetricRow) -> Option<MovementSpeed> {
+    if metric.domain != MetricDomain::Actor {
+        return None;
+    }
+    let MetricDefinitionMatch {
+        definition,
+        captures,
+    } = definition_for(metric.domain, &metric.key)?;
+    if *definition != metrics::actor::speed::VALUE {
+        return None;
+    }
+    let movement = captures.first()?;
+    let value_feet = metric_i64(metric)?;
+    if value_feet <= 0 {
+        return None;
+    }
+    Some(MovementSpeed {
+        movement_type: movement.raw.clone(),
+        label: format!("{} Speed", movement.label),
+        value_feet,
+    })
+}
+
+fn speed_sort_key(movement_type: &str) -> (u8, &str) {
+    if movement_type == "land" {
+        (0, movement_type)
+    } else {
+        (1, movement_type)
+    }
+}
+
 fn skill_ability(slug: &str) -> Option<AbilityKind> {
     match slug {
         "acr" | "acrobatics" | "ste" | "stealth" | "thi" | "thievery" => {
@@ -401,6 +450,8 @@ mod tests {
             metric(&metrics::actor::ability::mod_key("dex"), 2.0),
             metric(&metrics::actor::skill::mod_key("athletics"), 11.0),
             metric(&metrics::actor::skill::mod_key("stealth"), 8.0),
+            metric(&metrics::actor::speed::value_key("fly"), 40.0),
+            metric(&metrics::actor::speed::value_key("land"), 25.0),
         ];
 
         let view = build_mechanics_view(&record).expect("creature should project mechanics");
@@ -482,6 +533,21 @@ mod tests {
             MechanicSurface::Check,
             Some(AbilityKind::Dexterity),
         );
+        assert_eq!(
+            view.speeds,
+            vec![
+                MovementSpeed {
+                    movement_type: "land".to_string(),
+                    label: "Land Speed".to_string(),
+                    value_feet: 25,
+                },
+                MovementSpeed {
+                    movement_type: "fly".to_string(),
+                    label: "Fly Speed".to_string(),
+                    value_feet: 40,
+                },
+            ]
+        );
     }
 
     #[test]
@@ -489,6 +555,81 @@ mod tests {
         let record = base_record(RecordKind::Spell);
 
         assert!(build_mechanics_view(&record).is_none());
+    }
+
+    #[test]
+    fn creature_mechanics_view_does_not_project_absent_zero_speeds() {
+        let mut record = base_record(RecordKind::Creature);
+        record.mechanics.metrics = vec![
+            defined_metric(metrics::actor::ARMOR_CLASS, 19.0),
+            metric(&metrics::actor::speed::value_key("land"), 0.0),
+            metric(&metrics::actor::speed::value_key("fly"), 40.0),
+        ];
+
+        let view = build_mechanics_view(&record).expect("creature should project mechanics");
+
+        assert_eq!(
+            view.speeds,
+            vec![MovementSpeed {
+                movement_type: "fly".to_string(),
+                label: "Fly Speed".to_string(),
+                value_feet: 40,
+            }]
+        );
+    }
+
+    #[test]
+    fn creature_mechanics_view_projects_land_only_speed() {
+        let mut record = base_record(RecordKind::Creature);
+        record.mechanics.metrics = vec![
+            defined_metric(metrics::actor::ARMOR_CLASS, 19.0),
+            metric(&metrics::actor::speed::value_key("land"), 25.0),
+        ];
+
+        let view = build_mechanics_view(&record).expect("creature should project mechanics");
+
+        assert_eq!(
+            view.speeds,
+            vec![MovementSpeed {
+                movement_type: "land".to_string(),
+                label: "Land Speed".to_string(),
+                value_feet: 25,
+            }]
+        );
+    }
+
+    #[test]
+    fn creature_mechanics_view_projects_additional_movement_types_once() {
+        let mut record = base_record(RecordKind::Creature);
+        record.mechanics.metrics = vec![
+            defined_metric(metrics::actor::ARMOR_CLASS, 19.0),
+            metric(&metrics::actor::speed::value_key("swim"), 20.0),
+            metric(&metrics::actor::speed::value_key("climb"), 15.0),
+            metric(&metrics::actor::speed::value_key("fly"), 40.0),
+        ];
+
+        let view = build_mechanics_view(&record).expect("creature should project mechanics");
+
+        assert_eq!(
+            view.speeds,
+            vec![
+                MovementSpeed {
+                    movement_type: "climb".to_string(),
+                    label: "Climb Speed".to_string(),
+                    value_feet: 15,
+                },
+                MovementSpeed {
+                    movement_type: "fly".to_string(),
+                    label: "Fly Speed".to_string(),
+                    value_feet: 40,
+                },
+                MovementSpeed {
+                    movement_type: "swim".to_string(),
+                    label: "Swim Speed".to_string(),
+                    value_feet: 20,
+                },
+            ]
+        );
     }
 
     fn assert_value(

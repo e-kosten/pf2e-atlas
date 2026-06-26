@@ -9,20 +9,23 @@ mod record;
 mod result_window;
 
 pub use encounter::{
-    ActivityRollSurfaceView, ActivityRollView, AddEncounterManualParticipantRequest,
-    AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
-    CreateEncounterRequest, DamageEffectKindView, DamageExpressionView, DeleteEncounterView,
-    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
-    EncounterConditionCatalogView, EncounterConditionCategoryView,
-    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView,
-    MechanicActivityModeView, MechanicActivityUsageView, MechanicActivityView,
+    ActionBudgetView, ActivityRollSurfaceView, ActivityRollView,
+    AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
+    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DamageEffectKindView,
+    DamageExpressionView, DeleteEncounterView, EncounterConditionApplicabilityView,
+    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
+    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
+    EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView, MechanicActivityModeView,
+    MechanicActivityUsageView, MechanicActivityView, MovementSpeedView,
     ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
-    UnappliedEffectView, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+    RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
+    RuntimeEffectNoteView, SetEncounterTurnRequest, StatBlockView, StatModifierTypeView,
+    StatModifierView, StatValueView, UnappliedEffectView,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
@@ -87,6 +90,7 @@ mod tests {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
         AppError::export_all_to(path).expect("AppError bindings should export");
         AppReadinessView::export_all_to(path).expect("AppReadinessView bindings should export");
+        ActionBudgetView::export_all_to(path).expect("ActionBudgetView bindings should export");
         ActivityRollSurfaceView::export_all_to(path)
             .expect("ActivityRollSurfaceView bindings should export");
         ActivityRollView::export_all_to(path).expect("ActivityRollView bindings should export");
@@ -146,6 +150,16 @@ mod tests {
             .expect("MechanicActivityModeView bindings should export");
         MechanicActivityView::export_all_to(path)
             .expect("MechanicActivityView bindings should export");
+        MovementSpeedView::export_all_to(path).expect("MovementSpeedView bindings should export");
+        RuntimeAdjustmentView::export_all_to(path)
+            .expect("RuntimeAdjustmentView bindings should export");
+        RuntimeCapabilityView::export_all_to(path)
+            .expect("RuntimeCapabilityView bindings should export");
+        RuntimeCountSegmentView::export_all_to(path)
+            .expect("RuntimeCountSegmentView bindings should export");
+        RuntimeCountView::export_all_to(path).expect("RuntimeCountView bindings should export");
+        RuntimeEffectNoteView::export_all_to(path)
+            .expect("RuntimeEffectNoteView bindings should export");
         StatBlockView::export_all_to(path).expect("StatBlockView bindings should export");
         StatModifierView::export_all_to(path).expect("StatModifierView bindings should export");
         StatModifierTypeView::export_all_to(path)

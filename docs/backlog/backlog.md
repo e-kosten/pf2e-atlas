@@ -108,6 +108,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust encounter actor context effects](./items/rust-encounter-actor-context-effects.md)
   Model future actor-vs-actor encounter effects such as visibility, targeting, and situational condition reminders without forcing them into participant-local stat mutation. Status: proposed.
 
+- [Rust encounter runtime mechanics surfaces](./items/rust-encounter-runtime-mechanics-surfaces.md)
+  Add speed and action-budget projections so deterministic encounter effects can target runtime surfaces beyond ordinary stat rows. Status: proposed.
+
 - [Rust local-state import and export](./items/rust-local-state-import-export.md)
   Add scriptable import/export for saved lists and future durable local-state data without making artifact rebuilds responsible for user state. Status: proposed.
 

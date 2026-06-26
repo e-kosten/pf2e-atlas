@@ -1,6 +1,7 @@
 import { Button, Form, Input, InputNumber, Popover, Select } from "antd";
+import type { BaseSelectRef } from "rc-select";
 import { MoreHorizontal, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterConditionDefinitionView,
@@ -48,9 +49,16 @@ export function EncounterConditionControls({
   const [conditionForm] = Form.useForm<AddConditionForm>();
   const [addConditionOpen, setAddConditionOpen] = useState(false);
   const [addDetailsOpen, setAddDetailsOpen] = useState(false);
+  const addConditionSelectRef = useRef<BaseSelectRef>(null);
   const addConditionRef = Form.useWatch("conditionRef", conditionForm);
   const addCondition = conditionDefinition(addConditionRef, conditionDefinitions);
   const addConditionHasValue = addCondition?.has_value ?? false;
+  const openAddCondition = (open: boolean) => {
+    setAddConditionOpen(open);
+    if (open) {
+      window.setTimeout(() => addConditionSelectRef.current?.focus(), 0);
+    }
+  };
 
   return (
     <section className="encounter-conditions">
@@ -91,6 +99,7 @@ export function EncounterConditionControls({
                 <Form.Item name="conditionRef" rules={[{ required: true }]}>
                   <Select
                     aria-label="Add condition"
+                    ref={addConditionSelectRef}
                     showSearch
                     optionFilterProp="label"
                     options={conditionDefinitions.map((condition) => ({
@@ -136,7 +145,7 @@ export function EncounterConditionControls({
             </Form>
           }
           open={addConditionOpen}
-          onOpenChange={setAddConditionOpen}
+          onOpenChange={openAddCondition}
           placement="bottomRight"
           trigger="click"
         >

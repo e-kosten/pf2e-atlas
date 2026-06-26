@@ -135,8 +135,87 @@ pub struct StatBlockView {
     #[ts(optional)]
     pub adjusted_level: Option<i64>,
     pub values: Vec<StatValueView>,
+    pub speeds: Vec<MovementSpeedView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub action_budget: Option<ActionBudgetView>,
     pub activities: Vec<MechanicActivityView>,
     pub unapplied_effects: Vec<UnappliedEffectView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct MovementSpeedView {
+    pub movement_type: String,
+    pub label: String,
+    pub base_value_feet: i64,
+    pub adjusted_value_feet: i64,
+    pub adjustments: Vec<RuntimeAdjustmentView>,
+    pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
+    pub notes: Vec<RuntimeEffectNoteView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct ActionBudgetView {
+    pub actions: RuntimeCountView,
+    pub reactions: RuntimeCountView,
+    pub can_act: RuntimeCapabilityView,
+    pub can_react: RuntimeCapabilityView,
+    pub notes: Vec<RuntimeEffectNoteView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RuntimeCountView {
+    pub label: String,
+    pub base_value: i64,
+    pub adjusted_value: i64,
+    pub segments: Vec<RuntimeCountSegmentView>,
+    pub adjustments: Vec<RuntimeAdjustmentView>,
+    pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RuntimeCountSegmentView {
+    pub label: String,
+    pub value: i64,
+    pub restricted: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RuntimeAdjustmentView {
+    pub source: String,
+    pub label: String,
+    pub value: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RuntimeCapabilityView {
+    pub available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RuntimeEffectNoteView {
+    pub source: String,
+    pub label: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
