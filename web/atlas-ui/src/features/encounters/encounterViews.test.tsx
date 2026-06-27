@@ -6,6 +6,7 @@ import type {
   EncounterIndexView as EncounterIndexViewDto,
   EncounterParticipantView,
   RecordDetailView,
+  RecordSurfaceSectionView,
   RecordSummaryView,
   ResultWindowPage,
 } from "../../generated/atlas";
@@ -208,20 +209,38 @@ describe("encounter views", () => {
     });
 
     await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".encounter-runtime");
+    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
     if (!(runtimeSection instanceof HTMLElement)) {
       throw new Error("Runtime section was not rendered");
     }
 
-    expect(within(runtimeSection).getByText("Actions")).toBeInTheDocument();
+    expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("2")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("base 3")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("Slowed 1 -1")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("Reactions")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("Land Speed")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("15 ft")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("base 25 ft")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("Encumbered -10")).toBeInTheDocument();
+    expect(
+      within(runtimeSection).getByLabelText("Show explanation for Actions"),
+    ).toBeInTheDocument();
+    expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
+    const movementSection = screen
+      .getByText("Senses & Movement")
+      .closest(".record-surface-card");
+    if (!(movementSection instanceof HTMLElement)) {
+      throw new Error("Movement section was not rendered");
+    }
+    expect(within(movementSection).getAllByText("Land Speed").length).toBeGreaterThan(
+      0,
+    );
+    expect(within(movementSection).getByText("15 ft")).toBeInTheDocument();
+    expect(
+      within(movementSection).getByLabelText("Show explanation for Land Speed"),
+    ).toBeInTheDocument();
+    const activitiesSection = screen
+      .getByText("Activities")
+      .closest(".record-surface-card");
+    if (!(activitiesSection instanceof HTMLElement)) {
+      throw new Error("Activities section was not rendered");
+    }
+    expect(within(activitiesSection).getByText("Claw")).toBeInTheDocument();
+    expect(within(activitiesSection).getByText("1d6+2 slashing")).toBeInTheDocument();
   });
 
   it("renders manual PC runtime state without inferred speed rows", async () => {
@@ -232,14 +251,14 @@ describe("encounter views", () => {
     fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
 
     await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".encounter-runtime");
+    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
     if (!(runtimeSection instanceof HTMLElement)) {
       throw new Error("Runtime section was not rendered");
     }
-    expect(within(runtimeSection).getByText("Actions")).toBeInTheDocument();
+    expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("3")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText("Reactions")).toBeInTheDocument();
-    expect(within(runtimeSection).queryByText("Land Speed")).not.toBeInTheDocument();
+    expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Land Speed")).not.toBeInTheDocument();
   });
 
   it("edits the selected participant in the participant sheet", async () => {
@@ -293,9 +312,8 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("actors:goblin"),
-    );
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
+    fireEvent.click(await screen.findByText("Source presentation"));
     const linkedRuleButton = (await screen.findByText("Linked Rule")).closest("button");
     if (!linkedRuleButton) {
       throw new Error("Linked Rule button was not rendered");
@@ -317,9 +335,8 @@ describe("encounter views", () => {
     );
 
     fireEvent.click(await screen.findByText("Goblin"));
-    await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("actors:goblin"),
-    );
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
+    fireEvent.click(await screen.findByText("Source presentation"));
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
     ).closest("button");
@@ -486,6 +503,32 @@ describe("encounter views", () => {
         expect.objectContaining({
           participant_key: "participant_a",
           current_hp: 12n,
+        }),
+      ),
+    );
+  });
+
+  it("consumes temporary HP before current HP in the surfaced participant view", async () => {
+    apiMocks.getEncounter.mockResolvedValue(
+      encounterDetailFixture("participant_a", {
+        surface: recordSurfaceFixture(),
+      }),
+    );
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const hpChangeInput = await screen.findByLabelText("HP change");
+    fireEvent.change(hpChangeInput, { target: { value: "8" } });
+    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          temporary_hp: 0n,
+          current_hp: 7n,
         }),
       ),
     );
@@ -781,6 +824,14 @@ function encounterDetailFixture(
         current_hp: 10n,
         temporary_hp: 5n,
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
+        surface: recordSurfaceFixture({
+          actions: 2n,
+          actionBase: 3n,
+          actionAdjustment: -1n,
+          speed: 15n,
+          speedBase: 25n,
+          speedAdjustment: -10n,
+        }),
         stat_block: {
           record_key: "actors:goblin",
           title: "Goblin Warrior",
@@ -888,6 +939,16 @@ function encounterDetailFixture(
           activities: [],
           unapplied_effects: [],
         },
+        surface: recordSurfaceFixture({
+          kind: "pc",
+          kindLabel: "PC",
+          levelLabel: undefined,
+          recordKey: "participant_b",
+          title: "Kyra",
+          traits: [],
+          actions: 3n,
+          reactions: 1n,
+        }),
       }),
     ],
   };
@@ -941,6 +1002,169 @@ function recordSummaryFixture(recordKey: string, title: string): RecordSummaryVi
     publication: undefined,
     pack: "Bestiary",
     preview: "A small enemy.",
+  };
+}
+
+function recordSurfaceFixture({
+  actionAdjustment,
+  actionBase,
+  actions,
+  kind = "creature",
+  kindLabel = "Creature",
+  includeActivities = kind === "creature",
+  levelLabel = "1",
+  reactions = 1n,
+  recordKey = "actors:goblin",
+  speed,
+  speedAdjustment,
+  speedBase,
+  title = "Goblin Warrior",
+  traits = [
+    { kind: "trait", label: "Goblin", value: "goblin" },
+    { kind: "trait", label: "Humanoid", value: "humanoid" },
+  ],
+}: {
+  actionAdjustment?: bigint;
+  actionBase?: bigint;
+  actions?: bigint;
+  kind?: string;
+  kindLabel?: string;
+  includeActivities?: boolean;
+  levelLabel?: string;
+  reactions?: bigint;
+  recordKey?: string;
+  speed?: bigint;
+  speedAdjustment?: bigint;
+  speedBase?: bigint;
+  title?: string;
+  traits?: Array<{ kind: string; label: string; value: string }>;
+} = {}) {
+  const sections: RecordSurfaceSectionView[] = [
+    {
+      kind: "vitals" as const,
+      title: "Vitals",
+      collapsed_by_default: false,
+    },
+    {
+      kind: "conditions" as const,
+      title: "Conditions",
+      collapsed_by_default: false,
+    },
+  ];
+  if (actions !== undefined) {
+    sections.push({
+      kind: "runtime" as const,
+      title: "Runtime",
+      collapsed_by_default: false,
+      values: [
+        {
+          key: "actions",
+          label: "Actions",
+          value: { kind: "number" as const, value: actions },
+          ...(actionBase !== undefined
+            ? { base_value: { kind: "number" as const, value: actionBase } }
+            : {}),
+          adjusted: actionBase !== undefined && actions !== actionBase,
+          display: "static_number" as const,
+          ...(actionAdjustment !== undefined
+            ? {
+                adjustments: [
+                  {
+                    label: "Reduced actions regained",
+                    source: "Slowed 1",
+                    delta: { kind: "number" as const, value: actionAdjustment },
+                  },
+                ],
+              }
+            : {}),
+        },
+        {
+          key: "reactions",
+          label: "Reactions",
+          value: { kind: "number" as const, value: reactions },
+          adjusted: false,
+          display: "static_number" as const,
+        },
+      ],
+    });
+  }
+  if (speed !== undefined) {
+    sections.push({
+      kind: "movement" as const,
+      title: "Movement",
+      collapsed_by_default: false,
+      values: [
+        {
+          key: "speed.land",
+          label: "Land Speed",
+          value: { kind: "distance_feet" as const, value: speed },
+          ...(speedBase !== undefined
+            ? { base_value: { kind: "distance_feet" as const, value: speedBase } }
+            : {}),
+          adjusted: speedBase !== undefined && speed !== speedBase,
+          display: "distance" as const,
+          ...(speedAdjustment !== undefined
+            ? {
+                adjustments: [
+                  {
+                    label: "Speed penalty",
+                    source: "Encumbered",
+                    delta: { kind: "distance_feet" as const, value: speedAdjustment },
+                  },
+                ],
+              }
+            : {}),
+        },
+      ],
+    });
+  }
+  if (includeActivities) {
+    sections.push({
+      kind: "activities" as const,
+      title: "Activities",
+      collapsed_by_default: false,
+      activities: [
+        {
+          key: "claw",
+          label: "Claw",
+          kind: "strike",
+          usage: "unlimited",
+          values: [
+            {
+              key: "activity.claw.roll.attack",
+              label: "Attack",
+              value: { kind: "number" as const, value: 12n },
+              base_value: { kind: "number" as const, value: 12n },
+              adjusted: false,
+              display: "signed_modifier" as const,
+            },
+            {
+              key: "activity.claw.damage.main",
+              label: "Damage",
+              value: { kind: "formula" as const, value: "1d6+2 slashing" },
+              base_value: { kind: "formula" as const, value: "1d6+2 slashing" },
+              adjusted: false,
+              display: "formula" as const,
+            },
+          ],
+        },
+      ],
+    });
+  }
+  return {
+    record_key: recordKey,
+    title,
+    kind,
+    profile: "encounter_participant" as const,
+    header: {
+      ...(levelLabel === undefined ? {} : { level_label: levelLabel }),
+      kind_label: kindLabel,
+      traits,
+    },
+    sections,
+    ...(recordKey.startsWith("actors:")
+      ? { fallback_presentation: recordDetailFixture(recordKey).presentation }
+      : {}),
   };
 }
 

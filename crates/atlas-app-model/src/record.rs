@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::RecordSurfaceView;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RecordSummaryView {
@@ -27,6 +29,9 @@ pub struct RecordSummaryView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub preview: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub surface: Option<RecordSurfaceView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -61,4 +66,7 @@ pub struct RecordDetailView {
     pub title: String,
     pub kind: String,
     pub presentation: atlas_record::RecordPresentationDocument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub surface: Option<RecordSurfaceView>,
 }

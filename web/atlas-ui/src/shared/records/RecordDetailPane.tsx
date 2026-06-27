@@ -1,5 +1,6 @@
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPresentation } from "./RecordPresentation";
+import { RecordSurface } from "./RecordSurface";
 
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
 
@@ -20,13 +21,25 @@ export function RecordDetailPane({
 }) {
   return (
     <section className="detail-panel">
-      <RecordPresentation
-        detail={detail}
-        emptyMessage={emptyMessage}
-        loading={loading}
-        loadingMessage={loadingMessage}
-        onReference={onReference}
-      />
+      {loading ? (
+        <RecordPresentation
+          detail={detail}
+          emptyMessage={emptyMessage}
+          loading={loading}
+          loadingMessage={loadingMessage}
+          onReference={onReference}
+        />
+      ) : detail?.surface ? (
+        <RecordSurface surface={detail.surface} onReference={onReference} />
+      ) : (
+        <RecordPresentation
+          detail={detail}
+          emptyMessage={emptyMessage}
+          loading={loading}
+          loadingMessage={loadingMessage}
+          onReference={onReference}
+        />
+      )}
       {errors.map((error, index) =>
         error ? <InlineError key={index} message={error.message} /> : null,
       )}

@@ -81,6 +81,11 @@ export type { RecordPresentationDocument } from "../../../../crates/atlas-app-mo
 export type { RecordResolutionAmbiguousView } from "../../../../crates/atlas-app-model/bindings/RecordResolutionAmbiguousView";
 export type { RecordResolutionCandidateView } from "../../../../crates/atlas-app-model/bindings/RecordResolutionCandidateView";
 export type { RecordSummaryView } from "../../../../crates/atlas-app-model/bindings/RecordSummaryView";
+export type { RecordSurfaceHeaderView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceHeaderView";
+export type { RecordSurfaceProfileView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceProfileView";
+export type { RecordSurfaceSectionKindView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceSectionKindView";
+export type { RecordSurfaceSectionView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceSectionView";
+export type { RecordSurfaceView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceView";
 export type { ResultMatchSummary } from "../../../../crates/atlas-app-model/bindings/ResultMatchSummary";
 export type { ResultWindowMode } from "../../../../crates/atlas-app-model/bindings/ResultWindowMode";
 export type { ResultWindowModeSummary } from "../../../../crates/atlas-app-model/bindings/ResultWindowModeSummary";
@@ -111,6 +116,14 @@ export type { StatBlockView } from "../../../../crates/atlas-app-model/bindings/
 export type { StatModifierTypeView } from "../../../../crates/atlas-app-model/bindings/StatModifierTypeView";
 export type { StatModifierView } from "../../../../crates/atlas-app-model/bindings/StatModifierView";
 export type { StatValueView } from "../../../../crates/atlas-app-model/bindings/StatValueView";
+export type { SurfaceActivityView } from "../../../../crates/atlas-app-model/bindings/SurfaceActivityView";
+export type { SurfaceAdjustmentView } from "../../../../crates/atlas-app-model/bindings/SurfaceAdjustmentView";
+export type { SurfaceBadgeView } from "../../../../crates/atlas-app-model/bindings/SurfaceBadgeView";
+export type { SurfaceNoteView } from "../../../../crates/atlas-app-model/bindings/SurfaceNoteView";
+export type { SurfaceScalarView } from "../../../../crates/atlas-app-model/bindings/SurfaceScalarView";
+export type { SurfaceValueDisplayView } from "../../../../crates/atlas-app-model/bindings/SurfaceValueDisplayView";
+export type { SurfaceValueGroupView } from "../../../../crates/atlas-app-model/bindings/SurfaceValueGroupView";
+export type { SurfaceValueView } from "../../../../crates/atlas-app-model/bindings/SurfaceValueView";
 export type { UnappliedEffectView } from "../../../../crates/atlas-app-model/bindings/UnappliedEffectView";
 export type { UpdateEncounterParticipantConditionRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterParticipantConditionRequest";
 export type { UpdateEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterParticipantRequest";

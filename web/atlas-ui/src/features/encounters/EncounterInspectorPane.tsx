@@ -1,30 +1,30 @@
-import { Select } from "antd";
+import { Button, Form, Input, Select } from "antd";
+import { Pencil } from "lucide-react";
+import { useState } from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
-  ActivityRollView,
-  DamageExpressionView,
   EncounterParticipantVariantView,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
-  MechanicActivityView,
-  MovementSpeedView,
-  RuntimeCountView,
-  StatBlockView,
-  StatValueView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
-import { displayNumber, participantUpdate } from "./participantEdits";
-import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
+import {
+  applyParticipantUpdate,
+  optionalBigIntInput,
+  participantUpdate,
+} from "./participantEdits";
 import {
   RecordPreviewPopover,
   type RecordPreviewAnchor,
 } from "../../shared/records/RecordPreviewPopover";
-import { EncounterParticipantControls } from "./EncounterParticipantControls";
+import { RecordSurface } from "../../shared/records/RecordSurface";
+import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
+import { EncounterConditionControls } from "./EncounterConditionControls";
+import { EncounterHpControls } from "./EncounterHpControls";
 
 export function EncounterInspectorPane({
-  detailLoading,
   onCloseRecordPreview,
   onOpenRecordFullPage,
   onReference,
@@ -39,9 +39,7 @@ export function EncounterInspectorPane({
   previewLoading,
   previewRecordKey,
   previewAnchor,
-  recordDetail,
 }: {
-  detailLoading: boolean;
   onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
@@ -59,36 +57,28 @@ export function EncounterInspectorPane({
   previewLoading: boolean;
   previewRecordKey: string | null;
   previewAnchor: RecordPreviewAnchor | null;
-  recordDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
 }) {
   if (!participant) {
     return (
       <section className="encounter-pane detail-empty">Select a participant.</section>
     );
   }
+  const surface = participant.surface;
   return (
     <section className="encounter-pane encounter-record-pane">
-      <ParticipantHeader participant={participant} onUpdate={onUpdate} />
-      <EncounterParticipantControls
-        current={participant}
-        onAddCondition={onAddCondition}
-        onRemoveCondition={onRemoveCondition}
-        onUpdate={onUpdate}
-        onUpdateCondition={onUpdateCondition}
-        onReference={onReference}
-        participants={participants}
-        conditionDefinitions={conditionDefinitions}
-      />
-      {participant.stat_block && <AdjustedStats statBlock={participant.stat_block} />}
-      {participant.record_key && participant.status === "active" && (
-        <section className="encounter-source-record">
-          <h3>Source Record</h3>
-          <RecordDetailPane
-            detail={recordDetail}
-            loading={detailLoading}
-            onReference={onReference}
-          />
-        </section>
+      {surface ? (
+        <EncounterParticipantSurface
+          conditionDefinitions={conditionDefinitions}
+          onAddCondition={onAddCondition}
+          onReference={onReference}
+          onRemoveCondition={onRemoveCondition}
+          onUpdate={onUpdate}
+          onUpdateCondition={onUpdateCondition}
+          participant={participant}
+          participants={participants}
+        />
+      ) : (
+        <SurfaceUnavailable participant={participant} />
       )}
       {previewRecordKey && (
         <RecordPreviewPopover
@@ -104,43 +94,217 @@ export function EncounterInspectorPane({
   );
 }
 
-function ParticipantHeader({
-  onUpdate,
+function SurfaceUnavailable({
   participant,
 }: {
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView;
 }) {
   return (
-    <header className="encounter-pane__header">
-      <div>
-        <p className="eyebrow">{participantKindLabel(participant.participant_kind)}</p>
-        <h2>{participant.display_name}</h2>
-      </div>
-      {participant.participant_kind === "creature" && (
-        <div className="encounter-variant-control">
-          <span>Variant</span>
-          <Select
-            aria-label="Variant"
-            className="encounter-variant-select"
-            onChange={(value: EncounterParticipantVariantView) =>
-              onUpdate(
-                participantUpdate(participant, {
-                  participant_variant: value,
-                }),
-              )
-            }
-            options={[
-              { label: "Normal", value: "normal" },
-              { label: "Elite", value: "elite" },
-              { label: "Weak", value: "weak" },
-            ]}
-            size="small"
-            value={participant.participant_variant}
+    <section className="encounter-surface-unavailable">
+      <p className="eyebrow">{participantKindLabel(participant.participant_kind)}</p>
+      <h2>{participant.display_name}</h2>
+      <p>
+        This participant does not have a composed record surface yet. This is a
+        projection gap rather than a fallback UI.
+      </p>
+    </section>
+  );
+}
+
+function EncounterParticipantSurface({
+  conditionDefinitions,
+  onAddCondition,
+  onReference,
+  onRemoveCondition,
+  onUpdate,
+  onUpdateCondition,
+  participant,
+  participants,
+}: {
+  conditionDefinitions: EncounterConditionDefinitionView[];
+  onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
+  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
+  onUpdateCondition: (
+    participantKey: string,
+    condition: UpdateEncounterParticipantConditionRequest,
+  ) => void;
+  participant: EncounterParticipantView;
+  participants: EncounterParticipantView[];
+}) {
+  const [projectedCurrent, setProjectedCurrent] = useState<{
+    source: EncounterParticipantView | null;
+    participant: EncounterParticipantView | null;
+  }>({ source: null, participant: null });
+  const [noteOpen, setNoteOpen] = useState(false);
+  const activeCurrent =
+    projectedCurrent.source === participant &&
+    projectedCurrent.participant?.participant_key === participant.participant_key
+      ? projectedCurrent.participant
+      : participant;
+  const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) => {
+    const request = participantUpdate(activeCurrent, changes);
+    setProjectedCurrent({
+      source: participant,
+      participant: applyParticipantUpdate(activeCurrent, request),
+    });
+    onUpdate(request);
+  };
+  const surface = activeCurrent.surface ?? participant.surface;
+  if (!surface) {
+    return null;
+  }
+  return (
+    <RecordSurface
+      onReference={onReference}
+      surface={surface}
+      slots={{
+        header: (
+          <ParticipantEditStrip
+            participant={activeCurrent}
+            onUpdate={updateParticipant}
           />
-        </div>
-      )}
-    </header>
+        ),
+        header_actions: (
+          <>
+            <Button
+              aria-label="Participant note"
+              icon={<Pencil size={14} />}
+              onClick={() => setNoteOpen((open) => !open)}
+              size="small"
+              type={noteOpen ? "primary" : "default"}
+            />
+            <ParticipantVariantControl
+              participant={activeCurrent}
+              onUpdate={updateParticipant}
+            />
+          </>
+        ),
+        vitals: (
+          <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
+        ),
+        conditions: (
+          <EncounterConditionControls
+            conditionDefinitions={conditionDefinitions}
+            current={activeCurrent}
+            onAddCondition={onAddCondition}
+            onReference={onReference}
+            onRemoveCondition={onRemoveCondition}
+            onUpdateCondition={onUpdateCondition}
+            participants={participants}
+          />
+        ),
+        ...(noteOpen
+          ? {
+              notes: (
+                <ParticipantNoteEditor
+                  participant={activeCurrent}
+                  onUpdate={updateParticipant}
+                />
+              ),
+            }
+          : {}),
+      }}
+    />
+  );
+}
+
+function ParticipantVariantControl({
+  onUpdate,
+  participant,
+}: {
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  participant: EncounterParticipantView;
+}) {
+  if (participant.participant_kind !== "creature") {
+    return null;
+  }
+  return (
+    <div className="encounter-variant-control">
+      <span>Variant</span>
+      <Select
+        aria-label="Variant"
+        className="encounter-variant-select"
+        onChange={(value: EncounterParticipantVariantView) =>
+          onUpdate({ participant_variant: value })
+        }
+        options={[
+          { label: "Normal", value: "normal" },
+          { label: "Elite", value: "elite" },
+          { label: "Weak", value: "weak" },
+        ]}
+        size="small"
+        value={participant.participant_variant}
+      />
+    </div>
+  );
+}
+
+function ParticipantEditStrip({
+  onUpdate,
+  participant,
+}: {
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  participant: EncounterParticipantView;
+}) {
+  return (
+    <section className="encounter-participant-strip">
+      <Form.Item label="Name" layout="vertical">
+        <EditableCommitField
+          ariaLabel="Participant name"
+          onCommit={(displayName) => onUpdate({ display_name: displayName })}
+          value={participant.display_name}
+        />
+      </Form.Item>
+      <Form.Item label="Initiative" layout="vertical">
+        <EditableCommitField
+          ariaLabel="Participant initiative"
+          inputMode="numeric"
+          onCommit={(value) => {
+            const initiative = optionalBigIntInput(value);
+            if (initiative !== null) {
+              onUpdate({ initiative });
+            }
+          }}
+          value={participant.initiative?.toString() ?? ""}
+        />
+      </Form.Item>
+      <Form.Item label="Side" layout="vertical">
+        <Select
+          value={participant.side}
+          onChange={(side) => onUpdate({ side })}
+          options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
+            value,
+            label: value,
+          }))}
+        />
+      </Form.Item>
+      <Button onClick={() => onUpdate({ defeated: !participant.defeated })}>
+        {participant.defeated ? "Mark active" : "Mark defeated"}
+      </Button>
+    </section>
+  );
+}
+
+function ParticipantNoteEditor({
+  onUpdate,
+  participant,
+}: {
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  participant: EncounterParticipantView;
+}) {
+  return (
+    <Input.TextArea
+      key={`note-${participant.participant_key}-${participant.note ?? ""}`}
+      defaultValue={participant.note ?? ""}
+      onBlur={(event) => {
+        const nextNote = event.currentTarget.value;
+        if (nextNote !== (participant.note ?? "")) {
+          onUpdate({ note: nextNote });
+        }
+      }}
+    />
   );
 }
 
@@ -151,290 +315,4 @@ function participantKindLabel(
     return "PC";
   }
   return kind.charAt(0).toUpperCase() + kind.slice(1);
-}
-
-function AdjustedStats({ statBlock }: { statBlock: StatBlockView }) {
-  return (
-    <section className="encounter-adjusted-stats">
-      {(statBlock.action_budget || statBlock.speeds.length > 0) && (
-        <RuntimeStats statBlock={statBlock} />
-      )}
-      <div className="encounter-adjusted-stats__title">
-        <h3>Adjusted Stats</h3>
-        {statBlock.adjusted_level !== undefined &&
-          statBlock.adjusted_level !== statBlock.level && (
-            <span>
-              Level {displayNumber(statBlock.level)} to{" "}
-              {displayNumber(statBlock.adjusted_level)}
-            </span>
-          )}
-      </div>
-      <div className="encounter-stat-grid">
-        {statBlock.values.map((value) => (
-          <StatValue key={value.target} value={value} />
-        ))}
-      </div>
-      {statBlock.activities.length > 0 && (
-        <div className="encounter-activity-list">
-          <h4>Activities</h4>
-          {statBlock.activities.map((activity) => (
-            <ActivityValue key={activity.activity_id} activity={activity} />
-          ))}
-        </div>
-      )}
-      {statBlock.unapplied_effects.length > 0 && (
-        <div className="encounter-stat-notes">
-          {statBlock.unapplied_effects.map((effect) => (
-            <p key={`${effect.source}:${effect.label}`}>
-              <strong>{effect.label}</strong>: {effect.reason}
-            </p>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function RuntimeStats({ statBlock }: { statBlock: StatBlockView }) {
-  return (
-    <section className="encounter-runtime">
-      <div className="encounter-adjusted-stats__title">
-        <h3>Runtime</h3>
-      </div>
-      {statBlock.action_budget && (
-        <div className="encounter-runtime-grid">
-          <RuntimeCount count={statBlock.action_budget.actions} />
-          <RuntimeCount count={statBlock.action_budget.reactions} />
-          {!statBlock.action_budget.can_act.available && (
-            <RuntimeCapability
-              label="Can act"
-              reason={statBlock.action_budget.can_act.reason}
-            />
-          )}
-          {!statBlock.action_budget.can_react.available && (
-            <RuntimeCapability
-              label="Can react"
-              reason={statBlock.action_budget.can_react.reason}
-            />
-          )}
-        </div>
-      )}
-      {statBlock.speeds.length > 0 && (
-        <div className="encounter-runtime-grid">
-          {statBlock.speeds.map((speed) => (
-            <MovementSpeed key={speed.movement_type} speed={speed} />
-          ))}
-        </div>
-      )}
-      {statBlock.action_budget && statBlock.action_budget.notes.length > 0 && (
-        <RuntimeNotes notes={statBlock.action_budget.notes} />
-      )}
-    </section>
-  );
-}
-
-function RuntimeCount({ count }: { count: RuntimeCountView }) {
-  const changed = count.adjusted_value !== count.base_value;
-  return (
-    <div className="encounter-stat-row encounter-runtime-row">
-      <span>{count.label}</span>
-      <strong>{count.adjusted_value.toString()}</strong>
-      {count.segments.some((segment) => segment.restricted) && (
-        <small>
-          {count.segments
-            .filter((segment) => segment.restricted)
-            .map((segment) => `${segment.label}: ${segment.value.toString()}`)
-            .join(", ")}
-        </small>
-      )}
-      {changed && <small>base {count.base_value.toString()}</small>}
-      {count.adjustments.length > 0 && (
-        <small>
-          {count.adjustments
-            .map((adjustment) => `${adjustment.source} ${signed(adjustment.value)}`)
-            .join(", ")}
-        </small>
-      )}
-      {count.suppressed_adjustments.length > 0 && (
-        <small>
-          Suppressed:{" "}
-          {count.suppressed_adjustments
-            .map((adjustment) => adjustment.source)
-            .join(", ")}
-        </small>
-      )}
-    </div>
-  );
-}
-
-function RuntimeCapability({
-  label,
-  reason,
-}: {
-  label: string;
-  reason: string | undefined;
-}) {
-  return (
-    <div className="encounter-stat-row encounter-runtime-row">
-      <span>{label}</span>
-      <strong className="encounter-stat-value--decreased">No</strong>
-      {reason && <small>{reason}</small>}
-    </div>
-  );
-}
-
-function MovementSpeed({ speed }: { speed: MovementSpeedView }) {
-  const changed = speed.adjusted_value_feet !== speed.base_value_feet;
-  const decreased = speed.adjusted_value_feet < speed.base_value_feet;
-  return (
-    <div className="encounter-stat-row encounter-runtime-row">
-      <span>{speed.label}</span>
-      <strong className={decreased ? "encounter-stat-value--decreased" : undefined}>
-        {speed.adjusted_value_feet.toString()} ft
-      </strong>
-      {changed && <small>base {speed.base_value_feet.toString()} ft</small>}
-      {speed.adjustments.length > 0 && (
-        <small>
-          {speed.adjustments
-            .map((adjustment) => `${adjustment.source} ${signed(adjustment.value)}`)
-            .join(", ")}
-        </small>
-      )}
-      {speed.notes.map((note) => (
-        <small key={`${note.source}:${note.label}`}>{note.reason}</small>
-      ))}
-    </div>
-  );
-}
-
-function RuntimeNotes({
-  notes,
-}: {
-  notes: NonNullable<StatBlockView["action_budget"]>["notes"];
-}) {
-  return (
-    <div className="encounter-stat-notes">
-      {notes.map((note) => (
-        <p key={`${note.source}:${note.label}`}>
-          <strong>{note.label}</strong>: {note.reason}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function ActivityValue({ activity }: { activity: MechanicActivityView }) {
-  return (
-    <div className="encounter-activity-row">
-      <div className="encounter-activity-row__title">
-        <strong>{activity.label}</strong>
-        <span>{activity.kind.replace(/_/g, " ")}</span>
-      </div>
-      {activity.rolls.map((roll) => (
-        <ActivityRollValue key={roll.roll_id} roll={roll} />
-      ))}
-      {activity.damage.map((damage) => (
-        <DamageValue key={damage.damage_id} damage={damage} />
-      ))}
-      {activity.modes.map((mode) => (
-        <div key={mode.mode_id} className="encounter-activity-mode">
-          <div className="encounter-activity-mode__title">
-            <strong>{mode.label}</strong>
-            {modeMetadata(mode).length > 0 && (
-              <small>{modeMetadata(mode).join(" / ")}</small>
-            )}
-          </div>
-          {mode.damage.map((damage) => (
-            <DamageValue key={damage.damage_id} damage={damage} />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function modeMetadata(mode: MechanicActivityView["modes"][number]) {
-  return [mode.target, mode.range, mode.time].filter(Boolean);
-}
-
-function ActivityRollValue({ roll }: { roll: ActivityRollView }) {
-  const changed = roll.adjusted_value !== roll.base_value;
-  const decreased = roll.adjusted_value < roll.base_value;
-  return (
-    <div className="encounter-damage-row">
-      <span>
-        {roll.label}:{" "}
-        <strong className={decreased ? "encounter-stat-value--decreased" : undefined}>
-          {signed(roll.adjusted_value)}
-        </strong>
-      </span>
-      {changed && <small>base {signed(roll.base_value)}</small>}
-      {roll.modifiers.length > 0 && (
-        <small>
-          {roll.modifiers
-            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
-            .join(", ")}
-        </small>
-      )}
-    </div>
-  );
-}
-
-function DamageValue({ damage }: { damage: DamageExpressionView }) {
-  const formula = damage.adjusted_formula ?? damage.formula;
-  const changed =
-    damage.adjusted_formula !== undefined && damage.adjusted_formula !== damage.formula;
-  return (
-    <div className="encounter-damage-row">
-      <span>
-        {formula}
-        {damage.damage_type ? ` ${damage.damage_type}` : ""}
-      </span>
-      {changed && <small>base {damage.formula}</small>}
-      {damage.effect_kind === "damage_or_healing" && <small>choose mode</small>}
-      {damage.modifiers.length > 0 && (
-        <small>
-          {damage.modifiers
-            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
-            .join(", ")}
-        </small>
-      )}
-    </div>
-  );
-}
-
-function StatValue({ value }: { value: StatValueView }) {
-  const changed = value.adjusted_value !== value.base_value;
-  const decreased = value.adjusted_value < value.base_value;
-  return (
-    <div className="encounter-stat-row">
-      <span>{value.label}</span>
-      <strong className={decreased ? "encounter-stat-value--decreased" : undefined}>
-        {signed(value.adjusted_value)}
-      </strong>
-      {changed && <small>base {signed(value.base_value)}</small>}
-      {value.modifiers.length > 0 && (
-        <small>
-          {value.modifiers
-            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
-            .join(", ")}
-        </small>
-      )}
-      {value.suppressed_modifiers.length > 0 && (
-        <small>
-          Suppressed:{" "}
-          {value.suppressed_modifiers
-            .map((modifier) => `${modifier.label} ${signed(modifier.value)}`)
-            .join(", ")}
-        </small>
-      )}
-    </div>
-  );
-}
-
-function signed(value: bigint | number | undefined): string {
-  if (value === undefined) {
-    return "--";
-  }
-  return Number(value).toString();
 }

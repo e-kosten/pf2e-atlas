@@ -7,6 +7,7 @@ mod list;
 mod readiness;
 mod record;
 mod result_window;
+mod surface;
 
 pub use encounter::{
     ActionBudgetView, ActivityRollSurfaceView, ActivityRollView,
@@ -51,6 +52,12 @@ pub use result_window::{
     OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
     SearchPageRequest, SearchPageView,
+};
+pub use surface::{
+    RecordSurfaceHeaderView, RecordSurfaceProfileView, RecordSurfaceSectionKindView,
+    RecordSurfaceSectionView, RecordSurfaceView, SurfaceActivityView, SurfaceAdjustmentView,
+    SurfaceBadgeView, SurfaceNoteView, SurfaceScalarView, SurfaceValueDisplayView,
+    SurfaceValueGroupView, SurfaceValueView,
 };
 
 #[cfg(test)]
@@ -182,10 +189,31 @@ mod tests {
         ReadResultWindowPageRequest::export_all_to(path)
             .expect("ReadResultWindowPageRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
+        RecordSurfaceHeaderView::export_all_to(path)
+            .expect("RecordSurfaceHeaderView bindings should export");
+        RecordSurfaceProfileView::export_all_to(path)
+            .expect("RecordSurfaceProfileView bindings should export");
+        RecordSurfaceSectionKindView::export_all_to(path)
+            .expect("RecordSurfaceSectionKindView bindings should export");
+        RecordSurfaceSectionView::export_all_to(path)
+            .expect("RecordSurfaceSectionView bindings should export");
+        RecordSurfaceView::export_all_to(path).expect("RecordSurfaceView bindings should export");
         RecordResolutionAmbiguousView::export_all_to(path)
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
         ResultWindowPage::export_all_to(path).expect("ResultWindowPage bindings should export");
+        SurfaceActivityView::export_all_to(path)
+            .expect("SurfaceActivityView bindings should export");
+        SurfaceAdjustmentView::export_all_to(path)
+            .expect("SurfaceAdjustmentView bindings should export");
+        SurfaceBadgeView::export_all_to(path).expect("SurfaceBadgeView bindings should export");
+        SurfaceNoteView::export_all_to(path).expect("SurfaceNoteView bindings should export");
+        SurfaceScalarView::export_all_to(path).expect("SurfaceScalarView bindings should export");
+        SurfaceValueDisplayView::export_all_to(path)
+            .expect("SurfaceValueDisplayView bindings should export");
+        SurfaceValueGroupView::export_all_to(path)
+            .expect("SurfaceValueGroupView bindings should export");
+        SurfaceValueView::export_all_to(path).expect("SurfaceValueView bindings should export");
         AddSavedListItemRequest::export_all_to(path)
             .expect("AddSavedListItemRequest bindings should export");
         CreateSavedListRequest::export_all_to(path)

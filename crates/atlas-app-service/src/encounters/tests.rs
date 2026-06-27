@@ -481,6 +481,20 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
             atlas_app_model::EncounterParticipantSideView::Enemy
         );
         assert!(participant.record.is_some());
+        let surface = participant
+            .surface
+            .as_ref()
+            .expect("creature participant should expose a composed surface");
+        assert_eq!(
+            surface.profile,
+            atlas_app_model::RecordSurfaceProfileView::EncounterParticipant
+        );
+        assert!(surface.fallback_presentation.is_some());
+        assert!(
+            surface.sections.iter().any(
+                |section| section.kind == atlas_app_model::RecordSurfaceSectionKindView::Vitals
+            )
+        );
     }
 
     let hazard_detail = fixture
@@ -505,6 +519,7 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
     assert_eq!(hazard.max_hp, Some(30));
     assert_eq!(hazard.current_hp, Some(30));
     assert!(hazard.record.is_some());
+    assert!(hazard.surface.is_none());
 }
 
 #[test]

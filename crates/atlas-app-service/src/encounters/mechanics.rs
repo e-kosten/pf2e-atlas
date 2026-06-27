@@ -60,6 +60,11 @@ pub(super) fn participant_stat_block(
     Some(apply_participant_effects(participant, mechanics))
 }
 
+pub(crate) fn record_stat_block(record: &atlas_record::AtlasRecord) -> Option<StatBlockView> {
+    let mechanics = build_mechanics_view(record)?;
+    Some(base_mechanics_block(mechanics))
+}
+
 pub(super) fn participant_runtime_block(participant: &EncounterParticipant) -> StatBlockView {
     StatBlockView {
         record_key: participant.participant_key.clone(),
@@ -74,6 +79,97 @@ pub(super) fn participant_runtime_block(participant: &EncounterParticipant) -> S
             .into_iter()
             .map(unapplied_runtime_note_view)
             .collect(),
+    }
+}
+
+fn base_mechanics_block(mechanics: MechanicsView) -> StatBlockView {
+    StatBlockView {
+        record_key: mechanics.record_key.to_string(),
+        title: mechanics.title,
+        level: mechanics.level,
+        adjusted_level: mechanics.level,
+        values: mechanics
+            .values
+            .into_iter()
+            .map(|value| stat_value_view(value, Vec::new()))
+            .collect(),
+        speeds: mechanics.speeds.into_iter().map(base_speed_view).collect(),
+        action_budget: None,
+        activities: mechanics
+            .activities
+            .into_iter()
+            .map(base_activity_view)
+            .collect(),
+        unapplied_effects: Vec::new(),
+    }
+}
+
+fn base_speed_view(speed: MovementSpeed) -> MovementSpeedView {
+    MovementSpeedView {
+        movement_type: speed.movement_type,
+        label: speed.label,
+        base_value_feet: speed.value_feet,
+        adjusted_value_feet: speed.value_feet,
+        adjustments: Vec::new(),
+        suppressed_adjustments: Vec::new(),
+        notes: Vec::new(),
+    }
+}
+
+fn base_activity_view(activity: MechanicActivity) -> MechanicActivityView {
+    let kind = activity.kind;
+    let usage = activity.usage;
+    MechanicActivityView {
+        activity_id: activity.activity_id,
+        label: activity.label,
+        kind: activity_kind_view(kind),
+        usage: activity_usage_view(usage),
+        rolls: activity
+            .rolls
+            .into_iter()
+            .map(base_activity_roll_view)
+            .collect(),
+        damage: activity.damage.into_iter().map(base_damage_view).collect(),
+        modes: activity
+            .modes
+            .into_iter()
+            .map(base_activity_mode_view)
+            .collect(),
+    }
+}
+
+fn base_activity_mode_view(mode: MechanicActivityMode) -> MechanicActivityModeView {
+    MechanicActivityModeView {
+        mode_id: mode.mode_id,
+        label: mode.label,
+        target: mode.target,
+        range: mode.range,
+        time: mode.time,
+        damage: mode.damage.into_iter().map(base_damage_view).collect(),
+    }
+}
+
+fn base_activity_roll_view(roll: ActivityRoll) -> ActivityRollView {
+    ActivityRollView {
+        roll_id: roll.roll_id,
+        label: roll.label,
+        base_value: roll.base_value,
+        adjusted_value: roll.base_value,
+        surface: activity_roll_surface_view(roll.surface),
+        modifiers: Vec::new(),
+        suppressed_modifiers: Vec::new(),
+    }
+}
+
+fn base_damage_view(damage: DamageExpression) -> DamageExpressionView {
+    DamageExpressionView {
+        damage_id: damage.damage_id,
+        label: damage.label,
+        formula: damage.formula,
+        adjusted_formula: None,
+        damage_type: damage.damage_type,
+        effect_kind: damage_effect_kind_view(damage.effect_kind),
+        modifiers: Vec::new(),
     }
 }
 

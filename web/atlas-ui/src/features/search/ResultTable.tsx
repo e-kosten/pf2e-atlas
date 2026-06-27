@@ -1,50 +1,11 @@
-import { Space, Table, Tag } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import type { ResultWindowRow } from "../../generated/atlas";
+import { RecordSurface } from "../../shared/records/RecordSurface";
 import { handleResultKeyboard, useActiveResultScroll } from "./resultKeyboard";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) {
   const scrollRef = useActiveResultScroll<HTMLDivElement>(workspace.activeResultKey);
-  const columns: ColumnsType<ResultWindowRow> = [
-    {
-      title: "Record",
-      dataIndex: ["record", "title"],
-      render: (_, row) => (
-        <button
-          className="row-link"
-          onClick={() => workspace.selectRecord(row.record.record_key)}
-          type="button"
-        >
-          <span>{row.record.title}</span>
-          <small>{row.record.record_key}</small>
-        </button>
-      ),
-    },
-    {
-      title: "Kind",
-      dataIndex: ["record", "kind_label"],
-      width: 130,
-    },
-    {
-      title: "Level",
-      dataIndex: ["record", "level_label"],
-      width: 92,
-      render: (value) => value ?? "",
-    },
-    {
-      title: "Traits",
-      dataIndex: ["record", "traits"],
-      render: (_, row) => (
-        <Space size={[4, 4]} wrap>
-          {(row.record.traits ?? []).slice(0, 4).map((trait) => (
-            <Tag key={trait.value}>{trait.label}</Tag>
-          ))}
-        </Space>
-      ),
-    },
-  ];
-
+  const rows = workspace.resultPage?.rows ?? [];
   return (
     <section className="results-panel">
       <div
@@ -56,25 +17,84 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
         role="listbox"
         tabIndex={0}
       >
-        <Table
-          columns={columns}
-          dataSource={workspace.resultPage?.rows ?? []}
-          loading={workspace.resultsLoading}
-          pagination={false}
-          rowClassName={(row) =>
-            row.record.record_key === workspace.activeResultKey
-              ? "result-row result-row--active"
-              : "result-row"
-          }
-          onRow={(row) => ({
-            "data-active-result":
-              row.record.record_key === workspace.activeResultKey ? "true" : undefined,
-            onMouseEnter: () => workspace.focusResult(row.record.record_key),
-          })}
-          rowKey={(row) => row.record.record_key}
-          size="middle"
-        />
+        {workspace.resultsLoading ? (
+          <div className="detail-empty">Loading results...</div>
+        ) : (
+          <div className="result-list">
+            {rows.map((row) => (
+              <ResultRow
+                active={row.record.record_key === workspace.activeResultKey}
+                key={row.record.record_key}
+                onFocus={() => workspace.focusResult(row.record.record_key)}
+                onSelect={() => workspace.selectRecord(row.record.record_key)}
+                row={row}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
+  );
+}
+
+function ResultRow({
+  active,
+  onFocus,
+  onSelect,
+  row,
+}: {
+  active: boolean;
+  onFocus: () => void;
+  onSelect: () => void;
+  row: ResultWindowRow;
+}) {
+  return (
+    <div
+      aria-selected={active}
+      className={["result-rich-row", active ? "result-rich-row--active" : ""]
+        .filter(Boolean)
+        .join(" ")}
+      data-active-result={active ? "true" : undefined}
+      onClick={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest("button,a,input,select,textarea")
+        ) {
+          return;
+        }
+        onSelect();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      onMouseEnter={onFocus}
+      role="option"
+      tabIndex={-1}
+    >
+      {row.surface ? (
+        <RecordSurface
+          surface={row.surface}
+          onReference={(recordKey) => {
+            if (recordKey === row.record.record_key) {
+              onSelect();
+            }
+          }}
+        />
+      ) : (
+        <FallbackRow row={row} />
+      )}
+    </div>
+  );
+}
+
+function FallbackRow({ row }: { row: ResultWindowRow }) {
+  return (
+    <span className="row-link">
+      <span>{row.record.title}</span>
+      <small>{row.record.record_key}</small>
+    </span>
   );
 }

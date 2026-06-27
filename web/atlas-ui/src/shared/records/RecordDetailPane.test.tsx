@@ -30,6 +30,52 @@ describe("RecordDetailPane", () => {
     expect(screen.getByText("This saved record is unresolved.")).toBeInTheDocument();
     expect(screen.getByText("Unable to load detail")).toBeInTheDocument();
   });
+
+  it("prefers the composed record surface when present", () => {
+    render(
+      <RecordDetailPane
+        detail={{
+          ...recordDetailFixture(),
+          surface: {
+            record_key: "actors:testCreature",
+            title: "Test Creature",
+            kind: "creature",
+            profile: "record_detail",
+            header: {
+              level_label: "3",
+              kind_label: "Creature",
+              traits: [{ kind: "trait", label: "hag", value: "hag" }],
+            },
+            sections: [
+              {
+                kind: "defenses",
+                title: "Defenses",
+                values: [
+                  {
+                    key: "ac",
+                    label: "AC",
+                    value: { kind: "number", value: 25n },
+                    base_value: { kind: "number", value: 25n },
+                    adjusted: false,
+                    display: "static_number",
+                  },
+                ],
+                collapsed_by_default: false,
+              },
+            ],
+            fallback_presentation: recordDetailFixture().presentation,
+          },
+        }}
+        loading={false}
+        onReference={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole("heading", { name: "Test Creature" })).toHaveLength(2);
+    expect(screen.getByText("AC")).toBeInTheDocument();
+    expect(screen.getByText("25")).toBeInTheDocument();
+    expect(screen.getByText("Source presentation")).toBeInTheDocument();
+  });
 });
 
 function recordDetailFixture(): RecordDetailView {

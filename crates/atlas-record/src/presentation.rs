@@ -1,8 +1,8 @@
 use atlas_domain::{RecordKey, RecordKind};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RecordPresentationDocument {
     #[ts(type = "string")]
     pub record_key: RecordKey,
@@ -14,7 +14,7 @@ pub struct RecordPresentationDocument {
     pub sections: Vec<PresentationSection>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum PresentationSectionKind {
@@ -65,7 +65,7 @@ impl PresentationSectionKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationSection {
     pub kind: PresentationSectionKind,
     pub title: String,
@@ -82,7 +82,7 @@ impl PresentationSection {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "content", rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum PresentationBlock {
@@ -92,7 +92,7 @@ pub enum PresentationBlock {
     Relationships(Vec<PresentationRelationship>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 pub struct PresentationContent {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<PresentationContentBlock>,
@@ -108,7 +108,7 @@ impl PresentationContent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum PresentationContentBlock {
@@ -131,17 +131,17 @@ pub enum PresentationContentBlock {
     Rule,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationListItem {
     pub blocks: Vec<PresentationContentBlock>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationTableRow {
     pub cells: Vec<PresentationContent>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum PresentationInline {
@@ -167,26 +167,26 @@ pub enum PresentationInline {
     LineBreak,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationFact {
     pub key: String,
     pub label: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationText {
     pub text: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationBadge {
     pub kind: PresentationBadgeKind,
     pub label: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum PresentationBadgeKind {
@@ -194,7 +194,7 @@ pub enum PresentationBadgeKind {
     Classification,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PresentationRelationship {
     pub kind: PresentationRelationshipKind,
     pub label: String,
@@ -202,7 +202,7 @@ pub struct PresentationRelationship {
     pub record_key: Option<RecordKey>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum PresentationRelationshipKind {

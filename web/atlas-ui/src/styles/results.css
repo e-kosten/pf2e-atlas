@@ -125,3 +125,38 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.result-list {
+  display: grid;
+  overflow: hidden;
+  gap: 0;
+  margin: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+}
+
+.result-rich-row {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.result-rich-row:last-child {
+  border-bottom: 0;
+}
+
+.result-rich-row:hover,
+.result-rich-row--active {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+
+.result-rich-row--active .record-surface-search__identity h2 {
+  color: var(--accent-strong);
+}

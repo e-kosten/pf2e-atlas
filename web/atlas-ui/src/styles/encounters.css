@@ -1,7 +1,5 @@
 @import "./encounters/layout.css";
-@import "./encounters/mechanics.css";
 @import "./encounters/roster.css";
 @import "./encounters/participant.css";
 @import "./encounters/conditions.css";
-@import "./encounters/source-record.css";
 @import "./encounters/responsive.css";
