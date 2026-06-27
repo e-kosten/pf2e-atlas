@@ -3,9 +3,10 @@ use std::sync::atomic::Ordering;
 
 use atlas_app_model::{
     AppErrorCode, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView,
-    ResultMatchSummary, ResultWindowMode, ResultWindowModeSummary, ResultWindowPage,
-    ResultWindowRow,
+    RecordSurfaceProfileView, ResultMatchSummary, ResultWindowMode, ResultWindowModeSummary,
+    ResultWindowPage, ResultWindowRow,
 };
+use atlas_domain::RecordKind;
 use atlas_search::{
     AtlasRetrievalService, ListRecordsRequest, RecordListSort, RecordRetrieval, SearchPage,
     TextRetrieval, TextSearchMatch, TextSearchRequest,
@@ -15,6 +16,7 @@ use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::lower_basic_filter;
 use crate::projection::{record_summary, search_page_view, text_match_summary};
 use crate::service::AtlasAppService;
+use crate::surfaces::record_surface;
 
 pub(super) const MAX_RESULT_WINDOWS: usize = 64;
 const MAX_EXPIRED_RESULT_WINDOWS: usize = MAX_RESULT_WINDOWS;
@@ -153,6 +155,7 @@ fn render_result_window_page(
                     .iter()
                     .map(|record| ResultWindowRow {
                         record: record_summary(record),
+                        surface: compact_surface(record),
                         match_summary: None,
                     })
                     .collect(),
@@ -179,12 +182,20 @@ fn render_result_window_page(
                     .iter()
                     .map(|record| ResultWindowRow {
                         record: record_summary(&record.record),
+                        surface: compact_surface(&record.record),
                         match_summary: Some(match_summary(&record.match_info)),
                     })
                     .collect(),
             })
         }
     }
+}
+
+fn compact_surface(
+    record: &atlas_record::AtlasRecord,
+) -> Option<atlas_app_model::RecordSurfaceView> {
+    (record.classification.kind == RecordKind::Creature)
+        .then(|| record_surface(record, RecordSurfaceProfileView::SearchCompact))
 }
 
 fn record_list_sort(value: RecordListSortView) -> RecordListSort {

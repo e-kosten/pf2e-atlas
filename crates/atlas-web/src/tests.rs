@@ -817,6 +817,7 @@ impl AtlasWebService for MockService {
                 badges: vec![],
                 sections: vec![],
             },
+            surface: None,
         })
     }
 
@@ -931,6 +932,7 @@ impl AtlasWebService for MockService {
             conditions: vec![],
             stat_block: None,
             record: Some(record_summary()),
+            surface: None,
         })
     }
 
@@ -1194,6 +1196,7 @@ fn encounter_participant(
         },
         stat_block: None,
         record: Some(record_summary()),
+        surface: None,
     }
 }
 
@@ -1221,6 +1224,7 @@ fn record_summary() -> RecordSummaryView {
         publication: None,
         pack: Some("Actions".to_string()),
         preview: None,
+        surface: None,
     }
 }
 
@@ -1239,6 +1243,7 @@ fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
         rows: vec![atlas_app_model::ResultWindowRow {
             record: record_summary(),
             match_summary: None,
+            surface: None,
         }],
     }
 }

@@ -2,6 +2,7 @@ import type React from "react";
 
 export type AtlasRoute =
   | { kind: "search"; selectedRecordKey: string | null }
+  | { kind: "presentationMocks" }
   | { kind: "encounters" }
   | { kind: "encounter"; slug: string }
   | { kind: "encounterEdit"; slug: string }
@@ -25,6 +26,10 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
   const record = pathname.match(/^\/records\/(.+)$/);
   if (record) {
     return { kind: "record", recordKey: decodeURIComponent(record[1]) };
+  }
+
+  if (pathname === "/presentation-mocks") {
+    return { kind: "presentationMocks" };
   }
 
   if (pathname === "/lists") {
@@ -95,6 +100,8 @@ export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
     case "search":
       return searchPath(route.selectedRecordKey);
+    case "presentationMocks":
+      return presentationMocksPath();
     case "encounters":
       return encountersPath();
     case "encounter":
@@ -140,6 +147,10 @@ export function searchPath(recordKey: string | null = null): string {
   return recordKey === null
     ? "/search"
     : `/search/records/${encodeURIComponent(recordKey)}`;
+}
+
+export function presentationMocksPath(): string {
+  return "/presentation-mocks";
 }
 
 export function listsPath(): string {

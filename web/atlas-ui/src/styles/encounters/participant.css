@@ -4,6 +4,24 @@
   gap: 12px;
 }
 
+.encounter-surface-unavailable {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.encounter-surface-unavailable h2,
+.encounter-surface-unavailable p {
+  margin: 0;
+}
+
+.encounter-surface-unavailable > p:last-child {
+  color: var(--muted);
+}
+
 .encounter-participant-controls__body,
 .encounter-conditions,
 .encounter-condition-list {

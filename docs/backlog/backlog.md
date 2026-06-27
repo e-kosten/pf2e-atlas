@@ -111,6 +111,12 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust encounter runtime mechanics surfaces](./items/rust-encounter-runtime-mechanics-surfaces.md)
   Add speed and action-budget projections so deterministic encounter effects can target runtime surfaces beyond ordinary stat rows. Status: proposed.
 
+- [Rust encounter trait runtime effects](./items/rust-encounter-trait-runtime-effects.md)
+  Let record traits and future participant-applied effects feed the shared encounter runtime-effect machinery, starting with minion action-economy projection. Status: proposed.
+
+- [Rust encounter turn lifecycle mutations](./items/rust-encounter-turn-lifecycle-mutations.md)
+  Add backend-owned turn event hooks for duration ticks, stunned action-loss timing, and other deterministic encounter lifecycle mutations. Status: proposed.
+
 - [Rust local-state import and export](./items/rust-local-state-import-export.md)
   Add scriptable import/export for saved lists and future durable local-state data without making artifact rebuilds responsible for user state. Status: proposed.
 

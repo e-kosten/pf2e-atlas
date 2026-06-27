@@ -93,11 +93,13 @@ function PresentationBlockView({
         </div>
       );
     case "content":
-      return <ContentView content={block.content} onReference={onReference} />;
+      return (
+        <PresentationContentView content={block.content} onReference={onReference} />
+      );
   }
 }
 
-function ContentView({
+export function PresentationContentView({
   content,
   onReference,
 }: {
@@ -157,7 +159,7 @@ function ContentBlockView({
               <tr key={rowIndex}>
                 {row.cells.map((cell, cellIndex) => (
                   <td key={cellIndex}>
-                    <ContentView content={cell} onReference={onReference} />
+                    <PresentationContentView content={cell} onReference={onReference} />
                   </td>
                 ))}
               </tr>

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::RecordSummaryView;
+use crate::{RecordSummaryView, RecordSurfaceView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -436,6 +436,9 @@ pub struct EncounterParticipantView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub stat_block: Option<StatBlockView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub surface: Option<RecordSurfaceView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub record: Option<RecordSummaryView>,

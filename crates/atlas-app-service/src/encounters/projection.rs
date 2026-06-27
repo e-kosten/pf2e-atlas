@@ -14,6 +14,7 @@ use atlas_local_state::{
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::projection::record_summary;
 use crate::service::AtlasAppService;
+use crate::surfaces::encounter_participant_surface;
 
 use super::hydration::hydrate_participant_records;
 use super::mechanics::{participant_runtime_block, participant_stat_block};
@@ -81,7 +82,7 @@ pub(super) fn participant_view(
         .note
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
-    EncounterParticipantView {
+    let mut view = EncounterParticipantView {
         participant_key: participant.participant_key,
         record_key: participant.record_key,
         participant_kind: participant_kind(participant.participant_kind),
@@ -105,8 +106,16 @@ pub(super) fn participant_view(
             .map(condition_view)
             .collect(),
         stat_block,
+        surface: None,
         record,
-    }
+    };
+    view.surface = match participant_kind(participant.participant_kind) {
+        EncounterParticipantKindView::Creature | EncounterParticipantKindView::Pc => {
+            encounter_participant_surface(&view, record_detail, view.stat_block.as_ref())
+        }
+        EncounterParticipantKindView::Hazard => None,
+    };
+    view
 }
 
 pub(super) fn encounter_not_found(encounter_ref: &str) -> AppServiceError {

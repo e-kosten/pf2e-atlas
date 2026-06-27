@@ -65,11 +65,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         participant.participant_key === encounter.data?.current_turn_participant_key,
     ) ??
     encounter.data?.participants[0];
-  const detail = useQuery({
-    queryKey: ["encounter-record-detail", selected?.record_key],
-    enabled: Boolean(selected?.record_key && selected.status === "active"),
-    queryFn: () => getRecordDetail(selected?.record_key ?? ""),
-  });
   const referencePreview = useQuery({
     queryKey: ["record-preview-popover", previewRecordKey],
     enabled: previewRecordKey !== null,
@@ -216,7 +211,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         }
         results={
           <EncounterInspectorPane
-            detailLoading={detail.isLoading || detail.isFetching}
             onAddCondition={(request) => addCondition.mutate(request)}
             onCloseRecordPreview={() => {
               setPreviewRecordKey(null);
@@ -245,7 +239,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             previewDetail={referencePreview.data}
             previewLoading={referencePreview.isLoading || referencePreview.isFetching}
             previewRecordKey={previewRecordKey}
-            recordDetail={detail.data}
           />
         }
         labels={{ filter: "Roster", results: "Participant" }}

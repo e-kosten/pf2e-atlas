@@ -14,6 +14,7 @@ type AppShellProps = {
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
   onNavigateLists: () => void;
   onNavigateEncounters: () => void;
+  onNavigatePresentationMocks: () => void;
   onNavigateSearch: () => void;
   resolvedColorScheme: ResolvedColorScheme;
   workspace: SearchWorkspaceState;
@@ -26,6 +27,7 @@ export function AppShell({
   onColorSchemeChange,
   onNavigateLists,
   onNavigateEncounters,
+  onNavigatePresentationMocks,
   onNavigateSearch,
   resolvedColorScheme,
   workspace,
@@ -63,6 +65,14 @@ export function AppShell({
             type="button"
           >
             Search
+          </button>
+          <button
+            aria-current={activeView === "presentationMocks" ? "page" : undefined}
+            className="topbar__nav-item"
+            onClick={onNavigatePresentationMocks}
+            type="button"
+          >
+            Surface Mocks
           </button>
           <button
             aria-current={
