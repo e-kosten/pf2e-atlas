@@ -174,6 +174,46 @@ fn analyze_index_json_reports_source_without_writing_artifact()
 }
 
 #[test]
+fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = temp_source_root("cli-audit-source-paths");
+    write_record_search_source(&root)?;
+
+    let audit_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "audit-source-paths", "--source"])
+        .arg(&root)
+        .args(["--record-type", "action", "--json"])
+        .output()?;
+
+    assert!(audit_output.status.success());
+    let audit_json = parse_ok_data(&audit_output)?;
+    assert_eq!(audit_json["source_root"], root.display().to_string());
+    assert_eq!(
+        audit_json["manifest_path"],
+        root.join("module.json").display().to_string()
+    );
+    assert_eq!(audit_json["pack_count"], 1);
+    assert_eq!(audit_json["record_count"], 1);
+    assert_eq!(audit_json["filters"]["record_type"], "action");
+    assert!(
+        audit_json["path_count"]
+            .as_u64()
+            .is_some_and(|count| count >= 1)
+    );
+    let paths = audit_json["paths"].as_array().expect("audit paths");
+    assert!(paths.iter().any(|path| {
+        path["path"] == "$.system.description.value"
+            && path["coverage_status"] == "consumed"
+            && path["known_consumers"].as_array().is_some_and(|consumers| {
+                consumers.iter().any(|consumer| consumer == "rich_content")
+            })
+    }));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn build_index_human_output_reports_timing_summary() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-build-human");
     write_record_search_source(&root)?;

@@ -35,6 +35,10 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
         "atlas index analyze --source vendor/pf2e --manifest scratch/ingest-manifest.json --json"
     ));
 
+    let audit_help = help_output(&["index", "audit-source-paths"])?;
+    assert!(audit_help.contains("atlas index audit-source-paths --record-type npc"));
+    assert!(audit_help.contains("--min-records"));
+
     let inspect_help = help_output(&["index", "inspect"])?;
     assert!(inspect_help.contains("atlas index inspect --json"));
 
