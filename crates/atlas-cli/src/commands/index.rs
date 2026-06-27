@@ -5,7 +5,8 @@ use atlas_index::ValidationTarget;
 use atlas_ingest::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, IngestDiagnostics, SkippedRecord,
-    analyze_foundry_source, build_artifact,
+    SourcePathAuditOptions, SourcePathAuditReport, SourcePathCoverageStatus,
+    analyze_foundry_source, audit_source_paths, build_artifact,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::{Value, json};
@@ -15,8 +16,8 @@ use crate::output::{format_duration_ms, write_json_data, write_validation_report
 pub(crate) mod args;
 
 use args::{
-    AnalyzeIndexOptions, BuildIndexOptions, CheckIndexOptions, IndexPathOptions,
-    ValidateIndexOptions,
+    AnalyzeIndexOptions, AuditSourcePathsOptions, BuildIndexOptions, CheckIndexOptions,
+    IndexPathOptions, ValidateIndexOptions,
 };
 
 pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
@@ -65,6 +66,80 @@ pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+pub(crate) fn run_index_audit_source_paths(
+    options: AuditSourcePathsOptions,
+) -> Result<ExitCode, String> {
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode: options.path_mode.into(),
+        overrides: AtlasPathOverrides {
+            source_root: options.source,
+            embedding_cache_root: None,
+            index_path: None,
+        },
+    })
+    .map_err(|error| error.to_string())?;
+    let paths = runtime.paths();
+    let report = audit_source_paths(SourcePathAuditOptions {
+        source_root: paths.source_root.clone(),
+        manifest_path: options.manifest,
+        pack_name: options.pack_name,
+        document_type: options.document_type,
+        record_type: options.record_type,
+        min_records: options.min_records,
+        limit: Some(options.limit),
+    })
+    .map_err(|error| error.to_string())?;
+
+    if options.json {
+        write_json_data(&report)?;
+    } else {
+        print_source_path_audit(&report);
+    }
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn print_source_path_audit(report: &SourcePathAuditReport) {
+    println!(
+        "ok: audited {} records from {} packs in {}",
+        report.record_count, report.pack_count, report.source_root
+    );
+    println!(
+        "paths: showing {} paths with min_records={}",
+        report.paths.len(),
+        report.filters.min_records
+    );
+    for path in &report.paths {
+        let consumers = if path.known_consumers.is_empty() {
+            "none".to_string()
+        } else {
+            path.known_consumers.join(",")
+        };
+        println!(
+            "{} records={} occurrences={} status={} consumers={}",
+            path.path,
+            path.record_count,
+            path.occurrence_count,
+            coverage_status_label(path.coverage_status),
+            consumers
+        );
+        for example in &path.examples {
+            println!(
+                "  e.g. {} {} = {}",
+                example.record_key, example.source_path, example.value
+            );
+        }
+    }
+}
+
+fn coverage_status_label(status: SourcePathCoverageStatus) -> &'static str {
+    match status {
+        SourcePathCoverageStatus::Consumed => "consumed",
+        SourcePathCoverageStatus::Partial => "partial",
+        SourcePathCoverageStatus::Uncovered => "uncovered",
+    }
 }
 
 pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {

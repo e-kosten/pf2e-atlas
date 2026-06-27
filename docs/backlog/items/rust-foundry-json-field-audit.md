@@ -1,9 +1,9 @@
 # Rust Foundry JSON Field Audit
 
-Status: proposed  
-Priority: later  
-Owner: unassigned  
-Last reviewed: 2026-05-17
+Status: active
+Priority: later
+Owner: unassigned
+Last reviewed: 2026-06-26
 
 ## Problem
 
@@ -35,12 +35,14 @@ The audit should help answer:
 
 ## Acceptance Sketch
 
-- The audit can scan the full Foundry source tree and emit a stable JSON report.
-- The report groups source paths by document/record type and includes counts plus representative record keys or source paths.
+- The audit can scan the full Foundry source tree and emit a stable JSON report. Initial support exists as `atlas index audit-source-paths`.
+- The report groups source paths by document/record type, record type, or pack filter and includes counts plus representative record keys or source paths.
 - The report distinguishes consumed, ignored, deferred, and unknown paths.
 - Existing ingest owners can declare covered JSON pointer paths or path families without centralizing all source policy in one file.
 - Ingest-owned source fact extractors can report covered and skipped nested source regions, including embedded items and journal pages.
 - The output identifies a small actionable list of high-signal unknown fields rather than overwhelming reviewers with every mechanical or empty source key.
+
+The first implementation uses an ingest-owned path-family map to mark `consumed`, `partial`, and `uncovered` paths. Follow-up work should replace or supplement those heuristics with coverage declarations from the real extractors that consume each source region.
 
 ## Related
 

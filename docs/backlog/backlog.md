@@ -38,7 +38,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
 
 - [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
-  Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage. Status: proposed.
+  Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage. Status: active.
 
 - [Rust web UI architecture review](./items/rust-web-ui-architecture-review.md)
   Review the first web UI vertical slice for DTO/API boundaries, state ownership, AntD composition, module layout, and tests before substantial follow-up feature work. Status: proposed.

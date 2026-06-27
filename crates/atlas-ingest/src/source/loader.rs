@@ -320,7 +320,7 @@ pub(crate) fn default_manifest_path(source_root: &Path) -> PathBuf {
     source_root.join("module.json")
 }
 
-fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError> {
+pub(crate) fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::SourceUnavailable(error.to_string()))?;
     let content_hash = sha256_hex(serialized.as_bytes());
