@@ -3,7 +3,7 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-26
+Last reviewed: 2026-06-27
 
 ## Problem
 
@@ -31,6 +31,7 @@ The implementation should:
 
 - separate semantic fact extraction from final user-facing presentation composition;
 - introduce a composed app presentation for contexts such as record detail and encounter participant detail;
+- consume structured embedded activity, spellcasting, and resource entities from the artifact instead of treating embedded capability prose as equivalent to native description text;
 - avoid rendering an adjusted runtime sidecar above a complete static record presentation when that duplicates HP, defenses, movement, activities, or other facts;
 - support future character-sheet-style record layouts that organize defenses, actions, activities, traits, spells, prose, and references intentionally;
 - let app-service compose source-derived facts with local/runtime encounter state before the browser renders the final shape;
@@ -48,6 +49,7 @@ The implementation should:
 
 - [Record surface live implementation plan](../../../scratch/plans/2026-06-26-record-surface-live-implementation-plan.md)
 - [Record presentation composition plan](../../../scratch/plans/2026-06-26-record-presentation-composition-plan.md)
+- [Embedded mechanics artifact plan](../../../scratch/plans/2026-06-27-embedded-mechanics-artifact-plan.md)
 - [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
 - [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)

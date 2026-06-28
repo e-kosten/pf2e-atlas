@@ -3,7 +3,7 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-01
+Last reviewed: 2026-06-27
 
 ## Problem
 
@@ -20,6 +20,8 @@ Candidate shapes should preserve both roles:
 - typed mechanics own coherent source facts for a Foundry type;
 - metrics remain the generic comparison/filter surface for scalar values;
 - shared extraction avoids parsing the same raw JSON field independently for typed mechanics and metric rows.
+
+The accepted planning direction for embedded activity mechanics is a hybrid artifact model: entity tables for product-addressable mechanics objects such as activities, spellcasting entries, and resource pools; Atlas-owned typed JSON inside activity rows for nested rolls/damage/modes that are usually consumed with the activity; and additional projection tables only when a product need requires independent filtering, joining, or aggregation.
 
 ## Candidate Areas
 
@@ -48,3 +50,4 @@ Candidate shapes should preserve both roles:
 
 - [Rust Side Data And Metric Source Fact Convergence](./rust-side-data-metric-source-fact-convergence.md)
 - [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
+- [Embedded mechanics artifact plan](../../../scratch/plans/2026-06-27-embedded-mechanics-artifact-plan.md)
