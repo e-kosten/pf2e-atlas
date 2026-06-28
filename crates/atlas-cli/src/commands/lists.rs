@@ -19,7 +19,7 @@ pub(crate) mod args;
 
 use args::{
     ListAddOptions, ListCreateOptions, ListDeleteOptions, ListLsOptions, ListRemoveOptions,
-    ListShowOptions, ListsPathOptions,
+    ListShowDetail, ListShowOptions, ListsPathOptions,
 };
 
 #[derive(Debug, Serialize)]
@@ -48,6 +48,8 @@ struct ListItemMutationData {
     list_key: String,
     slug: String,
     record_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    record_name: Option<String>,
     outcome: &'static str,
 }
 
@@ -55,7 +57,32 @@ struct ListItemMutationData {
 struct ListShowData {
     local_state_path: Option<String>,
     list: SavedListSummaryView,
+    item_count: u64,
     items: Vec<ListShowItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct ListShowNoRecordsData {
+    local_state_path: Option<String>,
+    list: SavedListSummaryView,
+    item_count: u64,
+    items: Vec<ListShowItemNoRecord>,
+}
+
+#[derive(Debug, Serialize)]
+struct ListShowSummaryData {
+    local_state_path: Option<String>,
+    list: SavedListSummaryView,
+    item_count: u64,
+    items: Vec<ListShowSummaryItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct ListShowKeysData {
+    local_state_path: Option<String>,
+    list: SavedListSummaryView,
+    item_count: u64,
+    record_keys: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +94,28 @@ struct ListShowItem {
     snapshot: ListItemSnapshot,
     #[serde(skip_serializing_if = "Option::is_none")]
     record: Option<RecordJson>,
+}
+
+#[derive(Debug, Serialize)]
+struct ListShowItemNoRecord {
+    record_key: String,
+    position: i64,
+    note: Option<String>,
+    status: &'static str,
+    snapshot: ListItemSnapshot,
+}
+
+#[derive(Debug, Serialize)]
+struct ListShowSummaryItem {
+    position: i64,
+    record_key: String,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    level: Option<String>,
+    kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    note: Option<String>,
+    status: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -85,6 +134,13 @@ struct LegacyAmbiguousRecordRefs {
 enum ListCommandStep<T> {
     Ready(T),
     Exit(ExitCode),
+}
+
+enum ListShowMode {
+    Records(DetailLevel),
+    Summary,
+    KeysOnly,
+    NoRecords,
 }
 
 pub(crate) fn run_lists_create(options: ListCreateOptions) -> Result<ExitCode, String> {
@@ -138,6 +194,7 @@ pub(crate) fn run_lists_ls(options: ListLsOptions) -> Result<ExitCode, String> {
 }
 
 pub(crate) fn run_lists_show(options: ListShowOptions) -> Result<ExitCode, String> {
+    let mode = list_show_mode(&options)?;
     let client = match lists_client(&options.paths, options.json)? {
         ListCommandStep::Ready(client) => client,
         ListCommandStep::Exit(code) => return Ok(code),
@@ -146,14 +203,44 @@ pub(crate) fn run_lists_show(options: ListShowOptions) -> Result<ExitCode, Strin
         Ok(view) => view,
         Err(error) => return app_error(error, options.json),
     };
-    let data = match list_show_data(&client, view) {
-        Ok(data) => data,
-        Err(error) => return app_error(error, options.json),
-    };
-    if options.json {
-        write_json_data(data)?;
-    } else {
-        print_saved_list(&data);
+    match mode {
+        ListShowMode::Records(detail) => {
+            let data = match list_show_data(&client, view, detail) {
+                Ok(data) => data,
+                Err(error) => return app_error(error, options.json),
+            };
+            if options.json {
+                write_json_data(data)?;
+            } else {
+                print_saved_list(&data);
+            }
+        }
+        ListShowMode::Summary => {
+            let data = list_show_summary_data(&client, view);
+            if options.json {
+                write_json_data(data)?;
+            } else {
+                print_saved_list_summary(&data);
+            }
+        }
+        ListShowMode::KeysOnly => {
+            let data = list_show_keys_data(&client, view);
+            if options.json {
+                write_json_data(data)?;
+            } else {
+                for key in data.record_keys {
+                    println!("{key}");
+                }
+            }
+        }
+        ListShowMode::NoRecords => {
+            let data = list_show_no_records_data(&client, view);
+            if options.json {
+                write_json_data(data)?;
+            } else {
+                print_saved_list_no_records(&data);
+            }
+        }
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -232,17 +319,56 @@ fn lists_client(
 fn list_show_data(
     client: &impl AtlasClient,
     view: SavedListDetailView,
+    detail: DetailLevel,
 ) -> Result<ListShowData, AppError> {
     let records_by_key = hydrate_records(client, &view.items)?;
     Ok(ListShowData {
         local_state_path: local_state_path(client),
+        item_count: view.list.item_count,
         list: view.list,
         items: view
             .items
             .into_iter()
-            .map(|item| list_show_item(item, &records_by_key))
+            .map(|item| list_show_item(item, &records_by_key, detail))
             .collect(),
     })
+}
+
+fn list_show_summary_data(
+    client: &impl AtlasClient,
+    view: SavedListDetailView,
+) -> ListShowSummaryData {
+    ListShowSummaryData {
+        local_state_path: local_state_path(client),
+        item_count: view.list.item_count,
+        list: view.list,
+        items: view.items.into_iter().map(list_show_summary_item).collect(),
+    }
+}
+
+fn list_show_keys_data(client: &impl AtlasClient, view: SavedListDetailView) -> ListShowKeysData {
+    ListShowKeysData {
+        local_state_path: local_state_path(client),
+        item_count: view.list.item_count,
+        list: view.list,
+        record_keys: view.items.into_iter().map(|item| item.record_key).collect(),
+    }
+}
+
+fn list_show_no_records_data(
+    client: &impl AtlasClient,
+    view: SavedListDetailView,
+) -> ListShowNoRecordsData {
+    ListShowNoRecordsData {
+        local_state_path: local_state_path(client),
+        item_count: view.list.item_count,
+        list: view.list,
+        items: view
+            .items
+            .into_iter()
+            .map(list_show_item_no_record)
+            .collect(),
+    }
 }
 
 fn hydrate_records(
@@ -267,10 +393,11 @@ fn hydrate_records(
 fn list_show_item(
     item: SavedListItemView,
     records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+    detail: DetailLevel,
 ) -> ListShowItem {
     let record = records_by_key
         .get(&item.record_key)
-        .map(|record| record_json(record, standard_record_json_options()));
+        .map(|record| record_json(record, record_json_options(detail)));
     ListShowItem {
         record_key: item.record_key,
         position: item.position,
@@ -284,6 +411,40 @@ fn list_show_item(
     }
 }
 
+fn list_show_item_no_record(item: SavedListItemView) -> ListShowItemNoRecord {
+    ListShowItemNoRecord {
+        record_key: item.record_key,
+        position: item.position,
+        note: item.note,
+        status: list_item_status_text(item.status),
+        snapshot: ListItemSnapshot {
+            name: item.snapshot.title,
+            kind: item.snapshot.kind,
+        },
+    }
+}
+
+fn list_show_summary_item(item: SavedListItemView) -> ListShowSummaryItem {
+    let status = list_item_status_text(item.status);
+    let (name, level, kind) = match item.record {
+        Some(record) => (record.title, record.level_label, record.kind),
+        None => (
+            item.snapshot.title,
+            None,
+            item.snapshot.kind.unwrap_or_else(|| "unknown".to_string()),
+        ),
+    };
+    ListShowSummaryItem {
+        position: item.position,
+        record_key: item.record_key,
+        name,
+        level,
+        kind,
+        note: item.note,
+        status,
+    }
+}
+
 fn write_mutation_result(
     client: &impl AtlasClient,
     view: SavedListItemMutationView,
@@ -294,12 +455,20 @@ fn write_mutation_result(
         list_key: view.list_key,
         slug: view.slug,
         record_key: view.record_key,
+        record_name: view.record_name,
         outcome: mutation_outcome_text(view.outcome),
     };
     if json {
         write_json_data(data)?;
     } else {
-        println!("{}\t{}\t{}", data.outcome, data.slug, data.record_key);
+        if let Some(record_name) = &data.record_name {
+            println!(
+                "{}\t{}\t{}\t{}",
+                data.outcome, data.slug, data.record_key, record_name
+            );
+        } else {
+            println!("{}\t{}\t{}", data.outcome, data.slug, data.record_key);
+        }
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -315,6 +484,34 @@ fn delete_data(client: &impl AtlasClient, view: DeleteSavedListView) -> ListDele
 
 fn local_state_path(client: &impl AtlasClient) -> Option<String> {
     client.local_state_path().map(str::to_string)
+}
+
+fn list_show_mode(options: &ListShowOptions) -> Result<ListShowMode, String> {
+    let selected = [options.summary, options.keys_only, options.no_records]
+        .into_iter()
+        .filter(|selected| *selected)
+        .count()
+        + usize::from(options.detail.is_some());
+    if selected > 1 {
+        return Err(
+            "choose only one of --summary, --keys-only, --no-records, or --detail".to_string(),
+        );
+    }
+    if options.summary {
+        return Ok(ListShowMode::Summary);
+    }
+    if options.keys_only {
+        return Ok(ListShowMode::KeysOnly);
+    }
+    if options.no_records {
+        return Ok(ListShowMode::NoRecords);
+    }
+    match options.detail {
+        Some(ListShowDetail::Preview) => Ok(ListShowMode::Records(DetailLevel::Preview)),
+        Some(ListShowDetail::Standard) => Ok(ListShowMode::Records(DetailLevel::Standard)),
+        Some(ListShowDetail::None) => Ok(ListShowMode::NoRecords),
+        None => Ok(ListShowMode::Records(DetailLevel::Standard)),
+    }
 }
 
 fn mutation_outcome_text(
@@ -355,6 +552,46 @@ fn print_saved_list(data: &ListShowData) {
         println!(
             "{}.\t{}\t{}\t{}\t{}",
             item.position, item.record_key, name, kind, item.status
+        );
+        if let Some(note) = &item.note {
+            println!("\tnote: {note}");
+        }
+    }
+}
+
+fn print_saved_list_summary(data: &ListShowSummaryData) {
+    println!(
+        "{}\t{}\t{} items",
+        data.list.slug, data.list.name, data.item_count
+    );
+    if let Some(description) = &data.list.description {
+        println!("{description}");
+    }
+    for item in &data.items {
+        let level = item.level.as_deref().unwrap_or("-");
+        println!(
+            "{}.\t{}\t{}\t{}\t{}\t{}",
+            item.position, item.record_key, item.name, level, item.kind, item.status
+        );
+        if let Some(note) = &item.note {
+            println!("\tnote: {note}");
+        }
+    }
+}
+
+fn print_saved_list_no_records(data: &ListShowNoRecordsData) {
+    println!(
+        "{}\t{}\t{} items",
+        data.list.slug, data.list.name, data.item_count
+    );
+    if let Some(description) = &data.list.description {
+        println!("{description}");
+    }
+    for item in &data.items {
+        let kind = item.snapshot.kind.as_deref().unwrap_or("unknown");
+        println!(
+            "{}.\t{}\t{}\t{}\t{}",
+            item.position, item.record_key, item.snapshot.name, kind, item.status
         );
         if let Some(note) = &item.note {
             println!("\tnote: {note}");
@@ -449,7 +686,10 @@ fn legacy_ambiguous_record_refs(
             records_by_key
                 .get(&candidate.record.record_key)
                 .map(|record| {
-                    serde_json::json!(record_json(record, standard_record_json_options()))
+                    serde_json::json!(record_json(
+                        record,
+                        record_json_options(DetailLevel::Standard)
+                    ))
                 })
                 .unwrap_or_else(|| {
                     serde_json::json!({
@@ -529,9 +769,9 @@ fn cli_error_code(code: AppErrorCode) -> (&'static str, ExitCode) {
     }
 }
 
-fn standard_record_json_options() -> RecordJsonOptions {
+fn record_json_options(detail: DetailLevel) -> RecordJsonOptions {
     RecordJsonOptions {
-        detail: DetailLevel::Standard,
+        detail,
         include_source_json: false,
     }
 }

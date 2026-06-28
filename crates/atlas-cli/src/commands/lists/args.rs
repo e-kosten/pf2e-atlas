@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 use crate::cli::args::CliPathMode;
 
@@ -53,10 +53,32 @@ pub(crate) struct ListLsOptions {
 pub(crate) struct ListShowOptions {
     #[arg(help = "Saved-list slug")]
     pub(crate) slug: String,
+    #[arg(
+        long,
+        help = "Emit compact item summaries instead of full record payloads"
+    )]
+    pub(crate) summary: bool,
+    #[arg(long, help = "Emit only saved-list record keys")]
+    pub(crate) keys_only: bool,
+    #[arg(long, help = "Omit hydrated record payloads from item output")]
+    pub(crate) no_records: bool,
+    #[arg(
+        long,
+        value_enum,
+        help = "Control record payload detail in JSON output"
+    )]
+    pub(crate) detail: Option<ListShowDetail>,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum ListShowDetail {
+    Preview,
+    Standard,
+    None,
 }
 
 #[derive(Debug, Args)]

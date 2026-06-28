@@ -59,6 +59,7 @@ describe("AtlasApp routing", () => {
           list_key: list_ref,
           slug: "research",
           record_key: record_ref,
+          record_name: "heal",
           outcome: "added",
         }),
     );
@@ -96,12 +97,8 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultKey = await screen.findByText("spell:heal");
-    const resultButton = resultKey.closest("button");
-    if (!resultButton) {
-      throw new Error("result row button was not rendered");
-    }
-    fireEvent.click(resultButton);
+    const resultRow = await screen.findByRole("option", { name: /spell:heal/ });
+    fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
     vi.clearAllMocks();
@@ -120,12 +117,8 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultKey = await screen.findByText("spell:heal");
-    const resultButton = resultKey.closest("button");
-    if (!resultButton) {
-      throw new Error("result row button was not rendered");
-    }
-    fireEvent.click(resultButton);
+    const resultRow = await screen.findByRole("option", { name: /spell:heal/ });
+    fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
@@ -216,6 +209,7 @@ function savedListIndexFixture() {
         slug: "research",
         name: "Research",
         description: "Campaign prep",
+        item_count: 1n,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       },

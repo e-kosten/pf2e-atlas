@@ -7,6 +7,7 @@ pub struct SavedList {
     pub slug: String,
     pub name: String,
     pub description: Option<String>,
+    pub item_count: u64,
     pub created_at: String,
     pub updated_at: String,
 }

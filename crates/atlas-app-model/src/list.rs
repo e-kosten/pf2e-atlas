@@ -12,6 +12,7 @@ pub struct SavedListSummaryView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub description: Option<String>,
+    pub item_count: u64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -97,6 +98,9 @@ pub struct SavedListItemMutationView {
     pub list_key: String,
     pub slug: String,
     pub record_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub record_name: Option<String>,
     pub outcome: SavedListItemMutationOutcomeView,
 }
 

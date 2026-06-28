@@ -37,9 +37,12 @@ pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalS
 
 pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> {
     let mut statement = connection.prepare(
-        "SELECT list_key, slug, name, description, created_at, updated_at
-         FROM saved_lists
-         ORDER BY slug",
+        "SELECT list.list_key, list.slug, list.name, list.description,
+                COUNT(item.record_key), list.created_at, list.updated_at
+         FROM saved_lists list
+         LEFT JOIN saved_list_items item ON item.list_id = list.id
+         GROUP BY list.id
+         ORDER BY list.slug",
     )?;
     let rows = statement.query_map([], saved_list_from_row)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
@@ -48,9 +51,12 @@ pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> 
 pub(crate) fn get(connection: &Connection, list_ref: &str) -> LocalStateResult<Option<SavedList>> {
     connection
         .query_row(
-            "SELECT list_key, slug, name, description, created_at, updated_at
-             FROM saved_lists
-             WHERE list_key = ?1 OR slug = ?1",
+            "SELECT list.list_key, list.slug, list.name, list.description,
+                    COUNT(item.record_key), list.created_at, list.updated_at
+             FROM saved_lists list
+             LEFT JOIN saved_list_items item ON item.list_id = list.id
+             WHERE list.list_key = ?1 OR list.slug = ?1
+             GROUP BY list.id",
             params![list_ref],
             saved_list_from_row,
         )
@@ -200,8 +206,9 @@ fn saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedList> {
         slug: row.get(1)?,
         name: row.get(2)?,
         description: row.get(3)?,
-        created_at: row.get(4)?,
-        updated_at: row.get(5)?,
+        item_count: row.get::<_, i64>(4)? as u64,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
     })
 }
 
