@@ -3,7 +3,7 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-16
+Last reviewed: 2026-06-28
 
 ## Problem
 
@@ -13,16 +13,30 @@ The first saved-list implementation should keep import/export out of scope so th
 
 ## Desired Outcome
 
-Add stable import/export commands for local-state data, starting with saved lists.
+Add stable import/export commands for local-state data. Saved-list JSON import/export now exists; broader local-state export remains future work.
 
 The design should answer:
 
 - which local-state entities are exported in v1
 - whether export is whole-database, selected-list, or both
 - how unresolved saved-list item record keys are represented
-- how imports handle existing list slugs, duplicate items, and ordering
+- how imports handle existing list ids, duplicate items, and ordering
 - whether imports validate record keys against the active artifact or preserve unresolved rows with warnings
 - how future local-state entities can join the format without breaking older exports
+
+## Current Saved-List Surface
+
+Saved lists now support a first portable JSON document shape:
+
+```text
+atlas lists export <id>
+atlas lists export <id> --output list.json
+atlas lists import list.json
+atlas lists import list.json --id new-id
+atlas lists import list.json --id existing-id --replace
+```
+
+`atlas lists export` writes the raw export document, not the standard command JSON envelope, so it can be redirected directly into a file. Imports use the final target id for conflict handling: by default an existing target fails with `saved_list_already_exists`; `--replace` replaces that target list. Exported items include position, record key, resolved record name, status, optional note, and a snapshot so unresolved rows can round-trip.
 
 ## Constraints
 
@@ -32,18 +46,16 @@ The design should answer:
 - Preserve unresolved saved-list items rather than silently dropping them.
 - Keep import conflict behavior explicit; avoid implicit overwrites.
 
-## Candidate Shape
+## Remaining Candidate Shape
 
-Likely CLI surfaces:
+Remaining local-state surfaces:
 
 ```text
-atlas lists export <slug> --output list.json
-atlas lists import list.json
 atlas local-state export --output atlas-local-state.json
 atlas local-state import atlas-local-state.json
 ```
 
-The first useful format can be JSON with a top-level format version, exported timestamp, and entity arrays. Saved-list items should include record keys, position, optional notes, and enough unresolved-item metadata to round-trip stale references without requiring the active artifact to contain every key.
+Whole-local-state export should reuse the same durable principles as saved-list export: JSON with a top-level format version, exported timestamp, entity sections, explicit conflict handling, and unresolved reference preservation. TSV saved-list import remains a possible convenience format after the JSON contract has more use.
 
 ## Related
 

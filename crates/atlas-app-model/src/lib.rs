@@ -37,11 +37,14 @@ pub use filter::{
     FilterValueListView, FilterValueOption, MetricComparison,
 };
 pub use list::{
-    AddSavedListItemRequest, CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest,
-    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationOutcomeView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    UpdateSavedListRequest,
+    AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
+    BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
+    CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
+    ImportSavedListView, RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
+    SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
+    SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
+    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    SavedListUpdateView, UpdateSavedListRequest,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{
@@ -216,18 +219,28 @@ mod tests {
         SurfaceValueView::export_all_to(path).expect("SurfaceValueView bindings should export");
         AddSavedListItemRequest::export_all_to(path)
             .expect("AddSavedListItemRequest bindings should export");
+        BatchAddSavedListItemsRequest::export_all_to(path)
+            .expect("BatchAddSavedListItemsRequest bindings should export");
+        BatchSavedListItemMutationView::export_all_to(path)
+            .expect("BatchSavedListItemMutationView bindings should export");
         CreateSavedListRequest::export_all_to(path)
             .expect("CreateSavedListRequest bindings should export");
         DeleteSavedListView::export_all_to(path)
             .expect("DeleteSavedListView bindings should export");
         FilterSavedListRequest::export_all_to(path)
             .expect("FilterSavedListRequest bindings should export");
+        ImportSavedListRequest::export_all_to(path)
+            .expect("ImportSavedListRequest bindings should export");
+        ImportSavedListView::export_all_to(path)
+            .expect("ImportSavedListView bindings should export");
         RemoveSavedListItemRequest::export_all_to(path)
             .expect("RemoveSavedListItemRequest bindings should export");
         SavedListCreateView::export_all_to(path)
             .expect("SavedListCreateView bindings should export");
         SavedListDetailView::export_all_to(path)
             .expect("SavedListDetailView bindings should export");
+        SavedListExportDocumentView::export_all_to(path)
+            .expect("SavedListExportDocumentView bindings should export");
         SavedListIndexView::export_all_to(path).expect("SavedListIndexView bindings should export");
         SavedListItemMutationView::export_all_to(path)
             .expect("SavedListItemMutationView bindings should export");

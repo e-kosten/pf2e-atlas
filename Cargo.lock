@@ -109,6 +109,7 @@ dependencies = [
  "atlas-search",
  "serde_json",
  "thiserror",
+ "time",
 ]
 
 [[package]]

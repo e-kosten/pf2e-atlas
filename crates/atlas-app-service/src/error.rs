@@ -51,7 +51,8 @@ impl From<LocalStateError> for AppServiceError {
             LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidListRef { .. }
             | LocalStateError::InvalidEncounterRef { .. }
-            | LocalStateError::InvalidRecordKey { .. } => AppErrorCode::InvalidRequest,
+            | LocalStateError::InvalidRecordKey { .. }
+            | LocalStateError::InvalidListImport(_) => AppErrorCode::InvalidRequest,
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
             LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,

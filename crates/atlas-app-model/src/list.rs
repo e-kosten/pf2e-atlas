@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{BasicSearchFilter, RecordSummaryView};
+use crate::{AppError, BasicSearchFilter, RecordSummaryView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -87,6 +87,22 @@ pub struct AddSavedListItemRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+pub struct BatchAddSavedListItemsRequest {
+    pub list_ref: String,
+    pub items: Vec<BatchSavedListItemInput>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct BatchSavedListItemInput {
+    pub record_ref: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
 pub struct RemoveSavedListItemRequest {
     pub list_ref: String,
     pub record_ref: String,
@@ -104,6 +120,34 @@ pub struct SavedListItemMutationView {
     pub outcome: SavedListItemMutationOutcomeView,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct BatchSavedListItemMutationView {
+    pub list_key: String,
+    pub slug: String,
+    pub requested_count: u64,
+    pub added_count: u64,
+    pub already_present_count: u64,
+    pub failed_count: u64,
+    pub items: Vec<BatchSavedListItemResultView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct BatchSavedListItemResultView {
+    pub input: String,
+    pub outcome: BatchSavedListItemOutcomeView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub record_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub record_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub error: Option<AppError>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -112,6 +156,15 @@ pub enum SavedListItemMutationOutcomeView {
     AlreadyPresent,
     Removed,
     NotPresent,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum BatchSavedListItemOutcomeView {
+    Added,
+    AlreadyPresent,
+    Failed,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -152,4 +205,59 @@ pub struct SavedListItemSnapshotView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub kind: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct SavedListExportDocumentView {
+    pub format: String,
+    pub version: u64,
+    pub exported_at: String,
+    pub list: SavedListExportListView,
+    pub items: Vec<SavedListExportItemView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct SavedListExportListView {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct SavedListExportItemView {
+    pub position: i64,
+    pub record_key: String,
+    pub record_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub kind: Option<String>,
+    pub status: SavedListItemStatusView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub note: Option<String>,
+    pub snapshot: SavedListItemSnapshotView,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct ImportSavedListRequest {
+    pub document: SavedListExportDocumentView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub id: Option<String>,
+    pub replace: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct ImportSavedListView {
+    pub list: SavedListSummaryView,
+    pub replaced: bool,
+    pub active_count: u64,
+    pub unresolved_count: u64,
 }

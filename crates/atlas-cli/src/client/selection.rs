@@ -197,6 +197,16 @@ impl AtlasClient for AtlasClientHandle {
         }
     }
 
+    fn add_saved_list_items(
+        &self,
+        request: atlas_app_model::BatchAddSavedListItemsRequest,
+    ) -> super::ClientResult<atlas_app_model::BatchSavedListItemMutationView> {
+        match self {
+            Self::Local(client) => client.add_saved_list_items(request),
+            Self::Http(client) => client.add_saved_list_items(request),
+        }
+    }
+
     fn remove_saved_list_item(
         &self,
         request: atlas_app_model::RemoveSavedListItemRequest,
@@ -204,6 +214,36 @@ impl AtlasClient for AtlasClientHandle {
         match self {
             Self::Local(client) => client.remove_saved_list_item(request),
             Self::Http(client) => client.remove_saved_list_item(request),
+        }
+    }
+
+    fn update_saved_list(
+        &self,
+        request: atlas_app_model::UpdateSavedListRequest,
+    ) -> super::ClientResult<atlas_app_model::SavedListUpdateView> {
+        match self {
+            Self::Local(client) => client.update_saved_list(request),
+            Self::Http(client) => client.update_saved_list(request),
+        }
+    }
+
+    fn export_saved_list(
+        &self,
+        slug: &str,
+    ) -> super::ClientResult<atlas_app_model::SavedListExportDocumentView> {
+        match self {
+            Self::Local(client) => client.export_saved_list(slug),
+            Self::Http(client) => client.export_saved_list(slug),
+        }
+    }
+
+    fn import_saved_list(
+        &self,
+        request: atlas_app_model::ImportSavedListRequest,
+    ) -> super::ClientResult<atlas_app_model::ImportSavedListView> {
+        match self {
+            Self::Local(client) => client.import_saved_list(request),
+            Self::Http(client) => client.import_saved_list(request),
         }
     }
 

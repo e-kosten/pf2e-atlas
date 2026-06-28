@@ -139,6 +139,108 @@ fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>
 }
 
 #[test]
+fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-import-create"))?;
+    let imported = store.saved_lists().import(ImportSavedList {
+        slug: "imported-prep".to_string(),
+        name: "Imported Prep".to_string(),
+        description: Some("From export".to_string()),
+        replace: false,
+        items: vec![
+            imported_item("actions:second", Some("Review"), "Second", Some("rule")),
+            imported_item("actions:first", None, "First", Some("rule")),
+        ],
+    })?;
+
+    assert_eq!(imported.list.slug, "imported-prep");
+    assert_eq!(imported.list.name, "Imported Prep");
+    assert_eq!(imported.items.len(), 2);
+    assert_eq!(imported.items[0].record_key, "actions:second");
+    assert_eq!(imported.items[0].position, 1);
+    assert_eq!(imported.items[0].note.as_deref(), Some("Review"));
+    assert_eq!(imported.items[1].record_key, "actions:first");
+    assert_eq!(imported.items[1].position, 2);
+    Ok(())
+}
+
+#[test]
+fn import_requires_replace_for_existing_slug() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-import-conflict"))?;
+    let lists = store.saved_lists();
+    lists.create(NewSavedList {
+        slug: "existing".to_string(),
+        name: "Existing".to_string(),
+        description: None,
+    })?;
+
+    let result = lists.import(ImportSavedList {
+        slug: "existing".to_string(),
+        name: "Imported".to_string(),
+        description: None,
+        replace: false,
+        items: vec![imported_item("actions:first", None, "First", Some("rule"))],
+    });
+
+    assert!(matches!(result, Err(LocalStateError::ListAlreadyExists(_))));
+    Ok(())
+}
+
+#[test]
+fn import_replace_updates_metadata_and_items() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-import-replace"))?;
+    let lists = store.saved_lists();
+    let existing = lists.create(NewSavedList {
+        slug: "existing".to_string(),
+        name: "Existing".to_string(),
+        description: Some("Old".to_string()),
+    })?;
+    lists.add_resolved_item(
+        "existing",
+        resolved_item("actions:old", None, "Old", Some("rule")),
+    )?;
+
+    let imported = lists.import(ImportSavedList {
+        slug: "existing".to_string(),
+        name: "Imported".to_string(),
+        description: Some("New".to_string()),
+        replace: true,
+        items: vec![imported_item(
+            "actions:new",
+            Some("Note"),
+            "New",
+            Some("rule"),
+        )],
+    })?;
+
+    assert_eq!(imported.list.list_key, existing.list_key);
+    assert_eq!(imported.list.name, "Imported");
+    assert_eq!(imported.list.description.as_deref(), Some("New"));
+    assert_eq!(imported.items.len(), 1);
+    assert_eq!(imported.items[0].record_key, "actions:new");
+    assert_eq!(imported.items[0].position, 1);
+    assert_eq!(imported.items[0].note.as_deref(), Some("Note"));
+    Ok(())
+}
+
+#[test]
+fn import_rejects_duplicate_record_keys() -> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("saved-lists-import-duplicates"))?;
+    let result = store.saved_lists().import(ImportSavedList {
+        slug: "duplicates".to_string(),
+        name: "Duplicates".to_string(),
+        description: None,
+        replace: false,
+        items: vec![
+            imported_item("actions:first", None, "First", Some("rule")),
+            imported_item("actions:first", Some("Again"), "First Again", Some("rule")),
+        ],
+    });
+
+    assert!(matches!(result, Err(LocalStateError::InvalidListImport(_))));
+    Ok(())
+}
+
+#[test]
 fn remove_item_compacts_positions() -> Result<(), Box<dyn std::error::Error>> {
     let store = LocalStateStore::open(temp_path("saved-lists-remove"))?;
     let lists = store.saved_lists();
@@ -235,6 +337,20 @@ fn resolved_item(
         title_snapshot: title_snapshot.to_string(),
         kind_snapshot: kind_snapshot.map(str::to_string),
         note: note.map(str::to_string),
+    }
+}
+
+fn imported_item(
+    record_key: &str,
+    note: Option<&str>,
+    title_snapshot: &str,
+    kind_snapshot: Option<&str>,
+) -> ImportSavedListItem {
+    ImportSavedListItem {
+        record_key: record_key.to_string(),
+        note: note.map(str::to_string),
+        record_title_snapshot: title_snapshot.to_string(),
+        record_kind_snapshot: kind_snapshot.map(str::to_string),
     }
 }
 

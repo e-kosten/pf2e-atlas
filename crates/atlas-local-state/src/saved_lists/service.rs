@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
+
 use rusqlite::TransactionBehavior;
 
 use super::model::{
-    AddSavedListItemOutcome, NewSavedList, NewSavedListItem, ResolvedSavedListItem,
+    AddSavedListItemOutcome, ImportSavedList, NewSavedList, NewSavedListItem, ResolvedSavedListItem,
 };
 use super::model::{SavedList, SavedListWithItems, UpdateSavedList};
 use super::storage;
@@ -59,6 +61,42 @@ impl<'a> SavedLists<'a> {
         self.get(&list.list_key)
     }
 
+    pub fn import(&self, import: ImportSavedList) -> LocalStateResult<SavedListWithItems> {
+        validate_slug(&import.slug)?;
+        validate_import_items(&import.items)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let existing = storage::get(&transaction, &import.slug)?;
+        let list_key = match existing {
+            Some(existing) if import.replace => {
+                storage::update_list(
+                    &transaction,
+                    UpdateSavedList {
+                        list_key: existing.list_key.clone(),
+                        slug: import.slug.clone(),
+                        name: import.name,
+                        description: import.description,
+                    },
+                )?;
+                existing.list_key
+            }
+            Some(_) => return Err(LocalStateError::ListAlreadyExists(import.slug)),
+            None => storage::insert_list(
+                &transaction,
+                NewSavedList {
+                    slug: import.slug,
+                    name: import.name,
+                    description: import.description,
+                },
+            )?,
+        };
+        storage::replace_items(&transaction, &list_key, import.items)?;
+        let list = storage::get_with_items(&transaction, &list_key)?
+            .ok_or_else(|| LocalStateError::ListNotFound(list_key.clone()))?;
+        transaction.commit()?;
+        Ok(list)
+    }
+
     pub fn add_resolved_item(
         &self,
         list_ref: &str,
@@ -87,4 +125,18 @@ impl<'a> SavedLists<'a> {
         transaction.commit()?;
         Ok(removed)
     }
+}
+
+fn validate_import_items(items: &[super::model::ImportSavedListItem]) -> LocalStateResult<()> {
+    let mut keys = BTreeSet::new();
+    for item in items {
+        storage::validate_record_key(&item.record_key)?;
+        if !keys.insert(item.record_key.as_str()) {
+            return Err(LocalStateError::InvalidListImport(format!(
+                "duplicate record key `{}`",
+                item.record_key
+            )));
+        }
+    }
+    Ok(())
 }

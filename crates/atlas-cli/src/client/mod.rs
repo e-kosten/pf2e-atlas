@@ -3,9 +3,11 @@ mod local;
 mod selection;
 
 use atlas_app_model::{
-    AddSavedListItemRequest, AppError, CreateSavedListRequest, DeleteSavedListView,
-    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView,
+    AddSavedListItemRequest, AppError, BatchAddSavedListItemsRequest,
+    BatchSavedListItemMutationView, CreateSavedListRequest, DeleteSavedListView,
+    ImportSavedListRequest, ImportSavedListView, RemoveSavedListItemRequest, SavedListCreateView,
+    SavedListDetailView, SavedListExportDocumentView, SavedListIndexView,
+    SavedListItemMutationView, SavedListUpdateView, UpdateSavedListRequest,
 };
 use atlas_app_service::RawFilterValuesRequest;
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
@@ -105,10 +107,27 @@ pub(crate) trait AtlasClient {
         request: AddSavedListItemRequest,
     ) -> ClientResult<SavedListItemMutationView>;
 
+    fn add_saved_list_items(
+        &self,
+        request: BatchAddSavedListItemsRequest,
+    ) -> ClientResult<BatchSavedListItemMutationView>;
+
     fn remove_saved_list_item(
         &self,
         request: RemoveSavedListItemRequest,
     ) -> ClientResult<SavedListItemMutationView>;
+
+    fn update_saved_list(
+        &self,
+        request: UpdateSavedListRequest,
+    ) -> ClientResult<SavedListUpdateView>;
+
+    fn export_saved_list(&self, slug: &str) -> ClientResult<SavedListExportDocumentView>;
+
+    fn import_saved_list(
+        &self,
+        request: ImportSavedListRequest,
+    ) -> ClientResult<ImportSavedListView>;
 
     fn delete_saved_list(&self, slug: &str) -> ClientResult<DeleteSavedListView>;
 }

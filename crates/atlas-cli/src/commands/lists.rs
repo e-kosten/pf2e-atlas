@@ -1,10 +1,15 @@
 use std::collections::BTreeMap;
+use std::fs;
+use std::io::{self, Read};
 use std::process::ExitCode;
 
 use atlas_app_model::{
-    AddSavedListItemRequest, AppError, AppErrorCode, CreateSavedListRequest, DeleteSavedListView,
+    AddSavedListItemRequest, AppError, AppErrorCode, BatchAddSavedListItemsRequest,
+    BatchSavedListItemInput, BatchSavedListItemMutationView, BatchSavedListItemOutcomeView,
+    CreateSavedListRequest, DeleteSavedListView, ImportSavedListRequest,
     RecordResolutionAmbiguousView, RemoveSavedListItemRequest, SavedListDetailView,
-    SavedListItemMutationView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    SavedListExportDocumentView, SavedListItemMutationView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, UpdateSavedListRequest,
 };
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJson, RecordJsonOptions, record_json};
@@ -18,8 +23,9 @@ use crate::output::{write_json_data, write_json_error, write_json_error_data};
 pub(crate) mod args;
 
 use args::{
-    ListAddOptions, ListCreateOptions, ListDeleteOptions, ListLsOptions, ListRemoveOptions,
-    ListShowDetail, ListShowOptions, ListsPathOptions,
+    ListAddOptions, ListCreateOptions, ListDeleteOptions, ListEditOptions, ListExportOptions,
+    ListImportOptions, ListLsOptions, ListRemoveOptions, ListShowDetail, ListShowOptions,
+    ListsPathOptions,
 };
 
 #[derive(Debug, Serialize)]
@@ -43,6 +49,15 @@ struct ListDeleteData {
 }
 
 #[derive(Debug, Serialize)]
+struct ListImportData {
+    local_state_path: Option<String>,
+    list: SavedListSummaryView,
+    replaced: bool,
+    active_count: u64,
+    unresolved_count: u64,
+}
+
+#[derive(Debug, Serialize)]
 struct ListItemMutationData {
     local_state_path: Option<String>,
     list_key: String,
@@ -51,6 +66,30 @@ struct ListItemMutationData {
     #[serde(skip_serializing_if = "Option::is_none")]
     record_name: Option<String>,
     outcome: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct BatchListItemMutationData {
+    local_state_path: Option<String>,
+    list_key: String,
+    id: String,
+    requested_count: u64,
+    added_count: u64,
+    already_present_count: u64,
+    failed_count: u64,
+    items: Vec<BatchListItemResultData>,
+}
+
+#[derive(Debug, Serialize)]
+struct BatchListItemResultData {
+    input: String,
+    outcome: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    record_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    record_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<AppError>,
 }
 
 #[derive(Debug, Serialize)]
@@ -246,19 +285,165 @@ pub(crate) fn run_lists_show(options: ListShowOptions) -> Result<ExitCode, Strin
 }
 
 pub(crate) fn run_lists_add(options: ListAddOptions) -> Result<ExitCode, String> {
+    let record_refs = match list_add_record_refs(&options) {
+        Ok(record_refs) => record_refs,
+        Err(error) => {
+            if options.json {
+                write_json_error("invalid_input", error)?;
+                return Ok(ExitCode::from(2));
+            }
+            return Err(error);
+        }
+    };
     let client = match lists_client(&options.paths, options.json)? {
         ListCommandStep::Ready(client) => client,
         ListCommandStep::Exit(code) => return Ok(code),
     };
-    let view = match client.add_saved_list_item(AddSavedListItemRequest {
+    if record_refs.len() == 1 {
+        let mut record_refs = record_refs.into_iter();
+        let Some(record_ref) = record_refs.next() else {
+            return Err("provide at least one record ref or use --stdin".to_string());
+        };
+        let view = match client.add_saved_list_item(AddSavedListItemRequest {
+            list_ref: options.slug,
+            record_ref,
+            note: options.note,
+        }) {
+            Ok(view) => view,
+            Err(error) => return app_error_with_client(&client, error, options.json),
+        };
+        return write_mutation_result(&client, view, options.json);
+    }
+    let view = match client.add_saved_list_items(BatchAddSavedListItemsRequest {
         list_ref: options.slug,
-        record_ref: options.record_ref,
-        note: options.note,
+        items: record_refs
+            .into_iter()
+            .map(|record_ref| BatchSavedListItemInput {
+                record_ref,
+                note: options.note.clone(),
+            })
+            .collect(),
     }) {
         Ok(view) => view,
         Err(error) => return app_error_with_client(&client, error, options.json),
     };
-    write_mutation_result(&client, view, options.json)
+    write_batch_mutation_result(&client, view, options.json)
+}
+
+pub(crate) fn run_lists_export(options: ListExportOptions) -> Result<ExitCode, String> {
+    let client = match lists_client(&options.paths, false)? {
+        ListCommandStep::Ready(client) => client,
+        ListCommandStep::Exit(code) => return Ok(code),
+    };
+    let document = match client.export_saved_list(&options.slug) {
+        Ok(document) => document,
+        Err(error) => return app_error(error, false),
+    };
+    let output = serde_json::to_string_pretty(&document).map_err(|error| error.to_string())?;
+    if let Some(path) = options.output {
+        fs::write(path, format!("{output}\n")).map_err(|error| error.to_string())?;
+    } else {
+        println!("{output}");
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+pub(crate) fn run_lists_import(options: ListImportOptions) -> Result<ExitCode, String> {
+    let contents = match fs::read_to_string(&options.input) {
+        Ok(contents) => contents,
+        Err(error) => {
+            if options.json {
+                write_json_error("invalid_input", error.to_string())?;
+                return Ok(ExitCode::from(2));
+            }
+            return Err(error.to_string());
+        }
+    };
+    let document: SavedListExportDocumentView = match serde_json::from_str(&contents) {
+        Ok(document) => document,
+        Err(error) => {
+            if options.json {
+                write_json_error("invalid_input", error.to_string())?;
+                return Ok(ExitCode::from(2));
+            }
+            return Err(error.to_string());
+        }
+    };
+    let client = match lists_client(&options.paths, options.json)? {
+        ListCommandStep::Ready(client) => client,
+        ListCommandStep::Exit(code) => return Ok(code),
+    };
+    let view = match client.import_saved_list(ImportSavedListRequest {
+        document,
+        id: options.id,
+        replace: options.replace,
+    }) {
+        Ok(view) => view,
+        Err(error) => return app_error_with_client(&client, error, options.json),
+    };
+    let data = ListImportData {
+        local_state_path: local_state_path(&client),
+        list: view.list,
+        replaced: view.replaced,
+        active_count: view.active_count,
+        unresolved_count: view.unresolved_count,
+    };
+    if options.json {
+        write_json_data(data)?;
+    } else if data.replaced {
+        println!(
+            "replaced saved list {} ({})",
+            data.list.slug, data.list.name
+        );
+    } else {
+        println!(
+            "imported saved list {} ({})",
+            data.list.slug, data.list.name
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+pub(crate) fn run_lists_edit(options: ListEditOptions) -> Result<ExitCode, String> {
+    if let Err(error) = validate_edit_options(&options) {
+        if options.json {
+            write_json_error("invalid_input", error)?;
+            return Ok(ExitCode::from(2));
+        }
+        return Err(error);
+    }
+    let client = match lists_client(&options.paths, options.json)? {
+        ListCommandStep::Ready(client) => client,
+        ListCommandStep::Exit(code) => return Ok(code),
+    };
+    let current = match client.saved_list(&options.list_ref) {
+        Ok(view) => view.list,
+        Err(error) => return app_error_with_client(&client, error, options.json),
+    };
+    let description = if options.clear_description {
+        None
+    } else {
+        options.description.or(current.description)
+    };
+    let view = match client.update_saved_list(UpdateSavedListRequest {
+        list_key: current.list_key,
+        slug: options.id.unwrap_or(current.slug),
+        name: options.name.unwrap_or(current.name),
+        description,
+    }) {
+        Ok(view) => view,
+        Err(error) => return app_error_with_client(&client, error, options.json),
+    };
+    let data = ListData {
+        local_state_path: local_state_path(&client),
+        list: view.list,
+    };
+    if options.json {
+        write_json_data(data)?;
+    } else {
+        println!("updated saved list {} ({})", data.list.slug, data.list.name);
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 pub(crate) fn run_lists_remove(options: ListRemoveOptions) -> Result<ExitCode, String> {
@@ -411,6 +596,44 @@ fn list_show_item(
     }
 }
 
+fn list_add_record_refs(options: &ListAddOptions) -> Result<Vec<String>, String> {
+    if options.stdin && !options.record_refs.is_empty() {
+        return Err("use either record refs or --stdin, not both".to_string());
+    }
+    let refs = if options.stdin {
+        let mut input = String::new();
+        io::stdin()
+            .read_to_string(&mut input)
+            .map_err(|error| error.to_string())?;
+        input
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    } else {
+        options.record_refs.clone()
+    };
+    if refs.is_empty() {
+        return Err("provide at least one record ref or use --stdin".to_string());
+    }
+    Ok(refs)
+}
+
+fn validate_edit_options(options: &ListEditOptions) -> Result<(), String> {
+    if options.description.is_some() && options.clear_description {
+        return Err("use either --description or --clear-description, not both".to_string());
+    }
+    if options.id.is_none()
+        && options.name.is_none()
+        && options.description.is_none()
+        && !options.clear_description
+    {
+        return Err("provide at least one edit flag".to_string());
+    }
+    Ok(())
+}
+
 fn list_show_item_no_record(item: SavedListItemView) -> ListShowItemNoRecord {
     ListShowItemNoRecord {
         record_key: item.record_key,
@@ -473,6 +696,64 @@ fn write_mutation_result(
     Ok(ExitCode::SUCCESS)
 }
 
+fn write_batch_mutation_result(
+    client: &impl AtlasClient,
+    view: BatchSavedListItemMutationView,
+    json: bool,
+) -> Result<ExitCode, String> {
+    let data = BatchListItemMutationData {
+        local_state_path: local_state_path(client),
+        list_key: view.list_key,
+        id: view.slug,
+        requested_count: view.requested_count,
+        added_count: view.added_count,
+        already_present_count: view.already_present_count,
+        failed_count: view.failed_count,
+        items: view
+            .items
+            .into_iter()
+            .map(|item| BatchListItemResultData {
+                input: item.input,
+                outcome: batch_outcome_text(item.outcome),
+                record_key: item.record_key,
+                record_name: item.record_name,
+                error: item.error,
+            })
+            .collect(),
+    };
+    let exit = if data.failed_count > 0 {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    };
+    if json {
+        write_json_data(data)?;
+    } else {
+        for item in &data.items {
+            match item.outcome {
+                "failed" => {
+                    let message = item
+                        .error
+                        .as_ref()
+                        .map(|error| error.message.as_str())
+                        .unwrap_or("failed");
+                    println!("failed\t{}\t{}", item.input, message);
+                }
+                _ => {
+                    let key = item.record_key.as_deref().unwrap_or("-");
+                    let name = item.record_name.as_deref().unwrap_or("-");
+                    println!("{}\t{}\t{}\t{}", item.outcome, data.id, key, name);
+                }
+            }
+        }
+        println!(
+            "summary\trequested={}\tadded={}\talready_present={}\tfailed={}",
+            data.requested_count, data.added_count, data.already_present_count, data.failed_count
+        );
+    }
+    Ok(exit)
+}
+
 fn delete_data(client: &impl AtlasClient, view: DeleteSavedListView) -> ListDeleteData {
     ListDeleteData {
         local_state_path: local_state_path(client),
@@ -522,6 +803,14 @@ fn mutation_outcome_text(
         atlas_app_model::SavedListItemMutationOutcomeView::AlreadyPresent => "already_present",
         atlas_app_model::SavedListItemMutationOutcomeView::Removed => "removed",
         atlas_app_model::SavedListItemMutationOutcomeView::NotPresent => "not_present",
+    }
+}
+
+fn batch_outcome_text(outcome: BatchSavedListItemOutcomeView) -> &'static str {
+    match outcome {
+        BatchSavedListItemOutcomeView::Added => "added",
+        BatchSavedListItemOutcomeView::AlreadyPresent => "already_present",
+        BatchSavedListItemOutcomeView::Failed => "failed",
     }
 }
 

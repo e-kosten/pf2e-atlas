@@ -5,8 +5,8 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use super::model::{
-    AddSavedListItemOutcome, NewSavedList, NewSavedListItem, SavedList, SavedListItem,
-    SavedListWithItems, UpdateSavedList,
+    AddSavedListItemOutcome, ImportSavedListItem, NewSavedList, NewSavedListItem, SavedList,
+    SavedListItem, SavedListWithItems, UpdateSavedList,
 };
 use crate::{LocalStateError, LocalStateResult};
 
@@ -93,6 +93,26 @@ pub(crate) fn delete(connection: &Connection, list_ref: &str) -> LocalStateResul
     Ok(removed > 0)
 }
 
+pub(crate) fn replace_items(
+    connection: &Connection,
+    list_ref: &str,
+    items: Vec<ImportSavedListItem>,
+) -> LocalStateResult<()> {
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
+    };
+    connection.execute(
+        "DELETE FROM saved_list_items WHERE list_id = ?1",
+        params![list_id],
+    )?;
+    insert_imported_items(connection, list_id, items)?;
+    connection.execute(
+        "UPDATE saved_lists SET updated_at = ?1 WHERE id = ?2",
+        params![now_rfc3339()?, list_id],
+    )?;
+    Ok(())
+}
+
 pub(crate) fn update_list(
     connection: &Connection,
     list: UpdateSavedList,
@@ -157,6 +177,34 @@ pub(crate) fn add_item(
         params![now, list_id],
     )?;
     Ok(AddSavedListItemOutcome::Added)
+}
+
+fn insert_imported_items(
+    connection: &Connection,
+    list_id: i64,
+    items: Vec<ImportSavedListItem>,
+) -> LocalStateResult<()> {
+    let now = now_rfc3339()?;
+    for (index, item) in items.into_iter().enumerate() {
+        connection.execute(
+            "INSERT INTO saved_list_items (
+                list_id, record_key, position, note,
+                record_title_snapshot, record_kind_snapshot,
+                added_at, updated_at
+             )
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
+            params![
+                list_id,
+                item.record_key,
+                (index + 1) as i64,
+                item.note,
+                item.record_title_snapshot,
+                item.record_kind_snapshot,
+                now
+            ],
+        )?;
+    }
+    Ok(())
 }
 
 pub(crate) fn remove_item(
