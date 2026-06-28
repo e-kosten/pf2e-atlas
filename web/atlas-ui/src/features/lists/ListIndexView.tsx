@@ -99,6 +99,13 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       render: (value) => value ?? "",
     },
     {
+      title: "Items",
+      dataIndex: "item_count",
+      align: "right",
+      width: 96,
+      render: (value: bigint) => value.toLocaleString(),
+    },
+    {
       title: "Updated",
       dataIndex: "updated_at",
       width: 180,

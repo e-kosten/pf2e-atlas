@@ -59,7 +59,7 @@ pub(crate) enum Command {
     Web(WebArgs),
     #[command(about = "Discover filter fields and values")]
     Filters(FiltersArgs),
-    #[command(about = "Create and edit durable local saved lists")]
+    #[command(about = "Create and edit durable local saved lists", alias = "list")]
     Lists(ListsArgs),
     #[command(about = "Validate and inspect authored tag data")]
     Tags(TagsArgs),

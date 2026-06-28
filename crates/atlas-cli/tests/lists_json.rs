@@ -76,6 +76,7 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     let add_data = ok_data(&add_json);
     assert_eq!(add_data["outcome"], "added");
     assert_eq!(add_data["record_key"], "actions:testAction1");
+    assert_eq!(add_data["record_name"], "Test Action 1");
 
     let duplicate_add_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -101,6 +102,8 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     let show_json: Value = serde_json::from_slice(&show_output.stdout)?;
     let show_data = ok_data(&show_json);
     assert_eq!(show_data["list"]["slug"], "undead-research");
+    assert_eq!(show_data["list"]["item_count"], 1);
+    assert_eq!(show_data["item_count"], 1);
     assert_eq!(show_data["items"].as_array().unwrap().len(), 1);
     assert_eq!(show_data["items"][0]["record_key"], "actions:testAction1");
     assert_eq!(show_data["items"][0]["position"], 1);
@@ -125,6 +128,60 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     let lists = ok_data(&ls_json)["lists"].as_array().unwrap();
     assert_eq!(lists.len(), 1);
     assert_eq!(lists[0]["name"], "Undead Research");
+    assert_eq!(lists[0]["item_count"], 1);
+
+    let summary_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["list", "show", "undead-research", "--summary", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(summary_output.status.success());
+    let summary_json: Value = serde_json::from_slice(&summary_output.stdout)?;
+    let summary_data = ok_data(&summary_json);
+    assert_eq!(summary_data["item_count"], 1);
+    assert_eq!(summary_data["items"][0]["position"], 1);
+    assert_eq!(
+        summary_data["items"][0]["record_key"],
+        "actions:testAction1"
+    );
+    assert_eq!(summary_data["items"][0]["name"], "Test Action 1");
+    assert_eq!(summary_data["items"][0]["kind"], "rule");
+    assert_eq!(summary_data["items"][0]["note"], "Check skeleton options");
+    assert!(summary_data["items"][0].get("record").is_none());
+    assert!(summary_data["items"][0].get("snapshot").is_none());
+
+    let keys_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "show", "undead-research", "--keys-only", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(keys_output.status.success());
+    let keys_json: Value = serde_json::from_slice(&keys_output.stdout)?;
+    assert_eq!(
+        ok_data(&keys_json)["record_keys"],
+        serde_json::json!(["actions:testAction1"])
+    );
+
+    let no_records_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "lists",
+            "show",
+            "undead-research",
+            "--detail",
+            "none",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(no_records_output.status.success());
+    let no_records_json: Value = serde_json::from_slice(&no_records_output.stdout)?;
+    let no_records_data = ok_data(&no_records_json);
+    assert!(no_records_data["items"][0].get("record").is_none());
+    assert_eq!(
+        no_records_data["items"][0]["snapshot"]["name"],
+        "Test Action 1"
+    );
 
     let remove_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([

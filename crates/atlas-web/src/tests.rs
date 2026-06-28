@@ -1063,6 +1063,7 @@ impl AtlasWebService for MockService {
                 slug: request.slug,
                 name: request.name,
                 description: request.description,
+                item_count: 0,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-01T00:00:00Z".to_string(),
             },
@@ -1079,6 +1080,7 @@ impl AtlasWebService for MockService {
                 slug: request.slug,
                 name: request.name,
                 description: request.description,
+                item_count: 1,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-02T00:00:00Z".to_string(),
             },
@@ -1093,6 +1095,7 @@ impl AtlasWebService for MockService {
             list_key: request.list_ref,
             slug: "research".to_string(),
             record_key: request.record_ref,
+            record_name: Some("Test Action 1".to_string()),
             outcome: atlas_app_model::SavedListItemMutationOutcomeView::Added,
         })
     }
@@ -1105,6 +1108,7 @@ impl AtlasWebService for MockService {
             list_key: request.list_ref,
             slug: "research".to_string(),
             record_key: request.record_ref,
+            record_name: None,
             outcome: atlas_app_model::SavedListItemMutationOutcomeView::Removed,
         })
     }
@@ -1206,6 +1210,7 @@ fn saved_list_summary() -> SavedListSummaryView {
         slug: "research".to_string(),
         name: "Research".to_string(),
         description: Some("Campaign prep".to_string()),
+        item_count: 1,
         created_at: "2026-01-01T00:00:00Z".to_string(),
         updated_at: "2026-01-01T00:00:00Z".to_string(),
     }

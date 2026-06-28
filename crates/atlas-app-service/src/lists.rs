@@ -112,12 +112,13 @@ impl AtlasAppService {
     ) -> AppServiceResult<SavedListItemMutationView> {
         let record = resolve_record_ref(self, &request.record_ref)?;
         let record_key = record.identity.key.to_string();
+        let record_name = record.identity.name.clone();
         let store = self.local_state_store()?;
         let outcome = store.saved_lists().add_resolved_item(
             &request.list_ref,
             ResolvedSavedListItem {
                 record_key: record.identity.key,
-                title_snapshot: record.identity.name,
+                title_snapshot: record_name.clone(),
                 kind_snapshot: Some(record.classification.kind.as_str().to_string()),
                 note: request.note,
             },
@@ -130,6 +131,7 @@ impl AtlasAppService {
             list_key: list.list_key,
             slug: list.slug,
             record_key,
+            record_name: Some(record_name),
             outcome: match outcome {
                 AddSavedListItemOutcome::Added => SavedListItemMutationOutcomeView::Added,
                 AddSavedListItemOutcome::AlreadyPresent => {
@@ -143,10 +145,11 @@ impl AtlasAppService {
         &self,
         request: RemoveSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
-        let record_key = if let Ok(key) = RecordKey::parse(&request.record_ref) {
-            key
+        let (record_key, record_name) = if let Ok(key) = RecordKey::parse(&request.record_ref) {
+            (key, None)
         } else {
-            resolve_record_ref(self, &request.record_ref)?.identity.key
+            let record = resolve_record_ref(self, &request.record_ref)?;
+            (record.identity.key, Some(record.identity.name))
         };
         let store = self.local_state_store()?;
         let removed = store
@@ -160,6 +163,7 @@ impl AtlasAppService {
             list_key: list.list_key,
             slug: list.slug,
             record_key: record_key.to_string(),
+            record_name,
             outcome: if removed {
                 SavedListItemMutationOutcomeView::Removed
             } else {
@@ -423,6 +427,7 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
         slug: list.slug,
         name: list.name,
         description: list.description,
+        item_count: list.item_count,
         created_at: list.created_at,
         updated_at: list.updated_at,
     }
