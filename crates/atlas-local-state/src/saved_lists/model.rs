@@ -68,6 +68,23 @@ pub struct UpdateSavedList {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportSavedList {
+    pub slug: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub items: Vec<ImportSavedListItem>,
+    pub replace: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportSavedListItem {
+    pub record_key: String,
+    pub note: Option<String>,
+    pub record_title_snapshot: String,
+    pub record_kind_snapshot: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedSavedListItem {
     pub record_key: RecordKey,
     pub title_snapshot: String,

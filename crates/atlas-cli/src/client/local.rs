@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
 use atlas_app_model::{
-    AddSavedListItemRequest, CreateSavedListRequest, DeleteSavedListView,
-    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView,
+    AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemMutationView,
+    CreateSavedListRequest, DeleteSavedListView, ImportSavedListRequest, ImportSavedListView,
+    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
+    SavedListExportDocumentView, SavedListIndexView, SavedListItemMutationView,
+    SavedListUpdateView, UpdateSavedListRequest,
 };
 use atlas_app_service::{
     AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions, RawFilterValuesRequest,
@@ -195,12 +197,45 @@ impl AtlasClient for LocalAtlasClient {
             .map_err(|error| error.into_app_error())
     }
 
+    fn add_saved_list_items(
+        &self,
+        request: BatchAddSavedListItemsRequest,
+    ) -> ClientResult<BatchSavedListItemMutationView> {
+        self.service
+            .add_saved_list_items(request)
+            .map_err(|error| error.into_app_error())
+    }
+
     fn remove_saved_list_item(
         &self,
         request: RemoveSavedListItemRequest,
     ) -> ClientResult<SavedListItemMutationView> {
         self.service
             .remove_saved_list_item(request)
+            .map_err(|error| error.into_app_error())
+    }
+
+    fn update_saved_list(
+        &self,
+        request: UpdateSavedListRequest,
+    ) -> ClientResult<SavedListUpdateView> {
+        self.service
+            .update_saved_list(request)
+            .map_err(|error| error.into_app_error())
+    }
+
+    fn export_saved_list(&self, slug: &str) -> ClientResult<SavedListExportDocumentView> {
+        self.service
+            .export_saved_list(slug)
+            .map_err(|error| error.into_app_error())
+    }
+
+    fn import_saved_list(
+        &self,
+        request: ImportSavedListRequest,
+    ) -> ClientResult<ImportSavedListView> {
+        self.service
+            .import_saved_list(request)
             .map_err(|error| error.into_app_error())
     }
 

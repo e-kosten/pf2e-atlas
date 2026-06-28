@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 use rusqlite::Connection;
 use serde_json::Value;
@@ -402,6 +403,209 @@ fn lists_add_rejects_miss_and_ambiguity_without_inserting() -> Result<(), Box<dy
     let show_json: Value = serde_json::from_slice(&show_output.stdout)?;
     assert_eq!(ok_data(&show_json)["items"].as_array().unwrap().len(), 0);
 
+    let _ = std::fs::remove_file(&local_state_path);
+    Ok(())
+}
+
+#[test]
+fn lists_add_accepts_repeated_refs_and_reports_partial_failures()
+-> Result<(), Box<dyn std::error::Error>> {
+    let index_path = temp_index_path("lists-json-batch-add")?;
+    let local_state_path = index_path.with_file_name("pf2e-local-state.sqlite");
+    let _ = std::fs::remove_file(&local_state_path);
+    create_valid_artifact_database(&index_path)?;
+    create_list(&index_path, "batch-prep", "Batch Prep")?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "lists",
+            "add",
+            "batch-prep",
+            "Test Action 1",
+            "No Such Record",
+            "actions:testAction2",
+            "--note",
+            "review",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let data = ok_data(&json);
+    assert_eq!(data["requested_count"], 3);
+    assert_eq!(data["added_count"], 2);
+    assert_eq!(data["failed_count"], 1);
+    assert_eq!(data["items"][0]["outcome"], "added");
+    assert_eq!(data["items"][0]["record_key"], "actions:testAction1");
+    assert_eq!(data["items"][0]["record_name"], "Test Action 1");
+    assert_eq!(data["items"][1]["outcome"], "failed");
+    assert_eq!(data["items"][1]["error"]["code"], "record_resolution_miss");
+    assert_eq!(data["items"][2]["record_key"], "actions:testAction2");
+
+    let show_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "show", "batch-prep", "--summary", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(show_output.status.success());
+    let show_json: Value = serde_json::from_slice(&show_output.stdout)?;
+    let show_data = ok_data(&show_json);
+    assert_eq!(show_data["item_count"], 2);
+    assert_eq!(show_data["items"][0]["record_key"], "actions:testAction1");
+    assert_eq!(show_data["items"][0]["note"], "review");
+    assert_eq!(show_data["items"][1]["record_key"], "actions:testAction2");
+    assert_eq!(show_data["items"][1]["note"], "review");
+
+    let _ = std::fs::remove_file(&local_state_path);
+    Ok(())
+}
+
+#[test]
+fn lists_add_reads_refs_from_stdin() -> Result<(), Box<dyn std::error::Error>> {
+    let index_path = temp_index_path("lists-json-stdin-add")?;
+    let local_state_path = index_path.with_file_name("pf2e-local-state.sqlite");
+    let _ = std::fs::remove_file(&local_state_path);
+    create_valid_artifact_database(&index_path)?;
+    create_list(&index_path, "stdin-prep", "Stdin Prep")?;
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "add", "stdin-prep", "--stdin", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    child
+        .stdin
+        .as_mut()
+        .expect("stdin should be piped")
+        .write_all(b"Test Action 1\nactions:testAction2\n\n")?;
+    let output = child.wait_with_output()?;
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let data = ok_data(&json);
+    assert_eq!(data["requested_count"], 2);
+    assert_eq!(data["added_count"], 2);
+    assert_eq!(data["failed_count"], 0);
+
+    let _ = std::fs::remove_file(&local_state_path);
+    Ok(())
+}
+
+#[test]
+fn lists_export_import_and_edit_cover_portable_list_workflow()
+-> Result<(), Box<dyn std::error::Error>> {
+    let index_path = temp_index_path("lists-json-import-export")?;
+    let local_state_path = index_path.with_file_name("pf2e-local-state.sqlite");
+    let export_path = index_path.with_file_name("session-prep-export.json");
+    let _ = std::fs::remove_file(&local_state_path);
+    let _ = std::fs::remove_file(&export_path);
+    create_valid_artifact_database(&index_path)?;
+    create_list(&index_path, "session-prep", "Session Prep")?;
+
+    let add_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "lists",
+            "add",
+            "session-prep",
+            "Test Action 1",
+            "--note",
+            "Bring up early",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(add_output.status.success());
+
+    let stdout_export = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "export", "session-prep", "--index"])
+        .arg(&index_path)
+        .output()?;
+    assert!(stdout_export.status.success());
+    let export_json: Value = serde_json::from_slice(&stdout_export.stdout)?;
+    assert!(export_json.get("status").is_none());
+    assert_eq!(export_json["format"], "pf2e-atlas.saved-list");
+    assert_eq!(export_json["version"], 1);
+    assert_eq!(export_json["list"]["id"], "session-prep");
+    assert_eq!(export_json["items"][0]["record_key"], "actions:testAction1");
+    assert_eq!(export_json["items"][0]["record_name"], "Test Action 1");
+
+    let file_export = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "export", "session-prep", "--output"])
+        .arg(&export_path)
+        .arg("--index")
+        .arg(&index_path)
+        .output()?;
+    assert!(file_export.status.success());
+    assert!(file_export.stdout.is_empty());
+    let file_json: Value = serde_json::from_slice(&std::fs::read(&export_path)?)?;
+    assert_eq!(file_json["list"]["id"], "session-prep");
+
+    let conflict = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "import"])
+        .arg(&export_path)
+        .args(["--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(conflict.status.code(), Some(1));
+    let conflict_json: Value = serde_json::from_slice(&conflict.stdout)?;
+    assert_eq!(conflict_json["error"]["code"], "saved_list_already_exists");
+
+    let imported = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "import"])
+        .arg(&export_path)
+        .args(["--id", "session-copy", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(imported.status.success());
+    let imported_json: Value = serde_json::from_slice(&imported.stdout)?;
+    let imported_data = ok_data(&imported_json);
+    assert_eq!(imported_data["list"]["slug"], "session-copy");
+    assert_eq!(imported_data["replaced"], false);
+    assert_eq!(imported_data["active_count"], 1);
+
+    let edit = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "lists",
+            "edit",
+            "session-copy",
+            "--id",
+            "renamed-copy",
+            "--name",
+            "Renamed Copy",
+            "--clear-description",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(edit.status.success());
+    let edit_json: Value = serde_json::from_slice(&edit.stdout)?;
+    let edit_data = ok_data(&edit_json);
+    assert_eq!(edit_data["list"]["slug"], "renamed-copy");
+    assert_eq!(edit_data["list"]["name"], "Renamed Copy");
+    assert!(edit_data["list"].get("description").is_none());
+
+    let replaced = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["lists", "import"])
+        .arg(&export_path)
+        .args(["--id", "renamed-copy", "--replace", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(replaced.status.success());
+    let replaced_json: Value = serde_json::from_slice(&replaced.stdout)?;
+    let replaced_data = ok_data(&replaced_json);
+    assert_eq!(replaced_data["list"]["slug"], "renamed-copy");
+    assert_eq!(replaced_data["list"]["name"], "Session Prep");
+    assert_eq!(replaced_data["replaced"], true);
+
+    let _ = std::fs::remove_file(&export_path);
     let _ = std::fs::remove_file(&local_state_path);
     Ok(())
 }

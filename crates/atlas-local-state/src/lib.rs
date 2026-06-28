@@ -19,9 +19,9 @@ pub use encounters::{
 };
 pub use error::{LocalStateError, LocalStateResult};
 pub use saved_lists::{
-    AddSavedListItemOutcome, HydratedSavedListItem, NewSavedList, ResolvedSavedListItem, SavedList,
-    SavedListItem, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems, SavedLists,
-    UpdateSavedList, hydrate_saved_list_item,
+    AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
+    NewSavedList, ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemSnapshot,
+    SavedListItemStatus, SavedListWithItems, SavedLists, UpdateSavedList, hydrate_saved_list_item,
 };
 pub use slug::derive_slug;
 pub use store::LocalStateStore;

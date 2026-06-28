@@ -20,6 +20,12 @@ pub(crate) enum ListsCommand {
     Show(ListShowOptions),
     #[command(about = "Add a resolvable record to a saved list")]
     Add(ListAddOptions),
+    #[command(about = "Export a saved list as a portable JSON document")]
+    Export(ListExportOptions),
+    #[command(about = "Import a saved list from a portable JSON document")]
+    Import(ListImportOptions),
+    #[command(about = "Edit saved-list metadata")]
+    Edit(ListEditOptions),
     #[command(about = "Remove a record from a saved list")]
     Remove(ListRemoveOptions),
     #[command(about = "Delete a saved list")]
@@ -29,7 +35,7 @@ pub(crate) enum ListsCommand {
 #[derive(Debug, Args)]
 #[command(after_help = "Example:\n  atlas lists create undead-research --name \"Undead Research\"")]
 pub(crate) struct ListCreateOptions {
-    #[arg(help = "Stable saved-list slug, using lowercase letters, digits, and '-'")]
+    #[arg(help = "Stable saved-list id, using lowercase letters, digits, and '-'")]
     pub(crate) slug: String,
     #[arg(long, help = "Human-friendly saved-list name")]
     pub(crate) name: String,
@@ -51,7 +57,7 @@ pub(crate) struct ListLsOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListShowOptions {
-    #[arg(help = "Saved-list slug")]
+    #[arg(help = "Saved-list id")]
     pub(crate) slug: String,
     #[arg(
         long,
@@ -84,10 +90,12 @@ pub(crate) enum ListShowDetail {
 #[derive(Debug, Args)]
 #[command(after_help = "Example:\n  atlas lists add undead-research \"Skeleton Guard\"")]
 pub(crate) struct ListAddOptions {
-    #[arg(help = "Saved-list slug")]
+    #[arg(help = "Saved-list id")]
     pub(crate) slug: String,
     #[arg(help = "Canonical record key, strict name, or verified alias")]
-    pub(crate) record_ref: String,
+    pub(crate) record_refs: Vec<String>,
+    #[arg(long, help = "Read record refs from stdin, one per line")]
+    pub(crate) stdin: bool,
     #[arg(long, help = "Optional note for this saved-list item")]
     pub(crate) note: Option<String>,
     #[command(flatten)]
@@ -97,8 +105,50 @@ pub(crate) struct ListAddOptions {
 }
 
 #[derive(Debug, Args)]
+pub(crate) struct ListExportOptions {
+    #[arg(help = "Saved-list id")]
+    pub(crate) slug: String,
+    #[arg(long, help = "Write the export JSON document to this path")]
+    pub(crate) output: Option<PathBuf>,
+    #[command(flatten)]
+    pub(crate) paths: ListsPathOptions,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct ListImportOptions {
+    #[arg(help = "Saved-list export JSON document")]
+    pub(crate) input: PathBuf,
+    #[arg(long, help = "Override the imported saved-list id")]
+    pub(crate) id: Option<String>,
+    #[arg(long, help = "Replace the target saved list if it already exists")]
+    pub(crate) replace: bool,
+    #[command(flatten)]
+    pub(crate) paths: ListsPathOptions,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct ListEditOptions {
+    #[arg(help = "Saved-list id or stable list key")]
+    pub(crate) list_ref: String,
+    #[arg(long, help = "Set a new saved-list id")]
+    pub(crate) id: Option<String>,
+    #[arg(long, help = "Set a new saved-list name")]
+    pub(crate) name: Option<String>,
+    #[arg(long, help = "Set a new saved-list description")]
+    pub(crate) description: Option<String>,
+    #[arg(long, help = "Clear the saved-list description")]
+    pub(crate) clear_description: bool,
+    #[command(flatten)]
+    pub(crate) paths: ListsPathOptions,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
+}
+
+#[derive(Debug, Args)]
 pub(crate) struct ListRemoveOptions {
-    #[arg(help = "Saved-list slug")]
+    #[arg(help = "Saved-list id")]
     pub(crate) slug: String,
     #[arg(help = "Canonical record key, strict name, or verified alias")]
     pub(crate) record_ref: String,
@@ -110,7 +160,7 @@ pub(crate) struct ListRemoveOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListDeleteOptions {
-    #[arg(help = "Saved-list slug")]
+    #[arg(help = "Saved-list id")]
     pub(crate) slug: String,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,

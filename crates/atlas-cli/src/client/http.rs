@@ -1,7 +1,9 @@
 use atlas_app_model::{
-    AddSavedListItemRequest, AppError, AppErrorCode, CreateSavedListRequest, DeleteSavedListView,
-    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView,
+    AddSavedListItemRequest, AppError, AppErrorCode, BatchAddSavedListItemsRequest,
+    BatchSavedListItemMutationView, CreateSavedListRequest, DeleteSavedListView,
+    ImportSavedListRequest, ImportSavedListView, RemoveSavedListItemRequest, SavedListCreateView,
+    SavedListDetailView, SavedListExportDocumentView, SavedListIndexView,
+    SavedListItemMutationView, SavedListUpdateView, UpdateSavedListRequest,
 };
 use atlas_app_service::RawFilterValuesRequest;
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
@@ -147,10 +149,35 @@ impl AtlasClient for HttpAtlasClient {
         Err(not_implemented())
     }
 
+    fn add_saved_list_items(
+        &self,
+        _request: BatchAddSavedListItemsRequest,
+    ) -> ClientResult<BatchSavedListItemMutationView> {
+        Err(not_implemented())
+    }
+
     fn remove_saved_list_item(
         &self,
         _request: RemoveSavedListItemRequest,
     ) -> ClientResult<SavedListItemMutationView> {
+        Err(not_implemented())
+    }
+
+    fn update_saved_list(
+        &self,
+        _request: UpdateSavedListRequest,
+    ) -> ClientResult<SavedListUpdateView> {
+        Err(not_implemented())
+    }
+
+    fn export_saved_list(&self, _slug: &str) -> ClientResult<SavedListExportDocumentView> {
+        Err(not_implemented())
+    }
+
+    fn import_saved_list(
+        &self,
+        _request: ImportSavedListRequest,
+    ) -> ClientResult<ImportSavedListView> {
         Err(not_implemented())
     }
 
