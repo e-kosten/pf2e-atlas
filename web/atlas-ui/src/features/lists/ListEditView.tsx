@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input } from "antd";
+import { Button, Form, Input, Select } from "antd";
 import { Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
 import type { UpdateSavedListRequest } from "../../generated/atlas";
 import {
@@ -10,7 +10,15 @@ import {
   shouldHandleAtlasRouteClick,
   type AtlasRoute,
 } from "../../app/routes";
-import { formatDate, InlineError, normalizeOptionalText, slugify } from "./listUtils";
+import {
+  formatDate,
+  InlineError,
+  normalizeOptionalText,
+  normalizeTags,
+  savedListTagOptions,
+  slugify,
+} from "./listUtils";
+import { useSavedLists } from "./savedListQueries";
 
 type ListEditViewProps = {
   route: Extract<AtlasRoute, { kind: "listEdit" }>;
@@ -19,15 +27,25 @@ type ListEditViewProps = {
 type EditListFormValues = {
   name: string;
   description?: string;
+  tags?: string[];
 };
 
 export function ListEditView({ route }: ListEditViewProps) {
   const [form] = Form.useForm<EditListFormValues>();
   const queryClient = useQueryClient();
+  const lists = useSavedLists();
   const list = useQuery({
     queryKey: ["saved-list", route.slug],
     queryFn: () => getSavedList(route.slug),
   });
+  const tagOptions = useMemo(
+    () =>
+      savedListTagOptions(lists.data?.lists ?? []).map((tag) => ({
+        label: tag,
+        value: tag,
+      })),
+    [lists.data?.lists],
+  );
   const update = useMutation({
     mutationFn: (request: UpdateSavedListRequest) => updateSavedList(request),
     onSuccess: async (view) => {
@@ -56,6 +74,7 @@ export function ListEditView({ route }: ListEditViewProps) {
     form.setFieldsValue({
       name: list.data.list.name,
       description: list.data.list.description ?? undefined,
+      tags: list.data.list.tags,
     });
   }, [form, list.data]);
 
@@ -83,6 +102,7 @@ export function ListEditView({ route }: ListEditViewProps) {
                   slug: slugify(values.name),
                   name: values.name,
                   description: normalizeOptionalText(values.description),
+                  tags: normalizeTags(values.tags),
                 })
               }
             >
@@ -105,6 +125,15 @@ export function ListEditView({ route }: ListEditViewProps) {
               </Form.Item>
               <Form.Item label="Description" name="description">
                 <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+              </Form.Item>
+              <Form.Item label="Tags" name="tags">
+                <Select
+                  mode="tags"
+                  optionFilterProp="label"
+                  options={tagOptions}
+                  showSearch
+                  tokenSeparators={[","]}
+                />
               </Form.Item>
               <div className="list-edit-view__actions">
                 <Button htmlType="submit" loading={update.isPending} type="primary">

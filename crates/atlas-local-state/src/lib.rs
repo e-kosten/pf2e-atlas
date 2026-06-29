@@ -7,7 +7,7 @@ mod schema;
 mod slug;
 mod store;
 
-pub const LOCAL_STATE_SCHEMA_VERSION: &str = "5";
+pub const LOCAL_STATE_SCHEMA_VERSION: &str = "6";
 pub const LOCAL_STATE_CONTRACT_VERSION: &str = "pf2e-atlas-local-state/v1";
 
 pub use encounters::{

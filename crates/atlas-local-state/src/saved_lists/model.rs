@@ -7,6 +7,7 @@ pub struct SavedList {
     pub slug: String,
     pub name: String,
     pub description: Option<String>,
+    pub tags: Vec<String>,
     pub item_count: u64,
     pub created_at: String,
     pub updated_at: String,
@@ -57,6 +58,7 @@ pub struct NewSavedList {
     pub slug: String,
     pub name: String,
     pub description: Option<String>,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +67,7 @@ pub struct UpdateSavedList {
     pub slug: String,
     pub name: String,
     pub description: Option<String>,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +75,7 @@ pub struct ImportSavedList {
     pub slug: String,
     pub name: String,
     pub description: Option<String>,
+    pub tags: Vec<String>,
     pub items: Vec<ImportSavedListItem>,
     pub replace: bool,
 }

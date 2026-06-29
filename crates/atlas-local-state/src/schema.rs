@@ -7,6 +7,7 @@ use crate::{
 const METADATA_TABLE: &str = "local_state_metadata";
 const SAVED_LISTS_TABLE: &str = "saved_lists";
 const SAVED_LIST_ITEMS_TABLE: &str = "saved_list_items";
+const SAVED_LIST_TAGS_TABLE: &str = "saved_list_tags";
 const ENCOUNTERS_TABLE: &str = "encounters";
 const ENCOUNTER_PARTICIPANTS_TABLE: &str = "encounter_participants";
 const ENCOUNTER_PARTICIPANT_ADJUSTMENTS_TABLE: &str = "encounter_participant_adjustments";
@@ -22,6 +23,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         validate_v1_tables(connection)?;
         validate_v2_tables(connection)?;
         validate_v3_tables(connection)?;
+        validate_v6_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -31,12 +33,12 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
             "saved-list tables exist without local-state metadata".to_string(),
         ));
     }
-    create_v5_schema(connection)?;
+    create_v6_schema(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
 
-fn create_v5_schema(connection: &Connection) -> LocalStateResult<()> {
+fn create_v6_schema(connection: &Connection) -> LocalStateResult<()> {
     connection.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -68,6 +70,15 @@ fn create_v5_schema(connection: &Connection) -> LocalStateResult<()> {
         );
         CREATE INDEX saved_list_items_position_idx
           ON saved_list_items(list_id, position);
+        CREATE TABLE saved_list_tags (
+          list_id INTEGER NOT NULL,
+          tag TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (list_id, tag),
+          FOREIGN KEY (list_id) REFERENCES saved_lists(id) ON DELETE CASCADE
+        );
+        CREATE INDEX saved_list_tags_tag_idx
+          ON saved_list_tags(tag, list_id);
         CREATE TABLE encounters (
           id INTEGER PRIMARY KEY,
           encounter_key TEXT NOT NULL UNIQUE,
@@ -180,23 +191,50 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
             migrate_v1_to_v2(connection)?;
             migrate_v2_to_v3(connection)?;
             migrate_v3_to_v4(connection)?;
-            migrate_v4_to_v5(connection)
+            migrate_v4_to_v5(connection)?;
+            migrate_v5_to_v6(connection)
         }
         "2" => {
             migrate_v2_to_v3(connection)?;
             migrate_v3_to_v4(connection)?;
-            migrate_v4_to_v5(connection)
+            migrate_v4_to_v5(connection)?;
+            migrate_v5_to_v6(connection)
         }
         "3" => {
             migrate_v3_to_v4(connection)?;
-            migrate_v4_to_v5(connection)
+            migrate_v4_to_v5(connection)?;
+            migrate_v5_to_v6(connection)
         }
-        "4" => migrate_v4_to_v5(connection),
+        "4" => {
+            migrate_v4_to_v5(connection)?;
+            migrate_v5_to_v6(connection)
+        }
+        "5" => migrate_v5_to_v6(connection),
         _ => Err(LocalStateError::UnsupportedMetadata {
             key: METADATA_SCHEMA_VERSION,
             value: schema_version,
         }),
     }
+}
+
+fn migrate_v5_to_v6(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "
+        CREATE TABLE saved_list_tags (
+          list_id INTEGER NOT NULL,
+          tag TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (list_id, tag),
+          FOREIGN KEY (list_id) REFERENCES saved_lists(id) ON DELETE CASCADE
+        );
+        CREATE INDEX saved_list_tags_tag_idx
+          ON saved_list_tags(tag, list_id);
+        UPDATE local_state_metadata
+           SET value = '6'
+         WHERE key = 'schema_version';
+        ",
+    )?;
+    Ok(())
 }
 
 fn migrate_v4_to_v5(connection: &Connection) -> LocalStateResult<()> {
@@ -393,6 +431,15 @@ fn validate_v3_tables(connection: &Connection) -> LocalStateResult<()> {
         return Err(LocalStateError::IncompatibleSchema(
             "missing required encounter_participants.participant_variant column".to_string(),
         ));
+    }
+    Ok(())
+}
+
+fn validate_v6_tables(connection: &Connection) -> LocalStateResult<()> {
+    if !table_exists(connection, SAVED_LIST_TAGS_TABLE)? {
+        return Err(LocalStateError::IncompatibleSchema(format!(
+            "missing required local-state table `{SAVED_LIST_TAGS_TABLE}`"
+        )));
     }
     Ok(())
 }

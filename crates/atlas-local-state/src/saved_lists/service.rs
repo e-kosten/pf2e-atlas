@@ -22,6 +22,10 @@ impl<'a> SavedLists<'a> {
 
     pub fn create(&self, list: NewSavedList) -> LocalStateResult<SavedList> {
         validate_slug(&list.slug)?;
+        let list = NewSavedList {
+            tags: normalize_tags(list.tags),
+            ..list
+        };
         let connection = self.store.connection()?;
         let list_key = storage::insert_list(&connection, list)?;
         self.get(&list_key)?
@@ -54,6 +58,10 @@ impl<'a> SavedLists<'a> {
     pub fn update(&self, list: UpdateSavedList) -> LocalStateResult<Option<SavedList>> {
         storage::validate_list_ref(&list.list_key)?;
         validate_slug(&list.slug)?;
+        let list = UpdateSavedList {
+            tags: normalize_tags(list.tags),
+            ..list
+        };
         let connection = self.store.connection()?;
         if !storage::update_list(&connection, list.clone())? {
             return Ok(None);
@@ -64,6 +72,10 @@ impl<'a> SavedLists<'a> {
     pub fn import(&self, import: ImportSavedList) -> LocalStateResult<SavedListWithItems> {
         validate_slug(&import.slug)?;
         validate_import_items(&import.items)?;
+        let import = ImportSavedList {
+            tags: normalize_tags(import.tags),
+            ..import
+        };
         let mut connection = self.store.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let existing = storage::get(&transaction, &import.slug)?;
@@ -76,6 +88,7 @@ impl<'a> SavedLists<'a> {
                         slug: import.slug.clone(),
                         name: import.name,
                         description: import.description,
+                        tags: import.tags.clone(),
                     },
                 )?;
                 existing.list_key
@@ -87,6 +100,7 @@ impl<'a> SavedLists<'a> {
                     slug: import.slug,
                     name: import.name,
                     description: import.description,
+                    tags: import.tags,
                 },
             )?,
         };
@@ -139,4 +153,21 @@ fn validate_import_items(items: &[super::model::ImportSavedListItem]) -> LocalSt
         }
     }
     Ok(())
+}
+
+fn normalize_tags(tags: Vec<String>) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    let mut normalized = Vec::new();
+    for tag in tags {
+        let tag = tag.trim();
+        if tag.is_empty() {
+            continue;
+        }
+        let key = tag.to_lowercase();
+        if seen.insert(key) {
+            normalized.push(tag.to_string());
+        }
+    }
+    normalized.sort_by_key(|tag| tag.to_lowercase());
+    normalized
 }

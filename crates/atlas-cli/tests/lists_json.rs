@@ -24,6 +24,10 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
             "Undead Research",
             "--description",
             "Campaign prep",
+            "--tag",
+            "arc-one",
+            "--tag",
+            "boss",
             "--index",
         ])
         .arg(&index_path)
@@ -35,6 +39,10 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     assert_eq!(create_data["list"]["slug"], "undead-research");
     assert_eq!(create_data["list"]["name"], "Undead Research");
     assert_eq!(create_data["list"]["description"], "Campaign prep");
+    assert_eq!(
+        create_data["list"]["tags"],
+        serde_json::json!(["arc-one", "boss"])
+    );
     assert_eq!(
         create_data["local_state_path"],
         local_state_path.display().to_string()
@@ -103,6 +111,10 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     let show_json: Value = serde_json::from_slice(&show_output.stdout)?;
     let show_data = ok_data(&show_json);
     assert_eq!(show_data["list"]["slug"], "undead-research");
+    assert_eq!(
+        show_data["list"]["tags"],
+        serde_json::json!(["arc-one", "boss"])
+    );
     assert_eq!(show_data["list"]["item_count"], 1);
     assert_eq!(show_data["item_count"], 1);
     assert_eq!(show_data["items"].as_array().unwrap().len(), 1);
@@ -504,6 +516,19 @@ fn lists_export_import_and_edit_cover_portable_list_workflow()
     let _ = std::fs::remove_file(&export_path);
     create_valid_artifact_database(&index_path)?;
     create_list(&index_path, "session-prep", "Session Prep")?;
+    let tag_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "lists",
+            "edit",
+            "session-prep",
+            "--tag",
+            "arc-one",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(tag_output.status.success());
 
     let add_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -530,6 +555,7 @@ fn lists_export_import_and_edit_cover_portable_list_workflow()
     assert_eq!(export_json["format"], "pf2e-atlas.saved-list");
     assert_eq!(export_json["version"], 1);
     assert_eq!(export_json["list"]["id"], "session-prep");
+    assert_eq!(export_json["list"]["tags"], serde_json::json!(["arc-one"]));
     assert_eq!(export_json["items"][0]["record_key"], "actions:testAction1");
     assert_eq!(export_json["items"][0]["record_name"], "Test Action 1");
 
@@ -566,6 +592,10 @@ fn lists_export_import_and_edit_cover_portable_list_workflow()
     let imported_json: Value = serde_json::from_slice(&imported.stdout)?;
     let imported_data = ok_data(&imported_json);
     assert_eq!(imported_data["list"]["slug"], "session-copy");
+    assert_eq!(
+        imported_data["list"]["tags"],
+        serde_json::json!(["arc-one"])
+    );
     assert_eq!(imported_data["replaced"], false);
     assert_eq!(imported_data["active_count"], 1);
 
@@ -579,6 +609,8 @@ fn lists_export_import_and_edit_cover_portable_list_workflow()
             "--name",
             "Renamed Copy",
             "--clear-description",
+            "--tag",
+            "arc-two",
             "--index",
         ])
         .arg(&index_path)
@@ -589,6 +621,7 @@ fn lists_export_import_and_edit_cover_portable_list_workflow()
     let edit_data = ok_data(&edit_json);
     assert_eq!(edit_data["list"]["slug"], "renamed-copy");
     assert_eq!(edit_data["list"]["name"], "Renamed Copy");
+    assert_eq!(edit_data["list"]["tags"], serde_json::json!(["arc-two"]));
     assert!(edit_data["list"].get("description").is_none());
 
     let replaced = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -603,6 +636,10 @@ fn lists_export_import_and_edit_cover_portable_list_workflow()
     let replaced_data = ok_data(&replaced_json);
     assert_eq!(replaced_data["list"]["slug"], "renamed-copy");
     assert_eq!(replaced_data["list"]["name"], "Session Prep");
+    assert_eq!(
+        replaced_data["list"]["tags"],
+        serde_json::json!(["arc-one"])
+    );
     assert_eq!(replaced_data["replaced"], true);
 
     let _ = std::fs::remove_file(&export_path);

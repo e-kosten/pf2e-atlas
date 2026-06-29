@@ -121,29 +121,49 @@ atlas record resolve "Treat Wounds" "Trip" --pack-name actionspf2e --detail stan
 
 ## Saved Lists
 
-Use `atlas lists` when the user asks you to persist a curated set of Atlas records for later review or editing. Saved lists are durable local state stored beside the active Atlas artifact; they are not part of the rebuildable index and can be edited by the CLI or other agents.
+Use `atlas lists` when the user asks you to persist a curated set of Atlas records for later review or editing. `atlas list` is an alias for the same command. Saved lists are durable local state stored beside the active Atlas artifact; they are not part of the rebuildable index and can be edited by the CLI, the web UI, or other agents.
 
-Create lists with a stable slug and human-friendly name:
+Create lists with a stable id, human-friendly name, optional description, and optional grouping tags. Repeat `--tag` for multiple tags:
 
 ```bash
-atlas lists create undead-research --name "Undead Research" --description "Campaign prep"
+atlas lists create undead-research --name "Undead Research" --description "Campaign prep" --tag arc-one --tag necromancer
 ```
 
-Add records by canonical key, strict name, or verified alias. `lists add` must resolve the record to one specific Atlas record before inserting it. If resolution misses or is ambiguous, inspect alternatives with `record resolve` or `search`; do not guess a key:
+Add records by canonical key, strict name, or verified alias. `lists add` must resolve each record to one specific Atlas record before inserting it. If resolution misses or is ambiguous, inspect alternatives with `record resolve` or `search`; do not guess a key. Repeated refs and `--stdin` are supported for batch-style additions. Batch additions are non-atomic: inspect every item outcome and treat any failed item as needing follow-up.
 
 ```bash
 atlas lists add undead-research "Skeleton Guard" --note "Compare low-level undead options"
 atlas lists add undead-research actionspf2e:1kGNdIIhuglAjIp9
+atlas lists add undead-research "Skeleton Guard" "Zombie Shambler" "Ghoul"
+printf '%s\n' "Skeleton Guard" "Zombie Shambler" | atlas lists add undead-research --stdin
 ```
 
-View lists with `lists ls` and `lists show`. `lists show` preserves list order and reports stale or removed records as `status: "unresolved"` while retaining the saved snapshot, so unresolved items are not automatically deleted:
+View lists with `lists ls` and `lists show`. `lists ls --json` includes item counts and tags. `lists show` preserves list order and reports stale or removed records as `status: "unresolved"` while retaining the saved snapshot, so unresolved items are not automatically deleted. Prefer compact output for verification and agent workflows:
 
 ```bash
 atlas lists ls --json
-atlas lists show undead-research --json
+atlas lists show undead-research --summary --json
+atlas lists show undead-research --keys-only --json
+atlas lists show undead-research --detail none --json
 ```
 
-Remove an item only when the user asks to edit membership or when the record is clearly not part of the requested list:
+Edit metadata with `lists edit`. `--tag` replaces the full tag set, and `--clear-tags` removes all tags:
+
+```bash
+atlas lists edit undead-research --name "Undead Research" --description "Campaign prep"
+atlas lists edit undead-research --tag arc-one --tag necromancer
+atlas lists edit undead-research --clear-tags
+```
+
+Use raw JSON export/import for portable list snapshots. `export` writes the raw saved-list document, not the standard Atlas JSON envelope. Import fails by default when the target id already exists; pass `--id` to import under a new id or `--replace` to replace the final target id:
+
+```bash
+atlas lists export undead-research > undead-research.json
+atlas lists import undead-research.json --id undead-research-copy --json
+atlas lists import undead-research.json --replace --json
+```
+
+Remove an item only when the user asks to edit membership or when the record is clearly not part of the requested list. Delete a list only when the user explicitly wants the durable local state removed:
 
 ```bash
 atlas lists remove undead-research actionspf2e:1kGNdIIhuglAjIp9

@@ -41,6 +41,8 @@ pub(crate) struct ListCreateOptions {
     pub(crate) name: String,
     #[arg(long, help = "Optional saved-list description")]
     pub(crate) description: Option<String>,
+    #[arg(long = "tag", help = "Add a saved-list tag; repeat for multiple tags")]
+    pub(crate) tags: Vec<String>,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -140,6 +142,13 @@ pub(crate) struct ListEditOptions {
     pub(crate) description: Option<String>,
     #[arg(long, help = "Clear the saved-list description")]
     pub(crate) clear_description: bool,
+    #[arg(
+        long = "tag",
+        help = "Replace saved-list tags; repeat for multiple tags"
+    )]
+    pub(crate) tags: Vec<String>,
+    #[arg(long, help = "Remove all saved-list tags")]
+    pub(crate) clear_tags: bool,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]

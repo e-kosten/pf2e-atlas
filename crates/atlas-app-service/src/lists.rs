@@ -85,6 +85,7 @@ impl AtlasAppService {
             slug: request.slug,
             name: request.name,
             description: request.description,
+            tags: request.tags,
         })?;
         Ok(SavedListCreateView {
             list: saved_list_summary(list),
@@ -104,6 +105,7 @@ impl AtlasAppService {
                 slug: request.slug,
                 name: request.name,
                 description: request.description,
+                tags: request.tags,
             })?
             .ok_or_else(|| saved_list_not_found(&list_key))?;
         Ok(SavedListUpdateView {
@@ -281,6 +283,7 @@ impl AtlasAppService {
                 id: view.list.slug,
                 name: view.list.name,
                 description: view.list.description,
+                tags: view.list.tags,
             },
             items: view.items.into_iter().map(saved_list_export_item).collect(),
         })
@@ -328,6 +331,7 @@ impl AtlasAppService {
             slug: id,
             name: request.document.list.name,
             description: request.document.list.description,
+            tags: request.document.list.tags,
             items: imported,
             replace: request.replace,
         })?;
@@ -639,6 +643,7 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
         slug: list.slug,
         name: list.name,
         description: list.description,
+        tags: list.tags,
         item_count: list.item_count,
         created_at: list.created_at,
         updated_at: list.updated_at,
@@ -704,6 +709,7 @@ mod tests {
                 slug: "z-last".to_string(),
                 name: "Z Last".to_string(),
                 description: None,
+                tags: vec![],
             })
             .expect("list should create");
         store
@@ -712,6 +718,7 @@ mod tests {
                 slug: "a-first".to_string(),
                 name: "A First".to_string(),
                 description: Some("Campaign prep".to_string()),
+                tags: vec!["story-beat".to_string()],
             })
             .expect("list should create");
 
@@ -728,6 +735,7 @@ mod tests {
             vec!["a-first", "z-last"]
         );
         assert_eq!(view.lists[0].description.as_deref(), Some("Campaign prep"));
+        assert_eq!(view.lists[0].tags, vec!["story-beat"]);
     }
 
     #[test]
@@ -743,6 +751,7 @@ mod tests {
                 slug: "research".to_string(),
                 name: "Research".to_string(),
                 description: None,
+                tags: vec![],
             })
             .expect("list should create");
         store
@@ -806,6 +815,7 @@ mod tests {
                 slug: "research".to_string(),
                 name: "Research".to_string(),
                 description: None,
+                tags: vec![],
             })
             .expect("list should create");
         for record_key in ["actions:testAction1", "actions:missing"] {
@@ -864,6 +874,7 @@ mod tests {
                 slug: "research".to_string(),
                 name: "Research".to_string(),
                 description: None,
+                tags: vec![],
             })
             .expect("list should create");
         store
@@ -944,11 +955,13 @@ mod tests {
                 slug: "research".to_string(),
                 name: "Research".to_string(),
                 description: Some("Campaign prep".to_string()),
+                tags: vec!["story-beat".to_string(), " boss ".to_string()],
             })
             .expect("list should create");
         assert_eq!(created.list.slug, "research");
         assert!(created.list.list_key.starts_with("list_"));
         assert_eq!(created.list.description.as_deref(), Some("Campaign prep"));
+        assert_eq!(created.list.tags, vec!["boss", "story-beat"]);
 
         let updated = fixture
             .worker
@@ -957,12 +970,14 @@ mod tests {
                 slug: "renamed-research".to_string(),
                 name: "Renamed Research".to_string(),
                 description: Some("Updated prep".to_string()),
+                tags: vec!["renamed".to_string()],
             })
             .expect("list should update");
         assert_eq!(updated.list.list_key, created.list.list_key);
         assert_eq!(updated.list.slug, "renamed-research");
         assert_eq!(updated.list.name, "Renamed Research");
         assert_eq!(updated.list.description.as_deref(), Some("Updated prep"));
+        assert_eq!(updated.list.tags, vec!["renamed"]);
 
         let added = fixture
             .worker
@@ -1026,6 +1041,7 @@ mod tests {
                 slug: "research".to_string(),
                 name: "Research".to_string(),
                 description: None,
+                tags: vec![],
             })
             .expect("list should create");
 
@@ -1106,6 +1122,7 @@ mod tests {
                 slug: "session-prep".to_string(),
                 name: "Session Prep".to_string(),
                 description: Some("Original".to_string()),
+                tags: vec!["story-beat".to_string()],
             })
             .expect("list should create");
         fixture
@@ -1124,6 +1141,7 @@ mod tests {
         assert_eq!(document.format, "pf2e-atlas.saved-list");
         assert_eq!(document.version, 1);
         assert_eq!(document.list.id, "session-prep");
+        assert_eq!(document.list.tags, vec!["story-beat"]);
         assert_eq!(document.items.len(), 1);
         assert_eq!(document.items[0].record_key, "actions:testAction1");
         assert_eq!(document.items[0].record_name, "Test Action 1");
@@ -1149,6 +1167,7 @@ mod tests {
             })
             .expect("id override should import a new list");
         assert_eq!(imported.list.slug, "session-copy");
+        assert_eq!(imported.list.tags, vec!["story-beat"]);
         assert!(!imported.replaced);
         assert_eq!(imported.active_count, 1);
         assert_eq!(imported.unresolved_count, 0);
@@ -1178,6 +1197,7 @@ mod tests {
             .expect("copy should load");
         assert_eq!(copied.list.name, "Session Prep");
         assert_eq!(copied.list.description.as_deref(), Some("Original"));
+        assert_eq!(copied.list.tags, vec!["story-beat"]);
         assert_eq!(copied.items.len(), 1);
         assert_eq!(copied.items[0].record_key, "actions:testAction1");
     }
@@ -1191,6 +1211,7 @@ mod tests {
                 slug: "research".to_string(),
                 name: "Research".to_string(),
                 description: None,
+                tags: vec![],
             })
             .expect("list should create");
 

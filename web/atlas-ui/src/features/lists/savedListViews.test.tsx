@@ -10,6 +10,7 @@ import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
+import { savedListTagOptions } from "./listUtils";
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -80,6 +81,7 @@ describe("list views", () => {
         slug: "renamed-research",
         name: "Renamed Research",
         description: "Updated prep",
+        tags: ["arc-one"],
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-04T00:00:00Z",
       },
@@ -90,6 +92,7 @@ describe("list views", () => {
         slug: "boss-fight-prep",
         name: "Boss Fight Prep",
         description: "Session prep",
+        tags: ["boss"],
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
       },
@@ -132,6 +135,31 @@ describe("list views", () => {
     fireEvent.click(editLink);
 
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
+  });
+
+  it("filters saved-list index rows by tag", async () => {
+    render(<ListIndexView route={{ kind: "lists" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    expect(await screen.findByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("Encounters")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "arc-one" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText("Encounters")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("1 saved list")).toBeInTheDocument();
+  });
+
+  it("derives saved-list tag options from existing lists", () => {
+    expect(savedListTagOptions(savedListIndexFixture().lists)).toEqual([
+      "arc-one",
+      "arc-two",
+      "boss",
+    ]);
   });
 
   it("renders list contents, loads selected detail, and removes items", async () => {
@@ -236,6 +264,7 @@ describe("list views", () => {
         slug: "renamed-research",
         name: "Renamed Research!",
         description: "Updated prep",
+        tags: ["arc-one", "boss"],
       }),
     );
     await waitFor(() =>
@@ -320,6 +349,7 @@ describe("list views", () => {
       expect(apiMocks.createSavedList).toHaveBeenCalledWith({
         slug: "boss-fight-prep",
         name: "Boss Fight Prep!",
+        tags: [],
       }),
     );
     await waitFor(() =>
@@ -349,6 +379,7 @@ function savedListIndexFixture(): SavedListIndexView {
         slug: "research",
         name: "Research",
         description: "Campaign prep",
+        tags: ["arc-one", "boss"],
         item_count: 1n,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
@@ -358,6 +389,7 @@ function savedListIndexFixture(): SavedListIndexView {
         slug: "encounters",
         name: "Encounters",
         description: "Fight prep",
+        tags: ["arc-two"],
         item_count: 0n,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-03T00:00:00Z",
