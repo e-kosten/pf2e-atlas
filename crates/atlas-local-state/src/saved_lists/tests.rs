@@ -15,6 +15,7 @@ fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn st
         slug: "undead-research".to_string(),
         name: "Undead Research".to_string(),
         description: Some("Campaign notes".to_string()),
+        tags: vec![],
     })?;
 
     assert_eq!(
@@ -62,6 +63,7 @@ fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>>
         slug: "keyed-list".to_string(),
         name: "Keyed List".to_string(),
         description: None,
+        tags: vec![],
     })?;
 
     lists.add_resolved_item(
@@ -87,6 +89,11 @@ fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std:
         slug: "old-name".to_string(),
         name: "Old Name".to_string(),
         description: Some("Old description".to_string()),
+        tags: vec![
+            " story ".to_string(),
+            "Story".to_string(),
+            "finale".to_string(),
+        ],
     })?;
 
     let updated = lists
@@ -95,6 +102,7 @@ fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std:
             slug: "new-name".to_string(),
             name: "New Name".to_string(),
             description: Some("New description".to_string()),
+            tags: vec!["updated".to_string()],
         })?
         .expect("list should update");
 
@@ -102,6 +110,7 @@ fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std:
     assert_eq!(updated.slug, "new-name");
     assert_eq!(updated.name, "New Name");
     assert_eq!(updated.description.as_deref(), Some("New description"));
+    assert_eq!(updated.tags, vec!["updated"]);
     assert!(lists.get("old-name")?.is_none());
     assert_eq!(
         lists
@@ -121,11 +130,13 @@ fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>
         slug: "first".to_string(),
         name: "First".to_string(),
         description: None,
+        tags: vec![],
     })?;
     lists.create(NewSavedList {
         slug: "second".to_string(),
         name: "Second".to_string(),
         description: None,
+        tags: vec![],
     })?;
 
     let result = lists.update(UpdateSavedList {
@@ -133,6 +144,7 @@ fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>
         slug: "second".to_string(),
         name: "Conflict".to_string(),
         description: None,
+        tags: vec![],
     });
     assert!(matches!(result, Err(LocalStateError::ListAlreadyExists(_))));
     Ok(())
@@ -145,6 +157,11 @@ fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::e
         slug: "imported-prep".to_string(),
         name: "Imported Prep".to_string(),
         description: Some("From export".to_string()),
+        tags: vec![
+            "Beat Two".to_string(),
+            "beat two".to_string(),
+            " ".to_string(),
+        ],
         replace: false,
         items: vec![
             imported_item("actions:second", Some("Review"), "Second", Some("rule")),
@@ -154,6 +171,7 @@ fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::e
 
     assert_eq!(imported.list.slug, "imported-prep");
     assert_eq!(imported.list.name, "Imported Prep");
+    assert_eq!(imported.list.tags, vec!["Beat Two"]);
     assert_eq!(imported.items.len(), 2);
     assert_eq!(imported.items[0].record_key, "actions:second");
     assert_eq!(imported.items[0].position, 1);
@@ -171,12 +189,14 @@ fn import_requires_replace_for_existing_slug() -> Result<(), Box<dyn std::error:
         slug: "existing".to_string(),
         name: "Existing".to_string(),
         description: None,
+        tags: vec![],
     })?;
 
     let result = lists.import(ImportSavedList {
         slug: "existing".to_string(),
         name: "Imported".to_string(),
         description: None,
+        tags: vec![],
         replace: false,
         items: vec![imported_item("actions:first", None, "First", Some("rule"))],
     });
@@ -193,6 +213,7 @@ fn import_replace_updates_metadata_and_items() -> Result<(), Box<dyn std::error:
         slug: "existing".to_string(),
         name: "Existing".to_string(),
         description: Some("Old".to_string()),
+        tags: vec!["old-tag".to_string()],
     })?;
     lists.add_resolved_item(
         "existing",
@@ -203,6 +224,7 @@ fn import_replace_updates_metadata_and_items() -> Result<(), Box<dyn std::error:
         slug: "existing".to_string(),
         name: "Imported".to_string(),
         description: Some("New".to_string()),
+        tags: vec!["new-tag".to_string()],
         replace: true,
         items: vec![imported_item(
             "actions:new",
@@ -215,6 +237,7 @@ fn import_replace_updates_metadata_and_items() -> Result<(), Box<dyn std::error:
     assert_eq!(imported.list.list_key, existing.list_key);
     assert_eq!(imported.list.name, "Imported");
     assert_eq!(imported.list.description.as_deref(), Some("New"));
+    assert_eq!(imported.list.tags, vec!["new-tag"]);
     assert_eq!(imported.items.len(), 1);
     assert_eq!(imported.items[0].record_key, "actions:new");
     assert_eq!(imported.items[0].position, 1);
@@ -229,6 +252,7 @@ fn import_rejects_duplicate_record_keys() -> Result<(), Box<dyn std::error::Erro
         slug: "duplicates".to_string(),
         name: "Duplicates".to_string(),
         description: None,
+        tags: vec![],
         replace: false,
         items: vec![
             imported_item("actions:first", None, "First", Some("rule")),
@@ -248,6 +272,7 @@ fn remove_item_compacts_positions() -> Result<(), Box<dyn std::error::Error>> {
         slug: "test-list".to_string(),
         name: "Test List".to_string(),
         description: None,
+        tags: vec![],
     })?;
     for key in ["actions:first", "actions:second", "actions:third"] {
         lists.add_resolved_item("test-list", resolved_item(key, None, key, None))?;
@@ -271,6 +296,7 @@ fn invalid_slugs_are_rejected() -> Result<(), Box<dyn std::error::Error>> {
         slug: "Bad Slug".to_string(),
         name: "Bad".to_string(),
         description: None,
+        tags: vec![],
     });
     assert!(matches!(result, Err(LocalStateError::InvalidSlug { .. })));
     Ok(())
@@ -284,6 +310,7 @@ fn invalid_record_keys_are_rejected_on_remove() -> Result<(), Box<dyn std::error
         slug: "test-list".to_string(),
         name: "Test List".to_string(),
         description: None,
+        tags: vec![],
     })?;
     let result = lists.remove_item("test-list", "not a key");
     assert!(matches!(

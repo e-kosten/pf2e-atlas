@@ -191,6 +191,7 @@ pub(crate) fn run_lists_create(options: ListCreateOptions) -> Result<ExitCode, S
         slug: options.slug,
         name: options.name,
         description: options.description,
+        tags: options.tags,
     }) {
         Ok(view) => view,
         Err(error) => return app_error_with_client(&client, error, options.json),
@@ -430,6 +431,13 @@ pub(crate) fn run_lists_edit(options: ListEditOptions) -> Result<ExitCode, Strin
         slug: options.id.unwrap_or(current.slug),
         name: options.name.unwrap_or(current.name),
         description,
+        tags: if options.clear_tags {
+            Vec::new()
+        } else if options.tags.is_empty() {
+            current.tags
+        } else {
+            options.tags
+        },
     }) {
         Ok(view) => view,
         Err(error) => return app_error_with_client(&client, error, options.json),
@@ -624,10 +632,15 @@ fn validate_edit_options(options: &ListEditOptions) -> Result<(), String> {
     if options.description.is_some() && options.clear_description {
         return Err("use either --description or --clear-description, not both".to_string());
     }
+    if !options.tags.is_empty() && options.clear_tags {
+        return Err("use either --tag or --clear-tags, not both".to_string());
+    }
     if options.id.is_none()
         && options.name.is_none()
         && options.description.is_none()
         && !options.clear_description
+        && options.tags.is_empty()
+        && !options.clear_tags
     {
         return Err("provide at least one edit flag".to_string());
     }

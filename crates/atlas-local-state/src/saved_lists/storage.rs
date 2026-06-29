@@ -21,7 +21,10 @@ pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalS
             params![list_key, slug, list.name, list.description, now],
         );
         match result {
-            Ok(_) => return Ok(list_key),
+            Ok(_) => {
+                replace_tags(connection, &list_key, list.tags)?;
+                return Ok(list_key);
+            }
             Err(rusqlite::Error::SqliteFailure(error, _))
                 if error.code == rusqlite::ErrorCode::ConstraintViolation =>
             {
@@ -37,31 +40,33 @@ pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalS
 
 pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> {
     let mut statement = connection.prepare(
-        "SELECT list.list_key, list.slug, list.name, list.description,
+        "SELECT list.id, list.list_key, list.slug, list.name, list.description,
                 COUNT(item.record_key), list.created_at, list.updated_at
          FROM saved_lists list
          LEFT JOIN saved_list_items item ON item.list_id = list.id
          GROUP BY list.id
          ORDER BY list.slug",
     )?;
-    let rows = statement.query_map([], saved_list_from_row)?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    let rows = statement.query_map([], raw_saved_list_from_row)?;
+    rows.map(|row| saved_list_with_tags(connection, row?))
+        .collect::<LocalStateResult<Vec<_>>>()
 }
 
 pub(crate) fn get(connection: &Connection, list_ref: &str) -> LocalStateResult<Option<SavedList>> {
-    connection
+    let raw = connection
         .query_row(
-            "SELECT list.list_key, list.slug, list.name, list.description,
+            "SELECT list.id, list.list_key, list.slug, list.name, list.description,
                     COUNT(item.record_key), list.created_at, list.updated_at
              FROM saved_lists list
              LEFT JOIN saved_list_items item ON item.list_id = list.id
              WHERE list.list_key = ?1 OR list.slug = ?1
              GROUP BY list.id",
             params![list_ref],
-            saved_list_from_row,
+            raw_saved_list_from_row,
         )
-        .optional()
-        .map_err(Into::into)
+        .optional()?;
+    raw.map(|row| saved_list_with_tags(connection, row))
+        .transpose()
 }
 
 pub(crate) fn get_with_items(
@@ -125,7 +130,12 @@ pub(crate) fn update_list(
         params![list.slug, list.name, list.description, now, list.list_key],
     );
     match result {
-        Ok(updated) => Ok(updated > 0),
+        Ok(updated) => {
+            if updated > 0 {
+                replace_tags(connection, &list.list_key, list.tags)?;
+            }
+            Ok(updated > 0)
+        }
         Err(rusqlite::Error::SqliteFailure(error, _))
             if error.code == rusqlite::ErrorCode::ConstraintViolation =>
         {
@@ -248,15 +258,41 @@ pub(crate) fn validate_record_key(record_key: &str) -> LocalStateResult<()> {
         })
 }
 
-fn saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedList> {
+#[derive(Debug)]
+struct RawSavedList {
+    id: i64,
+    list_key: String,
+    slug: String,
+    name: String,
+    description: Option<String>,
+    item_count: u64,
+    created_at: String,
+    updated_at: String,
+}
+
+fn raw_saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSavedList> {
+    Ok(RawSavedList {
+        id: row.get(0)?,
+        list_key: row.get(1)?,
+        slug: row.get(2)?,
+        name: row.get(3)?,
+        description: row.get(4)?,
+        item_count: row.get::<_, i64>(5)? as u64,
+        created_at: row.get(6)?,
+        updated_at: row.get(7)?,
+    })
+}
+
+fn saved_list_with_tags(connection: &Connection, raw: RawSavedList) -> LocalStateResult<SavedList> {
     Ok(SavedList {
-        list_key: row.get(0)?,
-        slug: row.get(1)?,
-        name: row.get(2)?,
-        description: row.get(3)?,
-        item_count: row.get::<_, i64>(4)? as u64,
-        created_at: row.get(5)?,
-        updated_at: row.get(6)?,
+        list_key: raw.list_key,
+        slug: raw.slug,
+        name: raw.name,
+        description: raw.description,
+        tags: tags_for_list_id(connection, raw.id)?,
+        item_count: raw.item_count,
+        created_at: raw.created_at,
+        updated_at: raw.updated_at,
     })
 }
 
@@ -280,6 +316,37 @@ fn list_id(connection: &Connection, list_ref: &str) -> rusqlite::Result<Option<i
             |row| row.get(0),
         )
         .optional()
+}
+
+fn tags_for_list_id(connection: &Connection, list_id: i64) -> rusqlite::Result<Vec<String>> {
+    let mut statement = connection.prepare(
+        "SELECT tag FROM saved_list_tags WHERE list_id = ?1 ORDER BY tag COLLATE NOCASE, tag",
+    )?;
+    statement
+        .query_map(params![list_id], |row| row.get::<_, String>(0))?
+        .collect()
+}
+
+fn replace_tags(
+    connection: &Connection,
+    list_ref: &str,
+    tags: Vec<String>,
+) -> LocalStateResult<()> {
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
+    };
+    connection.execute(
+        "DELETE FROM saved_list_tags WHERE list_id = ?1",
+        params![list_id],
+    )?;
+    let now = now_rfc3339()?;
+    for tag in tags {
+        connection.execute(
+            "INSERT INTO saved_list_tags (list_id, tag, created_at) VALUES (?1, ?2, ?3)",
+            params![list_id, tag, now],
+        )?;
+    }
+    Ok(())
 }
 
 fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {

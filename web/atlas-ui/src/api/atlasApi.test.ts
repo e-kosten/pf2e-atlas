@@ -279,6 +279,7 @@ describe("atlasApi", () => {
       slug: "campaign/research",
       name: "Campaign Research",
       description: "Session prep",
+      tags: ["arc-one"],
     });
 
     expect(fetchMock).toHaveBeenLastCalledWith(
@@ -289,6 +290,7 @@ describe("atlasApi", () => {
           slug: "campaign/research",
           name: "Campaign Research",
           description: "Session prep",
+          tags: ["arc-one"],
         }),
       }),
     );
@@ -300,6 +302,7 @@ describe("atlasApi", () => {
           slug: "renamed-research",
           name: "Renamed Research",
           description: "Updated prep",
+          tags: ["arc-two"],
         }),
       }),
     );
@@ -308,6 +311,7 @@ describe("atlasApi", () => {
       slug: "renamed-research",
       name: "Renamed Research",
       description: "Updated prep",
+      tags: ["arc-two"],
     });
     expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/lists/list_campaign%2Fresearch",
@@ -318,6 +322,7 @@ describe("atlasApi", () => {
           slug: "renamed-research",
           name: "Renamed Research",
           description: "Updated prep",
+          tags: ["arc-two"],
         }),
       }),
     );
@@ -471,6 +476,7 @@ function savedListSummary(overrides: Record<string, unknown> = {}) {
     slug: "research",
     name: "Research",
     description: "Campaign prep",
+    tags: ["arc-one"],
     item_count: 1,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",

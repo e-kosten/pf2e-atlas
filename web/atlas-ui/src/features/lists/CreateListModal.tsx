@@ -1,11 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Form, Input, Modal } from "antd";
+import { Form, Input, Modal, Select } from "antd";
+import { useMemo } from "react";
 import { createSavedList } from "../../api/atlasApi";
 import type { CreateSavedListRequest } from "../../generated/atlas";
-import { InlineError, slugify } from "./listUtils";
+import { InlineError, normalizeTags, savedListTagOptions, slugify } from "./listUtils";
+import { useSavedLists } from "./savedListQueries";
 
 type CreateListFormValues = {
   name: string;
+  tags?: string[];
 };
 
 export function CreateListModal({
@@ -19,6 +22,15 @@ export function CreateListModal({
 }) {
   const [form] = Form.useForm<CreateListFormValues>();
   const queryClient = useQueryClient();
+  const lists = useSavedLists({ enabled: open });
+  const tagOptions = useMemo(
+    () =>
+      savedListTagOptions(lists.data?.lists ?? []).map((tag) => ({
+        label: tag,
+        value: tag,
+      })),
+    [lists.data?.lists],
+  );
   const create = useMutation({
     mutationFn: (request: CreateSavedListRequest) => createSavedList(request),
     onSuccess: async (view) => {
@@ -44,6 +56,7 @@ export function CreateListModal({
           create.mutate({
             slug: slugify(values.name),
             name: values.name,
+            tags: normalizeTags(values.tags),
           })
         }
       >
@@ -61,6 +74,15 @@ export function CreateListModal({
           ]}
         >
           <Input />
+        </Form.Item>
+        <Form.Item label="Tags" name="tags">
+          <Select
+            mode="tags"
+            optionFilterProp="label"
+            options={tagOptions}
+            showSearch
+            tokenSeparators={[","]}
+          />
         </Form.Item>
       </Form>
       {create.error && <InlineError message={create.error.message} />}

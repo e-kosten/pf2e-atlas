@@ -42,6 +42,33 @@
   font-size: 12px;
 }
 
+.list-index-view__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: min(460px, 100%);
+}
+
+.list-index-view__tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  max-width: min(420px, 52vw);
+}
+
+.list-index-view__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.list-index-view__tags .ant-tag {
+  margin-inline-end: 0;
+}
+
 .list-edit-view__body {
   display: grid;
   align-content: start;
