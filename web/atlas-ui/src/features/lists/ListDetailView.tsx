@@ -21,10 +21,8 @@ import {
 } from "../../shared/filters/searchState";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import {
-  RecordPreviewPopover,
-  useRecordPreview,
-} from "../../shared/records/RecordPreviewPopover";
+import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
+import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
