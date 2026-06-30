@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Popover,
   Select,
   Tag,
   Tooltip,
@@ -430,7 +431,7 @@ function TriStateOptionFilter({
   fieldId: string;
 }) {
   const { search, setSearch } = workspace;
-  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const field = editorFieldForId(workspace, fieldId);
@@ -454,10 +455,20 @@ function TriStateOptionFilter({
       return;
     }
     function handleClick(event: MouseEvent) {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
-        setOpen(false);
-        setQuery("");
+      if (!(event.target instanceof Node)) {
+        return;
       }
+      if (triggerRef.current?.contains(event.target)) {
+        return;
+      }
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".tri-state-filter-popover")
+      ) {
+        return;
+      }
+      setOpen(false);
+      setQuery("");
     }
 
     document.addEventListener("click", handleClick);
@@ -505,7 +516,7 @@ function TriStateOptionFilter({
   }
 
   const content = (
-    <div className="tri-state-filter-menu">
+    <div className="tri-state-filter-content">
       <Input
         allowClear
         placeholder="Search options"
@@ -517,12 +528,12 @@ function TriStateOptionFilter({
           filteredOptions.map((option) => {
             const state = optionState(option.value);
             return (
-              <button
+              <Button
                 key={option.value}
-                type="button"
                 aria-label={option.label}
                 className={`filter-option-row is-${state}`}
                 disabled={option.disabled}
+                type="text"
                 onClick={(event) => {
                   event.stopPropagation();
                   setSearch(
@@ -537,7 +548,7 @@ function TriStateOptionFilter({
               >
                 <span className="filter-option-state-marker">{stateIcon(state)}</span>
                 <span>{option.label}</span>
-              </button>
+              </Button>
             );
           })
         ) : (
@@ -552,8 +563,21 @@ function TriStateOptionFilter({
   );
 
   return (
-    <div className="tri-state-filter-root" ref={rootRef}>
+    <Popover
+      arrow={false}
+      classNames={{
+        body: "tri-state-filter-menu",
+        root: "tri-state-filter-popover",
+      }}
+      content={content}
+      destroyOnHidden
+      open={open}
+      placement="bottomLeft"
+      trigger="click"
+      onOpenChange={setMenuOpen}
+    >
       <div
+        ref={triggerRef}
         className={`tri-state-filter-trigger ${open ? "is-open" : ""}`}
         role="button"
         tabIndex={0}
@@ -609,8 +633,7 @@ function TriStateOptionFilter({
           </span>
         )}
       </div>
-      {open ? content : null}
-    </div>
+    </Popover>
   );
 }
 

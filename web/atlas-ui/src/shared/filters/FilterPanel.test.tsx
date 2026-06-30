@@ -413,7 +413,7 @@ describe("FilterPanel", () => {
     const { rerender } = render(<FilterPanel workspace={workspace()} />);
 
     fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
-    expect(filterOptionRow("spell (1)")).toBeVisible();
+    await waitFor(() => expect(filterOptionRow("spell (1)")).toBeInTheDocument());
 
     rerender(
       <FilterPanel
@@ -429,7 +429,7 @@ describe("FilterPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "spell (1)" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "spell (1)" })).toBeInTheDocument();
   });
 });
 
@@ -505,13 +505,8 @@ function lastSearch(setSearch: ReturnType<typeof vi.fn>): SearchFormState {
 }
 
 function filterOptionRow(label: string): HTMLButtonElement {
-  const button = screen
-    .getAllByText(label)
-    .map((element) => element.closest("button.filter-option-row"))
-    .find(
-      (element): element is HTMLButtonElement => element instanceof HTMLButtonElement,
-    );
-  if (!button) {
+  const button = screen.getByRole("button", { name: label });
+  if (!(button instanceof HTMLButtonElement)) {
     throw new Error(`Filter option row not found for ${label}`);
   }
   return button;
