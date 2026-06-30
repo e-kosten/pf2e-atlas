@@ -21,6 +21,10 @@ import {
 } from "../../shared/filters/searchState";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
+import {
+  RecordPreviewPopover,
+  useRecordPreview,
+} from "../../shared/records/RecordPreviewPopover";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
@@ -46,6 +50,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const lists = useSavedLists();
   const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
+  const recordPreview = useRecordPreview();
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
     () => encodeSearchExecutionState(activeFilters),
@@ -87,93 +92,104 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   });
 
   return (
-    <WorkspaceLayout
-      filter={
-        <ListInfoPane
-          currentSlug={route.slug}
-          filterState={{
-            search: filters,
-            setSearch: setFilters,
-            filterEditor: filterDiscovery.filterEditor,
-            filterValuesByField: filterDiscovery.filterValuesByField,
-            filterDiscoveryLoading: filterDiscovery.loading,
-            errorMessage: filterDiscovery.errorMessage,
-          }}
-          list={list.data?.list}
-          lists={lists.data?.lists ?? []}
-          loading={list.isLoading}
-          listsLoading={lists.isLoading || lists.isFetching}
-          onSelectList={(slug) =>
-            navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null })
-          }
-        />
-      }
-      results={
-        <ListItemsPane
-          items={list.data?.items ?? []}
-          loading={list.isLoading || list.isFetching}
-          removingKey={
-            removeItem.isPending && typeof removeItem.variables === "string"
-              ? removeItem.variables
-              : null
-          }
-          selectedRecordKey={route.selectedRecordKey}
-          onRemove={(recordKey) => removeItem.mutate(recordKey)}
-          onSelect={(recordKey) =>
-            navigateToAtlasRoute({
-              kind: "list",
-              slug: route.slug,
-              selectedRecordKey: recordKey,
-            })
-          }
-        />
-      }
-      selectedRecordKey={route.selectedRecordKey}
-      labels={{ filter: "List", results: "Items", detail: "Detail" }}
-      sizing="detail-focus"
-      widthSpecs={LIST_WORKSPACE_WIDTH_SPECS}
-      detailHeaderActions={
-        route.selectedRecordKey ? (
-          <PaneIconLink
-            href={recordPath(route.selectedRecordKey)}
-            icon={<ExternalLink size={16} />}
-            label="Open full page"
-            onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) {
-                return;
-              }
-              event.preventDefault();
-              navigateToAtlasRoute({
-                kind: "record",
-                recordKey: route.selectedRecordKey!,
-              });
+    <>
+      <WorkspaceLayout
+        filter={
+          <ListInfoPane
+            currentSlug={route.slug}
+            filterState={{
+              search: filters,
+              setSearch: setFilters,
+              filterEditor: filterDiscovery.filterEditor,
+              filterValuesByField: filterDiscovery.filterValuesByField,
+              filterDiscoveryLoading: filterDiscovery.loading,
+              errorMessage: filterDiscovery.errorMessage,
             }}
+            list={list.data?.list}
+            lists={lists.data?.lists ?? []}
+            loading={list.isLoading}
+            listsLoading={lists.isLoading || lists.isFetching}
+            onSelectList={(slug) =>
+              navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null })
+            }
           />
-        ) : null
-      }
-      detail={
-        <RecordDetailPane
-          detail={selectedItem?.status === "unresolved" ? undefined : detail.data}
-          emptyMessage={
-            selectedItem?.status === "unresolved"
-              ? "This saved record is unresolved."
-              : undefined
-          }
-          errors={[list.error, detail.error, removeItem.error]}
-          loading={
-            selectedItem?.status === "unresolved"
-              ? false
-              : detail.isLoading || detail.isFetching
-          }
-          onReference={(recordKey) =>
+        }
+        results={
+          <ListItemsPane
+            items={list.data?.items ?? []}
+            loading={list.isLoading || list.isFetching}
+            removingKey={
+              removeItem.isPending && typeof removeItem.variables === "string"
+                ? removeItem.variables
+                : null
+            }
+            selectedRecordKey={route.selectedRecordKey}
+            onRemove={(recordKey) => removeItem.mutate(recordKey)}
+            onSelect={(recordKey) =>
+              navigateToAtlasRoute({
+                kind: "list",
+                slug: route.slug,
+                selectedRecordKey: recordKey,
+              })
+            }
+          />
+        }
+        selectedRecordKey={route.selectedRecordKey}
+        labels={{ filter: "List", results: "Items", detail: "Detail" }}
+        sizing="detail-focus"
+        widthSpecs={LIST_WORKSPACE_WIDTH_SPECS}
+        detailHeaderActions={
+          route.selectedRecordKey ? (
+            <PaneIconLink
+              href={recordPath(route.selectedRecordKey)}
+              icon={<ExternalLink size={16} />}
+              label="Open full page"
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) {
+                  return;
+                }
+                event.preventDefault();
+                navigateToAtlasRoute({
+                  kind: "record",
+                  recordKey: route.selectedRecordKey!,
+                });
+              }}
+            />
+          ) : null
+        }
+        detail={
+          <RecordDetailPane
+            detail={selectedItem?.status === "unresolved" ? undefined : detail.data}
+            emptyMessage={
+              selectedItem?.status === "unresolved"
+                ? "This saved record is unresolved."
+                : undefined
+            }
+            errors={[list.error, detail.error, removeItem.error, recordPreview.error]}
+            loading={
+              selectedItem?.status === "unresolved"
+                ? false
+                : detail.isLoading || detail.isFetching
+            }
+            onReference={recordPreview.open}
+          />
+        }
+      />
+      {recordPreview.recordKey ? (
+        <RecordPreviewPopover
+          anchor={recordPreview.anchor}
+          detail={recordPreview.detail}
+          loading={recordPreview.loading}
+          onClose={recordPreview.close}
+          onOpenFullPage={() =>
             navigateToAtlasRoute({
-              kind: "list",
-              slug: route.slug,
-              selectedRecordKey: recordKey,
+              kind: "record",
+              recordKey: recordPreview.recordKey!,
             })
           }
+          onReference={recordPreview.open}
         />
-      }
-    />
+      ) : null}
+    </>
   );
 }

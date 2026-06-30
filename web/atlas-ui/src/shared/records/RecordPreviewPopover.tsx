@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "antd";
 import { ExternalLink, X } from "lucide-react";
 import type React from "react";
-import type { getRecordDetail } from "../../api/atlasApi";
+import { useCallback, useState } from "react";
+import { getRecordDetail } from "../../api/atlasApi";
 import { RecordPresentation } from "./RecordPresentation";
 
 export type RecordPreviewAnchor = {
@@ -12,6 +14,38 @@ export type RecordPreviewAnchor = {
   width: number;
   height: number;
 };
+
+export function useRecordPreview() {
+  const [recordKey, setRecordKey] = useState<string | null>(null);
+  const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
+  const detail = useQuery({
+    queryKey: ["record-preview-popover", recordKey],
+    enabled: recordKey !== null,
+    queryFn: () => getRecordDetail(recordKey!),
+  });
+
+  const close = useCallback(() => {
+    setRecordKey(null);
+    setAnchor(null);
+  }, []);
+
+  const open = useCallback((nextRecordKey: string, anchorRect?: DOMRect) => {
+    setRecordKey(nextRecordKey);
+    if (anchorRect) {
+      setAnchor(recordPreviewAnchorFromRect(anchorRect));
+    }
+  }, []);
+
+  return {
+    anchor,
+    close,
+    detail: detail.data,
+    error: detail.error,
+    loading: detail.isLoading || detail.isFetching,
+    open,
+    recordKey,
+  };
+}
 
 export function RecordPreviewPopover({
   anchor,
@@ -29,18 +63,19 @@ export function RecordPreviewPopover({
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
 }) {
   const position = recordPreviewPosition(anchor);
+
   return (
     <div
       aria-label="Reference preview overlay"
       className="record-preview-popover__backdrop"
+      role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
-      role="presentation"
     >
-      <div
+      <section
         aria-label="Reference preview"
         className="record-preview-popover"
         role="dialog"
@@ -67,10 +102,10 @@ export function RecordPreviewPopover({
           <RecordPresentation
             detail={detail}
             loading={loading}
-            onReference={(recordKey) => onReference(recordKey)}
+            onReference={onReference}
           />
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -102,6 +137,17 @@ function recordPreviewPosition(
     maxHeight,
     top: clamp(anchor.top, margin, window.innerHeight - margin - maxHeight),
     width,
+  };
+}
+
+function recordPreviewAnchorFromRect(rect: DOMRect): RecordPreviewAnchor {
+  return {
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
   };
 }
 

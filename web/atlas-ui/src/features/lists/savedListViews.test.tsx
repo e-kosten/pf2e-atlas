@@ -205,6 +205,28 @@ describe("list views", () => {
     );
   });
 
+  it("opens references from the selected saved-list detail in a popover", async () => {
+    history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: "actions:testAction1",
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Nested Rule" }));
+
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
+    );
+    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
+  });
+
   it("searches within a saved list through the filter route", async () => {
     render(
       <ListDetailView
@@ -466,15 +488,35 @@ function filterField(id: string, label: string, controlKind: "option" | "range")
 function recordDetailFixture(recordKey: string): RecordDetailView {
   return {
     record_key: recordKey,
-    title: "Test Action 1",
+    title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
     kind: "rule",
     presentation: {
       record_key: recordKey,
       kind: "rule",
-      title: "Test Action 1",
+      title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
       identity: [],
       badges: [],
-      sections: [],
+      sections:
+        recordKey === "rules:nested"
+          ? []
+          : [
+              {
+                kind: "references",
+                title: "References",
+                blocks: [
+                  {
+                    kind: "relationships",
+                    content: [
+                      {
+                        kind: "reference",
+                        label: "Nested Rule",
+                        record_key: "rules:nested",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
     },
   };
 }
