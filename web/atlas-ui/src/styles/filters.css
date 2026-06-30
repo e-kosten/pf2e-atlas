@@ -184,7 +184,7 @@
   text-overflow: ellipsis;
 }
 
-.filter-value-tag-remove {
+.filter-value-tag .ant-tag-close-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -198,13 +198,11 @@
   cursor: pointer;
 }
 
-.filter-value-tag-remove:hover,
-.filter-value-tag-remove:focus-visible {
+.filter-value-tag .ant-tag-close-icon:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
-  outline: none;
 }
 
-.filter-value-tag-remove svg {
+.filter-value-tag .ant-tag-close-icon svg {
   display: block;
 }
 
