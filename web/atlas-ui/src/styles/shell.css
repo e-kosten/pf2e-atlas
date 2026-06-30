@@ -55,45 +55,8 @@
 }
 
 .status-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line);
-  color: var(--muted);
-  background: var(--panel-subtle);
-  font-size: 12px;
+  margin-inline-end: 0;
   text-transform: uppercase;
-  letter-spacing: 0;
-}
-
-.status-pill--ready {
-  color: var(--accent-text);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-}
-
-.icon-button {
-  border: 0;
-  color: var(--text);
-  background: transparent;
-  cursor: pointer;
-}
-
-.icon-button {
-  display: inline-grid;
-  place-items: center;
-  width: var(--control-height);
-  height: var(--control-height);
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  line-height: 0;
-}
-
-.icon-button svg {
-  display: block;
 }
 
 .error-banner {
@@ -214,18 +177,10 @@
 }
 
 .pane-toggle {
-  display: inline-grid;
-  place-items: center;
   flex: 0 0 auto;
-  width: 26px;
+  width: 26px !important;
   height: 26px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
   color: var(--muted);
-  background: var(--panel);
-  cursor: pointer;
-  line-height: 0;
 }
 
 .pane-toggle svg {
@@ -249,7 +204,6 @@
 .pane-toggle:hover,
 .pane-toggle:focus-visible {
   color: var(--accent-text);
-  border-color: var(--accent);
 }
 
 .workspace-pane > .filter-panel,

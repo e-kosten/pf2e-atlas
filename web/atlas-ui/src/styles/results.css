@@ -78,14 +78,9 @@
   outline: none;
 }
 
-.icon-button--compact {
-  width: 26px;
+.pager__button {
+  width: 26px !important;
   height: 26px;
-}
-
-.icon-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .row-link {

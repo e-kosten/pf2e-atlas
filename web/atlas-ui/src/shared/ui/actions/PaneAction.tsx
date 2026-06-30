@@ -1,3 +1,5 @@
+import { Button } from "antd";
+
 export function PaneIconButton({
   disabled,
   icon,
@@ -12,16 +14,15 @@ export function PaneIconButton({
   title?: string;
 }) {
   return (
-    <button
+    <Button
       aria-label={label}
       className="pane-toggle"
       disabled={disabled}
+      icon={icon}
       onClick={onClick}
       title={title}
-      type="button"
-    >
-      {icon}
-    </button>
+      type="text"
+    />
   );
 }
 
@@ -39,14 +40,14 @@ export function PaneIconLink({
   title?: string;
 }) {
   return (
-    <a
+    <Button
       aria-label={label}
       className="pane-toggle"
       href={href}
+      icon={icon}
       onClick={onClick}
       title={title}
-    >
-      {icon}
-    </a>
+      type="text"
+    />
   );
 }
