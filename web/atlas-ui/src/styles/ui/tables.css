@@ -6,3 +6,33 @@
 .index-row:focus-visible > td {
   background: var(--panel-subtle);
 }
+
+.index-row-link.ant-typography,
+.index-row-link--button.ant-btn {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  text-decoration: none;
+  white-space: normal;
+  text-align: left;
+}
+
+.index-row-link.ant-typography:hover .index-row-link__title,
+.index-row-link.ant-typography:focus-visible .index-row-link__title,
+.index-row-link--button.ant-btn:hover .index-row-link__title,
+.index-row-link--button.ant-btn:focus-visible .index-row-link__title {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.index-row-link__title {
+  font-weight: 650;
+}
+
+.index-row-link small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

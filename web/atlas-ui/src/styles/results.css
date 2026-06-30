@@ -83,27 +83,6 @@
   height: 26px;
 }
 
-.row-link {
-  display: grid;
-  gap: 3px;
-  width: 100%;
-  border: 0;
-  color: var(--accent-text);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.row-link span {
-  font-weight: 650;
-}
-
-.row-link small {
-  color: var(--muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
 .result-table {
   min-width: 720px;
   margin: 6px;

@@ -154,19 +154,3 @@
   display: grid;
   gap: 12px;
 }
-
-.row-link--anchor {
-  text-decoration: none;
-}
-
-.row-link:hover span,
-.row-link:focus-visible span {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.row-link:disabled {
-  color: var(--muted);
-  cursor: not-allowed;
-  opacity: 0.75;
-}

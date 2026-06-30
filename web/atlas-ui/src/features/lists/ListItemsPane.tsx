@@ -3,6 +3,7 @@ import type { ColumnsType } from "antd/es/table";
 import { Trash2 } from "lucide-react";
 import type { SavedListItemView } from "../../generated/atlas";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
+import { RowTitleButton } from "../../shared/ui/tables/IndexTable";
 
 export function ListItemsPane({
   items,
@@ -23,14 +24,11 @@ export function ListItemsPane({
     {
       title: "Record",
       render: (_, item) => (
-        <button
-          className="row-link"
+        <RowTitleButton
           disabled={item.status === "unresolved"}
           onClick={() => onSelect(item.record_key)}
-          type="button"
-        >
-          <span>{item.record?.title ?? item.snapshot.title}</span>
-        </button>
+          title={item.record?.title ?? item.snapshot.title}
+        />
       ),
     },
     {
