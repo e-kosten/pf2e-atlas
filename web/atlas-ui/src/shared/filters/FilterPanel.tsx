@@ -580,23 +580,26 @@ function TriStateOptionFilter({
                 className={`filter-value-tag ${
                   excluded ? "is-excluded" : "is-included"
                 }`}
+                closable
+                closeIcon={
+                  <button
+                    type="button"
+                    className="filter-value-tag-close"
+                    aria-label={`Remove ${optionLabel(value)} filter`}
+                  >
+                    <X aria-hidden="true" size={12} strokeWidth={2.25} />
+                  </button>
+                }
+                onClose={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setSearch(clearSelectedValueForField(search, fieldId, value));
+                }}
               >
                 <span className="filter-value-tag-marker">
                   {stateIcon(excluded ? "excluded" : "included")}
                 </span>
                 <span className="filter-value-tag-label">{optionLabel(value)}</span>
-                <button
-                  type="button"
-                  className="filter-value-tag-remove"
-                  aria-label={`Remove ${optionLabel(value)} filter`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setSearch(clearSelectedValueForField(search, fieldId, value));
-                  }}
-                >
-                  <X aria-hidden="true" size={12} strokeWidth={2.25} />
-                </button>
               </Tag>
             );
           })
