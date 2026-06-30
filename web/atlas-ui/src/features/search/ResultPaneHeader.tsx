@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
@@ -24,15 +25,14 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
             : "No result window yet"}
       </span>
       <div className="pager pager--compact">
-        <button
+        <Button
           aria-label="Previous page"
-          className="icon-button icon-button--compact"
+          className="pager__button"
           disabled={workspace.pageNumber <= 1 || workspace.resultsRefreshing}
+          icon={<ChevronLeft size={15} />}
           onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-          type="button"
-        >
-          <ChevronLeft size={15} />
-        </button>
+          type="text"
+        />
         <PageJump
           key={displayedPageNumber}
           disabled={workspace.resultsRefreshing || workspace.resultsLoading}
@@ -42,17 +42,16 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
           pageCountNumber={pageCountNumber}
           requestedPageNumber={workspace.pageNumber}
         />
-        <button
+        <Button
           aria-label="Next page"
-          className="icon-button icon-button--compact"
+          className="pager__button"
           disabled={!page?.has_more || workspace.resultsRefreshing}
+          icon={<ChevronRight size={15} />}
           onClick={() =>
             workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
           }
-          type="button"
-        >
-          <ChevronRight size={15} />
-        </button>
+          type="text"
+        />
       </div>
     </div>
   );

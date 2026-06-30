@@ -1,6 +1,6 @@
 import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
-import { Button, Menu } from "antd";
+import { Button, Menu, Tag } from "antd";
 import type { MenuProps } from "antd";
 import type {
   ColorSchemePreference,
@@ -90,7 +90,12 @@ export function AppShell({
           selectedKeys={[selectedView]}
         />
         <div className="topbar__actions">
-          <span className={`status-pill status-pill--${status}`}>{status}</span>
+          <Tag
+            className="status-pill"
+            color={status === "ready" ? "success" : "warning"}
+          >
+            {status}
+          </Tag>
           <Button
             aria-pressed={diagnosticsOpen}
             icon={<Activity size={18} />}
