@@ -5,8 +5,9 @@ This package owns the React browser frontend for PF2e Atlas. Follow these rules 
 ## Frontend Ownership
 
 - Keep product semantics in Rust app-service/app-model contracts. The frontend should render generated DTOs and call the thin API client; it should not duplicate retrieval, filtering, ranking, record projection, saved-list, or encounter product rules.
-- Use Ant Design as the component library. Prefer Ant Design components for forms, tables, modals, popovers, selectors, checkboxes, alerts, and loading states before adding custom controls.
-- Use Atlas theme tokens and existing CSS variables. Do not add ad hoc raw colors or one-off palettes.
+- Use Ant Design as the component library for generic application UI. Prefer Ant components for buttons, icon buttons, links, navigation controls, forms, tables, modals, popovers, tooltips, selectors, checkboxes, alerts, empty/loading states, tags, and pagination before adding custom controls.
+- Hand-roll UI only when the surface is product-specific, such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, or encounter-runtime panels.
+- Use Atlas theme tokens and existing CSS variables. Do not add ad hoc raw colors or one-off palettes. Derive custom Atlas state variables from Ant semantic tokens, not raw brand tokens such as `colorPrimary`, where the variable represents selected, active, link, hover, or focus behavior.
 
 ## Shared UI Primitives
 
@@ -20,7 +21,7 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
 - Keep lower-level helpers such as `confirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
-If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs.
+If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs. Shared primitives should normally wrap or compose Ant components; do not create plain-button or plain-anchor replacements for generic Ant behavior unless there is a documented product-specific reason.
 
 ## CSS Layout
 
@@ -28,6 +29,7 @@ If a second surface needs a behavior, move it into `src/shared/ui` instead of co
 - Put feature-specific styles under the owning feature stylesheet.
 - Keep page-level structure unframed unless the existing shared layout primitive intentionally frames it.
 - Avoid nested cards and avoid feature-local copies of pane, table, modal, popover, and index-page layout patterns.
+- Prefer Ant component tokens for generic interaction states, such as selected table rows, link text, hover fills, active navigation, and disabled/loading treatment. Custom CSS should use semantic Atlas variables for product-specific layouts rather than mixing `--accent` into state colors directly.
 
 ## Validation
 

@@ -101,22 +101,22 @@ export function AtlasApp() {
   };
 
   return (
-    <AppShell
-      activeView={route.kind}
-      colorScheme={colorScheme}
-      onColorSchemeChange={updateColorScheme}
-      onNavigateSearch={() =>
-        navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
-      }
-      onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
-      onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
-      onNavigatePresentationMocks={() =>
-        navigateToAtlasRoute({ kind: "presentationMocks" })
-      }
-      resolvedColorScheme={resolvedColorScheme}
-      workspace={workspace}
-    >
-      <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
+    <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
+      <AppShell
+        activeView={route.kind}
+        colorScheme={colorScheme}
+        onColorSchemeChange={updateColorScheme}
+        onNavigateSearch={() =>
+          navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
+        }
+        onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
+        onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
+        onNavigatePresentationMocks={() =>
+          navigateToAtlasRoute({ kind: "presentationMocks" })
+        }
+        resolvedColorScheme={resolvedColorScheme}
+        workspace={workspace}
+      >
         <Suspense fallback={<RouteLoading />}>
           {route.kind === "search" && <SearchView workspace={workspace} />}
           {route.kind === "presentationMocks" && <PresentationMocksView />}
@@ -129,8 +129,8 @@ export function AtlasApp() {
           {route.kind === "record" && <RecordView route={route} />}
           {route.kind === "reader" && <ReaderView route={route} />}
         </Suspense>
-      </ConfigProvider>
-    </AppShell>
+      </AppShell>
+    </ConfigProvider>
   );
 }
 

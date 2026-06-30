@@ -1,7 +1,18 @@
-import { Tag } from "antd";
+import {
+  Button,
+  ConfigProvider,
+  Menu,
+  Table,
+  Tag,
+  Typography,
+  theme as antTheme,
+} from "antd";
+import type { ThemeConfig } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type React from "react";
+import { atlasTheme } from "../../shared/theme/atlasTheme";
 
 type MockCreature = {
   ac: number;
@@ -68,6 +79,91 @@ const creatures: MockCreature[] = [
 ];
 
 const featured = creatures[0];
+
+type ThemeLabCandidate = {
+  key: string;
+  label: string;
+  note: string;
+};
+
+type ThemeLabScheme = "light" | "dark";
+
+const themeLabCandidates: ThemeLabCandidate[] = [
+  {
+    key: "blue",
+    label: "Blue Cyan",
+    note: "Closest to Ant defaults, with a brighter dark-mode link step.",
+  },
+  {
+    key: "teal",
+    label: "Teal",
+    note: "Calm, readable, and close to the earlier Atlas dark palette.",
+  },
+  {
+    key: "amber",
+    label: "Amber",
+    note: "Warm and distinctive, but can read as status or warning if overused.",
+  },
+  {
+    key: "rust",
+    label: "Rust",
+    note: "Earthier than amber, with separate dark-mode seeds for contrast.",
+  },
+  {
+    key: "violet",
+    label: "Violet",
+    note: "Readable and distinctive, but stronger as a visual personality.",
+  },
+];
+
+type ThemeLabRecord = {
+  key: string;
+  name: string;
+  kind: string;
+  level: string;
+  source: string;
+};
+
+const themeLabRecords: ThemeLabRecord[] = [
+  {
+    key: "spell:heal",
+    name: "Heal",
+    kind: "Spell",
+    level: "1",
+    source: "Player Core",
+  },
+  {
+    key: "creature:night-hag",
+    name: "Night Hag",
+    kind: "Creature",
+    level: "9",
+    source: "Bestiary 1",
+  },
+];
+
+const themeLabColumns: ColumnsType<ThemeLabRecord> = [
+  {
+    title: "Name",
+    dataIndex: "name",
+    key: "name",
+    render: (value) => <Typography.Link>{value}</Typography.Link>,
+  },
+  {
+    title: "Kind",
+    dataIndex: "kind",
+    key: "kind",
+  },
+  {
+    title: "Level",
+    dataIndex: "level",
+    key: "level",
+  },
+  {
+    title: "Source",
+    dataIndex: "source",
+    key: "source",
+  },
+];
 
 type MockVariant = "weak" | "normal" | "elite";
 
@@ -233,6 +329,15 @@ export function PresentationMocksView() {
           </p>
         </div>
       </header>
+
+      <section className="surface-mock surface-mock--wide">
+        <MockHeading
+          label="Theme Lab"
+          title="Ant theme color candidates"
+          note="Nested Ant providers render the same controls with candidate primary and link colors in light and dark mode."
+        />
+        <ThemeLab />
+      </section>
 
       <section className="surface-mock">
         <MockHeading
@@ -476,6 +581,135 @@ export function PresentationMocksView() {
       </section>
     </main>
   );
+}
+
+function ThemeLab() {
+  return (
+    <div className="theme-lab">
+      {themeLabCandidates.map((candidate) => (
+        <article className="theme-lab__candidate" key={candidate.key}>
+          <header className="theme-lab__candidate-heading">
+            <div>
+              <h4>{candidate.label}</h4>
+              <p>{candidate.note}</p>
+            </div>
+            <span>{candidate.key}</span>
+          </header>
+          <div className="theme-lab__schemes">
+            <ThemeLabSchemePreview candidate={candidate} scheme="light" />
+            <ThemeLabSchemePreview candidate={candidate} scheme="dark" />
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function ThemeLabSchemePreview({
+  candidate,
+  scheme,
+}: {
+  candidate: ThemeLabCandidate;
+  scheme: ThemeLabScheme;
+}) {
+  const candidateTheme = themeLabTheme(candidate, scheme);
+  const previewToken = antTheme.getDesignToken(candidateTheme);
+  const primary = themeLabColor(candidate, scheme, "primary");
+  const link = themeLabColor(candidate, scheme, "link");
+  return (
+    <ConfigProvider theme={candidateTheme}>
+      <section
+        className={`theme-lab-card theme-lab-card--${scheme}`}
+        style={{
+          background: previewToken.colorBgContainer,
+          borderColor: previewToken.colorBorderSecondary,
+          color: previewToken.colorText,
+        }}
+      >
+        <header>
+          <div>
+            <p className="eyebrow">{scheme}</p>
+            <h5>{candidate.label}</h5>
+          </div>
+          <div className="theme-lab-card__swatches" aria-hidden="true">
+            <span style={{ background: primary }} />
+            <span style={{ background: link }} />
+          </div>
+        </header>
+        <Menu
+          className="theme-lab-card__menu"
+          disabledOverflow
+          items={[
+            { key: "search", label: "Search" },
+            { key: "lists", label: "Lists" },
+            { key: "encounters", label: "Encounters" },
+          ]}
+          mode="horizontal"
+          selectedKeys={["search"]}
+        />
+        <div className="theme-lab-card__buttons">
+          <Button type="primary">Primary</Button>
+          <Button>Default</Button>
+          <Button type="link">Link Action</Button>
+          <Button type="text">Text</Button>
+        </div>
+        <p>
+          Inline <Typography.Link>record link</Typography.Link> text beside muted
+          supporting copy, selected rows, and badges.
+        </p>
+        <div className="theme-lab-card__tags">
+          <Tag>spell</Tag>
+          <Tag color="processing">selected</Tag>
+          <Tag color="warning">warning</Tag>
+        </div>
+        <Table<ThemeLabRecord>
+          className="theme-lab-card__table"
+          columns={themeLabColumns}
+          dataSource={themeLabRecords}
+          pagination={false}
+          rowKey="key"
+          rowSelection={{
+            columnWidth: 34,
+            hideSelectAll: true,
+            selectedRowKeys: ["spell:heal"],
+          }}
+          size="small"
+        />
+      </section>
+    </ConfigProvider>
+  );
+}
+
+function themeLabTheme(
+  candidate: ThemeLabCandidate,
+  scheme: ThemeLabScheme,
+): ThemeConfig {
+  const primary = themeLabColor(candidate, scheme, "primary");
+  const link = themeLabColor(candidate, scheme, "link");
+  return {
+    algorithm: scheme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+    token: {
+      borderRadius: atlasTheme.radius.md,
+      colorInfo: primary,
+      colorLink: link,
+      colorPrimary: primary,
+      controlHeight: atlasTheme.controlHeight,
+      fontFamily: atlasTheme.fontFamily,
+    },
+  };
+}
+
+function themeLabColor(
+  candidate: ThemeLabCandidate,
+  scheme: ThemeLabScheme,
+  role: "primary" | "link",
+) {
+  if (typeof document === "undefined") {
+    return role === "primary" ? "var(--accent)" : "var(--accent-text)";
+  }
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(`--theme-lab-${candidate.key}-${scheme}-${role}`)
+    .trim();
 }
 
 function CreatureSurfaceFrame({

@@ -30,7 +30,7 @@
 
 .record-view__link,
 .reader-preview__open {
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 650;
   text-decoration: none;
@@ -155,7 +155,7 @@
 .relationship-link {
   border: 0;
   padding: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   background: transparent;
   cursor: pointer;
   text-decoration: underline;

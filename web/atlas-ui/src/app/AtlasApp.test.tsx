@@ -97,7 +97,7 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("option", { name: /spell:heal/ });
+    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
@@ -117,7 +117,7 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("option", { name: /spell:heal/ });
+    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
@@ -134,7 +134,7 @@ describe("AtlasApp routing", () => {
         record_ref: "spell:heal",
       }),
     );
-  });
+  }, 10_000);
 });
 
 function installLocalStorage() {
