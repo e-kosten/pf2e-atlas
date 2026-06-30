@@ -1,5 +1,7 @@
 import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
+import { Button, Menu } from "antd";
+import type { MenuProps } from "antd";
 import type {
   ColorSchemePreference,
   ResolvedColorScheme,
@@ -46,6 +48,27 @@ export function AppShell({
     ) : (
       <Moon size={18} />
     );
+  const selectedView = topLevelView(activeView);
+  const navItems: MenuProps["items"] = [
+    { key: "search", label: "Search" },
+    { key: "presentationMocks", label: "Surface Mocks" },
+    { key: "encounters", label: "Encounters" },
+    { key: "lists", label: "Lists" },
+  ];
+  const onNavClick: MenuProps["onClick"] = ({ key }) => {
+    if (key === "search") {
+      onNavigateSearch();
+    }
+    if (key === "presentationMocks") {
+      onNavigatePresentationMocks();
+    }
+    if (key === "encounters") {
+      onNavigateEncounters();
+    }
+    if (key === "lists") {
+      onNavigateLists();
+    }
+  };
 
   return (
     <div
@@ -57,80 +80,34 @@ export function AppShell({
           <h1>PF2e Atlas</h1>
           <p>{readiness?.message ?? "Waiting for the local Atlas service."}</p>
         </div>
-        <nav className="topbar__nav" aria-label="Atlas views">
-          <button
-            aria-current={activeView === "search" ? "page" : undefined}
-            className="topbar__nav-item"
-            onClick={onNavigateSearch}
-            type="button"
-          >
-            Search
-          </button>
-          <button
-            aria-current={activeView === "presentationMocks" ? "page" : undefined}
-            className="topbar__nav-item"
-            onClick={onNavigatePresentationMocks}
-            type="button"
-          >
-            Surface Mocks
-          </button>
-          <button
-            aria-current={
-              activeView === "encounters" ||
-              activeView === "encounter" ||
-              activeView === "encounterEdit"
-                ? "page"
-                : undefined
-            }
-            className="topbar__nav-item"
-            onClick={onNavigateEncounters}
-            type="button"
-          >
-            Encounters
-          </button>
-          <button
-            aria-current={
-              activeView === "lists" ||
-              activeView === "list" ||
-              activeView === "listEdit"
-                ? "page"
-                : undefined
-            }
-            className="topbar__nav-item"
-            onClick={onNavigateLists}
-            type="button"
-          >
-            Lists
-          </button>
-        </nav>
+        <Menu
+          aria-label="Atlas views"
+          className="topbar__nav"
+          disabledOverflow
+          items={navItems}
+          mode="horizontal"
+          onClick={onNavClick}
+          selectedKeys={[selectedView]}
+        />
         <div className="topbar__actions">
           <span className={`status-pill status-pill--${status}`}>{status}</span>
-          <button
-            className="icon-button"
+          <Button
             aria-pressed={diagnosticsOpen}
+            icon={<Activity size={18} />}
             onClick={() => setDiagnosticsOpen(!diagnosticsOpen)}
             title="Diagnostics"
-            type="button"
-          >
-            <Activity size={18} />
-          </button>
-          <button
-            className="icon-button"
+          />
+          <Button
+            icon={<RefreshCw size={18} />}
             onClick={workspace.refresh}
             title="Refresh"
-            type="button"
-          >
-            <RefreshCw size={18} />
-          </button>
-          <button
+          />
+          <Button
             aria-label={colorSchemeTitle}
-            className="icon-button"
+            icon={colorSchemeIcon}
             onClick={() => onColorSchemeChange(nextColorScheme)}
             title={colorSchemeTitle}
-            type="button"
-          >
-            {colorSchemeIcon}
-          </button>
+          />
         </div>
       </header>
       {workspace.errorMessage && (
@@ -140,6 +117,16 @@ export function AppShell({
       {children}
     </div>
   );
+}
+
+function topLevelView(activeView: AtlasRoute["kind"]): string {
+  if (activeView === "encounter" || activeView === "encounterEdit") {
+    return "encounters";
+  }
+  if (activeView === "list" || activeView === "listEdit") {
+    return "lists";
+  }
+  return activeView;
 }
 
 function DiagnosticsPanel({ workspace }: { workspace: SearchWorkspaceState }) {

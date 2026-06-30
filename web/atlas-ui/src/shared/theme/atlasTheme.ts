@@ -6,6 +6,7 @@ export type ColorSchemePreference = "system" | "light" | "dark";
 export type ResolvedColorScheme = "light" | "dark";
 
 export const COLOR_SCHEME_STORAGE_KEY = "atlas-ui-color-scheme";
+const COLOR_PREFIX = "#";
 
 export const atlasTheme = {
   fontFamily:
@@ -37,6 +38,10 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--split": token.colorSplit,
     "--accent": token.colorPrimary,
     "--accent-strong": token.colorPrimaryActive,
+    "--accent-text": token.colorLink,
+    "--active-bg": token.colorPrimaryBg,
+    "--active-bg-hover": token.colorPrimaryBgHover,
+    "--active-border": token.colorPrimaryBorder,
     "--warning": token.colorWarningText,
     "--danger": token.colorErrorText,
     "--shadow": token.boxShadowSecondary,
@@ -61,10 +66,15 @@ export function antDesignTheme(scheme: ResolvedColorScheme): ThemeConfig {
 }
 
 function themeConfig(scheme: ResolvedColorScheme): ThemeConfig {
+  const primary = atlasThemeSeed(scheme, "primary");
+  const link = atlasThemeSeed(scheme, "link");
   return {
     algorithm: scheme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
       borderRadius: atlasTheme.radius.md,
+      colorInfo: primary,
+      colorLink: link,
+      colorPrimary: primary,
       controlHeight: atlasTheme.controlHeight,
       fontFamily: atlasTheme.fontFamily,
     },
@@ -90,10 +100,30 @@ function themeConfig(scheme: ResolvedColorScheme): ThemeConfig {
         headerBg: "var(--panel-subtle)",
         headerColor: "var(--text)",
         rowHoverBg: "var(--panel-subtle)",
+        rowSelectedBg: "var(--active-bg)",
+        rowSelectedHoverBg: "var(--active-bg-hover)",
       },
       Tag: {
         borderRadiusSM: atlasTheme.radius.pill,
       },
     },
   };
+}
+
+function atlasThemeSeed(scheme: ResolvedColorScheme, role: "primary" | "link") {
+  const variableName = `--atlas-theme-${scheme}-${role}`;
+  if (typeof document === "undefined") {
+    return fallbackTealSeed(scheme, role);
+  }
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue(variableName).trim() ||
+    fallbackTealSeed(scheme, role)
+  );
+}
+
+function fallbackTealSeed(scheme: ResolvedColorScheme, role: "primary" | "link") {
+  if (scheme === "light") {
+    return `${COLOR_PREFIX}0f766e`;
+  }
+  return role === "primary" ? `${COLOR_PREFIX}2dd4bf` : `${COLOR_PREFIX}5eead4`;
 }

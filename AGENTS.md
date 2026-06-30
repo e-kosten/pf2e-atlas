@@ -41,6 +41,10 @@ Keep each documentation surface focused on its job:
 
 When writing or editing docs, prefer statements of current behavior and current ownership over repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
+## Frontend UI Direction
+
+For `web/atlas-ui`, Ant Design is the selected component library for generic application UI. Prefer Ant components and component tokens for buttons, icon buttons, links, navigation controls, tables, forms, overlays, selectors, alerts, empty/loading states, tags, pagination, and selected/active/hover styling before adding custom controls or local CSS state styling. Custom Atlas components should be reserved for product-specific surfaces such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, and encounter-runtime panels. See `web/atlas-ui/docs/frontend-guidelines.md` and `web/atlas-ui/AGENTS.md` for concrete frontend editing rules.
+
 ## Build, Test, And Development Commands
 
 - `scripts/install-git-hooks.sh`: configure this clone to use the tracked git hooks in `.githooks/`.

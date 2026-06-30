@@ -44,6 +44,104 @@
   text-align: right;
 }
 
+.theme-lab {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 14px;
+}
+
+.theme-lab__candidate {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.theme-lab__candidate-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.theme-lab__candidate-heading h4 {
+  margin: 0;
+}
+
+.theme-lab__candidate-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.theme-lab__candidate-heading > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.theme-lab__schemes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.theme-lab-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+}
+
+.theme-lab-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.theme-lab-card h5,
+.theme-lab-card p {
+  margin: 0;
+}
+
+.theme-lab-card p {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.theme-lab-card__swatches {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.theme-lab-card__swatches span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.theme-lab-card__menu {
+  border-bottom: 0;
+  background: transparent;
+}
+
+.theme-lab-card__buttons,
+.theme-lab-card__tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.theme-lab-card__table .ant-table {
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
 .surface-table-mock,
 .surface-list-mock,
 .surface-strip-mock,
@@ -197,7 +295,7 @@
 }
 
 .surface-creature-title strong {
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 15px;
 }
 
@@ -281,7 +379,7 @@
 
 .surface-detail__identity h3 {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 23px;
   line-height: 1.15;
 }
@@ -310,7 +408,7 @@
 }
 
 .surface-variant-control strong {
-  color: var(--accent-strong);
+  color: var(--accent-text);
 }
 
 .surface-detail__grid {
@@ -391,7 +489,7 @@
 }
 
 .surface-value--adjusted > strong {
-  color: var(--accent-strong);
+  color: var(--accent-text);
 }
 
 .surface-hp-bar {
@@ -635,7 +733,7 @@
 
 .surface-statblock__header h3 {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 22px;
   line-height: 1.1;
 }
@@ -728,7 +826,7 @@
 
 .surface-statblock__prose strong,
 .surface-statblock__details strong {
-  color: var(--accent-strong);
+  color: var(--accent-text);
 }
 
 .surface-statblock__details {
@@ -759,7 +857,7 @@
 
 .surface-hybrid__header h3 {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 22px;
 }
 
@@ -823,7 +921,7 @@
 
 .surface-structured__identity h3 {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 24px;
   line-height: 1.1;
 }
@@ -1080,7 +1178,7 @@
 .surface-pathbuilder__identity h3,
 .surface-beyond__header h3 {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 22px;
 }
 
@@ -1216,7 +1314,7 @@
 }
 
 .surface-hero-stat--adjusted strong {
-  color: var(--accent-strong);
+  color: var(--accent-text);
 }
 
 .surface-beyond-runtime {
@@ -1309,7 +1407,7 @@
 }
 
 .surface-adjusted-inline strong {
-  color: var(--accent-strong);
+  color: var(--accent-text);
 }
 
 .surface-condition-pill {
@@ -1320,7 +1418,7 @@
   padding: 0 7px;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
   border-radius: var(--radius-pill);
-  color: var(--accent-strong);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   font-size: 12px;
   font-weight: 650;
@@ -1334,7 +1432,7 @@
   padding: 0;
   border: 0;
   border-radius: var(--radius-pill);
-  color: var(--accent-strong);
+  color: var(--accent-text);
   background: transparent;
   font-size: 11px;
 }

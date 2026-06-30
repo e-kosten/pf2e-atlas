@@ -372,7 +372,7 @@ button.record-surface-value {
 
 .record-surface-structured__identity h2 {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--accent-text);
   font-size: 24px;
   line-height: 1.1;
 }

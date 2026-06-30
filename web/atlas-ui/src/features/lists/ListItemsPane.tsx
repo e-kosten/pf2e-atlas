@@ -64,7 +64,7 @@ export function ListItemsPane({
           pagination={false}
           rowClassName={(item) =>
             item.record_key === selectedRecordKey
-              ? "result-row result-row--active"
+              ? "result-row ant-table-row-selected"
               : "result-row"
           }
           rowKey={(item) => item.record_key}

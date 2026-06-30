@@ -1,7 +1,53 @@
+import { Table, Tag, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import type { ResultWindowRow } from "../../generated/atlas";
-import { RecordSurface } from "../../shared/records/RecordSurface";
 import { handleResultKeyboard, useActiveResultScroll } from "./resultKeyboard";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
+
+const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
+  {
+    title: "Name",
+    dataIndex: ["record", "title"],
+    key: "title",
+    render: (_value, row) => (
+      <span className="result-title">
+        <Typography.Text strong>{row.record.title}</Typography.Text>
+        <Typography.Text type="secondary">{row.record.record_key}</Typography.Text>
+      </span>
+    ),
+  },
+  {
+    title: "Kind",
+    dataIndex: ["record", "kind_label"],
+    key: "kind",
+    render: (_value, row) => row.record.kind_label || row.record.kind,
+    width: 110,
+  },
+  {
+    title: "Level",
+    dataIndex: ["record", "level_label"],
+    key: "level",
+    render: (_value, row) => row.record.level_label ?? "",
+    width: 76,
+  },
+  {
+    title: "Traits",
+    dataIndex: ["record", "traits"],
+    key: "traits",
+    render: (_value, row) => <TraitTags row={row} />,
+  },
+  {
+    title: "Source",
+    key: "source",
+    render: (_value, row) => row.record.publication ?? row.record.pack ?? "",
+    width: 140,
+  },
+  {
+    title: "Match",
+    key: "match",
+    render: (_value, row) => row.match_summary?.label ?? row.record.preview ?? "",
+  },
+];
 
 export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) {
   const scrollRef = useActiveResultScroll<HTMLDivElement>(workspace.activeResultKey);
@@ -11,90 +57,62 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
       <div
         aria-label="Results"
         aria-busy={workspace.resultsLoading || workspace.resultsRefreshing}
-        className="results-scroll results-scroll--focusable"
-        onKeyDown={(event) => handleResultKeyboard(event, workspace)}
+        className="results-scroll"
         ref={scrollRef}
-        role="listbox"
-        tabIndex={0}
       >
-        {workspace.resultsLoading ? (
-          <div className="detail-empty">Loading results...</div>
-        ) : (
-          <div className="result-list">
-            {rows.map((row) => (
-              <ResultRow
-                active={row.record.record_key === workspace.activeResultKey}
-                key={row.record.record_key}
-                onFocus={() => workspace.focusResult(row.record.record_key)}
-                onSelect={() => workspace.selectRecord(row.record.record_key)}
-                row={row}
-              />
-            ))}
-          </div>
-        )}
+        <Table<ResultWindowRow>
+          aria-label="Results"
+          className="result-table"
+          columns={RESULT_COLUMNS}
+          dataSource={rows}
+          loading={workspace.resultsLoading}
+          locale={{ emptyText: "No results" }}
+          onRow={(row) => ({
+            "data-active-result":
+              row.record.record_key === workspace.activeResultKey ? "true" : undefined,
+            onClick: () => workspace.selectRecord(row.record.record_key),
+            onFocus: () => workspace.focusResult(row.record.record_key),
+            onKeyDown: (event) => {
+              if (event.key === " ") {
+                event.preventDefault();
+                workspace.selectRecord(row.record.record_key);
+                return;
+              }
+              handleResultKeyboard(event, workspace);
+            },
+            onMouseEnter: () => workspace.focusResult(row.record.record_key),
+            role: "button",
+            tabIndex: 0,
+          })}
+          pagination={false}
+          rowClassName={(row) =>
+            row.record.record_key === workspace.activeResultKey
+              ? "result-row ant-table-row-selected"
+              : "result-row"
+          }
+          rowKey={(row) => row.record.record_key}
+          size="middle"
+        />
       </div>
     </section>
   );
 }
 
-function ResultRow({
-  active,
-  onFocus,
-  onSelect,
-  row,
-}: {
-  active: boolean;
-  onFocus: () => void;
-  onSelect: () => void;
-  row: ResultWindowRow;
-}) {
+function TraitTags({ row }: { row: ResultWindowRow }) {
+  const traits = row.record.traits ?? [];
+  if (traits.length === 0) {
+    return "";
+  }
+  const visibleTraits = traits.slice(0, 4);
+  const hiddenCount = traits.length - visibleTraits.length;
   return (
-    <div
-      aria-selected={active}
-      className={["result-rich-row", active ? "result-rich-row--active" : ""]
-        .filter(Boolean)
-        .join(" ")}
-      data-active-result={active ? "true" : undefined}
-      onClick={(event) => {
-        if (
-          event.target instanceof Element &&
-          event.target.closest("button,a,input,select,textarea")
-        ) {
-          return;
-        }
-        onSelect();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      onMouseEnter={onFocus}
-      role="option"
-      tabIndex={-1}
-    >
-      {row.surface ? (
-        <RecordSurface
-          surface={row.surface}
-          onReference={(recordKey) => {
-            if (recordKey === row.record.record_key) {
-              onSelect();
-            }
-          }}
-        />
-      ) : (
-        <FallbackRow row={row} />
+    <span className="result-traits">
+      {visibleTraits.map((trait) => (
+        <Tag key={`${trait.kind}-${trait.value}`}>{trait.label}</Tag>
+      ))}
+      {hiddenCount > 0 && (
+        <Typography.Text type="secondary">+{hiddenCount}</Typography.Text>
       )}
-    </div>
-  );
-}
-
-function FallbackRow({ row }: { row: ResultWindowRow }) {
-  return (
-    <span className="row-link">
-      <span>{row.record.title}</span>
-      <small>{row.record.record_key}</small>
     </span>
   );
 }
