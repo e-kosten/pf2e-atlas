@@ -18,7 +18,10 @@ describe("RecordPreviewPopover", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Nested Rule" }));
 
-    expect(onReference).toHaveBeenCalledWith("rules:nested");
+    expect(onReference).toHaveBeenCalledWith(
+      "rules:nested",
+      expect.objectContaining({ width: expect.any(Number) }),
+    );
   });
 });
 

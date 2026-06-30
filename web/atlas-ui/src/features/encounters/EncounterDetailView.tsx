@@ -7,7 +7,6 @@ import {
   deleteEncounter,
   getEncounter,
   getEncounterConditionDefinitions,
-  getRecordDetail,
   removeEncounterParticipant,
   removeEncounterParticipantCondition,
   reorderEncounterParticipant,
@@ -28,7 +27,7 @@ import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
-import type { RecordPreviewAnchor } from "../../shared/records/RecordPreviewPopover";
+import { useRecordPreview } from "../../shared/records/RecordPreviewPopover";
 
 type EncounterDetailViewProps = {
   route: Extract<AtlasRoute, { kind: "encounter" }>;
@@ -46,8 +45,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const [previewRecordKey, setPreviewRecordKey] = useState<string | null>(null);
-  const [previewAnchor, setPreviewAnchor] = useState<RecordPreviewAnchor | null>(null);
+  const recordPreview = useRecordPreview();
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -65,11 +63,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         participant.participant_key === encounter.data?.current_turn_participant_key,
     ) ??
     encounter.data?.participants[0];
-  const referencePreview = useQuery({
-    queryKey: ["record-preview-popover", previewRecordKey],
-    enabled: previewRecordKey !== null,
-    queryFn: () => getRecordDetail(previewRecordKey!),
-  });
   const invalidateEncounter = async () => {
     await queryClient.invalidateQueries({ queryKey: ["encounter", route.slug] });
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
@@ -192,8 +185,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             }
             onSelect={(participantKey) => {
               setSelectedParticipantKey(participantKey);
-              setPreviewRecordKey(null);
-              setPreviewAnchor(null);
+              recordPreview.close();
             }}
             onReorder={(participantKey, targetParticipantKey, placement) =>
               reorderParticipant.mutate({
@@ -212,19 +204,11 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         results={
           <EncounterInspectorPane
             onAddCondition={(request) => addCondition.mutate(request)}
-            onCloseRecordPreview={() => {
-              setPreviewRecordKey(null);
-              setPreviewAnchor(null);
-            }}
+            onCloseRecordPreview={recordPreview.close}
             onOpenRecordFullPage={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
-            onReference={(recordKey, anchorRect) => {
-              setPreviewRecordKey(recordKey);
-              if (anchorRect) {
-                setPreviewAnchor(referenceAnchorFromRect(anchorRect));
-              }
-            }}
+            onReference={recordPreview.open}
             onRemoveCondition={(participantKey, conditionId) =>
               removeCondition.mutate({ participantKey, conditionId })
             }
@@ -235,10 +219,10 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             participant={selected}
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
-            previewAnchor={previewAnchor}
-            previewDetail={referencePreview.data}
-            previewLoading={referencePreview.isLoading || referencePreview.isFetching}
-            previewRecordKey={previewRecordKey}
+            previewAnchor={recordPreview.anchor}
+            previewDetail={recordPreview.detail}
+            previewLoading={recordPreview.loading}
+            previewRecordKey={recordPreview.recordKey}
           />
         }
         labels={{ filter: "Roster", results: "Participant" }}
@@ -279,15 +263,4 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       )}
     </>
   );
-}
-
-function referenceAnchorFromRect(rect: DOMRect): RecordPreviewAnchor {
-  return {
-    top: rect.top,
-    right: rect.right,
-    bottom: rect.bottom,
-    left: rect.left,
-    width: rect.width,
-    height: rect.height,
-  };
 }

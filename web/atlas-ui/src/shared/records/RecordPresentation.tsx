@@ -197,12 +197,13 @@ function RelationshipView({
       <button
         className="relationship-link"
         type="button"
-        onClick={(event) =>
+        onClick={(event) => {
+          event.stopPropagation();
           onReference(
             relationship.record_key!,
             event.currentTarget.getBoundingClientRect(),
-          )
-        }
+          );
+        }}
       >
         {relationship.label}
       </button>
@@ -236,9 +237,13 @@ function renderSpans(
             className="inline-reference"
             key={index}
             type="button"
-            onClick={(event) =>
-              onReference(span.record_key!, event.currentTarget.getBoundingClientRect())
-            }
+            onClick={(event) => {
+              event.stopPropagation();
+              onReference(
+                span.record_key!,
+                event.currentTarget.getBoundingClientRect(),
+              );
+            }}
           >
             {span.label}
           </button>

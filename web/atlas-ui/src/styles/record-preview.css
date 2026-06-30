@@ -17,6 +17,7 @@
   grid-template-rows: auto minmax(0, 1fr);
   max-width: calc(100vw - 32px);
   min-width: min(320px, calc(100vw - 32px));
+  min-height: 0;
   overflow: hidden;
   position: absolute;
 }
@@ -33,6 +34,8 @@
 
 .record-preview-popover__body {
   background: var(--panel);
+  min-height: 0;
+  overscroll-behavior: contain;
   overflow: auto;
   padding: 12px;
 }
