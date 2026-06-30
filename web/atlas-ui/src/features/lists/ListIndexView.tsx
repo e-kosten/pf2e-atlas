@@ -10,7 +10,11 @@ import {
   shouldHandleAtlasRouteClick,
   type AtlasRoute,
 } from "../../app/routes";
-import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
+import {
+  IndexTable,
+  RowTitleLink,
+  stopIndexRowAction,
+} from "../../shared/ui/tables/IndexTable";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { CreateListModal } from "./CreateListModal";
@@ -101,8 +105,7 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
     {
       title: "List",
       render: (_, list) => (
-        <a
-          className="row-link row-link--anchor"
+        <RowTitleLink
           href={listPath(list.slug)}
           onClick={(event) => {
             if (!shouldHandleAtlasRouteClick(event)) {
@@ -115,10 +118,9 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
               selectedRecordKey: null,
             });
           }}
-        >
-          <span>{list.name}</span>
-          <small>{list.slug}</small>
-        </a>
+          subtitle={list.slug}
+          title={list.name}
+        />
       ),
     },
     {
