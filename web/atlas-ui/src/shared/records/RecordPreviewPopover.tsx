@@ -1,51 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "antd";
-import { ExternalLink, X } from "lucide-react";
 import type React from "react";
-import { useCallback, useState } from "react";
-import { getRecordDetail } from "../../api/atlasApi";
 import { RecordPresentation } from "./RecordPresentation";
+import { RecordPreviewActions } from "./RecordPreviewActions";
+import type {
+  RecordPreviewAnchor,
+  RecordPreviewContentProps,
+} from "./recordPreviewTypes";
 
-export type RecordPreviewAnchor = {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-  width: number;
-  height: number;
+type RecordPreviewPopoverProps = RecordPreviewContentProps & {
+  anchor: RecordPreviewAnchor | null;
 };
-
-export function useRecordPreview() {
-  const [recordKey, setRecordKey] = useState<string | null>(null);
-  const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
-  const detail = useQuery({
-    queryKey: ["record-preview-popover", recordKey],
-    enabled: recordKey !== null,
-    queryFn: () => getRecordDetail(recordKey!),
-  });
-
-  const close = useCallback(() => {
-    setRecordKey(null);
-    setAnchor(null);
-  }, []);
-
-  const open = useCallback((nextRecordKey: string, anchorRect?: DOMRect) => {
-    setRecordKey(nextRecordKey);
-    if (anchorRect) {
-      setAnchor(recordPreviewAnchorFromRect(anchorRect));
-    }
-  }, []);
-
-  return {
-    anchor,
-    close,
-    detail: detail.data,
-    error: detail.error,
-    loading: detail.isLoading || detail.isFetching,
-    open,
-    recordKey,
-  };
-}
 
 export function RecordPreviewPopover({
   anchor,
@@ -54,14 +17,7 @@ export function RecordPreviewPopover({
   onClose,
   onOpenFullPage,
   onReference,
-}: {
-  anchor: RecordPreviewAnchor | null;
-  detail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
-  loading: boolean;
-  onClose: () => void;
-  onOpenFullPage: () => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
-}) {
+}: RecordPreviewPopoverProps) {
   const position = recordPreviewPosition(anchor);
 
   return (
@@ -83,20 +39,7 @@ export function RecordPreviewPopover({
       >
         <header className="record-preview-popover__header">
           <span>Reference</span>
-          <div className="encounter-actions">
-            <Button
-              aria-label="Open reference full page"
-              icon={<ExternalLink size={14} />}
-              onClick={onOpenFullPage}
-              size="small"
-            />
-            <Button
-              aria-label="Close reference preview"
-              icon={<X size={14} />}
-              onClick={onClose}
-              size="small"
-            />
-          </div>
+          <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
         </header>
         <div className="record-preview-popover__body">
           <RecordPresentation
@@ -137,17 +80,6 @@ function recordPreviewPosition(
     maxHeight,
     top: clamp(anchor.top, margin, window.innerHeight - margin - maxHeight),
     width,
-  };
-}
-
-function recordPreviewAnchorFromRect(rect: DOMRect): RecordPreviewAnchor {
-  return {
-    top: rect.top,
-    right: rect.right,
-    bottom: rect.bottom,
-    left: rect.left,
-    width: rect.width,
-    height: rect.height,
   };
 }
 

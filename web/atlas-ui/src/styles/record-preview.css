@@ -39,3 +39,14 @@
   overflow: auto;
   padding: 12px;
 }
+
+.record-preview-drawer .ant-drawer-header {
+  padding: 10px 12px;
+}
+
+.record-preview-drawer .ant-drawer-body {
+  min-height: 0;
+  overscroll-behavior: contain;
+  overflow: auto;
+  padding: 12px;
+}

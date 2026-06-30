@@ -15,11 +15,9 @@ import {
   optionalBigIntInput,
   participantUpdate,
 } from "./participantEdits";
-import {
-  RecordPreviewPopover,
-  type RecordPreviewAnchor,
-} from "../../shared/records/RecordPreviewPopover";
+import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
 import { RecordSurface } from "../../shared/records/RecordSurface";
+import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";

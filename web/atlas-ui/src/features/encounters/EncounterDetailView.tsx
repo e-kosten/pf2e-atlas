@@ -27,7 +27,7 @@ import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
-import { useRecordPreview } from "../../shared/records/RecordPreviewPopover";
+import { useRecordPreview } from "../../shared/records/useRecordPreview";
 
 type EncounterDetailViewProps = {
   route: Extract<AtlasRoute, { kind: "encounter" }>;
