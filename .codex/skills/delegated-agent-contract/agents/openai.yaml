@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delegated Agent Contract"
+  short_description: "Require explicit subagent contracts"
+  default_prompt: "Use $delegated-agent-contract to check a delegated implementation, validation, remediation, or exploration assignment before doing work."

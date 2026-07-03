@@ -1,0 +1,306 @@
+# TypeScript Runtime Inventory And Rust Contract Mapping
+
+Status: active contract input
+Feeds: [migration-checklist.md](./migration-checklist.md) Phase 1.5
+Last reviewed: 2026-05-12
+
+This document maps the current TypeScript runtime shape to the Rust migration contract surface. It is not a promise to copy TypeScript module structure, names, table design, or type boundaries. It is the parity inventory that Phase 2 domain work, Phase 3 ingest/index work, and later lookup/search/discovery slices must either preserve deliberately, redesign with user-visible parity, or retire explicitly.
+
+Current TypeScript behavior is the first compatibility baseline, not the final design authority. Follow-up agents should challenge inherited shapes when they look underspecified, stringly typed, over-broad, duplicated, or mismatched with Rust ownership. If the right Rust path is not obvious, the expected behavior is to present a short set of viable approaches and ask for input before hardening the contract.
+
+## Classification Vocabulary
+
+- `parity`: Rust should initially preserve the TypeScript behavior or artifact meaning.
+- `rust redesign`: Rust should expose a stronger typed contract while preserving user-visible behavior.
+- `transitional`: Rust may read or compare this during migration, but it should not become a primary long-term concept.
+- `retired`: Rust should not carry this forward except for explicit parity analysis.
+
+## Source Inventory
+
+Primary TypeScript sources:
+
+- `src/data/schema.ts`: SQLite schema, index version, table/index inventory.
+- `src/data/indexing/build-index.ts`: index build stage order.
+- `src/data/indexing/catalog-writer.ts`: metadata, pack rows, alias rows, remaster bridge rows, metric catalogs.
+- `src/data/indexing/record-writer.ts`: records, traits, derived tags, side-data tables, references, FTS rows.
+- `src/data/indexing/embedding-writer.ts`: reusable embedding blobs and sqlite-vec rows.
+- `src/data/index-types.ts`: normalized ingest/write model.
+- `src/domain/record-types.ts`: runtime record shape.
+- `src/domain/search-types.ts`: TypeScript categories/subcategories, lookup/search result contracts, filter discovery fields.
+- `src/domain/search-request-types.ts`: canonical request and filter tree.
+- `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts`: metadata fields and predicate contracts.
+- `src/domain/rule-types.ts`: TypeScript rule graph and rule-context contracts; Rust V1 intentionally replaces the product shape with key-based graph context retrieval.
+- `docs/architecture/node/search.md`: current search flow and owner boundaries.
+- `docs/architecture/node/editorial.md`: current derived-tag runtime/editorial split.
+
+## SQLite Artifact Table Map
+
+| Current TS table | Current role | Rust classification | Rust owner | Notes |
+| --- | --- | --- | --- | --- |
+| `metadata` | TypeScript schema, source, and embedding identity metadata | transitional | `atlas-index` reader only during migration | Rust artifacts use `artifact_metadata`. TS `metadata` remains useful for legacy diagnostics and parity comparisons. |
+| `artifact_metadata` | New Rust artifact contract metadata | parity | `atlas-domain` constants, `atlas-index` validation, `atlas-ingest` writer | First Rust-owned metadata table. Existing contract covers keys and diagnostics. |
+| `packs` | Pack labels, document types, source paths, counts | parity | `atlas-index` read model, `atlas-ingest` writer | Required for pack filtering, display, schema discovery, and source parity. |
+| `records` | Canonical normalized record row plus raw JSON and search flags | rust redesign | `atlas-domain` record types, `atlas-index` row loading, `atlas-ingest` writer | Preserve field meaning, but model Rust rows as typed structs rather than stringly row bags. |
+| `record_aliases` | Source-backed lookup aliases from remaster journals, migration rename files, and selected embedded compendium sources | parity | `atlas-index`, `atlas-ingest`, `atlas-search` lookup | Required before production lookup parity. Variant family grouping is separate metadata and should not create broad base-name alias rows. |
+| `record_legacy_links` | Premaster-to-remaster record bridges extracted from remaster journals and migration aliases | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest` | Preserve the domain concept, but name/model it as `remaster_links` or edition links in Rust rather than a generic legacy compatibility bucket. |
+| `record_traits` | Normalized trait rows | parity | `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for trait filters and value discovery. |
+| `record_derived_tags` | Normalized derived-tag rows | deferred redesign | Later `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Derived tags are intentionally deferred until late in the Rust migration. The surface is large and needs a separate design pass because `record_kind`, explicit source axes, and retired subcategory semantics change the long-term tag model. |
+| `actor_records` | Actor-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for creature/hazard discovery and filters. |
+| `actor_metrics` | Actor metric predicates and discovery | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Rust uses unified `record_metrics` rows with `metric_domain = actor` rather than a separate physical actor table. |
+| `item_records` | Item/equipment side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for item metadata filters and discovery. |
+| `item_metrics` | Item metric predicates and discovery | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Rust uses unified `record_metrics` rows with `metric_domain = item` rather than a separate physical item table. |
+| `record_metrics` | Unified Rust metric predicates and discovery | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Required for metric filters and dynamic metric discovery. Preserves actor/item meaning through `metric_domain`. |
+| `metric_key_catalog` | Precomputed metric key availability by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be written before `atlas filters values` can replace MCP discovery. |
+| `metric_value_catalog` | Precomputed text/boolean metric values by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be part of Phase 3 or a blocking prerequisite for Phase 7. |
+| `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
+| `embeddings` | Reusable vector blobs plus semantic input hashes | rust redesign as `document_embedding_cache` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve the cache/provenance role but use the clearer Rust-owned physical table name `document_embedding_cache`. Not a Phase 3 writer requirement. |
+| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign as `record_vector_index` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector retrieval behavior but use the clearer Rust-owned physical table name `record_vector_index`. The Rust baseline stores only rowid plus embedding; rowid maps back to embedding-unit metadata through `document_embedding_cache`. Full filters are applied through authoritative SQL keyset prefiltering. Not a Phase 3 writer requirement. |
+| `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, graph context | Required for `links_to`, `linked_from`, and key-based graph context retrieval. |
+| `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
+
+Required Phase 3 writer outputs are therefore broader than the original minimal table list, but bounded to the non-vector runtime artifact. The writer plan must cover `packs`, side tables, metric catalogs, aliases, remaster links, and reference rows, not only `records`, `records_fts`, and `reference_edges`. Embeddings and vector rows are a cohesive Phase 4 concern. Derived-tag rows are excluded from Phase 3 until the Phase 10 redesign pass.
+
+## Foundational DB And Type Design Review
+
+The TypeScript schema is a reliable inventory of current behavior, but it should not be treated as a fully scrutinized long-term database design. The Rust migration should preserve user-visible behavior while taking the chance to tighten artifact and type boundaries before Phase 3 writes durable data.
+
+### Decisions To Reconsider Before Phase 3
+
+| Current TS design | Risk | Rust plan decision |
+| --- | --- | --- |
+| Arrays stored both as JSON blobs on `records` and as side tables for selected fields, such as traits | Duplicated truth can drift and forces row hydration to parse JSON for common filters/discovery | Prefer typed side tables for filterable multi-value fields. Keep JSON blobs only for compact record presentation or parity debugging when they are generated from the same typed source. Derived-tag storage is deferred to Phase 10 rather than being modeled from the current TypeScript table shape. |
+| `records` is a broad catch-all row containing core identity, presentation text, classification, variant facts, search text, raw JSON, and several denormalized filter fields | Makes the central table hard to version and encourages consumers to depend on incidental columns | Split Rust domain types into identity, summary, presentation, source/provenance, variant, and search-index inputs. The SQLite table may stay wide for read performance, but Rust APIs should not expose one giant mutable shape as the primary contract. |
+| `raw_json` is persisted for every row | Useful for debugging, but dangerous if runtime behavior keeps reaching into arbitrary JSON paths | Keep initially for parity/debugging. Runtime lookup/search/discovery should use typed rows. Any raw JSON dependency must be called out as an ingest gap. |
+| Boolean values are stored as `INTEGER` without explicit value constraints | SQLite permits non-0/1 values unless writers are disciplined | Rust artifact schema should add `CHECK` constraints for boolean columns or validate them during artifact validation. |
+| Many enum-like columns are plain text: TypeScript category, TypeScript subcategory, rarity, source category, variant source, document type, record type, metric value type | Current TypeScript relies on conventions and runtime normalization | Rust models Atlas-derived product grouping as `record_kind`, preserves raw Foundry identity as `foundry_document_type` and `foundry_record_type`, and should model other durable closed values as enums or validated newtypes at load time. The Rust contract has no generic subcategory scope; useful TypeScript subcategory-like concepts become explicit metadata/filter axes such as Foundry document type, item type, actor type, spell tradition, spell kind, hazard kind, feat kind, and trait-backed filters. |
+| `RecordKey` is a string alias in TypeScript | Malformed keys can cross boundaries until late SQL/runtime failures | Rust should use a parseable `RecordKey` newtype with `pack` and `id` components, and only serialize/display as `pack:id` at boundaries. |
+| Metric storage uses EAV tables with string metric keys and dynamic value types | Flexible, but weakly typed and hard to discover without catalogs | Keep EAV for first parity because actor/item metrics are open-ended. Strengthen with typed `MetricValue`, catalog validation, namespace prefix parsing, and stable metric key normalization. |
+| `metric_key_catalog` and `metric_value_catalog` are derived after all record writes | Correct today, but easy for future writers to forget | Make metric catalog writing a required artifact stage with validation that catalog rows match metric rows for canonical records. |
+| `record_embeddings` duplicates many filter columns already present in `records`/side tables | Useful for sqlite-vec partition filtering, but can drift from source rows | Rust replaces this with keyset-prefiltered semantic search over `record_vector_index`. Do not add vector-side filter projection columns to the baseline. If performance testing later adds vec metadata or partition columns, treat them as accelerators generated from authoritative rows with drift validation. |
+| Sentinel values in sqlite-vec partition columns use empty string and `-1` | Necessary for vec metadata constraints, but semantically lossy | Rust avoids sentinels in the baseline by keeping `record_vector_index` key-and-vector only. If future performance accelerators add vec metadata columns, sentinels must remain hidden behind `atlas-index` helpers and never appear as domain/search values. |
+| `reference_edges` has generic reference rows but no explicit relationship enum beyond source/target and text | Adequate for current `links_to`/`linked_from`, but may blur rules, page links, aliases, and generated references later | Add a Rust relationship/source-kind enum before expanding graph behavior. Preserve current `references` semantics for parity, but leave room for typed relationship classes. |
+| Current TS `record_legacy_links` is a real table beside canonical aliases | The concept is useful for PF2E remaster navigation, but the current name makes it sound like generic compatibility | Keep the concept as `remaster_links` or edition links. Rust lookup should prefer canonical keys and aliases, while record detail can expose explicit remaster bridge relationships. |
+| Search canonicality is stored as `is_search_canonical` | Necessary for variants/generated records, but easy to misuse | Rust stores the first policy projection as `is_default_visible`, meaning participation in default user-facing retrieval surfaces. Records remain addressable by direct key, links, and inspection when this is false. Decide later whether generated afflictions, variants, and aliases need a richer policy enum. |
+| FTS text is stored as `search_text` on `records` and repeated in `records_fts` | Practical for ranking/debugging, but duplicated | Keep for first parity. Rust writer should generate both from a single search-text artifact and validate row-key coverage. |
+| Detail/output vocabulary differs between current TS (`minimal`, `standard`, `full`) and the accepted Rust CLI contract (`summary`, `preview`, `description`, `standard`, `full`) | Output contract drift can leak into CLI docs and tests; `answerable` is not a current runtime concept | Use Rust wire values `summary`, `preview`, `description`, `standard`, and `full`. Do not add `minimal`, `compact`, or `answerable` as Rust CLI detail values. Treat `compact` as descriptive copy only, not a wire value. |
+
+### Rust Type Principles For The Migration
+
+- Use newtypes for identifiers: `RecordKey`, `PackName`, `RecordId`, `MetricKey`, `SourceSignature`.
+- Use enums for closed vocabularies: `record_kind`, publication family, rarity when normalized, search mode, retrieval mode, fusion method, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
+- Do not preserve TypeScript subcategory as a Rust field, enum, scope member, or compatibility projection. If a candidate axis is fully derived from traits, keep it as trait filtering. If multiple source facts produce one useful filter signal, collapse them into a clearly named metadata field.
+- Use typed side-data structs for actor, item, spell, publication, and variant facts. Embedding identity belongs to Phase 4 embedding/vector artifact contracts.
+- Keep open PF2E/provider-defined values as validated strings with clear owners rather than pretending they are closed enums.
+- Use `Result` at boundary decoders and row loaders. Missing or malformed runtime-required fields should be artifact errors, not silently defaulted values.
+- Keep SQLite row structs separate from CLI output structs. Storage shape, domain shape, and presentation shape should not collapse into one large type.
+- Make generated projections explicit: FTS rows, metric catalogs, and aliases should be derived from typed source models and have coverage checks in Phase 3. Vector rows get the same treatment in Phase 4. Derived-tag rows get the same treatment only if retained after the Phase 10 redesign.
+
+### Design Review Gates
+
+Before Phase 2 is complete:
+
+- Keep Rust detail vocabulary aligned with the accepted Rust CLI contract: `summary`, `preview`, `description`, `standard`, and `full`.
+- Decide which text columns are required for compact lookup versus full record output.
+- Decide which TypeScript string aliases remain accepted CLI inputs.
+
+Before Phase 3 writer work continues beyond the minimal writer:
+
+- Add the full Rust artifact table contract beyond `artifact_metadata`.
+- Decide which JSON array columns are durable versus generated presentation caches.
+- Decide whether boolean and enum-like columns get SQLite `CHECK` constraints, row-loader validation, or both.
+- Model the current TS remaster bridge table as `remaster_links` or edition links and preserve premaster-to-remaster navigation semantics.
+- Keep the planned Rust canonical scope model free of generic subcategory fields before lookup/search/discovery harden around it.
+- Record each skipped source record during ingest with path and reason so full-corpus runs become an upgrade queue for the validation pipeline.
+
+Before Phase 7 discovery starts:
+
+- Validate that discovery fields are backed by typed columns, side tables, or generated catalogs, not ad hoc raw JSON reads.
+- Validate metric catalog coverage against metric rows for canonical records.
+- Exclude derived-tag discovery until Phase 10 defines the retained runtime tag model.
+
+Before Phase 4 embedding/vector work starts:
+
+- Use Rust-owned physical table names `document_embedding_cache` and `record_vector_index`; do not copy the TypeScript `embeddings` / `record_embeddings` names into the Rust artifact.
+- Keep `record_vector_index` rowid-and-vector only for the baseline. Do not add `record_key`, `embedding_unit_key`, `record_kind`, or other filter projection columns before performance validation proves they are needed.
+- Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_vector_index.rowid` values resolved through `document_embedding_cache`. Do not use ordinary joins around the vec scan for exact filtered KNN.
+- Treat filters that cannot compile to a SQL keyset as an error in the first Rust baseline.
+- Add an `atlas-embedding` model catalog as the single owner of the active/default model decision and identity fields. Ingest, validation, and search should consume catalog specs rather than repeating raw model strings.
+- Preserve MiniLM compatibility for TypeScript parity and older artifacts. ADR 0018 changes the default baseline to BGE small.
+- Treat a future default-model switch as a catalog/config change plus `document_embedding_cache`, `record_vector_index`, and metadata rebuild, followed by search-quality validation.
+- Keep vector table capability checks out of artifact metadata validation; vector capability belongs to commands that need semantic retrieval.
+
+## Indexing Stage Map
+
+| Current TS stage | Current owner | Rust stage | Rust owner | Classification |
+| --- | --- | --- | --- | --- |
+| Write metadata | `catalog-writer.ts` | Write `artifact_metadata` and migration comparison metadata | `atlas-ingest` + `atlas-domain` constants | rust redesign |
+| Load source packs and records | `source-loading.ts` | Tolerant Foundry source loading | `atlas-ingest` | parity |
+| Write packs | `catalog-writer.ts` | Pack writer | `atlas-ingest` | parity |
+| Normalize records | `record-normalization.ts` and helpers | Boundary parse to typed ingest model | `atlas-ingest` using `atlas-domain` value types | rust redesign |
+| Assign kinds | `family-assignment.ts` | Kind/variant assignment | `atlas-ingest` initially, possibly later `atlas-search` for reusable semantics | parity |
+| Resolve references, aliases, remaster links | `reference-resolution.ts` | Reference/alias/remaster-link resolver | `atlas-ingest` | parity with Rust naming/model cleanup |
+| Canonicalize records and derived afflictions | `canonicalization.ts`, `derived-afflictions.ts` | Canonical record selection and generated affliction policy; Rust keeps staged action, consumable, and spell afflictions, and rejects weapon/item containers whose affliction text would otherwise be promoted under the container name | `atlas-ingest` | rust redesign |
+| Build writable model | `record-write-model.ts` | Typed writer model | `atlas-ingest` | rust redesign |
+| Write records, side data, FTS, references | `record-writer.ts` | Table writers with typed row inputs | `atlas-ingest` | parity |
+| Generate/reuse embeddings | `embedding-writer.ts` | Document embedding input builder, `document_embedding_cache` writer, and `record_vector_index` writer | `atlas-embedding` + `atlas-ingest` | parity behavior with Rust-owned table names and keyset-prefiltered search design |
+| Write alias and remaster-link rows | `catalog-writer.ts` | Alias writer and remaster-link writer | `atlas-ingest` | parity with Rust naming/model cleanup |
+| Populate metric catalogs | `catalog-writer.ts` | Metric catalog writer | `atlas-ingest` | parity |
+
+Rust implementation should keep the stage order mostly intact until parity is proven. The crate/module layout can differ, but the source-to-artifact data dependencies should remain explicit.
+
+## Domain Contract Map
+
+| Current TS contract | Rust contract | Owner | Classification | Notes |
+| --- | --- | --- | --- | --- |
+| `RecordKey = string` | `RecordKey { pack, id }` parseable/displayable newtype | `atlas-domain` | rust redesign | User-visible key syntax remains `pack:id`; Rust should reject malformed keys at the boundary. |
+| `SearchCategory` and aliases | `Category` enum plus explicit input alias parser | `atlas-domain` | rust redesign | Domain serde uses Rust-owned canonical values. Alias acceptance belongs at user-facing or compatibility boundaries and must serialize back to one canonical representation. |
+| `SearchSubcategory` and aliases | Removed from Rust contracts; replace with explicit metadata/filter axes | `atlas-domain`, `atlas-ingest`, later `atlas-search` | retired | Do not keep a compatibility projection. Useful source-authored or collapsed signals should become well-named fields; trait-derived groups should remain trait filters. |
+| `SourceCategory` | `SourceCategory` enum | `atlas-domain` | parity | Values: `core`, `rules`, `adventure`, `unknown`. |
+| `VariantSource` | `VariantSource` enum | `atlas-domain` | parity | Keep until variant parity is classified. |
+| `RecordDetail` | `DetailLevel` enum | `atlas-domain` | rust redesign | Current TS values are `minimal`, `standard`, `full`, but Rust uses `summary`, `preview`, `description`, `standard`, and `full` as its CLI wire values. `summary` carries identity and summary facts, `preview` adds a truncated description, `description` adds the full description section without the extra standard-detail sections, `standard` hydrates the normal presentation record, and `full` adds source provenance. Do not add `minimal`, `compact`, or `answerable` as Rust CLI detail values. |
+| `NormalizedRecord` | `RecordSummary`, later `RecordDetail`, side-data structs | `atlas-domain` | rust redesign | `RecordSummary` owns lightweight list/preview facts: identity, name, top-level category, optional level/rarity/action cost, traits, publication/source summary, text status, and optional summary text. Explicit type axes belong in named metadata or side-data. Avoid one overgrown public struct when command outputs need smaller typed envelopes. |
+| rarity, level, action cost, source/publication facts | `Rarity`, `Level`, `ActionCost`, `Publication`, `SourceProvenance`, `TextStatus` | `atlas-domain` | rust redesign | `Rarity` is closed. `Level` is a numeric alias unless later invariants justify a newtype. `ActionCost` preserves numeric action counts and non-numeric free/reaction/passive/variable/other source values. Publication/source titles and paths remain free text; only normalized `SourceCategory` is a closed bucket. `TextStatus` is an internal diagnostic, not a user-facing answerability level. |
+| `SearchRequest` | Not retained as a Rust domain contract | future app model, if needed | retired | The old TypeScript browse/search/lookup request state is not preserved in `atlas-domain`. Future web/TUI search workflow DTOs should be designed from the Rust product surface and adapted to `atlas-search` service requests. |
+| `SearchFilterNode` | recursive enum | `atlas-domain` | parity semantics, Rust-owned shape | Exhaustive matching should force downstream search handling. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
+| metadata fields and predicates | field enum by kind plus predicate enum | `atlas-domain` | parity semantics, Rust-owned shape | Preserve operator semantics by field type. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
+| metric predicates | metric predicate structs/enums | `atlas-domain` | parity | Keep metric key as string initially; catalog discovery owns valid values. |
+| Search retrieval and fusion controls | `atlas-search` request/options types | `atlas-search` | rust redesign | Rust does not carry the Node-era lexical/balanced/concept profile vocabulary as the normal product model. Retrieval and fusion controls are search-owned execution/tuning concerns, not shared domain request vocabulary. |
+| browse/lookup sort specs | Not retained as shared domain request specs | `atlas-search` / future app model, if needed | retired | Record listing sort is owned by the record retrieval service as `RecordListSort`; lookup-specific sort policy from the old TS request contract is not preserved. |
+| `LookupResult` | lookup result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve safe exact-miss behavior; output can be narrower. |
+| `SearchResult` | search result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve total/offset/limit/hasMore semantics. |
+| `RuleReferenceEdge` and graph results | Graph context edge/result structs | `atlas-search` initially; promote only when another surface needs the same contract | Rust redesign | V1 graph context is key-based and one-hop. Rule-context request/result DTOs are not retained as Rust contracts. Record-reference edges stay separate from remaster same-concept bridges. |
+| `record_legacy_links` rows | `RemasterLink` | `atlas-domain` | rust redesign | Represents premaster/remaster records that are conceptually the same record across edition state. Direction is `remaster` to `legacy`, preserving current TS canonical-to-legacy behavior. Source is currently `remaster_journal` or `migration`; do not model renamed/merged/replaced subtypes until ingest preserves that distinction. |
+| derived-tag ontology/runtime types | redesigned tag model and filtered row model | Later `atlas-tags` with shared ids in `atlas-domain` if retained | deferred redesign | Do not port derived tags during Phase 3. Revisit them late after `record_kind`, explicit source axes, and search/discovery shape have stabilized. |
+
+## Filter And Discovery Contract Map
+
+`atlas filters fields` and `atlas filters values` must be able to replace current MCP discovery. Initial Rust discovery must cover:
+
+- field vocabulary from `FILTER_VALUE_FIELDS`
+- metadata field kind/operator compatibility
+- record-kind scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
+- traits, taxonomy families, and variant axes
+- spell traditions and spell kinds
+- item fields such as item category, base item, usage, hands, weapon group, armor group, price, bulk, and damage types
+- actor fields such as size, languages, speeds, senses, immunities, resistances, weaknesses, disable skills, and complexity
+- spell fields such as range, save type, area type, duration, target, sustained, and basic save
+- actor and item metric key/value discovery from `metric_key_catalog` and `metric_value_catalog`
+- publication, pack, record-kind, and explicit type-axis discovery
+
+Discovery is blocked on Rust-owned writes for the tables and catalogs that back these values. Phase 7 should not be marked complete until the Rust artifact can answer these discovery calls without TypeScript runtime help. When the TUI filter-builder surface is rebuilt, it should not hard-gate filter addition behind top-level record-kind selection; record kind may still improve discovery ranking and applicability hints, but the data model should support global field discovery where a field is meaningful outside one kind.
+
+## Product Surface Parity Map
+
+The Rust CLI can use different command names, but Phase 5 through Phase 10 should map to the current product surface
+instead of inventing PF2E capability. ADR 0019 defines the Rust CLI shape: `record get` and `record resolve` own strict
+record identification, while `search` owns ranked text search and filter-only listing. Any command that does not map to
+one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes part of the durable CLI contract.
+
+| Current product surface | Current behavior | Rust parity target |
+| --- | --- | --- |
+| `pf2e_lookup` | Best matching record by name with optional pack/category/TypeScript-subcategory hints and alternatives | `atlas record resolve` using Rust record kinds and explicit metadata axes for narrowing. Strict resolution should return a strong name, normalized-name, verified-alias, or exact full-variant-name match, or a clear miss/ambiguity diagnostic. |
+| `pf2e_lookup_many` | Batch exact-name resolution with compact output by default | Batch record resolution mode or stable JSON input for `atlas record resolve`; do not add a separate lookup backend. |
+| `pf2e_get_record_by_key` | Exact record fetch by canonical key, including raw JSON today | `atlas record get`; raw JSON remains debug/parity-only unless typed fields are missing. |
+| `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch key input for `atlas record get` or a stable JSON input mode with current detail semantics. |
+| `pf2e_list_packs` | Pack list, labels, document types, record counts, and startup warnings | Pack list command if CLI replaces the full MCP discovery surface. |
+| `pf2e_get_pack_metadata` | Metadata for one pack by name or label | Pack metadata command if pack discovery remains user-facing. |
+| `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search <text>` with query, exclude, retrieval/fusion controls, and filters. Strong name and verified-alias matches should rank ahead of broader FTS or vector matches. |
+| `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas search` without text and with filters, sort, and pagination. A convenience `list` alias may be added only if it delegates to the same structured search path. |
+| `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Filter-field discovery through `atlas filters fields`. |
+| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery through `atlas filters values`. Preserve user-visible discovery capability through Rust record kinds and explicit metadata axes. |
+| `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Not directly ported in the first Rust graph slice. Agents should explicitly use `record resolve` or `search` to identify the key, then use graph context retrieval by key. A shortcut can be reconsidered only after real CLI usage shows the two-step workflow is too costly. |
+| `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | `atlas graph get <record-key>` over one known key with outgoing/backlink limits and edge evidence. V1 is one-hop, key-based, and retrieval-only. |
+| `npm run tui` / Ink workbench | Derived-tag migration workbench | Ratatui replacement only after core lookup/search/detail flows are stable, then editorial workflows in separate slices. |
+| `src/tags/cli/**` scripts | Derived-tag discovery, evaluation, migration session, review, import, lint, and queue summary workflows | Tag CLI commands should preserve existing workflow semantics first. Names such as `tags review next` are only placeholders unless mapped to an existing script or approved as a new workflow. |
+
+## Compatibility And Retirement Decisions
+
+| TS concept | Rust decision |
+| --- | --- |
+| `metadata` table | Transitional legacy diagnostic only. |
+| Current TS remaster bridge table | Preserve as `remaster_links` or edition links with explicit premaster-to-remaster semantics. |
+| broad raw `raw_json` storage | Keep for initial parity/debugging; do not make Rust runtime behavior depend on arbitrary JSON paths where typed rows exist. |
+| legacy derived-tag matcher and seed migration paths | Transitional comparison/input only; read-only derived-tag runtime should prefer published/current authored model. |
+| MCP server tool schema as primary product contract | Retired as primary; optional compatibility only after CLI plus skill is proven. |
+| Ink TUI controller conventions | Retired after Ratatui replacement; do not copy implicit state patterns. |
+
+## Crate Ownership
+
+- `atlas-domain`: record keys, top-level category vocabulary, explicit metadata field vocabulary, search request/filter contracts, shared artifact metadata constants, common output envelope primitives when shared by multiple surfaces.
+- `atlas-index`: read-only artifact opening, metadata validation, table contract validation, typed row loading, prepared SQL owners, vector table capability checks.
+- `atlas-ingest`: Foundry source loading, normalization, reference/alias resolution, canonicalization, table writers, metric catalog writer, source signature generation.
+- `atlas-embedding`: catalog-backed query/document embedding, tokenizer/model identity, reusable vector blob handling, and sqlite-vec integration helpers. BGE small is the default per ADR 0018; MiniLM remains an explicit parity and older-artifact option.
+- `atlas-search`: request lowering, filter SQL, FTS retrieval, vector retrieval, hybrid fusion, rerank adjustments, discovery commands over index/catalog readers.
+- `atlas-tags`: read-only derived-tag runtime types, published ontology/assignment loading, tag filter support, later editorial state machines.
+- `atlas-cli`: command routing, argument parsing, stable JSON output, exit code policy, human-readable presentation.
+- `atlas-tui`: Ratatui state machines over Rust runtime services.
+- `atlas-mcp`: optional compatibility surface only; no MCP-only backend behavior.
+
+## First Parity Fixture Set
+
+Each later phase should update a durable parity note with source revision, command inputs, TS behavior, Rust behavior, accepted differences, and open defects.
+
+### Lookup And Record Presentation
+
+- `Treat Wounds`
+- `Grabbed`
+- `Antidote (Lesser)`
+- one variant family plus one source-backed alias case; variant metadata should not require broad base-name alias rows
+- one exact miss that must not return fuzzy unrelated records
+- one localized or placeholder-text record
+
+### Rule Graph And Rule Context
+
+- `Grab` bestiary glossary graph-context case
+- direct outgoing references for a rule
+- backlinks with default suppression and explicit include
+- ambiguous rule names
+- localized support text
+
+### Schema And Filter Discovery
+
+- poison consumables discovery task
+- creature trait values by category and explicit type/trait axes
+- actor metric key discovery with namespace prefix
+- item metric key/value discovery
+- spell metadata values for traditions, spell kinds, range, save, area, duration, sustained, and basic save
+
+### Search And Browse
+
+- browse category with alphabetical, level ascending, level descending, and random seed sorts
+- lexical search with `search.exclude`
+- hybrid retrieval for a known concept query
+- vector retrieval for a search-quality bakeoff concept query
+- structured filter with `links_to`
+- structured filter with `linked_from`
+- metadata predicate and metric predicate filters
+
+### Derived-Tag Runtime And Editorial Redesign
+
+- retained tag model decision
+- accepted runtime/editorial boundary
+- read-only tag list by category
+- tag filter for equipment
+- tag filter for spell
+- tag filter for creature
+- parity sample for current explicit assignments
+
+### CLI Output Contracts
+
+- valid command JSON envelope
+- invalid option exit code
+- missing index exit code
+- incompatible artifact exit code
+- source-signature mismatch diagnostic when an expected signature is provided
+- compact default output size check
+
+## Phase-Gate Rules
+
+- Phase 2 domain work must cite this map when adding each durable type.
+- Phase 3 writer work must update the SQLite artifact table contract before adding broad table writers.
+- Phase 4 embedding work owns `document_embedding_cache`, `record_vector_index`, keyset-prefiltered semantic retrieval, sqlite-vec capability checks, and catalog-backed embedding compatibility. ADR 0018 sets BGE small as the default while preserving explicit MiniLM parity support.
+- Phase 9 CLI product-surface work owns the final JSON envelope policy. It must either introduce a shared CLI envelope type or record why command-specific typed reports are the stable contract, with golden tests for representative success and failure output.
+- Phase 7 discovery work cannot introduce a new table or catalog dependency without adding it to this map and the artifact contract; derived-tag discovery is explicitly out of Phase 7.
+- Phase 10 owns any retained derived-tag runtime, filters, discovery, and editorial migration model.
+- Phase 13 retirement cannot start until each parity fixture group has a recorded pass, accepted difference, or explicit deferred defect.
+- Source freshness validation should stay lightweight: compare against an expected source signature when supplied, but do not add a broad full-artifact validator that effectively reloads the source corpus.

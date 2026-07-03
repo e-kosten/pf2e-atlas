@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Analysis"
+  short_description: "Review a repo plan in depth"
+  default_prompt: "Use $plan-analysis to review an existing plan file against the current docs, abstractions, and code owners, then write a scratch/plan-review checklist we can work through one finding at a time."

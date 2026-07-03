@@ -1,0 +1,14 @@
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+  # Pyke's static ONNX Runtime bundle is built against the dynamic MSVC CRT.
+  # Match that runtime so ONNX Runtime's imported UCRT symbols resolve.
+  "-C",
+  "target-feature=-crt-static",
+  "-C",
+  "link-arg=/NODEFAULTLIB:libcmt",
+  # ort-sys intentionally does not add a C++ runtime for MSVC targets.
+  "-C",
+  "link-arg=msvcprt.lib",
+  "-C",
+  "link-arg=legacy_stdio_definitions.lib",
+]
