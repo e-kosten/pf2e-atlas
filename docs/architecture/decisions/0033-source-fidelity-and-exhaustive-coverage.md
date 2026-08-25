@@ -1,6 +1,6 @@
 # ADR 0033: Source Fidelity And Exhaustive Coverage
 
-Status: proposed for Checkpoint B
+Status: accepted at Checkpoint B; implementation is dependency-ordered
 Date: 2026-08-24
 
 ## Context
@@ -28,6 +28,12 @@ Checkpoint A approved GM-complete behavior as the target. Useful authored inform
 Every current exclusion requires an explicit non-auth product rationale, named owner, fixtures, validation, and audit checkpoint. Valid rationales include implementation-only provenance, non-addressable container scaffolding, and avoiding duplicate ranking from copied capability prose. Classification alone is not a rationale.
 
 Real extractor owners declare source coverage. Local builds aggregate meaningful unknown/type-drift warnings. Strict corpus and source-refresh validation fails on new meaningful unknowns, type or presence drift, invalid parent contexts, coverage regression, registry/fixture drift, or lost ownership. Raw JSON remains available only for provenance and deliberate offline audit tooling; runtime consumers do not reparse it.
+
+The first enforcement policy is `pf2e-source-coverage/v1`. Its report separates `consumed`, `ignored_with_rationale`, `provenance_only`, `deferred`, and `unknown`; B1 source diagnostics separately aggregate malformed shapes, unknown discriminators, invalid parent contexts, and source-version drift. Zero and false are meaningful path values, while nulls, blank strings, and empty collections do not create warning noise. Dynamic-key families use deterministic wildcards. Implemented NPC coverage is leaf-exact: recursive parent declarations cannot classify a new or stale child, and each consumed row exposes its matched rule and real extractor identity. Recursive whole-family assignment remains valid only for a reviewed exact document/type family with a named future owner and plan, or for a deliberately captured complete scaffolding subtree with a named owner. Reports and vendored-source diffs are stably sorted, expose consumed regressions separately, and carry a policy digest.
+
+Strict coverage is full-corpus for discovery and ownership but creature-first for implementation completeness. The approved 313-entry exhaustive registry remains authoritative for every non-creature and exact parent context. A non-creature path may pass B2 only when its document/type family resolves to the exact reviewed H1-H11 owner and plan; that disposition does not claim the family is implemented. New, removed, or reclassified meaningful paths in a supplied source-refresh baseline diff fail strict mode pending review.
+
+B2 also inventories every pinned-base default-visible/public-only predicate and assigns its target disposition, fixture, validation checkpoint, and later implementation owner. The inventory is evidence for B3 onward, not a parallel compatibility authority and not permission for B2 to edit those later-owned paths.
 
 ## Consequences
 

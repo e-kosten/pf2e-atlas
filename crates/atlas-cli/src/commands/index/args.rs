@@ -15,7 +15,7 @@ pub(crate) struct IndexArgs {
 pub(crate) enum IndexCommand {
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
     Analyze(AnalyzeIndexOptions),
-    #[command(about = "Audit raw Foundry JSON paths and known ingest coverage")]
+    #[command(about = "Audit meaningful Foundry source paths against real ingest owners")]
     AuditSourcePaths(AuditSourcePathsOptions),
     #[command(about = "Manually build a Rust SQLite artifact from Foundry source files")]
     Build(BuildIndexOptions),
@@ -31,7 +31,7 @@ pub(crate) enum IndexCommand {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas index audit-source-paths --record-type npc --min-records 10\n  atlas index audit-source-paths --pack-name pathfinder-bestiary --json"
+    after_help = "Examples:\n  atlas index audit-source-paths --record-type npc --min-records 10\n  atlas index audit-source-paths --strict --json\n  atlas index audit-source-paths --limit 1000000 --strict --baseline previous-coverage.json --json"
 )]
 pub(crate) struct AuditSourcePathsOptions {
     #[arg(long, help = "Override the PF2E source checkout path")]
@@ -54,20 +54,33 @@ pub(crate) struct AuditSourcePathsOptions {
     pub(crate) min_records: usize,
     #[arg(long, default_value_t = 50, help = "Maximum paths to print or emit")]
     pub(crate) limit: usize,
+    #[arg(
+        long,
+        help = "Fail with exit 3 on meaningful unknowns, B1 type drift, or reviewed source-baseline differences"
+    )]
+    pub(crate) strict: bool,
+    #[arg(
+        long,
+        help = "Compare with a complete prior audit JSON report and expose added, removed, or reclassified meaningful paths"
+    )]
+    pub(crate) baseline: Option<PathBuf>,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas index analyze\n  atlas index analyze --source vendor/pf2e --manifest scratch/ingest-manifest.json --json"
+    after_help = "Examples:\n  atlas index analyze\n  atlas index analyze --source vendor/pf2e --manifest vendor/pf2e/static/system.json --json"
 )]
 pub(crate) struct AnalyzeIndexOptions {
     #[arg(long, help = "Override the PF2E source checkout path")]
     pub(crate) source: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Write the ingest manifest report to this path")]
+    #[arg(
+        long,
+        help = "Read Foundry pack declarations from this source manifest"
+    )]
     pub(crate) manifest: Option<PathBuf>,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,

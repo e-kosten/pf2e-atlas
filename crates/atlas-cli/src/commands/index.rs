@@ -5,8 +5,8 @@ use atlas_index::ValidationTarget;
 use atlas_ingest::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, IngestDiagnostics, SkippedRecord,
-    SourcePathAuditOptions, SourcePathAuditReport, SourcePathCoverageStatus,
-    analyze_foundry_source, audit_source_paths, build_artifact,
+    SourcePathAuditOptions, SourcePathAuditReport, analyze_foundry_source, audit_source_paths,
+    build_artifact, disposition_label,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::{Value, json};
@@ -89,6 +89,8 @@ pub(crate) fn run_index_audit_source_paths(
         record_type: options.record_type,
         min_records: options.min_records,
         limit: Some(options.limit),
+        strict: options.strict,
+        baseline_report: options.baseline,
     })
     .map_err(|error| error.to_string())?;
 
@@ -98,7 +100,11 @@ pub(crate) fn run_index_audit_source_paths(
         print_source_path_audit(&report);
     }
 
-    Ok(ExitCode::SUCCESS)
+    if report.enforcement.passed {
+        Ok(ExitCode::SUCCESS)
+    } else {
+        Ok(ExitCode::from(3))
+    }
 }
 
 fn print_source_path_audit(report: &SourcePathAuditReport) {
@@ -107,23 +113,53 @@ fn print_source_path_audit(report: &SourcePathAuditReport) {
         report.record_count, report.pack_count, report.source_root
     );
     println!(
-        "paths: showing {} paths with min_records={}",
-        report.paths.len(),
-        report.filters.min_records
+        "coverage: policy={} digest={} mode={:?} passed={} warnings={} violations={}",
+        report.coverage_policy_version,
+        report.coverage_policy_digest,
+        report.enforcement.mode,
+        report.enforcement.passed,
+        report.enforcement.aggregate_warning_count,
+        report.enforcement.violation_count
     );
-    for path in &report.paths {
-        let consumers = if path.known_consumers.is_empty() {
-            "none".to_string()
-        } else {
-            path.known_consumers.join(",")
-        };
+    println!(
+        "paths: showing {} of {} meaningful paths with min_records={} consumed={} ignored={} provenance_only={} deferred={} unknown={} generic_deferred={} unowned_recursive={} consumed_regressions={} type_drift={} source_diff_changes={}",
+        report.paths.len(),
+        report.path_count,
+        report.filters.min_records,
+        report.summary.consumed_paths,
+        report.summary.ignored_with_rationale_paths,
+        report.summary.provenance_only_paths,
+        report.summary.deferred_paths,
+        report.summary.unknown_paths,
+        report.summary.generic_deferred_paths,
+        report.summary.unowned_recursive_matches,
+        report.summary.consumed_regressions,
+        report.summary.type_drift_diagnostics,
+        report.summary.source_diff_changes,
+    );
+    for diagnostic in &report.diagnostics {
         println!(
-            "{} records={} occurrences={} status={} consumers={}",
+            "warning kind={:?} document_type={} record_type={} path={} occurrences={} expected={} actual={}",
+            diagnostic.kind,
+            diagnostic.document_type,
+            diagnostic.record_type,
+            diagnostic.json_path,
+            diagnostic.occurrence_count,
+            diagnostic.expected_shape,
+            diagnostic.actual_shape,
+        );
+    }
+    for path in &report.paths {
+        println!(
+            "{}|{} {} records={} occurrences={} disposition={} owner={} future_owner={}",
+            path.document_type,
+            path.record_type,
             path.path,
             path.record_count,
             path.occurrence_count,
-            coverage_status_label(path.coverage_status),
-            consumers
+            disposition_label(path.disposition),
+            path.owner,
+            path.future_owner.as_deref().unwrap_or("none"),
         );
         for example in &path.examples {
             println!(
@@ -131,14 +167,6 @@ fn print_source_path_audit(report: &SourcePathAuditReport) {
                 example.record_key, example.source_path, example.value
             );
         }
-    }
-}
-
-fn coverage_status_label(status: SourcePathCoverageStatus) -> &'static str {
-    match status {
-        SourcePathCoverageStatus::Consumed => "consumed",
-        SourcePathCoverageStatus::Partial => "partial",
-        SourcePathCoverageStatus::Uncovered => "uncovered",
     }
 }
 

@@ -21,8 +21,12 @@ pub use artifact_manifest::{
     source_git_commit_if_clean,
 };
 pub use audit::{
+    RetrievalPredicateInventoryEntry, SourceCoverageDiagnostic, SourceCoverageDiagnosticKind,
+    SourcePathAuditDiff, SourcePathAuditDiffEntry, SourcePathAuditDispositionChange,
+    SourcePathAuditEnforcement, SourcePathAuditFilters, SourcePathAuditMode,
     SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
-    SourcePathAuditSample, SourcePathAuditValueType, SourcePathCoverageStatus, audit_source_paths,
+    SourcePathAuditSample, SourcePathAuditSummary, SourcePathAuditValueType,
+    SourcePathCoverageDisposition, audit_source_paths, disposition_label,
 };
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
