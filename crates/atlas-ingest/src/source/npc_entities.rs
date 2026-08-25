@@ -881,7 +881,8 @@ fn capability(
             })
         }
     };
-    capability_unsupported_notes(&mut capability).extend(unmodeled_local_notes(candidate));
+    capability_unsupported_notes(&mut capability)
+        .extend(unmodeled_local_notes(candidate, diagnostics));
     Some(capability)
 }
 
@@ -1307,7 +1308,10 @@ fn common_unsupported_notes(
     unsupported_notes(item_id, &common.rules, diagnostics)
 }
 
-fn unmodeled_local_notes(candidate: &NpcEmbeddedCandidate) -> Vec<UnsupportedMechanicNote> {
+fn unmodeled_local_notes(
+    candidate: &NpcEmbeddedCandidate,
+    diagnostics: &mut Vec<NpcEmbeddedDiagnostic>,
+) -> Vec<UnsupportedMechanicNote> {
     let common = match &candidate.source {
         NpcEmbeddedItemSource::Action(value) => &value.common,
         NpcEmbeddedItemSource::Strike(value) => &value.common,
@@ -1320,16 +1324,44 @@ fn unmodeled_local_notes(candidate: &NpcEmbeddedCandidate) -> Vec<UnsupportedMec
     common
         .local_unsupported
         .iter()
-        .filter(|summary| !modeled_local_path(&candidate.source, &summary.source_path))
+        .filter(|summary| {
+            !modeled_local_path(&candidate.source, &summary.source_path)
+                && (!diagnosed_capability_retention_path(&candidate.source, &summary.source_path)
+                    || !empty_local_scaffolding(summary))
+        })
         .chain(candidate.relationship_unsupported.iter())
-        .map(summary_note)
+        .map(|summary| {
+            if diagnosed_capability_retention_path(&candidate.source, &summary.source_path)
+                && !empty_local_scaffolding(summary)
+            {
+                diagnostics.push(NpcEmbeddedDiagnostic::new(
+                    NpcEmbeddedDiagnosticKind::UnsupportedMechanic,
+                    Some(candidate.nested_source_id.clone()),
+                    summary.source_path.clone(),
+                    "modeled embedded capability leaf or exact typed unsupported retention",
+                    summary.shape.clone(),
+                    summary.value.clone(),
+                ));
+            }
+            summary_note(summary)
+        })
         .collect()
+}
+
+fn empty_local_scaffolding(summary: &ValueSummary) -> bool {
+    matches!(
+        (summary.shape.as_str(), summary.value.as_str()),
+        ("string", "\"\"") | ("array", "[]") | ("object", "{}")
+    )
 }
 
 fn modeled_local_path(source: &NpcEmbeddedItemSource, path: &str) -> bool {
     let Some((_, relative)) = path.split_once(".system.") else {
         return false;
     };
+    if diagnosed_capability_retention_path(source, path) {
+        return false;
+    }
     if relative.starts_with("spell.system.description.")
         || relative == "spell.flags.core.sourceId"
         || relative == "spell._stats.compendiumSource"
@@ -1388,6 +1420,40 @@ fn modeled_local_path(source: &NpcEmbeddedItemSource, path: &str) -> bool {
         NpcEmbeddedItemSource::Lore(_) => root == "mod",
         NpcEmbeddedItemSource::Deferred(_) => false,
     }
+}
+
+fn diagnosed_capability_retention_path(source: &NpcEmbeddedItemSource, path: &str) -> bool {
+    let Some((_, relative)) = path.split_once(".system.") else {
+        return false;
+    };
+    match source {
+        NpcEmbeddedItemSource::Strike(_) => relative == "attackEffects.custom",
+        NpcEmbeddedItemSource::Spell(_) => {
+            matches!(
+                relative,
+                "area.details" | "defense.passive.statistic" | "location.autoHeightenLevel"
+            ) || unsupported_damage_material_path(relative)
+        }
+        NpcEmbeddedItemSource::SpellcastingEntry(_) => matches!(
+            relative,
+            "prepared.flexible"
+                | "prepared.label"
+                | "prepared.type"
+                | "prepared.validItems"
+                | "spelldc.item"
+                | "spelldc.label"
+                | "spelldc.mod"
+                | "spelldc.type"
+        ),
+        _ => false,
+    }
+}
+
+fn unsupported_damage_material_path(relative: &str) -> bool {
+    relative
+        .strip_prefix("damage.")
+        .and_then(|entry| entry.split_once('.'))
+        .is_some_and(|(_, leaf)| leaf == "materials[]")
 }
 
 fn summary_note(summary: &ValueSummary) -> UnsupportedMechanicNote {
@@ -1701,14 +1767,14 @@ fn fact_value_or_default<T: Clone>(value: &FactValue<Vec<T>>) -> Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{collections::BTreeMap, path::Path};
 
     use atlas_domain::{PackName, RecordId, RecordKey};
     use atlas_record::{
         CreatureCapability, CreatureEntityFamily, CreatureEntityRelationshipKind,
         CreatureEntityTarget, CreaturePreparedSpellSlot, CreatureRelationshipExecution,
         CreatureRelationshipTarget, CreatureSourceScalar, FactValue, RecordBody,
-        UnsupportedSourceShape,
+        UnsupportedMechanicNote, UnsupportedSourceShape,
     };
     use serde_json::{Value, json};
 
@@ -1989,6 +2055,160 @@ mod tests {
         assert!(converted.diagnostics.iter().any(|diagnostic| {
             diagnostic.kind == NpcEmbeddedDiagnosticKind::UnsupportedMechanic
         }));
+    }
+
+    #[test]
+    fn declared_consumed_capability_leaves_survive_as_exact_occurrence_notes() {
+        let source = parse_npc_source(
+            pinned_source_version_metadata(),
+            SourceIdentity::new("bestiary:retention", "packs/bestiary/retention.json"),
+            json!({
+                "_id": "retention", "name": "Retention", "type": "npc", "system": {},
+                "items": [
+                    {
+                        "_id": "strike", "name": "Custom Strike", "type": "melee",
+                        "system": {
+                            "attackEffects": {
+                                "value": ["grab"],
+                                "custom": "Range Increment 20ft"
+                            }
+                        }
+                    },
+                    {
+                        "_id": "spell", "name": "Exact Spell", "type": "spell",
+                        "system": {
+                            "location": {"value": "entry", "autoHeightenLevel": 7},
+                            "area": {"type": "burst", "value": 5, "details": "5-foot burst or more"},
+                            "damage": {
+                                "0": {
+                                    "formula": "2d6",
+                                    "type": "piercing",
+                                    "materials": ["cold-iron"]
+                                }
+                            },
+                            "defense": {
+                                "save": {"statistic": "reflex", "basic": true},
+                                "passive": {"statistic": "fortitude-dc"}
+                            }
+                        }
+                    },
+                    {
+                        "_id": "entry", "name": "Prepared Entry", "type": "spellcastingEntry",
+                        "system": {
+                            "prepared": {
+                                "value": "prepared",
+                                "flexible": true,
+                                "label": "Prepared Arcane Spells",
+                                "type": "prepared",
+                                "validItems": "All Magic Items"
+                            },
+                            "spelldc": {
+                                "value": 18,
+                                "dc": 27,
+                                "item": 4,
+                                "label": "Arcane Spell DC",
+                                "mod": 17,
+                                "type": "arcane"
+                            }
+                        }
+                    }
+                ]
+            }),
+        )
+        .expect("source");
+        let candidates = super::collect_npc_embedded_candidates(&source);
+        let converted =
+            convert_npc_embedded_entities(key("bestiary", "retention"), &candidates, |_| None);
+        let FactValue::Value(embedded) = &converted.embedded else {
+            panic!("embedded")
+        };
+
+        let expected = [
+            ("attackEffects.custom", "\"Range Increment 20ft\""),
+            ("area.details", "\"5-foot burst or more\""),
+            ("damage.0.materials[]", "\"cold-iron\""),
+            ("defense.passive.statistic", "\"fortitude-dc\""),
+            ("location.autoHeightenLevel", "7"),
+            ("prepared.flexible", "true"),
+            ("prepared.label", "\"Prepared Arcane Spells\""),
+            ("prepared.type", "\"prepared\""),
+            ("prepared.validItems", "\"All Magic Items\""),
+            ("spelldc.item", "4"),
+            ("spelldc.label", "\"Arcane Spell DC\""),
+            ("spelldc.mod", "17"),
+            ("spelldc.type", "\"arcane\""),
+        ];
+        let retained = embedded
+            .occurrences
+            .iter()
+            .flat_map(|occurrence| {
+                capability_notes(&occurrence.capability)
+                    .iter()
+                    .filter(|note| {
+                        retained_occurrence_capability_family(occurrence.family, note).is_some()
+                    })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(retained.len(), expected.len());
+        for (suffix, value) in expected {
+            assert!(
+                retained.iter().any(|note| {
+                    note.source_path.ends_with(suffix) && note.value.value == value
+                }),
+                "missing exact occurrence note for {suffix}"
+            );
+        }
+
+        let diagnostics = converted
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic.kind == NpcEmbeddedDiagnosticKind::UnsupportedMechanic
+                    && retained_capability_family(&diagnostic.source_field).is_some()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(diagnostics.len(), expected.len());
+        assert!(diagnostics.iter().all(|diagnostic| {
+            diagnostic.code == "atlas.npc_embedded.unsupported_mechanic.v1"
+                && diagnostic.record_key == "bestiary:retention"
+                && diagnostic.source_item_id.is_some()
+                && diagnostic.disposition == NpcEmbeddedDiagnosticDisposition::TypedUnsupported
+                && diagnostic.owner == NpcEmbeddedDiagnosticOwner::CreatureEmbeddedEntities
+        }));
+
+        let strike = embedded
+            .occurrences_of(CreatureEntityFamily::Strike)
+            .next()
+            .expect("strike");
+        let CreatureCapability::Strike(strike) = &strike.capability else {
+            panic!("strike capability")
+        };
+        assert_eq!(
+            strike.attack_effects,
+            FactValue::Value(vec!["grab".to_string()])
+        );
+        let spell = embedded
+            .occurrences_of(CreatureEntityFamily::Spell)
+            .next()
+            .expect("spell");
+        let CreatureCapability::Spell(spell) = &spell.capability else {
+            panic!("spell capability")
+        };
+        assert!(matches!(
+            &spell.area,
+            FactValue::Value(area)
+                if area.area_type == FactValue::Value("burst".to_string())
+                    && area.value == FactValue::Value(5)
+        ));
+        let entry = embedded
+            .occurrences_of(CreatureEntityFamily::SpellcastingEntry)
+            .next()
+            .expect("entry");
+        let CreatureCapability::SpellcastingEntry(entry) = &entry.capability else {
+            panic!("entry capability")
+        };
+        assert_eq!(entry.dc, FactValue::Value(27));
+        assert_eq!(entry.attack, FactValue::Value(18));
     }
 
     #[test]
@@ -2622,6 +2842,59 @@ mod tests {
                 .all(|relationship| relationship.execution
                     == CreatureRelationshipExecution::ProvenanceOnly)
         );
+
+        let expected_capability_counts = BTreeMap::from([
+            ("$.items[].system.attackEffects.custom", 6_usize),
+            ("$.items[].system.area.details", 197),
+            ("$.items[].system.damage.*.materials[]", 7),
+            ("$.items[].system.defense.passive.statistic", 45),
+            ("$.items[].system.location.autoHeightenLevel", 1),
+            ("$.items[].system.prepared.flexible", 1_535),
+            ("$.items[].system.prepared.label", 32),
+            ("$.items[].system.prepared.type", 32),
+            ("$.items[].system.prepared.validItems", 2),
+            ("$.items[].system.spelldc.item", 245),
+            ("$.items[].system.spelldc.label", 32),
+            ("$.items[].system.spelldc.mod", 1_675),
+            ("$.items[].system.spelldc.type", 32),
+        ]);
+        let mut retained_capability_counts = BTreeMap::new();
+        for occurrence in embedded.iter().flat_map(|value| &value.occurrences) {
+            for note in capability_notes(&occurrence.capability) {
+                if let Some(family) = retained_occurrence_capability_family(occurrence.family, note)
+                {
+                    *retained_capability_counts.entry(family).or_insert(0) += 1;
+                }
+            }
+        }
+        assert_eq!(retained_capability_counts, expected_capability_counts);
+        assert_eq!(retained_capability_counts.values().sum::<usize>(), 3_841);
+
+        let retained_diagnostics = loaded
+            .records
+            .iter()
+            .flat_map(|record| &record.facts.npc_embedded_diagnostics)
+            .filter(|diagnostic| {
+                diagnostic.kind == NpcEmbeddedDiagnosticKind::UnsupportedMechanic
+                    && retained_capability_family(&diagnostic.source_field).is_some()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(retained_diagnostics.len(), 3_841);
+        assert!(retained_diagnostics.iter().all(|diagnostic| {
+            !diagnostic.record_key.is_empty()
+                && diagnostic.source_path.starts_with("packs/")
+                && diagnostic.source_item_id.is_some()
+                && !diagnostic.source_value.is_empty()
+                && diagnostic.disposition == NpcEmbeddedDiagnosticDisposition::TypedUnsupported
+                && diagnostic.owner == NpcEmbeddedDiagnosticOwner::CreatureEmbeddedEntities
+        }));
+        let mut diagnostic_counts = BTreeMap::new();
+        for diagnostic in retained_diagnostics {
+            let family = retained_capability_family(&diagnostic.source_field)
+                .expect("retained diagnostic family");
+            *diagnostic_counts.entry(family).or_insert(0) += 1;
+        }
+        assert_eq!(diagnostic_counts, expected_capability_counts);
     }
 
     #[test]
@@ -2744,6 +3017,77 @@ mod tests {
                     spell.damage.as_value().is_some_and(Vec::is_empty)
                 })
         );
+    }
+
+    fn capability_notes(capability: &CreatureCapability) -> &[UnsupportedMechanicNote] {
+        match capability {
+            CreatureCapability::Strike(value) => &value.unsupported_notes,
+            CreatureCapability::Action(value) => &value.unsupported_notes,
+            CreatureCapability::SpellcastingEntry(value) => &value.unsupported_notes,
+            CreatureCapability::Spell(value) => &value.unsupported_notes,
+            CreatureCapability::Equipment(value) => &value.unsupported_notes,
+            CreatureCapability::Lore(value) => &value.unsupported_notes,
+            CreatureCapability::Unsupported(value) => &value.unsupported_notes,
+        }
+    }
+
+    fn retained_capability_family(path: &str) -> Option<&'static str> {
+        let (_, relative) = path.split_once(".system.")?;
+        match relative {
+            "attackEffects.custom" => Some("$.items[].system.attackEffects.custom"),
+            "area.details" => Some("$.items[].system.area.details"),
+            "defense.passive.statistic" => Some("$.items[].system.defense.passive.statistic"),
+            "location.autoHeightenLevel" => Some("$.items[].system.location.autoHeightenLevel"),
+            "prepared.flexible" => Some("$.items[].system.prepared.flexible"),
+            "prepared.label" => Some("$.items[].system.prepared.label"),
+            "prepared.type" => Some("$.items[].system.prepared.type"),
+            "prepared.validItems" => Some("$.items[].system.prepared.validItems"),
+            "spelldc.item" => Some("$.items[].system.spelldc.item"),
+            "spelldc.label" => Some("$.items[].system.spelldc.label"),
+            "spelldc.mod" => Some("$.items[].system.spelldc.mod"),
+            "spelldc.type" => Some("$.items[].system.spelldc.type"),
+            value if value.starts_with("damage.") && value.ends_with(".materials[]") => {
+                Some("$.items[].system.damage.*.materials[]")
+            }
+            _ => None,
+        }
+    }
+
+    fn retained_occurrence_capability_family(
+        family: CreatureEntityFamily,
+        note: &UnsupportedMechanicNote,
+    ) -> Option<&'static str> {
+        if matches!(
+            (&note.value.shape, note.value.value.as_str()),
+            (UnsupportedSourceShape::String, "\"\"")
+                | (UnsupportedSourceShape::Array, "[]")
+                | (UnsupportedSourceShape::Object, "{}")
+        ) {
+            return None;
+        }
+        let retained = retained_capability_family(&note.source_path)?;
+        match (family, retained) {
+            (CreatureEntityFamily::Strike, "$.items[].system.attackEffects.custom")
+            | (
+                CreatureEntityFamily::Spell,
+                "$.items[].system.area.details"
+                | "$.items[].system.damage.*.materials[]"
+                | "$.items[].system.defense.passive.statistic"
+                | "$.items[].system.location.autoHeightenLevel",
+            )
+            | (
+                CreatureEntityFamily::SpellcastingEntry,
+                "$.items[].system.prepared.flexible"
+                | "$.items[].system.prepared.label"
+                | "$.items[].system.prepared.type"
+                | "$.items[].system.prepared.validItems"
+                | "$.items[].system.spelldc.item"
+                | "$.items[].system.spelldc.label"
+                | "$.items[].system.spelldc.mod"
+                | "$.items[].system.spelldc.type",
+            ) => Some(retained),
+            _ => None,
+        }
     }
 
     fn spell(
