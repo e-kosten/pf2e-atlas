@@ -2,13 +2,14 @@ use std::fmt;
 
 use serde_json::Value;
 
+use super::creature_core::parse_npc_core;
 use super::item::parse_item;
 use super::value::serialized_object;
 use super::{
-    ItemSource, RawSourceJson, SerializedSourceObject, SourceDiagnostic, SourceDiagnosticKind,
-    SourceIdentity, SourceParentContext, SourcePresence, SourceVersionMetadata, actual_shape,
-    optional_array_of_objects, optional_integer, optional_object, optional_string, required_object,
-    required_string,
+    ItemSource, NpcCoreSource, RawSourceJson, SerializedSourceObject, SourceDiagnostic,
+    SourceDiagnosticKind, SourceIdentity, SourceParentContext, SourcePresence,
+    SourceVersionMetadata, actual_shape, optional_array_of_objects, optional_integer,
+    optional_object, optional_string, required_object, required_string,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -93,6 +94,7 @@ pub struct NpcSource {
     pub ownership: SourcePresence<SerializedSourceObject>,
     pub effects: SourcePresence<Vec<SerializedSourceObject>>,
     pub items: SourcePresence<Vec<ItemSource>>,
+    pub core: NpcCoreSource,
     serialized: SerializedSourceObject,
     system: SerializedSourceObject,
 }
@@ -151,6 +153,7 @@ pub fn parse_npc_source(
         ));
     }
     let system = required_object(map, "system", &identity, "$.system")?;
+    let core = parse_npc_core(system, &identity)?;
     let items = match map.get("items") {
         None => SourcePresence::Missing,
         Some(Value::Null) => SourcePresence::Null,
@@ -189,6 +192,7 @@ pub fn parse_npc_source(
         ownership: optional_object(map, "ownership", &identity, "$.ownership")?,
         effects: optional_array_of_objects(map, "effects", &identity, "$.effects")?,
         items,
+        core,
         serialized: serialized_object(map),
         system: serialized_object(system),
     };

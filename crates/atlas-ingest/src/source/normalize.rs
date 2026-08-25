@@ -4,7 +4,7 @@ use atlas_domain::{PackName, Rarity, RecordId, RecordKey};
 use atlas_record::{
     ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
     FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-    ItemTypeMechanics, RecordActivationTiming, RecordClassification, RecordContent,
+    ItemTypeMechanics, RecordActivationTiming, RecordBody, RecordClassification, RecordContent,
     RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
     RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
 };
@@ -52,7 +52,9 @@ use crate::error::IngestError;
 use crate::records::metrics;
 use crate::records::{LoadedSourceRecord, SourceConstructionFacts, SourceRecordFacts};
 use crate::source::ManifestPack;
+use crate::source::dto::{SourceIdentity, parse_npc_source, pinned_source_version_metadata};
 use crate::source::mechanics;
+use crate::source::npc_core::{NpcCoreConversion, convert_npc_core};
 
 pub(crate) fn normalize_record(
     manifest_pack: &ManifestPack,
@@ -70,6 +72,11 @@ pub(crate) fn normalize_record(
     let id = RecordId::new(id)
         .map_err(|error| normalization_error(path, &format!("invalid _id: {error}")))?;
     let key = RecordKey::new(pack_name.clone(), id.clone());
+    let source_path = path
+        .strip_prefix(source_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
     let record_kind =
         classify_record(&manifest_pack.document_type, &record_type).ok_or_else(|| {
             normalization_error(
@@ -80,22 +87,65 @@ pub(crate) fn normalize_record(
                 ),
             )
         })?;
-    let level = pointer_i64(&raw, "/system/level/value").or_else(|| {
-        (manifest_pack.document_type == "Actor")
-            .then(|| pointer_i64(&raw, "/system/details/level/value"))
-            .flatten()
+    let npc_source = if manifest_pack.document_type == "Actor" && record_type == "npc" {
+        Some(
+            parse_npc_source(
+                pinned_source_version_metadata(),
+                SourceIdentity::new(key.to_string(), source_path.clone()),
+                raw.clone(),
+            )
+            .map_err(|error| normalization_error(path, &error.to_string()))?,
+        )
+    } else {
+        None
+    };
+    let npc_conversion = npc_source
+        .as_ref()
+        .map(|source| convert_npc_core(key.clone(), &source_path, source))
+        .transpose()
+        .map_err(|error| normalization_error(path, &error.to_string()))?;
+    let canonical_creature = npc_conversion.as_ref().map(|conversion| {
+        let RecordBody::Creature(creature) = &conversion.body;
+        creature
     });
-    let rarity = normalized_pointer_string(&raw, "/system/traits/rarity")
-        .map(|value| {
-            Rarity::from_canonical(&value).ok_or_else(|| {
-                normalization_error(
-                    path,
-                    &format!("unsupported rarity `{value}` at /system/traits/rarity"),
-                )
-            })
+    let level = if let Some(creature) = canonical_creature {
+        creature.level.value.as_value().copied()
+    } else {
+        pointer_i64(&raw, "/system/level/value").or_else(|| {
+            (manifest_pack.document_type == "Actor")
+                .then(|| pointer_i64(&raw, "/system/details/level/value"))
+                .flatten()
         })
-        .transpose()?;
-    let traits = extract_traits(&raw);
+    };
+    let rarity = if let Some(creature) = canonical_creature {
+        creature.rarity.value.as_value().cloned()
+    } else {
+        normalized_pointer_string(&raw, "/system/traits/rarity")
+            .map(|value| {
+                Rarity::from_canonical(&value).ok_or_else(|| {
+                    normalization_error(
+                        path,
+                        &format!("unsupported rarity `{value}` at /system/traits/rarity"),
+                    )
+                })
+            })
+            .transpose()?
+    };
+    let traits = if let Some(creature) = canonical_creature {
+        creature
+            .traits
+            .value
+            .as_value()
+            .map(|traits| {
+                traits
+                    .iter()
+                    .map(|value| value.as_str().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        extract_traits(&raw)
+    };
     let prerequisites = extract_prerequisites(&raw);
     let system_category = normalized_pointer_string(&raw, "/system/category");
     let system_group = normalized_pointer_string(&raw, "/system/group");
@@ -117,8 +167,13 @@ pub(crate) fn normalize_record(
         .and_then(normalize_time_text);
     let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
         .map_err(|message| normalization_error(path, &message))?;
-    let actor_data = (manifest_pack.document_type == "Actor")
-        .then(|| mechanics::extract_actor_mechanics(&raw, localization));
+    let actor_data = npc_conversion
+        .as_ref()
+        .map(|conversion| conversion.legacy_actor_projection.clone())
+        .or_else(|| {
+            (manifest_pack.document_type == "Actor" && record_type != "npc")
+                .then(|| mechanics::extract_actor_mechanics(&raw, localization))
+        });
     let item_data = (manifest_pack.document_type == "Item").then(|| {
         mechanics::extract_item_mechanics(
             &raw,
@@ -132,11 +187,28 @@ pub(crate) fn normalize_record(
     });
     let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
         .then(|| mechanics::extract_spell_mechanics(&raw, &traits, localization));
-    let publication_title = pointer_string(&raw, "/system/publication/title")
-        .or_else(|| pointer_string(&raw, "/system/details/publication/title"));
-    let publication_remaster = pointer_bool(&raw, "/system/publication/remaster")
-        .or_else(|| pointer_bool(&raw, "/system/details/publication/remaster"))
-        .unwrap_or(false);
+    let publication_title = if let Some(creature) = canonical_creature {
+        creature
+            .publication
+            .value
+            .as_value()
+            .and_then(|publication| publication.title.as_value().cloned())
+    } else {
+        pointer_string(&raw, "/system/publication/title")
+            .or_else(|| pointer_string(&raw, "/system/details/publication/title"))
+    };
+    let publication_remaster = if let Some(creature) = canonical_creature {
+        creature
+            .publication
+            .value
+            .as_value()
+            .and_then(|publication| publication.remaster.as_value().copied())
+            .unwrap_or(false)
+    } else {
+        pointer_bool(&raw, "/system/publication/remaster")
+            .or_else(|| pointer_bool(&raw, "/system/details/publication/remaster"))
+            .unwrap_or(false)
+    };
     let content_sources = extract_content_sources(&raw, localization);
     let mut source_facts = SourceRecordFacts {
         slug: normalized_pointer_string(&raw, "/system/slug"),
@@ -165,11 +237,6 @@ pub(crate) fn normalize_record(
     source_facts.journal_pages = journal_pages;
     source_facts.skipped_journal_pages = skipped_journal_pages;
     let folder_id = pointer_string(&raw, "/folder");
-    let source_path = path
-        .strip_prefix(source_root)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .to_string();
     let raw_json = serde_json::to_string(&raw).map_err(|error| {
         normalization_error(path, &format!("raw JSON serialization failed: {error}"))
     })?;
@@ -254,6 +321,13 @@ pub(crate) fn normalize_record(
         variant: None,
         visibility: RecordVisibility::default(),
     };
+    let (canonical_body, npc_core_diagnostics) = npc_conversion
+        .map(
+            |NpcCoreConversion {
+                 body, diagnostics, ..
+             }| (Some(body), diagnostics),
+        )
+        .unwrap_or_default();
     let facts = SourceConstructionFacts {
         content_parse_diagnostics: content_sources
             .diagnostics
@@ -261,6 +335,9 @@ pub(crate) fn normalize_record(
             .chain(journal_diagnostics)
             .collect(),
         source_facts,
+        npc_source,
+        canonical_body,
+        npc_core_diagnostics,
     };
 
     Ok(LoadedSourceRecord::new(record, facts))

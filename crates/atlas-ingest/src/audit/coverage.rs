@@ -392,6 +392,44 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
     let mut declarations = Vec::new();
     declarations.extend(
         [
+            "$.system.abilities.cha.value",
+            "$.system.abilities.con.value",
+            "$.system.abilities.dex.value",
+            "$.system.abilities.int.value",
+            "$.system.abilities.str.value",
+            "$.system.abilities.wis.value",
+            "$.system.attributes.adjustment",
+            "$.system.attributes.allSaves.value",
+            "$.system.attributes.hardness.value",
+            "$.system.attributes.shield.ac",
+            "$.system.attributes.shield.brokenThreshold",
+            "$.system.attributes.shield.hardness",
+            "$.system.attributes.shield.max",
+            "$.system.attributes.shield.value",
+            "$.system.details.alliance",
+            "$.system.initiative.statistic",
+            "$.system.perception.details",
+            "$.system.perception.vision",
+            "$.system.resources.*.max",
+            "$.system.resources.*.max.max",
+            "$.system.resources.*.max.value",
+            "$.system.resources.*.maxx",
+            "$.system.resources.*.value",
+            "$.system.saves.*.saveDetail",
+            "$.system.skills.*.base",
+            "$.system.skills.*.note",
+            "$.system.skills.*.special[].base",
+            "$.system.skills.*.special[].label",
+            "$.system.skills.*.special[].predicate[]",
+            "$.system.skills.*.special[].predicate[].gte[]",
+            "$.system.skills.*.special[].predicate[].not",
+            "$.system.skills.*.special[].predicate[].or[]",
+        ]
+        .into_iter()
+        .map(|path| npc_consumed("npc_core_canonical_fact", path, "source::npc_core")),
+    );
+    declarations.extend(
+        [
             (
                 "$.system.attributes.ac.details",
                 "source::mechanics + records::metrics",
@@ -1014,38 +1052,6 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
             ("$.items[].system.value.isValued", "B4", "NPC embedded entity conversion"),
             ("$.items[].system.value.value", "B4", "NPC embedded entity conversion"),
             ("$.items[].system.weaponType.value", "B4", "NPC embedded entity conversion"),
-            ("$.system.abilities.cha.value", "B3", "creature/NPC core conversion"),
-            ("$.system.abilities.con.value", "B3", "creature/NPC core conversion"),
-            ("$.system.abilities.dex.value", "B3", "creature/NPC core conversion"),
-            ("$.system.abilities.int.value", "B3", "creature/NPC core conversion"),
-            ("$.system.abilities.str.value", "B3", "creature/NPC core conversion"),
-            ("$.system.abilities.wis.value", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.adjustment", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.allSaves.value", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.hardness.value", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.shield.ac", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.shield.brokenThreshold", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.shield.hardness", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.shield.max", "B3", "creature/NPC core conversion"),
-            ("$.system.attributes.shield.value", "B3", "creature/NPC core conversion"),
-            ("$.system.details.alliance", "B3", "creature/NPC core conversion"),
-            ("$.system.initiative.statistic", "B3", "creature/NPC core conversion"),
-            ("$.system.perception.details", "B3", "creature/NPC core conversion"),
-            ("$.system.perception.vision", "B3", "creature/NPC core conversion"),
-            ("$.system.resources.*.max", "B3", "creature/NPC core conversion"),
-            ("$.system.resources.*.max.max", "B3", "creature/NPC core conversion"),
-            ("$.system.resources.*.max.value", "B3", "creature/NPC core conversion"),
-            ("$.system.resources.*.maxx", "B3", "creature/NPC core conversion"),
-            ("$.system.resources.*.value", "B3", "creature/NPC core conversion"),
-            ("$.system.saves.*.saveDetail", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.base", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.note", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.special[].base", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.special[].label", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.special[].predicate[]", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.special[].predicate[].gte[]", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.special[].predicate[].not", "B3", "creature/NPC core conversion"),
-            ("$.system.skills.*.special[].predicate[].or[]", "B3", "creature/NPC core conversion"),
             ("$.system.spellcasting.rituals.dc", "B4", "NPC embedded entity conversion"),
         ]
         .into_iter()
@@ -1679,5 +1685,60 @@ mod tests {
             macro_script.future_plan,
             Some("future/discovered/macro-script/plan.md")
         );
+    }
+
+    #[test]
+    fn canonical_npc_core_owns_every_approved_actor_root_leaf() {
+        let paths = [
+            "$.system.abilities.cha.value",
+            "$.system.abilities.con.value",
+            "$.system.abilities.dex.value",
+            "$.system.abilities.int.value",
+            "$.system.abilities.str.value",
+            "$.system.abilities.wis.value",
+            "$.system.attributes.adjustment",
+            "$.system.attributes.allSaves.value",
+            "$.system.attributes.hardness.value",
+            "$.system.attributes.shield.ac",
+            "$.system.attributes.shield.brokenThreshold",
+            "$.system.attributes.shield.hardness",
+            "$.system.attributes.shield.max",
+            "$.system.attributes.shield.value",
+            "$.system.details.alliance",
+            "$.system.initiative.statistic",
+            "$.system.perception.details",
+            "$.system.perception.vision",
+            "$.system.resources.*.max",
+            "$.system.resources.*.max.max",
+            "$.system.resources.*.max.value",
+            "$.system.resources.*.maxx",
+            "$.system.resources.*.value",
+            "$.system.saves.*.saveDetail",
+            "$.system.skills.*.base",
+            "$.system.skills.*.note",
+            "$.system.skills.*.special[].base",
+            "$.system.skills.*.special[].label",
+            "$.system.skills.*.special[].predicate[]",
+            "$.system.skills.*.special[].predicate[].gte[]",
+            "$.system.skills.*.special[].predicate[].not",
+            "$.system.skills.*.special[].predicate[].or[]",
+        ];
+        assert_eq!(paths.len(), 32);
+        for path in paths {
+            let declaration = declaration_for("Actor", "npc", path)
+                .unwrap_or_else(|| panic!("missing B3 declaration for {path}"));
+            assert_eq!(
+                declaration.disposition,
+                SourcePathCoverageDisposition::Consumed,
+                "{path}"
+            );
+            assert_eq!(declaration.owner, "source::npc_core", "{path}");
+            assert_eq!(declaration.future_owner, None, "{path}");
+        }
+
+        let rituals = declaration_for("Actor", "npc", "$.system.spellcasting.rituals.dc")
+            .expect("B4 ritual DC declaration");
+        assert_eq!(rituals.disposition, SourcePathCoverageDisposition::Deferred);
+        assert_eq!(rituals.future_owner, Some("B4"));
     }
 }

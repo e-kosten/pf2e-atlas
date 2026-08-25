@@ -2,9 +2,10 @@ use std::path::Path;
 
 use atlas_domain::{PackName, Rarity, RecordKind};
 use atlas_record::{
-    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, DamageEffectKind,
-    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType, ItemTypeMechanics,
-    MechanicActivityUsage, render_plain_text,
+    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, CreatureMovementMode,
+    CreatureResourceAmount, CreatureSourceAlliance, CreatureUnsupportedSourceField,
+    DamageEffectKind, FactValue, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType,
+    ItemTypeMechanics, MechanicActivityUsage, RecordBody, render_plain_text,
 };
 use serde_json::json;
 
@@ -24,11 +25,15 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             "details": {
                 "level": { "value": 5 },
                 "languages": { "value": ["common", "draconic"] },
+                "alliance": "party",
                 "publication": { "title": "Bestiary Fixture", "remaster": true },
                 "disable": "<p>DC 22 Athletics</p>",
                 "isComplex": true
             },
             "attributes": {
+                "adjustment": "elite",
+                "hardness": {"value": 5},
+                "shield": {"ac": 2, "brokenThreshold": 4, "hardness": 3, "max": 8, "value": 6},
                 "speed": { "otherSpeeds": [{ "type": "fly" }] },
                 "immunities": [{ "type": "fire" }],
                 "resistances": [{ "type": "cold" }],
@@ -37,6 +42,12 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             "perception": {
                 "senses": [{ "type": "darkvision" }]
             },
+            "initiative": {"statistic": "perception"},
+            "abilities": {
+                "str": {"value": 16}, "dex": {"value": 14}, "con": {"value": 12},
+                "int": {"value": 10}, "wis": {"value": 8}, "cha": {"value": 6}
+            },
+            "resources": {"focus": {"max": 1, "maxx": 2, "value": 1}},
             "traits": {
                 "rarity": "rare",
                 "size": { "value": "lg" },
@@ -45,6 +56,7 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             "slug": "fixture-creature"
         }
     });
+    let expected_source_envelope = raw.clone();
 
     let loaded = normalize_record(
         &manifest_pack("Actor"),
@@ -79,13 +91,73 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
     };
     assert_eq!(actor.size.as_deref(), Some("lg"));
     assert_eq!(actor.languages, vec!["common", "draconic"]);
-    assert_eq!(actor.speed_types, vec!["fly", "land"]);
+    assert_eq!(actor.speed_types, vec!["fly"]);
     assert_eq!(actor.senses, vec!["darkvision"]);
     assert_eq!(actor.immunities, vec!["fire"]);
     assert_eq!(actor.resistances, vec!["cold"]);
     assert_eq!(actor.weaknesses, vec!["holy"]);
-    assert_eq!(actor.disable_text.as_deref(), Some("DC 22 Athletics"));
-    assert!(actor.is_complex);
+    assert_eq!(actor.disable_text, None);
+    assert!(!actor.is_complex);
+
+    let RecordBody::Creature(creature) = loaded
+        .facts
+        .canonical_body
+        .as_ref()
+        .expect("NPC canonical body");
+    assert_eq!(creature.level.value, FactValue::Value(5));
+    let CreatureSourceAlliance::Named(alliance) = creature
+        .source_alliance
+        .value
+        .as_value()
+        .expect("source alliance")
+    else {
+        panic!("party should remain an intrinsic source alliance");
+    };
+    assert_eq!(alliance.as_str(), "party");
+    assert_eq!(
+        creature
+            .legacy_abilities
+            .value
+            .as_value()
+            .expect("legacy abilities")
+            .strength,
+        FactValue::Value(16)
+    );
+    let defenses = creature.defenses.value.as_value().expect("defenses");
+    assert_eq!(defenses.hardness, FactValue::Value(5));
+    assert_eq!(
+        defenses
+            .shield
+            .as_value()
+            .expect("shield")
+            .serialized_hit_points,
+        FactValue::Value(6)
+    );
+    assert_eq!(
+        creature
+            .movement
+            .value
+            .as_value()
+            .expect("canonical movement")[0]
+            .mode,
+        CreatureMovementMode::Fly
+    );
+    let focus = &creature.resources.value.as_value().expect("resources")[0];
+    assert_eq!(
+        focus.maximum,
+        FactValue::Value(CreatureResourceAmount::Integer(1))
+    );
+    assert_eq!(
+        focus.source_drift.as_value().expect("maxx drift")[0].field,
+        CreatureUnsupportedSourceField::ResourceMaximumDrift
+    );
+    assert_eq!(loaded.facts.npc_core_diagnostics.len(), 1);
+    let npc_source = loaded
+        .facts
+        .npc_source
+        .as_ref()
+        .expect("full versioned NPC Source envelope");
+    assert_eq!(npc_source.raw_json_for_audit(), &expected_source_envelope);
 }
 
 #[test]

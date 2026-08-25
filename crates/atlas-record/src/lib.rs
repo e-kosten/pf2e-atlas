@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 mod content;
+mod creature;
 mod json_projection;
 mod mechanics_view;
 pub mod metrics;
@@ -20,6 +21,22 @@ pub use content::{
     RecordFtsProjection, ReferenceRelationKind, RichDocument, RichLinkTarget, RichNode,
     build_content_section_tree, build_record_fts_projection, iter_foundry_links,
     render_markdown_like, render_plain_text, visit_foundry_links_mut,
+};
+pub use creature::{
+    CreatureAdjustment, CreatureAllianceName, CreatureArmorClass, CreatureComponentId,
+    CreatureDefenses, CreatureDerivation, CreatureFact, CreatureFactProvenance, CreatureFamily,
+    CreatureHitPoints, CreatureIdentity, CreatureInitiative, CreatureInitiativeStatistic,
+    CreatureIwr, CreatureIwrKind, CreatureLanguages, CreatureLegacyAbilities, CreatureMovementMode,
+    CreatureNote, CreatureNumber, CreaturePerception, CreaturePredicate, CreatureProvenance,
+    CreaturePublication, CreatureRecord, CreatureResource, CreatureResourceAmount,
+    CreatureResourceKind, CreatureSave, CreatureSaveKind, CreatureSaves, CreatureSense,
+    CreatureShield, CreatureSize, CreatureSkill, CreatureSkillKind, CreatureSkillVariant,
+    CreatureSourceAlliance, CreatureSourceField, CreatureSourceId, CreatureSpeed,
+    CreatureStatistic, CreatureTrait, CreatureUnsupportedSourceFact,
+    CreatureUnsupportedSourceField, FactValue, InvalidCanonicalId, InvalidCanonicalSlug,
+    InvalidCanonicalValue, IwrQualifier, IwrType, Language, PredicateTerm, PublicationLicense,
+    RecordBody, ResourceCurrentPolicy, SenseAcuity, SenseType, ShieldCurrentPolicy,
+    UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
 };
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,

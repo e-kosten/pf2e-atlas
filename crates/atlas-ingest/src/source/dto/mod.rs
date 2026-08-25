@@ -5,6 +5,7 @@
 //! phases. The original JSON is retained only behind an explicitly named audit
 //! accessor.
 
+mod creature_core;
 mod diagnostic;
 mod item;
 mod npc;
@@ -33,3 +34,8 @@ pub(crate) use value::{
 
 #[cfg(test)]
 mod tests;
+pub use creature_core::{
+    NpcCoreSource, NpcIwrSource, NpcLegacyAbilitySource, NpcPredicateSource,
+    NpcResourceAmountSource, NpcResourceSource, NpcSaveSource, NpcSavesSource, NpcSkillSource,
+    NpcSkillVariantSource, SourceInteger,
+};
