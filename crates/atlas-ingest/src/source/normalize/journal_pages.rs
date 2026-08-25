@@ -65,7 +65,6 @@ pub(super) fn extract_journal_page_facts(
             source_ref: format!("journal:{name}"),
             name,
             ordinal: index as i64,
-            source_markup: markup,
             document: parsed.document,
         });
     }

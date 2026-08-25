@@ -24,6 +24,7 @@ pub struct CreatureRecord {
     pub movement: CreatureFact<Vec<CreatureSpeed>>,
     pub resources: CreatureFact<Vec<CreatureResource>>,
     pub embedded_entities: CreatureFact<crate::CreatureEmbeddedEntities>,
+    pub content: crate::OwnedRichContent,
     pub provenance: CreatureProvenance,
 }
 

@@ -132,6 +132,28 @@ flowchart TD
 
 The durable source of authored rich text is `RichDocument`, not stripped text and not raw Foundry markup. `RichDocument` preserves HTML elements and Foundry enrichments together; plain text, structured presentation content for CLI `RecordJson`/terminal output, structured FTS rows, semantic chunks, references, app DTOs, and UI blocks are projections. Content attaches to typed record/entity/subdocument owners and retains stable content, section, and occurrence targets.
 
+For the creature slice, `CreatureRecord.content` is the canonical owned-content collection.
+Ingest assigns stable source keys independently from `content_hash` and the later
+`semantic_input_hash`, attaches actor lore and notes to the record, attaches unresolved
+actor-owned capability prose to that entity, and attaches copied or locally overridden canonical
+spell/item prose to the B4 occurrence. Embedded `system.description.gm` fields attach to that same
+typed entity or occurrence owner with a stable `gm-description` key, embedded GM source kind,
+`gm_only` visibility, authored order, and exact source provenance, including children whose
+intrinsic standalone model remains assigned to a later family. Visibility is retained
+classification data; this slice neither authenticates nor hides content. Copied canonical prose is
+typed as such for later ranking policy; B5 does not create a second spell/item truth or implement
+search weighting. Every parsed reference produces an ordered typed occurrence carrying the same
+owner, role, origin, visibility, and provenance as its source content document. Unsupported
+meaningful tags/attributes, unknown Foundry macros, unstable fallback identities, and unresolved
+links remain safe content plus typed diagnostics.
+
+Foundry markup has one parser owner under `atlas-ingest::source::normalize::content`. Ingest
+consumers, including remaster-journal alias/reference extraction, traverse the resulting
+`RichDocument`; they do not retain and reparse source markup. Before C1 replaces physical storage,
+the existing `AtlasRecord.content` creature value is a one-way projection of record-owned
+canonical documents for unchanged pre-C1 consumers. Embedded entity documents are deliberately
+absent from that ordinary record projection.
+
 Generated-affliction construction uses an explicit `canonical | source_instance` role and three typed host-instance-canonical relationships. Canonicals own deduplicated user-facing meaning; source instances preserve exact host occurrence/provenance. The role is construction-time duplicate-control and provenance metadata, not an authorization or visibility classification. The current sparse artifact projection still carries its legacy ranking field until C1 owns persistence/validation and D1 owns retrieval disposition; D3 audits the one-canonical/one-instance/three-relationship fixture before UI work.
 
 Pinned-base graph and backlink behavior is not GM-complete: default and public-with-embedded modes require `ContentVisibility::Public`, default backlinks omit GM/private and copied embedded capability sources, and variant expansion uses `is_default_visible`. The approved target keeps typed source kind, visibility, role, provenance, and relation kind while removing classification-only suppression. Copied embedded capability edges may remain outside the default mode to avoid duplicate/noisy results while staying available through an expanded capability mode, implementation-only provenance may remain inspection-only because it has no authored product meaning, and legacy variants may be demoted from ordinary ranking to avoid duplicate remaster results while staying directly addressable. `atlas-record` owns the named target graph policy and `atlas-index` lowers it into SQL predicates; neither may invent an authorization boundary.
@@ -204,7 +226,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 - artifact identity: `artifact_metadata`
 - source packs: `packs`
 - canonical records: `records`
-- supplemental content: `record_content`
+- authored content: `record_content`
 - aliases and remaster links: `record_aliases`, `remaster_links`
 - filterable projections: `record_traits`, actor/item/spell side tables; future `record_tags`
 - discovery catalogs: `filter_field_catalog`, `filter_value_catalog`, `filter_sample_catalog`, `filter_numeric_catalog`

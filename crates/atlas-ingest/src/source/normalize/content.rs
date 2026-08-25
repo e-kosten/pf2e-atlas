@@ -20,6 +20,7 @@ pub(crate) trait LocalizationResolver {
     fn localized_value(&self, key: &str) -> Option<&str>;
 }
 
+#[cfg(test)]
 pub(crate) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
     parse_foundry_content_with_localization(value, None)
 }
@@ -36,6 +37,12 @@ pub(crate) fn parse_foundry_content_with_localization(
     for tag in state.unsupported_tags {
         diagnostics.record_unsupported_tag(&tag);
     }
+    for (tag, name) in state.unsupported_attributes {
+        diagnostics.record_unsupported_attribute(&tag, &name);
+    }
+    for name in state.unknown_macros {
+        diagnostics.record_unknown_macro(&name);
+    }
 
     ParsedContentDocument {
         document: RichDocument::new(nodes),
@@ -48,6 +55,8 @@ struct ParseState<'a> {
     localization_depth: usize,
     active_localizations: BTreeSet<String>,
     unsupported_tags: BTreeSet<String>,
+    unsupported_attributes: BTreeSet<(String, String)>,
+    unknown_macros: BTreeSet<String>,
 }
 
 impl<'a> ParseState<'a> {
@@ -57,6 +66,8 @@ impl<'a> ParseState<'a> {
             localization_depth: 0,
             active_localizations: BTreeSet::new(),
             unsupported_tags: BTreeSet::new(),
+            unsupported_attributes: BTreeSet::new(),
+            unknown_macros: BTreeSet::new(),
         }
     }
 }
@@ -83,6 +94,12 @@ fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState<'_>) -> 
             }
             if is_unusual_tag(&tag) {
                 state.unsupported_tags.insert(tag.clone());
+            }
+            for (name, _) in element.attrs() {
+                let name = name.to_ascii_lowercase();
+                if is_meaningful_unsupported_attribute(&name) {
+                    state.unsupported_attributes.insert((tag.clone(), name));
+                }
             }
             let attributes = element
                 .attrs()
@@ -146,6 +163,15 @@ fn is_unusual_tag(tag: &str) -> bool {
             | "tr"
             | "ul"
     )
+}
+
+fn is_meaningful_unsupported_attribute(name: &str) -> bool {
+    name.starts_with("on")
+        || (name.starts_with("data-")
+            && !matches!(
+                name,
+                "data-action" | "data-tooltip" | "data-uuid" | "data-visibility" | "data-whose"
+            ))
 }
 
 fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<RichNode> {
@@ -348,14 +374,17 @@ fn parse_foundry_macro(
                 label,
             },
         },
-        _ => RichNode::Foundry {
-            node: FoundryNode::UnknownFoundry {
-                name: macro_name,
-                body: Some(body.to_string()),
-                label,
-                raw: value[start..end].to_string(),
-            },
-        },
+        _ => {
+            state.unknown_macros.insert(macro_name.clone());
+            RichNode::Foundry {
+                node: FoundryNode::UnknownFoundry {
+                    name: macro_name,
+                    body: Some(body.to_string()),
+                    label,
+                    raw: value[start..end].to_string(),
+                },
+            }
+        }
     };
 
     Some(ParsedMacro { node, end })

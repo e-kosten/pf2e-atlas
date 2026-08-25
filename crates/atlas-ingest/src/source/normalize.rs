@@ -30,9 +30,9 @@ use content_sources::extract_content_sources;
 use embedded_items::{attach_embedded_content_refs, extract_embedded_item_facts};
 use journal_pages::extract_journal_page_facts;
 
-pub(crate) use content::{
-    LocalizationResolver, parse_foundry_content, parse_foundry_content_with_localization,
-};
+#[cfg(test)]
+pub(crate) use content::parse_foundry_content;
+pub(crate) use content::{LocalizationResolver, parse_foundry_content_with_localization};
 pub(crate) use content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub(crate) use json::{
     normalized_pointer_string, pointer_bool, pointer_i64, pointer_string, string_array_at_pointer,
@@ -224,10 +224,20 @@ pub(crate) fn normalize_record(
                 .insert(local_key.clone(), document.clone());
         }
     }
+    source_facts.content_sources = content_sources.owned_content.clone();
     let mut supplemental_content = content_sources
         .supplemental_content
         .into_iter()
         .map(|(_, document)| document)
+        .filter(|document| {
+            npc_conversion.is_none()
+                || !matches!(
+                    document.source_kind,
+                    ContentSourceKind::EmbeddedItemDescription
+                        | ContentSourceKind::EmbeddedGmDescription
+                        | ContentSourceKind::EmbeddedSpellDescription
+                )
+        })
         .collect::<Vec<_>>();
     source_facts.embedded_items = extract_embedded_item_facts(&raw, &key);
     attach_embedded_content_refs(

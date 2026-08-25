@@ -30,6 +30,24 @@ Rust records preserve authored rich text as `RichDocument` values. `RichDocument
 
 Each content document carries explicit owner, role, source kind, label, visibility, provenance, order, and search/reference participation policy.
 
+The creature implementation stores those documents in `CreatureRecord.content`, keyed by the
+composite `(parent_record_key, content_key)`. Stable singleton field keys and embedded source IDs
+are allocated during ingest; a missing embedded source ID uses the diagnosed authored-ordinal
+fallback only. The canonical content locator never contains `content_hash` or
+`semantic_input_hash`. Content hashes cover the canonical parsed tree and may change after a text
+or structure edit without changing the source content key.
+
+Actor lore/details/notes are record-owned. An embedded capability without a resolved canonical
+target is owned by its typed actor-owned entity. When an embedded spell/item resolves to an
+existing canonical record, its actor-local copied or overridden prose is occurrence-owned and
+records the canonical target as duplicate-source metadata. It never becomes parent-owned creature
+content and never mutates or duplicates canonical target facts. Embedded `system.description.gm`
+uses a stable source key, the embedded entity or occurrence owner, the embedded GM source kind,
+and `gm_only` visibility. That visibility is retained classification data, not current
+authentication or a reason to discard the document. A later intrinsic item family still has a
+current typed creature occurrence shell, so family deferral alone cannot orphan or exclude its
+content.
+
 All authored rich content is stored in `record_content`; `records` does not carry special `description_json` or `blurb_json` columns. Each stored content row carries typed owner/role/source/visibility/provenance and a stable owner-relative content key. `content_hash` and `semantic_input_hash` are change/cache identities, never locators.
 
 Raw source markup is not a runtime source of truth. It may be retained for ingest, provenance, diagnostics, or debug workflows, but runtime presentation, FTS, semantic chunks, and reference extraction derive from `RichDocument`.
@@ -54,6 +72,12 @@ The Rust content refactor removes `description_text`, `blurb_text`, `search_text
 The recursive raw JSON reference scan is retired. If a JSON field should contribute content or references, it must be promoted into an explicit content source or explicit relationship producer.
 
 Duplicate markup handling in ingest and embedding must be removed. Foundry markup is parsed once into the central rich content model, and downstream consumers derive their views from that model.
+
+The ingest implementation also uses the parsed tree for remaster-journal alias/reference
+conversion; it does not retain a second raw markup scanner. Unknown macros remain safe
+`UnknownFoundry` nodes. Meaningful unsupported tags/attributes and unresolved links produce typed
+diagnostics, while reference occurrences preserve canonical traversal order and source-content
+metadata parity.
 
 The SQLite artifact contract persists all authored rich content as `record_content.content_json`, keeps structured FTS projection fields, and stores reference-edge source/visibility/relation metadata. Artifact validation should reject malformed rich content JSON and incoherent reference-edge source, visibility, or relation values.
 

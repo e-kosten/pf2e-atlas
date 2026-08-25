@@ -85,6 +85,25 @@ fn preserves_template_macros_and_reports_unknown_tags() {
 }
 
 #[test]
+fn preserves_unknown_constructs_and_diagnoses_meaningful_attributes() {
+    let parsed = parse_foundry_content(
+        "<aside data-unknown-rule=\"yes\" onclick=\"unsafe()\">@Mystery[alpha|mode:beta]</aside>",
+    );
+
+    assert_eq!(parsed.diagnostics.unsupported_tags, vec!["aside"]);
+    assert_eq!(parsed.diagnostics.unknown_macros, vec!["mystery"]);
+    assert_eq!(parsed.diagnostics.unsupported_attributes.len(), 2);
+    assert_eq!(render_plain_text(&parsed.document), "alpha|mode:beta");
+    assert!(matches!(
+        &parsed.document.nodes[0],
+        RichNode::HtmlElement { attributes, children, .. }
+            if attributes.contains_key("data-unknown-rule")
+                && attributes.contains_key("onclick")
+                && matches!(children[0], RichNode::Foundry { .. })
+    ));
+}
+
+#[test]
 fn resolves_localize_macros_without_losing_key_or_label_context() {
     let localization = LocalizationCatalog::from_entries([(
         "PF2E.NPC.Abilities.Glossary.NegativeHealing".to_string(),

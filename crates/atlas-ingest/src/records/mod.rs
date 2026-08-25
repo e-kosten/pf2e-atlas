@@ -8,6 +8,6 @@ pub(crate) mod visibility;
 
 pub(crate) use loaded::{
     EmbeddedItemContentRef, EmbeddedItemFact, JournalPageFact, JournalPageSkipReason,
-    LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate, SkippedJournalPageFact,
-    SourceConstructionFacts, SourceRecordFacts,
+    LoadedSourceRecord, RecordReferenceIndex, SkippedJournalPageFact, SourceConstructionFacts,
+    SourceContentFact, SourceRecordFacts,
 };

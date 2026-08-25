@@ -4,15 +4,12 @@ use std::path::Path;
 use atlas_domain::{RecordKey, RemasterLinkSource};
 use atlas_record::{AliasSource, FoundryDocumentType, RecordAlias, RemasterLink};
 
-mod html;
 mod migrations;
 mod remaster_journal;
 
 use migrations::migration_rename_pairs_from_root;
 use remaster_journal::extract_remaster_journal_changes;
 
-#[cfg(test)]
-use html::html_text;
 #[cfg(test)]
 use migrations::migration_rename_pairs;
 #[cfg(test)]

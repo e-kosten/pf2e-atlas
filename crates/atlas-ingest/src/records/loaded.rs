@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentSourceKind, RecordBody, RecordContentDocument, RichDocument,
+    AtlasRecord, ContentIdentityStability, ContentSourceKind, RecordBody, RecordContentDocument,
+    RichDocument,
 };
 use serde_json::Value;
 
@@ -11,13 +12,6 @@ use crate::source::dto::VersionedNpcSource;
 use crate::source::normalize::ContentParseDiagnostics;
 use crate::source::npc_core::NpcCoreDiagnostic;
 use crate::source::npc_entities::{NpcEmbeddedCandidates, NpcEmbeddedDiagnostic};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReferenceCandidate {
-    pub(crate) raw_target: String,
-    pub(crate) display_text: Option<String>,
-    pub(crate) reference_text: String,
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct LoadedSourceRecord {
@@ -63,9 +57,24 @@ pub(crate) struct SourceRecordFacts {
     pub(crate) slug: Option<String>,
     pub(crate) compendium_source: Option<String>,
     pub(crate) source_content: BTreeMap<String, RecordContentDocument>,
+    pub(crate) content_sources: Vec<SourceContentFact>,
     pub(crate) embedded_items: Vec<EmbeddedItemFact>,
     pub(crate) journal_pages: Vec<JournalPageFact>,
     pub(crate) skipped_journal_pages: Vec<SkippedJournalPageFact>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SourceContentFact {
+    pub(crate) content_key: String,
+    pub(crate) identity_stability: ContentIdentityStability,
+    pub(crate) source_kind: ContentSourceKind,
+    pub(crate) relative_source_path: String,
+    pub(crate) nested_source_id: Option<String>,
+    pub(crate) authored_ordinal_or_range: Option<String>,
+    pub(crate) authored_order: u32,
+    pub(crate) label: Option<String>,
+    pub(crate) document: RichDocument,
+    pub(crate) diagnostics: ContentParseDiagnostics,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -100,7 +109,6 @@ pub(crate) struct JournalPageFact {
     pub(crate) normalized_name: String,
     pub(crate) ordinal: i64,
     pub(crate) source_ref: String,
-    pub(crate) source_markup: String,
     pub(crate) document: RichDocument,
 }
 
