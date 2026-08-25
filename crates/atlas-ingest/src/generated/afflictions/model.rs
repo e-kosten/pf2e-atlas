@@ -43,6 +43,36 @@ pub(crate) struct AfflictionOccurrence {
 pub(crate) struct GeneratedAfflictionBuild {
     pub(crate) records: Vec<LoadedSourceRecord>,
     pub(crate) references: Vec<ReferenceEdge>,
+    pub(crate) relationships: Vec<GeneratedAfflictionRelationship>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum GeneratedAfflictionRole {
+    Canonical,
+    SourceInstance,
+}
+
+impl GeneratedAfflictionRole {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Canonical => "canonical",
+            Self::SourceInstance => "source_instance",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum GeneratedAfflictionRelationshipKind {
+    HostHasSourceInstance,
+    SourceInstanceOfCanonical,
+    CanonicalDerivedFromHostOccurrence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedAfflictionRelationship {
+    pub(crate) kind: GeneratedAfflictionRelationshipKind,
+    pub(crate) from: atlas_domain::RecordKey,
+    pub(crate) to: atlas_domain::RecordKey,
 }
 
 pub(crate) struct DerivedAfflictionRecordInput {
@@ -59,6 +89,6 @@ pub(crate) struct DerivedAfflictionRecordInput {
     pub(crate) publication_remaster: bool,
     pub(crate) category: PublicationCategory,
     pub(crate) source_path: String,
-    pub(crate) is_default_visible: bool,
+    pub(crate) role: GeneratedAfflictionRole,
     pub(crate) raw: Value,
 }

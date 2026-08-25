@@ -185,7 +185,7 @@ pub(crate) fn analyze_source_load(
             record_aliases: source.aliases.len(),
             remaster_links: source.remaster_links.len(),
         },
-        diagnostics: diagnostics_json(&source.diagnostics),
+        diagnostics: diagnostics_json(&source.diagnostics, &source.records),
         skipped_record_count: source.skipped_records.len(),
         skipped_records: skipped_record_reports(&source.skipped_records),
         warnings: source.warnings,
@@ -210,7 +210,24 @@ fn reference_edge_count(
         .count()
 }
 
-pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
+pub(crate) fn diagnostics_json(
+    diagnostics: &IngestDiagnostics,
+    records: &[LoadedSourceRecord],
+) -> Value {
+    let npc_embedded_type_drift = records
+        .iter()
+        .flat_map(|record| &record.facts.npc_embedded_diagnostics)
+        .filter(|diagnostic| {
+            diagnostic.kind
+                == crate::source::npc_entities::NpcEmbeddedDiagnosticKind::SourceTypeDrift
+        })
+        .collect::<Vec<_>>();
+    let mut type_drift_by_disposition = BTreeMap::new();
+    for diagnostic in &npc_embedded_type_drift {
+        *type_drift_by_disposition
+            .entry(diagnostic.disposition.as_str())
+            .or_insert(0usize) += 1;
+    }
     json!({
         "taxonomy": {
             "folder_records": diagnostics.taxonomy_folder_records,
@@ -227,6 +244,15 @@ pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
             "canonical_records": diagnostics.generated_affliction_canonical_records,
             "instance_records": diagnostics.generated_affliction_instance_records,
             "reference_edges": diagnostics.generated_affliction_reference_edges,
+        },
+        "source_preservation": {
+            "npc_embedded_entities": {
+                "type_drift": {
+                    "count": npc_embedded_type_drift.len(),
+                    "by_disposition": type_drift_by_disposition,
+                    "entries": npc_embedded_type_drift,
+                },
+            },
         },
         "dropped_inline_macros": diagnostics.dropped_inline_macros.iter().map(|(name, diagnostic)| {
             json!({

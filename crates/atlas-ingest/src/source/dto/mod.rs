@@ -7,6 +7,7 @@
 
 mod creature_core;
 mod diagnostic;
+mod embedded;
 mod item;
 mod npc;
 mod presence;
@@ -27,6 +28,15 @@ pub use version::{
     validate_pinned_source_version,
 };
 
+pub(crate) use embedded::{
+    ActionSource, ActorSpellcastingSource, DamageSource, EmbeddedCommonSource,
+    EmbeddedSourceScalar, EquipmentSource, NpcEmbeddedItemSource, PreparedSlotSource,
+    SourceTypeDrift, SpellDefenseSource, SpellSource, SpellcastingEntrySource, StrikeSource,
+    UseLimitSource, ValueSummary,
+};
+pub(crate) use item::{
+    EmbeddedRelationshipKindSource, EmbeddedRelationshipSource, EmbeddedStableLocatorSource,
+};
 pub(crate) use value::{
     RawSourceJson, actual_shape, optional_array_of_objects, optional_integer, optional_object,
     optional_string, required_object, required_string,

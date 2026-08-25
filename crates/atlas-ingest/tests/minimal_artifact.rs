@@ -885,11 +885,29 @@ fn generates_affliction_records_from_staged_embedded_items()
          WHERE pack_name = 'derived-afflictions'
            AND name = 'Ghoul Fever'
            AND foundry_record_type = 'affliction'
-           AND record_kind = 'affliction'
-           AND is_default_visible = 1",
+           AND record_kind = 'affliction'",
         [],
         |row| row.get(0),
     )?;
+    let mut role_statement = connection.prepare(
+        "SELECT raw_json FROM records
+         WHERE pack_name IN ('derived-afflictions', 'derived-affliction-instances')
+         ORDER BY pack_name",
+    )?;
+    let mut generated_roles = role_statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .map(|row| {
+            let raw: Value = serde_json::from_str(&row?)?;
+            Ok::<_, Box<dyn std::error::Error>>(
+                raw.pointer("/_derived/role")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    generated_roles.sort();
+    drop(role_statement);
     let serpent_dagger_count: usize = connection.query_row(
         "SELECT COUNT(*) FROM records
          WHERE pack_name = 'derived-afflictions'
@@ -901,6 +919,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(generated_fts_count, 1);
     assert_eq!(generated_edge_count, 3);
     assert_eq!(ghoul_fever_count, 1);
+    assert_eq!(generated_roles, ["canonical", "source_instance"]);
     assert_eq!(serpent_dagger_count, 0);
 
     drop(connection);

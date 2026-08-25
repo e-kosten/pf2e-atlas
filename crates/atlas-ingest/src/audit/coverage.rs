@@ -329,19 +329,15 @@ fn npc_declarations() -> Vec<CoverageDeclaration> {
             "$.items[].type",
             "source::dto + source::normalize::embedded_items",
         ),
-        npc_deferred(
+        npc_provenance(
             "embedded_item_folder",
             "$.items[].folder",
-            "B4",
-            "NPC embedded entity conversion",
-            "B4 reviews embedded container context while constructing stable entities and occurrences.",
+            "The occurrence retains the Foundry folder as non-addressable container provenance; it is never a canonical identity or runtime relationship.",
         ),
-        npc_deferred(
+        npc_consumed(
             "embedded_item_sort",
             "$.items[].sort",
-            "B4",
-            "NPC embedded entity conversion",
-            "B4 owns authored embedded-item order; Foundry sort values remain source inputs rather than implicit array-order guesses.",
+            "source::npc_entities::authored_order",
         ),
         npc_consumed(
             "embedded_item_slug",
@@ -1055,38 +1051,58 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
             ("$.system.spellcasting.rituals.dc", "B4", "NPC embedded entity conversion"),
         ]
         .into_iter()
-        .map(|(path, task, owner)| {
-            npc_deferred(
-                "npc_exact_deferred_leaf",
-                path,
-                task,
-                owner,
-                "The exact observed meaningful NPC leaf is assigned to its approved creature conversion owner; sibling or descendant fields remain unknown until separately classified.",
-            )
+        .map(|(path, _task, _owner)| {
+            if path == "$.items[].system.description.gm" {
+                npc_deferred(
+                    "embedded_gm_content",
+                    path,
+                    "B5",
+                    "NPC embedded rich-content attachment",
+                    "B5 owns GM-complete RichDocument attachment; B4 does not treat authored content as a mechanic note.",
+                )
+            } else {
+                npc_consumed(
+                    "npc_embedded_entity_fact",
+                    path,
+                    "source::npc_entities::typed_capability_or_unsupported",
+                )
+            }
         }),
     );
     declarations.extend(
         [
             "$.items[].flags.core.sourceId",
             "$.items[].flags.pf2e.grantedBy.id",
-            "$.items[].flags.pf2e.grantedBy.onDelete",
             "$.items[].flags.pf2e.itemGrants.*.id",
-            "$.items[].flags.pf2e.itemGrants.*.onDelete",
             "$.items[].flags.pf2e.itemGrants.knockdown.id",
-            "$.items[].flags.pf2e.itemGrants.knockdown.onDelete",
             "$.items[].flags.pf2e.itemGrants.knockdown2.id",
-            "$.items[].flags.pf2e.itemGrants.knockdown2.onDelete",
             "$.items[].flags.pf2e.itemGrants.knockdown3.id",
-            "$.items[].flags.pf2e.itemGrants.knockdown3.onDelete",
             "$.items[].flags.pf2e.itemGrants.prone.id",
-            "$.items[].flags.pf2e.itemGrants.prone.onDelete",
             "$.items[].flags.pf2e.itemGrants.reactiveStrike.id",
-            "$.items[].flags.pf2e.itemGrants.reactiveStrike.onDelete",
             "$.items[].flags.pf2e.itemGrants.reactiveStrike2.id",
-            "$.items[].flags.pf2e.itemGrants.reactiveStrike2.onDelete",
             "$.items[].flags.pf2e.itemGrants.reinforcedStock.id",
-            "$.items[].flags.pf2e.itemGrants.reinforcedStock.onDelete",
             "$.items[].flags.pf2e.linkedWeapon",
+        ]
+        .into_iter()
+        .map(|path| {
+            npc_consumed(
+                "npc_embedded_relationship_or_locator",
+                path,
+                "source::npc_entities::identity_relationships",
+            )
+        }),
+    );
+    declarations.extend(
+        [
+            "$.items[].flags.pf2e.grantedBy.onDelete",
+            "$.items[].flags.pf2e.itemGrants.*.onDelete",
+            "$.items[].flags.pf2e.itemGrants.knockdown.onDelete",
+            "$.items[].flags.pf2e.itemGrants.knockdown2.onDelete",
+            "$.items[].flags.pf2e.itemGrants.knockdown3.onDelete",
+            "$.items[].flags.pf2e.itemGrants.prone.onDelete",
+            "$.items[].flags.pf2e.itemGrants.reactiveStrike.onDelete",
+            "$.items[].flags.pf2e.itemGrants.reactiveStrike2.onDelete",
+            "$.items[].flags.pf2e.itemGrants.reinforcedStock.onDelete",
             "$.prototypeToken.name",
         ]
         .into_iter()
@@ -1094,7 +1110,7 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
             npc_provenance(
                 "npc_exact_provenance_leaf",
                 path,
-                "This exact observed leaf is retained by the typed source owner as reviewed provenance; sibling or descendant fields remain unknown until separately classified.",
+                "The typed relationship retains lifecycle provenance without executing it; token name remains presentation provenance.",
             )
         }),
     );
@@ -1738,7 +1754,11 @@ mod tests {
 
         let rituals = declaration_for("Actor", "npc", "$.system.spellcasting.rituals.dc")
             .expect("B4 ritual DC declaration");
-        assert_eq!(rituals.disposition, SourcePathCoverageDisposition::Deferred);
-        assert_eq!(rituals.future_owner, Some("B4"));
+        assert_eq!(rituals.disposition, SourcePathCoverageDisposition::Consumed);
+        assert_eq!(
+            rituals.owner,
+            "source::npc_entities::typed_capability_or_unsupported"
+        );
+        assert_eq!(rituals.future_owner, None);
     }
 }

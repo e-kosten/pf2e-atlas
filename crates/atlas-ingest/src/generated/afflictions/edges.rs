@@ -1,14 +1,16 @@
 use atlas_domain::RecordKey;
 use atlas_record::{ContentSourceKind, ContentVisibility, ReferenceEdge, ReferenceRelationKind};
 
-use crate::generated::afflictions::AfflictionOccurrence;
+use crate::generated::afflictions::{
+    AfflictionOccurrence, GeneratedAfflictionRelationship, GeneratedAfflictionRelationshipKind,
+};
 
 pub(super) fn generated_affliction_edges(
     occurrence: &AfflictionOccurrence,
     instance_key: &RecordKey,
     canonical_key: &RecordKey,
-) -> [ReferenceEdge; 3] {
-    [
+) -> ([ReferenceEdge; 3], [GeneratedAfflictionRelationship; 3]) {
+    let references = [
         ReferenceEdge {
             from_record_key: occurrence.host_record.identity.key.clone(),
             to_record_key: instance_key.clone(),
@@ -39,5 +41,23 @@ pub(super) fn generated_affliction_edges(
             source_kind: ContentSourceKind::GeneratedAffliction,
             visibility: ContentVisibility::Public,
         },
-    ]
+    ];
+    let relationships = [
+        GeneratedAfflictionRelationship {
+            kind: GeneratedAfflictionRelationshipKind::HostHasSourceInstance,
+            from: occurrence.host_record.identity.key.clone(),
+            to: instance_key.clone(),
+        },
+        GeneratedAfflictionRelationship {
+            kind: GeneratedAfflictionRelationshipKind::SourceInstanceOfCanonical,
+            from: instance_key.clone(),
+            to: canonical_key.clone(),
+        },
+        GeneratedAfflictionRelationship {
+            kind: GeneratedAfflictionRelationshipKind::CanonicalDerivedFromHostOccurrence,
+            from: canonical_key.clone(),
+            to: occurrence.host_record.identity.key.clone(),
+        },
+    ];
+    (references, relationships)
 }

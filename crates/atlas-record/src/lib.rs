@@ -2,6 +2,7 @@
 
 mod content;
 mod creature;
+mod creature_entities;
 mod json_projection;
 mod mechanics_view;
 pub mod metrics;
@@ -37,6 +38,23 @@ pub use creature::{
     InvalidCanonicalValue, IwrQualifier, IwrType, Language, PredicateTerm, PublicationLicense,
     RecordBody, ResourceCurrentPolicy, SenseAcuity, SenseType, ShieldCurrentPolicy,
     UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
+};
+pub use creature_entities::{
+    CreatureActionCapability, CreatureActionCost, CreatureActorSpellcastingContext,
+    CreatureCapability, CreatureDamage, CreatureDamageKind, CreatureDeltaDisposition,
+    CreatureDeltaValue, CreatureEmbeddedEntities, CreatureEntity, CreatureEntityFamily,
+    CreatureEntityId, CreatureEntityOccurrence, CreatureEntityRelationship,
+    CreatureEntityRelationshipKind, CreatureEntitySourceIdentity, CreatureEntityTarget,
+    CreatureEquipmentCapability, CreatureFrequency, CreatureLoreCapability,
+    CreatureOccurrenceContext, CreatureOccurrenceDelta, CreatureOccurrenceId,
+    CreatureOccurrenceParent, CreaturePreparedSpellSlot, CreatureRelationshipExecution,
+    CreatureRelationshipTarget, CreatureRitualContext, CreatureRoll, CreatureRollKind,
+    CreatureSourceLocator, CreatureSourceScalar, CreatureSpellArea, CreatureSpellCapability,
+    CreatureSpellDefense, CreatureSpellDuration, CreatureSpellPreparation, CreatureSpellSave,
+    CreatureSpellSlot, CreatureSpellcastingEntryCapability, CreatureStrikeCapability,
+    CreatureUnsupportedCapability, CreatureUseLimit, InvalidCreatureEntityId,
+    InvalidStableSourceLocator, OccurrenceIdentityStability, StableSourceLocator,
+    UnsupportedMechanicNote,
 };
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
