@@ -53,19 +53,5 @@ pub(super) fn damage_die_faces(value: Option<&Value>) -> Option<f64> {
 }
 
 pub(crate) fn slugify_metric_segment(value: &str) -> String {
-    let mut output = String::new();
-    let mut last_was_separator = false;
-    for character in value.trim().to_lowercase().chars() {
-        if character.is_ascii_alphanumeric() {
-            output.push(character);
-            last_was_separator = false;
-        } else if !last_was_separator && !output.is_empty() {
-            output.push('_');
-            last_was_separator = true;
-        }
-    }
-    while output.ends_with('_') {
-        output.pop();
-    }
-    output
+    atlas_record::metrics::normalize_metric_key_segment(value)
 }

@@ -38,6 +38,10 @@ fn meaningful_unknowns_warn_relaxed_and_fail_strict_without_empty_spam()
     let relaxed = audit(&root, false, None)?;
     assert!(relaxed.enforcement.passed);
     assert_eq!(relaxed.summary.unknown_paths, 1);
+    assert_eq!(relaxed.summary.creature_unknown_paths, 1);
+    assert_eq!(relaxed.summary.creature_deferred_paths, 0);
+    assert_eq!(relaxed.summary.creature_catch_all_paths, 0);
+    assert_eq!(relaxed.summary.creature_unowned_paths, 0);
     assert_eq!(relaxed.enforcement.aggregate_warning_count, 1);
     assert!(relaxed.paths.iter().any(|path| {
         path.path == "$.system.futureField.value"
@@ -54,7 +58,7 @@ fn meaningful_unknowns_warn_relaxed_and_fail_strict_without_empty_spam()
     }));
     assert!(relaxed.paths.iter().any(|path| {
         path.path == "$.system.skills.*.mod"
-            && path.disposition == SourcePathCoverageDisposition::Consumed
+            && path.disposition == SourcePathCoverageDisposition::ProvenanceOnly
     }));
 
     let strict = audit(&root, true, None)?;
@@ -285,6 +289,48 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
         "consumed"
     );
     assert_eq!(diff.consumed_regressions[0].current_disposition, "deferred");
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn creature_consumed_regression_is_explicit_and_strictly_rejected()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("creature-consumed-regression");
+    write_actor_source(
+        &root,
+        json!({
+            "_id": "npc-coverage-consumed-regression",
+            "name": "Regression Creature",
+            "type": "npc",
+            "system": {"details": {"level": {"value": 1}}},
+            "items": [],
+            "prototypeToken": {"name": "Regression Creature"}
+        }),
+    )?;
+    let baseline = audit(&root, false, None)?;
+    let mut baseline_json = serde_json::to_value(&baseline)?;
+    let provenance_path = baseline_json["paths"]
+        .as_array_mut()
+        .expect("baseline paths")
+        .iter_mut()
+        .find(|path| path["path"] == "$.prototypeToken.name")
+        .expect("prototype token provenance path");
+    provenance_path["disposition"] = json!("consumed");
+    let baseline_path = root.join("coverage-creature-consumed-baseline.json");
+    fs::write(&baseline_path, serde_json::to_vec_pretty(&baseline_json)?)?;
+
+    let report = audit(&root, true, Some(baseline_path))?;
+    assert!(!report.enforcement.passed);
+    assert_eq!(report.summary.consumed_regressions, 1);
+    assert_eq!(report.summary.creature_consumed_regressions, 1);
+    let diff = report.source_diff.expect("source diff");
+    assert_eq!(diff.consumed_regressions.len(), 1);
+    assert_eq!(diff.consumed_regressions[0].path, "$.prototypeToken.name");
+    assert_eq!(
+        diff.consumed_regressions[0].current_disposition,
+        "provenance_only"
+    );
     fs::remove_dir_all(root)?;
     Ok(())
 }

@@ -22,9 +22,10 @@ pub(crate) fn extract_metrics(
     raw: &Value,
     document_type: &str,
     record_type: &str,
+    canonical_creature_metrics: Option<&[MetricRow]>,
 ) -> Result<Vec<MetricRow>, String> {
     let metrics = match document_type {
-        "Actor" => actor::extract_actor_metrics(raw)?,
+        "Actor" => actor::extract_actor_metrics(raw, canonical_creature_metrics)?,
         "Item" => item::extract_item_metrics(raw, record_type)?,
         _ => Vec::new(),
     };

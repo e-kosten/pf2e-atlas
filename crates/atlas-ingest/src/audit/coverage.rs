@@ -252,67 +252,107 @@ fn npc_declarations() -> Vec<CoverageDeclaration> {
         npc_consumed(
             "npc_ability_modifiers",
             "$.system.abilities.*.mod",
-            "records::metrics",
+            "records::metrics::NPC_REMAINDER_DYNAMIC_SPECS",
         ),
         npc_consumed(
             "npc_ability_modifier_aliases",
             "$.system.abilities.*.modifier",
-            "records::metrics",
+            "records::metrics::NPC_REMAINDER_DYNAMIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_hp_broken_threshold",
+            "$.system.attributes.hp.brokenThreshold",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_hp_broken",
+            "$.system.attributes.hp.broken",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_hp_bt",
+            "$.system.attributes.hp.bt",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_hardness_legacy_scalar",
+            "$.system.attributes.hardness",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_stealth_value",
+            "$.system.attributes.stealth.value",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_stealth_mod",
+            "$.system.attributes.stealth.mod",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
+        ),
+        npc_consumed(
+            "npc_stealth_modifier",
+            "$.system.attributes.stealth.modifier",
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS",
         ),
         npc_consumed(
             "npc_perception_mod",
             "$.system.perception.mod",
-            "records::metrics",
+            "source::dto + source::npc_core + atlas-record::creature_projection",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_perception_modifier",
             "$.system.perception.modifier",
-            "records::metrics",
+            "The typed NPC contract accepts mod and the reviewed legacy value field; unsupported modifier aliases remain only in retained raw provenance.",
         ),
         npc_consumed(
             "npc_perception_value",
             "$.system.perception.value",
-            "records::metrics",
+            "source::dto + source::npc_core + atlas-record::creature_projection",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_saves_mod",
             "$.system.saves.*.mod",
-            "source::mechanics + records::metrics",
+            "The pinned serialized NPC save contract uses value; prepared-data mod aliases remain only in retained raw provenance.",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_saves_modifier",
             "$.system.saves.*.modifier",
-            "source::mechanics + records::metrics",
+            "The pinned serialized NPC save contract uses value; prepared-data modifier aliases remain only in retained raw provenance.",
         ),
         npc_consumed(
             "npc_saves_value",
             "$.system.saves.*.value",
-            "source::mechanics + records::metrics",
+            "source::dto + source::npc_core + atlas-record::creature_projection",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_saves_total",
             "$.system.saves.*.totalModifier",
-            "source::mechanics + records::metrics",
+            "The pinned serialized NPC save contract uses value; prepared-data totalModifier aliases remain only in retained raw provenance.",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_skills_mod",
             "$.system.skills.*.mod",
-            "source::mechanics + records::metrics",
+            "The pinned serialized NPC skill contract uses base; prepared-data mod aliases remain only in retained raw provenance.",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_skills_modifier",
             "$.system.skills.*.modifier",
-            "source::mechanics + records::metrics",
+            "The pinned serialized NPC skill contract uses base; prepared-data modifier aliases remain only in retained raw provenance.",
         ),
-        npc_consumed(
+        npc_provenance(
             "npc_skills_value",
             "$.system.skills.*.value",
-            "source::mechanics + records::metrics",
+            "The pinned serialized NPC skill contract uses base; prepared-data value aliases remain only in retained raw provenance.",
+        ),
+        npc_consumed(
+            "npc_skills_base",
+            "$.system.skills.*.base",
+            "source::dto + source::npc_core + atlas-record::creature_projection",
         ),
         npc_consumed(
             "npc_skills_rank",
             "$.system.skills.*.rank",
-            "records::metrics",
+            "records::metrics::NPC_REMAINDER_DYNAMIC_SPECS + records::metrics::actor::extract_skill_proficiency_metrics",
         ),
         npc_consumed(
             "embedded_item_id",
@@ -332,7 +372,7 @@ fn npc_declarations() -> Vec<CoverageDeclaration> {
         npc_provenance(
             "embedded_item_folder",
             "$.items[].folder",
-            "The occurrence retains the Foundry folder as non-addressable container provenance; it is never a canonical identity or runtime relationship.",
+            "Foundry folder membership is non-addressable source-container provenance. Embedded item identity, authored order, ownership, and typed relationships are consumed separately, so this path hides no product field.",
         ),
         npc_consumed(
             "embedded_item_sort",
@@ -377,7 +417,12 @@ fn npc_declarations() -> Vec<CoverageDeclaration> {
         npc_provenance(
             "embedded_item_image",
             "$.items[].img",
-            "Embedded art is retained for audit and future presentation decisions; B4 does not infer mechanics from it.",
+            "The image string is a provenance-only Foundry source locator because reuse licensing is not established. Atlas does not copy, fetch, embed, or display it; that policy may be revisited if licensing changes.",
+        ),
+        npc_provenance(
+            "npc_actor_image_locator",
+            "$.img",
+            "The image string is a provenance-only Foundry source locator because reuse licensing is not established. Atlas does not copy, fetch, embed, or display it; that policy may be revisited if licensing changes.",
         ),
     ];
     declarations.extend(npc_exact_recursive_replacements());
@@ -412,7 +457,6 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
             "$.system.resources.*.maxx",
             "$.system.resources.*.value",
             "$.system.saves.*.saveDetail",
-            "$.system.skills.*.base",
             "$.system.skills.*.note",
             "$.system.skills.*.special[].base",
             "$.system.skills.*.special[].label",
@@ -426,82 +470,73 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
     );
     declarations.extend(
         [
-            (
-                "$.system.attributes.ac.details",
-                "source::mechanics + records::metrics",
-            ),
+            ("$.system.attributes.ac.details", "source::npc_core"),
             (
                 "$.system.attributes.ac.value",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
-            (
-                "$.system.attributes.hp.details",
-                "source::mechanics + records::metrics",
-            ),
+            ("$.system.attributes.hp.details", "source::npc_core"),
             (
                 "$.system.attributes.hp.max",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
-            (
-                "$.system.attributes.hp.temp",
-                "source::mechanics + records::metrics",
-            ),
-            (
-                "$.system.attributes.hp.tempmax",
-                "source::mechanics + records::metrics",
-            ),
+            ("$.system.attributes.hp.temp", "source::npc_core"),
+            ("$.system.attributes.hp.tempmax", "source::npc_core"),
             (
                 "$.system.attributes.hp.value",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
             (
                 "$.system.attributes.immunities[].exceptions[]",
-                "source::mechanics",
+                "source::npc_core",
             ),
-            ("$.system.attributes.immunities[].type", "source::mechanics"),
+            (
+                "$.system.attributes.immunities[].type",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
+            ),
             (
                 "$.system.attributes.resistances[].doubleVs[]",
-                "source::mechanics",
+                "source::npc_core",
             ),
             (
                 "$.system.attributes.resistances[].exceptions[]",
-                "source::mechanics",
+                "source::npc_core",
             ),
             (
                 "$.system.attributes.resistances[].type",
-                "source::mechanics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
             (
                 "$.system.attributes.resistances[].value",
-                "source::mechanics",
+                "source::npc_core",
             ),
-            (
-                "$.system.attributes.speed.details",
-                "source::mechanics + records::metrics",
-            ),
+            ("$.system.attributes.speed.details", "source::npc_core"),
             (
                 "$.system.attributes.speed.otherSpeeds[].label",
-                "source::mechanics + records::metrics",
+                "source::npc_core",
             ),
             (
                 "$.system.attributes.speed.otherSpeeds[].type",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
             (
                 "$.system.attributes.speed.otherSpeeds[].value",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
             (
                 "$.system.attributes.speed.value",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
-            ("$.system.attributes.weaknesses[].type", "source::mechanics"),
             (
-                "$.system.attributes.weaknesses[].value",
-                "source::mechanics",
+                "$.system.attributes.weaknesses[].type",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
-            ("$.system.details.languages.details", "source::mechanics"),
-            ("$.system.details.languages.value[]", "source::mechanics"),
+            ("$.system.attributes.weaknesses[].value", "source::npc_core"),
+            ("$.system.details.languages.details", "source::npc_core"),
+            (
+                "$.system.details.languages.value[]",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
+            ),
             (
                 "$.system.details.publication.authors",
                 "source::normalize::publication",
@@ -518,19 +553,19 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
                 "$.system.details.publication.title",
                 "source::normalize::publication",
             ),
-            (
-                "$.system.perception.senses[].acuity",
-                "source::mechanics + records::metrics",
-            ),
+            ("$.system.perception.senses[].acuity", "source::npc_core"),
             (
                 "$.system.perception.senses[].range",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
             (
                 "$.system.perception.senses[].type",
-                "source::mechanics + records::metrics",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
-            ("$.system.traits.size.value", "source::mechanics"),
+            (
+                "$.system.traits.size.value",
+                "source::dto + source::npc_core + atlas-record::creature_projection",
+            ),
         ]
         .into_iter()
         .map(|(path, owner)| npc_consumed("npc_exact_consumed_leaf", path, owner)),
@@ -1102,17 +1137,21 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
             "$.items[].flags.pf2e.itemGrants.reactiveStrike.onDelete",
             "$.items[].flags.pf2e.itemGrants.reactiveStrike2.onDelete",
             "$.items[].flags.pf2e.itemGrants.reinforcedStock.onDelete",
-            "$.prototypeToken.name",
         ]
         .into_iter()
         .map(|path| {
             npc_provenance(
-                "npc_exact_provenance_leaf",
+                "npc_grant_lifecycle_provenance",
                 path,
-                "The typed relationship retains lifecycle provenance without executing it; token name remains presentation provenance.",
+                "Foundry onDelete is source lifecycle-cascade configuration retained only for provenance; Atlas does not execute it. Grant and itemGrant endpoint IDs are consumed separately as typed relationships, so no product relationship is hidden here.",
             )
         }),
     );
+    declarations.push(npc_provenance(
+        "npc_prototype_token_name_provenance",
+        "$.prototypeToken.name",
+        "Foundry prototypeToken.name is a token-instance presentation label, not authoritative creature identity. $.name is consumed as canonical identity, so this path hides no product field.",
+    ));
     declarations
 }
 
@@ -1531,7 +1570,7 @@ fn npc_consumed(
         path_family,
         disposition: SourcePathCoverageDisposition::Consumed,
         owner,
-        product_rationale: "The named real extractor consumes this NPC source family today; B3/B4 will replace the old projection directly rather than adding a parallel path.",
+        product_rationale: "The named real extractor consumes this NPC source family into canonical facts and their one-way product projections.",
         future_owner: None,
         future_plan: None,
     }
@@ -1649,6 +1688,89 @@ mod tests {
     }
 
     #[test]
+    fn npc_metric_coverage_distinguishes_canonical_fields_from_prepared_aliases() {
+        let canonical = declaration_for("Actor", "npc", "$.system.skills.arcana.base")
+            .expect("canonical skill declaration");
+        assert_eq!(
+            canonical.disposition,
+            SourcePathCoverageDisposition::Consumed
+        );
+        assert_eq!(
+            canonical.owner,
+            "source::dto + source::npc_core + atlas-record::creature_projection"
+        );
+
+        let prepared_alias = declaration_for("Actor", "npc", "$.system.skills.arcana.mod")
+            .expect("prepared alias declaration");
+        assert_eq!(
+            prepared_alias.disposition,
+            SourcePathCoverageDisposition::ProvenanceOnly
+        );
+        assert_eq!(prepared_alias.owner, "source::dto");
+
+        let non_migrated =
+            declaration_for("Actor", "npc", "$.system.attributes.hp.brokenThreshold")
+                .expect("non-migrated broken-threshold declaration");
+        assert_eq!(
+            non_migrated.owner,
+            "records::metrics::NPC_REMAINDER_STATIC_SPECS"
+        );
+    }
+
+    #[test]
+    fn creature_provenance_leaves_are_exact_and_product_complete() {
+        let expected = [
+            ("$.img", "licensing is not established"),
+            ("$.items[].img", "licensing is not established"),
+            ("$.items[].folder", "hides no product field"),
+            (
+                "$.items[].flags.pf2e.grantedBy.onDelete",
+                "does not execute it",
+            ),
+            (
+                "$.items[].flags.pf2e.itemGrants.*.onDelete",
+                "does not execute it",
+            ),
+            ("$.prototypeToken.name", "hides no product field"),
+        ];
+
+        for (path, rationale_fragment) in expected {
+            let declaration = declaration_for("Actor", "npc", path)
+                .unwrap_or_else(|| panic!("missing creature provenance declaration for {path}"));
+            assert_eq!(
+                declaration.disposition,
+                SourcePathCoverageDisposition::ProvenanceOnly,
+                "{path}"
+            );
+            assert_eq!(declaration.owner, "source::dto", "{path}");
+            assert!(
+                declaration.product_rationale.contains(rationale_fragment),
+                "{path}: {}",
+                declaration.product_rationale
+            );
+            assert!(!declaration.is_recursive(), "{path}");
+            assert!(!declaration.is_complete_family_assignment(), "{path}");
+        }
+
+        for path in [
+            "$.items[].flags.pf2e.grantedBy.id",
+            "$.items[].flags.pf2e.itemGrants.*.id",
+        ] {
+            let declaration = declaration_for("Actor", "npc", path)
+                .unwrap_or_else(|| panic!("missing creature relationship declaration for {path}"));
+            assert_eq!(
+                declaration.disposition,
+                SourcePathCoverageDisposition::Consumed,
+                "{path}"
+            );
+            assert_eq!(
+                declaration.owner, "source::npc_entities::identity_relationships",
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
     fn non_creature_family_has_exact_future_owner() {
         let declaration = declaration_for("Item", "weapon", "$.system.runes.potency")
             .expect("weapon future declaration");
@@ -1727,7 +1849,12 @@ mod tests {
                 SourcePathCoverageDisposition::Consumed,
                 "{path}"
             );
-            assert_eq!(declaration.owner, "source::npc_core", "{path}");
+            let expected_owner = if path == "$.system.skills.*.base" {
+                "source::dto + source::npc_core + atlas-record::creature_projection"
+            } else {
+                "source::npc_core"
+            };
+            assert_eq!(declaration.owner, expected_owner, "{path}");
             assert_eq!(declaration.future_owner, None, "{path}");
         }
 

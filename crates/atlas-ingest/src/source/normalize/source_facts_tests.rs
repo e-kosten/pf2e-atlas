@@ -1,11 +1,12 @@
 use std::path::Path;
 
-use atlas_domain::{PackName, Rarity, RecordKind};
+use atlas_domain::{MetricDomain, PackName, Rarity, RecordKind};
 use atlas_record::{
     ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, CreatureMovementMode,
     CreatureResourceAmount, CreatureSourceAlliance, CreatureUnsupportedSourceField,
     DamageEffectKind, FactValue, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType,
-    ItemTypeMechanics, MechanicActivityUsage, RecordBody, render_plain_text,
+    ItemTypeMechanics, MechanicActivityUsage, MetricValue, PresentationBlock, RecordBody,
+    build_record_fts_projection, build_record_presentation_document, render_plain_text,
 };
 use serde_json::json;
 
@@ -158,6 +159,93 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
         .as_ref()
         .expect("full versioned NPC Source envelope");
     assert_eq!(npc_source.raw_json_for_audit(), &expected_source_envelope);
+}
+
+#[test]
+fn npc_canonical_facts_drive_metrics_side_display_and_fts_inputs() {
+    let raw = json!({
+        "_id": "actor-facts",
+        "name": "Fact Convergence Creature",
+        "type": "npc",
+        "system": {
+            "attributes": {
+                "ac": {"value": 28},
+                "hp": {"value": 170, "max": 170},
+                "speed": {
+                    "value": 25,
+                    "otherSpeeds": [{"type": "fly", "value": 40}]
+                },
+                "resistances": [{"type": "mental", "value": 10}]
+            },
+            "details": {
+                "level": {"value": 9},
+                "languages": {"value": ["aklo", "common"]},
+                "publication": {"title": "Pathfinder Bestiary"}
+            },
+            "perception": {
+                "mod": 18,
+                "senses": [{"type": "scent", "range": 60}]
+            },
+            "saves": {
+                "fortitude": {"value": 19},
+                "reflex": {"value": 17},
+                "will": {"value": 18}
+            },
+            "skills": {"arcana": {"base": 18}},
+            "traits": {
+                "rarity": "common",
+                "size": {"value": "med"},
+                "value": ["fiend"]
+            }
+        },
+        "items": []
+    });
+
+    let loaded = normalize_record(
+        &manifest_pack("Actor"),
+        &PackName::new("bestiary".to_string()).expect("pack name"),
+        Path::new("packs/bestiary/fact-convergence.json"),
+        Path::new("."),
+        raw,
+        None,
+    )
+    .expect("NPC normalizes");
+    let record = &loaded.record;
+
+    assert_metric(record, "perception.mod", 18.0);
+    assert_metric(record, "ac.value", 28.0);
+    assert_metric(record, "hp.value", 170.0);
+    assert_metric(record, "hp.max", 170.0);
+    assert_metric(record, "save.fort.mod", 19.0);
+    assert_metric(record, "skill.arcana.mod", 18.0);
+    assert_metric(record, "speed.land.value", 25.0);
+    assert_metric(record, "speed.fly.value", 40.0);
+    assert_metric(record, "sense.scent.range", 60.0);
+
+    let actor = record.mechanics.actor().expect("actor side facts");
+    assert_eq!(actor.size.as_deref(), Some("med"));
+    assert_eq!(actor.languages, ["aklo", "common"]);
+    assert_eq!(actor.speed_types, ["fly", "land"]);
+    assert_eq!(actor.senses, ["scent"]);
+    assert_eq!(actor.resistances, ["mental"]);
+
+    let presentation = build_record_presentation_document(record);
+    assert!(presentation.sections.iter().any(|section| {
+        section.blocks.iter().any(|block| {
+            matches!(
+                block,
+                PresentationBlock::FactList(facts)
+                    if facts.iter().any(|fact| {
+                        fact.label == "Skills" && fact.value.contains("Arcana +18")
+                    })
+            )
+        })
+    }));
+    let fts = build_record_fts_projection(record, &[]);
+    assert!(fts.metric_terms.contains("Arcana"));
+    assert!(fts.metric_terms.contains("Scent range"));
+    assert!(!fts.metric_terms.contains("60"));
+    assert!(fts.mechanic_terms.contains("mental"));
 }
 
 #[test]
@@ -623,4 +711,11 @@ fn manifest_pack(document_type: &str) -> ManifestPack {
         document_type: document_type.to_string(),
         path: "packs/bestiary".to_string(),
     }
+}
+
+fn assert_metric(record: &atlas_record::AtlasRecord, key: &str, expected: f64) {
+    let value = record.mechanics.metrics.iter().find_map(|metric| {
+        (metric.domain == MetricDomain::Actor && metric.key == key).then_some(&metric.value)
+    });
+    assert_eq!(value, Some(&MetricValue::Number(expected)), "metric {key}");
 }

@@ -4,16 +4,15 @@ use std::path::Path;
 
 use atlas_domain::{Rarity, RecordKey};
 use atlas_record::{
-    ActorMechanics, CreatureAdjustment, CreatureAllianceName, CreatureArmorClass,
-    CreatureComponentId, CreatureDefenses, CreatureFact, CreatureFamily, CreatureHitPoints,
-    CreatureIdentity, CreatureInitiative, CreatureInitiativeStatistic, CreatureIwr,
-    CreatureIwrKind, CreatureLanguages, CreatureLegacyAbilities, CreatureMovementMode,
-    CreatureNote, CreatureNumber, CreaturePerception, CreaturePredicate, CreatureProvenance,
-    CreaturePublication, CreatureRecord, CreatureResource, CreatureResourceAmount,
-    CreatureResourceKind, CreatureSave, CreatureSaveKind, CreatureSaves, CreatureSense,
-    CreatureShield, CreatureSize, CreatureSkill, CreatureSkillKind, CreatureSkillVariant,
-    CreatureSourceAlliance, CreatureSourceField, CreatureSourceId, CreatureSpeed,
-    CreatureStatistic, CreatureTrait, CreatureUnsupportedSourceFact,
+    CreatureAdjustment, CreatureAllianceName, CreatureArmorClass, CreatureComponentId,
+    CreatureDefenses, CreatureFact, CreatureFamily, CreatureHitPoints, CreatureIdentity,
+    CreatureInitiative, CreatureInitiativeStatistic, CreatureIwr, CreatureIwrKind,
+    CreatureLanguages, CreatureLegacyAbilities, CreatureMovementMode, CreatureNote, CreatureNumber,
+    CreaturePerception, CreaturePredicate, CreatureProvenance, CreaturePublication, CreatureRecord,
+    CreatureResource, CreatureResourceAmount, CreatureResourceKind, CreatureSave, CreatureSaveKind,
+    CreatureSaves, CreatureSense, CreatureShield, CreatureSize, CreatureSkill, CreatureSkillKind,
+    CreatureSkillVariant, CreatureSourceAlliance, CreatureSourceField, CreatureSourceId,
+    CreatureSpeed, CreatureStatistic, CreatureTrait, CreatureUnsupportedSourceFact,
     CreatureUnsupportedSourceField, FactValue, IwrQualifier, IwrType, Language, PredicateTerm,
     PublicationLicense, RecordBody, ResourceCurrentPolicy, SenseAcuity, SenseType,
     ShieldCurrentPolicy, UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
@@ -29,7 +28,6 @@ use super::dto::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NpcCoreConversion {
     pub(crate) body: RecordBody,
-    pub(crate) legacy_actor_projection: ActorMechanics,
     pub(crate) diagnostics: Vec<NpcCoreDiagnostic>,
 }
 
@@ -244,22 +242,12 @@ pub(crate) fn convert_npc_core(
             source_upstream_commit: source.version.upstream_commit().to_string(),
         },
     };
-    let legacy_size = source
-        .source
-        .core
-        .traits
-        .as_value()
-        .and_then(|traits| traits.size.as_value())
-        .and_then(|size| size.value.as_value())
-        .cloned();
-    let legacy_actor_projection = legacy_actor_projection(&creature, legacy_size);
     let diagnostics = diagnostics
         .into_iter()
         .map(|diagnostic| diagnostic.bind(&diagnostic_record_key, source_path))
         .collect();
     Ok(NpcCoreConversion {
         body: RecordBody::Creature(creature),
-        legacy_actor_projection,
         diagnostics,
     })
 }
@@ -1090,87 +1078,6 @@ fn unsupported_resource(
         value: value.to_string(),
         reason: UnsupportedSourceReason::AmbiguousLegacyShape,
     })
-}
-
-fn legacy_actor_projection(
-    creature: &CreatureRecord,
-    source_size: Option<String>,
-) -> ActorMechanics {
-    let size = source_size.or_else(|| {
-        creature
-            .size
-            .value
-            .as_value()
-            .map(|size| size.as_source().to_string())
-    });
-    let languages = creature
-        .languages
-        .value
-        .as_value()
-        .and_then(|languages| languages.values.as_value())
-        .map(|values| {
-            values
-                .iter()
-                .map(|value| value.as_str().to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-    let mut speed_types: Vec<String> = creature
-        .movement
-        .value
-        .as_value()
-        .map(|speeds| {
-            speeds
-                .iter()
-                .map(|speed| movement_slug(&speed.mode))
-                .collect()
-        })
-        .unwrap_or_default();
-    speed_types.sort();
-    let senses = creature
-        .perception
-        .value
-        .as_value()
-        .and_then(|perception| perception.senses.as_value())
-        .map(|senses| {
-            senses
-                .iter()
-                .map(|sense| sense.sense_type.as_str().to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-    let defenses = creature.defenses.value.as_value();
-    ActorMechanics {
-        size,
-        languages,
-        speed_types,
-        senses,
-        immunities: projected_iwr(defenses.and_then(|value| value.immunities.as_value())),
-        resistances: projected_iwr(defenses.and_then(|value| value.resistances.as_value())),
-        weaknesses: projected_iwr(defenses.and_then(|value| value.weaknesses.as_value())),
-        disable_text: None,
-        disable_skills: Vec::new(),
-        is_complex: false,
-    }
-}
-
-fn projected_iwr(entries: Option<&Vec<CreatureIwr>>) -> Vec<String> {
-    entries
-        .into_iter()
-        .flatten()
-        .map(|entry| entry.iwr_type.as_str().to_string())
-        .collect()
-}
-
-fn movement_slug(mode: &CreatureMovementMode) -> String {
-    match mode {
-        CreatureMovementMode::Land => "land".to_string(),
-        CreatureMovementMode::Burrow => "burrow".to_string(),
-        CreatureMovementMode::Climb => "climb".to_string(),
-        CreatureMovementMode::Fly => "fly".to_string(),
-        CreatureMovementMode::Swim => "swim".to_string(),
-        CreatureMovementMode::Unsupported(value) => value.value.clone(),
-    }
 }
 
 fn qualifier_presence(

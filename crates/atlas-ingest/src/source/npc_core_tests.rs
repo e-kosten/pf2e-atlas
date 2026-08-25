@@ -1,9 +1,10 @@
-use atlas_domain::{PackName, Rarity, RecordId, RecordKey};
+use atlas_domain::{MetricDomain, PackName, Rarity, RecordId, RecordKey};
 use atlas_record::{
     CreatureAdjustment, CreatureInitiativeStatistic, CreatureIwrKind, CreatureMovementMode,
     CreatureNumber, CreatureResourceAmount, CreatureSkillKind, CreatureSourceAlliance,
-    CreatureUnsupportedSourceField, FactValue, RecordBody, ResourceCurrentPolicy, SenseAcuity,
-    ShieldCurrentPolicy, UnsupportedSourceReason, UnsupportedSourceShape,
+    CreatureUnsupportedSourceField, FactValue, MetricValue, RecordBody, ResourceCurrentPolicy,
+    SenseAcuity, ShieldCurrentPolicy, UnsupportedSourceReason, UnsupportedSourceShape,
+    project_creature_facts,
 };
 use serde_json::{Value, json};
 use std::path::Path;
@@ -154,12 +155,24 @@ fn night_hag_matches_approved_canonical_core_facts() {
         "packs/pathfinder-bestiary/night-hag.json"
     );
 
+    let projected = project_creature_facts(creature);
+    assert_eq!(projected.actor_side_facts.size.as_deref(), Some("med"));
+    assert_eq!(projected.actor_side_facts.senses, ["darkvision"]);
+    assert_eq!(projected.actor_side_facts.resistances, ["mental"]);
     assert_eq!(
-        converted.legacy_actor_projection.size.as_deref(),
-        Some("med")
+        projected.metrics.iter().find_map(|metric| {
+            (metric.domain == MetricDomain::Actor && metric.key == "skill.occultism.mod")
+                .then_some(&metric.value)
+        }),
+        Some(&MetricValue::Number(20.0))
     );
-    assert_eq!(converted.legacy_actor_projection.senses, ["darkvision"]);
-    assert_eq!(converted.legacy_actor_projection.resistances, ["mental"]);
+    assert_eq!(
+        projected.metrics.iter().find_map(|metric| {
+            (metric.domain == MetricDomain::Actor && metric.key == "speed.land.value")
+                .then_some(&metric.value)
+        }),
+        Some(&MetricValue::Number(25.0))
+    );
 }
 
 #[test]
