@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use atlas_domain::RecordKey;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -14,6 +15,10 @@ use crate::source::dto::{
 };
 use crate::source::loader::{
     default_manifest_path, json_files, parse_manifest, relative_source_path, resolve_pack_path,
+};
+use crate::source::npc_entities::{
+    RETAINED_CAPABILITY_PATHS, collect_npc_embedded_candidates, convert_npc_embedded_entities,
+    retained_capability_survival,
 };
 
 mod coverage;
@@ -60,6 +65,7 @@ pub struct SourcePathAuditReport {
     pub enforcement: SourcePathAuditEnforcement,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_diff: Option<SourcePathAuditDiff>,
+    pub closure_failures: Vec<SourcePathAuditClosureFailure>,
     pub diagnostics: Vec<SourceCoverageDiagnostic>,
     pub retrieval_predicate_inventory: Vec<RetrievalPredicateInventoryEntry>,
     pub paths: Vec<SourcePathAuditPathReport>,
@@ -128,6 +134,8 @@ pub struct SourcePathAuditPathReport {
     pub owner_family: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extractor_identity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preserved_occurrence_count: Option<usize>,
     pub fixture_key: String,
     pub validation: String,
     pub checkpoint: String,
@@ -225,6 +233,15 @@ pub struct SourcePathAuditDispositionChange {
     pub current_disposition: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct SourcePathAuditClosureFailure {
+    pub document_type: String,
+    pub record_type: String,
+    pub path: String,
+    pub source_occurrence_count: usize,
+    pub preserved_occurrence_count: usize,
+}
+
 #[derive(Debug, Default)]
 struct MutablePathStats {
     occurrence_count: usize,
@@ -264,6 +281,12 @@ struct MutableDiagnostic {
     examples: BTreeSet<SourcePathAuditSample>,
 }
 
+#[derive(Debug, Default)]
+struct CreatureSurvivalInventory {
+    hydrated: BTreeMap<PathKey, MutablePathStats>,
+    canonical: BTreeMap<String, usize>,
+}
+
 pub fn audit_source_paths(
     options: SourcePathAuditOptions,
 ) -> Result<SourcePathAuditReport, IngestError> {
@@ -281,6 +304,7 @@ pub fn audit_source_paths(
     let parsed_manifest = parse_manifest(&manifest_path)?;
     let mut stats = BTreeMap::<PathKey, MutablePathStats>::new();
     let mut typed_diagnostics = BTreeMap::<DiagnosticKey, MutableDiagnostic>::new();
+    let mut creature_survival = CreatureSurvivalInventory::default();
     let mut pack_count = 0;
     let mut record_count = 0;
 
@@ -331,6 +355,7 @@ pub fn audit_source_paths(
             };
             record_count += 1;
             collect_value_paths("$", &value, &context, &mut stats);
+            collect_creature_survival(&value, &context, &mut creature_survival);
             validate_typed_source(&value, &context, &mut typed_diagnostics);
         }
     }
@@ -344,6 +369,7 @@ pub fn audit_source_paths(
         .collect::<Vec<_>>();
     paths.sort_by(path_report_order);
     let path_count = paths.len();
+    let closure_failures = reconcile_creature_survival(&mut paths, &creature_survival);
     let mut diagnostics = typed_diagnostics
         .into_iter()
         .map(|(key, diagnostic)| SourceCoverageDiagnostic {
@@ -369,15 +395,17 @@ pub fn audit_source_paths(
     summary.source_diff_changes = source_diff
         .as_ref()
         .map_or(0, SourcePathAuditDiff::change_count);
-    summary.consumed_regressions = source_diff
-        .as_ref()
-        .map_or(0, |diff| diff.consumed_regressions.len());
-    summary.creature_consumed_regressions = source_diff.as_ref().map_or(0, |diff| {
-        diff.consumed_regressions
-            .iter()
-            .filter(|change| is_creature_path(&change.document_type, &change.record_type))
-            .count()
-    });
+    summary.consumed_regressions = closure_failures.len()
+        + source_diff
+            .as_ref()
+            .map_or(0, |diff| diff.consumed_regressions.len());
+    summary.creature_consumed_regressions = closure_failures.len()
+        + source_diff.as_ref().map_or(0, |diff| {
+            diff.consumed_regressions
+                .iter()
+                .filter(|change| is_creature_path(&change.document_type, &change.record_type))
+                .count()
+        });
     let violation_count = summary.unknown_paths
         + summary.type_drift_diagnostics
         + summary.source_diff_changes
@@ -385,7 +413,8 @@ pub fn audit_source_paths(
         + summary.unowned_recursive_matches
         + summary.creature_deferred_paths
         + summary.creature_catch_all_paths
-        + summary.creature_unowned_paths;
+        + summary.creature_unowned_paths
+        + summary.consumed_regressions;
     let enforcement = SourcePathAuditEnforcement {
         mode: if options.strict {
             SourcePathAuditMode::Strict
@@ -426,6 +455,7 @@ pub fn audit_source_paths(
         summary,
         enforcement,
         source_diff,
+        closure_failures,
         diagnostics,
         retrieval_predicate_inventory: predicate_inventory,
         paths,
@@ -591,9 +621,6 @@ fn path_report(
         let recursive_match = declaration.is_recursive();
         let complete_family_assignment = declaration.is_complete_family_assignment();
         let owner_family = owner_family(declaration.disposition).to_string();
-        let extractor_identity = (declaration.disposition
-            == SourcePathCoverageDisposition::Consumed)
-            .then(|| declaration.owner.to_string());
         let fixture_key = format!(
             "pinned-full-corpus/{}/{}",
             key.document_type,
@@ -612,7 +639,8 @@ fn path_report(
             path_family: declaration.path_family.to_string(),
             matched_rule_id: format!("{}@{}", declaration.id, declaration.path_family),
             owner_family,
-            extractor_identity,
+            extractor_identity: None,
+            preserved_occurrence_count: None,
             fixture_key,
             validation,
             checkpoint,
@@ -651,6 +679,7 @@ fn path_report(
         matched_rule_id: "unassigned".to_string(),
         owner_family: "unassigned".to_string(),
         extractor_identity: None,
+        preserved_occurrence_count: None,
         fixture_key,
         validation: "strict coverage failure pending exact classification".to_string(),
         checkpoint: "B2".to_string(),
@@ -698,6 +727,78 @@ fn validation_contract(disposition: SourcePathCoverageDisposition) -> &'static s
         }
         SourcePathCoverageDisposition::Unknown => "strict coverage failure",
     }
+}
+
+fn collect_creature_survival(
+    value: &Value,
+    context: &RecordContext,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    if !is_creature_path(&context.document_type, &context.record_type) {
+        return;
+    }
+    let identity = SourceIdentity::new(&context.record_key, &context.source_path);
+    let Ok(source) = parse_npc_source(pinned_source_version_metadata(), identity, value.clone())
+    else {
+        return;
+    };
+    collect_value_paths("$", value, context, &mut inventory.hydrated);
+
+    let Ok(owner) = RecordKey::parse(&context.record_key) else {
+        return;
+    };
+    let candidates = collect_npc_embedded_candidates(&source);
+    let conversion = convert_npc_embedded_entities(owner, &candidates, |_| None);
+    for (path, count) in retained_capability_survival(&conversion) {
+        *inventory.canonical.entry(path.to_string()).or_insert(0) += count;
+    }
+}
+
+fn reconcile_creature_survival(
+    paths: &mut [SourcePathAuditPathReport],
+    inventory: &CreatureSurvivalInventory,
+) -> Vec<SourcePathAuditClosureFailure> {
+    let canonical_paths = RETAINED_CAPABILITY_PATHS
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let mut failures = Vec::new();
+    for path in paths.iter_mut().filter(|path| {
+        is_creature_path(&path.document_type, &path.record_type)
+            && path.disposition == SourcePathCoverageDisposition::Consumed
+    }) {
+        let (preserved, extractor_identity) = if canonical_paths.contains(path.path.as_str()) {
+            (
+                inventory.canonical.get(&path.path).copied().unwrap_or(0),
+                "canonical::CreatureEmbeddedEntities::occurrence.unsupported_notes",
+            )
+        } else {
+            let key = PathKey {
+                document_type: path.document_type.clone(),
+                record_type: path.record_type.clone(),
+                path: path.path.clone(),
+            };
+            (
+                inventory
+                    .hydrated
+                    .get(&key)
+                    .map_or(0, |stats| stats.occurrence_count),
+                "hydrated::VersionedNpcSource",
+            )
+        };
+        path.preserved_occurrence_count = Some(preserved);
+        path.extractor_identity = Some(extractor_identity.to_string());
+        if preserved != path.occurrence_count {
+            failures.push(SourcePathAuditClosureFailure {
+                document_type: path.document_type.clone(),
+                record_type: path.record_type.clone(),
+                path: path.path.clone(),
+                source_occurrence_count: path.occurrence_count,
+                preserved_occurrence_count: preserved,
+            });
+        }
+    }
+    failures.sort();
+    failures
 }
 
 fn validate_typed_source(
@@ -1110,6 +1211,23 @@ pub fn disposition_label(disposition: SourcePathCoverageDisposition) -> &'static
 mod tests {
     use super::*;
 
+    fn consumed_creature_path(path: &str, occurrences: usize) -> SourcePathAuditPathReport {
+        let mut stats = MutablePathStats {
+            occurrence_count: occurrences,
+            ..MutablePathStats::default()
+        };
+        stats.record_keys.insert("test-pack:test-id".to_string());
+        path_report(
+            PathKey {
+                document_type: "Actor".to_string(),
+                record_type: "npc".to_string(),
+                path: path.to_string(),
+            },
+            stats,
+            1,
+        )
+    }
+
     #[test]
     fn path_normalization_wildcards_dynamic_keys() {
         assert_eq!(
@@ -1145,5 +1263,90 @@ mod tests {
     fn policy_digest_is_stable_for_same_declarations() -> Result<(), IngestError> {
         assert_eq!(coverage_policy_digest()?, coverage_policy_digest()?);
         Ok(())
+    }
+
+    #[test]
+    fn canonical_capability_closure_fails_when_any_retained_family_is_dropped() {
+        let reports = RETAINED_CAPABILITY_PATHS
+            .into_iter()
+            .map(|path| consumed_creature_path(path, 1))
+            .collect::<Vec<_>>();
+        let inventory = CreatureSurvivalInventory {
+            canonical: RETAINED_CAPABILITY_PATHS
+                .into_iter()
+                .map(|path| (path.to_string(), 1))
+                .collect(),
+            ..CreatureSurvivalInventory::default()
+        };
+
+        let mut complete = reports.clone();
+        assert!(reconcile_creature_survival(&mut complete, &inventory).is_empty());
+        assert!(complete.iter().all(|path| {
+            path.preserved_occurrence_count == Some(1)
+                && path.extractor_identity.as_deref()
+                    == Some("canonical::CreatureEmbeddedEntities::occurrence.unsupported_notes")
+        }));
+
+        for dropped in RETAINED_CAPABILITY_PATHS {
+            let mut mutated = reports.clone();
+            let mut mutated_inventory = CreatureSurvivalInventory {
+                canonical: inventory.canonical.clone(),
+                ..CreatureSurvivalInventory::default()
+            };
+            mutated_inventory.canonical.remove(dropped);
+            let failures = reconcile_creature_survival(&mut mutated, &mutated_inventory);
+            assert_eq!(failures.len(), 1, "dropping {dropped} must fail closure");
+            assert_eq!(failures[0].path, dropped);
+            assert_eq!(failures[0].source_occurrence_count, 1);
+            assert_eq!(failures[0].preserved_occurrence_count, 0);
+        }
+    }
+
+    #[test]
+    fn pinned_creature_audit_proves_all_retained_capability_occurrences_survive() {
+        let Some(source_root) = std::env::var_os("PF2E_SOURCE_ROOT") else {
+            return;
+        };
+        let report = audit_source_paths(SourcePathAuditOptions {
+            source_root: PathBuf::from(source_root),
+            document_type: Some("Actor".to_string()),
+            record_type: Some("npc".to_string()),
+            strict: true,
+            limit: Some(usize::MAX),
+            ..SourcePathAuditOptions::default()
+        })
+        .expect("pinned creature audit");
+
+        assert_eq!(report.summary.creature_paths, 614);
+        assert_eq!(report.summary.creature_consumed_paths, 608);
+        assert_eq!(report.summary.creature_provenance_only_paths, 6);
+        assert_eq!(report.summary.creature_deferred_paths, 0);
+        assert_eq!(report.summary.creature_unknown_paths, 0);
+        assert_eq!(report.summary.creature_catch_all_paths, 0);
+        assert_eq!(report.summary.creature_unowned_paths, 0);
+        assert_eq!(report.summary.creature_consumed_regressions, 0);
+        assert!(report.closure_failures.is_empty());
+        assert!(report.enforcement.passed);
+
+        let retained = report
+            .paths
+            .iter()
+            .filter(|path| RETAINED_CAPABILITY_PATHS.contains(&path.path.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(retained.len(), RETAINED_CAPABILITY_PATHS.len());
+        assert_eq!(
+            retained
+                .iter()
+                .map(|path| path.occurrence_count)
+                .sum::<usize>(),
+            3_841
+        );
+        assert_eq!(
+            retained
+                .iter()
+                .map(|path| path.preserved_occurrence_count.unwrap_or_default())
+                .sum::<usize>(),
+            3_841
+        );
     }
 }

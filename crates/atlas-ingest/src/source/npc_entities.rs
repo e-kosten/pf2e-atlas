@@ -33,6 +33,22 @@ use super::dto::{
 };
 use super::dto::{EmbeddedRelationshipKindSource, EmbeddedRelationshipSource};
 
+pub(crate) const RETAINED_CAPABILITY_PATHS: [&str; 13] = [
+    "$.items[].system.attackEffects.custom",
+    "$.items[].system.area.details",
+    "$.items[].system.damage.*.materials[]",
+    "$.items[].system.defense.passive.statistic",
+    "$.items[].system.location.autoHeightenLevel",
+    "$.items[].system.prepared.flexible",
+    "$.items[].system.prepared.label",
+    "$.items[].system.prepared.type",
+    "$.items[].system.prepared.validItems",
+    "$.items[].system.spelldc.item",
+    "$.items[].system.spelldc.label",
+    "$.items[].system.spelldc.mod",
+    "$.items[].system.spelldc.type",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NpcEmbeddedCandidates {
     pub(crate) items: SourcePresence<Vec<NpcEmbeddedCandidate>>,
@@ -1481,6 +1497,94 @@ fn capability_unsupported_notes(
     }
 }
 
+fn capability_unsupported_notes_ref(capability: &CreatureCapability) -> &[UnsupportedMechanicNote] {
+    match capability {
+        CreatureCapability::Strike(value) => &value.unsupported_notes,
+        CreatureCapability::Action(value) => &value.unsupported_notes,
+        CreatureCapability::SpellcastingEntry(value) => &value.unsupported_notes,
+        CreatureCapability::Spell(value) => &value.unsupported_notes,
+        CreatureCapability::Equipment(value) => &value.unsupported_notes,
+        CreatureCapability::Lore(value) => &value.unsupported_notes,
+        CreatureCapability::Unsupported(value) => &value.unsupported_notes,
+    }
+}
+
+pub(crate) fn retained_capability_survival(
+    conversion: &NpcEmbeddedConversion,
+) -> BTreeMap<&'static str, usize> {
+    let FactValue::Value(embedded) = &conversion.embedded else {
+        return BTreeMap::new();
+    };
+    let mut counts = BTreeMap::new();
+    for occurrence in &embedded.occurrences {
+        for note in capability_unsupported_notes_ref(&occurrence.capability) {
+            if let Some(path) = retained_occurrence_capability_family(occurrence.family, note) {
+                *counts.entry(path).or_insert(0) += 1;
+            }
+        }
+    }
+    counts
+}
+
+fn retained_capability_family(path: &str) -> Option<&'static str> {
+    let (_, relative) = path.split_once(".system.")?;
+    match relative {
+        "attackEffects.custom" => Some("$.items[].system.attackEffects.custom"),
+        "area.details" => Some("$.items[].system.area.details"),
+        "defense.passive.statistic" => Some("$.items[].system.defense.passive.statistic"),
+        "location.autoHeightenLevel" => Some("$.items[].system.location.autoHeightenLevel"),
+        "prepared.flexible" => Some("$.items[].system.prepared.flexible"),
+        "prepared.label" => Some("$.items[].system.prepared.label"),
+        "prepared.type" => Some("$.items[].system.prepared.type"),
+        "prepared.validItems" => Some("$.items[].system.prepared.validItems"),
+        "spelldc.item" => Some("$.items[].system.spelldc.item"),
+        "spelldc.label" => Some("$.items[].system.spelldc.label"),
+        "spelldc.mod" => Some("$.items[].system.spelldc.mod"),
+        "spelldc.type" => Some("$.items[].system.spelldc.type"),
+        value if value.starts_with("damage.") && value.ends_with(".materials[]") => {
+            Some("$.items[].system.damage.*.materials[]")
+        }
+        _ => None,
+    }
+}
+
+fn retained_occurrence_capability_family(
+    family: CreatureEntityFamily,
+    note: &UnsupportedMechanicNote,
+) -> Option<&'static str> {
+    if matches!(
+        (&note.value.shape, note.value.value.as_str()),
+        (UnsupportedSourceShape::String, "\"\"")
+            | (UnsupportedSourceShape::Array, "[]")
+            | (UnsupportedSourceShape::Object, "{}")
+    ) {
+        return None;
+    }
+    let retained = retained_capability_family(&note.source_path)?;
+    match (family, retained) {
+        (CreatureEntityFamily::Strike, "$.items[].system.attackEffects.custom")
+        | (
+            CreatureEntityFamily::Spell,
+            "$.items[].system.area.details"
+            | "$.items[].system.damage.*.materials[]"
+            | "$.items[].system.defense.passive.statistic"
+            | "$.items[].system.location.autoHeightenLevel",
+        )
+        | (
+            CreatureEntityFamily::SpellcastingEntry,
+            "$.items[].system.prepared.flexible"
+            | "$.items[].system.prepared.label"
+            | "$.items[].system.prepared.type"
+            | "$.items[].system.prepared.validItems"
+            | "$.items[].system.spelldc.item"
+            | "$.items[].system.spelldc.label"
+            | "$.items[].system.spelldc.mod"
+            | "$.items[].system.spelldc.type",
+        ) => Some(retained),
+        _ => None,
+    }
+}
+
 fn use_limit(source: &UseLimitSource) -> CreatureUseLimit {
     CreatureUseLimit {
         maximum: presence(&source.maximum),
@@ -1780,7 +1884,8 @@ mod tests {
 
     use super::{
         NpcEmbeddedDiagnosticDisposition, NpcEmbeddedDiagnosticKind, NpcEmbeddedDiagnosticOwner,
-        convert_npc_embedded_entities,
+        capability_unsupported_notes_ref, convert_npc_embedded_entities,
+        retained_capability_family, retained_occurrence_capability_family,
     };
     use crate::source::dto::{
         NpcEmbeddedItemSource, SourceIdentity, SourcePresence, parse_npc_source,
@@ -3020,74 +3125,7 @@ mod tests {
     }
 
     fn capability_notes(capability: &CreatureCapability) -> &[UnsupportedMechanicNote] {
-        match capability {
-            CreatureCapability::Strike(value) => &value.unsupported_notes,
-            CreatureCapability::Action(value) => &value.unsupported_notes,
-            CreatureCapability::SpellcastingEntry(value) => &value.unsupported_notes,
-            CreatureCapability::Spell(value) => &value.unsupported_notes,
-            CreatureCapability::Equipment(value) => &value.unsupported_notes,
-            CreatureCapability::Lore(value) => &value.unsupported_notes,
-            CreatureCapability::Unsupported(value) => &value.unsupported_notes,
-        }
-    }
-
-    fn retained_capability_family(path: &str) -> Option<&'static str> {
-        let (_, relative) = path.split_once(".system.")?;
-        match relative {
-            "attackEffects.custom" => Some("$.items[].system.attackEffects.custom"),
-            "area.details" => Some("$.items[].system.area.details"),
-            "defense.passive.statistic" => Some("$.items[].system.defense.passive.statistic"),
-            "location.autoHeightenLevel" => Some("$.items[].system.location.autoHeightenLevel"),
-            "prepared.flexible" => Some("$.items[].system.prepared.flexible"),
-            "prepared.label" => Some("$.items[].system.prepared.label"),
-            "prepared.type" => Some("$.items[].system.prepared.type"),
-            "prepared.validItems" => Some("$.items[].system.prepared.validItems"),
-            "spelldc.item" => Some("$.items[].system.spelldc.item"),
-            "spelldc.label" => Some("$.items[].system.spelldc.label"),
-            "spelldc.mod" => Some("$.items[].system.spelldc.mod"),
-            "spelldc.type" => Some("$.items[].system.spelldc.type"),
-            value if value.starts_with("damage.") && value.ends_with(".materials[]") => {
-                Some("$.items[].system.damage.*.materials[]")
-            }
-            _ => None,
-        }
-    }
-
-    fn retained_occurrence_capability_family(
-        family: CreatureEntityFamily,
-        note: &UnsupportedMechanicNote,
-    ) -> Option<&'static str> {
-        if matches!(
-            (&note.value.shape, note.value.value.as_str()),
-            (UnsupportedSourceShape::String, "\"\"")
-                | (UnsupportedSourceShape::Array, "[]")
-                | (UnsupportedSourceShape::Object, "{}")
-        ) {
-            return None;
-        }
-        let retained = retained_capability_family(&note.source_path)?;
-        match (family, retained) {
-            (CreatureEntityFamily::Strike, "$.items[].system.attackEffects.custom")
-            | (
-                CreatureEntityFamily::Spell,
-                "$.items[].system.area.details"
-                | "$.items[].system.damage.*.materials[]"
-                | "$.items[].system.defense.passive.statistic"
-                | "$.items[].system.location.autoHeightenLevel",
-            )
-            | (
-                CreatureEntityFamily::SpellcastingEntry,
-                "$.items[].system.prepared.flexible"
-                | "$.items[].system.prepared.label"
-                | "$.items[].system.prepared.type"
-                | "$.items[].system.prepared.validItems"
-                | "$.items[].system.spelldc.item"
-                | "$.items[].system.spelldc.label"
-                | "$.items[].system.spelldc.mod"
-                | "$.items[].system.spelldc.type",
-            ) => Some(retained),
-            _ => None,
-        }
+        capability_unsupported_notes_ref(capability)
     }
 
     fn spell(
