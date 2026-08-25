@@ -22,13 +22,30 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
-- `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
-- `atlas-record` owns normalized records, mechanics/activity projections, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
+- `atlas-ingest` owns source loading, the versioned serialized PF2e Source boundary, exhaustive coverage declarations, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval disposition, embedding execution during builds, and handoff into index-owned artifact writers.
+- `atlas-record` owns storage-neutral canonical records and entities, contextual occurrences, mechanics/activity targets, `RichDocument`, presentation contracts, CLI `RecordJson`, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
 
 If you remember one rule, remember this: product surfaces stay thin, and durable behavior belongs in the crate that owns the concern.
+
+## Checkpoint B Source-Faithful Target
+
+The proposed source-faithful record contract is documented in [ADRs 0033-0036](./decisions/README.md). It is a candidate for Checkpoint B and does not authorize implementation until the user approves the exact documentation commit.
+
+That target separates four layers:
+
+- canonical entities own intrinsic storage-neutral facts;
+- occurrences own parent/owner context, authored order, local overrides, and repeated-use identity;
+- runtime instances own mutable local encounter state; and
+- `search_compact`, `record_detail`, and `encounter_participant` are projections of the same semantic model.
+
+Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base is not GM-complete. It still filters ordinary retrieval through record default visibility, tooling-kind and legacy-remaster routing; public-only content/reference participation; and inherited predicates in ingest embeddings/reports, FTS, search/filter keysets, graph/variants, discovery/metric catalogs, artifact validation, and CLI/app/UI projections. Those are historical product-routing defaults, not a privacy/security boundary.
+
+Checkpoint A approved unauthenticated GM-complete behavior as the target: useful authored information is not hidden solely because of typed visibility classification or absent authorization. Visibility, role, source kind, and provenance stay typed for source meaning, routing, diagnostics, and a future separately approved auth feature; they do not establish a current privacy/security boundary. Every retained target exclusion requires a non-auth product rationale, owner, fixture, validation, and audit checkpoint. The implementation tasks must replace the base predicates end to end before claiming this target.
+
+Acceptance is staged along the dependency graph: D3 audits source/artifact/search/CLI/agent behavior after D2; E3 verifies app DTO/composition behavior; F3 audits the completed browser/static/runtime matrix after F2; Checkpoint E owns human visual approval; and G2 verifies the final post-cutover evidence and residue state. No audit claims a sibling or later surface that is not yet its prerequisite.
 
 ## System Overview
 
@@ -112,14 +129,14 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 ## Data Flow
 
 1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
-2. Ingest normalizes source records, parses rich content into `RichDocument`, resolves rich-content references, extracts traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
+2. Ingest dispatches serialized Source through versioned types, records exhaustive coverage, normalizes canonical entities and occurrences, parses rich content once into `RichDocument`, resolves rich-content references, derives traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
 3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
 4. `atlas-runtime` resolves source, embedding cache, artifact, and local-state paths for setup and query commands.
 5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
 6. `atlas-local-state` opens and migrates mutable local-state storage and exposes product APIs for saved lists, encounters, and future durable local data.
 7. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
 8. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`. Commands that need application workflows should call the CLI client facade, which currently has an in-process app-service implementation and a stubbed future HTTP implementation.
-9. `atlas-app-service` holds retrieval state for application workflows, adapts app DTOs into `atlas-search` requests, composes local-state product APIs with retrieval, and projects saved lists and encounters into app-facing views. It is an application workflow service, not a web-only service.
+9. `atlas-app-service` holds retrieval state for application workflows, adapts app DTOs into `atlas-search` requests, composes canonical facts and occurrences with local runtime state, and produces profile-specific app-facing record surfaces. It is the final static/runtime composition point, not a web-only service.
 10. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
 11. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
 
@@ -135,7 +152,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 - Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
 - Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
 - Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. `LocalStateStore` owns database lifecycle and feature handles such as `saved_lists()` and `encounters()`, while feature modules own product behavior over their rows. Cross-layer workflows that need both active artifact records and local state belong in `atlas-app-service`, not in `atlas-runtime` or CLI command code. Artifact rebuilds must not be responsible for preserving saved lists, encounters, or future user-authored local rows.
-- Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
+- Keep `atlas-record` storage-agnostic. It owns canonical semantics and the existing CLI `RecordJson` projection, but should not own SQLite names, validation diagnostics, top-level CLI envelopes, app DTOs, or source JSON parser structs.
 - Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
 - Add future crates only when their first real implementation slice lands.
 

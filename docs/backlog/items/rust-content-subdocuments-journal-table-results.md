@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned  
 Last reviewed: 2026-05-16
 
+A7 candidate disposition: **retained** and assigned to H8. Child identity, order, ownership, typed visibility/provenance, links, and non-flattening constraints are binding; family implementation remains separately approved future work.
+
 ## Problem
 
 The RichDocument migration models primary record descriptions, supplemental record-owned content, embedded actor/item capability text, FTS projections, semantic chunks, and reference edges from explicit rich-content sources. During planning, two rich-text source families were identified as real content but deferred from the first pass:
@@ -129,7 +131,6 @@ The first option is less disruptive to existing record-key assumptions. The seco
 
 ## Related
 
-- [Rust Content Document And Reference Refactor Plan](../../../scratch/plans/2026-05-16-rust-content-document-reference-refactor.md)
-- [Reference Edge Extraction Expansion](./reference-edge-extraction-expansion.md)
-- [View pages and detail presentation](./view-pages-and-details.md)
 - [Rust artifact contract](../../architecture/artifact-contract.md)
+- [ADR 0020: Rust Rich Documents](../../architecture/decisions/0020-rust-content-documents.md)
+- [ADR 0034 candidate: Canonical entities, occurrences, runtime instances, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)

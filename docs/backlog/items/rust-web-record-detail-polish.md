@@ -5,6 +5,8 @@ Priority: soon
 Owner: unassigned
 Last reviewed: 2026-06-07
 
+A7 candidate disposition: **subsumed** by F1-F3 for the creature surface, including owned-content navigation, state handling, accessibility, responsive behavior, and the later Checkpoint E visual gate. Checkpoint B is not yet approved.
+
 ## Problem
 
 The web UI can load and render record detail through the shared presentation document, but the detail experience is still a first vertical slice. It needs a readability and interaction pass before users will rely on it for browsing records at length.

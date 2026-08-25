@@ -5,6 +5,8 @@ Priority: soon
 Owner: unassigned
 Last reviewed: 2026-06-07
 
+A7 candidate disposition: **retained** for the broader frontend architecture. F1-F3 own only the source-faithful creature surface and do not replace this whole-frontend review.
+
 ## Problem
 
 The first Atlas web UI vertical slice now has enough real behavior to review as an architecture surface instead of as a throwaway prototype. It includes generated DTO consumption, a thin API client, TanStack Query server state, URL/search state, reducer-backed workspace interaction state, Ant Design composition, dynamic filters, result windows, record detail loading, and local styling.

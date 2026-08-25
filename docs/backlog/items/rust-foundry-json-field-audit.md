@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-26
 
+A7 candidate disposition: **subsumed** by B1-B2 source DTO and real-owner coverage enforcement. The current heuristic audit remains evidence/tooling until direct replacement; Checkpoint B is not yet approved.
+
 ## Problem
 
 Rust ingest intentionally projects Foundry source JSON into typed records, content documents, metrics, references, aliases, generated records, FTS rows, and embedding units. The current pipeline validates the projections it emits, but it does not have a comprehensive way to ask which source JSON fields appear across the corpus and whether those fields carry meaningful information that the Rust ingest model does not yet capture.

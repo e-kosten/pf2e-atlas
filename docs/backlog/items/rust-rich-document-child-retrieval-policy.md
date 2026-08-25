@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-04
 
+A7 candidate disposition: **deferred**. Checkpoint A did not approve promotion, so overflow-only child embeddings remain binding until a separate measured decision.
+
 ## Problem
 
 The RichDocument migration should start with overflow-only child embeddings: materialize child units only when parent embedding budgeting drops or trims rich content. That keeps the first production change focused on replacing lossy content parsing and preserving current retrieval intent.
@@ -56,5 +58,5 @@ Compare:
 
 - [Rust rich source content model](./rust-rich-source-content-model.md)
 - [Rust search quality and retrieval weight tuning](./rust-search-quality-tuning.md)
-- [RichDocument production migration plan](../../../scratch/plans/2026-06-02-rich-document-production-migration.md)
-- [Child embedding strategy decisions](../../../scratch/rich-content-audit/output/child-embedding-strategy-decisions.md)
+- [ADR 0020: Rust Rich Documents](../../architecture/decisions/0020-rust-content-documents.md)
+- [ADR 0036 candidate: Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)

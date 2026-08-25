@@ -12,6 +12,12 @@ This is the tracked backlog for open durable future work.
 
 Completed and retired items are tracked separately in [history/done-and-superseded.md](./history/done-and-superseded.md).
 
+## Checkpoint B Candidate Reconciliation
+
+The proposed source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) reconciles 17 existing items as subsumed, retained, superseded, or deferred. Each affected item records its candidate disposition and owner. These are planning dispositions only: Checkpoint B has not approved the documentation candidate or authorized implementation, so open work remains in this backlog until its owning task lands and the item is moved to history.
+
+The candidate preserves all 313 exact type-registry assignments, keeps non-creature priority as a later user decision, and retains overflow-only child embeddings. It records the pinned base truthfully as unauthenticated but still default-visible/public-only, then defines Checkpoint A's GM-complete behavior as the implementation target: typed visibility/provenance remains data, not a present auth/security boundary, and target exclusions require non-auth product rationale.
+
 ## Now
 
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)

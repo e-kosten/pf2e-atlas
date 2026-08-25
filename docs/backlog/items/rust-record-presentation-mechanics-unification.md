@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-27
 
+A7 candidate disposition: **superseded** by E1-E3/F1-F3/G1. The prior v1 adjusted sidecar plus retained creature fallback is replaced by shared canonical facts and profile projections, with fallback removal only after Checkpoint E. Checkpoint B is not yet approved.
+
 ## Problem
 
 Encounter adjusted mechanics now render structured activity and damage facts in the encounter inspector, while normal record detail rendering still uses the rich prose-oriented presentation document. This is acceptable for the first encounter mechanics slice, but it creates two presentation paths for facts that should eventually feel like one coherent record view.
@@ -47,9 +49,7 @@ The implementation should:
 
 ## Related
 
-- [Record surface live implementation plan](../../../scratch/plans/2026-06-26-record-surface-live-implementation-plan.md)
-- [Record presentation composition plan](../../../scratch/plans/2026-06-26-record-presentation-composition-plan.md)
-- [Embedded mechanics artifact plan](../../../scratch/plans/2026-06-27-embedded-mechanics-artifact-plan.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
+- [ADR 0034 candidate: Canonical entities, occurrences, runtime instances, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
+- [ADR 0036 candidate: Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
 - [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)
