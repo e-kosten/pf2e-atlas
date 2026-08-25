@@ -1,10 +1,14 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
-use atlas_record::{AtlasRecord, ContentSourceKind, RecordContentDocument, RichDocument};
+use atlas_record::{
+    AtlasRecord, ContentSourceKind, RecordBody, RecordContentDocument, RichDocument,
+};
 use serde_json::Value;
 
+use crate::source::dto::VersionedNpcSource;
 use crate::source::normalize::ContentParseDiagnostics;
+use crate::source::npc_core::NpcCoreDiagnostic;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReferenceCandidate {
@@ -29,6 +33,9 @@ impl LoadedSourceRecord {
 pub(crate) struct SourceConstructionFacts {
     pub(crate) content_parse_diagnostics: Vec<ContentParseDiagnostics>,
     pub(crate) source_facts: SourceRecordFacts,
+    pub(crate) npc_source: Option<VersionedNpcSource>,
+    pub(crate) canonical_body: Option<RecordBody>,
+    pub(crate) npc_core_diagnostics: Vec<NpcCoreDiagnostic>,
 }
 
 impl SourceConstructionFacts {
@@ -36,6 +43,9 @@ impl SourceConstructionFacts {
         Self {
             content_parse_diagnostics: Vec::new(),
             source_facts: SourceRecordFacts::default(),
+            npc_source: None,
+            canonical_body: None,
+            npc_core_diagnostics: Vec::new(),
         }
     }
 }

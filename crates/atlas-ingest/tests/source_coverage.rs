@@ -261,7 +261,7 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
             "type": "npc",
             "system": {
                 "details": {"level": {"value": 3}},
-                "resources": {"focus": {"value": 1}}
+                "spellcasting": {"rituals": {"dc": 20}}
             },
             "items": []
         }),
@@ -272,8 +272,8 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
         .as_array_mut()
         .expect("baseline paths")
         .iter_mut()
-        .find(|path| path["path"] == "$.system.resources.*.value")
-        .expect("deferred resource path");
+        .find(|path| path["path"] == "$.system.spellcasting.rituals.dc")
+        .expect("deferred ritual DC path");
     deferred_path["disposition"] = json!("consumed");
     let baseline_path = root.join("coverage-consumed-baseline.json");
     fs::write(&baseline_path, serde_json::to_vec_pretty(&baseline_json)?)?;
@@ -285,7 +285,7 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
     assert_eq!(diff.consumed_regressions.len(), 1);
     assert_eq!(
         diff.consumed_regressions[0].path,
-        "$.system.resources.*.value"
+        "$.system.spellcasting.rituals.dc"
     );
     assert_eq!(
         diff.consumed_regressions[0].baseline_disposition,

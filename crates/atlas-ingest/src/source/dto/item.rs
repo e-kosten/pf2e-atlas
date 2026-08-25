@@ -2,6 +2,7 @@ use std::fmt;
 
 use serde_json::Value;
 
+use super::creature_core::{LoreSource, parse_lore_source};
 use super::value::serialized_object;
 use super::{
     RawSourceJson, SerializedSourceObject, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
@@ -190,6 +191,7 @@ pub struct FullItemSource {
     pub effects: SourcePresence<Vec<SerializedSourceObject>>,
     pub flags: SourcePresence<SerializedSourceObject>,
     pub parent_context: Option<SourceParentContext>,
+    pub lore: Option<LoreSource>,
     serialized: SerializedSourceObject,
     system: SerializedSourceObject,
 }
@@ -314,6 +316,9 @@ pub(crate) fn parse_item(
         ));
     }
     let system = required_object(map, "system", identity, &format!("{json_path}.system"))?;
+    let lore = (item_type == ItemType::Lore)
+        .then(|| parse_lore_source(system, identity, &format!("{json_path}.system")))
+        .transpose()?;
     let source = FullItemSource {
         id,
         name,
@@ -329,6 +334,7 @@ pub(crate) fn parse_item(
         )?,
         flags: optional_object(map, "flags", identity, &format!("{json_path}.flags"))?,
         parent_context,
+        lore,
         serialized: serialized_object(map),
         system: serialized_object(system),
     };
