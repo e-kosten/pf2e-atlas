@@ -23,6 +23,7 @@ pub struct CreatureRecord {
     pub defenses: CreatureFact<CreatureDefenses>,
     pub movement: CreatureFact<Vec<CreatureSpeed>>,
     pub resources: CreatureFact<Vec<CreatureResource>>,
+    pub embedded_entities: CreatureFact<crate::CreatureEmbeddedEntities>,
     pub provenance: CreatureProvenance,
 }
 
@@ -130,6 +131,7 @@ pub enum CreatureSourceField {
     Defenses,
     Movement,
     Resources,
+    EmbeddedEntities,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -6,9 +6,11 @@ use atlas_record::{
 };
 use serde_json::Value;
 
+use crate::generated::afflictions::GeneratedAfflictionRole;
 use crate::source::dto::VersionedNpcSource;
 use crate::source::normalize::ContentParseDiagnostics;
 use crate::source::npc_core::NpcCoreDiagnostic;
+use crate::source::npc_entities::{NpcEmbeddedCandidates, NpcEmbeddedDiagnostic};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReferenceCandidate {
@@ -36,6 +38,9 @@ pub(crate) struct SourceConstructionFacts {
     pub(crate) npc_source: Option<VersionedNpcSource>,
     pub(crate) canonical_body: Option<RecordBody>,
     pub(crate) npc_core_diagnostics: Vec<NpcCoreDiagnostic>,
+    pub(crate) npc_embedded_candidates: Option<NpcEmbeddedCandidates>,
+    pub(crate) npc_embedded_diagnostics: Vec<NpcEmbeddedDiagnostic>,
+    pub(crate) generated_affliction_role: Option<GeneratedAfflictionRole>,
 }
 
 impl SourceConstructionFacts {
@@ -46,6 +51,9 @@ impl SourceConstructionFacts {
             npc_source: None,
             canonical_body: None,
             npc_core_diagnostics: Vec::new(),
+            npc_embedded_candidates: None,
+            npc_embedded_diagnostics: Vec::new(),
+            generated_affliction_role: None,
         }
     }
 }

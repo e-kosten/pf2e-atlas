@@ -55,6 +55,7 @@ use crate::source::ManifestPack;
 use crate::source::dto::{SourceIdentity, parse_npc_source, pinned_source_version_metadata};
 use crate::source::mechanics;
 use crate::source::npc_core::{NpcCoreConversion, convert_npc_core};
+use crate::source::npc_entities::collect_npc_embedded_candidates;
 
 pub(crate) fn normalize_record(
     manifest_pack: &ManifestPack,
@@ -99,6 +100,7 @@ pub(crate) fn normalize_record(
     } else {
         None
     };
+    let npc_embedded_candidates = npc_source.as_ref().map(collect_npc_embedded_candidates);
     let npc_conversion = npc_source
         .as_ref()
         .map(|source| convert_npc_core(key.clone(), &source_path, source))
@@ -277,9 +279,6 @@ pub(crate) fn normalize_record(
     } else {
         FoundryDocumentMechanics::None
     };
-    let (spellcasting_entries, activities) =
-        mechanics::extract_embedded_record_mechanics(&source_facts.embedded_items);
-
     let record = AtlasRecord {
         identity: RecordIdentity { key, name },
         classification: RecordClassification {
@@ -312,8 +311,8 @@ pub(crate) fn normalize_record(
         mechanics: RecordMechanics {
             metrics,
             document: document_mechanics,
-            spellcasting_entries,
-            activities,
+            spellcasting_entries: Vec::new(),
+            activities: Vec::new(),
         },
         content: RecordContent {
             documents: content_documents,
@@ -338,6 +337,9 @@ pub(crate) fn normalize_record(
         npc_source,
         canonical_body,
         npc_core_diagnostics,
+        npc_embedded_candidates,
+        npc_embedded_diagnostics: Vec::new(),
+        generated_affliction_role: None,
     };
 
     Ok(LoadedSourceRecord::new(record, facts))

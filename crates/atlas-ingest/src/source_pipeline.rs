@@ -10,11 +10,13 @@ use crate::diagnostics::{
 use crate::embeddings;
 use crate::error::IngestError;
 use crate::generated::afflictions;
+use crate::generated::afflictions::{GeneratedAfflictionRelationshipKind, GeneratedAfflictionRole};
 use crate::records::references::{
     build_record_reference_index, resolve_content_references, resolve_reference_edges,
 };
 use crate::records::{aliases, taxonomy, variants};
 use crate::source::loader::load_foundry_source_records;
+use crate::source::npc_entities::finalize_npc_embedded_entities;
 use crate::source::{LoadedPack, SourceLoad};
 
 pub(crate) fn load_foundry_source(
@@ -34,6 +36,7 @@ pub(crate) fn load_foundry_source(
     source_progress("source_normalize", "Building source reference index");
     info!("building reference index");
     let reference_index = build_record_reference_index(&source.records);
+    finalize_npc_embedded_entities(&mut source.records, &reference_index);
     source_progress("source_normalize", "Generating derived affliction records");
     info!("generating derived affliction records");
     let generated_afflictions =
@@ -44,13 +47,61 @@ pub(crate) fn load_foundry_source(
         let canonical_count = generated_afflictions
             .records
             .iter()
-            .filter(|loaded| loaded.record.visibility.visible_by_default())
+            .filter(|loaded| {
+                loaded.facts.generated_affliction_role == Some(GeneratedAfflictionRole::Canonical)
+            })
             .count();
-        let instance_count = generated_afflictions.records.len() - canonical_count;
+        let instance_count = generated_afflictions
+            .records
+            .iter()
+            .filter(|loaded| {
+                loaded.facts.generated_affliction_role
+                    == Some(GeneratedAfflictionRole::SourceInstance)
+            })
+            .count();
+        debug_assert_eq!(
+            generated_afflictions.records.len(),
+            canonical_count + instance_count,
+            "every generated affliction record has an explicit role"
+        );
+        debug_assert!(
+            generated_afflictions
+                .relationships
+                .iter()
+                .all(|relationship| {
+                    relationship.from != relationship.to
+                        && matches!(
+                    relationship.kind,
+                    GeneratedAfflictionRelationshipKind::HostHasSourceInstance
+                        | GeneratedAfflictionRelationshipKind::SourceInstanceOfCanonical
+                        | GeneratedAfflictionRelationshipKind::CanonicalDerivedFromHostOccurrence
+                )
+                })
+        );
+        debug_assert_eq!(
+            generated_afflictions.relationships.len(),
+            instance_count * 3,
+            "each source instance has exactly three typed relationships"
+        );
+        for kind in [
+            GeneratedAfflictionRelationshipKind::HostHasSourceInstance,
+            GeneratedAfflictionRelationshipKind::SourceInstanceOfCanonical,
+            GeneratedAfflictionRelationshipKind::CanonicalDerivedFromHostOccurrence,
+        ] {
+            debug_assert_eq!(
+                generated_afflictions
+                    .relationships
+                    .iter()
+                    .filter(|relationship| relationship.kind == kind)
+                    .count(),
+                instance_count,
+                "each source instance has one relationship of every required kind"
+            );
+        }
         source.diagnostics.generated_affliction_canonical_records = canonical_count;
         source.diagnostics.generated_affliction_instance_records = instance_count;
         source.diagnostics.generated_affliction_reference_edges =
-            generated_afflictions.references.len();
+            generated_afflictions.relationships.len();
         source.packs.push(LoadedPack {
             name: PackName::new(DERIVED_AFFLICTIONS_PACK_NAME.to_string()).map_err(|error| {
                 IngestError::ManifestParseFailed(format!(

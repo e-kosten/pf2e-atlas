@@ -263,7 +263,12 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
                 "details": {"level": {"value": 3}},
                 "spellcasting": {"rituals": {"dc": 20}}
             },
-            "items": []
+            "items": [{
+                "_id": "embedded-action",
+                "name": "Embedded Action",
+                "type": "action",
+                "system": {"description": {"gm": "GM-only content"}}
+            }]
         }),
     )?;
     let baseline = audit(&root, false, None)?;
@@ -272,8 +277,8 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
         .as_array_mut()
         .expect("baseline paths")
         .iter_mut()
-        .find(|path| path["path"] == "$.system.spellcasting.rituals.dc")
-        .expect("deferred ritual DC path");
+        .find(|path| path["path"] == "$.items[].system.description.gm")
+        .expect("deferred B5 GM content path");
     deferred_path["disposition"] = json!("consumed");
     let baseline_path = root.join("coverage-consumed-baseline.json");
     fs::write(&baseline_path, serde_json::to_vec_pretty(&baseline_json)?)?;
@@ -285,7 +290,7 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
     assert_eq!(diff.consumed_regressions.len(), 1);
     assert_eq!(
         diff.consumed_regressions[0].path,
-        "$.system.spellcasting.rituals.dc"
+        "$.items[].system.description.gm"
     );
     assert_eq!(
         diff.consumed_regressions[0].baseline_disposition,

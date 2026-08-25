@@ -232,6 +232,10 @@ pub(crate) fn convert_npc_core(
             resources(core, &mut diagnostics)?,
             CreatureSourceField::Resources,
         ),
+        embedded_entities: CreatureFact::source(
+            FactValue::Missing,
+            CreatureSourceField::EmbeddedEntities,
+        ),
         provenance: CreatureProvenance {
             source_path: source_path.to_string(),
             source_contract_version: source.version.contract_version().to_string(),

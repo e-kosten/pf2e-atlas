@@ -7,5 +7,6 @@ pub(crate) mod normalize;
 pub(crate) mod npc_core;
 #[cfg(test)]
 mod npc_core_tests;
+pub(crate) mod npc_entities;
 
 pub(crate) use model::{LoadedPack, ManifestPack, ParsedManifest, SourceLoad};

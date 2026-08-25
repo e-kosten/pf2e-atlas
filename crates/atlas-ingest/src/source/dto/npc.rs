@@ -3,6 +3,7 @@ use std::fmt;
 use serde_json::Value;
 
 use super::creature_core::parse_npc_core;
+use super::embedded::{ActorSpellcastingSource, parse_actor_spellcasting};
 use super::item::parse_item;
 use super::value::serialized_object;
 use super::{
@@ -95,6 +96,7 @@ pub struct NpcSource {
     pub effects: SourcePresence<Vec<SerializedSourceObject>>,
     pub items: SourcePresence<Vec<ItemSource>>,
     pub core: NpcCoreSource,
+    pub(crate) spellcasting: SourcePresence<ActorSpellcastingSource>,
     serialized: SerializedSourceObject,
     system: SerializedSourceObject,
 }
@@ -193,6 +195,7 @@ pub fn parse_npc_source(
         effects: optional_array_of_objects(map, "effects", &identity, "$.effects")?,
         items,
         core,
+        spellcasting: parse_actor_spellcasting(system),
         serialized: serialized_object(map),
         system: serialized_object(system),
     };

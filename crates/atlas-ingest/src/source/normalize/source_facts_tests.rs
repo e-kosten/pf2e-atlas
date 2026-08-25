@@ -453,6 +453,13 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         None,
     )
     .expect("record normalizes");
+    let mut loaded_records = vec![loaded];
+    let reference_index = crate::records::references::build_record_reference_index(&loaded_records);
+    crate::source::npc_entities::finalize_npc_embedded_entities(
+        &mut loaded_records,
+        &reference_index,
+    );
+    let loaded = &loaded_records[0];
 
     let facts = &loaded.facts.source_facts;
     assert_eq!(facts.slug.as_deref(), Some("host-record"));
@@ -506,7 +513,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         loaded.record.mechanics.spellcasting_entries[0].entry_id,
         "casting1"
     );
-    assert_eq!(loaded.record.mechanics.activities.len(), 2);
+    assert_eq!(loaded.record.mechanics.activities.len(), 3);
     let spell_activity = loaded
         .record
         .mechanics
@@ -523,26 +530,36 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         spell_activity.damage[0].effect_kind,
         DamageEffectKind::DamageOrHealing
     );
-    assert_eq!(spell_activity.modes.len(), 2);
-    assert_eq!(spell_activity.modes[0].mode_id, "living");
-    assert_eq!(spell_activity.modes[0].label, "Staged Spell (Healing)");
-    assert_eq!(spell_activity.modes[0].target.as_deref(), Some("1 ally"));
-    assert_eq!(spell_activity.modes[0].range.as_deref(), Some("30 feet"));
-    assert_eq!(spell_activity.modes[0].time.as_deref(), Some("2"));
-    assert_eq!(spell_activity.modes[0].damage[0].formula, "1d4+4");
-    assert_eq!(
-        spell_activity.modes[0].damage[0].effect_kind,
-        DamageEffectKind::Healing
-    );
-    assert_eq!(spell_activity.modes[1].mode_id, "undead");
-    assert_eq!(
-        spell_activity.modes[1].damage[0].effect_kind,
-        DamageEffectKind::Damage
-    );
+    assert!(spell_activity.modes.is_empty());
     assert_eq!(spell_activity.usage, MechanicActivityUsage::Limited);
     assert_eq!(spell_activity.rolls.len(), 2);
     assert_eq!(spell_activity.rolls[0].base_value, 14);
     assert_eq!(spell_activity.rolls[1].base_value, 23);
+    let RecordBody::Creature(creature) = loaded
+        .facts
+        .canonical_body
+        .as_ref()
+        .expect("canonical creature");
+    let embedded = creature
+        .embedded_entities
+        .value
+        .as_value()
+        .expect("embedded entities");
+    let canonical_spell = embedded
+        .occurrences
+        .iter()
+        .find(|occurrence| occurrence.id.as_str().ends_with(":spell1"))
+        .expect("spell occurrence");
+    let atlas_record::CreatureCapability::Spell(canonical_spell) = &canonical_spell.capability
+    else {
+        panic!("spell capability")
+    };
+    assert_eq!(
+        canonical_spell.unsupported_notes.len(),
+        2,
+        "{:#?}",
+        canonical_spell.unsupported_notes
+    );
     let strike_activity = loaded
         .record
         .mechanics
