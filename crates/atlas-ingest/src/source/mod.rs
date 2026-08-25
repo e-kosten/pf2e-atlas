@@ -1,3 +1,4 @@
+pub(crate) mod dto;
 pub(crate) mod loader;
 pub(crate) mod localization;
 pub(crate) mod mechanics;
