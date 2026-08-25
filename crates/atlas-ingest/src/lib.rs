@@ -22,9 +22,9 @@ pub use artifact_manifest::{
 };
 pub use audit::{
     RetrievalPredicateInventoryEntry, SourceCoverageDiagnostic, SourceCoverageDiagnosticKind,
-    SourcePathAuditDiff, SourcePathAuditDiffEntry, SourcePathAuditDispositionChange,
-    SourcePathAuditEnforcement, SourcePathAuditFilters, SourcePathAuditMode,
-    SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
+    SourcePathAuditClosureFailure, SourcePathAuditDiff, SourcePathAuditDiffEntry,
+    SourcePathAuditDispositionChange, SourcePathAuditEnforcement, SourcePathAuditFilters,
+    SourcePathAuditMode, SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
     SourcePathAuditSample, SourcePathAuditSummary, SourcePathAuditValueType,
     SourcePathCoverageDisposition, audit_source_paths, disposition_label,
 };
