@@ -10,6 +10,8 @@ PF2e Atlas keeps persisted Foundry raw JSON for provenance, parity debugging, an
 
 At the same time, leaving useful source structure in raw JSON pushes interpretation into later consumers. That makes search, CLI output, web presentation, encounter runtime behavior, agent workflows, and future API clients inconsistent or forces each surface to understand Foundry-specific JSON shapes.
 
+Selective promotion does not permit selective discovery. The source-faithful contract separately requires every meaningful path and every document/type/role/parent-context tuple to have an explicit disposition and owner, including registration-only, container, generated, hidden, and provenance-only inputs.
+
 The ingest path therefore needs an explicit product test for promoting source fields into typed Atlas facts.
 
 ## Decision
@@ -33,6 +35,8 @@ When a source field is promoted, the owning crate should match the product role:
 - `atlas-search` owns retrieval orchestration over indexed facts.
 - `atlas-app-service` owns final product-facing compositions such as record surfaces and encounter-adjusted views.
 - Frontends own interaction and rendering, not reinterpretation of Foundry source JSON.
+
+Coverage dispositions may retain a field as owned content, derived projection, provenance-only input, ignored-with-non-auth-product-rationale, or an exact future family plan. Visibility, corpus absence, absent authorization, and generic deferral are not coverage dispositions. Current Atlas is unauthenticated but the pinned base is not GM-complete because default-visible/public-only routing still suppresses some product participation. Checkpoint A's target removes classification-only suppression; typed visibility/provenance does not establish a security boundary.
 
 ## Consequences
 

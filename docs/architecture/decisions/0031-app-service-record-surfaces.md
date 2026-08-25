@@ -26,7 +26,11 @@ The frontend needs a final app-facing presentation contract that is already comp
 
 `web/atlas-ui` renders composed surfaces and supplies browser interaction slots such as HP controls, condition editors, note editors, and record-preview popovers. Generic surface rendering must not own mutation behavior directly; feature modules provide mutation handlers through explicit slots.
 
-`RecordPresentationDocument` remains available during the v1 migration as fallback/source presentation for sanity checking and rich prose that has not yet been fully modeled. It is not the long-term final composition point for runtime-adjusted record views.
+`RecordPresentationDocument` remains transitional evidence during the creature migration, not a permanent second creature record. After the source-faithful surface passes the independent automated and Checkpoint E human visual gates, G1 removes the creature fallback and duplicate sparse mechanics path. Non-creature kinds remain behind explicit kind boundaries until their separately approved family cutovers.
+
+The final profile vocabulary is `search_compact`, `record_detail`, and `encounter_participant`. Canonical entities own intrinsic facts, occurrences own context/order/overrides, runtime instances own mutable local state, and profiles own only selection, order, density, disclosure, and interaction slots.
+
+Atlas currently has no authentication boundary, but pinned-base app surfaces inherit default-visible/public-only retrieval and are not GM-complete. Checkpoint A's target app surfaces do not suppress useful authored information solely because of typed visibility or absent authorization. Visibility/role/provenance remain typed metadata and make no current privacy/security claim; target exclusions require non-auth product rationale and audit evidence.
 
 ## Consequences
 

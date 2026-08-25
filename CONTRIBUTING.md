@@ -267,3 +267,16 @@ The normal setup path can fetch or update source data automatically:
 ```bash
 atlas setup
 ```
+
+### Source-Faithful Record Workflow
+
+The proposed source-faithful contract in ADRs 0033-0036 remains implementation-blocked until Checkpoint B approves the exact documentation candidate. Once authorized, contributors changing source interpretation or canonical records must keep these steps in the same bounded task ownership:
+
+1. Refresh the pinned PF2e source identity and regenerate/reconcile the union-derived type registry. Preserve registration-only zero-count entries and exact parent contexts.
+2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values.
+3. Run focused ingest/record tests and the strict coverage gate. New meaningful unknowns, type drift, parent-context drift, lost assignment, and fixture drift must fail rather than fall through raw JSON pointers.
+4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, CLI diagnostics, and source-normalized/artifact-hydrated equality as the one serialized C1 unit.
+5. Run `just verify`; run `just web-ui-verify` for frontend-affecting work. Browser automation proves semantics/accessibility/runtime behavior only; Checkpoint E remains the separate human visual gate.
+6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete.
+
+Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base still contains default-visible/public-only routing and is not GM-complete. The approved target preserves typed visibility, role, source kind, and provenance while removing classification-only suppression of useful authored information across ingest, artifact, search, graph, discovery, metrics, CLI, app, and UI. Any retained exclusion needs a documented non-auth product rationale, fixtures, validation, and audit checkpoint. Do not describe either the base predicates or target metadata as a privacy/security boundary; future authenticated filtering requires a separate approved feature.

@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-24
 
+A7 candidate disposition: **retained** beyond E2. E2 owns only the approved deterministic creature condition set; broader condition/effect families remain assigned to H7 and require separate approval.
+
 ## Problem
 
 Encounter v1 stores condition annotations with value, duration, source, and notes. The initial mechanics projection applies a deterministic subset of conditions to typed creature stats, but broader PF2e condition handling still needs careful scope because many effects are situational or target mechanics the model does not yet type.
@@ -44,9 +46,8 @@ Condition automation uses a backend-owned modeled-condition catalog for the firs
 
 ## Related
 
-- [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
-- [Encounter runtime surfaces plan](../../../scratch/plans/2026-06-25-encounter-runtime-surfaces-plan.md)
+- [ADR 0034 candidate: Canonical entities, occurrences, runtime instances, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
+- [ADR 0036 candidate: Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
 - [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)
 - [Rust encounter actor context effects](./rust-encounter-actor-context-effects.md)
 - [Rust encounter runtime mechanics surfaces](./rust-encounter-runtime-mechanics-surfaces.md)

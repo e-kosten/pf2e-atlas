@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-24
 
+A7 candidate disposition: **subsumed** by E1-E2 typed targets and encounter rule projection, including modifier provenance and the minimum max-HP floor of 1. Checkpoint B is not yet approved.
+
 ## Problem
 
 Encounter v1 tracks creature state and can project basic elite/weak adjustments for typed creature stats. PF2e elite and weak adjustments also affect attacks, damage, DCs, spells, and offensive abilities, and projecting those incorrectly would be worse than leaving the base record untouched.
@@ -28,6 +30,6 @@ Elite/weak is stored as a first-class participant variant (`normal`, `elite`, or
 
 ## Related
 
-- [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
+- [ADR 0034 candidate: Canonical entities, occurrences, runtime instances, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
+- [ADR 0036 candidate: Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
