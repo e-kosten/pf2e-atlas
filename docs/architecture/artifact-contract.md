@@ -114,7 +114,9 @@ Runtime artifact validation requires only the relative `adjacent_manifest_path` 
 
 ## Source Signature
 
-Rust ingest computes `source_signature` from the loaded Foundry source inputs before source-backed generated records are added. The digest includes the manifest path and content hash, loaded localization files such as `static/lang/en.json`, loaded pack declarations and record counts, each loaded source record's relative source path and raw JSON content hash, and skipped source record paths with skip reasons. It excludes absolute local paths, output artifact paths, generated records, timestamps, and other machine-local build facts.
+Rust ingest computes `source_signature` from the raw Foundry source snapshot before canonical, DTO, content, or enrichment projection can accept or reject a record and before source-backed generated records are added. The digest includes the manifest's relative path and content hash, loaded localization files such as `static/lang/en.json` by relative path and content hash, declared pack metadata and raw record counts, and every readable declared record's stable relative path and raw content hash. A raw file that cannot be read prevents a complete snapshot signature; parse or projection failures remain diagnostics but do not remove that file's raw identity from the digest.
+
+Projection outcomes, skip classifications, diagnostic messages, absolute paths, output artifact paths, generated records, timestamps, and other machine-local build facts are excluded from signed material. Diagnostic reports may retain actionable display text, but the v1 signature never hashes arbitrary `Display` output; identical declared inputs at different source roots therefore produce the same signature.
 
 Generated records, enrichment projections, and side-table rows are validated as artifact/data coherence rather than source freshness. This keeps the source signature stable for identical Foundry inputs while allowing Rust-owned projection policy to be checked by artifact validation and parity reports.
 

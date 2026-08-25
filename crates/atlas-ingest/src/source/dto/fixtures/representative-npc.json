@@ -1,0 +1,77 @@
+{
+  "_id": "npc-fixture",
+  "name": "Versioned Source Fixture",
+  "type": "npc",
+  "img": "icons/svg/mystery-man.svg",
+  "ownership": null,
+  "sort": 0,
+  "system": {
+    "_migration": { "version": 0.935 },
+    "details": { "level": { "value": 12 } },
+    "attributes": { "adjustment": null },
+    "preparedOnly": false
+  },
+  "items": [
+    {
+      "_id": "action-fixture",
+      "name": "Action Fixture",
+      "type": "action",
+      "sort": 0,
+      "system": {
+        "actionType": { "value": "action" },
+        "actions": { "value": 0 },
+        "rules": []
+      }
+    },
+    {
+      "_id": "melee-fixture",
+      "name": "Melee Fixture",
+      "type": "melee",
+      "effects": null,
+      "system": {
+        "bonus": { "value": 0 },
+        "damageRolls": { "first": { "damage": "1d6", "damageType": "slashing" } }
+      }
+    },
+    {
+      "_id": "entry-fixture",
+      "name": "Spellcasting Entry Fixture",
+      "type": "spellcastingEntry",
+      "effects": [],
+      "system": {
+        "prepared": { "value": "innate" },
+        "slots": { "slot1": { "prepared": { "0": { "id": "spell-fixture" } } } }
+      }
+    },
+    {
+      "_id": "spell-fixture",
+      "name": "Spell Fixture",
+      "type": "spell",
+      "system": {
+        "location": { "value": "entry-fixture", "uses": { "value": 0, "max": 1 } },
+        "damage": { "first": { "formula": "2d6", "kinds": ["damage"] } },
+        "overlays": { "overlay-id": { "sort": 0, "overlayType": "override", "system": {} } }
+      }
+    },
+    {
+      "_id": "equipment-fixture",
+      "name": "Equipment Fixture",
+      "type": "equipment",
+      "system": {
+        "bulk": { "value": 0 },
+        "price": { "value": { "gp": 0 } },
+        "subitems": []
+      }
+    },
+    {
+      "_id": "lore-fixture",
+      "name": "Lore Fixture",
+      "type": "lore",
+      "system": {
+        "mod": { "value": 0 },
+        "proficient": { "value": 0 }
+      }
+    }
+  ],
+  "prototypeToken": { "displayName": 0 }
+}

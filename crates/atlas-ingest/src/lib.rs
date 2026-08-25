@@ -31,6 +31,14 @@ pub use report::{
     SourceAnalysisRelationshipReport, SourceAnalysisReport, SourceAnalysisSourceReport,
     SourceAnalysisTextReport, analyze_foundry_source,
 };
+pub use source::dto::{
+    ActorType, FullItemSource, ItemSource, ItemType, NpcSource, PF2E_SOURCE_CONTRACT_VERSION,
+    PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SYSTEM_ID, PF2E_SOURCE_PINNED_SYSTEM_VERSION,
+    SerializedSourceObject, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
+    SourceParentContext, SourcePresence, SourceVersionMetadata, VersionedItemSource,
+    VersionedNpcSource, parse_item_source, parse_npc_source, pinned_source_version_metadata,
+    validate_pinned_source_version,
+};
 pub use source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingRecordTruncationCoverageReport,
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,

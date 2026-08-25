@@ -18,10 +18,19 @@ use crate::source::{LoadedPack, ManifestPack, ParsedManifest, SourceLoad};
 
 const DROPPED_INLINE_MACRO_EXAMPLE_LIMIT: usize = 5;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct SourceSignatureRecord {
     source_path: String,
     content_hash: String,
+}
+
+#[derive(Debug)]
+struct SourceSignaturePack {
+    name: String,
+    label: String,
+    document_type: String,
+    declared_path: String,
+    raw_record_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -35,16 +44,11 @@ struct SourceLoadTiming {
 }
 
 #[derive(Debug)]
-struct LoadedSourceFile {
-    record: crate::records::LoadedSourceRecord,
-    source_signature: SourceSignatureRecord,
-}
-
-#[derive(Debug)]
 struct ProcessedSourceFile {
     path: PathBuf,
+    source_signature: Option<SourceSignatureRecord>,
     timing: SourceLoadTiming,
-    result: Result<LoadedSourceFile, IngestError>,
+    result: Result<crate::records::LoadedSourceRecord, IngestError>,
 }
 
 pub(crate) fn load_foundry_source_records(
@@ -67,6 +71,7 @@ pub(crate) fn load_foundry_source_records(
     let localization = LocalizationCatalog::load(source_root)?;
     let mut packs = Vec::new();
     let mut records = Vec::new();
+    let mut source_signature_packs = Vec::new();
     let mut source_signature_records = Vec::new();
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
@@ -144,25 +149,44 @@ pub(crate) fn load_foundry_source_records(
             })
             .collect::<Vec<_>>();
 
+        let mut raw_record_count = 0;
         for processed_file in processed_files {
             add_timing(&mut timing, processed_file.timing);
+            let raw_signature_available = processed_file.source_signature.is_some();
+            if let Some(source_signature) = processed_file.source_signature {
+                raw_record_count += 1;
+                source_signature_records.push(source_signature);
+            }
             match processed_file.result {
-                Ok(loaded) => {
+                Ok(record) => {
                     collect_content_parse_diagnostics(
-                        &loaded.record.facts.content_parse_diagnostics,
+                        &record.facts.content_parse_diagnostics,
                         &mut diagnostics,
                     );
-                    source_signature_records.push(loaded.source_signature);
-                    records.push(loaded.record);
+                    records.push(record);
                 }
-                Err(error) => {
+                Err(error) if raw_signature_available => {
                     skipped_records.push(SkippedRecord {
-                        path: processed_file.path,
+                        path: PathBuf::from(relative_source_path(
+                            source_root,
+                            &processed_file.path,
+                        )),
                         reason: error.to_string(),
                     });
                     warnings.push(error.to_string());
                 }
+                Err(error) => return Err(error),
             }
+        }
+
+        if raw_record_count > 0 {
+            source_signature_packs.push(SourceSignaturePack {
+                name: manifest_pack.name.clone(),
+                label: manifest_pack.label.clone(),
+                document_type: manifest_pack.document_type.clone(),
+                declared_path: manifest_pack.path.clone(),
+                raw_record_count,
+            });
         }
 
         let record_count = records.len() - record_start;
@@ -191,9 +215,8 @@ pub(crate) fn load_foundry_source_records(
         &manifest_path,
         &parsed_manifest.content_hash,
         localization.source_files(),
-        &packs,
+        &source_signature_packs,
         &source_signature_records,
-        &skipped_records,
     );
     timing.signature_duration = signature_started_at.elapsed();
     let source_record_count = records.len();
@@ -233,28 +256,44 @@ fn process_source_file(
     path: &Path,
     localization: &LocalizationCatalog,
 ) -> ProcessedSourceFile {
-    let mut timing = SourceLoadTiming::default();
-    let result = read_json_record(path, &mut timing).and_then(|raw_record| {
-        let normalize_started_at = Instant::now();
-        let normalized_record = normalize_record(
+    process_source_file_with_projection(source_root, path, |raw| {
+        normalize_record(
             manifest_pack,
             pack_name,
             path,
             source_root,
-            raw_record.value,
+            raw,
             Some(localization),
-        );
-        timing.normalize_duration += normalize_started_at.elapsed();
-        normalized_record.map(|record| LoadedSourceFile {
-            record,
-            source_signature: SourceSignatureRecord {
+        )
+    })
+}
+
+fn process_source_file_with_projection(
+    source_root: &Path,
+    path: &Path,
+    project: impl FnOnce(Value) -> Result<crate::records::LoadedSourceRecord, IngestError>,
+) -> ProcessedSourceFile {
+    let mut timing = SourceLoadTiming::default();
+    let (source_signature, result) = match read_raw_record(path, &mut timing) {
+        Ok(raw_record) => {
+            let source_signature = SourceSignatureRecord {
                 source_path: relative_source_path(source_root, path),
                 content_hash: raw_record.content_hash,
-            },
-        })
-    });
+            };
+            let result =
+                parse_raw_record(path, &raw_record.serialized, &mut timing).and_then(|raw| {
+                    let normalize_started_at = Instant::now();
+                    let result = project(raw);
+                    timing.normalize_duration += normalize_started_at.elapsed();
+                    result
+                });
+            (Some(source_signature), result)
+        }
+        Err(error) => (None, Err(error)),
+    };
     ProcessedSourceFile {
         path: path.to_path_buf(),
+        source_signature,
         timing,
         result,
     }
@@ -337,9 +376,8 @@ fn compute_source_signature(
     manifest_path: &Path,
     manifest_content_hash: &str,
     localization_sources: &[LocalizationSourceFile],
-    packs: &[LoadedPack],
+    packs: &[SourceSignaturePack],
     records: &[SourceSignatureRecord],
-    skipped_records: &[SkippedRecord],
 ) -> String {
     let mut hasher = Sha256::new();
     hash_field(&mut hasher, "atlas-source-signature-v1");
@@ -360,14 +398,14 @@ fn compute_source_signature(
     }
 
     let mut sorted_packs = packs.iter().collect::<Vec<_>>();
-    sorted_packs.sort_by(|left, right| left.name.as_str().cmp(right.name.as_str()));
+    sorted_packs.sort_by(|left, right| left.name.cmp(&right.name));
     for pack in sorted_packs {
         hash_field(&mut hasher, "pack");
-        hash_field(&mut hasher, pack.name.as_str());
+        hash_field(&mut hasher, &pack.name);
         hash_field(&mut hasher, &pack.label);
         hash_field(&mut hasher, &pack.document_type);
         hash_field(&mut hasher, &pack.declared_path);
-        hash_field(&mut hasher, &pack.record_count.to_string());
+        hash_field(&mut hasher, &pack.raw_record_count.to_string());
     }
 
     let mut sorted_records = records.iter().collect::<Vec<_>>();
@@ -376,26 +414,6 @@ fn compute_source_signature(
         hash_field(&mut hasher, "record");
         hash_field(&mut hasher, &record.source_path);
         hash_field(&mut hasher, &record.content_hash);
-    }
-
-    let mut sorted_skipped_records = skipped_records.iter().collect::<Vec<_>>();
-    sorted_skipped_records.sort_by(|left, right| {
-        (
-            relative_source_path(source_root, &left.path),
-            left.reason.as_str(),
-        )
-            .cmp(&(
-                relative_source_path(source_root, &right.path),
-                right.reason.as_str(),
-            ))
-    });
-    for skipped_record in sorted_skipped_records {
-        hash_field(&mut hasher, "skipped");
-        hash_field(
-            &mut hasher,
-            &relative_source_path(source_root, &skipped_record.path),
-        );
-        hash_field(&mut hasher, &skipped_record.reason);
     }
 
     format!("foundry-pf2e:sha256:{}", hex_lower(hasher.finalize()))
@@ -469,30 +487,87 @@ fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), Inges
     Ok(())
 }
 
-struct RawJsonRecord {
-    value: Value,
+struct RawSourceRecord {
+    serialized: Vec<u8>,
     content_hash: String,
 }
 
-fn read_json_record(
+fn read_raw_record(
     path: &Path,
     timing: &mut SourceLoadTiming,
-) -> Result<RawJsonRecord, IngestError> {
+) -> Result<RawSourceRecord, IngestError> {
     let read_started_at = Instant::now();
-    let serialized = fs::read_to_string(path)
-        .map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
+    let serialized =
+        fs::read(path).map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
     timing.read_duration += read_started_at.elapsed();
 
     let hash_started_at = Instant::now();
-    let content_hash = sha256_hex(serialized.as_bytes());
+    let content_hash = sha256_hex(&serialized);
     timing.hash_duration += hash_started_at.elapsed();
 
-    let parse_started_at = Instant::now();
-    let value = serde_json::from_str(&serialized)
-        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))?;
-    timing.parse_duration += parse_started_at.elapsed();
-    Ok(RawJsonRecord {
-        value,
+    Ok(RawSourceRecord {
+        serialized,
         content_hash,
     })
+}
+
+fn parse_raw_record(
+    path: &Path,
+    serialized: &[u8],
+    timing: &mut SourceLoadTiming,
+) -> Result<Value, IngestError> {
+    let parse_started_at = Instant::now();
+    let value = serde_json::from_slice(serialized)
+        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))?;
+    timing.parse_duration += parse_started_at.elapsed();
+    Ok(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_signature_record_survives_normalization_rejection() {
+        let root = std::env::temp_dir().join(format!(
+            "atlas-ingest-source-signature-rejection-{}-{}",
+            std::process::id(),
+            std::thread::current().name().unwrap_or("test")
+        ));
+        let path = root.join("packs/actions/rejected.json");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(path.parent().expect("fixture record has a parent"))
+            .expect("fixture directory should be created");
+        fs::write(
+            &path,
+            r#"{"_id":"rejected","name":"Rejected","type":"action","system":{}}"#,
+        )
+        .expect("fixture record should be written");
+
+        let first = process_source_file_with_projection(&root, &path, |_| {
+            Err(IngestError::RecordNormalizationFailed {
+                path: "/machine-one/source/rejected.json".to_string(),
+                message: "injected canonical rejection".to_string(),
+            })
+        });
+        let second = process_source_file_with_projection(&root, &path, |_| {
+            Err(IngestError::RecordNormalizationFailed {
+                path: "/machine-two/source/rejected.json".to_string(),
+                message: "different display text".to_string(),
+            })
+        });
+
+        assert!(first.result.is_err());
+        assert!(second.result.is_err());
+        assert_eq!(first.source_signature, second.source_signature);
+        assert_eq!(
+            first
+                .source_signature
+                .as_ref()
+                .map(|record| record.source_path.as_str()),
+            Some("packs/actions/rejected.json")
+        );
+
+        fs::remove_dir_all(root).expect("fixture directory should be removed");
+    }
 }

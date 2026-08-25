@@ -477,11 +477,17 @@ fn assert_occurrence(
 #[test]
 fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("source-signature");
+    let mirror_root = fixture_root("source-signature-mirror");
     write_fixture_source(&root)?;
+    write_fixture_source(&mirror_root)?;
 
     let first = analyze_foundry_source(&root, None)?.source.source_signature;
     let second = analyze_foundry_source(&root, None)?.source.source_signature;
+    let mirror = analyze_foundry_source(&mirror_root, None)?
+        .source
+        .source_signature;
     assert_eq!(first, second);
+    assert_eq!(first, mirror);
 
     fs::write(
         root.join("packs/actions/demoralize.json"),
@@ -507,6 +513,52 @@ fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn st
     assert_ne!(third, fourth);
 
     fs::remove_dir_all(root)?;
+    fs::remove_dir_all(mirror_root)?;
+    Ok(())
+}
+
+#[test]
+fn source_signature_includes_rejected_raw_records_without_hashing_projection_failures()
+-> Result<(), Box<dyn std::error::Error>> {
+    let first_root = fixture_root("source-signature-rejected-first");
+    let second_root = fixture_root("source-signature-rejected-second");
+    write_fixture_source(&first_root)?;
+    write_fixture_source(&second_root)?;
+    let clean_signature = analyze_foundry_source(&first_root, None)?
+        .source
+        .source_signature;
+
+    let missing_id = r#"{
+      "name": "Projection Rejection",
+      "type": "action",
+      "system": {
+        "description": { "value": "<p>This raw record is signed before normalization.</p>" }
+      }
+    }"#;
+    for root in [&first_root, &second_root] {
+        fs::write(root.join("packs/actions/missing-id.json"), missing_id)?;
+        fs::write(root.join("packs/actions/broken-json.json"), "{")?;
+    }
+
+    let first = analyze_foundry_source(&first_root, None)?;
+    let second = analyze_foundry_source(&second_root, None)?;
+
+    assert_eq!(first.skipped_record_count, 2);
+    assert_eq!(second.skipped_record_count, 2);
+    assert_ne!(first.source.source_signature, clean_signature);
+    assert_eq!(
+        first.source.source_signature,
+        second.source.source_signature
+    );
+    assert!(
+        first
+            .skipped_records
+            .iter()
+            .all(|record| !std::path::Path::new(&record.path).is_absolute())
+    );
+
+    fs::remove_dir_all(first_root)?;
+    fs::remove_dir_all(second_root)?;
     Ok(())
 }
 
