@@ -71,7 +71,7 @@ flowchart TD
 
 ## Checkpoint B Source-Faithful Contract
 
-ADRs 0033-0036 define the proposed implementation target. They remain unapproved until Checkpoint B accepts the exact documentation candidate commit.
+ADRs 0033-0036 define the Checkpoint B-approved implementation target. Work proceeds through the named dependency-ordered owners; approval of the contract does not collapse those slice boundaries.
 
 Canonical entities own intrinsic facts. Occurrences own parent/owner context, authored order, contextual labels/overrides, and stable repeated-use identity. Runtime instances own mutable local state. `search_compact`, `record_detail`, and `encounter_participant` are app-service projections of those shared semantics.
 
@@ -108,7 +108,7 @@ Source snapshot identity is captured at the raw read boundary, before parsing or
 
 Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
 
-`atlas index audit-source-paths` is the explicit offline diagnostic for that analysis substrate. It scans Foundry source packs, inventories scalar JSON paths with representative examples, and annotates paths with known ingest consumer families. This command may inspect broad raw source JSON because it is reporting/debug tooling; runtime lookup, search, filtering, and presentation should still use typed records, side tables, content documents, and product DTOs.
+`atlas index audit-source-paths` is the explicit offline diagnostic for that analysis substrate. It scans Foundry source packs, inventories meaningful scalar JSON paths with representative examples, validates NPC and Item envelopes through the B1 typed DTO boundary, and resolves paths against versioned real-owner declarations. Empty scaffolding does not create warnings; zero and false remain meaningful. Dynamic maps normalize to stable wildcard families, diagnostics and JSON are deterministically sorted, and the report distinguishes consumed, ignored-with-rationale, provenance-only, exact-owner deferred, unknown, and typed source drift. Relaxed mode aggregates warnings; `--strict` fails CI/source-refresh validation on unknowns or typed drift, and `--baseline` adds reviewed vendored-source added/removed/reclassified path enforcement. This command may inspect broad raw source JSON because it is reporting/debug tooling; runtime lookup, search, filtering, and presentation still use typed records, side tables, content documents, and product DTOs.
 
 ## Content, Search, And Reference Projections
 

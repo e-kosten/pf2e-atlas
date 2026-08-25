@@ -270,13 +270,35 @@ atlas setup
 
 ### Source-Faithful Record Workflow
 
-The proposed source-faithful contract in ADRs 0033-0036 remains implementation-blocked until Checkpoint B approves the exact documentation candidate. Once authorized, contributors changing source interpretation or canonical records must keep these steps in the same bounded task ownership:
+Checkpoint B approved the source-faithful contract in ADRs 0033-0036. Implementation remains dependency-ordered and creature-first; approval did not authorize later family implementation, deployment, or skipping the named task owners. Contributors changing source interpretation or canonical records must keep these steps in the same bounded task ownership:
 
 1. Refresh the pinned PF2e source identity and regenerate/reconcile the union-derived type registry. Preserve registration-only zero-count entries and exact parent contexts.
-2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values.
-3. Run focused ingest/record tests and the strict coverage gate. New meaningful unknowns, type drift, parent-context drift, lost assignment, and fixture drift must fail rather than fall through raw JSON pointers.
+2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values. Empty strings, nulls, and empty collections are scaffolding for path-warning purposes, but the B1 typed boundary still validates their declared presence and shape.
+3. Run focused ingest/record tests and the strict coverage gate. New meaningful unknowns, type drift, parent-context drift, lost assignment, consumed-path regression, and fixture drift must fail rather than fall through raw JSON pointers. Implemented NPC declarations are leaf-exact; add a mutation test whenever a formerly covered parent could conceal a new or stale child. The full-corpus gate retains all 313 reviewed type/role/parent-context assignments; non-creature paths remain bound to their exact H1-H11 future owners and are not treated as implemented.
 4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, CLI diagnostics, and source-normalized/artifact-hydrated equality as the one serialized C1 unit.
 5. Run `just verify`; run `just web-ui-verify` for frontend-affecting work. Browser automation proves semantics/accessibility/runtime behavior only; Checkpoint E remains the separate human visual gate.
 6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete.
+
+Run the relaxed audit for an aggregate local review:
+
+```bash
+atlas index audit-source-paths \
+  --source vendor/pf2e \
+  --limit 1000000 \
+  --json
+```
+
+Run strict mode in CI and before a source refresh. To review a vendored-source update, retain the previous full report and pass it as the baseline; strict mode fails on added, removed, or reclassified meaningful paths until the diff and declarations are reviewed:
+
+```bash
+atlas index audit-source-paths \
+  --source vendor/pf2e \
+  --limit 1000000 \
+  --strict \
+  --baseline previous-source-coverage.json \
+  --json
+```
+
+The JSON path list, diagnostics, source diff, disposition summaries, and pinned-base retrieval-predicate inventory are deterministically sorted. `consumed`, `ignored_with_rationale`, `provenance_only`, `deferred`, and `unknown` are distinct outcomes; every row exposes its matched rule, owner family, fixture/checkpoint, and validation contract, every consumed row names its extractor, and every deferred row names an exact future owner and plan. Strict summaries also expose generic deferred matches, unowned recursive matches, and consumed regressions; all three must be zero for a passing corpus audit.
 
 Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base still contains default-visible/public-only routing and is not GM-complete. The approved target preserves typed visibility, role, source kind, and provenance while removing classification-only suppression of useful authored information across ingest, artifact, search, graph, discovery, metrics, CLI, app, and UI. Any retained exclusion needs a documented non-auth product rationale, fixtures, validation, and audit checkpoint. Do not describe either the base predicates or target metadata as a privacy/security boundary; future authenticated filtering requires a separate approved feature.

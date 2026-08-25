@@ -195,6 +195,13 @@ fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn
     assert_eq!(audit_json["pack_count"], 1);
     assert_eq!(audit_json["record_count"], 1);
     assert_eq!(audit_json["filters"]["record_type"], "action");
+    assert_eq!(
+        audit_json["coverage_policy_version"],
+        "pf2e-source-coverage/v1"
+    );
+    assert_eq!(audit_json["registry_assignment_count"], 313);
+    assert_eq!(audit_json["enforcement"]["mode"], "relaxed");
+    assert_eq!(audit_json["enforcement"]["passed"], true);
     assert!(
         audit_json["path_count"]
             .as_u64()
@@ -203,11 +210,27 @@ fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn
     let paths = audit_json["paths"].as_array().expect("audit paths");
     assert!(paths.iter().any(|path| {
         path["path"] == "$.system.description.value"
-            && path["coverage_status"] == "consumed"
-            && path["known_consumers"].as_array().is_some_and(|consumers| {
-                consumers.iter().any(|consumer| consumer == "rich_content")
-            })
+            && path["disposition"] == "consumed"
+            && path["owner"] == "source::normalize::content_sources"
     }));
+
+    let strict_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "audit-source-paths", "--source"])
+        .arg(&root)
+        .args(["--record-type", "action", "--strict", "--json"])
+        .output()?;
+    assert!(strict_output.status.success());
+    let strict_json = parse_ok_data(&strict_output)?;
+    assert_eq!(strict_json["enforcement"]["mode"], "strict");
+    assert_eq!(strict_json["enforcement"]["passed"], true);
+
+    let repeat_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "audit-source-paths", "--source"])
+        .arg(&root)
+        .args(["--record-type", "action", "--json"])
+        .output()?;
+    assert!(repeat_output.status.success());
+    assert_eq!(audit_output.stdout, repeat_output.stdout);
 
     fs::remove_dir_all(root)?;
     Ok(())

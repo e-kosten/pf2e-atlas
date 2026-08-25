@@ -20,9 +20,9 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): app-service composes final app-facing record surfaces from source facts plus product context, while the frontend renders and hosts interactions.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): ingest promotes Foundry source fields only when they improve durable Atlas product surfaces, while broad raw JSON scans remain diagnostic tooling.
 
-## Checkpoint B Candidate ADRs
+## Checkpoint B ADRs
 
-These proposed decisions are not implementation-authorized until Checkpoint B approves the exact documentation candidate commit:
+Checkpoint B approved these decisions as the dependency-ordered implementation contract. Each implementation slice remains bounded by its named owner and prerequisites:
 
 - [`0033-source-fidelity-and-exhaustive-coverage.md`](./0033-source-fidelity-and-exhaustive-coverage.md): source interpretation uses a pinned serialized-Source boundary and exhaustive zero-unassigned registry, with a truthful default-visible/public-only base and an approved unauthenticated GM-complete target whose exclusions need non-auth rationales.
 - [`0034-canonical-entities-occurrences-and-projections.md`](./0034-canonical-entities-occurrences-and-projections.md): canonical entities own intrinsic facts, occurrences own context, runtime instances own mutable state, and profiles are projections.

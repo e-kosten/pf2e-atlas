@@ -32,7 +32,7 @@ If you remember one rule, remember this: product surfaces stay thin, and durable
 
 ## Checkpoint B Source-Faithful Target
 
-The proposed source-faithful record contract is documented in [ADRs 0033-0036](./decisions/README.md). It is a candidate for Checkpoint B and does not authorize implementation until the user approves the exact documentation commit.
+The source-faithful record contract in [ADRs 0033-0036](./decisions/README.md) was approved at Checkpoint B. Implementation remains dependency-ordered: authorization of the exact contract does not pre-approve later family work or allow one slice to edit another owner's paths.
 
 That target separates four layers:
 
