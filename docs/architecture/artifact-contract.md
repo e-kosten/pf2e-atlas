@@ -12,6 +12,13 @@ Proposed [ADR 0035](./decisions/0035-atomic-canonical-artifact.md) defines the s
 
 The target stores canonical entities, contextual occurrences, owned content, exact reference occurrences, and derived query projections with stable identities. Product-addressable activities, spellcasting entries, resources, content, and occurrences are relational. Nested mechanics normally consumed with one entity may use deterministic Atlas-owned typed JSON; independently queryable/filterable/joinable facts require authoritative relational projections. Complete canonical hydration belongs only to `atlas-index::read`.
 
+B5 now supplies the storage-neutral creature owned-content input to that future C1 boundary:
+stable composite content identity, typed owner/role/origin/visibility/provenance, authored order,
+canonical `RichDocument`, content hash, duplicate-source status, diagnostics, and exact ordered
+reference occurrences. This does not change the current physical schema. C1 remains responsible
+for persisting and hydrating that model atomically; B6/D1 remain responsible for later fact/search
+projections and duplicate-ranking policy.
+
 C1 lands its migration/version bump, checked-in schema, writer, complete reader, validation, inspection, corruption fixtures, atomic publication, CLI diagnostics, and source-normalized/artifact-hydrated equality in one serialized non-splittable candidate. Old artifacts receive rebuild guidance; no compatibility shim is authorized.
 
 Typed visibility/provenance and product retrieval disposition are separate. Atlas has no authentication boundary, but the pinned base still uses `is_default_visible` and public-only content/reference predicates across FTS, embeddings, graph, discovery/metrics, and validation, so it is not GM-complete. Checkpoint A's target makes useful authored information eligible regardless of classification. Classification makes no current privacy/security claim. Every retained excluded record, content unit, reference, FTS row, or embedding unit needs a non-auth product rationale, owner, fixture, validation, and audit checkpoint.

@@ -28,6 +28,18 @@ B3 implements the durable creature core on `atlas-record::CreatureRecord`. `atla
 
 B4 implements the shared embedded entity/occurrence contract on that same subtype. Typed capabilities retain action economy, frequencies, rolls and DCs, damage and healing kinds, spell entries and prepared slots, ranks and locations, actor ritual DC context, equipment and spell uses, Lore modifiers, and explicit unsupported notes even when an entity has no damage. Explicit item sort determines authored order with stable-ID and source-ordinal tie breaking, while occurrence identity remains independent of order. Serialized scalar fields use a reusable typed-or-unsupported contract: supported values remain typed, while an unexpected individual shape retains its exact JSON value and receives a portable field diagnostic instead of coercing the value or rejecting the parent and valid siblings. Exact compendium/source locators resolve only through verified pack-and-ID identity with `_stats.compendiumSource` before `flags.core.sourceId`; names and slugs are never global deduplication keys. Grant, item-grant, prepared-spell, and linked-weapon IDs are typed provenance relationships whose lifecycle values are retained but never executed. Repeated canonical targets remain separate occurrences, while actor-local labels and source-state deltas remain occurrence-owned and do not alter canonical target facts. Later intrinsic item families retain typed creature occurrence shells and exact unsupported local facts without creating premature standalone product models. Rich-content attachment remains a separate owned slice.
 
+B5 implements that separate content slice on `CreatureRecord.content`. Record-authored lore and
+notes attach to the creature record. Entity descriptions attach to actor-owned fallback entities,
+while prose copied from or locally overriding a resolved canonical spell/item attaches to the
+specific B4 occurrence and records the canonical target as duplicate-source metadata. Authored
+order remains separate from stable source identity. Every content link becomes an ordered typed
+reference occurrence with owner/content/provenance parity; safe unknown markup and unresolved
+targets remain diagnosed. Embedded `system.description.gm` content follows the same entity or
+occurrence ownership for every typed B4 family, carries a distinct embedded GM source kind and
+`gm_only` visibility, and remains GM-complete data rather than an authentication filter. Ordinary
+creature description projection contains only record-owned content, so embedded capability
+descriptions are neither orphaned nor duplicated there.
+
 Metrics, facets, FTS, embeddings, CLI records, app DTOs, and UI sections derive from canonical facts and occurrences. They are not canonical stores. `atlas-app-service` is the final static/runtime composition point, and the frontend renders generated DTOs without Foundry interpretation.
 
 ## Consequences

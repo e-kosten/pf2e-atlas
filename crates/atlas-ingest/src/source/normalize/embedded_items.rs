@@ -57,6 +57,7 @@ pub(super) fn attach_embedded_content_refs(
     for item in embedded_items {
         for (source_kind, suffix) in [
             (ContentSourceKind::EmbeddedItemDescription, "description"),
+            (ContentSourceKind::EmbeddedGmDescription, "gm-description"),
             (
                 ContentSourceKind::EmbeddedSpellDescription,
                 "spell-description",

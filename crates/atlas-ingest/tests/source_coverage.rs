@@ -253,22 +253,13 @@ fn npc_new_and_stale_children_are_unknown_instead_of_hidden_by_parent_rules()
 fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("consumed-regression");
-    write_actor_source(
+    write_item_source(
         &root,
         json!({
-            "_id": "npc-coverage-consumed-regression",
-            "name": "Regression Creature",
-            "type": "npc",
-            "system": {
-                "details": {"level": {"value": 3}},
-                "spellcasting": {"rituals": {"dc": 20}}
-            },
-            "items": [{
-                "_id": "embedded-action",
-                "name": "Embedded Action",
-                "type": "action",
-                "system": {"description": {"gm": "GM-only content"}}
-            }]
+            "_id": "weapon-coverage-consumed-regression",
+            "name": "Regression Weapon",
+            "type": "weapon",
+            "system": {"runes": {"potency": 1}}
         }),
     )?;
     let baseline = audit(&root, false, None)?;
@@ -277,8 +268,8 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
         .as_array_mut()
         .expect("baseline paths")
         .iter_mut()
-        .find(|path| path["path"] == "$.items[].system.description.gm")
-        .expect("deferred B5 GM content path");
+        .find(|path| path["path"] == "$.system.runes.potency")
+        .expect("deferred H3 weapon path");
     deferred_path["disposition"] = json!("consumed");
     let baseline_path = root.join("coverage-consumed-baseline.json");
     fs::write(&baseline_path, serde_json::to_vec_pretty(&baseline_json)?)?;
@@ -288,10 +279,7 @@ fn consumed_to_deferred_regression_is_explicit_and_strictly_rejected()
     assert_eq!(report.summary.consumed_regressions, 1);
     let diff = report.source_diff.expect("source diff");
     assert_eq!(diff.consumed_regressions.len(), 1);
-    assert_eq!(
-        diff.consumed_regressions[0].path,
-        "$.items[].system.description.gm"
-    );
+    assert_eq!(diff.consumed_regressions[0].path, "$.system.runes.potency");
     assert_eq!(
         diff.consumed_regressions[0].baseline_disposition,
         "consumed"

@@ -16,12 +16,16 @@ mod presentation_recipe_tests;
 mod reference_policy;
 
 pub use content::{
-    ContentFtsField, ContentSectionNode, ContentSectionOrigin, ContentSourceKind,
-    ContentVisibility, DamagePart, FoundryLink, FoundryLinkBehavior, FoundryLinkIter,
-    FoundryLinkMacroKind, FoundryLinkSource, FoundryNode, RecordContentDocument,
-    RecordFtsProjection, ReferenceRelationKind, RichDocument, RichLinkTarget, RichNode,
-    build_content_section_tree, build_record_fts_projection, iter_foundry_links,
-    render_markdown_like, render_plain_text, visit_foundry_links_mut,
+    ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,
+    ContentFtsField, ContentHash, ContentId, ContentIdentityStability, ContentKey, ContentOrigin,
+    ContentOwner, ContentProvenance, ContentReferenceOccurrence, ContentRole, ContentSectionNode,
+    ContentSectionOrigin, ContentSemanticInputHash, ContentSourceKind, ContentVisibility,
+    DamagePart, DuplicateContentStatus, FoundryLink, FoundryLinkBehavior, FoundryLinkIter,
+    FoundryLinkMacroKind, FoundryLinkSource, FoundryNode, InvalidContentKey, OwnedRichContent,
+    OwnedRichContentDocument, RecordContentDocument, RecordFtsProjection, ReferenceRelationKind,
+    RichDocument, RichLinkTarget, RichNode, build_content_section_tree,
+    build_record_fts_projection, iter_foundry_links, render_markdown_like, render_plain_text,
+    visit_foundry_links_mut,
 };
 pub use creature::{
     CreatureAdjustment, CreatureAllianceName, CreatureArmorClass, CreatureComponentId,

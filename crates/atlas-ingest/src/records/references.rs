@@ -2,13 +2,14 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentSourceKind, ContentVisibility, FoundryLink, FoundryLinkBehavior,
-    ReferenceEdge, ReferenceRelationKind, RichDocument, RichLinkTarget, iter_foundry_links,
-    render_plain_text, visit_foundry_links_mut,
+    AtlasRecord, ContentOwner, ContentSourceKind, ContentVisibility, DuplicateContentStatus,
+    FoundryLink, FoundryLinkBehavior, RecordBody, RecordContentDocument, ReferenceEdge,
+    ReferenceRelationKind, RichDocument, RichLinkTarget, iter_foundry_links, render_plain_text,
+    visit_foundry_links_mut,
 };
 
-use crate::records::{LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate};
-use crate::source::normalize::{normalize_text, parse_foundry_content};
+use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
+use crate::source::normalize::normalize_text;
 
 pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> RecordReferenceIndex {
     let mut index = RecordReferenceIndex::default();
@@ -53,7 +54,9 @@ pub(crate) fn resolve_reference_edges(records: &[LoadedSourceRecord]) -> Vec<Ref
     let mut references = Vec::new();
     for loaded in records {
         let record = &loaded.record;
-        for (source_kind, visibility, document) in record_content_documents(record) {
+        let documents =
+            owned_content_documents(loaded).unwrap_or_else(|| record_content_documents(record));
+        for (source_kind, visibility, document) in documents {
             collect_document_reference_edges(
                 record,
                 source_kind,
@@ -87,10 +90,28 @@ pub(crate) fn resolve_content_references(
     index: &RecordReferenceIndex,
 ) {
     for loaded in records {
-        let record = &mut loaded.record;
-        for content in &mut record.content.documents {
-            if content.contributes_to_reference_occurrences() {
+        let record_key = loaded.record.identity.key.clone();
+        if let Some(RecordBody::Creature(creature)) = &mut loaded.facts.canonical_body {
+            for content in &mut creature.content.documents {
                 resolve_document_references(&mut content.document, index);
+                content.refresh_derived_state();
+            }
+            loaded.record.content.documents = creature
+                .content
+                .documents
+                .iter()
+                .filter(|content| content.owner == ContentOwner::Record(record_key.clone()))
+                .map(|content| RecordContentDocument {
+                    source_kind: content.source_kind,
+                    label: content.label.clone(),
+                    document: content.document.clone(),
+                })
+                .collect();
+        } else {
+            for content in &mut loaded.record.content.documents {
+                if content.contributes_to_reference_occurrences() {
+                    resolve_document_references(&mut content.document, index);
+                }
             }
         }
     }
@@ -150,6 +171,26 @@ fn record_content_documents(
         .default_backlink_documents()
         .map(|content| (content.source_kind, content.visibility(), &content.document))
         .collect()
+}
+
+fn owned_content_documents(
+    loaded: &LoadedSourceRecord,
+) -> Option<Vec<(ContentSourceKind, ContentVisibility, &RichDocument)>> {
+    let RecordBody::Creature(creature) = loaded.facts.canonical_body.as_ref()?;
+    Some(
+        creature
+            .content
+            .documents
+            .iter()
+            .filter(|content| {
+                !matches!(
+                    content.duplicate_status,
+                    DuplicateContentStatus::CopiedFromCanonicalTarget { .. }
+                )
+            })
+            .map(|content| (content.source_kind, content.visibility, &content.document))
+            .collect(),
+    )
 }
 
 fn resolve_foundry_link(link: &FoundryLink, index: &RecordReferenceIndex) -> Option<RecordKey> {
@@ -222,57 +263,6 @@ pub(crate) fn record_by_key<'a>(
     record_key: &RecordKey,
 ) -> Option<&'a AtlasRecord> {
     index.by_key.get(&record_key.to_string())
-}
-
-pub(crate) fn extract_reference_candidates_from_text(text: &str) -> Vec<ReferenceCandidate> {
-    let mut candidates = Vec::new();
-    let mut offset = 0;
-
-    while offset < text.len() {
-        let Some((start, prefix)) = next_reference_prefix(text, offset) else {
-            break;
-        };
-        let target_start = start + prefix.len();
-        let Some(close_relative) = text[target_start..].find(']') else {
-            break;
-        };
-        let close = target_start + close_relative;
-        let raw_target = text[target_start..close].to_string();
-        let mut end = close + 1;
-        let mut display_text = None;
-
-        if text[end..].starts_with('{')
-            && let Some(display_close_relative) = text[end + 1..].find('}')
-        {
-            let display_close = end + 1 + display_close_relative;
-            let display =
-                render_plain_text(&parse_foundry_content(&text[end + 1..display_close]).document);
-            if !display.is_empty() {
-                display_text = Some(display);
-            }
-            end = display_close + 1;
-        }
-
-        candidates.push(ReferenceCandidate {
-            raw_target,
-            display_text,
-            reference_text: text[start..end].to_string(),
-        });
-        offset = end;
-    }
-
-    candidates
-}
-
-pub(crate) fn next_reference_prefix(text: &str, offset: usize) -> Option<(usize, &'static str)> {
-    ["@UUID[", "@Compendium["]
-        .into_iter()
-        .filter_map(|prefix| {
-            text[offset..]
-                .find(prefix)
-                .map(|position| (offset + position, prefix))
-        })
-        .min_by_key(|(position, _)| *position)
 }
 
 #[cfg(test)]

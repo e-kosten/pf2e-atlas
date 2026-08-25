@@ -670,7 +670,7 @@ fn resolve_verified_stable_locator(
         .cloned()
 }
 
-fn family(source: &NpcEmbeddedItemSource) -> CreatureEntityFamily {
+pub(crate) fn family(source: &NpcEmbeddedItemSource) -> CreatureEntityFamily {
     match source {
         NpcEmbeddedItemSource::Action(_) => CreatureEntityFamily::Action,
         NpcEmbeddedItemSource::Strike(_) => CreatureEntityFamily::Strike,

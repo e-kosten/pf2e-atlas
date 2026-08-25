@@ -323,6 +323,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
                     "publication": { "remaster": false },
                     "traits": { "value": ["disease"] },
                     "description": {
+                        "gm": "<p>GM instruction for @UUID[Compendium.pf2e.afflictions.Item.ghoul-fever].</p>",
                         "value": "<p><strong>Saving Throw</strong> Fortitude</p><p><strong>Stage 1</strong> Sickened</p>"
                     }
                 }
@@ -477,33 +478,49 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
     assert_eq!(affliction.traits, vec!["disease"]);
     assert_eq!(affliction.slug.as_deref(), Some("ghoul-fever"));
     assert!(affliction.raw_provenance.is_some());
-    assert_eq!(affliction.content_refs.len(), 1);
+    assert_eq!(affliction.content_refs.len(), 2);
     assert_eq!(
         affliction.content_refs[0].source_kind,
         ContentSourceKind::EmbeddedItemDescription
     );
     assert_eq!(
         affliction.content_refs[0].local_key,
-        "#item:bite1:description"
+        "item:bite1:description"
+    );
+    assert_eq!(
+        affliction.content_refs[1].source_kind,
+        ContentSourceKind::EmbeddedGmDescription
+    );
+    assert_eq!(
+        affliction.content_refs[1].local_key,
+        "item:bite1:gm-description"
     );
     let affliction_content = facts
         .source_content
-        .get("#item:bite1:description")
+        .get("item:bite1:description")
         .expect("embedded description is source content");
     assert_eq!(
         render_plain_text(&affliction_content.document),
         "Saving Throw Fortitude\nStage 1 Sickened"
     );
+    assert_eq!(
+        facts
+            .source_content
+            .get("item:bite1:gm-description")
+            .map(|content| render_plain_text(&content.document))
+            .as_deref(),
+        Some("GM instruction for ghoul fever.")
+    );
 
     let spell = &facts.embedded_items[1];
     assert_eq!(
         spell.content_refs[0].local_key,
-        "#item:spell1:spell-description"
+        "item:spell1:spell-description"
     );
     assert_eq!(
         facts
             .source_content
-            .get("#item:spell1:spell-description")
+            .get("item:spell1:spell-description")
             .map(|content| render_plain_text(&content.document))
             .as_deref(),
         Some("Nested spell text.")

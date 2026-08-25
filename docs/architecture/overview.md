@@ -41,6 +41,14 @@ That target separates four layers:
 - runtime instances own mutable local encounter state; and
 - `search_compact`, `record_detail`, and `encounter_participant` are projections of the same semantic model.
 
+Creature authored content follows the same separation. `CreatureRecord.content` owns addressable
+documents keyed by `(RecordKey, ContentKey)`. Each document retains a typed record, entity, or
+occurrence owner; role; source origin; visibility; provenance; authored order; content hash;
+diagnostics; and reference occurrences. Embedded prose that resolves to an existing canonical
+spell or item remains occurrence-owned local content and records that duplicate relationship; it
+does not mutate the canonical target or become parent-owned creature prose. Stable source content
+keys do not derive from either content hashes or later embedding semantic-input hashes.
+
 Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base is not GM-complete. It still filters ordinary retrieval through record default visibility, tooling-kind and legacy-remaster routing; public-only content/reference participation; and inherited predicates in ingest embeddings/reports, FTS, search/filter keysets, graph/variants, discovery/metric catalogs, artifact validation, and CLI/app/UI projections. Those are historical product-routing defaults, not a privacy/security boundary.
 
 Checkpoint A approved unauthenticated GM-complete behavior as the target: useful authored information is not hidden solely because of typed visibility classification or absent authorization. Visibility, role, source kind, and provenance stay typed for source meaning, routing, diagnostics, and a future separately approved auth feature; they do not establish a current privacy/security boundary. Every retained target exclusion requires a non-auth product rationale, owner, fixture, validation, and audit checkpoint. The implementation tasks must replace the base predicates end to end before claiming this target.

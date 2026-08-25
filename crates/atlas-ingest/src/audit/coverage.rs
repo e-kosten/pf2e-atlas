@@ -535,6 +535,7 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
         .into_iter()
         .map(|(path, owner)| npc_consumed("npc_exact_consumed_leaf", path, owner)),
     );
+    #[rustfmt::skip]
     declarations.extend(
         [
             ("$.items[].system.acBonus", "B4", "NPC embedded entity conversion"),
@@ -1053,12 +1054,10 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
         .into_iter()
         .map(|(path, _task, _owner)| {
             if path == "$.items[].system.description.gm" {
-                npc_deferred(
+                npc_consumed(
                     "embedded_gm_content",
                     path,
-                    "B5",
-                    "NPC embedded rich-content attachment",
-                    "B5 owns GM-complete RichDocument attachment; B4 does not treat authored content as a mechanic note.",
+                    "source::normalize::content_sources",
                 )
             } else {
                 npc_consumed(
@@ -1535,26 +1534,6 @@ fn npc_consumed(
         product_rationale: "The named real extractor consumes this NPC source family today; B3/B4 will replace the old projection directly rather than adding a parallel path.",
         future_owner: None,
         future_plan: None,
-    }
-}
-
-fn npc_deferred(
-    id: &'static str,
-    path_family: &'static str,
-    task: &'static str,
-    owner: &'static str,
-    rationale: &'static str,
-) -> CoverageDeclaration {
-    CoverageDeclaration {
-        id,
-        document_type: Some("Actor"),
-        record_type: Some("npc"),
-        path_family,
-        disposition: SourcePathCoverageDisposition::Deferred,
-        owner,
-        product_rationale: rationale,
-        future_owner: Some(task),
-        future_plan: Some("scratch/plans/2026-08-23-source-faithful-runtime-records-ui-plan.md"),
     }
 }
 

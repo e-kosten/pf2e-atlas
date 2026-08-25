@@ -17,6 +17,7 @@ use crate::records::references::{
 use crate::records::{aliases, taxonomy, variants};
 use crate::source::loader::load_foundry_source_records;
 use crate::source::npc_entities::finalize_npc_embedded_entities;
+use crate::source::owned_content::finalize_npc_owned_content;
 use crate::source::{LoadedPack, SourceLoad};
 
 pub(crate) fn load_foundry_source(
@@ -37,6 +38,7 @@ pub(crate) fn load_foundry_source(
     info!("building reference index");
     let reference_index = build_record_reference_index(&source.records);
     finalize_npc_embedded_entities(&mut source.records, &reference_index);
+    finalize_npc_owned_content(&mut source.records);
     source_progress("source_normalize", "Generating derived affliction records");
     info!("generating derived affliction records");
     let generated_afflictions =

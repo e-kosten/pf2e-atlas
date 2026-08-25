@@ -1,5 +1,9 @@
-use atlas_record::{ContentSourceKind, RecordContentDocument, RichDocument};
+use atlas_record::{
+    ContentIdentityStability, ContentSourceKind, RecordContentDocument, RichDocument,
+};
 use serde_json::Value;
+
+use crate::records::SourceContentFact;
 
 use super::{
     ContentParseDiagnostics, LocalizationResolver, parse_foundry_content_with_localization,
@@ -10,12 +14,29 @@ pub(super) struct SourceContentProjection {
     pub description: Option<RichDocument>,
     pub blurb: Option<RichDocument>,
     pub supplemental_content: Vec<(Option<String>, RecordContentDocument)>,
+    pub owned_content: Vec<SourceContentFact>,
     pub diagnostics: Vec<ContentParseDiagnostics>,
 }
 
 struct ContentAccumulator {
     content: Vec<(Option<String>, RecordContentDocument)>,
+    owned_content: Vec<SourceContentFact>,
     diagnostics: Vec<ContentParseDiagnostics>,
+}
+
+type SupplementalContentExtraction = (
+    Vec<(Option<String>, RecordContentDocument)>,
+    Vec<SourceContentFact>,
+    Vec<ContentParseDiagnostics>,
+);
+
+struct EmbeddedContentPointer {
+    pointer: &'static str,
+    source_kind: ContentSourceKind,
+    label: Option<String>,
+    local_key: String,
+    nested_source_id: String,
+    authored_ordinal: usize,
 }
 
 pub(super) fn extract_content_sources(
@@ -40,13 +61,52 @@ pub(super) fn extract_content_sources(
         .map(|parsed| parsed.document.clone())
         .filter(non_empty_document);
 
-    let (supplemental_content, supplemental_diagnostics) =
+    let (supplemental_content, mut owned_content, supplemental_diagnostics) =
         extract_supplemental_content(raw, source_description_raw.as_deref(), localization);
+    if let (Some(document), Some(parsed)) = (&description, &parsed_description) {
+        owned_content.insert(
+            0,
+            source_content_fact(
+                "description".to_string(),
+                ContentIdentityStability::StableSourceIdentity,
+                ContentSourceKind::Description,
+                "$.system.description.value",
+                None,
+                None,
+                0,
+                None,
+                document.clone(),
+                parsed.diagnostics.clone(),
+            ),
+        );
+    }
+    if let (Some(document), Some(parsed)) = (&blurb, &parsed_blurb) {
+        let position = usize::from(!owned_content.is_empty());
+        owned_content.insert(
+            position,
+            source_content_fact(
+                "blurb".to_string(),
+                ContentIdentityStability::StableSourceIdentity,
+                ContentSourceKind::Blurb,
+                "$.system.details.blurb",
+                None,
+                None,
+                position as u32,
+                None,
+                document.clone(),
+                parsed.diagnostics.clone(),
+            ),
+        );
+    }
+    for (order, content) in owned_content.iter_mut().enumerate() {
+        content.authored_order = order as u32;
+    }
 
     SourceContentProjection {
         description,
         blurb,
         supplemental_content,
+        owned_content,
         diagnostics: parsed_description
             .into_iter()
             .chain(parsed_blurb)
@@ -64,17 +124,16 @@ fn extract_supplemental_content(
     raw: &Value,
     source_description_raw: Option<&str>,
     localization: Option<&dyn LocalizationResolver>,
-) -> (
-    Vec<(Option<String>, RecordContentDocument)>,
-    Vec<ContentParseDiagnostics>,
-) {
+) -> SupplementalContentExtraction {
     let mut accumulator = ContentAccumulator {
         content: Vec::new(),
+        owned_content: Vec::new(),
         diagnostics: Vec::new(),
     };
     collect_content_at_pointer(
         raw,
         "/system/details/disable",
+        "disable",
         ContentSourceKind::Disable,
         None,
         localization,
@@ -83,6 +142,7 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/details/routine",
+        "routine",
         ContentSourceKind::Routine,
         None,
         localization,
@@ -91,6 +151,7 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/details/reset",
+        "reset",
         ContentSourceKind::Reset,
         None,
         localization,
@@ -99,6 +160,7 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/attributes/stealth/details",
+        "stealth-details",
         ContentSourceKind::StealthDetails,
         Some("Stealth".to_string()),
         localization,
@@ -108,6 +170,7 @@ fn extract_supplemental_content(
         collect_content_at_pointer(
             raw,
             "/system/details/description",
+            "details-description",
             ContentSourceKind::DetailsFieldDescription,
             None,
             localization,
@@ -117,6 +180,7 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/details/publicNotes",
+        "public-notes",
         ContentSourceKind::PublicNotes,
         Some("Public Notes".to_string()),
         localization,
@@ -125,6 +189,7 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/description/gm",
+        "gm-notes:description",
         ContentSourceKind::GmNotes,
         Some("GM Notes".to_string()),
         localization,
@@ -133,6 +198,7 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/details/gmNotes",
+        "gm-notes:details",
         ContentSourceKind::GmNotes,
         Some("GM Notes".to_string()),
         localization,
@@ -141,18 +207,24 @@ fn extract_supplemental_content(
     collect_content_at_pointer(
         raw,
         "/system/details/privateNotes",
+        "private-notes",
         ContentSourceKind::PrivateNotes,
         Some("Private Notes".to_string()),
         localization,
         &mut accumulator,
     );
     collect_embedded_item_content(raw, localization, &mut accumulator);
-    (accumulator.content, accumulator.diagnostics)
+    (
+        accumulator.content,
+        accumulator.owned_content,
+        accumulator.diagnostics,
+    )
 }
 
 fn collect_content_at_pointer(
     raw: &Value,
     pointer: &str,
+    content_key: &str,
     source_kind: ContentSourceKind,
     label: Option<String>,
     localization: Option<&dyn LocalizationResolver>,
@@ -166,6 +238,19 @@ fn collect_content_at_pointer(
         return;
     }
     accumulator.diagnostics.push(parsed.diagnostics.clone());
+    let order = accumulator.owned_content.len() as u32;
+    accumulator.owned_content.push(source_content_fact(
+        content_key.to_string(),
+        ContentIdentityStability::StableSourceIdentity,
+        source_kind,
+        &json_path(pointer),
+        None,
+        None,
+        order,
+        label.clone(),
+        parsed.document.clone(),
+        parsed.diagnostics.clone(),
+    ));
     accumulator.content.push((
         None,
         supplemental_content(source_kind, label, parsed.document),
@@ -185,19 +270,40 @@ fn collect_embedded_item_content(
         let item_id = embedded_item_id(item, index);
         collect_embedded_content_at_pointer(
             item,
-            "/system/description/value",
-            ContentSourceKind::EmbeddedItemDescription,
-            label.clone(),
-            embedded_item_content_key(&item_id, "description"),
+            EmbeddedContentPointer {
+                pointer: "/system/description/value",
+                source_kind: ContentSourceKind::EmbeddedItemDescription,
+                label: label.clone(),
+                local_key: embedded_item_content_key(&item_id, "description"),
+                nested_source_id: item_id.clone(),
+                authored_ordinal: index,
+            },
             localization,
             accumulator,
         );
         collect_embedded_content_at_pointer(
             item,
-            "/system/spell/system/description/value",
-            ContentSourceKind::EmbeddedSpellDescription,
-            label,
-            embedded_item_content_key(&item_id, "spell-description"),
+            EmbeddedContentPointer {
+                pointer: "/system/description/gm",
+                source_kind: ContentSourceKind::EmbeddedGmDescription,
+                label: label.clone(),
+                local_key: embedded_item_content_key(&item_id, "gm-description"),
+                nested_source_id: item_id.clone(),
+                authored_ordinal: index,
+            },
+            localization,
+            accumulator,
+        );
+        collect_embedded_content_at_pointer(
+            item,
+            EmbeddedContentPointer {
+                pointer: "/system/spell/system/description/value",
+                source_kind: ContentSourceKind::EmbeddedSpellDescription,
+                label,
+                local_key: embedded_item_content_key(&item_id, "spell-description"),
+                nested_source_id: item_id,
+                authored_ordinal: index,
+            },
             localization,
             accumulator,
         );
@@ -206,14 +312,11 @@ fn collect_embedded_item_content(
 
 fn collect_embedded_content_at_pointer(
     raw: &Value,
-    pointer: &str,
-    source_kind: ContentSourceKind,
-    label: Option<String>,
-    local_key: String,
+    source: EmbeddedContentPointer,
     localization: Option<&dyn LocalizationResolver>,
     accumulator: &mut ContentAccumulator,
 ) {
-    let Some(markup) = pointer_string(raw, pointer) else {
+    let Some(markup) = pointer_string(raw, source.pointer) else {
         return;
     };
     let parsed = parse_foundry_content_with_localization(&markup, localization);
@@ -221,9 +324,33 @@ fn collect_embedded_content_at_pointer(
         return;
     }
     accumulator.diagnostics.push(parsed.diagnostics.clone());
+    let identity_stability = raw
+        .get("_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(|_| ContentIdentityStability::StableSourceIdentity)
+        .unwrap_or(ContentIdentityStability::UnstableAuthoredOrdinal);
+    let order = accumulator.owned_content.len() as u32;
+    accumulator.owned_content.push(source_content_fact(
+        source.local_key.clone(),
+        identity_stability,
+        source.source_kind,
+        &format!(
+            "$.items[_id={}].{}",
+            source.nested_source_id,
+            json_path(source.pointer).trim_start_matches("$.")
+        ),
+        Some(source.nested_source_id),
+        (identity_stability == ContentIdentityStability::UnstableAuthoredOrdinal)
+            .then(|| source.authored_ordinal.to_string()),
+        order,
+        source.label.clone(),
+        parsed.document.clone(),
+        parsed.diagnostics.clone(),
+    ));
     accumulator.content.push((
-        Some(local_key),
-        supplemental_content(source_kind, label, parsed.document),
+        Some(source.local_key),
+        supplemental_content(source.source_kind, source.label, parsed.document),
     ));
 }
 
@@ -240,9 +367,40 @@ fn supplemental_content(
 }
 
 pub(super) fn embedded_item_content_key(item_id: &str, suffix: &str) -> String {
-    format!("#item:{item_id}:{suffix}")
+    format!("item:{item_id}:{suffix}")
 }
 
 pub(super) fn embedded_item_id(item: &Value, index: usize) -> String {
     string_field(item, "_id").unwrap_or_else(|| format!("item-{index}"))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn source_content_fact(
+    content_key: String,
+    identity_stability: ContentIdentityStability,
+    source_kind: ContentSourceKind,
+    relative_source_path: &str,
+    nested_source_id: Option<String>,
+    authored_ordinal_or_range: Option<String>,
+    authored_order: u32,
+    label: Option<String>,
+    document: RichDocument,
+    diagnostics: ContentParseDiagnostics,
+) -> SourceContentFact {
+    SourceContentFact {
+        content_key,
+        identity_stability,
+        source_kind,
+        relative_source_path: relative_source_path.to_string(),
+        nested_source_id,
+        authored_ordinal_or_range,
+        authored_order,
+        label,
+        document,
+        diagnostics,
+    }
+}
+
+fn json_path(pointer: &str) -> String {
+    format!("$.{}", pointer.trim_start_matches('/').replace('/', "."))
 }

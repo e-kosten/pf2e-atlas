@@ -236,6 +236,7 @@ pub(crate) fn convert_npc_core(
             FactValue::Missing,
             CreatureSourceField::EmbeddedEntities,
         ),
+        content: atlas_record::OwnedRichContent::default(),
         provenance: CreatureProvenance {
             source_path: source_path.to_string(),
             source_contract_version: source.version.contract_version().to_string(),
