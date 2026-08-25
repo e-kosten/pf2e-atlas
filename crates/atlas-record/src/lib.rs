@@ -3,6 +3,7 @@
 mod content;
 mod creature;
 mod creature_entities;
+mod creature_projection;
 mod json_projection;
 mod mechanics_view;
 pub mod metrics;
@@ -60,6 +61,7 @@ pub use creature_entities::{
     InvalidStableSourceLocator, OccurrenceIdentityStability, StableSourceLocator,
     UnsupportedMechanicNote,
 };
+pub use creature_projection::{CreatureFactProjection, project_creature_facts};
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
 };
@@ -71,6 +73,7 @@ pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
     MetricKeyDefinition, MetricKeyPattern, MetricKeySegment, MetricLabelTemplate,
     MetricVariableVocabulary, all_definitions, definition_for, is_known_key, label_for_row,
+    normalize_metric_key_segment,
 };
 pub use model::{
     ActivationTimeSourceField, ActivityRoll, ActivityRollAbility, ActivityRollSurface,

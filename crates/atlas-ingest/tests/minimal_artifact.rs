@@ -1205,7 +1205,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(weapon_damage_faces, 8.0);
     assert_eq!(actor_catalog_count, 1);
     assert_eq!(save_best_catalog_value, "ref");
-    assert_eq!(actor_size, "small");
+    assert_eq!(actor_size, "sm");
     assert_eq!(actor_languages, "[\"goblin\"]");
     assert_eq!(actor_speed_types, "[\"climb\",\"land\"]");
     assert_eq!(actor_senses, "[\"darkvision\"]");

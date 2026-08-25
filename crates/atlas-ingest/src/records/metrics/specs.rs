@@ -181,6 +181,52 @@ pub(super) const ACTOR_DYNAMIC_SPECS: &[DynamicMetricSourceSpec] = &[
     },
 ];
 
+pub(super) const NPC_REMAINDER_STATIC_SPECS: &[StaticMetricSourceSpec] = &[
+    StaticMetricSourceSpec {
+        definition: metric_definitions::actor::HARDNESS,
+        paths: &[number("/system/attributes/hardness")],
+    },
+    StaticMetricSourceSpec {
+        definition: metric_definitions::actor::HP_BROKEN_THRESHOLD,
+        paths: &[
+            number("/system/attributes/hp/brokenThreshold"),
+            number("/system/attributes/hp/broken"),
+            number("/system/attributes/hp/bt"),
+        ],
+    },
+    StaticMetricSourceSpec {
+        definition: metric_definitions::actor::STEALTH_MOD,
+        paths: &[
+            number("/system/attributes/stealth/value"),
+            number("/system/attributes/stealth/mod"),
+            number("/system/attributes/stealth/modifier"),
+        ],
+    },
+];
+
+pub(super) const NPC_REMAINDER_DYNAMIC_SPECS: &[DynamicMetricSourceSpec] = &[
+    DynamicMetricSourceSpec {
+        definition: metric_definitions::actor::ability::MOD,
+        key_builder: metric_definitions::actor::ability::mod_key,
+        capture_source: MetricCaptureSource::ClosedVocabulary {
+            captures: &["str", "dex", "con", "int", "wis", "cha"],
+            paths: &[
+                number_template("/system/abilities/", "/mod"),
+                number_template("/system/abilities/", "/modifier"),
+            ],
+        },
+    },
+    DynamicMetricSourceSpec {
+        definition: metric_definitions::actor::skill::RANK,
+        key_builder: metric_definitions::actor::skill::rank_key,
+        capture_source: MetricCaptureSource::ObjectEntries {
+            collection_path: "/system/skills",
+            capture_normalize: CaptureNormalize::Slug,
+            value_paths: &[number("/rank")],
+        },
+    },
+];
+
 pub(super) const WEAPON_STATIC_SPECS: &[StaticMetricSourceSpec] = &[
     StaticMetricSourceSpec {
         definition: metric_definitions::item::weapon::RANGE_INCREMENT,

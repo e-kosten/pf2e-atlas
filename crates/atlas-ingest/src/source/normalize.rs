@@ -7,6 +7,7 @@ use atlas_record::{
     ItemTypeMechanics, RecordActivationTiming, RecordBody, RecordClassification, RecordContent,
     RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
     RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+    project_creature_facts,
 };
 use serde_json::Value;
 
@@ -110,6 +111,7 @@ pub(crate) fn normalize_record(
         let RecordBody::Creature(creature) = &conversion.body;
         creature
     });
+    let creature_fact_projection = canonical_creature.map(project_creature_facts);
     let level = if let Some(creature) = canonical_creature {
         creature.level.value.as_value().copied()
     } else {
@@ -167,11 +169,18 @@ pub(crate) fn normalize_record(
     let duration = system_duration_value
         .as_deref()
         .and_then(normalize_time_text);
-    let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
-        .map_err(|message| normalization_error(path, &message))?;
-    let actor_data = npc_conversion
+    let metrics = metrics::extract_metrics(
+        &raw,
+        &manifest_pack.document_type,
+        &record_type,
+        creature_fact_projection
+            .as_ref()
+            .map(|projection| projection.metrics.as_slice()),
+    )
+    .map_err(|message| normalization_error(path, &message))?;
+    let actor_data = creature_fact_projection
         .as_ref()
-        .map(|conversion| conversion.legacy_actor_projection.clone())
+        .map(|projection| projection.actor_side_facts.clone())
         .or_else(|| {
             (manifest_pack.document_type == "Actor" && record_type != "npc")
                 .then(|| mechanics::extract_actor_mechanics(&raw, localization))

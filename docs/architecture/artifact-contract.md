@@ -16,8 +16,10 @@ B5 now supplies the storage-neutral creature owned-content input to that future 
 stable composite content identity, typed owner/role/origin/visibility/provenance, authored order,
 canonical `RichDocument`, content hash, duplicate-source status, diagnostics, and exact ordered
 reference occurrences. This does not change the current physical schema. C1 remains responsible
-for persisting and hydrating that model atomically; B6/D1 remain responsible for later fact/search
-projections and duplicate-ranking policy.
+for persisting and hydrating that model atomically. Migrated creature metric rows and categorical
+side facts are already one-way projections from `CreatureRecord`, and current display/FTS inputs
+consume those same projections; C1 persists them without reinterpreting raw source. D1 remains
+responsible for later search projection and duplicate-ranking policy.
 
 C1 lands its migration/version bump, checked-in schema, writer, complete reader, validation, inspection, corruption fixtures, atomic publication, CLI diagnostics, and source-normalized/artifact-hydrated equality in one serialized non-splittable candidate. Old artifacts receive rebuild guidance; no compatibility shim is authorized.
 

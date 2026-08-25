@@ -91,6 +91,14 @@ pub struct SourcePathAuditSummary {
     pub generic_deferred_paths: usize,
     pub unowned_recursive_matches: usize,
     pub consumed_regressions: usize,
+    pub creature_paths: usize,
+    pub creature_consumed_paths: usize,
+    pub creature_provenance_only_paths: usize,
+    pub creature_deferred_paths: usize,
+    pub creature_unknown_paths: usize,
+    pub creature_catch_all_paths: usize,
+    pub creature_unowned_paths: usize,
+    pub creature_consumed_regressions: usize,
     pub type_drift_diagnostics: usize,
     pub source_diff_changes: usize,
 }
@@ -364,11 +372,20 @@ pub fn audit_source_paths(
     summary.consumed_regressions = source_diff
         .as_ref()
         .map_or(0, |diff| diff.consumed_regressions.len());
+    summary.creature_consumed_regressions = source_diff.as_ref().map_or(0, |diff| {
+        diff.consumed_regressions
+            .iter()
+            .filter(|change| is_creature_path(&change.document_type, &change.record_type))
+            .count()
+    });
     let violation_count = summary.unknown_paths
         + summary.type_drift_diagnostics
         + summary.source_diff_changes
         + summary.generic_deferred_paths
-        + summary.unowned_recursive_matches;
+        + summary.unowned_recursive_matches
+        + summary.creature_deferred_paths
+        + summary.creature_catch_all_paths
+        + summary.creature_unowned_paths;
     let enforcement = SourcePathAuditEnforcement {
         mode: if options.strict {
             SourcePathAuditMode::Strict
@@ -788,6 +805,16 @@ fn summarize_paths(
             .filter(|path| path.disposition == disposition)
             .count()
     };
+    let creature_paths = paths
+        .iter()
+        .filter(|path| is_creature_path(&path.document_type, &path.record_type))
+        .collect::<Vec<_>>();
+    let creature_count = |disposition| {
+        creature_paths
+            .iter()
+            .filter(|path| path.disposition == disposition)
+            .count()
+    };
     SourcePathAuditSummary {
         consumed_paths: count(SourcePathCoverageDisposition::Consumed),
         ignored_with_rationale_paths: count(SourcePathCoverageDisposition::IgnoredWithRationale),
@@ -807,12 +834,32 @@ fn summarize_paths(
             .filter(|path| path.recursive_match && !path.complete_family_assignment)
             .count(),
         consumed_regressions: 0,
+        creature_paths: creature_paths.len(),
+        creature_consumed_paths: creature_count(SourcePathCoverageDisposition::Consumed),
+        creature_provenance_only_paths: creature_count(
+            SourcePathCoverageDisposition::ProvenanceOnly,
+        ),
+        creature_deferred_paths: creature_count(SourcePathCoverageDisposition::Deferred),
+        creature_unknown_paths: creature_count(SourcePathCoverageDisposition::Unknown),
+        creature_catch_all_paths: creature_paths
+            .iter()
+            .filter(|path| path.recursive_match || path.complete_family_assignment)
+            .count(),
+        creature_unowned_paths: creature_paths
+            .iter()
+            .filter(|path| path.owner.trim().is_empty())
+            .count(),
+        creature_consumed_regressions: 0,
         type_drift_diagnostics: diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.kind != SourceCoverageDiagnosticKind::UnknownPath)
             .count(),
         source_diff_changes: 0,
     }
+}
+
+fn is_creature_path(document_type: &str, record_type: &str) -> bool {
+    document_type == "Actor" && record_type == "npc"
 }
 
 fn compare_baseline(
