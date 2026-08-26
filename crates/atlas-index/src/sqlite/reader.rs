@@ -7,7 +7,10 @@ use diesel::{Connection as DieselConnection, SqliteConnection};
 use rusqlite::{Connection, OpenFlags};
 
 use crate::IndexValidationError;
-use crate::artifact::pair::{PairLock, VerifiedArtifactFile, adjacent_manifest_path};
+use crate::artifact::pair::{
+    GenerationLease, PairLock, VerifiedArtifactFile, adjacent_manifest_path,
+    open_verified_generation,
+};
 use crate::read::search::vector::register_sqlite_vec_extension;
 
 pub struct SqliteIndexReader {
@@ -16,9 +19,9 @@ pub struct SqliteIndexReader {
     diesel_connection: RefCell<SqliteConnection>,
     validation_connection: RefCell<Connection>,
     _artifact_file: File,
-    // This field must remain after the SQLite handles so it drops last on
-    // targets that retain the shared publication lock for the reader lifetime.
-    _pair_lock: Option<PairLock>,
+    // This field must remain after the SQLite handles and retained file so an
+    // obsolete generation is removed only after this reader releases it.
+    _generation_lease: Option<GenerationLease>,
 }
 
 impl SqliteIndexReader {
@@ -34,23 +37,19 @@ impl SqliteIndexReader {
         let manifest_path = adjacent_manifest_path(&path);
         let pair_lock = PairLock::shared(&manifest_path)?;
         let verified = VerifiedArtifactFile::open(&path, &manifest_path)?;
+        let (generation, generation_lease) =
+            open_verified_generation(&path, &manifest_path, &verified)?;
         after_verification();
-        let database_url = immutable_read_only_sqlite_uri(&verified.file, &path)?;
+        let database_url = immutable_read_only_sqlite_uri(&generation.file, &generation.path)?;
         let (diesel_connection, validation_connection) = open_connections(&database_url)?;
-        #[cfg(unix)]
-        let pair_lock = {
-            drop(pair_lock);
-            None
-        };
-        #[cfg(not(unix))]
-        let pair_lock = Some(pair_lock);
+        drop(pair_lock);
         Ok(Self {
             path,
             _verified_artifact_sha256: Some(verified.sha256),
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
-            _artifact_file: verified.file,
-            _pair_lock: pair_lock,
+            _artifact_file: generation.file,
+            _generation_lease: Some(generation_lease),
         })
     }
 
@@ -69,7 +68,7 @@ impl SqliteIndexReader {
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: artifact_file,
-            _pair_lock: None,
+            _generation_lease: None,
         })
     }
 
@@ -214,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    fn generation_binding_blocks_verify_open_swap_and_keeps_reader_surfaces_coherent() {
+    fn generation_binding_allows_publish_while_old_reader_stays_coherent() {
         let root = unique_root("verified-generation");
         std::fs::create_dir_all(&root).unwrap();
         let artifact = root.join("index.sqlite");
@@ -227,6 +226,8 @@ mod tests {
         write_manifest(&replacement_manifest, &replacement_artifact);
         let old_hash = sha256(&artifact);
         let new_hash = sha256(&replacement_artifact);
+        let old_generation = crate::artifact::pair::generation_path(&artifact, &old_hash);
+        let new_generation = crate::artifact::pair::generation_path(&artifact, &new_hash);
         let (attempted_tx, attempted_rx) = std::sync::mpsc::channel();
         let (published_tx, published_rx) = std::sync::mpsc::channel();
 
@@ -260,12 +261,14 @@ mod tests {
         })
         .unwrap();
 
-        assert_reader_generation(&reader, "Verified Old", &old_hash);
-        drop(reader);
         published_rx
             .recv_timeout(std::time::Duration::from_secs(10))
             .unwrap()
             .unwrap();
+        assert_reader_generation(&reader, "Verified Old", &old_hash);
+        drop(reader);
+        assert!(!old_generation.exists());
+        assert!(new_generation.exists());
 
         let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
         assert_reader_generation(&reader, "Visible New", &new_hash);
