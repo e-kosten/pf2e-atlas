@@ -110,6 +110,13 @@ policy/contracts/schema/migrations/inventory, target/features/toolchain, and
 embedding identity. Missing, dirty, partial, corrupt, ambiguous, mismatched, or
 concurrently published state fails closed. The snapshot is never a runtime input,
 product artifact, fallback, public serialization contract, or canonical model.
+The strict audit replays its accepted pre-localization observation transform from
+raw records already captured by the single source traversal; product normalization
+continues to use localization. Before either success or failure is returned, the
+full strict report is atomically persisted and checksum-bound with path, record,
+member, destination, state/type/value, multiplicity/order, enforcement, and
+closure detail. A failed exhaustive run atomically preserves that report in its
+failed snapshot rather than reducing it to aggregate counts.
 
 Run the CLI from source:
 

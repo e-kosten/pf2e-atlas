@@ -14,7 +14,10 @@ The C2 exhaustive-validation snapshot is outside this artifact contract. It is a
 private, no-clobber, checksum- and identity-bound evidence directory that may
 contain validation-produced artifacts and reports. No runtime reader accepts it,
 no setup freshness path consults it, and it provides neither a fallback artifact
-nor a second serializable canonical record model.
+nor a second serializable canonical record model. Its strict-audit report is
+persisted with a checksum before validation enforcement returns, including on a
+failed candidate; that evidence does not become an artifact manifest, runtime
+freshness input, or canonical serialization.
 
 The target stores canonical entities, contextual occurrences, owned content, exact reference occurrences, and derived query projections with stable identities. Product-addressable activities, spellcasting entries, resources, content, and occurrences are relational. Nested mechanics normally consumed with one entity may use deterministic Atlas-owned typed JSON; independently queryable/filterable/joinable facts require authoritative relational projections. Complete canonical hydration belongs only to `atlas-index::read`.
 

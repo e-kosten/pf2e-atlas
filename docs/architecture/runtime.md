@@ -109,6 +109,14 @@ not available to runtime, setup, search, API, or UI code. Candidate/source or
 policy/schema/toolchain/embedding identity changes invalidate it rather than
 falling back to stale evidence.
 
+The strict audit preserves its accepted pre-localization observation contract by
+normalizing each already captured raw source record for audit only; it does not
+reread the corpus and does not alter the localized `SourceLoad` used by canonical
+product and artifact construction. Its complete detailed report is atomically
+written and checksum-bound before enforcement returns either PASS or FAIL, so a
+failed snapshot retains exact identity, value/type/state, multiplicity/order,
+enforcement, and closure evidence.
+
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md), while exhaustive classification follows proposed [ADR 0033](./decisions/0033-source-fidelity-and-exhaustive-coverage.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Every meaningful path still receives an owner/disposition even when it is not promoted. Do not mirror raw JSON into typed models solely because a field exists.
 
 The serialized-source boundary is versioned as `pf2e-serialized-source/v1` and is pinned to PF2e system `6.12.4` at upstream commit `4cbdaa37d6c33e9519561bae2c59a23e0288cbce`. `atlas-ingest::source::dto` dispatches the complete closed Actor and Item discriminator vocabularies, exposes the approved NPC core and full embedded-Item envelopes, validates exact NPC-to-Item parent contexts, and preserves `Missing | Null | Value` without applying Foundry defaults. Shape and discriminator failures carry the record key, source path, JSON path, expected shape, actual shape, and source-version metadata. The full serialized tree remains inside the source boundary for later typed promotion, while the original `serde_json::Value` has only an explicitly named provenance/audit accessor. The boundary is the sole serialized-source adapter; canonical conversion consumes its typed fields and never queries the retained tree as a semantic fallback.
