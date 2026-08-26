@@ -550,28 +550,34 @@ mod tests {
     }
 
     #[test]
-    fn reader_connections_remain_bound_to_their_verified_generation() {
+    fn generation_binding_preserves_old_and_new_reader_generations() {
         let fixture = PairFixture::new("reader-generation");
         fixture.publish_initial("old");
         let old_hash = sha256(&fixture.artifact);
         let old_reader = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
         let (new_artifact, new_manifest) = fixture.stage("new");
         let new_hash = sha256(&new_artifact);
+        let target_artifact = fixture.artifact.clone();
+        let target_manifest = fixture.manifest.clone();
 
-        publish_artifact_pair(
-            &new_artifact,
-            &new_manifest,
-            &fixture.artifact,
-            &fixture.manifest,
-        )
-        .unwrap();
-        let new_reader = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
+        let publisher = std::thread::spawn(move || {
+            publish_artifact_pair(
+                &new_artifact,
+                &new_manifest,
+                &target_artifact,
+                &target_manifest,
+            )
+        });
 
         assert_eq!(reader_marker(&old_reader), "old");
         assert_eq!(
             old_reader.verified_artifact_sha256(),
             Some(old_hash.as_str())
         );
+        drop(old_reader);
+        publisher.join().unwrap().unwrap();
+
+        let new_reader = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
         assert_eq!(reader_marker(&new_reader), "new");
         assert_eq!(
             new_reader.verified_artifact_sha256(),

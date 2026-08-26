@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
@@ -12,9 +12,13 @@ use crate::read::search::vector::register_sqlite_vec_extension;
 
 pub struct SqliteIndexReader {
     path: PathBuf,
-    artifact_file: File,
     _verified_artifact_sha256: Option<String>,
     diesel_connection: RefCell<SqliteConnection>,
+    validation_connection: RefCell<Connection>,
+    _artifact_file: File,
+    // This field must remain after the SQLite handles so it drops last on
+    // targets that retain the shared publication lock for the reader lifetime.
+    _pair_lock: Option<PairLock>,
 }
 
 impl SqliteIndexReader {
@@ -32,17 +36,21 @@ impl SqliteIndexReader {
         let verified = VerifiedArtifactFile::open(&path, &manifest_path)?;
         after_verification();
         let database_url = immutable_read_only_sqlite_uri(&verified.file, &path)?;
-        let mut diesel_connection = SqliteConnection::establish(&database_url)
-            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-        diesel_connection
-            .batch_execute("PRAGMA query_only = ON")
-            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-        drop(pair_lock);
+        let (diesel_connection, validation_connection) = open_connections(&database_url)?;
+        #[cfg(unix)]
+        let pair_lock = {
+            drop(pair_lock);
+            None
+        };
+        #[cfg(not(unix))]
+        let pair_lock = Some(pair_lock);
         Ok(Self {
             path,
-            artifact_file: verified.file,
             _verified_artifact_sha256: Some(verified.sha256),
             diesel_connection: RefCell::new(diesel_connection),
+            validation_connection: RefCell::new(validation_connection),
+            _artifact_file: verified.file,
+            _pair_lock: pair_lock,
         })
     }
 
@@ -54,16 +62,14 @@ impl SqliteIndexReader {
         let artifact_file = File::open(&path)
             .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
         let database_url = immutable_read_only_sqlite_uri(&artifact_file, &path)?;
-        let mut diesel_connection = SqliteConnection::establish(&database_url)
-            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-        diesel_connection
-            .batch_execute("PRAGMA query_only = ON")
-            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+        let (diesel_connection, validation_connection) = open_connections(&database_url)?;
         Ok(Self {
             path,
-            artifact_file,
             _verified_artifact_sha256: None,
             diesel_connection: RefCell::new(diesel_connection),
+            validation_connection: RefCell::new(validation_connection),
+            _artifact_file: artifact_file,
+            _pair_lock: None,
         })
     }
 
@@ -86,13 +92,10 @@ impl SqliteIndexReader {
         &self.path
     }
 
-    pub(crate) fn validation_connection(&self) -> Result<Connection, IndexValidationError> {
-        let database_url = immutable_read_only_sqlite_uri(&self.artifact_file, &self.path)?;
-        Connection::open_with_flags(
-            database_url,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-        )
-        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))
+    pub(crate) fn validation_connection(
+        &self,
+    ) -> Result<RefMut<'_, Connection>, IndexValidationError> {
+        Ok(self.validation_connection.borrow_mut())
     }
 
     pub(crate) fn with_diesel_connection<T>(
@@ -106,6 +109,22 @@ impl SqliteIndexReader {
     pub(crate) fn verified_artifact_sha256(&self) -> Option<&str> {
         self._verified_artifact_sha256.as_deref()
     }
+}
+
+fn open_connections(
+    database_url: &str,
+) -> Result<(SqliteConnection, Connection), IndexValidationError> {
+    let mut diesel_connection = SqliteConnection::establish(database_url)
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    diesel_connection
+        .batch_execute("PRAGMA query_only = ON")
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    let validation_connection = Connection::open_with_flags(
+        database_url,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    Ok((diesel_connection, validation_connection))
 }
 
 fn immutable_read_only_sqlite_uri(
@@ -194,36 +213,105 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
-    #[cfg(unix)]
     #[test]
-    fn opened_database_generation_is_the_one_verified_before_path_swap() {
+    fn generation_binding_blocks_verify_open_swap_and_keeps_reader_surfaces_coherent() {
         let root = unique_root("verified-generation");
         std::fs::create_dir_all(&root).unwrap();
         let artifact = root.join("index.sqlite");
         let manifest = root.join("manifest.json");
         let replacement_artifact = root.join("replacement.sqlite");
         let replacement_manifest = root.join("replacement.json");
-        sqlite_with_marker(&artifact, "verified-old");
-        sqlite_with_marker(&replacement_artifact, "visible-new");
+        create_valid_generation(&artifact, "Verified Old");
+        create_valid_generation(&replacement_artifact, "Visible New");
         write_manifest(&manifest, &artifact);
         write_manifest(&replacement_manifest, &replacement_artifact);
         let old_hash = sha256(&artifact);
+        let new_hash = sha256(&replacement_artifact);
+        let (attempted_tx, attempted_rx) = std::sync::mpsc::channel();
+        let (published_tx, published_rx) = std::sync::mpsc::channel();
 
         let reader = SqliteIndexReader::open_bound_read_only_with_hook(&artifact, || {
-            std::fs::rename(&replacement_artifact, &artifact).unwrap();
-            std::fs::rename(&replacement_manifest, &manifest).unwrap();
+            let target_artifact = artifact.clone();
+            let target_manifest = manifest.clone();
+            std::thread::spawn(move || {
+                let contention_probe = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(crate::artifact::pair::lock_path(&target_manifest))
+                    .unwrap();
+                let contention_error = contention_probe
+                    .try_lock()
+                    .expect_err("reader acquisition must hold the shared target lock");
+                assert!(matches!(
+                    contention_error,
+                    std::fs::TryLockError::WouldBlock
+                ));
+                attempted_tx.send(()).unwrap();
+                published_tx
+                    .send(crate::publish_artifact_pair(
+                        &replacement_artifact,
+                        &replacement_manifest,
+                        &target_artifact,
+                        &target_manifest,
+                    ))
+                    .unwrap();
+            });
+            attempted_rx.recv().unwrap();
         })
         .unwrap();
 
-        let marker: String = reader
+        assert_reader_generation(&reader, "Verified Old", &old_hash);
+        drop(reader);
+        published_rx
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap()
+            .unwrap();
+
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        assert_reader_generation(&reader, "Visible New", &new_hash);
+        drop(reader);
+        assert_eq!(sha256(&artifact), new_hash);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    fn assert_reader_generation(reader: &SqliteIndexReader, name: &str, hash: &str) {
+        assert_eq!(reader.verified_artifact_sha256(), Some(hash));
+        assert_eq!(reader.check().unwrap().status, crate::ValidationStatus::Ok);
+        assert_eq!(
+            reader.validate().unwrap().status,
+            crate::ValidationStatus::Ok
+        );
+        assert_eq!(reader.inspect().unwrap().records.total_records, 3);
+        let hydrated = reader.load_hydrated_records().unwrap();
+        assert_eq!(hydrated.len(), 3);
+        assert_eq!(hydrated[0].record.identity.name, format!("{name} 1"));
+        let records = reader.load_records().unwrap();
+        assert_eq!(records[0].identity.name, format!("{name} 1"));
+        let validation_name: String = reader
             .validation_connection()
             .unwrap()
-            .query_row("SELECT value FROM marker", [], |row| row.get(0))
+            .query_row(
+                "SELECT name FROM records WHERE record_key = 'actions:testAction1'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
-        assert_eq!(marker, "verified-old");
-        assert_eq!(reader.verified_artifact_sha256(), Some(old_hash.as_str()));
-        assert_ne!(sha256(&artifact), old_hash);
-        std::fs::remove_dir_all(root).unwrap();
+        assert_eq!(validation_name, format!("{name} 1"));
+    }
+
+    fn create_valid_generation(path: &Path, name: &str) {
+        crate::tests::create_valid_artifact_database(&path.to_path_buf()).unwrap();
+        let connection = rusqlite::Connection::open(path).unwrap();
+        for index in 1..=3 {
+            let record_key = format!("actions:testAction{index}");
+            let record_name = format!("{name} {index}");
+            connection
+                .execute(
+                    "UPDATE records SET name = ?1, normalized_name = ?2 WHERE record_key = ?3",
+                    (&record_name, record_name.to_lowercase(), record_key),
+                )
+                .unwrap();
+        }
     }
 
     fn unique_root(name: &str) -> PathBuf {

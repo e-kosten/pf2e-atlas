@@ -112,6 +112,10 @@ jobs:
         run: |
           ./scripts/install/atlas-installer.ps1 -DryRun
           ./scripts/release/test-installer.ps1
+      - name: Test artifact generation binding on Windows
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
+        run: cargo test -p atlas-index generation_binding -- --nocapture
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
