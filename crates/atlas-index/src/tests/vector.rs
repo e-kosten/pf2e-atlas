@@ -38,7 +38,7 @@ fn loads_record_embedding_vectors_for_similarity_seed() -> Result<(), Box<dyn st
     )?;
     drop(connection);
 
-    let units = SqliteIndexReader::open_read_only(&path)?
+    let units = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_record_embedding_vectors(&RecordKey::parse("actions:testAction1")?)?;
 
     assert_eq!(units.len(), 2);
@@ -72,7 +72,7 @@ fn load_record_embedding_vectors_rejects_invalid_unit_kind()
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_record_embedding_vectors(&RecordKey::parse("actions:testAction1")?)
         .expect_err("invalid unit kind should be rejected");
 
@@ -100,7 +100,7 @@ fn load_record_embedding_vectors_rejects_invalid_vector_blob()
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_record_embedding_vectors(&RecordKey::parse("actions:testAction1")?)
         .expect_err("invalid vector blob should be rejected");
 
@@ -137,7 +137,7 @@ fn load_record_embedding_vectors_rejects_dimension_mismatch()
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_record_embedding_vectors(&RecordKey::parse("actions:testAction1")?)
         .expect_err("dimension mismatch should be rejected");
 

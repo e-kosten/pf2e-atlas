@@ -40,7 +40,7 @@ fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
         "public",
     )?;
 
-    let index = SqliteIndexReader::open_read_only(&path)?;
+    let index = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let edges = index.reference_edges_for_seed(
         &RecordKey::parse("actions:testAction1")?,
         ReferenceEdgeDirection::Outgoing,
@@ -81,7 +81,7 @@ fn reference_edges_for_seed_returns_policy_visible_backlinks()
         "private",
     )?;
 
-    let index = SqliteIndexReader::open_read_only(&path)?;
+    let index = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let edges = index.reference_edges_for_seed(
         &RecordKey::parse("actions:testAction1")?,
         ReferenceEdgeDirection::Backlink,
@@ -139,7 +139,7 @@ fn outgoing_reference_targets_for_records_batches_policy_visible_edges()
         "public",
     )?;
 
-    let index = SqliteIndexReader::open_read_only(&path)?;
+    let index = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let targets = index.outgoing_reference_targets_for_records(&[
         RecordKey::parse("actions:testAction1")?,
         RecordKey::parse("actions:testAction2")?,
@@ -173,7 +173,7 @@ fn variant_group_returns_ordered_siblings() -> Result<(), Box<dyn std::error::Er
     insert_variant_group(&connection)?;
     drop(connection);
 
-    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let group = reader
         .variant_group_for_record(&RecordKey::parse("actions:testAction2")?)?
         .expect("variant seed should have group");
@@ -200,7 +200,7 @@ fn variant_group_reports_missing_and_non_variant_seed() -> Result<(), Box<dyn st
     let path = temp_db_path("graph-variant-missing");
     create_valid_artifact_database(&path)?;
 
-    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
     assert!(
         reader
             .variant_group_for_record(&RecordKey::parse("actions:missing")?)?
@@ -231,7 +231,7 @@ fn variant_base_name_returns_default_visible_matching_groups()
     )?;
     drop(connection);
 
-    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let groups = reader.variant_groups_by_base_name("test action")?;
 
     assert_eq!(
@@ -265,7 +265,7 @@ fn remaster_links_are_bidirectional_and_can_be_empty() -> Result<(), Box<dyn std
     )?;
     drop(connection);
 
-    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let legacy_links = reader
         .remaster_links_for_record(&RecordKey::parse("actions:testAction1")?)?
         .expect("legacy record exists");

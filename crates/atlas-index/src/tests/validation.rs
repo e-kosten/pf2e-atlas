@@ -17,7 +17,7 @@ fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("valid");
     create_valid_artifact_database(&path)?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -44,7 +44,7 @@ fn reports_legacy_metadata_without_accepting_it_as_contract()
     )?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingArtifactMetadata);
@@ -58,7 +58,7 @@ fn reports_missing_required_metadata_key() -> Result<(), Box<dyn std::error::Err
     let path = temp_db_path("missing-key");
     create_valid_artifact_database_without(&path, artifact_metadata_keys::EMBEDDING_DTYPE)?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingRequiredMetadata);
@@ -79,7 +79,7 @@ fn reports_stale_source_signature() -> Result<(), Box<dyn std::error::Error>> {
         "stale:fixture",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::StaleSourceSignature);
@@ -97,7 +97,7 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
         "unknown/model",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -118,7 +118,7 @@ fn reports_embedding_unit_policy_mismatch() -> Result<(), Box<dyn std::error::Er
         "legacy-child-sections/v0",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -144,7 +144,7 @@ fn accepts_known_non_default_embedding_metadata() -> Result<(), Box<dyn std::err
     insert_minimal_artifact_rows(&connection)?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -161,7 +161,7 @@ fn reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>
         "999",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
@@ -178,7 +178,7 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
     connection.execute("DROP TABLE item_records", [])?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -206,7 +206,7 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
     )?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);

@@ -8,7 +8,7 @@ mod support;
 use support::command::{check_base_index, validate_base_index, validate_index};
 use support::db::{
     create_valid_artifact_database_omitting, create_valid_artifact_database_with_override,
-    temp_db_path,
+    refresh_bound_test_manifest, temp_db_path,
 };
 use support::json::parse_ok_data;
 
@@ -96,6 +96,7 @@ fn validate_index_json_reports_missing_artifact_metadata() -> Result<(), Box<dyn
         [],
     )?;
     drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = validate_index(&path)?;
 

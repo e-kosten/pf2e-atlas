@@ -166,7 +166,7 @@ fn shared_sqlite_keyset_applies_same_filter_to_lookup_fts_identity_and_vector()
     drop(connection);
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
-    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let filtered_keys = reader.list_filtered_record_keys(
         Some(&filter),
         None,

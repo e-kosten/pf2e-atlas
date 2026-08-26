@@ -6,7 +6,9 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
+use support::db::{
+    create_valid_artifact_database, ok_data, refresh_bound_test_manifest, temp_db_path,
+};
 use support::graph::insert_reference_edge;
 use support::vector::insert_vector_embeddings;
 
@@ -121,6 +123,7 @@ fn similar_json_reports_ambiguous_seed_name() -> Result<(), Box<dyn std::error::
         )?;
     }
     drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "Shared Action", "--index"])
@@ -227,6 +230,7 @@ fn similar_filters_seed_name_resolution_and_candidates() -> Result<(), Box<dyn s
         [],
     )?;
     drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "Shared Action", "--index"])
@@ -262,6 +266,7 @@ fn similar_canonical_seed_key_is_not_rejected_by_candidate_filter()
         [],
     )?;
     drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "actions:testAction1", "--index"])
@@ -379,5 +384,7 @@ fn create_similar_database(path: &std::path::Path) -> Result<(), Box<dyn std::er
         "description",
         "public",
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }

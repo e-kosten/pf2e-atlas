@@ -12,7 +12,7 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
     let path = temp_db_path("load-records");
     create_valid_artifact_database(&path)?;
 
-    let records = SqliteIndexReader::open_read_only(&path)?.load_records()?;
+    let records = SqliteIndexReader::open_unpublished_read_only(&path)?.load_records()?;
 
     assert_eq!(records.len(), 3);
     assert_eq!(records[0].identity.key.to_string(), "actions:testAction1");
@@ -128,7 +128,7 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     )?;
     drop(connection);
 
-    let records = SqliteIndexReader::open_read_only(&path)?
+    let records = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records_by_key(&[RecordKey::parse("actions:testAction1")?])?;
 
     assert_eq!(records.len(), 1);
@@ -227,7 +227,7 @@ fn loads_search_candidate_records_without_detail_hydration()
     )?;
     drop(connection);
 
-    let candidates = SqliteIndexReader::open_read_only(&path)?
+    let candidates = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])?;
 
     assert_eq!(candidates.len(), 1);
@@ -254,7 +254,7 @@ fn load_search_candidate_records_rejects_invalid_json() -> Result<(), Box<dyn st
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])
         .expect_err("invalid candidate JSON should be rejected");
 
@@ -274,7 +274,7 @@ fn load_search_candidate_records_rejects_invalid_kind() -> Result<(), Box<dyn st
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])
         .expect_err("invalid candidate kind should be rejected");
 
@@ -299,7 +299,7 @@ fn load_records_rejects_invalid_variant_source() -> Result<(), Box<dyn std::erro
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("invalid variant source should be rejected");
 
@@ -322,7 +322,7 @@ fn load_records_rejects_partial_variant_membership() -> Result<(), Box<dyn std::
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("partial variant membership should be rejected");
 
@@ -345,7 +345,7 @@ fn load_records_rejects_variant_base_without_group() -> Result<(), Box<dyn std::
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("variant base without group should be rejected");
 
@@ -365,7 +365,7 @@ fn load_records_rejects_invalid_rarity() -> Result<(), Box<dyn std::error::Error
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("invalid rarity should be rejected");
 
@@ -394,7 +394,7 @@ fn load_records_rejects_content_policy_mismatch() -> Result<(), Box<dyn std::err
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("content policy mismatch should be rejected");
 
@@ -440,11 +440,8 @@ fn resolves_identity_matches_in_sql_with_match_precedence_and_deduplication()
     )?;
     drop(connection);
 
-    let matches = SqliteIndexReader::open_read_only(&path)?.resolve_record_identity_matches(
-        "Attack of Opportunity",
-        "attack of opportunity",
-        None,
-    )?;
+    let matches = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .resolve_record_identity_matches("Attack of Opportunity", "attack of opportunity", None)?;
 
     assert_eq!(
         matches
@@ -484,11 +481,8 @@ fn resolve_identity_matches_respects_structural_filters() -> Result<(), Box<dyn 
     drop(connection);
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Eq { value: 2.0 });
-    let matches = SqliteIndexReader::open_read_only(&path)?.resolve_record_identity_matches(
-        "Reactive Strike",
-        "reactive strike",
-        Some(&filter),
-    )?;
+    let matches = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .resolve_record_identity_matches("Reactive Strike", "reactive strike", Some(&filter))?;
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].record_key.to_string(), "actions:testAction2");
@@ -519,7 +513,7 @@ fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::e
     )?;
     drop(connection);
 
-    let record_set = SqliteIndexReader::open_read_only(&path)?.load_record_set()?;
+    let record_set = SqliteIndexReader::open_unpublished_read_only(&path)?.load_record_set()?;
 
     assert_eq!(record_set.records.len(), 3);
     assert_eq!(record_set.reference_edges.len(), 1);

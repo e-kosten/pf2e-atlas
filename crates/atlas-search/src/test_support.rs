@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use atlas_index::SqliteIndexReader;
 use atlas_index::test_support::{
     create_minimal_artifact_schema, insert_artifact_metadata_entries, insert_minimal_artifact_rows,
-    legacy_minilm_metadata_entries,
+    legacy_minilm_metadata_entries, write_bound_test_manifest,
 };
 use rusqlite::Connection;
 
@@ -25,7 +25,9 @@ impl FixtureArtifact {
 
 impl Drop for FixtureArtifact {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        if let Some(parent) = self.path.parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
     }
 }
 
@@ -39,6 +41,7 @@ pub fn minimal_fixture_retrieval_service_without_embeddings()
     insert_artifact_metadata_entries(&connection, legacy_minilm_metadata_entries(), None)?;
     insert_minimal_artifact_rows(&connection)?;
     drop(connection);
+    write_bound_test_manifest(&artifact.path)?;
 
     let reader = SqliteIndexReader::open_read_only(&artifact.path)?;
     Ok((
@@ -58,6 +61,7 @@ pub fn encounter_fixture_retrieval_service_without_embeddings()
     insert_minimal_artifact_rows(&connection)?;
     insert_encounter_fixture_rows(&connection)?;
     drop(connection);
+    write_bound_test_manifest(&artifact.path)?;
 
     let reader = SqliteIndexReader::open_read_only(&artifact.path)?;
     Ok((
@@ -67,15 +71,16 @@ pub fn encounter_fixture_retrieval_service_without_embeddings()
 }
 
 fn fixture_artifact_path() -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "atlas-search-fixture-{}-{}.sqlite",
+    let root = std::env::temp_dir().join(format!(
+        "atlas-search-fixture-{}-{}",
         std::process::id(),
         unique_suffix()
     ));
-    if path.exists() {
-        let _ = fs::remove_file(&path);
+    if root.exists() {
+        let _ = fs::remove_dir_all(&root);
     }
-    path
+    fs::create_dir_all(&root).expect("fixture artifact directory");
+    root.join("pf2e-index.sqlite")
 }
 
 fn unique_suffix() -> u64 {

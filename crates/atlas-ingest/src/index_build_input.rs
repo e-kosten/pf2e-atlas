@@ -63,6 +63,7 @@ mod tests {
     use crate::source::owned_content::finalize_npc_owned_content;
     use crate::source::{LoadedPack, SourceLoad};
     use serde_json::json;
+    use sha2::{Digest, Sha256};
 
     #[test]
     fn ordinary_fixture_rejects_wrong_valid_relational_values_extra_rows_and_hydration_gaps()
@@ -74,6 +75,7 @@ mod tests {
             &input,
             atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
         )?;
+        write_test_manifest(&path)?;
         let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
         assert_eq!(reader.validate()?.status, atlas_index::ValidationStatus::Ok);
         assert!(
@@ -135,6 +137,7 @@ mod tests {
         let missing = copy_for_corruption(&path, "missing-body")?;
         rusqlite::Connection::open(&missing)?
             .execute_batch("PRAGMA foreign_keys=OFF; DELETE FROM canonical_creature_records;")?;
+        write_test_manifest(&missing)?;
         let missing_reader = atlas_index::SqliteIndexReader::open_read_only(&missing)?;
         assert!(
             missing_reader
@@ -150,13 +153,14 @@ mod tests {
                 .to_string()
                 .contains("missing its required creature body")
         );
-        std::fs::remove_file(missing)?;
+        remove_test_artifact(&missing)?;
 
         let extra = copy_for_corruption(&path, "extra-body")?;
         rusqlite::Connection::open(&extra)?.execute(
             "UPDATE records SET foundry_record_type='action' WHERE record_key=?1",
             [npc_key.to_string()],
         )?;
+        write_test_manifest(&extra)?;
         let extra_reader = atlas_index::SqliteIndexReader::open_read_only(&extra)?;
         assert!(
             extra_reader
@@ -172,8 +176,8 @@ mod tests {
                 .to_string()
                 .contains("unexpected canonical creature body")
         );
-        std::fs::remove_file(extra)?;
-        std::fs::remove_file(path)?;
+        remove_test_artifact(&extra)?;
+        remove_test_artifact(&path)?;
         Ok(())
     }
 
@@ -277,6 +281,7 @@ mod tests {
                     &input,
                     atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
                 )?;
+                write_test_manifest(&path)?;
                 (path, true)
             }
         };
@@ -357,7 +362,7 @@ mod tests {
         assert_validation_message(&duplicate_path, "duplicate canonical entity ID", false)?;
 
         if remove_artifact {
-            std::fs::remove_file(path)?;
+            remove_test_artifact(&path)?;
         }
         Ok(())
     }
@@ -422,6 +427,7 @@ mod tests {
         expected_message: &str,
         full_validation: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        write_test_manifest(path)?;
         let reader = atlas_index::SqliteIndexReader::open_read_only(path)?;
         let diagnostics = if full_validation {
             let report = reader.validate()?;
@@ -437,7 +443,7 @@ mod tests {
             "expected `{expected_message}` in {:#?}",
             diagnostics
         );
-        std::fs::remove_file(path)?;
+        remove_test_artifact(path)?;
         Ok(())
     }
 
@@ -455,7 +461,27 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        std::env::temp_dir().join(format!("atlas-{nonce}-{name}"))
+        let root = std::env::temp_dir().join(format!("atlas-{nonce}-{name}"));
+        std::fs::create_dir_all(&root).expect("temporary artifact directory");
+        root.join("index.sqlite")
+    }
+
+    fn write_test_manifest(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        let hash = format!("{:x}", Sha256::digest(std::fs::read(path)?));
+        std::fs::write(
+            path.parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join("manifest.json"),
+            format!(
+                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{hash}"}}}}"#
+            ),
+        )?;
+        Ok(())
+    }
+
+    fn remove_test_artifact(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::remove_dir_all(path.parent().expect("test artifact parent"))?;
+        Ok(())
     }
 
     #[test]
