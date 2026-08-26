@@ -18,7 +18,7 @@ fn accepts_complete_document_embedding_cache() -> Result<(), Box<dyn std::error:
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     fs::remove_file(path)?;
@@ -34,7 +34,7 @@ fn sqlite_index_loads_reusable_document_embedding_cache() -> Result<(), Box<dyn 
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let reusable = SqliteIndexReader::open_read_only(&path)?
+    let reusable = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())?;
 
     let first = reusable
@@ -61,7 +61,7 @@ fn reusable_document_embedding_cache_rejects_metadata_mismatch()
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())
         .expect_err("mismatched metadata should reject cache reuse");
 
@@ -83,7 +83,7 @@ fn reusable_document_embedding_cache_rejects_wrong_dimensions()
     insert_document_embedding_cache_rows(&connection, 383, 383 * size_of::<f32>())?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())
         .expect_err("wrong dimensions should reject cache reuse");
 
@@ -105,7 +105,7 @@ fn reusable_document_embedding_cache_rejects_wrong_blob_length()
     insert_document_embedding_cache_rows(&connection, 384, 4)?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())
         .expect_err("wrong blob length should reject cache reuse");
 
@@ -123,7 +123,7 @@ fn reusable_document_embedding_cache_reports_missing_table()
     connection.execute("DROP TABLE document_embedding_cache", [])?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())
         .expect_err("missing table should report query error");
 
@@ -140,7 +140,7 @@ fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn s
     insert_document_embedding_cache_rows(&connection, 383, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -169,7 +169,7 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
     )?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -186,7 +186,8 @@ fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::e
     let path = temp_db_path("vector-table-missing");
     create_valid_artifact_database(&path)?;
 
-    let report = SqliteIndexReader::open_read_only_with_vectors(&path)?.validate_vector_index()?;
+    let report = SqliteIndexReader::open_unpublished_read_only_with_vectors(&path)?
+        .validate_vector_index()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -213,10 +214,10 @@ fn check_embedding_readiness_skips_deep_vector_coverage() -> Result<(), Box<dyn 
     )?;
     drop(connection);
 
-    let check_report =
-        SqliteIndexReader::open_read_only_with_vectors(&path)?.check_embedding_readiness_report();
-    let validate_report =
-        SqliteIndexReader::open_read_only_with_vectors(&path)?.validate_vector_index()?;
+    let check_report = SqliteIndexReader::open_unpublished_read_only_with_vectors(&path)?
+        .check_embedding_readiness_report();
+    let validate_report = SqliteIndexReader::open_unpublished_read_only_with_vectors(&path)?
+        .validate_vector_index()?;
 
     assert_eq!(check_report.status, ValidationStatus::Ok);
     assert_eq!(validate_report.status, ValidationStatus::Error);

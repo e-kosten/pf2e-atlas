@@ -5,6 +5,8 @@ use std::path::Path;
 use rusqlite::Connection;
 use serde_json::Value;
 
+use super::db::refresh_bound_test_manifest;
+
 pub fn insert_graph_edges(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
     for (from, to, display, reference, source_kind, visibility) in [
@@ -67,6 +69,8 @@ pub fn insert_graph_edges(path: &Path) -> Result<(), Box<dyn std::error::Error>>
             visibility,
         )?;
     }
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -108,6 +112,8 @@ pub fn insert_variant_group(path: &Path) -> Result<(), Box<dyn std::error::Error
             (label, level, record_key),
         )?;
     }
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -125,6 +131,8 @@ pub fn insert_second_variant_group(path: &Path) -> Result<(), Box<dyn std::error
          WHERE record_key = 'actions:testAction3'",
         [],
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -141,6 +149,8 @@ pub fn insert_remaster_link(path: &Path) -> Result<(), Box<dyn std::error::Error
             "test migration",
         ),
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -179,5 +189,7 @@ pub fn set_record_visibility(
         "UPDATE records SET is_default_visible = ?1 WHERE record_key = ?2",
         (if visible { 1_i64 } else { 0_i64 }, record_key),
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }

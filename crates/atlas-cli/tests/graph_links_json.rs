@@ -1,4 +1,3 @@
-use std::fs;
 use std::process::Command;
 
 use rusqlite::Connection;
@@ -6,7 +5,10 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
+use support::db::{
+    create_valid_artifact_database, ok_data, refresh_bound_test_manifest, remove_fixture_artifact,
+    temp_db_path,
+};
 use support::graph::{
     assert_section_edges_point_to_returned_records, insert_graph_edges, insert_reference_edge,
     set_record_visibility,
@@ -68,7 +70,7 @@ fn graph_links_json_returns_bounded_context() -> Result<(), Box<dyn std::error::
     assert_eq!(data["backlinks"]["edges"].as_array().unwrap().len(), 1);
     assert_section_edges_point_to_returned_records(&data["backlinks"], "from");
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -105,7 +107,7 @@ fn graph_links_json_keeps_empty_sections_stable() -> Result<(), Box<dyn std::err
     assert_eq!(data["backlinks"]["records"].as_array().unwrap().len(), 0);
     assert_eq!(data["backlinks"]["edges"].as_array().unwrap().len(), 0);
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -131,7 +133,7 @@ fn graph_links_json_defaults_to_outgoing_only() -> Result<(), Box<dyn std::error
     assert_eq!(data["backlinks"]["records"].as_array().unwrap().len(), 0);
     assert_eq!(data["backlinks"]["edges"].as_array().unwrap().len(), 0);
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -166,7 +168,7 @@ fn graph_links_json_supports_backlinks_only() -> Result<(), Box<dyn std::error::
     assert_eq!(data["backlinks"]["records"].as_array().unwrap().len(), 1);
     assert_section_edges_point_to_returned_records(&data["backlinks"], "from");
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -187,7 +189,7 @@ fn graph_links_json_reports_missing_seed_like_record_get() -> Result<(), Box<dyn
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "record_not_found");
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -229,7 +231,7 @@ fn graph_links_json_rejects_invalid_limit() -> Result<(), Box<dyn std::error::Er
         assert_eq!(limit_json["status"], "error");
         assert_eq!(limit_json["error"]["code"], "invalid_input");
     }
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -244,6 +246,8 @@ fn graph_links_json_reports_ambiguous_name_resolution() -> Result<(), Box<dyn st
          WHERE record_key IN ('actions:testAction1', 'actions:testAction2')",
         [],
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "links", "Shared Action", "--index"])
@@ -270,7 +274,7 @@ fn graph_links_json_reports_ambiguous_name_resolution() -> Result<(), Box<dyn st
             .all(|alternative| alternative["resolution"]["query"] == "Shared Action")
     );
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -281,6 +285,8 @@ fn graph_links_json_reports_resolution_query_failures_as_operational()
     create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute("DROP TABLE record_aliases", [])?;
+    drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "links", "Missing Alias", "--index"])
@@ -293,7 +299,7 @@ fn graph_links_json_reports_resolution_query_failures_as_operational()
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "query_failed");
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -323,7 +329,7 @@ fn graph_links_json_accepts_upper_bound_and_detail() -> Result<(), Box<dyn std::
     let data = ok_data(&json);
     assert_eq!(data["detail"], "description");
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -350,7 +356,7 @@ fn graph_links_human_output_is_summary_oriented() -> Result<(), Box<dyn std::err
     assert!(stdout.contains("actions:testAction1"));
     assert!(stdout.contains("Outgoing: 1 records, 2 edges (of 2 records, 3 edges)"));
     assert!(stdout.contains("Backlinks: disabled"));
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -378,6 +384,8 @@ fn graph_links_json_preserves_localized_and_null_display_text()
         "description",
         "public",
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "links", "actions:testAction1", "--index"])
@@ -395,7 +403,7 @@ fn graph_links_json_preserves_localized_and_null_display_text()
         "@UUID[Compendium.pf2e.actions.Item.testAction2]{Échapper}"
     );
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -419,7 +427,7 @@ fn graph_links_json_accepts_non_default_visible_seed() -> Result<(), Box<dyn std
     assert_eq!(data["outgoing"]["total_records"], 2);
     assert_eq!(data["outgoing"]["total_edges"], 3);
 
-    fs::remove_file(path)?;
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 

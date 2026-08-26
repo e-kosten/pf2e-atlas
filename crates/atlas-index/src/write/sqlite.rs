@@ -293,7 +293,7 @@ mod tests {
         SqliteIndexWriter::new(target_path.clone())
             .write(&input, EmbeddingModelId::BgeSmallEnV15)
             .expect("writer should produce a valid artifact");
-        let reader = crate::SqliteIndexReader::open_read_only(&target_path)?;
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
         let validation = reader.validate()?;
         assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
         let record_set = reader.load_record_set()?;

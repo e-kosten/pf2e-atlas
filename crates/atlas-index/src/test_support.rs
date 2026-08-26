@@ -1,4 +1,5 @@
 use rusqlite::Connection;
+use sha2::{Digest, Sha256};
 
 use crate::artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, artifact_metadata_keys,
@@ -15,6 +16,19 @@ pub fn insert_record_vector_index_sql() -> String {
 
 pub fn encode_f32_vector_blob(vector: &[f32]) -> Vec<u8> {
     crate::artifact::storage::encode_f32_vector_blob(vector)
+}
+
+pub fn write_bound_test_manifest(path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let hash = format!("{:x}", Sha256::digest(std::fs::read(path)?));
+    std::fs::write(
+        path.parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join("manifest.json"),
+        format!(
+            r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{hash}"}}}}"#
+        ),
+    )?;
+    Ok(())
 }
 
 pub fn create_minimal_artifact_schema(
