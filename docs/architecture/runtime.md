@@ -100,6 +100,15 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
+Candidate validation may retain one private in-process `SourceLoad` long enough to
+derive source analysis, the strict source audit, canonical-closure assertions, and
+the two validation artifact modes. A checksum-bound snapshot records identity,
+reports, timings, and a complete semantic digest of the captured build input for
+review; it cannot deserialize back into `SourceLoad` or `IndexBuildInput` and is
+not available to runtime, setup, search, API, or UI code. Candidate/source or
+policy/schema/toolchain/embedding identity changes invalidate it rather than
+falling back to stale evidence.
+
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md), while exhaustive classification follows proposed [ADR 0033](./decisions/0033-source-fidelity-and-exhaustive-coverage.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Every meaningful path still receives an owner/disposition even when it is not promoted. Do not mirror raw JSON into typed models solely because a field exists.
 
 The serialized-source boundary is versioned as `pf2e-serialized-source/v1` and is pinned to PF2e system `6.12.4` at upstream commit `4cbdaa37d6c33e9519561bae2c59a23e0288cbce`. `atlas-ingest::source::dto` dispatches the complete closed Actor and Item discriminator vocabularies, exposes the approved NPC core and full embedded-Item envelopes, validates exact NPC-to-Item parent contexts, and preserves `Missing | Null | Value` without applying Foundry defaults. Shape and discriminator failures carry the record key, source path, JSON path, expected shape, actual shape, and source-version metadata. The full serialized tree remains inside the source boundary for later typed promotion, while the original `serde_json::Value` has only an explicitly named provenance/audit accessor. The boundary is the sole serialized-source adapter; canonical conversion consumes its typed fields and never queries the retained tree as a semantic fallback.

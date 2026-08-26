@@ -106,6 +106,13 @@ pub(crate) fn analyze_source_load(
     source_root: PathBuf,
     source: SourceLoad,
 ) -> SourceAnalysisReport {
+    analyze_captured_source_load(source_root, &source)
+}
+
+pub(crate) fn analyze_captured_source_load(
+    source_root: PathBuf,
+    source: &SourceLoad,
+) -> SourceAnalysisReport {
     let retrieval_visibility = crate::records::visibility::RetrievalVisibility::from_remaster_links(
         &source.remaster_links,
     );
@@ -125,7 +132,7 @@ pub(crate) fn analyze_source_load(
         source: SourceAnalysisSourceReport {
             root: source_root.display().to_string(),
             manifest: source.manifest_path.display().to_string(),
-            source_signature: source.source_signature,
+            source_signature: source.source_signature.clone(),
         },
         pack_count: source.packs.len(),
         loaded_source_pack_count: source
@@ -188,7 +195,7 @@ pub(crate) fn analyze_source_load(
         diagnostics: diagnostics_json(&source.diagnostics, &source.records),
         skipped_record_count: source.skipped_records.len(),
         skipped_records: skipped_record_reports(&source.skipped_records),
-        warnings: source.warnings,
+        warnings: source.warnings.clone(),
     }
 }
 
