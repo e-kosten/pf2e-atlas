@@ -308,7 +308,9 @@ struct CreatureSurvivalInventory {
     observation_ordinals: BTreeMap<(String, String, String), usize>,
     reverse_expected: BTreeMap<ReverseObservation, usize>,
     reverse_observed: BTreeMap<ReverseObservation, usize>,
-    reverse_expected_owners: BTreeSet<(String, String, String, String)>,
+    reverse_observed_owners: BTreeSet<(String, String, String)>,
+    output_only_counts: BTreeMap<String, usize>,
+    actual_observation_ordinals: BTreeMap<(String, String, String), usize>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -418,8 +420,6 @@ pub fn audit_source_paths(
             validate_typed_source(&value, &context, &mut typed_diagnostics);
         }
     }
-
-    reconcile_reverse_collection_closure(&mut creature_survival);
 
     let mut paths = stats
         .into_iter()
@@ -815,6 +815,11 @@ fn collect_creature_survival(
     collect_expected_canonical_paths("$", "$", value, loaded, &conversion, inventory);
     collect_sequence_closure(value, loaded, inventory);
     collect_reverse_collection_closure(loaded, &conversion, inventory);
+    reconcile_reverse_collection_closure(inventory);
+    inventory.reverse_expected.clear();
+    inventory.reverse_observed.clear();
+    inventory.reverse_observed_owners.clear();
+    inventory.actual_observation_ordinals.clear();
 }
 
 fn collect_sequence_closure(
@@ -864,12 +869,7 @@ fn collect_sequence_closure(
 }
 
 fn reverse_closed_destination(destination: &str) -> bool {
-    matches!(
-        destination,
-        "canonical::SourceContentFact::document"
-            | "canonical::CreatureCapability::unsupported_notes"
-            | "canonical::CreatureEntityRelationship::target"
-    )
+    destination != "canonical::missing_destination"
 }
 
 fn reverse_observation(
@@ -881,6 +881,11 @@ fn reverse_observation(
     payload: CanonicalObservationPayload,
     order: usize,
 ) -> ReverseObservation {
+    let order = if normalized_path == "$.items[].system.traits.value[]" {
+        0
+    } else {
+        order
+    };
     ReverseObservation {
         record_key: record_key.to_string(),
         member_identity,
@@ -901,15 +906,1883 @@ fn insert_reverse_observation(
     *observations.entry(observation).or_default() += 1;
 }
 
+fn insert_actual_observation(
+    inventory: &mut CreatureSurvivalInventory,
+    observation: ReverseObservation,
+) {
+    inventory.reverse_observed_owners.insert((
+        observation.record_key.clone(),
+        observation.member_identity.clone(),
+        observation.normalized_path.clone(),
+    ));
+    insert_reverse_observation(&mut inventory.reverse_observed, observation);
+}
+
+fn emit_actual_payload(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member_identity: &str,
+    normalized_path: &str,
+    destination: &'static str,
+    payload: CanonicalObservationPayload,
+) {
+    if payload.state != "value" {
+        return;
+    }
+    if payload.value_type == "string"
+        && serde_json::from_str::<String>(&payload.normalized_value)
+            .is_ok_and(|value| value.trim().is_empty())
+    {
+        return;
+    }
+    let ordinal = inventory
+        .actual_observation_ordinals
+        .entry((
+            record_key.to_string(),
+            member_identity.to_string(),
+            normalized_path.to_string(),
+        ))
+        .or_default();
+    let order = *ordinal;
+    *ordinal += 1;
+    insert_actual_observation(
+        inventory,
+        reverse_observation(
+            record_key,
+            member_identity.to_string(),
+            normalized_path.to_string(),
+            normalized_path.to_string(),
+            destination,
+            payload,
+            order,
+        ),
+    );
+}
+
+fn emit_actual_fact<T>(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member_identity: &str,
+    normalized_path: &str,
+    destination: &'static str,
+    fact: &FactValue<T>,
+    map: impl FnOnce(&T) -> Value,
+) {
+    emit_actual_payload(
+        inventory,
+        record_key,
+        member_identity,
+        normalized_path,
+        destination,
+        fact_payload(fact, map),
+    );
+}
+
+fn collect_actual_record_fields(
+    loaded: &LoadedSourceRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    for (path, destination, value) in [
+        (
+            "$._id",
+            "canonical::AtlasRecord::identity.key.id",
+            Value::String(loaded.record.identity.key.id().to_string()),
+        ),
+        (
+            "$.name",
+            "canonical::AtlasRecord::identity.name",
+            Value::String(loaded.record.identity.name.clone()),
+        ),
+        (
+            "$.type",
+            "canonical::AtlasRecord::foundry.record_type",
+            Value::String(loaded.record.foundry.record_type.as_str().to_string()),
+        ),
+    ] {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            path,
+            destination,
+            CanonicalObservationPayload::value(value),
+        );
+    }
+    if let Some(folder) = &loaded.record.foundry.folder_id {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.folder",
+            "canonical::AtlasRecord::foundry.folder_id",
+            CanonicalObservationPayload::value(Value::String(folder.clone())),
+        );
+    }
+    if let Some(level) = loaded.record.classification.level {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.details.level.value",
+            "canonical::AtlasRecord::classification.level + mechanics.metrics",
+            CanonicalObservationPayload::value(Value::Number(level.into())),
+        );
+    }
+    if let Some(rarity) = loaded.record.classification.rarity {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.traits.rarity",
+            "canonical::AtlasRecord::classification.rarity",
+            CanonicalObservationPayload::value(Value::String(rarity.as_str().to_string())),
+        );
+    }
+    for value in &loaded.record.classification.traits {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.traits.value[]",
+            "canonical::AtlasRecord::classification.traits",
+            CanonicalObservationPayload::value(Value::String(value.clone())),
+        );
+    }
+    for metric in &loaded.record.mechanics.metrics {
+        let Some(ability) = metric
+            .key
+            .strip_prefix("ability.")
+            .and_then(|key| key.strip_suffix(".mod"))
+        else {
+            continue;
+        };
+        let value = match &metric.value {
+            atlas_record::MetricValue::Number(value) if value.fract() == 0.0 => {
+                Value::Number((*value as i64).into())
+            }
+            atlas_record::MetricValue::Number(value) => {
+                let Some(value) = serde_json::Number::from_f64(*value) else {
+                    continue;
+                };
+                Value::Number(value)
+            }
+            atlas_record::MetricValue::Text(value) => Value::String(value.clone()),
+            atlas_record::MetricValue::Boolean(value) => Value::Bool(*value),
+        };
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            &format!("$.system.abilities.{ability}.mod"),
+            "canonical::AtlasRecord::mechanics.metrics[ability.*.mod]",
+            CanonicalObservationPayload::value(value),
+        );
+    }
+}
+
+fn collect_actual_creature_fields(
+    loaded: &LoadedSourceRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(creature) = canonical_creature(loaded) else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    emit_actual_fact(
+        inventory,
+        &record_key,
+        &member,
+        "$.system.traits.size.value",
+        "canonical::CreatureRecord::size",
+        &creature.size.value,
+        |value| Value::String(value.as_source().to_string()),
+    );
+    if let Some(publication) = creature.publication.value.as_value() {
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.details.publication.title",
+            "canonical::CreaturePublication::title",
+            &publication.title,
+            |value| Value::String(value.clone()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.details.publication.remaster",
+            "canonical::CreaturePublication::remaster",
+            &publication.remaster,
+            |value| Value::Bool(*value),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.details.publication.license",
+            "canonical::CreaturePublication::license",
+            &publication.license,
+            |value| Value::String(value.as_str().to_string()),
+        );
+    }
+    emit_actual_payload(
+        inventory,
+        &record_key,
+        &member,
+        "$.system.attributes.adjustment",
+        "canonical::CreatureRecord::adjustment",
+        match &creature.adjustment.value {
+            FactValue::Missing => CanonicalObservationPayload::missing(),
+            FactValue::Null => CanonicalObservationPayload::null(),
+            FactValue::Value(atlas_record::CreatureAdjustment::Elite) => {
+                CanonicalObservationPayload::value(Value::String("elite".to_string()))
+            }
+            FactValue::Value(atlas_record::CreatureAdjustment::Weak) => {
+                CanonicalObservationPayload::value(Value::String("weak".to_string()))
+            }
+            FactValue::Value(atlas_record::CreatureAdjustment::Unsupported(value)) => {
+                unsupported_source_payload(value)
+            }
+        },
+    );
+    emit_actual_payload(
+        inventory,
+        &record_key,
+        &member,
+        "$.system.details.alliance",
+        "canonical::CreatureRecord::source_alliance",
+        match &creature.source_alliance.value {
+            FactValue::Missing => CanonicalObservationPayload::missing(),
+            FactValue::Null => CanonicalObservationPayload::null(),
+            FactValue::Value(atlas_record::CreatureSourceAlliance::Named(value)) => {
+                CanonicalObservationPayload::value(Value::String(value.as_str().to_string()))
+            }
+            FactValue::Value(atlas_record::CreatureSourceAlliance::Unsupported(value)) => {
+                unsupported_source_payload(value)
+            }
+        },
+    );
+    collect_actual_perception(loaded, creature, inventory);
+    collect_actual_languages(loaded, creature, inventory);
+    collect_actual_abilities(loaded, creature, inventory);
+    collect_actual_defenses(loaded, creature, inventory);
+    collect_actual_movement(loaded, creature, inventory);
+    collect_actual_skills(loaded, creature, inventory);
+    collect_actual_resources(loaded, creature, inventory);
+}
+
+fn collect_actual_perception(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    if let Some(perception) = creature.perception.value.as_value() {
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.perception.mod",
+            "canonical::CreatureRecord::perception",
+            &perception.modifier,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.perception.details",
+            "canonical::CreatureRecord::perception",
+            &perception.details,
+            |value| Value::String(value.as_str().to_string()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.perception.vision",
+            "canonical::CreatureRecord::perception",
+            &perception.has_vision,
+            |value| Value::Bool(*value),
+        );
+        if let Some(senses) = perception.senses.as_value() {
+            for sense in senses {
+                emit_actual_payload(
+                    inventory,
+                    &record_key,
+                    &member,
+                    "$.system.perception.senses[].type",
+                    "canonical::CreatureRecord::perception",
+                    CanonicalObservationPayload::value(Value::String(
+                        sense.sense_type.as_str().to_string(),
+                    )),
+                );
+                emit_actual_fact(
+                    inventory,
+                    &record_key,
+                    &member,
+                    "$.system.perception.senses[].range",
+                    "canonical::CreatureRecord::perception",
+                    &sense.range,
+                    |value| Value::Number((*value).into()),
+                );
+                emit_actual_payload(
+                    inventory,
+                    &record_key,
+                    &member,
+                    "$.system.perception.senses[].acuity",
+                    "canonical::CreatureRecord::perception",
+                    match &sense.acuity {
+                        FactValue::Missing => CanonicalObservationPayload::missing(),
+                        FactValue::Null => CanonicalObservationPayload::null(),
+                        FactValue::Value(atlas_record::SenseAcuity::Precise) => {
+                            CanonicalObservationPayload::value(Value::String("precise".to_string()))
+                        }
+                        FactValue::Value(atlas_record::SenseAcuity::Imprecise) => {
+                            CanonicalObservationPayload::value(Value::String(
+                                "imprecise".to_string(),
+                            ))
+                        }
+                        FactValue::Value(atlas_record::SenseAcuity::Vague) => {
+                            CanonicalObservationPayload::value(Value::String("vague".to_string()))
+                        }
+                        FactValue::Value(atlas_record::SenseAcuity::Unsupported(value)) => {
+                            unsupported_source_payload(value)
+                        }
+                    },
+                );
+            }
+        }
+    }
+    if let Some(initiative) = creature.initiative.value.as_value() {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.initiative.statistic",
+            "canonical::CreatureRecord::initiative",
+            match &initiative.statistic {
+                FactValue::Missing => CanonicalObservationPayload::missing(),
+                FactValue::Null => CanonicalObservationPayload::null(),
+                FactValue::Value(atlas_record::CreatureInitiativeStatistic::Named(value)) => {
+                    CanonicalObservationPayload::value(Value::String(value.as_str().to_string()))
+                }
+                FactValue::Value(atlas_record::CreatureInitiativeStatistic::Unsupported(value)) => {
+                    unsupported_source_payload(value)
+                }
+            },
+        );
+    }
+    if let Some(source) = loaded.facts.npc_source.as_ref()
+        && let Some(perception) = source.source.core.perception.as_value()
+    {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.perception.value",
+            "typed_dto::NpcPerceptionSource::legacy_value",
+            source_presence_payload(&perception.legacy_value, |value| {
+                Value::Number((*value).into())
+            }),
+        );
+    }
+}
+
+fn collect_actual_languages(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(languages) = creature.languages.value.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    if let Some(values) = languages.values.as_value() {
+        for value in values {
+            emit_actual_payload(
+                inventory,
+                &record_key,
+                &member,
+                "$.system.details.languages.value[]",
+                "canonical::CreatureRecord::languages",
+                CanonicalObservationPayload::value(Value::String(value.as_str().to_string())),
+            );
+        }
+    }
+    emit_actual_fact(
+        inventory,
+        &record_key,
+        &member,
+        "$.system.details.languages.details",
+        "canonical::CreatureRecord::languages",
+        &languages.details,
+        |value| Value::String(value.as_str().to_string()),
+    );
+}
+
+fn collect_actual_abilities(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(abilities) = creature.legacy_abilities.value.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    for (ability, fact) in [
+        ("str", &abilities.strength),
+        ("dex", &abilities.dexterity),
+        ("con", &abilities.constitution),
+        ("int", &abilities.intelligence),
+        ("wis", &abilities.wisdom),
+        ("cha", &abilities.charisma),
+    ] {
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            &format!("$.system.abilities.{ability}.value"),
+            "canonical::CreatureRecord::legacy_abilities",
+            fact,
+            |value| Value::Number((*value).into()),
+        );
+    }
+}
+
+fn collect_actual_defenses(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(defenses) = creature.defenses.value.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    if let Some(armor) = defenses.armor_class.as_value() {
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.ac.value",
+            "canonical::CreatureDefenses::armor_class",
+            &armor.value,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.ac.details",
+            "canonical::CreatureDefenses::armor_class",
+            &armor.details,
+            |value| Value::String(value.as_str().to_string()),
+        );
+    }
+    if let Some(hp) = defenses.hit_points.as_value() {
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.hp.value",
+            "canonical::CreatureDefenses::hit_points",
+            match &hp.value {
+                FactValue::Missing => CanonicalObservationPayload::missing(),
+                FactValue::Null => CanonicalObservationPayload::null(),
+                FactValue::Value(atlas_record::CreatureNumber::Integer(value)) => {
+                    CanonicalObservationPayload::value(Value::Number((*value).into()))
+                }
+                FactValue::Value(atlas_record::CreatureNumber::Unsupported(value)) => {
+                    unsupported_source_payload(value)
+                }
+            },
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.hp.max",
+            "canonical::CreatureDefenses::hit_points",
+            &hp.maximum,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.hp.temp",
+            "canonical::CreatureDefenses::hit_points",
+            &hp.temporary,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.hp.tempmax",
+            "canonical::CreatureDefenses::hit_points",
+            &hp.temporary_maximum,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.attributes.hp.details",
+            "canonical::CreatureDefenses::hit_points",
+            &hp.details,
+            |value| Value::String(value.as_str().to_string()),
+        );
+    }
+    emit_actual_fact(
+        inventory,
+        &record_key,
+        &member,
+        "$.system.attributes.hardness.value",
+        "canonical::CreatureDefenses::hardness",
+        &defenses.hardness,
+        |value| Value::Number((*value).into()),
+    );
+    emit_actual_fact(
+        inventory,
+        &record_key,
+        &member,
+        "$.system.attributes.allSaves.value",
+        "canonical::CreatureDefenses::all_saves_note",
+        &defenses.all_saves_note,
+        |value| Value::String(value.as_str().to_string()),
+    );
+    if let Some(shield) = defenses.shield.as_value() {
+        for (path, fact) in [
+            ("$.system.attributes.shield.ac", &shield.armor_class_bonus),
+            (
+                "$.system.attributes.shield.brokenThreshold",
+                &shield.broken_threshold,
+            ),
+            ("$.system.attributes.shield.hardness", &shield.hardness),
+            ("$.system.attributes.shield.max", &shield.maximum_hit_points),
+            (
+                "$.system.attributes.shield.value",
+                &shield.serialized_hit_points,
+            ),
+        ] {
+            emit_actual_fact(
+                inventory,
+                &record_key,
+                &member,
+                path,
+                "canonical::CreatureDefenses::shield",
+                fact,
+                |value| Value::Number((*value).into()),
+            );
+        }
+    }
+    if let Some(saves) = defenses.saves.as_value() {
+        for save in [&saves.fortitude, &saves.reflex, &saves.will]
+            .into_iter()
+            .filter_map(FactValue::as_value)
+        {
+            emit_actual_fact(
+                inventory,
+                &record_key,
+                &member,
+                "$.system.saves.*.value",
+                "canonical::CreatureDefenses::saves",
+                &save.value,
+                |value| Value::Number((*value).into()),
+            );
+            emit_actual_fact(
+                inventory,
+                &record_key,
+                &member,
+                "$.system.saves.*.saveDetail",
+                "canonical::CreatureDefenses::saves",
+                &save.details,
+                |value| Value::String(value.as_str().to_string()),
+            );
+        }
+    }
+    for (prefix, destination, fact) in [
+        (
+            "$.system.attributes.immunities[]",
+            "canonical::CreatureDefenses::immunities",
+            &defenses.immunities,
+        ),
+        (
+            "$.system.attributes.resistances[]",
+            "canonical::CreatureDefenses::resistances",
+            &defenses.resistances,
+        ),
+        (
+            "$.system.attributes.weaknesses[]",
+            "canonical::CreatureDefenses::weaknesses",
+            &defenses.weaknesses,
+        ),
+    ] {
+        if let Some(entries) = fact.as_value() {
+            for entry in entries {
+                emit_actual_payload(
+                    inventory,
+                    &record_key,
+                    &member,
+                    &format!("{prefix}.type"),
+                    destination,
+                    CanonicalObservationPayload::value(Value::String(
+                        entry.iwr_type.as_str().to_string(),
+                    )),
+                );
+                emit_actual_fact(
+                    inventory,
+                    &record_key,
+                    &member,
+                    &format!("{prefix}.value"),
+                    destination,
+                    &entry.value,
+                    |value| Value::Number((*value).into()),
+                );
+                if let Some(values) = entry.exceptions.as_value() {
+                    for value in values {
+                        emit_actual_payload(
+                            inventory,
+                            &record_key,
+                            &member,
+                            &format!("{prefix}.exceptions[]"),
+                            destination,
+                            CanonicalObservationPayload::value(Value::String(
+                                value.as_str().to_string(),
+                            )),
+                        );
+                    }
+                }
+                if let Some(values) = entry.double_vs.as_value() {
+                    for value in values {
+                        emit_actual_payload(
+                            inventory,
+                            &record_key,
+                            &member,
+                            &format!("{prefix}.doubleVs[]"),
+                            destination,
+                            CanonicalObservationPayload::value(Value::String(
+                                value.as_str().to_string(),
+                            )),
+                        );
+                    }
+                }
+                emit_actual_fact(
+                    inventory,
+                    &record_key,
+                    &member,
+                    &format!("{prefix}.applyOnce"),
+                    destination,
+                    &entry.apply_once,
+                    |value| Value::Bool(*value),
+                );
+            }
+        }
+    }
+}
+
+fn collect_actual_movement(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(speeds) = creature.movement.value.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    for speed in speeds {
+        let (prefix, include_mode) = if speed.mode == atlas_record::CreatureMovementMode::Land {
+            ("$.system.attributes.speed", false)
+        } else {
+            ("$.system.attributes.speed.otherSpeeds[]", true)
+        };
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            &format!("{prefix}.value"),
+            "canonical::CreatureRecord::movement",
+            &speed.value,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            &format!("{prefix}.details"),
+            "canonical::CreatureRecord::movement",
+            &speed.details,
+            |value| Value::String(value.as_str().to_string()),
+        );
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            &format!("{prefix}.label"),
+            "canonical::CreatureRecord::movement",
+            &speed.label,
+            |value| Value::String(value.clone()),
+        );
+        if include_mode {
+            emit_actual_payload(
+                inventory,
+                &record_key,
+                &member,
+                &format!("{prefix}.type"),
+                "canonical::CreatureRecord::movement",
+                movement_mode_payload(&speed.mode),
+            );
+        }
+    }
+}
+
+fn collect_actual_skills(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    let canonical = creature.skills.value.as_value();
+    let mut emitted = BTreeSet::new();
+    if let Some(source) = loaded.facts.npc_source.as_ref()
+        && let Some(skills) = source.source.core.skills.as_value()
+    {
+        for (slug, skill) in skills {
+            if let Some(kind) = atlas_record::CreatureSkillKind::from_source_slug(slug) {
+                if let Some(skill) = canonical.and_then(|skills| {
+                    skills.iter().find(|skill| {
+                        skill.kind == kind && skill.source_item_id.as_value().is_none()
+                    })
+                }) {
+                    emit_actual_skill(inventory, &record_key, &member, skill);
+                    emitted.insert(kind);
+                }
+            } else {
+                emit_actual_payload(
+                    inventory,
+                    &record_key,
+                    &member,
+                    "$.system.skills.*.base",
+                    "typed_dto::NpcSkillSource::invalid_shadow_skill",
+                    source_presence_payload(&skill.base, |value| Value::Number((*value).into())),
+                );
+                emit_actual_payload(
+                    inventory,
+                    &record_key,
+                    &member,
+                    "$.system.skills.*.note",
+                    "typed_dto::NpcSkillSource::invalid_shadow_skill",
+                    source_presence_payload(&skill.note, |value| Value::String(value.clone())),
+                );
+            }
+        }
+    }
+    if let Some(skills) = canonical {
+        for skill in skills {
+            if skill.kind != atlas_record::CreatureSkillKind::Lore
+                && skill.source_item_id.as_value().is_none()
+                && !emitted.contains(&skill.kind)
+            {
+                emit_actual_skill(inventory, &record_key, &member, skill);
+            }
+        }
+    }
+}
+
+fn emit_actual_skill(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    skill: &atlas_record::CreatureSkill,
+) {
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.system.skills.*.base",
+        "canonical::CreatureRecord::skills",
+        &skill.modifier,
+        |value| Value::Number((*value).into()),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.system.skills.*.note",
+        "canonical::CreatureRecord::skills",
+        &skill.note,
+        |value| Value::String(value.as_str().to_string()),
+    );
+    if let Some(variants) = skill.variants.as_value() {
+        for variant in variants {
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.system.skills.*.special[].base",
+                "canonical::CreatureRecord::skills",
+                &variant.modifier,
+                |value| Value::Number((*value).into()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.system.skills.*.special[].label",
+                "canonical::CreatureRecord::skills",
+                &variant.label,
+                |value| Value::String(value.clone()),
+            );
+            if let Some(predicates) = variant.predicate.as_value() {
+                for predicate in predicates {
+                    collect_actual_predicate_leaves(
+                        inventory,
+                        record_key,
+                        member,
+                        &predicate_source_json(predicate),
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn collect_actual_predicate_leaves(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    value: &Value,
+) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map {
+                if is_meaningful_value(value) {
+                    emit_actual_payload(
+                        inventory,
+                        record_key,
+                        member,
+                        &format!("$.system.skills.*.special[].predicate[].{key}"),
+                        "canonical::CreatureRecord::skills",
+                        CanonicalObservationPayload::value(value.clone()),
+                    );
+                }
+                if let Some(values) = value.as_array() {
+                    for value in values {
+                        emit_actual_payload(
+                            inventory,
+                            record_key,
+                            member,
+                            &format!("$.system.skills.*.special[].predicate[].{key}[]"),
+                            "canonical::CreatureRecord::skills",
+                            CanonicalObservationPayload::value(value.clone()),
+                        );
+                    }
+                }
+            }
+        }
+        Value::String(_) | Value::Bool(_) | Value::Number(_) => emit_actual_payload(
+            inventory,
+            record_key,
+            member,
+            "$.system.skills.*.special[].predicate[]",
+            "canonical::CreatureRecord::skills",
+            CanonicalObservationPayload::value(value.clone()),
+        ),
+        Value::Array(_) | Value::Null => {}
+    }
+}
+
+fn collect_actual_resources(
+    loaded: &LoadedSourceRecord,
+    creature: &atlas_record::CreatureRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(resources) = creature.resources.value.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let member = format!("record:{record_key}");
+    let typed_resources = loaded
+        .facts
+        .npc_source
+        .as_ref()
+        .and_then(|source| source.source.core.resources.as_value());
+    for resource in resources {
+        match typed_resources
+            .and_then(|resources| resources.get(resource.kind.as_str()))
+            .and_then(|resource| resource.maximum.as_value())
+        {
+            Some(crate::source::dto::NpcResourceAmountSource::Nested { maximum, value }) => {
+                if maximum.as_value().is_some() {
+                    emit_actual_payload(
+                        inventory,
+                        &record_key,
+                        &member,
+                        "$.system.resources.*.max.max",
+                        "canonical::CreatureRecord::resources",
+                        resource_amount_payload(&resource.maximum),
+                    );
+                }
+                if value.as_value().is_some() {
+                    emit_actual_payload(
+                        inventory,
+                        &record_key,
+                        &member,
+                        "$.system.resources.*.max.value",
+                        "canonical::CreatureRecord::resources",
+                        resource_amount_payload(&resource.maximum),
+                    );
+                }
+            }
+            Some(_) => emit_actual_payload(
+                inventory,
+                &record_key,
+                &member,
+                "$.system.resources.*.max",
+                "canonical::CreatureRecord::resources",
+                resource_amount_payload(&resource.maximum),
+            ),
+            None => emit_actual_payload(
+                inventory,
+                &record_key,
+                &member,
+                "$.system.resources.*.max",
+                "canonical::CreatureRecord::resources",
+                resource_amount_payload(&resource.maximum),
+            ),
+        }
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.resources.*.value",
+            "canonical::CreatureRecord::resources",
+            resource_amount_payload(&resource.serialized_value),
+        );
+        if let Some(drift) = resource.source_drift.as_value() {
+            for fact in drift {
+                if fact.field == atlas_record::CreatureUnsupportedSourceField::ResourceMaximumDrift
+                {
+                    emit_actual_payload(
+                        inventory,
+                        &record_key,
+                        &member,
+                        "$.system.resources.*.maxx",
+                        "canonical::CreatureRecord::resources",
+                        unsupported_source_payload(&fact.value),
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn collect_actual_embedded_item_fields(
+    loaded: &LoadedSourceRecord,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let record_key = loaded.record.identity.key.to_string();
+    for fact in &loaded.facts.source_facts.embedded_items {
+        let member = format!("item:{}", fact.item_id);
+        for (path, destination, value) in [
+            (
+                "$.items[]._id",
+                "canonical::EmbeddedItemFact::item_id",
+                Some(Value::String(fact.item_id.clone())),
+            ),
+            (
+                "$.items[].name",
+                "canonical::EmbeddedItemFact::name",
+                Some(Value::String(fact.name.clone())),
+            ),
+            (
+                "$.items[].type",
+                "canonical::EmbeddedItemFact::foundry_item_type",
+                Some(Value::String(fact.foundry_item_type.clone())),
+            ),
+            (
+                "$.items[]._stats.compendiumSource",
+                "canonical::EmbeddedItemFact::compendium_source",
+                fact.compendium_source.clone().map(Value::String),
+            ),
+            (
+                "$.items[].system.category",
+                "canonical::EmbeddedItemFact::system_category",
+                fact.system_category.clone().map(Value::String),
+            ),
+            (
+                "$.items[].system.publication.remaster",
+                "canonical::EmbeddedItemFact::publication_remaster",
+                Some(Value::Bool(fact.publication_remaster)),
+            ),
+            (
+                "$.items[].system.slug",
+                "canonical::EmbeddedItemFact::slug",
+                fact.slug.clone().map(Value::String),
+            ),
+        ] {
+            if let Some(value) = value {
+                emit_actual_payload(
+                    inventory,
+                    &record_key,
+                    &member,
+                    path,
+                    destination,
+                    CanonicalObservationPayload::value(value),
+                );
+            }
+        }
+        for value in &fact.traits {
+            emit_actual_payload(
+                inventory,
+                &record_key,
+                &member,
+                "$.items[].system.traits.value[]",
+                "canonical::EmbeddedItemFact::traits",
+                CanonicalObservationPayload::value(Value::String(value.clone())),
+            );
+        }
+    }
+}
+
 fn collect_reverse_collection_closure(
     loaded: &LoadedSourceRecord,
     conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
     inventory: &mut CreatureSurvivalInventory,
 ) {
+    collect_actual_record_fields(loaded, inventory);
+    collect_actual_creature_fields(loaded, inventory);
+    collect_actual_embedded_item_fields(loaded, inventory);
+    collect_actual_occurrence_fields(loaded, conversion, inventory);
     collect_reverse_occurrences(loaded, conversion, inventory);
     collect_reverse_relationships(loaded, conversion, inventory);
     collect_reverse_content(loaded, inventory);
     collect_reverse_unsupported(loaded, conversion, inventory);
+}
+
+fn collect_actual_occurrence_fields(
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(embedded) = conversion.embedded.as_value() else {
+        return;
+    };
+    let candidates = loaded
+        .facts
+        .npc_source
+        .as_ref()
+        .map(collect_npc_embedded_candidates);
+    let record_key = loaded.record.identity.key.to_string();
+    if let Some(actor) = embedded.actor_spellcasting.as_value() {
+        let member = format!("record:{record_key}");
+        emit_actual_payload(
+            inventory,
+            &record_key,
+            &member,
+            "$.system.spellcasting.rituals.dc",
+            "canonical::CreatureActorSpellcastingContext::rituals_dc",
+            source_scalar_i64_payload(&actor.rituals_dc),
+        );
+    }
+    for (occurrence_index, occurrence) in embedded.occurrences.iter().enumerate() {
+        let member = occurrence
+            .source_identity
+            .nested_source_id
+            .as_value()
+            .map(|id| format!("item:{}", id.as_str()))
+            .unwrap_or_else(|| format!("occurrence:{}", occurrence.id.as_str()));
+        let candidate = occurrence
+            .source_identity
+            .nested_source_id
+            .as_value()
+            .and_then(|id| {
+                let duplicate_ordinal = embedded.occurrences[..occurrence_index]
+                    .iter()
+                    .filter(|candidate| {
+                        candidate
+                            .source_identity
+                            .nested_source_id
+                            .as_value()
+                            .is_some_and(|candidate_id| candidate_id.as_str() == id.as_str())
+                    })
+                    .count();
+                candidates
+                    .as_ref()?
+                    .items
+                    .as_value()?
+                    .iter()
+                    .filter(|candidate| candidate.nested_source_id == id.as_str())
+                    .nth(duplicate_ordinal)
+            });
+        emit_actual_fact(
+            inventory,
+            &record_key,
+            &member,
+            "$.items[].sort",
+            "canonical::CreatureEntityOccurrence::source_sort",
+            &occurrence.source_sort,
+            |value| Value::Number((*value).into()),
+        );
+        for locator in &occurrence.source_identity.source_locators {
+            if locator.source_path != "$.flags.core.sourceId" {
+                continue;
+            }
+            let path = normalize_observed_source_path(&format!(
+                "$.items[]{}",
+                locator
+                    .source_path
+                    .strip_prefix('$')
+                    .unwrap_or(&locator.source_path)
+            ));
+            if inventory.reverse_observed_owners.contains(&(
+                record_key.clone(),
+                member.clone(),
+                path.clone(),
+            )) {
+                continue;
+            }
+            emit_actual_payload(
+                inventory,
+                &record_key,
+                &member,
+                &path,
+                "canonical::CreatureEntitySourceIdentity::source_locators",
+                CanonicalObservationPayload::value(Value::String(
+                    locator.locator.as_str().to_string(),
+                )),
+            );
+        }
+        collect_actual_capability(inventory, &record_key, &member, occurrence, candidate);
+    }
+}
+
+fn collect_actual_capability(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    occurrence: &atlas_record::CreatureEntityOccurrence,
+    candidate: Option<&crate::source::npc_entities::NpcEmbeddedCandidate>,
+) {
+    match &occurrence.capability {
+        CreatureCapability::Action(action) => {
+            if !matches!(
+                action.action_cost,
+                atlas_record::CreatureActionCost::Unsupported(_)
+            ) {
+                emit_actual_payload(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.actionType.value",
+                    "canonical::CreatureActionCapability::action_cost",
+                    action_type_payload(&action.action_cost),
+                );
+                emit_actual_payload(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.actions.value",
+                    "canonical::CreatureActionCapability::action_cost",
+                    action_count_payload(&action.action_cost),
+                );
+            }
+            if let Some(frequency) = action.frequency.as_value() {
+                emit_actual_fact(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.frequency.max",
+                    "canonical::CreatureActionCapability::frequency",
+                    &frequency.maximum,
+                    |value| Value::Number((*value).into()),
+                );
+                emit_actual_fact(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.frequency.per",
+                    "canonical::CreatureActionCapability::frequency",
+                    &frequency.period,
+                    |value| Value::String(value.clone()),
+                );
+                emit_actual_fact(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.frequency.value",
+                    "canonical::CreatureActionCapability::frequency",
+                    &frequency.serialized_value,
+                    |value| Value::Number((*value).into()),
+                );
+            }
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.selfEffect.uuid",
+                "canonical::CreatureActionCapability::self_effect",
+                &action.self_effect,
+                |value| Value::String(value.clone()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.selfEffect.name",
+                "canonical::CreatureActionCapability::self_effect_label",
+                &action.self_effect_label,
+                |value| Value::String(value.clone()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.requirements",
+                "canonical::CreatureActionCapability::requirements",
+                &action.requirements,
+                |value| Value::String(value.clone()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.cost.value",
+                "canonical::CreatureActionCapability::cost",
+                &action.cost,
+                |value| Value::String(value.clone()),
+            );
+            collect_actual_rolls(inventory, record_key, member, &action.rolls, false);
+            collect_actual_damage(
+                inventory,
+                record_key,
+                member,
+                &action.damage,
+                "$.items[].system.damageRolls.*",
+                "canonical::CreatureActionCapability::damage",
+                true,
+            );
+        }
+        CreatureCapability::Strike(strike) => {
+            collect_actual_rolls(inventory, record_key, member, &strike.rolls, true);
+            if let Some(values) = strike.attack_effects.as_value() {
+                for value in values {
+                    emit_actual_payload(
+                        inventory,
+                        record_key,
+                        member,
+                        "$.items[].system.attackEffects.value[]",
+                        "canonical::CreatureStrikeCapability::attack_effects",
+                        CanonicalObservationPayload::value(Value::String(value.clone())),
+                    );
+                }
+            }
+            collect_actual_damage(
+                inventory,
+                record_key,
+                member,
+                &strike.damage,
+                "$.items[].system.damageRolls.*",
+                "canonical::CreatureStrikeCapability::damage",
+                true,
+            );
+        }
+        CreatureCapability::SpellcastingEntry(entry) => {
+            emit_actual_payload(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.prepared.value",
+                "canonical::CreatureSpellcastingEntryCapability::preparation",
+                spell_preparation_payload(&entry.preparation),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.tradition.value",
+                "canonical::CreatureSpellcastingEntryCapability::tradition",
+                &entry.tradition,
+                |value| Value::String(value.clone()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.spelldc.value",
+                "canonical::CreatureSpellcastingEntryCapability::attack",
+                &entry.attack,
+                |value| Value::Number((*value).into()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.spelldc.dc",
+                "canonical::CreatureSpellcastingEntryCapability::dc",
+                &entry.dc,
+                |value| Value::Number((*value).into()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.autoHeightenLevel.value",
+                "canonical::CreatureEntityOccurrence::context.rank",
+                &occurrence.context.rank,
+                |value| Value::Number((*value).into()),
+            );
+            let source = candidate.and_then(|candidate| match &candidate.source {
+                crate::source::dto::NpcEmbeddedItemSource::SpellcastingEntry(source) => {
+                    Some(source)
+                }
+                _ => None,
+            });
+            collect_actual_spell_slots(inventory, record_key, member, entry, source);
+        }
+        CreatureCapability::Spell(spell) => {
+            let source = candidate.and_then(|candidate| match &candidate.source {
+                crate::source::dto::NpcEmbeddedItemSource::Spell(source) => Some(source.as_ref()),
+                _ => None,
+            });
+            collect_actual_spell(inventory, record_key, member, occurrence, spell, source)
+        }
+        CreatureCapability::Equipment(equipment) => {
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.level.value",
+                "canonical::CreatureEquipmentCapability::level",
+                &equipment.level,
+                |value| Value::Number((*value).into()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.usage.value",
+                "canonical::CreatureEquipmentCapability::usage",
+                &equipment.usage,
+                |value| Value::String(value.clone()),
+            );
+            emit_actual_fact(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.quantity",
+                "canonical::CreatureEquipmentCapability::quantity",
+                &equipment.quantity,
+                |value| Value::Number((*value).into()),
+            );
+            if let Some(uses) = equipment.uses.as_value() {
+                emit_actual_fact(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.uses.max",
+                    "canonical::CreatureEquipmentCapability::uses",
+                    &uses.maximum,
+                    |value| Value::Number((*value).into()),
+                );
+                emit_actual_fact(
+                    inventory,
+                    record_key,
+                    member,
+                    "$.items[].system.uses.value",
+                    "canonical::CreatureEquipmentCapability::uses",
+                    &uses.serialized_value,
+                    |value| Value::Number((*value).into()),
+                );
+            }
+        }
+        CreatureCapability::Lore(lore) => emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.mod.value",
+            "canonical::CreatureLoreCapability::modifier",
+            &lore.modifier,
+            |value| Value::Number((*value).into()),
+        ),
+        CreatureCapability::Unsupported(_) => {}
+    }
+}
+
+fn collect_actual_rolls(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    rolls: &[atlas_record::CreatureRoll],
+    strike: bool,
+) {
+    for roll in rolls {
+        let (path, destination) = match roll.id.as_str() {
+            "attack" => (
+                "$.items[].system.bonus.value",
+                "canonical::CreatureStrikeCapability::rolls[attack]",
+            ),
+            "check" => (
+                "$.items[].system.bonus.value",
+                "canonical::CreatureActionCapability::rolls[check]",
+            ),
+            "dc" => (
+                "$.items[].system.dc.value",
+                "canonical::CreatureActionCapability::rolls[dc]",
+            ),
+            _ if strike => (
+                "$.items[].system.bonus.value",
+                "canonical::CreatureStrikeCapability::rolls[attack]",
+            ),
+            _ => (
+                "$.items[].system.bonus.value",
+                "canonical::CreatureActionCapability::rolls[check]",
+            ),
+        };
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            path,
+            destination,
+            &roll.value,
+            |value| Value::Number((*value).into()),
+        );
+    }
+}
+
+fn collect_actual_damage(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    damage: &FactValue<Vec<atlas_record::CreatureDamage>>,
+    prefix: &str,
+    destination: &'static str,
+    legacy: bool,
+) {
+    let Some(entries) = damage.as_value() else {
+        return;
+    };
+    for entry in entries {
+        let formula_field = if legacy { "damage" } else { "formula" };
+        let type_field = if legacy { "damageType" } else { "type" };
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            &format!("{prefix}.{formula_field}"),
+            destination,
+            &entry.formula,
+            |value| Value::String(value.clone()),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            &format!("{prefix}.{type_field}"),
+            destination,
+            &entry.damage_type,
+            |value| Value::String(value.clone()),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            &format!("{prefix}.category"),
+            destination,
+            &entry.category,
+            |value| Value::String(value.clone()),
+        );
+        if !legacy {
+            if let Some(kinds) = entry.kinds.as_value() {
+                for kind in kinds {
+                    let payload = match kind {
+                        atlas_record::CreatureDamageKind::Damage => {
+                            CanonicalObservationPayload::value(Value::String("damage".to_string()))
+                        }
+                        atlas_record::CreatureDamageKind::Healing => {
+                            CanonicalObservationPayload::value(Value::String("healing".to_string()))
+                        }
+                        atlas_record::CreatureDamageKind::Unsupported(value) => {
+                            unsupported_source_payload(value)
+                        }
+                    };
+                    emit_actual_payload(
+                        inventory,
+                        record_key,
+                        member,
+                        &format!("{prefix}.kinds[]"),
+                        destination,
+                        payload,
+                    );
+                }
+            }
+            emit_actual_payload(
+                inventory,
+                record_key,
+                member,
+                &format!("{prefix}.applyMod"),
+                destination,
+                source_scalar_bool_payload(&entry.apply_modifier),
+            );
+        }
+    }
+}
+
+fn collect_actual_spell_slots(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    entry: &atlas_record::CreatureSpellcastingEntryCapability,
+    source: Option<&crate::source::dto::SpellcastingEntrySource>,
+) {
+    let Some(slots) = entry.slots.as_value() else {
+        return;
+    };
+    let mut slots = slots.iter().collect::<Vec<_>>();
+    slots.sort_by_key(|slot| format!("slot{}", slot.rank));
+    for slot in slots {
+        let source_slot = source.and_then(|source| {
+            source
+                .slots
+                .as_value()?
+                .iter()
+                .find(|candidate| candidate.rank == slot.rank)
+        });
+        if source_slot.is_none_or(|slot| slot.maximum.as_value().is_some()) {
+            emit_actual_payload(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.slots.*.max",
+                "canonical::CreatureSpellcastingEntryCapability::slots",
+                source_scalar_i64_payload(&slot.maximum),
+            );
+        }
+        if source_slot.is_none_or(|slot| slot.value.as_value().is_some()) {
+            emit_actual_payload(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.slots.*.value",
+                "canonical::CreatureSpellcastingEntryCapability::slots",
+                source_scalar_i64_payload(&slot.serialized_value),
+            );
+        }
+        if let Some(prepared) = slot.prepared.as_value() {
+            for (prepared_index, prepared) in prepared.iter().enumerate() {
+                let source_prepared =
+                    source_slot.and_then(|slot| slot.prepared.as_value()?.get(prepared_index));
+                match prepared {
+                    atlas_record::CreaturePreparedSpellSlot::Unsupported(value) => {
+                        emit_actual_payload(
+                            inventory,
+                            record_key,
+                            member,
+                            "$.items[].system.slots.*.prepared[]",
+                            "canonical::CreatureSpellcastingEntryCapability::slots",
+                            unsupported_source_payload(value),
+                        )
+                    }
+                    atlas_record::CreaturePreparedSpellSlot::Spell {
+                        id,
+                        name,
+                        expended,
+                        prepared,
+                        ..
+                    } => {
+                        if source_prepared.is_none_or(|source| {
+                            matches!(
+                                source,
+                                crate::source::dto::PreparedSlotSource::Spell {
+                                    id: SourcePresence::Value(_),
+                                    ..
+                                }
+                            )
+                        }) {
+                            emit_actual_fact(
+                                inventory,
+                                record_key,
+                                member,
+                                "$.items[].system.slots.*.prepared[].id",
+                                "canonical::CreatureSpellcastingEntryCapability::slots",
+                                id,
+                                |value| Value::String(value.as_str().to_string()),
+                            );
+                        }
+                        emit_actual_fact(
+                            inventory,
+                            record_key,
+                            member,
+                            "$.items[].system.slots.*.prepared[].name",
+                            "canonical::CreatureSpellcastingEntryCapability::slots",
+                            name,
+                            |value| Value::String(value.clone()),
+                        );
+                        emit_actual_fact(
+                            inventory,
+                            record_key,
+                            member,
+                            "$.items[].system.slots.*.prepared[].expended",
+                            "canonical::CreatureSpellcastingEntryCapability::slots",
+                            expended,
+                            |value| Value::Bool(*value),
+                        );
+                        emit_actual_fact(
+                            inventory,
+                            record_key,
+                            member,
+                            "$.items[].system.slots.*.prepared[].prepared",
+                            "canonical::CreatureSpellcastingEntryCapability::slots",
+                            prepared,
+                            |value| Value::Bool(*value),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn collect_actual_spell(
+    inventory: &mut CreatureSurvivalInventory,
+    record_key: &str,
+    member: &str,
+    occurrence: &atlas_record::CreatureEntityOccurrence,
+    spell: &atlas_record::CreatureSpellCapability,
+    source: Option<&crate::source::dto::SpellSource>,
+) {
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.level.value",
+        "canonical::CreatureSpellCapability::base_rank",
+        &spell.base_rank,
+        |value| Value::Number((*value).into()),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.location.value",
+        "canonical::CreatureEntityOccurrence::context.location",
+        &occurrence.context.location,
+        |value| Value::String(value.clone()),
+    );
+    if source.is_none_or(|source| source.heightened_level.as_value().is_some()) {
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.location.heightenedLevel",
+            "canonical::CreatureEntityOccurrence::context.rank",
+            &occurrence.context.rank,
+            |value| Value::Number((*value).into()),
+        );
+    }
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.location.signature",
+        "canonical::CreatureSpellCapability::signature",
+        &spell.signature,
+        |value| Value::Bool(*value),
+    );
+    if let Some(uses) = occurrence.context.uses.as_value() {
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.location.uses.max",
+            "canonical::CreatureEntityOccurrence::context.uses",
+            &uses.maximum,
+            |value| Value::Number((*value).into()),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.location.uses.value",
+            "canonical::CreatureEntityOccurrence::context.uses",
+            &uses.serialized_value,
+            |value| Value::Number((*value).into()),
+        );
+    }
+    if let Some(values) = spell.traditions.as_value() {
+        for value in values {
+            emit_actual_payload(
+                inventory,
+                record_key,
+                member,
+                "$.items[].system.traits.traditions[]",
+                "canonical::CreatureSpellCapability::traditions",
+                CanonicalObservationPayload::value(Value::String(value.clone())),
+            );
+        }
+    }
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.requirements",
+        "canonical::CreatureSpellCapability::requirements",
+        &spell.requirements,
+        |value| Value::String(value.clone()),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.cost.value",
+        "canonical::CreatureSpellCapability::cost",
+        &spell.cost,
+        |value| Value::String(value.clone()),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.counteraction",
+        "canonical::CreatureSpellCapability::counteraction",
+        &spell.counteraction,
+        |value| Value::Bool(*value),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.target.value",
+        "canonical::CreatureSpellCapability::target",
+        &spell.target,
+        |value| Value::String(value.clone()),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.range.value",
+        "canonical::CreatureSpellCapability::range",
+        &spell.range,
+        |value| Value::String(value.clone()),
+    );
+    emit_actual_fact(
+        inventory,
+        record_key,
+        member,
+        "$.items[].system.time.value",
+        "canonical::CreatureSpellCapability::time",
+        &spell.time,
+        |value| Value::String(value.clone()),
+    );
+    if let Some(ritual) = spell.ritual.as_value() {
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.ritual.primary.check",
+            "canonical::CreatureSpellCapability::ritual",
+            &ritual.primary_check,
+            |value| Value::String(value.clone()),
+        );
+        emit_actual_payload(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.ritual.secondary.casters",
+            "canonical::CreatureSpellCapability::ritual",
+            source_scalar_i64_payload(&ritual.secondary_casters),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.ritual.secondary.checks",
+            "canonical::CreatureSpellCapability::ritual",
+            &ritual.secondary_checks,
+            |value| Value::String(value.clone()),
+        );
+    }
+    if let Some(area) = spell.area.as_value() {
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.area.type",
+            "canonical::CreatureSpellCapability::area",
+            &area.area_type,
+            |value| Value::String(value.clone()),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.area.value",
+            "canonical::CreatureSpellCapability::area",
+            &area.value,
+            |value| Value::Number((*value).into()),
+        );
+    }
+    if let Some(duration) = spell.duration.as_value() {
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.duration.value",
+            "canonical::CreatureSpellCapability::duration",
+            &duration.value,
+            |value| Value::String(value.clone()),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.duration.sustained",
+            "canonical::CreatureSpellCapability::duration",
+            &duration.sustained,
+            |value| Value::Bool(*value),
+        );
+    }
+    if let Some(defense) = spell.defense.as_value() {
+        emit_actual_payload(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.defense.save.statistic",
+            "canonical::CreatureSpellCapability::defense",
+            spell_save_payload(&defense.save),
+        );
+        emit_actual_fact(
+            inventory,
+            record_key,
+            member,
+            "$.items[].system.defense.save.basic",
+            "canonical::CreatureSpellCapability::defense",
+            &defense.basic,
+            |value| Value::Bool(*value),
+        );
+    }
+    collect_actual_damage(
+        inventory,
+        record_key,
+        member,
+        &spell.damage,
+        "$.items[].system.damage.*",
+        "canonical::CreatureSpellCapability::damage",
+        false,
+    );
 }
 
 fn collect_reverse_occurrences(
@@ -962,8 +2835,8 @@ fn collect_reverse_occurrences(
             .as_value()
             .map(|id| id.as_str().to_string())
             .unwrap_or_else(|| occurrence.id.as_str().to_string());
-        insert_reverse_observation(
-            &mut inventory.reverse_observed,
+        insert_actual_observation(
+            inventory,
             reverse_observation(
                 &record_key,
                 format!("item:{nested_id}"),
@@ -1023,6 +2896,7 @@ fn collect_reverse_relationships(
         return;
     };
     let record_key = loaded.record.identity.key.to_string();
+    let typed_owners = inventory.reverse_observed_owners.clone();
     let mut ordinals = BTreeMap::<(String, String), usize>::new();
     for relationship in &embedded.relationships {
         let Some(source) = embedded
@@ -1044,39 +2918,27 @@ fn collect_reverse_relationships(
                 .unwrap_or(&relationship.source_path)
         );
         let normalized_path = normalize_observed_source_path(&full_path);
-        let contextual_source_path = source_item_index_for_id(loaded, source_id.as_str())
-            .map(|index| {
-                format!(
-                    "$.items[{index}]{}",
-                    relationship
-                        .source_path
-                        .strip_prefix('$')
-                        .unwrap_or(&relationship.source_path)
-                )
-            })
-            .unwrap_or_else(|| normalized_path.clone());
+        if typed_owners.contains(&(
+            record_key.clone(),
+            member_identity.clone(),
+            normalized_path.clone(),
+        )) {
+            continue;
+        }
         let ordinal = ordinals
             .entry((member_identity.clone(), normalized_path.clone()))
             .or_default();
         let order = *ordinal;
         *ordinal += 1;
-        if !inventory.reverse_expected_owners.contains(&(
-            record_key.clone(),
-            member_identity.clone(),
-            normalized_path.clone(),
-            "canonical::CreatureEntityRelationship::target".to_string(),
-        )) {
-            continue;
-        }
         let Some(target_id) = relationship_target_source_id(relationship, embedded) else {
             continue;
         };
-        insert_reverse_observation(
-            &mut inventory.reverse_observed,
+        insert_actual_observation(
+            inventory,
             reverse_observation(
                 &record_key,
                 member_identity,
-                contextual_source_path,
+                normalize_diagnostic_path(&full_path),
                 normalized_path,
                 "canonical::CreatureEntityRelationship::target",
                 CanonicalObservationPayload::value(Value::String(target_id)),
@@ -1109,16 +2971,21 @@ fn collect_reverse_content(loaded: &LoadedSourceRecord, inventory: &mut Creature
     let record_key = loaded.record.identity.key.to_string();
     let mut ordinals = BTreeMap::<(String, String), usize>::new();
     for content in &loaded.facts.source_facts.content_sources {
-        let (member_identity, normalized_path) =
+        let (member_identity, contextual_source_path, normalized_path) =
             if let Some(rest) = content.relative_source_path.strip_prefix("$.items[_id=") {
                 let Some((source_id, tail)) = rest.split_once(']') else {
                     continue;
                 };
                 let normalized_path = normalize_observed_source_path(&format!("$.items[]{tail}"));
-                (format!("item:{source_id}"), normalized_path)
+                (
+                    format!("item:{source_id}"),
+                    normalize_diagnostic_path(&format!("$.items[]{tail}")),
+                    normalized_path,
+                )
             } else {
                 (
                     format!("record:{}", loaded.record.identity.key),
+                    normalize_diagnostic_path(&content.relative_source_path),
                     normalize_observed_source_path(&content.relative_source_path),
                 )
             };
@@ -1127,12 +2994,12 @@ fn collect_reverse_content(loaded: &LoadedSourceRecord, inventory: &mut Creature
             .or_default();
         let order = *ordinal;
         *ordinal += 1;
-        insert_reverse_observation(
-            &mut inventory.reverse_observed,
+        insert_actual_observation(
+            inventory,
             reverse_observation(
                 &record_key,
                 member_identity,
-                normalized_path.clone(),
+                contextual_source_path,
                 normalized_path,
                 "canonical::SourceContentFact::document",
                 CanonicalObservationPayload::value(Value::String(format!(
@@ -1186,15 +3053,14 @@ fn collect_reverse_unsupported(
             collect_reverse_note_leaves(&full_path, note, member_identity.clone(), &mut leaves);
         }
     }
+    let typed_owners = inventory.reverse_observed_owners.clone();
     let mut ordinals = BTreeMap::<(String, String), usize>::new();
-    for (member_identity, _contextual_source_path, normalized_path, payload) in leaves {
-        let has_expected_owner = inventory.reverse_expected_owners.contains(&(
+    for (member_identity, contextual_source_path, normalized_path, payload) in leaves {
+        if typed_owners.contains(&(
             record_key.clone(),
             member_identity.clone(),
             normalized_path.clone(),
-            "canonical::CreatureCapability::unsupported_notes".to_string(),
-        ));
-        if !has_expected_owner {
+        )) {
             continue;
         }
         let ordinal = ordinals
@@ -1202,12 +3068,12 @@ fn collect_reverse_unsupported(
             .or_default();
         let order = *ordinal;
         *ordinal += 1;
-        insert_reverse_observation(
-            &mut inventory.reverse_observed,
+        insert_actual_observation(
+            inventory,
             reverse_observation(
                 &record_key,
                 member_identity,
-                normalized_path.clone(),
+                normalize_diagnostic_path(&contextual_source_path),
                 normalized_path,
                 "canonical::CreatureCapability::unsupported_notes",
                 payload,
@@ -1298,6 +3164,12 @@ fn reconcile_reverse_collection_closure(inventory: &mut CreatureSurvivalInventor
             .unwrap_or_default();
         if expected_count == observed_count {
             continue;
+        }
+        if expected_count == 0 {
+            *inventory
+                .output_only_counts
+                .entry(observation.normalized_path.clone())
+                .or_default() += observed_count;
         }
         let mismatches = inventory
             .mismatches
@@ -1508,22 +3380,22 @@ fn observe_canonical_value(
     *observation_ordinal += 1;
     let expected = expected_observation_payload(destination, expected_value);
     if reverse_closed_destination(destination) {
-        inventory.reverse_expected_owners.insert((
-            loaded.record.identity.key.to_string(),
-            member_identity.clone(),
-            normalized_path.to_string(),
-            destination.to_string(),
-        ));
+        let contextual_source_path = if matches!(
+            destination,
+            "canonical::SourceContentFact::document"
+                | "canonical::CreatureCapability::unsupported_notes"
+                | "canonical::CreatureEntityRelationship::target"
+        ) {
+            normalize_diagnostic_path(indexed_path)
+        } else {
+            normalized_path.to_string()
+        };
         insert_reverse_observation(
             &mut inventory.reverse_expected,
             reverse_observation(
                 &loaded.record.identity.key.to_string(),
                 member_identity.clone(),
-                if destination == "canonical::CreatureEntityRelationship::target" {
-                    indexed_path.to_string()
-                } else {
-                    normalized_path.to_string()
-                },
+                contextual_source_path,
                 normalized_path.to_string(),
                 destination,
                 expected.clone(),
@@ -1612,18 +3484,6 @@ fn source_item_id(index: usize, loaded: &LoadedSourceRecord) -> Option<&str> {
         .as_value()?
         .get(index)
         .map(|item| item.source().id.as_str())
-}
-
-fn source_item_index_for_id(loaded: &LoadedSourceRecord, source_id: &str) -> Option<usize> {
-    loaded
-        .facts
-        .npc_source
-        .as_ref()?
-        .source
-        .items
-        .as_value()?
-        .iter()
-        .position(|item| item.source().id == source_id)
 }
 
 fn fact_payload<T>(
@@ -3691,10 +5551,12 @@ fn reconcile_creature_survival(
     inventory: &CreatureSurvivalInventory,
 ) -> Vec<SourcePathAuditClosureFailure> {
     let mut failures = Vec::new();
+    let mut reconciled_paths = BTreeSet::new();
     for path in paths.iter_mut().filter(|path| {
         is_creature_path(&path.document_type, &path.record_type)
             && path.disposition == SourcePathCoverageDisposition::Consumed
     }) {
+        reconciled_paths.insert(path.path.clone());
         let canonical = inventory.canonical.get(&path.path);
         let preserved = canonical.map_or(0, |stats| stats.occurrence_count);
         let extractor_identity = canonical.map(|stats| {
@@ -3722,6 +5584,23 @@ fn reconcile_creature_survival(
                 mismatches,
             });
         }
+    }
+    for (path, mismatches) in &inventory.mismatches {
+        if reconciled_paths.contains(path) || mismatches.is_empty() {
+            continue;
+        }
+        failures.push(SourcePathAuditClosureFailure {
+            document_type: "Actor".to_string(),
+            record_type: "npc".to_string(),
+            path: path.clone(),
+            source_occurrence_count: 0,
+            preserved_occurrence_count: inventory
+                .output_only_counts
+                .get(path)
+                .copied()
+                .unwrap_or_default(),
+            mismatches: mismatches.clone(),
+        });
     }
     failures.sort();
     failures
@@ -4256,8 +6135,16 @@ mod tests {
             "system": {
                 "details": {
                     "level": {"value": 7},
-                    "alliance": "party"
+                    "alliance": "party",
+                    "languages": {"value": ["common"]}
                 },
+                "perception": {"mod": 12, "senses": [{"type": "darkvision", "acuity": "precise"}]},
+                "attributes": {
+                    "immunities": [{"type": "fire"}],
+                    "speed": {"value": 25, "otherSpeeds": [{"type": "fly", "value": 20}]}
+                },
+                "resources": {"focus": {"max": 1, "value": 1}},
+                "skills": {"acrobatics": {"base": 10, "special": [{"base": 12, "label": "jump", "predicate": ["airborne"]}]}},
                 "traits": {
                     "rarity": "rare",
                     "size": {"value": "lg"},
@@ -4314,6 +6201,7 @@ mod tests {
                     "flags": {"pf2e": {"itemGrants": {"child": {"id": "child"}}}},
                     "system": {
                         "description": {"value": "<p>Grantor body.</p>"},
+                        "publication": {"remaster": false},
                         "rules": [{"key": "FutureRule"}]
                     }
                 },
@@ -4323,7 +6211,7 @@ mod tests {
                     "type": "effect",
                     "sort": 20,
                     "flags": {"pf2e": {"grantedBy": {"id": "grantor"}}},
-                    "system": {}
+                    "system": {"publication": {"remaster": false}}
                 }
             ]
         });
@@ -4384,20 +6272,24 @@ mod tests {
             path: path.to_string(),
         };
         let mut paths = vec![path_report(key, stats, 1)];
-        assert_eq!(
-            paths[0].disposition,
-            SourcePathCoverageDisposition::Consumed
-        );
+        if occurrence_count == 0 {
+            assert_eq!(paths[0].disposition, SourcePathCoverageDisposition::Unknown);
+        } else {
+            assert_eq!(
+                paths[0].disposition,
+                SourcePathCoverageDisposition::Consumed
+            );
+        }
         let failures = reconcile_creature_survival(&mut paths, inventory);
-        assert_eq!(
-            failures.len(),
-            1,
+        assert!(
+            !failures.is_empty(),
             "{path} must reach public closure_failures"
         );
-        assert!(
-            !failures[0].mismatches.is_empty(),
-            "{path} mismatch evidence"
-        );
+        let failure = failures
+            .iter()
+            .find(|failure| failure.path == path)
+            .unwrap_or_else(|| panic!("{path} must be present on the public failure surface"));
+        assert!(!failure.mismatches.is_empty(), "{path} mismatch evidence");
         let enforcement = source_path_enforcement(true, failures.len());
         assert!(!enforcement.passed, "{path} strict result must fail");
         assert!(
@@ -4466,6 +6358,59 @@ mod tests {
     }
 
     #[test]
+    fn novel_typed_collection_members_fail_reverse_public_closure() {
+        let (source, _loaded, conversion) = mutation_fixture();
+        let mut surplus_source = source.clone();
+        surplus_source["system"]["details"]["languages"]["value"] =
+            serde_json::json!(["common", "draconic"]);
+        surplus_source["system"]["perception"]["senses"] = serde_json::json!([
+            {"type": "darkvision", "acuity": "precise"},
+            {"type": "tremorsense", "acuity": "imprecise", "range": 30}
+        ]);
+        surplus_source["system"]["attributes"]["immunities"] =
+            serde_json::json!([{"type": "fire"}, {"type": "cold"}]);
+        surplus_source["system"]["attributes"]["speed"]["otherSpeeds"] = serde_json::json!([
+            {"type": "fly", "value": 20},
+            {"type": "swim", "value": 15, "label": "novel trailing speed"}
+        ]);
+        surplus_source["system"]["skills"]["arcana"] = serde_json::json!({
+            "base": 11,
+            "special": [{"base": 13, "label": "novel arcana", "predicate": ["novel:predicate"]}]
+        });
+        surplus_source["system"]["resources"]["hero"] = serde_json::json!({"max": 3, "value": 2});
+
+        let manifest_pack = crate::source::ManifestPack {
+            name: "mutation-pack".to_string(),
+            label: "Mutation Pack".to_string(),
+            document_type: "Actor".to_string(),
+            path: "packs/mutation-pack".to_string(),
+        };
+        let pack_name = PackName::new(manifest_pack.name.clone()).expect("pack name");
+        let surplus_loaded = normalize_record(
+            &manifest_pack,
+            &pack_name,
+            Path::new("packs/mutation-pack/novel-typed-output.json"),
+            Path::new("."),
+            surplus_source,
+            None,
+        )
+        .expect("novel typed output normalizes");
+        let mismatch = observe_mutation_fixture(&source, &surplus_loaded, &conversion);
+        for path in [
+            "$.system.details.languages.value[]",
+            "$.system.perception.senses[].type",
+            "$.system.attributes.immunities[].type",
+            "$.system.attributes.speed.otherSpeeds[].type",
+            "$.system.skills.*.base",
+            "$.system.skills.*.special[].predicate[]",
+            "$.system.resources.*.max",
+        ] {
+            assert!(mismatch.mismatches.contains_key(path), "missing {path}");
+            assert_public_strict_failure(&mismatch, path, 1);
+        }
+    }
+
+    #[test]
     fn real_canonical_surplus_occurrence_relationship_content_and_member_fail_public_closure() {
         let (source, loaded, conversion) = collection_mutation_fixture();
         let clean = observe_mutation_fixture(&source, &loaded, &conversion);
@@ -4479,7 +6424,18 @@ mod tests {
         let FactValue::Value(embedded) = &mut extra_occurrence.embedded else {
             panic!("embedded")
         };
-        embedded.occurrences.push(embedded.occurrences[0].clone());
+        let mut novel_occurrence = embedded.occurrences[0].clone();
+        novel_occurrence.id = atlas_record::CreatureOccurrenceId::new(
+            "occurrence:novel-output-only-identity".to_string(),
+        )
+        .expect("novel occurrence id");
+        novel_occurrence.source_identity.nested_source_id = FactValue::Value(
+            atlas_record::CreatureSourceId::new("novel-output-only-item".to_string())
+                .expect("novel source id"),
+        );
+        novel_occurrence.authored_order = 999;
+        novel_occurrence.source_sort = FactValue::Value(999_999);
+        embedded.occurrences.push(novel_occurrence);
         let mismatch = observe_mutation_fixture(&source, &loaded, &extra_occurrence);
         assert_public_strict_failure(&mismatch, "$.items[]._id", 2);
 
@@ -4487,20 +6443,25 @@ mod tests {
         let FactValue::Value(embedded) = &mut extra_relationship.embedded else {
             panic!("embedded")
         };
-        embedded
-            .relationships
-            .push(embedded.relationships[0].clone());
+        let mut novel_relationship = embedded.relationships[0].clone();
+        novel_relationship.source_path =
+            "$.flags.pf2e.itemGrants.novelClosureTarget.id".to_string();
+        embedded.relationships.push(novel_relationship);
         let mismatch = observe_mutation_fixture(&source, &loaded, &extra_relationship);
         assert_public_strict_failure(&mismatch, "$.items[].flags.pf2e.itemGrants.*.id", 1);
 
         let mut extra_content = loaded.clone();
+        let mut novel_content = extra_content.facts.source_facts.content_sources[0].clone();
+        novel_content.content_key = "novel-output-only-content".to_string();
+        novel_content.relative_source_path =
+            "$.items[_id=grantor].system.novelClosureContent.value".to_string();
         extra_content
             .facts
             .source_facts
             .content_sources
-            .push(extra_content.facts.source_facts.content_sources[0].clone());
+            .push(novel_content);
         let mismatch = observe_mutation_fixture(&source, &extra_content, &conversion);
-        assert_public_strict_failure(&mismatch, "$.items[].system.description.value", 1);
+        assert_public_strict_failure(&mismatch, "$.items[].system.novelClosureContent.value", 0);
 
         let mut extra_member = conversion.clone();
         let FactValue::Value(embedded) = &mut extra_member.embedded else {
@@ -4510,9 +6471,16 @@ mod tests {
             CreatureCapability::Action(value) => &mut value.unsupported_notes,
             capability => panic!("expected action, got {capability:?}"),
         };
-        notes.push(notes[0].clone());
+        let mut novel_note = notes[0].clone();
+        novel_note.source_path = "$.system.rules[99].novelClosureMember".to_string();
+        novel_note.value = UnsupportedSourceValue {
+            shape: UnsupportedSourceShape::String,
+            value: "\"novel-output-only-value\"".to_string(),
+            reason: atlas_record::UnsupportedSourceReason::OpenVocabulary,
+        };
+        notes.push(novel_note);
         let mismatch = observe_mutation_fixture(&source, &loaded, &extra_member);
-        assert_public_strict_failure(&mismatch, "$.items[].system.rules[].key", 1);
+        assert_public_strict_failure(&mismatch, "$.items[].system.rules[].novelClosureMember", 0);
     }
 
     #[test]
