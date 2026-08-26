@@ -2,12 +2,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atlas_domain::RecordKey;
+use atlas_domain::PackName;
+use atlas_record::{
+    CreatureCapability, FactValue, RecordBody, UnsupportedSourceShape, UnsupportedSourceValue,
+};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::error::IngestError;
+use crate::records::LoadedSourceRecord;
 use crate::source::dto::{
     PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, SourceDiagnostic,
     SourceDiagnosticKind, SourceIdentity, parse_item_source, parse_npc_source,
@@ -16,9 +20,11 @@ use crate::source::dto::{
 use crate::source::loader::{
     default_manifest_path, json_files, parse_manifest, relative_source_path, resolve_pack_path,
 };
+use crate::source::normalize::normalize_record;
+#[cfg(test)]
+use crate::source::npc_entities::RETAINED_CAPABILITY_PATHS;
 use crate::source::npc_entities::{
-    RETAINED_CAPABILITY_PATHS, collect_npc_embedded_candidates, convert_npc_embedded_entities,
-    retained_capability_survival,
+    capability_note_survival, collect_npc_embedded_candidates, convert_npc_embedded_entities,
 };
 
 mod coverage;
@@ -283,8 +289,14 @@ struct MutableDiagnostic {
 
 #[derive(Debug, Default)]
 struct CreatureSurvivalInventory {
-    hydrated: BTreeMap<PathKey, MutablePathStats>,
-    canonical: BTreeMap<String, usize>,
+    canonical: BTreeMap<String, CanonicalPathStats>,
+    declarations: BTreeMap<String, Option<&'static str>>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CanonicalPathStats {
+    occurrence_count: usize,
+    destinations: BTreeSet<String>,
 }
 
 pub fn audit_source_paths(
@@ -323,6 +335,9 @@ pub fn audit_source_paths(
         {
             continue;
         }
+        let pack_name = PackName::new(manifest_pack.name.clone()).map_err(|error| {
+            IngestError::ManifestParseFailed(format!("invalid pack name: {error}"))
+        })?;
         let resolved_path = resolve_pack_path(&source_root, &manifest_pack);
         if !resolved_path.is_dir() {
             continue;
@@ -355,7 +370,20 @@ pub fn audit_source_paths(
             };
             record_count += 1;
             collect_value_paths("$", &value, &context, &mut stats);
-            collect_creature_survival(&value, &context, &mut creature_survival);
+            let loaded = (context.document_type == "Actor" && context.record_type == "npc")
+                .then(|| {
+                    normalize_record(
+                        &manifest_pack,
+                        &pack_name,
+                        &source_file,
+                        &source_root,
+                        value.clone(),
+                        None,
+                    )
+                    .ok()
+                })
+                .flatten();
+            collect_creature_survival(&value, &context, loaded.as_ref(), &mut creature_survival);
             validate_typed_source(&value, &context, &mut typed_diagnostics);
         }
     }
@@ -732,61 +760,777 @@ fn validation_contract(disposition: SourcePathCoverageDisposition) -> &'static s
 fn collect_creature_survival(
     value: &Value,
     context: &RecordContext,
+    loaded: Option<&LoadedSourceRecord>,
     inventory: &mut CreatureSurvivalInventory,
 ) {
     if !is_creature_path(&context.document_type, &context.record_type) {
         return;
     }
-    let identity = SourceIdentity::new(&context.record_key, &context.source_path);
-    let Ok(source) = parse_npc_source(pinned_source_version_metadata(), identity, value.clone())
-    else {
+    let Some(loaded) = loaded else {
         return;
     };
-    collect_value_paths("$", value, context, &mut inventory.hydrated);
-
-    let Ok(owner) = RecordKey::parse(&context.record_key) else {
+    let Some(source) = loaded.facts.npc_source.as_ref() else {
         return;
     };
-    let candidates = collect_npc_embedded_candidates(&source);
-    let conversion = convert_npc_embedded_entities(owner, &candidates, |_| None);
-    for (path, count) in retained_capability_survival(&conversion) {
-        *inventory.canonical.entry(path.to_string()).or_insert(0) += count;
+    let candidates = collect_npc_embedded_candidates(source);
+    let conversion =
+        convert_npc_embedded_entities(loaded.record.identity.key.clone(), &candidates, |_| None);
+    let mut canonical_notes = BTreeMap::new();
+    for (source_path, unsupported) in capability_note_survival(&conversion) {
+        collect_unsupported_note_paths(source_path, unsupported, &mut canonical_notes);
     }
+    let mut remaining_note_counts = canonical_notes
+        .iter()
+        .map(|(path, stats)| (path.clone(), stats.occurrence_count))
+        .collect::<BTreeMap<_, _>>();
+    for (path, notes) in canonical_notes {
+        let observed = inventory.canonical.entry(path).or_default();
+        observed.occurrence_count += notes.occurrence_count;
+        observed.destinations.extend(notes.destinations);
+    }
+    collect_expected_canonical_paths(
+        "$",
+        "$",
+        value,
+        loaded,
+        &conversion,
+        &mut remaining_note_counts,
+        inventory,
+    );
+}
+
+fn collect_unsupported_note_paths(
+    source_path: &str,
+    unsupported: &UnsupportedSourceValue,
+    observed: &mut BTreeMap<String, CanonicalPathStats>,
+) {
+    let value = match unsupported.shape {
+        UnsupportedSourceShape::String
+        | UnsupportedSourceShape::Number
+        | UnsupportedSourceShape::Boolean
+        | UnsupportedSourceShape::Array
+        | UnsupportedSourceShape::Object
+        | UnsupportedSourceShape::Null => serde_json::from_str(&unsupported.value)
+            .unwrap_or_else(|_| Value::String(unsupported.value.clone())),
+        UnsupportedSourceShape::Missing => return,
+    };
+    collect_observed_value_paths(
+        source_path,
+        &value,
+        "canonical::CreatureCapability::unsupported_notes",
+        observed,
+    );
+}
+
+fn collect_observed_value_paths(
+    source_path: &str,
+    value: &Value,
+    destination: &'static str,
+    observed: &mut BTreeMap<String, CanonicalPathStats>,
+) {
+    if is_meaningful_value(value) {
+        record_canonical_observation(
+            observed,
+            normalize_observed_source_path(source_path),
+            destination,
+        );
+    }
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map {
+                collect_observed_value_paths(
+                    &format!("{source_path}.{key}"),
+                    child,
+                    destination,
+                    observed,
+                );
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                collect_observed_value_paths(
+                    &format!("{source_path}[]"),
+                    child,
+                    destination,
+                    observed,
+                );
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn record_canonical_observation(
+    observed: &mut BTreeMap<String, CanonicalPathStats>,
+    path: String,
+    destination: &'static str,
+) {
+    let stats = observed.entry(path).or_default();
+    stats.occurrence_count += 1;
+    stats.destinations.insert(destination.to_string());
+}
+
+fn collect_expected_canonical_paths(
+    indexed_path: &str,
+    normalized_path: &str,
+    value: &Value,
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    remaining_note_counts: &mut BTreeMap<String, usize>,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let preserved_by_note = is_meaningful_value(value)
+        && remaining_note_counts
+            .get_mut(normalized_path)
+            .is_some_and(|remaining| {
+                if *remaining == 0 {
+                    false
+                } else {
+                    *remaining -= 1;
+                    true
+                }
+            });
+    if is_meaningful_value(value)
+        && !preserved_by_note
+        && let Some(destination) =
+            canonical_destination(indexed_path, normalized_path, loaded, conversion, inventory)
+    {
+        record_canonical_observation(
+            &mut inventory.canonical,
+            normalized_path.to_string(),
+            destination,
+        );
+    }
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map {
+                let segment = object_segment(normalized_path, key, map.len());
+                collect_expected_canonical_paths(
+                    &format!("{indexed_path}.{key}"),
+                    &format!("{normalized_path}.{segment}"),
+                    child,
+                    loaded,
+                    conversion,
+                    remaining_note_counts,
+                    inventory,
+                );
+            }
+        }
+        Value::Array(values) => {
+            for (index, child) in values.iter().enumerate() {
+                collect_expected_canonical_paths(
+                    &format!("{indexed_path}[{index}]"),
+                    &format!("{normalized_path}[]"),
+                    child,
+                    loaded,
+                    conversion,
+                    remaining_note_counts,
+                    inventory,
+                );
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn canonical_destination(
+    indexed_path: &str,
+    normalized_path: &str,
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    inventory: &mut CreatureSurvivalInventory,
+) -> Option<&'static str> {
+    let owner = *inventory
+        .declarations
+        .entry(normalized_path.to_string())
+        .or_insert_with(|| {
+            declaration_for("Actor", "npc", normalized_path).and_then(|declaration| {
+                (declaration.disposition == SourcePathCoverageDisposition::Consumed)
+                    .then_some(declaration.owner)
+            })
+        });
+    match owner? {
+        "source::npc_entities::typed_capability_or_unsupported" => {
+            capability_destination(indexed_path, loaded, conversion)
+        }
+        "source::npc_entities::identity_relationships" => {
+            relationship_destination(indexed_path, conversion)
+        }
+        "source::npc_entities::authored_order" => {
+            occurrence_destination(indexed_path, loaded, conversion, |occurrence| {
+                !matches!(occurrence.source_sort, FactValue::Missing | FactValue::Null)
+            })
+            .then_some("canonical::CreatureEntityOccurrence::source_sort")
+        }
+        "source::npc_core" => core_destination(normalized_path, loaded),
+        "source::dto + source::npc_core + atlas-record::creature_projection" => {
+            core_destination(normalized_path, loaded)
+        }
+        "records::metrics::NPC_REMAINDER_DYNAMIC_SPECS" => {
+            ability_metric_destination(normalized_path, loaded)
+        }
+        "source::normalize + records::metrics" => loaded
+            .record
+            .classification
+            .level
+            .is_some()
+            .then_some("canonical::AtlasRecord::classification.level + mechanics.metrics"),
+        "source::normalize::system" => (!loaded.record.classification.traits.is_empty())
+            .then_some("canonical::AtlasRecord::classification.traits"),
+        "source::normalize::publication" => publication_destination(normalized_path, loaded),
+        "source::normalize::content_sources" => content_destination(indexed_path, loaded),
+        "source::normalize::embedded_items" | "source::dto + source::normalize::embedded_items" => {
+            embedded_item_destination(indexed_path, normalized_path, loaded)
+        }
+        "source::dto + source::normalize" => match normalized_path {
+            "$._id" => Some("canonical::AtlasRecord::identity.key.id"),
+            "$.name" => Some("canonical::AtlasRecord::identity.name"),
+            "$.folder" if loaded.record.foundry.folder_id.is_some() => {
+                Some("canonical::AtlasRecord::foundry.folder_id")
+            }
+            _ => None,
+        },
+        "source::dto + source::normalize::kind" => (loaded.record.foundry.record_type.as_str()
+            == "npc")
+            .then_some("canonical::AtlasRecord::foundry.record_type"),
+        "source::normalize" => loaded
+            .record
+            .classification
+            .rarity
+            .is_some()
+            .then_some("canonical::AtlasRecord::classification.rarity"),
+        _ => None,
+    }
+}
+
+fn canonical_creature(loaded: &LoadedSourceRecord) -> Option<&atlas_record::CreatureRecord> {
+    match loaded.facts.canonical_body.as_ref()? {
+        RecordBody::Creature(creature) => Some(creature),
+    }
+}
+
+fn fact_is_value<T>(fact: &FactValue<T>) -> bool {
+    matches!(fact, FactValue::Value(_))
+}
+
+fn core_destination(normalized_path: &str, loaded: &LoadedSourceRecord) -> Option<&'static str> {
+    let creature = canonical_creature(loaded)?;
+    if normalized_path.starts_with("$.system.abilities.") {
+        return fact_is_value(&creature.legacy_abilities.value)
+            .then_some("canonical::CreatureRecord::legacy_abilities");
+    }
+    if normalized_path.starts_with("$.system.attributes.ac.") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.armor_class).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::armor_class");
+    }
+    if normalized_path.starts_with("$.system.attributes.hp.") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.hit_points).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::hit_points");
+    }
+    if normalized_path.starts_with("$.system.attributes.immunities") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.immunities).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::immunities");
+    }
+    if normalized_path.starts_with("$.system.attributes.resistances") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.resistances).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::resistances");
+    }
+    if normalized_path.starts_with("$.system.attributes.weaknesses") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.weaknesses).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::weaknesses");
+    }
+    if normalized_path.starts_with("$.system.attributes.shield.") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.shield).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::shield");
+    }
+    if normalized_path.starts_with("$.system.attributes.speed.") {
+        return fact_is_value(&creature.movement.value)
+            .then_some("canonical::CreatureRecord::movement");
+    }
+    if normalized_path == "$.system.attributes.adjustment" {
+        return fact_is_value(&creature.adjustment.value)
+            .then_some("canonical::CreatureRecord::adjustment");
+    }
+    if normalized_path == "$.system.attributes.allSaves.value" {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.all_saves_note).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::all_saves_note");
+    }
+    if normalized_path == "$.system.attributes.hardness.value" {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.hardness).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::hardness");
+    }
+    if normalized_path.starts_with("$.system.details.languages.") {
+        return fact_is_value(&creature.languages.value)
+            .then_some("canonical::CreatureRecord::languages");
+    }
+    if normalized_path == "$.system.details.alliance" {
+        return fact_is_value(&creature.source_alliance.value)
+            .then_some("canonical::CreatureRecord::source_alliance");
+    }
+    if normalized_path.starts_with("$.system.details.publication.") {
+        return fact_is_value(&creature.publication.value)
+            .then_some("canonical::CreatureRecord::publication");
+    }
+    if normalized_path.starts_with("$.system.initiative.") {
+        return fact_is_value(&creature.initiative.value)
+            .then_some("canonical::CreatureRecord::initiative");
+    }
+    if normalized_path.starts_with("$.system.perception.") {
+        return fact_is_value(&creature.perception.value)
+            .then_some("canonical::CreatureRecord::perception");
+    }
+    if normalized_path.starts_with("$.system.resources.") {
+        return fact_is_value(&creature.resources.value)
+            .then_some("canonical::CreatureRecord::resources");
+    }
+    if normalized_path.starts_with("$.system.saves.") {
+        return creature
+            .defenses
+            .value
+            .as_value()
+            .and_then(|defenses| fact_is_value(&defenses.saves).then_some(()))
+            .map(|()| "canonical::CreatureDefenses::saves");
+    }
+    if normalized_path.starts_with("$.system.skills.") {
+        return fact_is_value(&creature.skills.value)
+            .then_some("canonical::CreatureRecord::skills");
+    }
+    if normalized_path == "$.system.traits.size.value" {
+        return fact_is_value(&creature.size.value).then_some("canonical::CreatureRecord::size");
+    }
+    None
+}
+
+fn ability_metric_destination(
+    normalized_path: &str,
+    loaded: &LoadedSourceRecord,
+) -> Option<&'static str> {
+    let ability = normalized_path
+        .strip_prefix("$.system.abilities.")?
+        .split('.')
+        .next()?;
+    loaded
+        .record
+        .mechanics
+        .metrics
+        .iter()
+        .any(|metric| metric.key == format!("ability.{ability}.mod"))
+        .then_some("canonical::AtlasRecord::mechanics.metrics[ability.*.mod]")
+}
+
+fn publication_destination(
+    normalized_path: &str,
+    loaded: &LoadedSourceRecord,
+) -> Option<&'static str> {
+    let creature = canonical_creature(loaded)?;
+    let publication = creature.publication.value.as_value()?;
+    match normalized_path {
+        "$.system.details.publication.title" if fact_is_value(&publication.title) => {
+            Some("canonical::CreaturePublication::title")
+        }
+        "$.system.details.publication.remaster" if fact_is_value(&publication.remaster) => {
+            Some("canonical::CreaturePublication::remaster")
+        }
+        "$.system.details.publication.license" if fact_is_value(&publication.license) => {
+            Some("canonical::CreaturePublication::license")
+        }
+        "$.system.details.publication.authors" if loaded.record.publication.title.is_some() => {
+            Some("canonical::AtlasRecord::publication")
+        }
+        _ => None,
+    }
+}
+
+fn source_item_index(indexed_path: &str) -> Option<usize> {
+    indexed_path
+        .strip_prefix("$.items[")?
+        .split_once(']')?
+        .0
+        .parse()
+        .ok()
+}
+
+fn embedded_item_destination(
+    indexed_path: &str,
+    normalized_path: &str,
+    loaded: &LoadedSourceRecord,
+) -> Option<&'static str> {
+    let index = source_item_index(indexed_path)?;
+    let fact = loaded.facts.source_facts.embedded_items.get(index)?;
+    match normalized_path {
+        "$.items[]._id" if !fact.item_id.is_empty() => Some("canonical::EmbeddedItemFact::item_id"),
+        "$.items[].name" if !fact.name.is_empty() => Some("canonical::EmbeddedItemFact::name"),
+        "$.items[].type" if !fact.foundry_item_type.is_empty() => {
+            Some("canonical::EmbeddedItemFact::foundry_item_type")
+        }
+        "$.items[]._stats.compendiumSource" if fact.compendium_source.is_some() => {
+            Some("canonical::EmbeddedItemFact::compendium_source")
+        }
+        "$.items[].system.category" if fact.system_category.is_some() => {
+            Some("canonical::EmbeddedItemFact::system_category")
+        }
+        "$.items[].system.publication.remaster" => {
+            Some("canonical::EmbeddedItemFact::publication_remaster")
+        }
+        "$.items[].system.slug" if fact.slug.is_some() => Some("canonical::EmbeddedItemFact::slug"),
+        "$.items[].system.traits.value[]" if !fact.traits.is_empty() => {
+            Some("canonical::EmbeddedItemFact::traits")
+        }
+        _ => None,
+    }
+}
+
+fn content_destination(indexed_path: &str, loaded: &LoadedSourceRecord) -> Option<&'static str> {
+    let nested_id = source_item_index(indexed_path).and_then(|index| {
+        loaded
+            .facts
+            .source_facts
+            .embedded_items
+            .get(index)
+            .map(|fact| fact.item_id.as_str())
+    });
+    loaded
+        .facts
+        .source_facts
+        .content_sources
+        .iter()
+        .any(|fact| nested_id.is_none_or(|id| fact.nested_source_id.as_deref() == Some(id)))
+        .then_some("canonical::SourceContentFact::document")
+}
+
+fn source_occurrence<'a>(
+    indexed_path: &str,
+    loaded: &LoadedSourceRecord,
+    conversion: &'a crate::source::npc_entities::NpcEmbeddedConversion,
+) -> Option<&'a atlas_record::CreatureEntityOccurrence> {
+    let index = source_item_index(indexed_path)?;
+    let candidate = loaded
+        .facts
+        .npc_embedded_candidates
+        .as_ref()?
+        .items
+        .as_value()?
+        .get(index)?;
+    let embedded = conversion.embedded.as_value()?;
+    embedded.occurrences.iter().find(|occurrence| {
+        occurrence
+            .source_identity
+            .nested_source_id
+            .as_value()
+            .is_some_and(|id| id.as_str() == candidate.nested_source_id)
+    })
+}
+
+fn occurrence_destination(
+    indexed_path: &str,
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    predicate: impl FnOnce(&atlas_record::CreatureEntityOccurrence) -> bool,
+) -> bool {
+    source_occurrence(indexed_path, loaded, conversion).is_some_and(predicate)
+}
+
+fn relationship_destination(
+    indexed_path: &str,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+) -> Option<&'static str> {
+    let embedded = conversion.embedded.as_value()?;
+    let item_relative = indexed_path
+        .split_once(']')
+        .map(|(_, relative)| format!("${relative}"));
+    if item_relative.as_deref() == Some("$.flags.core.sourceId")
+        && embedded.occurrences.iter().any(|occurrence| {
+            occurrence
+                .source_identity
+                .source_locators
+                .iter()
+                .any(|locator| locator.source_path == "$.flags.core.sourceId")
+        })
+    {
+        return Some("canonical::CreatureEntitySourceIdentity::source_locators");
+    }
+    embedded
+        .relationships
+        .iter()
+        .any(|relationship| {
+            item_relative
+                .as_deref()
+                .is_some_and(|relative| relationship.source_path == relative)
+        })
+        .then_some("canonical::CreatureEntityRelationship::target")
+}
+
+fn capability_destination(
+    indexed_path: &str,
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+) -> Option<&'static str> {
+    if indexed_path == "$.system.spellcasting.rituals.dc" {
+        let embedded = conversion.embedded.as_value()?;
+        return embedded
+            .actor_spellcasting
+            .as_value()
+            .and_then(|context| fact_is_value(&context.rituals_dc).then_some(()))
+            .map(|()| "canonical::CreatureActorSpellcastingContext::rituals_dc");
+    }
+    let occurrence = source_occurrence(indexed_path, loaded, conversion)?;
+    let relative = indexed_path.split_once(".system.")?.1;
+    let normalized_expected = normalize_observed_source_path(indexed_path);
+    if capability_notes(&occurrence.capability)
+        .iter()
+        .any(|note| normalize_observed_source_path(&note.source_path) == normalized_expected)
+    {
+        return Some("canonical::CreatureCapability::unsupported_notes");
+    }
+    if relative.starts_with("spell.") {
+        return Some("canonical::CreatureEntityOccurrence::capability");
+    }
+    match &occurrence.capability {
+        CreatureCapability::Action(action) => {
+            if relative.starts_with("actionType.") || relative.starts_with("actions.") {
+                return Some("canonical::CreatureActionCapability::action_cost");
+            }
+            if relative.starts_with("frequency.") && fact_is_value(&action.frequency) {
+                return Some("canonical::CreatureActionCapability::frequency");
+            }
+            if relative == "selfEffect.uuid" && fact_is_value(&action.self_effect) {
+                return Some("canonical::CreatureActionCapability::self_effect");
+            }
+            if relative == "selfEffect.name" && fact_is_value(&action.self_effect_label) {
+                return Some("canonical::CreatureActionCapability::self_effect_label");
+            }
+            if relative == "requirements" && fact_is_value(&action.requirements) {
+                return Some("canonical::CreatureActionCapability::requirements");
+            }
+            if relative == "cost.value" && fact_is_value(&action.cost) {
+                return Some("canonical::CreatureActionCapability::cost");
+            }
+            if relative.starts_with("bonus.") && action.rolls.iter().any(|roll| roll.id == "check")
+            {
+                return Some("canonical::CreatureActionCapability::rolls[check]");
+            }
+            if relative.starts_with("dc.") && action.rolls.iter().any(|roll| roll.id == "dc") {
+                return Some("canonical::CreatureActionCapability::rolls[dc]");
+            }
+            if (relative.starts_with("damageRolls.") || relative.starts_with("damage."))
+                && fact_is_value(&action.damage)
+            {
+                return Some("canonical::CreatureActionCapability::damage");
+            }
+            if relative == "category" && fact_is_value(&action.category) {
+                return Some("canonical::CreatureActionCapability::category");
+            }
+            if relative == "traits.value[]" && fact_is_value(&action.traits) {
+                return Some("canonical::CreatureActionCapability::traits");
+            }
+        }
+        CreatureCapability::Strike(strike) => {
+            if relative.starts_with("bonus.") && !strike.rolls.is_empty() {
+                return Some("canonical::CreatureStrikeCapability::rolls[attack]");
+            }
+            if relative.starts_with("attackEffects.") && fact_is_value(&strike.attack_effects) {
+                return Some("canonical::CreatureStrikeCapability::attack_effects");
+            }
+            if relative.starts_with("damageRolls.") && fact_is_value(&strike.damage) {
+                return Some("canonical::CreatureStrikeCapability::damage");
+            }
+            if relative == "traits.value[]" && fact_is_value(&strike.traits) {
+                return Some("canonical::CreatureStrikeCapability::traits");
+            }
+        }
+        CreatureCapability::SpellcastingEntry(entry) => {
+            if relative.starts_with("prepared.") && fact_is_value(&entry.preparation) {
+                return Some("canonical::CreatureSpellcastingEntryCapability::preparation");
+            }
+            if relative.starts_with("tradition.") && fact_is_value(&entry.tradition) {
+                return Some("canonical::CreatureSpellcastingEntryCapability::tradition");
+            }
+            if relative == "spelldc.value" && fact_is_value(&entry.attack) {
+                return Some("canonical::CreatureSpellcastingEntryCapability::attack");
+            }
+            if relative == "spelldc.dc" && fact_is_value(&entry.dc) {
+                return Some("canonical::CreatureSpellcastingEntryCapability::dc");
+            }
+            if (relative.starts_with("slots.") || relative.starts_with("spell."))
+                && fact_is_value(&entry.slots)
+            {
+                return Some("canonical::CreatureSpellcastingEntryCapability::slots");
+            }
+            if relative.starts_with("autoHeightenLevel.") && fact_is_value(&occurrence.context.rank)
+            {
+                return Some("canonical::CreatureEntityOccurrence::context.rank");
+            }
+        }
+        CreatureCapability::Spell(spell) => {
+            if relative == "level.value" && fact_is_value(&spell.base_rank) {
+                return Some("canonical::CreatureSpellCapability::base_rank");
+            }
+            if relative == "location.value" && fact_is_value(&occurrence.context.location) {
+                return Some("canonical::CreatureEntityOccurrence::context.location");
+            }
+            if relative == "location.heightenedLevel" && fact_is_value(&occurrence.context.rank) {
+                return Some("canonical::CreatureEntityOccurrence::context.rank");
+            }
+            if relative == "location.signature" && fact_is_value(&spell.signature) {
+                return Some("canonical::CreatureSpellCapability::signature");
+            }
+            if relative == "location.uses.max" || relative == "location.uses.value" {
+                return fact_is_value(&occurrence.context.uses)
+                    .then_some("canonical::CreatureEntityOccurrence::context.uses");
+            }
+            if relative.starts_with("traits.traditions[") && fact_is_value(&spell.traditions) {
+                return Some("canonical::CreatureSpellCapability::traditions");
+            }
+            if relative == "requirements" && fact_is_value(&spell.requirements) {
+                return Some("canonical::CreatureSpellCapability::requirements");
+            }
+            if relative == "cost.value" && fact_is_value(&spell.cost) {
+                return Some("canonical::CreatureSpellCapability::cost");
+            }
+            if (relative == "counteraction" || relative == "spell.system.counteraction")
+                && fact_is_value(&spell.counteraction)
+            {
+                return Some("canonical::CreatureSpellCapability::counteraction");
+            }
+            if relative.starts_with("ritual.") && fact_is_value(&spell.ritual) {
+                return Some("canonical::CreatureSpellCapability::ritual");
+            }
+            if relative == "target.value" && fact_is_value(&spell.target) {
+                return Some("canonical::CreatureSpellCapability::target");
+            }
+            if relative.starts_with("area.") && fact_is_value(&spell.area) {
+                return Some("canonical::CreatureSpellCapability::area");
+            }
+            if relative == "range.value" && fact_is_value(&spell.range) {
+                return Some("canonical::CreatureSpellCapability::range");
+            }
+            if relative == "time.value" && fact_is_value(&spell.time) {
+                return Some("canonical::CreatureSpellCapability::time");
+            }
+            if relative.starts_with("duration.") && fact_is_value(&spell.duration) {
+                return Some("canonical::CreatureSpellCapability::duration");
+            }
+            if relative.starts_with("defense.save.") && fact_is_value(&spell.defense) {
+                return Some("canonical::CreatureSpellCapability::defense");
+            }
+            if relative.starts_with("damage.") && fact_is_value(&spell.damage) {
+                return Some("canonical::CreatureSpellCapability::damage");
+            }
+        }
+        CreatureCapability::Equipment(equipment) => {
+            if relative == "level.value" && fact_is_value(&equipment.level) {
+                return Some("canonical::CreatureEquipmentCapability::level");
+            }
+            if relative == "usage.value" && fact_is_value(&equipment.usage) {
+                return Some("canonical::CreatureEquipmentCapability::usage");
+            }
+            if relative == "quantity" && fact_is_value(&equipment.quantity) {
+                return Some("canonical::CreatureEquipmentCapability::quantity");
+            }
+            if relative.starts_with("uses.") && fact_is_value(&equipment.uses) {
+                return Some("canonical::CreatureEquipmentCapability::uses");
+            }
+            if relative == "traits.value[]" && fact_is_value(&equipment.traits) {
+                return Some("canonical::CreatureEquipmentCapability::traits");
+            }
+        }
+        CreatureCapability::Lore(lore) => {
+            if relative == "mod.value" && fact_is_value(&lore.modifier) {
+                return Some("canonical::CreatureLoreCapability::modifier");
+            }
+        }
+        CreatureCapability::Unsupported(unsupported) => {
+            if relative == "traits.value[]" && fact_is_value(&unsupported.traits) {
+                return Some("canonical::CreatureUnsupportedCapability::traits");
+            }
+            if relative == "slug" && fact_is_value(&unsupported.source_slug) {
+                return Some("canonical::CreatureUnsupportedCapability::source_slug");
+            }
+        }
+    }
+    None
+}
+
+fn capability_notes(capability: &CreatureCapability) -> &[atlas_record::UnsupportedMechanicNote] {
+    match capability {
+        CreatureCapability::Strike(value) => &value.unsupported_notes,
+        CreatureCapability::Action(value) => &value.unsupported_notes,
+        CreatureCapability::SpellcastingEntry(value) => &value.unsupported_notes,
+        CreatureCapability::Spell(value) => &value.unsupported_notes,
+        CreatureCapability::Equipment(value) => &value.unsupported_notes,
+        CreatureCapability::Lore(value) => &value.unsupported_notes,
+        CreatureCapability::Unsupported(value) => &value.unsupported_notes,
+    }
+}
+
+fn normalize_observed_source_path(path: &str) -> String {
+    let indexed = normalize_diagnostic_path(path);
+    let mut normalized = "$".to_string();
+    for segment in indexed.split('.').skip(1) {
+        let normalized_segment = if segment.ends_with("[]") {
+            segment.to_string()
+        } else {
+            object_segment(&normalized, segment, 0)
+        };
+        normalized.push('.');
+        normalized.push_str(&normalized_segment);
+    }
+    normalized
 }
 
 fn reconcile_creature_survival(
     paths: &mut [SourcePathAuditPathReport],
     inventory: &CreatureSurvivalInventory,
 ) -> Vec<SourcePathAuditClosureFailure> {
-    let canonical_paths = RETAINED_CAPABILITY_PATHS
-        .into_iter()
-        .collect::<BTreeSet<_>>();
     let mut failures = Vec::new();
     for path in paths.iter_mut().filter(|path| {
         is_creature_path(&path.document_type, &path.record_type)
             && path.disposition == SourcePathCoverageDisposition::Consumed
     }) {
-        let (preserved, extractor_identity) = if canonical_paths.contains(path.path.as_str()) {
-            (
-                inventory.canonical.get(&path.path).copied().unwrap_or(0),
-                "canonical::CreatureEmbeddedEntities::occurrence.unsupported_notes",
-            )
-        } else {
-            let key = PathKey {
-                document_type: path.document_type.clone(),
-                record_type: path.record_type.clone(),
-                path: path.path.clone(),
-            };
-            (
-                inventory
-                    .hydrated
-                    .get(&key)
-                    .map_or(0, |stats| stats.occurrence_count),
-                "hydrated::VersionedNpcSource",
-            )
-        };
+        let canonical = inventory.canonical.get(&path.path);
+        let preserved = canonical.map_or(0, |stats| stats.occurrence_count);
+        let extractor_identity = canonical.map(|stats| {
+            stats
+                .destinations
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" + ")
+        });
         path.preserved_occurrence_count = Some(preserved);
-        path.extractor_identity = Some(extractor_identity.to_string());
+        path.extractor_identity = extractor_identity;
         if preserved != path.occurrence_count {
             failures.push(SourcePathAuditClosureFailure {
                 document_type: path.document_type.clone(),
@@ -1274,7 +2018,17 @@ mod tests {
         let inventory = CreatureSurvivalInventory {
             canonical: RETAINED_CAPABILITY_PATHS
                 .into_iter()
-                .map(|path| (path.to_string(), 1))
+                .map(|path| {
+                    (
+                        path.to_string(),
+                        CanonicalPathStats {
+                            occurrence_count: 1,
+                            destinations: BTreeSet::from([String::from(
+                                "canonical::CreatureCapability::unsupported_notes",
+                            )]),
+                        },
+                    )
+                })
                 .collect(),
             ..CreatureSurvivalInventory::default()
         };
@@ -1284,7 +2038,7 @@ mod tests {
         assert!(complete.iter().all(|path| {
             path.preserved_occurrence_count == Some(1)
                 && path.extractor_identity.as_deref()
-                    == Some("canonical::CreatureEmbeddedEntities::occurrence.unsupported_notes")
+                    == Some("canonical::CreatureCapability::unsupported_notes")
         }));
 
         for dropped in RETAINED_CAPABILITY_PATHS {
@@ -1303,7 +2057,7 @@ mod tests {
     }
 
     #[test]
-    fn pinned_creature_audit_proves_all_retained_capability_occurrences_survive() {
+    fn pinned_creature_audit_proves_all_consumed_occurrences_and_destinations_survive() {
         let Some(source_root) = std::env::var_os("PF2E_SOURCE_ROOT") else {
             return;
         };
@@ -1327,6 +2081,97 @@ mod tests {
         assert_eq!(report.summary.creature_consumed_regressions, 0);
         assert!(report.closure_failures.is_empty());
         assert!(report.enforcement.passed);
+
+        let consumed = report
+            .paths
+            .iter()
+            .filter(|path| path.disposition == SourcePathCoverageDisposition::Consumed)
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(consumed.len(), 608);
+        assert_eq!(
+            consumed
+                .iter()
+                .map(|path| path.occurrence_count)
+                .sum::<usize>(),
+            1_746_734
+        );
+        assert_eq!(
+            consumed
+                .iter()
+                .map(|path| path.preserved_occurrence_count.unwrap_or_default())
+                .sum::<usize>(),
+            1_746_734
+        );
+        assert!(consumed.iter().all(|path| {
+            path.extractor_identity.as_deref().is_some_and(|identity| {
+                identity.contains("canonical::")
+                    && !identity.contains("hydrated::")
+                    && !identity.contains("serde_json")
+            })
+        }));
+
+        let inventory = CreatureSurvivalInventory {
+            canonical: consumed
+                .iter()
+                .map(|path| {
+                    (
+                        path.path.clone(),
+                        CanonicalPathStats {
+                            occurrence_count: path
+                                .preserved_occurrence_count
+                                .expect("consumed path has canonical closure count"),
+                            destinations: path
+                                .extractor_identity
+                                .as_deref()
+                                .expect("consumed path has canonical destination")
+                                .split(" + ")
+                                .map(str::to_string)
+                                .collect(),
+                        },
+                    )
+                })
+                .collect(),
+            ..CreatureSurvivalInventory::default()
+        };
+        for dropped in &consumed {
+            let mut mutated = consumed.clone();
+            let mut mutated_inventory = CreatureSurvivalInventory {
+                canonical: inventory.canonical.clone(),
+                ..CreatureSurvivalInventory::default()
+            };
+            mutated_inventory.canonical.remove(&dropped.path);
+            let failures = reconcile_creature_survival(&mut mutated, &mutated_inventory);
+            assert_eq!(
+                failures.len(),
+                1,
+                "dropping consumed canonical destination {} must fail closure",
+                dropped.path
+            );
+            assert_eq!(failures[0].path, dropped.path);
+        }
+
+        let destination_families = inventory
+            .canonical
+            .values()
+            .flat_map(|stats| stats.destinations.iter().cloned())
+            .collect::<BTreeSet<_>>();
+        assert!(destination_families.len() > 10);
+        for destination in destination_families {
+            let mut mutated = consumed.clone();
+            let mut mutated_inventory = CreatureSurvivalInventory {
+                canonical: inventory.canonical.clone(),
+                ..CreatureSurvivalInventory::default()
+            };
+            mutated_inventory
+                .canonical
+                .retain(|_, stats| !stats.destinations.contains(&destination));
+            let failures = reconcile_creature_survival(&mut mutated, &mutated_inventory);
+            assert!(
+                !failures.is_empty(),
+                "dropping canonical destination family {destination} must fail closure"
+            );
+        }
 
         let retained = report
             .paths

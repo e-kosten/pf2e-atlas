@@ -33,6 +33,7 @@ use super::dto::{
 };
 use super::dto::{EmbeddedRelationshipKindSource, EmbeddedRelationshipSource};
 
+#[cfg(test)]
 pub(crate) const RETAINED_CAPABILITY_PATHS: [&str; 13] = [
     "$.items[].system.attackEffects.custom",
     "$.items[].system.area.details",
@@ -1509,23 +1510,21 @@ fn capability_unsupported_notes_ref(capability: &CreatureCapability) -> &[Unsupp
     }
 }
 
-pub(crate) fn retained_capability_survival(
+pub(crate) fn capability_note_survival(
     conversion: &NpcEmbeddedConversion,
-) -> BTreeMap<&'static str, usize> {
+) -> Vec<(&str, &UnsupportedSourceValue)> {
     let FactValue::Value(embedded) = &conversion.embedded else {
-        return BTreeMap::new();
+        return Vec::new();
     };
-    let mut counts = BTreeMap::new();
-    for occurrence in &embedded.occurrences {
-        for note in capability_unsupported_notes_ref(&occurrence.capability) {
-            if let Some(path) = retained_occurrence_capability_family(occurrence.family, note) {
-                *counts.entry(path).or_insert(0) += 1;
-            }
-        }
-    }
-    counts
+    embedded
+        .occurrences
+        .iter()
+        .flat_map(|occurrence| capability_unsupported_notes_ref(&occurrence.capability))
+        .map(|note| (note.source_path.as_str(), &note.value))
+        .collect()
 }
 
+#[cfg(test)]
 fn retained_capability_family(path: &str) -> Option<&'static str> {
     let (_, relative) = path.split_once(".system.")?;
     match relative {
@@ -1548,6 +1547,7 @@ fn retained_capability_family(path: &str) -> Option<&'static str> {
     }
 }
 
+#[cfg(test)]
 fn retained_occurrence_capability_family(
     family: CreatureEntityFamily,
     note: &UnsupportedMechanicNote,
