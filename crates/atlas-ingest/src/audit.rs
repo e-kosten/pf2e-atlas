@@ -306,12 +306,28 @@ struct CreatureSurvivalInventory {
     declarations: BTreeMap<String, Option<&'static str>>,
     mismatches: BTreeMap<String, Vec<SourcePathAuditObservationMismatch>>,
     observation_ordinals: BTreeMap<(String, String, String), usize>,
+    reverse_expected: BTreeMap<ReverseObservation, usize>,
+    reverse_observed: BTreeMap<ReverseObservation, usize>,
+    reverse_expected_owners: BTreeSet<(String, String, String, String)>,
 }
 
 #[derive(Debug, Clone, Default)]
 struct CanonicalPathStats {
     occurrence_count: usize,
     destinations: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ReverseObservation {
+    record_key: String,
+    member_identity: String,
+    contextual_source_path: String,
+    normalized_path: String,
+    destination: String,
+    state: String,
+    value_type: String,
+    normalized_value: String,
+    order: usize,
 }
 
 pub fn audit_source_paths(
@@ -403,6 +419,8 @@ pub fn audit_source_paths(
         }
     }
 
+    reconcile_reverse_collection_closure(&mut creature_survival);
+
     let mut paths = stats
         .into_iter()
         .filter_map(|(key, stats)| {
@@ -458,16 +476,7 @@ pub fn audit_source_paths(
         + summary.creature_catch_all_paths
         + summary.creature_unowned_paths
         + summary.consumed_regressions;
-    let enforcement = SourcePathAuditEnforcement {
-        mode: if options.strict {
-            SourcePathAuditMode::Strict
-        } else {
-            SourcePathAuditMode::Relaxed
-        },
-        passed: !options.strict || violation_count == 0,
-        violation_count: if options.strict { violation_count } else { 0 },
-        aggregate_warning_count: violation_count,
-    };
+    let enforcement = source_path_enforcement(options.strict, violation_count);
     let policy_digest = coverage_policy_digest()?;
     let predicate_inventory = retrieval_predicate_inventory();
     let limit = options.limit.unwrap_or(DEFAULT_PATH_LIMIT);
@@ -503,6 +512,19 @@ pub fn audit_source_paths(
         retrieval_predicate_inventory: predicate_inventory,
         paths,
     })
+}
+
+fn source_path_enforcement(strict: bool, violation_count: usize) -> SourcePathAuditEnforcement {
+    SourcePathAuditEnforcement {
+        mode: if strict {
+            SourcePathAuditMode::Strict
+        } else {
+            SourcePathAuditMode::Relaxed
+        },
+        passed: !strict || violation_count == 0,
+        violation_count: if strict { violation_count } else { 0 },
+        aggregate_warning_count: violation_count,
+    }
 }
 
 fn read_json_value(path: &Path) -> Result<Value, IngestError> {
@@ -792,6 +814,7 @@ fn collect_creature_survival(
         convert_npc_embedded_entities(loaded.record.identity.key.clone(), &candidates, |_| None);
     collect_expected_canonical_paths("$", "$", value, loaded, &conversion, inventory);
     collect_sequence_closure(value, loaded, inventory);
+    collect_reverse_collection_closure(loaded, &conversion, inventory);
 }
 
 fn collect_sequence_closure(
@@ -838,6 +861,498 @@ fn collect_sequence_closure(
             observed_type: "array".to_string(),
             observed_value: canonical_json(&serde_json::json!(observed)),
         });
+}
+
+fn reverse_closed_destination(destination: &str) -> bool {
+    matches!(
+        destination,
+        "canonical::SourceContentFact::document"
+            | "canonical::CreatureCapability::unsupported_notes"
+            | "canonical::CreatureEntityRelationship::target"
+    )
+}
+
+fn reverse_observation(
+    record_key: &str,
+    member_identity: String,
+    contextual_source_path: String,
+    normalized_path: String,
+    destination: &str,
+    payload: CanonicalObservationPayload,
+    order: usize,
+) -> ReverseObservation {
+    ReverseObservation {
+        record_key: record_key.to_string(),
+        member_identity,
+        contextual_source_path,
+        normalized_path,
+        destination: destination.to_string(),
+        state: payload.state.to_string(),
+        value_type: payload.value_type,
+        normalized_value: payload.normalized_value,
+        order,
+    }
+}
+
+fn insert_reverse_observation(
+    observations: &mut BTreeMap<ReverseObservation, usize>,
+    observation: ReverseObservation,
+) {
+    *observations.entry(observation).or_default() += 1;
+}
+
+fn collect_reverse_collection_closure(
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    collect_reverse_occurrences(loaded, conversion, inventory);
+    collect_reverse_relationships(loaded, conversion, inventory);
+    collect_reverse_content(loaded, inventory);
+    collect_reverse_unsupported(loaded, conversion, inventory);
+}
+
+fn collect_reverse_occurrences(
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(source) = loaded.facts.npc_source.as_ref() else {
+        return;
+    };
+    let candidates = collect_npc_embedded_candidates(source);
+    let Some(candidates) = candidates.items.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let mut ordered = candidates.iter().enumerate().collect::<Vec<_>>();
+    ordered.sort_by(|(left_index, left), (right_index, right)| {
+        match (left.sort.as_value(), right.sort.as_value()) {
+            (Some(left_sort), Some(right_sort)) => left_sort
+                .cmp(right_sort)
+                .then_with(|| left.nested_source_id.cmp(&right.nested_source_id))
+                .then_with(|| left_index.cmp(right_index)),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => left_index.cmp(right_index),
+        }
+    });
+    for (order, (_, candidate)) in ordered.into_iter().enumerate() {
+        let payload = occurrence_payload_from_source(candidate);
+        insert_reverse_observation(
+            &mut inventory.reverse_expected,
+            reverse_observation(
+                &record_key,
+                format!("item:{}", candidate.nested_source_id),
+                "$.items[]._id".to_string(),
+                "$.items[]._id".to_string(),
+                "canonical::CreatureEntityOccurrence",
+                payload,
+                order,
+            ),
+        );
+    }
+    let Some(embedded) = conversion.embedded.as_value() else {
+        return;
+    };
+    for occurrence in &embedded.occurrences {
+        let nested_id = occurrence
+            .source_identity
+            .nested_source_id
+            .as_value()
+            .map(|id| id.as_str().to_string())
+            .unwrap_or_else(|| occurrence.id.as_str().to_string());
+        insert_reverse_observation(
+            &mut inventory.reverse_observed,
+            reverse_observation(
+                &record_key,
+                format!("item:{nested_id}"),
+                "$.items[]._id".to_string(),
+                "$.items[]._id".to_string(),
+                "canonical::CreatureEntityOccurrence",
+                occurrence_payload(occurrence),
+                occurrence.authored_order as usize,
+            ),
+        );
+    }
+}
+
+fn occurrence_payload_from_source(
+    candidate: &crate::source::npc_entities::NpcEmbeddedCandidate,
+) -> CanonicalObservationPayload {
+    let family = crate::source::npc_entities::family(&candidate.source).as_str();
+    CanonicalObservationPayload::value(serde_json::json!({
+        "nested_source_id": candidate.nested_source_id,
+        "family": family,
+        "source_sort": source_presence_json(&candidate.sort),
+    }))
+}
+
+fn occurrence_payload(
+    occurrence: &atlas_record::CreatureEntityOccurrence,
+) -> CanonicalObservationPayload {
+    CanonicalObservationPayload::value(serde_json::json!({
+        "nested_source_id": occurrence.source_identity.nested_source_id.as_value().map(|id| id.as_str()),
+        "family": occurrence.family.as_str(),
+        "source_sort": fact_value_json(&occurrence.source_sort),
+    }))
+}
+
+fn source_presence_json<T: Serialize>(value: &SourcePresence<T>) -> Value {
+    match value {
+        SourcePresence::Missing => serde_json::json!({"state": "missing"}),
+        SourcePresence::Null => serde_json::json!({"state": "null"}),
+        SourcePresence::Value(value) => serde_json::json!({"state": "value", "value": value}),
+    }
+}
+
+fn fact_value_json<T: Serialize>(value: &FactValue<T>) -> Value {
+    match value {
+        FactValue::Missing => serde_json::json!({"state": "missing"}),
+        FactValue::Null => serde_json::json!({"state": "null"}),
+        FactValue::Value(value) => serde_json::json!({"state": "value", "value": value}),
+    }
+}
+
+fn collect_reverse_relationships(
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(embedded) = conversion.embedded.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let mut ordinals = BTreeMap::<(String, String), usize>::new();
+    for relationship in &embedded.relationships {
+        let Some(source) = embedded
+            .occurrences
+            .iter()
+            .find(|occurrence| occurrence.id == relationship.source)
+        else {
+            continue;
+        };
+        let Some(source_id) = source.source_identity.nested_source_id.as_value() else {
+            continue;
+        };
+        let member_identity = format!("item:{}", source_id.as_str());
+        let full_path = format!(
+            "$.items[]{}",
+            relationship
+                .source_path
+                .strip_prefix('$')
+                .unwrap_or(&relationship.source_path)
+        );
+        let normalized_path = normalize_observed_source_path(&full_path);
+        let contextual_source_path = source_item_index_for_id(loaded, source_id.as_str())
+            .map(|index| {
+                format!(
+                    "$.items[{index}]{}",
+                    relationship
+                        .source_path
+                        .strip_prefix('$')
+                        .unwrap_or(&relationship.source_path)
+                )
+            })
+            .unwrap_or_else(|| normalized_path.clone());
+        let ordinal = ordinals
+            .entry((member_identity.clone(), normalized_path.clone()))
+            .or_default();
+        let order = *ordinal;
+        *ordinal += 1;
+        if !inventory.reverse_expected_owners.contains(&(
+            record_key.clone(),
+            member_identity.clone(),
+            normalized_path.clone(),
+            "canonical::CreatureEntityRelationship::target".to_string(),
+        )) {
+            continue;
+        }
+        let Some(target_id) = relationship_target_source_id(relationship, embedded) else {
+            continue;
+        };
+        insert_reverse_observation(
+            &mut inventory.reverse_observed,
+            reverse_observation(
+                &record_key,
+                member_identity,
+                contextual_source_path,
+                normalized_path,
+                "canonical::CreatureEntityRelationship::target",
+                CanonicalObservationPayload::value(Value::String(target_id)),
+                order,
+            ),
+        );
+    }
+}
+
+fn relationship_target_source_id(
+    relationship: &atlas_record::CreatureEntityRelationship,
+    embedded: &atlas_record::CreatureEmbeddedEntities,
+) -> Option<String> {
+    match &relationship.target {
+        atlas_record::CreatureRelationshipTarget::UnresolvedNestedSourceId(id) => {
+            Some(id.as_str().to_string())
+        }
+        atlas_record::CreatureRelationshipTarget::Occurrence(id) => embedded
+            .occurrences
+            .iter()
+            .find(|occurrence| occurrence.id == *id)?
+            .source_identity
+            .nested_source_id
+            .as_value()
+            .map(|id| id.as_str().to_string()),
+    }
+}
+
+fn collect_reverse_content(loaded: &LoadedSourceRecord, inventory: &mut CreatureSurvivalInventory) {
+    let record_key = loaded.record.identity.key.to_string();
+    let mut ordinals = BTreeMap::<(String, String), usize>::new();
+    for content in &loaded.facts.source_facts.content_sources {
+        let (member_identity, normalized_path) =
+            if let Some(rest) = content.relative_source_path.strip_prefix("$.items[_id=") {
+                let Some((source_id, tail)) = rest.split_once(']') else {
+                    continue;
+                };
+                let normalized_path = normalize_observed_source_path(&format!("$.items[]{tail}"));
+                (format!("item:{source_id}"), normalized_path)
+            } else {
+                (
+                    format!("record:{}", loaded.record.identity.key),
+                    normalize_observed_source_path(&content.relative_source_path),
+                )
+            };
+        let ordinal = ordinals
+            .entry((member_identity.clone(), normalized_path.clone()))
+            .or_default();
+        let order = *ordinal;
+        *ordinal += 1;
+        insert_reverse_observation(
+            &mut inventory.reverse_observed,
+            reverse_observation(
+                &record_key,
+                member_identity,
+                normalized_path.clone(),
+                normalized_path,
+                "canonical::SourceContentFact::document",
+                CanonicalObservationPayload::value(Value::String(format!(
+                    "{:?}",
+                    content.document
+                ))),
+                order,
+            ),
+        );
+    }
+}
+
+fn collect_reverse_unsupported(
+    loaded: &LoadedSourceRecord,
+    conversion: &crate::source::npc_entities::NpcEmbeddedConversion,
+    inventory: &mut CreatureSurvivalInventory,
+) {
+    let Some(embedded) = conversion.embedded.as_value() else {
+        return;
+    };
+    let record_key = loaded.record.identity.key.to_string();
+    let mut leaves = Vec::new();
+    if let Some(actor) = embedded.actor_spellcasting.as_value() {
+        for note in &actor.unsupported_notes {
+            collect_reverse_note_leaves(
+                &note.source_path,
+                note,
+                format!("record:{}", loaded.record.identity.key),
+                &mut leaves,
+            );
+        }
+    }
+    for occurrence in &embedded.occurrences {
+        let member_identity = occurrence
+            .source_identity
+            .nested_source_id
+            .as_value()
+            .map(|id| format!("item:{}", id.as_str()))
+            .unwrap_or_else(|| format!("occurrence:{}", occurrence.id.as_str()));
+        for note in capability_notes(&occurrence.capability) {
+            let full_path = if note.source_path.starts_with("$.items[") {
+                note.source_path.clone()
+            } else {
+                format!(
+                    "$.items[]{}",
+                    note.source_path
+                        .strip_prefix('$')
+                        .unwrap_or(&note.source_path)
+                )
+            };
+            collect_reverse_note_leaves(&full_path, note, member_identity.clone(), &mut leaves);
+        }
+    }
+    let mut ordinals = BTreeMap::<(String, String), usize>::new();
+    for (member_identity, _contextual_source_path, normalized_path, payload) in leaves {
+        let has_expected_owner = inventory.reverse_expected_owners.contains(&(
+            record_key.clone(),
+            member_identity.clone(),
+            normalized_path.clone(),
+            "canonical::CreatureCapability::unsupported_notes".to_string(),
+        ));
+        if !has_expected_owner {
+            continue;
+        }
+        let ordinal = ordinals
+            .entry((member_identity.clone(), normalized_path.clone()))
+            .or_default();
+        let order = *ordinal;
+        *ordinal += 1;
+        insert_reverse_observation(
+            &mut inventory.reverse_observed,
+            reverse_observation(
+                &record_key,
+                member_identity,
+                normalized_path.clone(),
+                normalized_path,
+                "canonical::CreatureCapability::unsupported_notes",
+                payload,
+                order,
+            ),
+        );
+    }
+}
+
+fn collect_reverse_note_leaves(
+    source_path: &str,
+    note: &atlas_record::UnsupportedMechanicNote,
+    member_identity: String,
+    leaves: &mut Vec<(String, String, String, CanonicalObservationPayload)>,
+) {
+    let Some(value) = unsupported_value_json(&note.value) else {
+        return;
+    };
+    collect_reverse_value_leaves(
+        source_path,
+        &normalize_observed_source_path(source_path),
+        &value,
+        &member_identity,
+        leaves,
+    );
+}
+
+fn collect_reverse_value_leaves(
+    contextual_source_path: &str,
+    normalized_path: &str,
+    value: &Value,
+    member_identity: &str,
+    leaves: &mut Vec<(String, String, String, CanonicalObservationPayload)>,
+) {
+    if is_meaningful_value(value) {
+        leaves.push((
+            member_identity.to_string(),
+            contextual_source_path.to_string(),
+            normalized_path.to_string(),
+            CanonicalObservationPayload::value(value.clone()),
+        ));
+    }
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map {
+                let segment = object_segment(normalized_path, key, map.len());
+                collect_reverse_value_leaves(
+                    &format!("{contextual_source_path}.{key}"),
+                    &format!("{normalized_path}.{segment}"),
+                    child,
+                    member_identity,
+                    leaves,
+                );
+            }
+        }
+        Value::Array(values) => {
+            for (index, child) in values.iter().enumerate() {
+                collect_reverse_value_leaves(
+                    &format!("{contextual_source_path}[{index}]"),
+                    &format!("{normalized_path}[]"),
+                    child,
+                    member_identity,
+                    leaves,
+                );
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn reconcile_reverse_collection_closure(inventory: &mut CreatureSurvivalInventory) {
+    let keys = inventory
+        .reverse_expected
+        .keys()
+        .chain(inventory.reverse_observed.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for observation in keys {
+        let expected_count = inventory
+            .reverse_expected
+            .get(&observation)
+            .copied()
+            .unwrap_or_default();
+        let observed_count = inventory
+            .reverse_observed
+            .get(&observation)
+            .copied()
+            .unwrap_or_default();
+        if expected_count == observed_count {
+            continue;
+        }
+        let mismatches = inventory
+            .mismatches
+            .entry(observation.normalized_path.clone())
+            .or_default();
+        if mismatches.len() >= SAMPLE_LIMIT {
+            continue;
+        }
+        let expected_surplus = expected_count > observed_count;
+        mismatches.push(SourcePathAuditObservationMismatch {
+            record_key: observation.record_key.clone(),
+            member_identity: observation.member_identity.clone(),
+            contextual_source_path: format!(
+                "{}#{}",
+                observation.contextual_source_path, observation.order
+            ),
+            destination: observation.destination.clone(),
+            expected_state: if expected_surplus {
+                observation.state.clone()
+            } else {
+                "missing".to_string()
+            },
+            expected_type: if expected_surplus {
+                observation.value_type.clone()
+            } else {
+                "missing".to_string()
+            },
+            expected_value: if expected_surplus {
+                format!(
+                    "{} (multiplicity {expected_count})",
+                    observation.normalized_value
+                )
+            } else {
+                String::new()
+            },
+            observed_state: if expected_surplus {
+                "missing".to_string()
+            } else {
+                observation.state.clone()
+            },
+            observed_type: if expected_surplus {
+                "missing".to_string()
+            } else {
+                observation.value_type.clone()
+            },
+            observed_value: if expected_surplus {
+                String::new()
+            } else {
+                format!(
+                    "{} (multiplicity {observed_count})",
+                    observation.normalized_value
+                )
+            },
+        });
+    }
 }
 
 fn record_canonical_observation(
@@ -992,6 +1507,30 @@ fn observe_canonical_value(
     let ordinal = *observation_ordinal;
     *observation_ordinal += 1;
     let expected = expected_observation_payload(destination, expected_value);
+    if reverse_closed_destination(destination) {
+        inventory.reverse_expected_owners.insert((
+            loaded.record.identity.key.to_string(),
+            member_identity.clone(),
+            normalized_path.to_string(),
+            destination.to_string(),
+        ));
+        insert_reverse_observation(
+            &mut inventory.reverse_expected,
+            reverse_observation(
+                &loaded.record.identity.key.to_string(),
+                member_identity.clone(),
+                if destination == "canonical::CreatureEntityRelationship::target" {
+                    indexed_path.to_string()
+                } else {
+                    normalized_path.to_string()
+                },
+                normalized_path.to_string(),
+                destination,
+                expected.clone(),
+                ordinal,
+            ),
+        );
+    }
     let observed = canonical_observed_payload(
         indexed_path,
         normalized_path,
@@ -1073,6 +1612,18 @@ fn source_item_id(index: usize, loaded: &LoadedSourceRecord) -> Option<&str> {
         .as_value()?
         .get(index)
         .map(|item| item.source().id.as_str())
+}
+
+fn source_item_index_for_id(loaded: &LoadedSourceRecord, source_id: &str) -> Option<usize> {
+    loaded
+        .facts
+        .npc_source
+        .as_ref()?
+        .source
+        .items
+        .as_value()?
+        .iter()
+        .position(|item| item.source().id == source_id)
 }
 
 fn fact_payload<T>(
@@ -3156,18 +3707,19 @@ fn reconcile_creature_survival(
         });
         path.preserved_occurrence_count = Some(preserved);
         path.extractor_identity = extractor_identity;
-        if preserved != path.occurrence_count {
+        let mismatches = inventory
+            .mismatches
+            .get(&path.path)
+            .cloned()
+            .unwrap_or_default();
+        if preserved != path.occurrence_count || !mismatches.is_empty() {
             failures.push(SourcePathAuditClosureFailure {
                 document_type: path.document_type.clone(),
                 record_type: path.record_type.clone(),
                 path: path.path.clone(),
                 source_occurrence_count: path.occurrence_count,
                 preserved_occurrence_count: preserved,
-                mismatches: inventory
-                    .mismatches
-                    .get(&path.path)
-                    .cloned()
-                    .unwrap_or_default(),
+                mismatches,
             });
         }
     }
@@ -3740,6 +4292,67 @@ mod tests {
         (value, loaded, conversion)
     }
 
+    fn collection_mutation_fixture() -> (
+        Value,
+        LoadedSourceRecord,
+        crate::source::npc_entities::NpcEmbeddedConversion,
+    ) {
+        let value = serde_json::json!({
+            "_id": "collection-mutation-fixture",
+            "name": "Collection Mutation Fixture",
+            "type": "npc",
+            "system": {
+                "details": {"level": {"value": 7}},
+                "traits": {"rarity": "common", "size": {"value": "med"}, "value": ["humanoid"]}
+            },
+            "items": [
+                {
+                    "_id": "grantor",
+                    "name": "Grantor",
+                    "type": "action",
+                    "sort": 10,
+                    "flags": {"pf2e": {"itemGrants": {"child": {"id": "child"}}}},
+                    "system": {
+                        "description": {"value": "<p>Grantor body.</p>"},
+                        "rules": [{"key": "FutureRule"}]
+                    }
+                },
+                {
+                    "_id": "child",
+                    "name": "Child",
+                    "type": "effect",
+                    "sort": 20,
+                    "flags": {"pf2e": {"grantedBy": {"id": "grantor"}}},
+                    "system": {}
+                }
+            ]
+        });
+        let manifest_pack = crate::source::ManifestPack {
+            name: "mutation-pack".to_string(),
+            label: "Mutation Pack".to_string(),
+            document_type: "Actor".to_string(),
+            path: "packs/mutation-pack".to_string(),
+        };
+        let pack_name = PackName::new(manifest_pack.name.clone()).expect("pack name");
+        let loaded = normalize_record(
+            &manifest_pack,
+            &pack_name,
+            Path::new("packs/mutation-pack/collection-mutation-fixture.json"),
+            Path::new("."),
+            value.clone(),
+            None,
+        )
+        .expect("collection mutation fixture normalizes");
+        let candidates = collect_npc_embedded_candidates(
+            loaded.facts.npc_source.as_ref().expect("NPC typed DTO"),
+        );
+        let conversion =
+            convert_npc_embedded_entities(loaded.record.identity.key.clone(), &candidates, |_| {
+                None
+            });
+        (value, loaded, conversion)
+    }
+
     fn observe_mutation_fixture(
         source: &Value,
         loaded: &LoadedSourceRecord,
@@ -3748,7 +4361,49 @@ mod tests {
         let mut inventory = CreatureSurvivalInventory::default();
         collect_expected_canonical_paths("$", "$", source, loaded, conversion, &mut inventory);
         collect_sequence_closure(source, loaded, &mut inventory);
+        collect_reverse_collection_closure(loaded, conversion, &mut inventory);
+        reconcile_reverse_collection_closure(&mut inventory);
         inventory
+    }
+
+    fn assert_public_strict_failure(
+        inventory: &CreatureSurvivalInventory,
+        path: &str,
+        occurrence_count: usize,
+    ) {
+        let mut stats = MutablePathStats {
+            occurrence_count,
+            ..MutablePathStats::default()
+        };
+        stats
+            .record_keys
+            .insert("mutation-pack:mutation-fixture".to_string());
+        let key = PathKey {
+            document_type: "Actor".to_string(),
+            record_type: "npc".to_string(),
+            path: path.to_string(),
+        };
+        let mut paths = vec![path_report(key, stats, 1)];
+        assert_eq!(
+            paths[0].disposition,
+            SourcePathCoverageDisposition::Consumed
+        );
+        let failures = reconcile_creature_survival(&mut paths, inventory);
+        assert_eq!(
+            failures.len(),
+            1,
+            "{path} must reach public closure_failures"
+        );
+        assert!(
+            !failures[0].mismatches.is_empty(),
+            "{path} mismatch evidence"
+        );
+        let enforcement = source_path_enforcement(true, failures.len());
+        assert!(!enforcement.passed, "{path} strict result must fail");
+        assert!(
+            enforcement.violation_count > 0,
+            "{path} nonzero strict result"
+        );
     }
 
     #[test]
@@ -3764,6 +4419,7 @@ mod tests {
         changed_value.record.identity.name = "Wrong Fixture".to_string();
         let mismatch = observe_mutation_fixture(&source, &changed_value, &conversion);
         assert!(mismatch.mismatches.contains_key("$.name"));
+        assert_public_strict_failure(&mismatch, "$.name", 1);
 
         let mut changed_type = loaded.clone();
         let RecordBody::Creature(creature) = changed_type
@@ -3784,6 +4440,7 @@ mod tests {
                 .mismatches
                 .contains_key("$.system.details.alliance")
         );
+        assert_public_strict_failure(&mismatch, "$.system.details.alliance", 1);
 
         let mut changed_state = loaded.clone();
         changed_state.record.classification.level = None;
@@ -3793,6 +4450,7 @@ mod tests {
                 .mismatches
                 .contains_key("$.system.details.level.value")
         );
+        assert_public_strict_failure(&mismatch, "$.system.details.level.value", 1);
 
         for traits in [
             vec!["alpha".to_string()],
@@ -3803,7 +4461,58 @@ mod tests {
             changed_members.record.classification.traits = traits;
             let mismatch = observe_mutation_fixture(&source, &changed_members, &conversion);
             assert!(mismatch.mismatches.contains_key("$.system.traits.value[]"));
+            assert_public_strict_failure(&mismatch, "$.system.traits.value[]", 2);
         }
+    }
+
+    #[test]
+    fn real_canonical_surplus_occurrence_relationship_content_and_member_fail_public_closure() {
+        let (source, loaded, conversion) = collection_mutation_fixture();
+        let clean = observe_mutation_fixture(&source, &loaded, &conversion);
+        assert!(
+            clean.mismatches.is_empty(),
+            "clean reverse closure: {:#?}",
+            clean.mismatches
+        );
+
+        let mut extra_occurrence = conversion.clone();
+        let FactValue::Value(embedded) = &mut extra_occurrence.embedded else {
+            panic!("embedded")
+        };
+        embedded.occurrences.push(embedded.occurrences[0].clone());
+        let mismatch = observe_mutation_fixture(&source, &loaded, &extra_occurrence);
+        assert_public_strict_failure(&mismatch, "$.items[]._id", 2);
+
+        let mut extra_relationship = conversion.clone();
+        let FactValue::Value(embedded) = &mut extra_relationship.embedded else {
+            panic!("embedded")
+        };
+        embedded
+            .relationships
+            .push(embedded.relationships[0].clone());
+        let mismatch = observe_mutation_fixture(&source, &loaded, &extra_relationship);
+        assert_public_strict_failure(&mismatch, "$.items[].flags.pf2e.itemGrants.*.id", 1);
+
+        let mut extra_content = loaded.clone();
+        extra_content
+            .facts
+            .source_facts
+            .content_sources
+            .push(extra_content.facts.source_facts.content_sources[0].clone());
+        let mismatch = observe_mutation_fixture(&source, &extra_content, &conversion);
+        assert_public_strict_failure(&mismatch, "$.items[].system.description.value", 1);
+
+        let mut extra_member = conversion.clone();
+        let FactValue::Value(embedded) = &mut extra_member.embedded else {
+            panic!("embedded")
+        };
+        let notes = match &mut embedded.occurrences[0].capability {
+            CreatureCapability::Action(value) => &mut value.unsupported_notes,
+            capability => panic!("expected action, got {capability:?}"),
+        };
+        notes.push(notes[0].clone());
+        let mismatch = observe_mutation_fixture(&source, &loaded, &extra_member);
+        assert_public_strict_failure(&mismatch, "$.items[].system.rules[].key", 1);
     }
 
     #[test]
@@ -3828,7 +4537,11 @@ mod tests {
         assert_eq!(report.summary.creature_unknown_paths, 0);
         assert_eq!(report.summary.creature_catch_all_paths, 0);
         assert_eq!(report.summary.creature_unowned_paths, 0);
-        assert_eq!(report.summary.creature_consumed_regressions, 0);
+        assert_eq!(
+            report.summary.creature_consumed_regressions, 0,
+            "closure failures: {:#?}",
+            report.closure_failures
+        );
         assert!(report.closure_failures.is_empty());
         assert!(report.enforcement.passed);
 
