@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v6
         with:
@@ -33,7 +35,9 @@ jobs:
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
       - name: Rust verification
-        run: scripts/verify.sh
+        run: scripts/validation/fast.sh
+      - name: Focused ingest and artifact validation
+        run: scripts/validation/focused.sh
 
   web-ui:
     name: web ui

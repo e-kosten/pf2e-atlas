@@ -17,6 +17,26 @@ preflight:
 verify *args:
     scripts/verify.sh {{args}}
 
+[doc('Run the ordinary non-corpus verification gate with corpus identity inputs scrubbed')]
+[group('validation')]
+validate-fast *args:
+    scripts/validation/fast.sh {{args}}
+
+[doc('Run source-contract, mutation, corruption, publication, and snapshot tests without a corpus scan')]
+[group('validation')]
+validate-focused *args:
+    scripts/validation/focused.sh {{args}}
+
+[doc('Run one checksummed exhaustive corpus traversal for candidate acceptance')]
+[group('validation')]
+validate-exhaustive *args:
+    scripts/validation/exhaustive.sh {{args}}
+
+[doc('Force an independent exhaustive reproduction that refuses author snapshots')]
+[group('validation')]
+validate-exhaustive-review *args:
+    scripts/validation/review.sh {{args}}
+
 [doc('Run path-sensitive validation for staged changes, a git range, or all surfaces')]
 [group('validation')]
 verify-changed *args:

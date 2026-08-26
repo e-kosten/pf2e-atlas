@@ -4,9 +4,9 @@ use std::process::ExitCode;
 use atlas_index::ValidationTarget;
 use atlas_ingest::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
-    DocumentEmbeddingTruncationExampleReport, IngestDiagnostics, SkippedRecord,
-    SourcePathAuditOptions, SourcePathAuditReport, analyze_foundry_source, audit_source_paths,
-    build_artifact, disposition_label,
+    DocumentEmbeddingTruncationExampleReport, ExhaustiveValidationOptions, IngestDiagnostics,
+    SkippedRecord, SourcePathAuditOptions, SourcePathAuditReport, analyze_foundry_source,
+    audit_source_paths, build_artifact, disposition_label, run_exhaustive_validation,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::{Value, json};
@@ -17,8 +17,29 @@ pub(crate) mod args;
 
 use args::{
     AnalyzeIndexOptions, AuditSourcePathsOptions, BuildIndexOptions, CheckIndexOptions,
-    IndexPathOptions, ValidateIndexOptions,
+    IndexPathOptions, ValidateCorpusOptions, ValidateIndexOptions,
 };
+
+pub(crate) fn run_index_validate_corpus(
+    options: ValidateCorpusOptions,
+) -> Result<ExitCode, String> {
+    let report = run_exhaustive_validation(ExhaustiveValidationOptions {
+        source_root: options.source,
+        candidate_head: options.candidate_head,
+        snapshot_root: options.snapshot_root,
+        report_path: options.report,
+        embedding_cache_root: options.embedding_cache_path,
+        force_reproduction: options.force_reproduction,
+    })
+    .map_err(|error| error.to_string())?;
+    println!(
+        "ok: exhaustive validation traversals={} modes={} snapshot_reused={}",
+        report.source_traversal_count,
+        report.artifact_modes.join(","),
+        report.snapshot_reused
+    );
+    Ok(ExitCode::SUCCESS)
+}
 
 pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {

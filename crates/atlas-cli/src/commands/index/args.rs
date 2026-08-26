@@ -27,6 +27,24 @@ pub(crate) enum IndexCommand {
         about = "Run deep artifact validation diagnostics; embeddings are required by default"
     )]
     Validate(ValidateIndexOptions),
+    #[command(hide = true)]
+    ValidateCorpus(ValidateCorpusOptions),
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct ValidateCorpusOptions {
+    #[arg(long)]
+    pub(crate) source: PathBuf,
+    #[arg(long)]
+    pub(crate) candidate_head: String,
+    #[arg(long)]
+    pub(crate) snapshot_root: PathBuf,
+    #[arg(long)]
+    pub(crate) report: PathBuf,
+    #[arg(long)]
+    pub(crate) embedding_cache_path: PathBuf,
+    #[arg(long)]
+    pub(crate) force_reproduction: bool,
 }
 
 #[derive(Debug, Args)]

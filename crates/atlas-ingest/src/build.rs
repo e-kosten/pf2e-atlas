@@ -12,6 +12,7 @@ use crate::artifact_manifest::{
 use crate::embeddings::generation::generate_document_embeddings_for_source;
 use crate::error::IngestError;
 use crate::index_build_input::index_build_input;
+use crate::source::SourceLoad;
 use crate::source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
 };
@@ -26,10 +27,25 @@ pub(crate) fn build_artifact(
         output = %options.output_path.display(),
         "starting artifact build"
     );
-    let mut source = source_pipeline::load_foundry_source(
+    let source = source_pipeline::load_foundry_source(
         &options.source_root,
         options.manifest_path.as_deref(),
     )?;
+    build_artifact_from_source_started(source, options, build_started_at)
+}
+
+pub(crate) fn build_artifact_from_source(
+    source: SourceLoad,
+    options: BuildArtifactOptions,
+) -> Result<BuildArtifactReport, IngestError> {
+    build_artifact_from_source_started(source, options, Instant::now())
+}
+
+fn build_artifact_from_source_started(
+    mut source: SourceLoad,
+    options: BuildArtifactOptions,
+    build_started_at: Instant,
+) -> Result<BuildArtifactReport, IngestError> {
     info!(
         packs = source.packs.len(),
         source_records = source.source_record_count,

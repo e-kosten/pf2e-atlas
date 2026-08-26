@@ -13,6 +13,7 @@ mod records;
 mod report;
 mod source;
 mod source_pipeline;
+mod validation;
 
 pub use artifact_manifest::{
     ADJACENT_ARTIFACT_MANIFEST_PATH, ARTIFACT_MANIFEST_VERSION, ArtifactManifest,
@@ -49,6 +50,10 @@ pub use source::model::{
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
+};
+pub use validation::{
+    AssertionInventoryEntry, ExhaustiveValidationOptions, ExhaustiveValidationReport,
+    run_exhaustive_validation,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {

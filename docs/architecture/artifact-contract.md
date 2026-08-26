@@ -10,6 +10,12 @@ Durable mutable local state is not part of this artifact contract. Saved lists a
 
 [ADR 0035](./decisions/0035-atomic-canonical-artifact.md) defines the source-faithful artifact boundary approved at Checkpoint B.
 
+The C2 exhaustive-validation snapshot is outside this artifact contract. It is a
+private, no-clobber, checksum- and identity-bound evidence directory that may
+contain validation-produced artifacts and reports. No runtime reader accepts it,
+no setup freshness path consults it, and it provides neither a fallback artifact
+nor a second serializable canonical record model.
+
 The target stores canonical entities, contextual occurrences, owned content, exact reference occurrences, and derived query projections with stable identities. Product-addressable activities, spellcasting entries, resources, content, and occurrences are relational. Nested mechanics normally consumed with one entity may use deterministic Atlas-owned typed JSON; independently queryable/filterable/joinable facts require authoritative relational projections. Complete canonical hydration belongs only to `atlas-index::read`.
 
 B5 supplies the storage-neutral creature owned-content input to the C1 boundary:

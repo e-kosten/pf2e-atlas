@@ -106,6 +106,7 @@ impl Command {
                 IndexCommand::Check(options) => options.json,
                 IndexCommand::Inspect(options) => options.json,
                 IndexCommand::Validate(options) => options.json,
+                IndexCommand::ValidateCorpus(_) => false,
             },
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
@@ -160,6 +161,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Check(options) => commands::index::run_index_check(options),
             IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
+            IndexCommand::ValidateCorpus(options) => {
+                commands::index::run_index_validate_corpus(options)
+            }
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(options),

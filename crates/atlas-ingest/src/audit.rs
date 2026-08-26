@@ -12,6 +12,7 @@ use sha2::{Digest, Sha256};
 
 use crate::error::IngestError;
 use crate::records::LoadedSourceRecord;
+use crate::source::SourceLoad;
 use crate::source::dto::{
     PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, SourceDiagnostic,
     SourceDiagnosticKind, SourceIdentity, SourcePresence, parse_item_source, parse_npc_source,
@@ -335,7 +336,7 @@ struct ReverseObservation {
 pub fn audit_source_paths(
     options: SourcePathAuditOptions,
 ) -> Result<SourcePathAuditReport, IngestError> {
-    let source_root = options.source_root;
+    let source_root = options.source_root.clone();
     if !source_root.is_dir() {
         return Err(IngestError::SourceUnavailable(format!(
             "{} is not a readable directory",
@@ -421,6 +422,117 @@ pub fn audit_source_paths(
         }
     }
 
+    finish_source_path_audit(
+        options,
+        source_root,
+        manifest_path,
+        pack_count,
+        record_count,
+        stats,
+        typed_diagnostics,
+        creature_survival,
+    )
+}
+
+pub(crate) fn audit_loaded_source(
+    options: SourcePathAuditOptions,
+    source: &SourceLoad,
+) -> Result<SourcePathAuditReport, IngestError> {
+    let source_root = options.source_root.clone();
+    let manifest_path = source.manifest_path.clone();
+    let mut stats = BTreeMap::<PathKey, MutablePathStats>::new();
+    let mut typed_diagnostics = BTreeMap::<DiagnosticKey, MutableDiagnostic>::new();
+    let mut creature_survival = CreatureSurvivalInventory::default();
+    let pack_count = source
+        .packs
+        .iter()
+        .filter(|pack| !pack.declared_path.starts_with("derived://"))
+        .filter(|pack| {
+            options
+                .pack_name
+                .as_ref()
+                .is_none_or(|expected| expected == pack.name.as_str())
+        })
+        .filter(|pack| {
+            options
+                .document_type
+                .as_ref()
+                .is_none_or(|expected| expected == &pack.document_type)
+        })
+        .count();
+    let mut record_count = 0;
+
+    for loaded in source.records.iter().take(source.source_record_count) {
+        let document_type = loaded.record.foundry.document_type.as_str().to_string();
+        let record_type = loaded.record.foundry.record_type.as_str().to_string();
+        let pack_name = loaded.record.identity.key.pack().as_str().to_string();
+        if options
+            .pack_name
+            .as_ref()
+            .is_some_and(|expected| expected != &pack_name)
+            || options
+                .document_type
+                .as_ref()
+                .is_some_and(|expected| expected != &document_type)
+            || options
+                .record_type
+                .as_ref()
+                .is_some_and(|expected| expected != &record_type)
+        {
+            continue;
+        }
+        let serialized = loaded
+            .record
+            .provenance
+            .raw_json
+            .as_deref()
+            .ok_or_else(|| {
+                IngestError::RecordParseFailed(format!(
+                    "captured source record {} has no raw JSON for strict audit",
+                    loaded.record.identity.key
+                ))
+            })?;
+        let value: Value = serde_json::from_str(serialized).map_err(|error| {
+            IngestError::RecordParseFailed(format!(
+                "captured source record {} has invalid raw JSON: {error}",
+                loaded.record.identity.key
+            ))
+        })?;
+        let context = RecordContext {
+            document_type,
+            record_type,
+            record_key: loaded.record.identity.key.to_string(),
+            source_path: loaded.record.provenance.source_path.clone(),
+        };
+        record_count += 1;
+        collect_value_paths("$", &value, &context, &mut stats);
+        collect_creature_survival(&value, &context, Some(loaded), &mut creature_survival);
+        validate_typed_source(&value, &context, &mut typed_diagnostics);
+    }
+
+    finish_source_path_audit(
+        options,
+        source_root,
+        manifest_path,
+        pack_count,
+        record_count,
+        stats,
+        typed_diagnostics,
+        creature_survival,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_source_path_audit(
+    options: SourcePathAuditOptions,
+    source_root: PathBuf,
+    manifest_path: PathBuf,
+    pack_count: usize,
+    record_count: usize,
+    stats: BTreeMap<PathKey, MutablePathStats>,
+    typed_diagnostics: BTreeMap<DiagnosticKey, MutableDiagnostic>,
+    creature_survival: CreatureSurvivalInventory,
+) -> Result<SourcePathAuditReport, IngestError> {
     let mut paths = stats
         .into_iter()
         .filter_map(|(key, stats)| {

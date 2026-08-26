@@ -88,6 +88,29 @@ Validation is quiet by default: successful gates print summary lines, and detail
 Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` when you want the full command stream.
 
+Validation has four explicit tiers:
+
+- `just validate-fast` is the ordinary `just verify` gate with corpus identity
+  variables removed so pinned full-corpus tests cannot activate accidentally.
+- `just validate-focused` runs the ingest/index source-contract, mutation,
+  corruption, publication, generation-binding, and validation-snapshot tests.
+  It also removes corpus identity variables and never scans the full source.
+- `just validate-exhaustive --source <path> --candidate-head <sha>
+  --snapshot-root <new-path> --report <new-path>` is the author acceptance gate.
+  Set `PF2E_EMBEDDING_CACHE_ROOT` or pass `--embedding-cache-path`. The command
+  requires clean source and candidate checkouts, performs exactly one source
+  traversal, and feeds analysis, strict audit, canonical closure, and both
+  artifact modes from the captured in-memory state.
+- `just validate-exhaustive-review` is reserved for an independent reviewer. It
+  forces a new snapshot root and refuses reuse of author evidence.
+
+The exhaustive snapshot is private, disposable validation evidence. Its identity
+binds source/candidate commits and trees, source signature and pack manifest,
+policy/contracts/schema/migrations/inventory, target/features/toolchain, and
+embedding identity. Missing, dirty, partial, corrupt, ambiguous, mismatched, or
+concurrently published state fails closed. The snapshot is never a runtime input,
+product artifact, fallback, public serialization contract, or canonical model.
+
 Run the CLI from source:
 
 ```bash
