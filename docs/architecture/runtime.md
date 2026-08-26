@@ -109,6 +109,16 @@ not available to runtime, setup, search, API, or UI code. Candidate/source or
 policy/schema/toolchain/embedding identity changes invalidate it rather than
 falling back to stale evidence.
 
+Artifact-mode validation similarly retains one private live handle over one
+manifest-verified immutable generation and one `SqliteIndexReader`. The handle
+binds the candidate/snapshot tuple, canonical file/generation identity, size,
+trusted digest, and artifact/source/embedding metadata. Its existing Diesel and
+rusqlite connections serve round-trip hydration and one deep-coherence pass;
+inspection and serialized evidence consume the resulting in-memory receipt
+without another reader, pathname reopen, full validation scan, digest pass, or
+generation copy. The handle and receipt are validation-process capabilities, not
+runtime inputs, caches, product models, or artifact contracts.
+
 The strict audit preserves its accepted pre-localization observation contract by
 normalizing each already captured raw source record for audit only; it does not
 reread the corpus and does not alter the localized `SourceLoad` used by canonical

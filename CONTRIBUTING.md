@@ -118,6 +118,22 @@ member, destination, state/type/value, multiplicity/order, enforcement, and
 closure detail. A failed exhaustive run atomically preserves that report in its
 failed snapshot rather than reducing it to aggregate counts.
 
+Within each exhaustive artifact mode, validation opens one manifest-verified,
+generation-bound `SqliteIndexReader` and retains its existing Diesel hydration
+and rusqlite validation connections. One deep-validation receipt feeds inspection
+and evidence projection; the same reader performs captured-record round-trip
+hydration. This composition does not remove or combine staged-manifest,
+publisher, visible-pair reader, or generation materialization/open SHA checks,
+and it preserves the required publication generation copy. Per-operation timing,
+byte, reader/connection, hash-category, validation, and copy counters are emitted
+with the author report.
+
+Legacy/new matrix reproduction is a one-time trust-establishment review for this
+migration only. Once an independent reviewer proves equivalence, permanent
+candidate acceptance and CI use only the consolidated fast, focused, exhaustive,
+and reviewer tiers with change-sensitive exhaustive triggering; the migration
+matrix is not a permanent recipe, normal CI gate, or Checkpoint C rerun.
+
 Run the CLI from source:
 
 ```bash

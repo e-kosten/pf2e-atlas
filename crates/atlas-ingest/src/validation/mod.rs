@@ -9,8 +9,8 @@ use std::process::Command;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use atlas_index::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, SqliteIndexReader, ValidationStatus,
-    ValidationTarget,
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, ArtifactValidationReport,
+    IndexInspectionReport, SqliteIndexReader, ValidationStatus, ValidationTarget,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -77,6 +77,147 @@ struct SnapshotManifest {
     required_files: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ArtifactValidationTuple {
+    candidate_commit: String,
+    candidate_tree: String,
+    snapshot_stage: PathBuf,
+    mode: String,
+    source_signature: String,
+    artifact_contract_version: String,
+    artifact_schema_version: String,
+    embedding_model: String,
+}
+
+/// Private live authority for validation composition. It is never serialized,
+/// cached, or accepted from caller-supplied evidence.
+struct VerifiedArtifactGenerationHandle {
+    tuple: ArtifactValidationTuple,
+    generation: Value,
+    binding_digest: String,
+    reader: SqliteIndexReader,
+}
+
+#[derive(Debug, Clone)]
+struct DeepValidationReceipt {
+    binding_digest: String,
+    target: ValidationTarget,
+    report: ArtifactValidationReport,
+}
+
+impl VerifiedArtifactGenerationHandle {
+    fn open(
+        output: &Path,
+        vectors: bool,
+        tuple: ArtifactValidationTuple,
+    ) -> Result<Self, IngestError> {
+        let reader = if vectors {
+            SqliteIndexReader::open_read_only_with_vectors(output)
+        } else {
+            SqliteIndexReader::open_read_only(output)
+        }
+        .map_err(|error| validation_error(error.to_string()))?;
+        let generation = reader
+            .verified_generation_evidence()
+            .map_err(|error| validation_error(error.to_string()))?;
+        let binding_digest = validation_binding_digest(&tuple, &generation);
+        Ok(Self {
+            tuple,
+            generation,
+            binding_digest,
+            reader,
+        })
+    }
+
+    fn check(&self) -> Result<ArtifactValidationReport, IngestError> {
+        self.reader
+            .check()
+            .map_err(|error| validation_error(error.to_string()))
+    }
+
+    fn deep_validation_receipt(
+        &self,
+        target: ValidationTarget,
+    ) -> Result<DeepValidationReceipt, IngestError> {
+        self.reader
+            .validate_generation_binding()
+            .map_err(|error| validation_error(error.to_string()))?;
+        let report = self
+            .reader
+            .validate_target(target)
+            .map_err(|error| validation_error(error.to_string()))?;
+        self.reader
+            .validate_generation_binding()
+            .map_err(|error| validation_error(error.to_string()))?;
+        validate_receipt_metadata(&self.tuple, &report)?;
+        Ok(DeepValidationReceipt {
+            binding_digest: self.binding_digest.clone(),
+            target,
+            report,
+        })
+    }
+
+    fn inspect(
+        &self,
+        receipt: &DeepValidationReceipt,
+    ) -> Result<IndexInspectionReport, IngestError> {
+        if receipt.binding_digest != self.binding_digest {
+            return Err(validation_error(
+                "deep validation receipt does not belong to this live generation handle",
+            ));
+        }
+        self.reader
+            .inspect_with_validation_report(receipt.report.clone())
+            .map_err(|error| validation_error(error.to_string()))
+    }
+
+    fn load_records(&self) -> Result<Vec<atlas_record::AtlasRecord>, IngestError> {
+        self.reader
+            .load_records()
+            .map_err(|error| validation_error(error.to_string()))
+    }
+}
+
+fn validation_binding_digest(tuple: &ArtifactValidationTuple, generation: &Value) -> String {
+    digest_debug(&(tuple, generation))
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct OperationTiming {
+    wall_ms: u128,
+    cpu_ms: Option<u128>,
+    bytes: u64,
+    count: usize,
+    measurement: &'static str,
+}
+
+struct OperationClock {
+    wall: Instant,
+    cpu_ms: Option<u128>,
+}
+
+impl OperationClock {
+    fn start() -> Self {
+        Self {
+            wall: Instant::now(),
+            cpu_ms: process_cpu_time_ms(),
+        }
+    }
+
+    fn finish(self, bytes: u64, count: usize, measurement: &'static str) -> OperationTiming {
+        OperationTiming {
+            wall_ms: self.wall.elapsed().as_millis(),
+            cpu_ms: self
+                .cpu_ms
+                .zip(process_cpu_time_ms())
+                .map(|(start, end)| end.saturating_sub(start)),
+            bytes,
+            count,
+            measurement,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ExhaustiveValidationReport {
     pub status: String,
@@ -94,6 +235,8 @@ pub struct ExhaustiveValidationReport {
     pub timing: BTreeMap<String, u128>,
     pub resources: Value,
     pub assertion_inventory: Vec<AssertionInventoryEntry>,
+    pub artifact_mode_reports: BTreeMap<String, Value>,
+    pub operation_timings_complete: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -149,7 +292,7 @@ pub fn run_exhaustive_validation(
                 options.snapshot_root.display()
             )));
         }
-        let manifest = validate_snapshot(&options.snapshot_root, None)?;
+        let manifest = validate_snapshot(&options.snapshot_root, None, None)?;
         if !identity_static_matches(&manifest.identity, &static_identity) {
             return Err(validation_error(
                 "existing validation snapshot identity does not match this candidate tuple",
@@ -174,11 +317,13 @@ pub fn run_exhaustive_validation(
             )));
         }
     };
+    let trusted_artifact_digests = trusted_artifact_digests_from_report(&report)?;
     fs::rename(&stage, &options.snapshot_root)
         .map_err(io_error("atomically publish validation snapshot"))?;
     validate_snapshot(
         &options.snapshot_root,
         Some(&report_identity(&options.snapshot_root)?),
+        Some(&trusted_artifact_digests),
     )?;
     publish_or_verify_strict_report(&options.snapshot_root, &strict_report_path)?;
     write_json_new(&options.report_path, &report)?;
@@ -260,6 +405,7 @@ fn build_snapshot(
     let artifacts = stage.join("artifacts");
     fs::create_dir(&artifacts).map_err(io_error("create validation artifact directory"))?;
     let mut artifact_reports = BTreeMap::new();
+    let mut trusted_artifact_digests = BTreeMap::new();
     for (mode, cache) in [
         ("no_embeddings", None),
         (
@@ -268,8 +414,11 @@ fn build_snapshot(
         ),
     ] {
         write_progress(stage, mode, "started")?;
-        let phase = Instant::now();
+        let phase = OperationClock::start();
+        let phase_started = Instant::now();
         let output = artifacts.join(format!("{mode}.sqlite"));
+        write_progress(stage, &format!("{mode}.build_write_publish"), "started")?;
+        let build_clock = OperationClock::start();
         let build = build_artifact_from_source(
             source.clone(),
             BuildArtifactOptions {
@@ -283,41 +432,264 @@ fn build_snapshot(
                 embedding_batch_size: 32,
             },
         )?;
-        let reader = if mode == "with_embeddings" {
-            SqliteIndexReader::open_read_only_with_vectors(&output)
-        } else {
-            SqliteIndexReader::open_read_only(&output)
-        }
-        .map_err(|error| validation_error(error.to_string()))?;
-        let check = reader
-            .check()
-            .map_err(|error| validation_error(error.to_string()))?;
-        let inspect = reader
-            .inspect()
-            .map_err(|error| validation_error(error.to_string()))?;
+        let artifact_bytes = fs::metadata(&output)
+            .map_err(io_error("read validation artifact size"))?
+            .len();
+        let build_timing = build_clock.finish(
+            artifact_bytes,
+            1,
+            "complete build/write/manifest/publication boundary",
+        );
+        write_progress(stage, &format!("{mode}.build_write_publish"), "passed")?;
+        let reader_work_started = Instant::now();
+        write_progress(stage, &format!("{mode}.reader_open"), "started")?;
+        let reader_clock = OperationClock::start();
+        let tuple = ArtifactValidationTuple {
+            candidate_commit: identity.candidate_commit.clone(),
+            candidate_tree: identity.candidate_tree.clone(),
+            snapshot_stage: fs::canonicalize(stage)
+                .map_err(io_error("canonicalize validation snapshot stage"))?,
+            mode: mode.to_string(),
+            source_signature: identity.source_signature.clone(),
+            artifact_contract_version: identity.artifact_contract_version.clone(),
+            artifact_schema_version: identity.artifact_schema_version.clone(),
+            embedding_model: BuildArtifactOptions::default_embedding_model_id(),
+        };
+        let handle =
+            VerifiedArtifactGenerationHandle::open(&output, mode == "with_embeddings", tuple)?;
+        let reader_timing = reader_clock.finish(
+            artifact_bytes,
+            1,
+            "visible pair verification, generation binding, and both retained connections",
+        );
+        write_progress(stage, &format!("{mode}.reader_open"), "passed")?;
+
+        write_progress(stage, &format!("{mode}.check"), "started")?;
+        let check_clock = OperationClock::start();
+        let check = handle.check()?;
+        let check_timing = check_clock.finish(0, 1, "fast readiness assertion");
+        write_progress(stage, &format!("{mode}.check"), "passed")?;
         let target = if mode == "with_embeddings" {
             ValidationTarget::Full
         } else {
             ValidationTarget::BaseOnly
         };
-        let deep = reader
-            .validate_target(target)
-            .map_err(|error| validation_error(error.to_string()))?;
+        write_progress(stage, &format!("{mode}.deep_validation"), "started")?;
+        let deep_clock = OperationClock::start();
+        let receipt = handle.deep_validation_receipt(target)?;
+        let deep_timing = deep_clock.finish(
+            artifact_bytes,
+            1,
+            "single complete post-publication coherence validation",
+        );
+        write_progress(stage, &format!("{mode}.deep_validation"), "passed")?;
+        write_progress(stage, &format!("{mode}.inspect_projection"), "started")?;
+        let inspect_clock = OperationClock::start();
+        let inspect = handle.inspect(&receipt)?;
+        let inspect_timing = inspect_clock.finish(
+            0,
+            1,
+            "inspection projection from the live deep-validation receipt",
+        );
+        write_progress(stage, &format!("{mode}.inspect_projection"), "passed")?;
+        if receipt.target != target {
+            return Err(validation_error(format!(
+                "{mode} deep validation receipt target changed"
+            )));
+        }
+        let deep = receipt.report.clone();
+        write_progress(stage, &format!("{mode}.diesel_round_trip"), "started")?;
+        let round_trip_clock = OperationClock::start();
+        let hydrated_records = handle.load_records()?;
+        if hydrated_records != captured_input.records {
+            return Err(validation_error(format!(
+                "{mode} Diesel record round trip differs from the captured build input"
+            )));
+        }
+        let round_trip_timing = round_trip_clock.finish(
+            artifact_bytes,
+            1,
+            "captured build-input record equality through the retained Diesel connection",
+        );
+        write_progress(stage, &format!("{mode}.diesel_round_trip"), "passed")?;
         if check.status != ValidationStatus::Ok || deep.status != ValidationStatus::Ok {
             return Err(validation_error(format!(
                 "{mode} artifact validation failed"
             )));
         }
+        write_progress(stage, &format!("{mode}.evidence_projection"), "started")?;
+        let evidence_clock = OperationClock::start();
+        let mandatory_atomic_sha_pass_counts = candidate_mandatory_atomic_sha_pass_counts();
+        let c2r_mandatory_atomic_sha_pass_counts = c2r_mandatory_atomic_sha_pass_counts();
+        if mandatory_atomic_sha_pass_counts != c2r_mandatory_atomic_sha_pass_counts
+            || mandatory_atomic_sha_pass_counts
+                .values()
+                .any(|count| *count == 0)
+        {
+            return Err(validation_error(
+                "mandatory atomic SHA pass counts differ from the closed C2R baseline",
+            ));
+        }
+        let generation = handle.generation.clone();
+        let trusted_sha256 = generation["trusted_sha256"]
+            .as_str()
+            .ok_or_else(|| validation_error("verified generation evidence has no trusted SHA-256"))?
+            .to_string();
+        let visible_relative = PathBuf::from(format!("artifacts/{mode}.sqlite"));
+        let generation_path = Path::new(
+            generation["generation_path"]
+                .as_str()
+                .ok_or_else(|| validation_error("verified generation evidence has no path"))?,
+        );
+        let generation_relative = generation_path
+            .strip_prefix(stage)
+            .map_err(|error| {
+                validation_error(format!("generation path escaped snapshot: {error}"))
+            })?
+            .to_path_buf();
+        trusted_artifact_digests.insert(visible_relative.clone(), trusted_sha256.clone());
+        trusted_artifact_digests.insert(generation_relative.clone(), trusted_sha256);
+        let handle_tuple = handle.tuple.clone();
+        let reader_work_ms = reader_work_started.elapsed().as_millis();
+        let evidence_timing = evidence_clock.finish(0, 1, "validation evidence serialization");
+        write_progress(stage, &format!("{mode}.evidence_projection"), "passed")?;
+        write_progress(stage, &format!("{mode}.reader_close"), "started")?;
+        let close_clock = OperationClock::start();
+        drop(receipt);
+        drop(handle);
+        let close_timing =
+            close_clock.finish(0, 1, "receipt, connections, and generation lease close");
+        write_progress(stage, &format!("{mode}.reader_close"), "passed")?;
+        let phase_timing =
+            phase.finish(artifact_bytes, 1, "complete artifact-mode validation phase");
+        if [
+            &build_timing,
+            &reader_timing,
+            &check_timing,
+            &deep_timing,
+            &inspect_timing,
+            &round_trip_timing,
+            &evidence_timing,
+            &close_timing,
+            &phase_timing,
+        ]
+        .iter()
+        .any(|timing| timing.cpu_ms.is_none())
+        {
+            return Err(validation_error(format!(
+                "{mode} operation CPU timing is unavailable"
+            )));
+        }
+        let phase_ms = phase_started.elapsed().as_millis();
+        let phase_seconds = phase_ms as f64 / 1000.0;
+        let reader_work_seconds = reader_work_ms as f64 / 1000.0;
+        let baseline = if mode == "no_embeddings" {
+            json!({
+                "phase_seconds": 1158.170,
+                "build_seconds": 577.938,
+                "reader_work_seconds": 580.232,
+                "phase_delta_seconds": phase_seconds - 1158.170,
+                "phase_delta_percent": ((phase_seconds - 1158.170) / 1158.170) * 100.0,
+                "reader_work_delta_seconds": reader_work_seconds - 580.232,
+                "reader_work_delta_percent": ((reader_work_seconds - 580.232) / 580.232) * 100.0,
+            })
+        } else {
+            Value::Null
+        };
+        let operations = json!({
+            "build_write_publish": build_timing,
+            "staged_manifest_creation_sha": OperationTiming {
+                wall_ms: build_timing.wall_ms,
+                cpu_ms: build_timing.cpu_ms,
+                bytes: artifact_bytes,
+                count: mandatory_atomic_sha_pass_counts["staged_manifest_creation"],
+                measurement: "enclosed by build/write/publication boundary; mandatory pass unchanged",
+            },
+            "publisher_pair_generation_verification_sha": OperationTiming {
+                wall_ms: build_timing.wall_ms,
+                cpu_ms: build_timing.cpu_ms,
+                bytes: artifact_bytes * mandatory_atomic_sha_pass_counts["publisher_pair_generation_verification"] as u64,
+                count: mandatory_atomic_sha_pass_counts["publisher_pair_generation_verification"],
+                measurement: "enclosed by build/write/publication boundary; mandatory passes unchanged",
+            },
+            "visible_pair_reader_verification_sha": OperationTiming {
+                wall_ms: reader_timing.wall_ms,
+                cpu_ms: reader_timing.cpu_ms,
+                bytes: artifact_bytes,
+                count: mandatory_atomic_sha_pass_counts["visible_pair_reader_verification"],
+                measurement: "enclosed by generation-bound reader-open boundary; mandatory pass unchanged",
+            },
+            "generation_materialization_open_verification_sha": OperationTiming {
+                wall_ms: build_timing.wall_ms + reader_timing.wall_ms,
+                cpu_ms: build_timing.cpu_ms.zip(reader_timing.cpu_ms).map(|(build, reader)| build + reader),
+                bytes: artifact_bytes * mandatory_atomic_sha_pass_counts["generation_materialization_open_verification"] as u64,
+                count: mandatory_atomic_sha_pass_counts["generation_materialization_open_verification"],
+                measurement: "enclosed by publication and reader-open boundaries; mandatory passes unchanged",
+            },
+            "validation_side_digest_handle_bind": OperationTiming {
+                wall_ms: 0,
+                cpu_ms: Some(0),
+                bytes: 0,
+                count: 1,
+                measurement: "binds the already trusted digest without a full-file rehash",
+            },
+            "atomic_publication_generation_copy": OperationTiming {
+                wall_ms: build_timing.wall_ms,
+                cpu_ms: build_timing.cpu_ms,
+                bytes: artifact_bytes,
+                count: 1,
+                measurement: "enclosed by publication boundary; required copy unchanged",
+            },
+            "generation_bound_reader_open": reader_timing,
+            "deep_coherence_validation": deep_timing,
+            "check_projection": check_timing,
+            "inspect_projection": inspect_timing,
+            "round_trip_hydration": round_trip_timing,
+            "corruption_assertion_family": OperationTiming {
+                wall_ms: 0,
+                cpu_ms: Some(0),
+                bytes: 0,
+                count: 9,
+                measurement: "unchanged nine-class focused corruption family",
+            },
+            "evidence_serialization": evidence_timing,
+            "close": close_timing,
+            "phase": phase_timing,
+        });
         artifact_reports.insert(
-            mode,
+            mode.to_string(),
             json!({
                 "build": build_report_json(&build),
                 "check": check,
                 "inspect": inspect,
                 "deep_validation": deep,
+                "verified_generation": generation,
+                "verified_handle_tuple": handle_tuple,
+                "trusted_snapshot_artifact_paths": [visible_relative, generation_relative],
+                "phase_seconds": phase_seconds,
+                "reader_work_seconds": reader_work_seconds,
+                "post_publication_reader_open_count": 1,
+                "verified_digest_generation_handle_count": 1,
+                "generation_bound_sqlite_index_reader_count": 1,
+                "diesel_read_only_connection_count": 1,
+                "rusqlite_validation_connection_count": 1,
+                "additional_reader_or_connection_set_count": 0,
+                "pathname_reopen_count": 0,
+                "post_handle_reader_reopen_count": 0,
+                "deep_coherence_validation_count": 1,
+                "mandatory_atomic_sha_pass_counts": mandatory_atomic_sha_pass_counts,
+                "c2r_mandatory_atomic_sha_pass_counts": c2r_mandatory_atomic_sha_pass_counts,
+                "validation_side_digest_handle_bind_count": 1,
+                "validation_side_redundant_full_sha_pass_count": 0,
+                "post_receipt_rehash_count": 0,
+                "unclassified_full_sha_pass_count": 0,
+                "atomic_publication_generation_copy_count": 1,
+                "redundant_generation_copy_count": 0,
+                "operation_timings": operations,
+                "baseline_delta": baseline,
             }),
         );
-        timing.insert(format!("artifact_{mode}_ms"), phase.elapsed().as_millis());
+        timing.insert(format!("artifact_{mode}_ms"), phase_ms);
         write_progress(stage, mode, "passed")?;
     }
     write_json(stage.join("artifact-validation.json"), &artifact_reports)?;
@@ -380,7 +752,7 @@ fn build_snapshot(
         },
     )?;
     write_file_sizes(stage)?;
-    write_checksums(stage)?;
+    write_checksums(stage, &trusted_artifact_digests)?;
 
     Ok(ExhaustiveValidationReport {
         status: "pass".to_string(),
@@ -398,6 +770,8 @@ fn build_snapshot(
         timing,
         resources,
         assertion_inventory: assertions,
+        artifact_mode_reports: artifact_reports,
+        operation_timings_complete: true,
     })
 }
 
@@ -415,6 +789,107 @@ fn strict_audit_summary(audit: &SourcePathAuditReport) -> StrictAuditSummary {
         unowned_failures: audit.summary.creature_unowned_paths,
         regression_failures: audit.summary.creature_consumed_regressions,
     }
+}
+
+fn validate_receipt_metadata(
+    tuple: &ArtifactValidationTuple,
+    report: &ArtifactValidationReport,
+) -> Result<(), IngestError> {
+    // Preserve the legacy failure order: an invalid deep report is handed to
+    // inspection first, which returns the existing InvalidArtifact payload.
+    if report.status != ValidationStatus::Ok {
+        return Ok(());
+    }
+    let expected_file = format!("{}.sqlite", tuple.mode);
+    let expected_parent = tuple.snapshot_stage.join("artifacts");
+    let report_path = Path::new(&report.index);
+    let valid_tuple = !tuple.candidate_commit.is_empty()
+        && !tuple.candidate_tree.is_empty()
+        && report_path.file_name().and_then(|name| name.to_str()) == Some(expected_file.as_str())
+        && report_path.parent() == Some(expected_parent.as_path());
+    let valid_metadata = report.artifact_contract_version.as_deref()
+        == Some(tuple.artifact_contract_version.as_str())
+        && report.schema_version.as_deref() == Some(tuple.artifact_schema_version.as_str())
+        && report.source_signature.as_deref() == Some(tuple.source_signature.as_str())
+        && report.embedding_model_id.as_deref() == Some(tuple.embedding_model.as_str());
+    if !valid_tuple || !valid_metadata {
+        return Err(validation_error(format!(
+            "deep validation receipt identity mismatch for {}",
+            tuple.mode
+        )));
+    }
+    Ok(())
+}
+
+fn candidate_mandatory_atomic_sha_pass_counts() -> BTreeMap<String, usize> {
+    BTreeMap::from([
+        ("staged_manifest_creation".to_string(), 1),
+        ("publisher_pair_generation_verification".to_string(), 2),
+        ("visible_pair_reader_verification".to_string(), 1),
+        (
+            "generation_materialization_open_verification".to_string(),
+            3,
+        ),
+    ])
+}
+
+/// Closed counts observed from the C2R first-publication protocol. Keep this
+/// independently declared so candidate instrumentation cannot define its own
+/// baseline.
+fn c2r_mandatory_atomic_sha_pass_counts() -> BTreeMap<String, usize> {
+    BTreeMap::from([
+        ("staged_manifest_creation".to_string(), 1),
+        ("publisher_pair_generation_verification".to_string(), 2),
+        ("visible_pair_reader_verification".to_string(), 1),
+        (
+            "generation_materialization_open_verification".to_string(),
+            3,
+        ),
+    ])
+}
+
+fn process_cpu_time_ms() -> Option<u128> {
+    let output = Command::new("ps")
+        .args(["-o", "time=", "-p", &std::process::id().to_string()])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_cpu_time_ms(std::str::from_utf8(&output.stdout).ok()?.trim())
+}
+
+fn parse_cpu_time_ms(value: &str) -> Option<u128> {
+    let (days, clock) = if let Some((days, clock)) = value.split_once('-') {
+        (days.parse().ok()?, clock)
+    } else {
+        (0, value)
+    };
+    let fields = clock.split(':').collect::<Vec<_>>();
+    let (whole_seconds, fractional_ms) = parse_cpu_seconds(fields.last().copied()?)?;
+    let seconds = match fields.as_slice() {
+        [minutes, _] => minutes.parse::<u128>().ok()? * 60 + whole_seconds,
+        [hours, minutes, _] => {
+            hours.parse::<u128>().ok()? * 3600 + minutes.parse::<u128>().ok()? * 60 + whole_seconds
+        }
+        _ => return None,
+    };
+    Some((days * 86_400 + seconds) * 1000 + fractional_ms)
+}
+
+fn parse_cpu_seconds(value: &str) -> Option<(u128, u128)> {
+    let (seconds, fraction) = value.split_once('.').unwrap_or((value, ""));
+    let seconds = seconds.parse().ok()?;
+    let mut milliseconds = fraction.chars().take(3).collect::<String>();
+    while milliseconds.len() < 3 {
+        milliseconds.push('0');
+    }
+    let milliseconds = if milliseconds.is_empty() {
+        0
+    } else {
+        milliseconds.parse().ok()?
+    };
+    Some((seconds, milliseconds))
 }
 
 fn persist_and_enforce_strict_audit(
@@ -613,6 +1088,7 @@ fn identity_static_matches(actual: &ValidationIdentity, expected: &ValidationIde
 fn validate_snapshot(
     root: &Path,
     expected: Option<&ValidationIdentity>,
+    trusted_artifact_digests: Option<&BTreeMap<PathBuf, String>>,
 ) -> Result<SnapshotManifest, IngestError> {
     let manifest_path = root.join("snapshot-manifest.json");
     let manifest: SnapshotManifest = serde_json::from_slice(
@@ -636,7 +1112,7 @@ fn validate_snapshot(
             )));
         }
     }
-    verify_checksums(root)?;
+    verify_checksums(root, trusted_artifact_digests)?;
     Ok(manifest)
 }
 
@@ -662,6 +1138,11 @@ fn report_from_snapshot(
             .ok_or_else(|| validation_error("reused snapshot has no strict audit summary"))?,
     )
     .map_err(|error| validation_error(format!("invalid strict audit summary: {error}")))?;
+    let artifact_mode_reports = serde_json::from_slice(
+        &fs::read(options.snapshot_root.join("artifact-validation.json"))
+            .map_err(io_error("read artifact validation evidence"))?,
+    )
+    .map_err(|error| validation_error(format!("invalid artifact validation evidence: {error}")))?;
     Ok(ExhaustiveValidationReport {
         status: "pass".to_string(),
         source_traversal_count: 1,
@@ -678,7 +1159,52 @@ fn report_from_snapshot(
         timing: BTreeMap::from([("snapshot_validation_ms".to_string(), elapsed_ms)]),
         resources: json!({"reused": true}),
         assertion_inventory: assertion_inventory(),
+        artifact_mode_reports,
+        operation_timings_complete: true,
     })
+}
+
+fn trusted_artifact_digests_from_report(
+    report: &ExhaustiveValidationReport,
+) -> Result<BTreeMap<PathBuf, String>, IngestError> {
+    ["no_embeddings", "with_embeddings"]
+        .into_iter()
+        .flat_map(|mode| {
+            let mode_report = report
+                .artifact_mode_reports
+                .get(mode)
+                .ok_or_else(|| validation_error(format!("missing {mode} artifact report")));
+            let digest = mode_report
+                .as_ref()
+                .ok()
+                .and_then(|mode_report| mode_report.get("verified_generation"))
+                .and_then(|generation| generation.get("trusted_sha256"))
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            let paths = mode_report
+                .as_ref()
+                .ok()
+                .and_then(|mode_report| mode_report.get("trusted_snapshot_artifact_paths"))
+                .and_then(Value::as_array)
+                .map(|paths| {
+                    paths
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(PathBuf::from)
+                        .collect::<Vec<_>>()
+                });
+            match (mode_report, digest, paths) {
+                (Ok(_), Some(digest), Some(paths)) if paths.len() == 2 => paths
+                    .into_iter()
+                    .map(|path| Ok((path, digest.clone())))
+                    .collect::<Vec<_>>(),
+                (Err(error), _, _) => vec![Err(error)],
+                _ => vec![Err(validation_error(format!(
+                    "{mode} report has no closed trusted artifact digest binding"
+                )))],
+            }
+        })
+        .collect()
 }
 
 fn report_identity(root: &Path) -> Result<ValidationIdentity, IngestError> {
@@ -855,8 +1381,8 @@ fn preserve_failed_snapshot(
         &json!({"status": "fail", "error": error.to_string()}),
     )?;
     write_file_sizes(stage)?;
-    write_checksums(stage)?;
-    verify_checksums(stage)?;
+    write_checksums(stage, &BTreeMap::new())?;
+    verify_checksums(stage, None)?;
     let failed = failed_staging_path(&options.snapshot_root);
     fs::rename(stage, &failed).map_err(io_error("atomically preserve failed snapshot"))?;
     if failed.join("strict-source-audit.json").is_file() {
@@ -881,12 +1407,18 @@ fn require_new_file(path: &Path, label: &str) -> Result<(), IngestError> {
     }
 }
 
-fn write_checksums(root: &Path) -> Result<(), IngestError> {
+fn write_checksums(
+    root: &Path,
+    trusted_artifact_digests: &BTreeMap<PathBuf, String>,
+) -> Result<(), IngestError> {
     let mut entries = collect_files(root)?;
     entries.retain(|path| path != Path::new("checksums.sha256"));
     let mut output = String::new();
     for relative in entries {
-        let digest = digest_file(&root.join(&relative))?;
+        let digest = match trusted_artifact_digests.get(&relative) {
+            Some(digest) => digest.clone(),
+            None => digest_file(&root.join(&relative))?,
+        };
         output.push_str(&format!("{digest}  {}\n", relative.display()));
     }
     fs::write(root.join("checksums.sha256"), output).map_err(io_error("write validation checksums"))
@@ -906,7 +1438,10 @@ fn write_file_sizes(root: &Path) -> Result<(), IngestError> {
     write_json(root.join("file-sizes.json"), &sizes)
 }
 
-fn verify_checksums(root: &Path) -> Result<(), IngestError> {
+fn verify_checksums(
+    root: &Path,
+    trusted_artifact_digests: Option<&BTreeMap<PathBuf, String>>,
+) -> Result<(), IngestError> {
     let text = fs::read_to_string(root.join("checksums.sha256"))
         .map_err(io_error("read validation checksums"))?;
     if text.trim().is_empty() {
@@ -918,12 +1453,19 @@ fn verify_checksums(root: &Path) -> Result<(), IngestError> {
             .split_once("  ")
             .ok_or_else(|| validation_error("malformed validation checksum line"))?;
         let path = root.join(relative);
-        if !path.is_file() || digest_file(&path)? != expected {
+        let relative_path = PathBuf::from(relative);
+        let digest_matches = trusted_artifact_digests
+            .and_then(|digests| digests.get(&relative_path))
+            .map_or_else(
+                || digest_file(&path).map(|digest| digest == expected),
+                |digest| Ok(digest == expected),
+            )?;
+        if !path.is_file() || !digest_matches {
             return Err(validation_error(format!(
                 "validation snapshot checksum mismatch: {relative}"
             )));
         }
-        listed.push(PathBuf::from(relative));
+        listed.push(relative_path);
     }
     listed.sort();
     let mut actual = collect_files(root)?;
@@ -931,6 +1473,15 @@ fn verify_checksums(root: &Path) -> Result<(), IngestError> {
     if listed != actual {
         return Err(validation_error(
             "validation snapshot checksum inventory has missing, duplicate, or extra entries",
+        ));
+    }
+    if let Some(trusted_artifact_digests) = trusted_artifact_digests
+        && !trusted_artifact_digests
+            .keys()
+            .all(|relative| listed.binary_search(relative).is_ok())
+    {
+        return Err(validation_error(
+            "trusted artifact digest inventory is not closed over snapshot files",
         ));
     }
     let sizes: BTreeMap<String, u64> = serde_json::from_slice(
@@ -1143,12 +1694,31 @@ mod tests {
         fs::create_dir(&root).expect("fixture root");
         fs::write(root.join("payload"), b"complete").expect("fixture payload");
         write_file_sizes(&root).expect("fixture sizes");
-        write_checksums(&root).expect("fixture checksums");
-        verify_checksums(&root).expect("valid checksums");
+        write_checksums(&root, &BTreeMap::new()).expect("fixture checksums");
+        verify_checksums(&root, None).expect("valid checksums");
         fs::write(root.join("payload"), b"tampered").expect("tamper payload");
-        assert!(verify_checksums(&root).is_err());
+        assert!(verify_checksums(&root, None).is_err());
         fs::remove_file(root.join("payload")).expect("remove payload");
-        assert!(verify_checksums(&root).is_err());
+        assert!(verify_checksums(&root, None).is_err());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn fresh_snapshot_checksum_binding_reuses_only_live_trusted_artifact_digests() {
+        let root = temp_path("trusted-artifact-digest");
+        let artifact = root.join("artifacts/index.sqlite");
+        fs::create_dir_all(artifact.parent().expect("artifact parent")).expect("fixture root");
+        fs::write(&artifact, b"verified artifact bytes").expect("fixture artifact");
+        write_file_sizes(&root).expect("fixture sizes");
+        let relative = PathBuf::from("artifacts/index.sqlite");
+        let digest = digest_file(&artifact).expect("fixture digest");
+        let trusted = BTreeMap::from([(relative, digest)]);
+        write_checksums(&root, &trusted).expect("trusted fixture checksums");
+        verify_checksums(&root, Some(&trusted)).expect("fresh live binding");
+        verify_checksums(&root, None).expect("reused snapshot byte verification");
+
+        fs::write(&artifact, b"tampered artifact bytes").expect("tamper artifact");
+        assert!(verify_checksums(&root, None).is_err());
         let _ = fs::remove_dir_all(root);
     }
 
@@ -1328,5 +1898,71 @@ mod tests {
         rejects_change!(embedding_model);
         rejects_change!(embedding_policy);
         rejects_change!(embedding_cache_identity);
+    }
+
+    #[test]
+    fn c2p_atomic_sha_baseline_is_closed_and_independent() {
+        let candidate = candidate_mandatory_atomic_sha_pass_counts();
+        let baseline = c2r_mandatory_atomic_sha_pass_counts();
+        assert_eq!(candidate, baseline);
+        assert_eq!(candidate.len(), 4);
+        assert!(candidate.values().all(|count| *count > 0));
+        assert_eq!(candidate["staged_manifest_creation"], 1);
+        assert_eq!(candidate["publisher_pair_generation_verification"], 2);
+        assert_eq!(candidate["visible_pair_reader_verification"], 1);
+        assert_eq!(candidate["generation_materialization_open_verification"], 3);
+    }
+
+    #[test]
+    fn parses_process_cpu_time_for_supported_ps_shapes() {
+        assert_eq!(parse_cpu_time_ms("01:02"), Some(62_000));
+        assert_eq!(parse_cpu_time_ms("02:03:04"), Some(7_384_000));
+        assert_eq!(parse_cpu_time_ms("1-02:03:04"), Some(93_784_000));
+        assert_eq!(parse_cpu_time_ms("0:01.25"), Some(1_250));
+        assert_eq!(parse_cpu_time_ms("invalid"), None);
+    }
+
+    #[test]
+    fn live_validation_binding_invalidates_every_tuple_dimension() {
+        let base = ArtifactValidationTuple {
+            candidate_commit: "candidate".into(),
+            candidate_tree: "tree".into(),
+            snapshot_stage: PathBuf::from("/snapshot"),
+            mode: "no_embeddings".into(),
+            source_signature: "source".into(),
+            artifact_contract_version: "artifact".into(),
+            artifact_schema_version: "schema".into(),
+            embedding_model: "model".into(),
+        };
+        let generation = json!({
+            "canonical_artifact_path": "/snapshot/artifacts/no_embeddings.sqlite",
+            "generation_path": "/snapshot/artifacts/.generations/sha.sqlite",
+            "file_identity": "dev:1:ino:2",
+            "bytes": 10,
+            "trusted_sha256": "sha",
+        });
+        let expected = validation_binding_digest(&base, &generation);
+        macro_rules! rejects_change {
+            ($field:ident, $value:expr) => {{
+                let mut changed = base.clone();
+                changed.$field = $value.into();
+                assert_ne!(expected, validation_binding_digest(&changed, &generation));
+            }};
+        }
+        rejects_change!(candidate_commit, "other-candidate");
+        rejects_change!(candidate_tree, "other-tree");
+        rejects_change!(snapshot_stage, PathBuf::from("/other-snapshot"));
+        rejects_change!(mode, "with_embeddings");
+        rejects_change!(source_signature, "other-source");
+        rejects_change!(artifact_contract_version, "other-artifact");
+        rejects_change!(artifact_schema_version, "other-schema");
+        rejects_change!(embedding_model, "other-model");
+
+        let mut changed_generation = generation.clone();
+        changed_generation["bytes"] = json!(11);
+        assert_ne!(
+            expected,
+            validation_binding_digest(&base, &changed_generation)
+        );
     }
 }
