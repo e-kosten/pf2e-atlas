@@ -1,4 +1,7 @@
-use atlas_record::{AtlasRecord, build_record_fts_projection};
+use atlas_record::{
+    AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
+    build_record_fts_projection,
+};
 use diesel::SqliteConnection;
 use diesel::prelude::*;
 use sha2::{Digest, Sha256};
@@ -20,6 +23,7 @@ pub(super) fn write_records(
     records: &[AtlasRecord],
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
+    canonical_record_keys: &std::collections::BTreeSet<String>,
 ) -> Result<(), IndexWriteError> {
     let retrieval_visibility = RetrievalVisibility::from_remaster_links(remaster_links);
     let mut record_rows = Vec::new();
@@ -31,6 +35,8 @@ pub(super) fn write_records(
     let mut metric_rows = Vec::new();
     let mut fts_rows = Vec::new();
     for record in records {
+        let (record_role, retrieval_disposition, retrieval_rationale) =
+            retrieval_visibility.policy(record);
         let is_default_visible = retrieval_visibility.is_default_visible(record);
         let traits_json = serde_json::to_string(&record.classification.traits)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
@@ -107,28 +113,68 @@ pub(super) fn write_records(
             source_path: record.provenance.source_path.clone(),
             is_default_visible,
             raw_json: record.provenance.raw_json.clone().unwrap_or_default(),
+            record_role: record_role.to_string(),
+            retrieval_disposition: retrieval_disposition.to_string(),
+            retrieval_rationale: retrieval_rationale.to_string(),
         });
-        let mut content_inputs = Vec::new();
-        for (ordinal, content) in record.content.documents.iter().enumerate() {
-            let content_json = serde_json::to_string(&content.document)
-                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-            content_inputs.push((ordinal, content, content_json));
-        }
-        let content_keys = allocated_content_keys(&content_inputs);
-        for ((ordinal, content, content_json), content_key) in
-            content_inputs.into_iter().zip(content_keys)
-        {
-            content_rows.push(RecordContentRow {
-                record_key: record.identity.key.to_string(),
-                content_key,
-                ordinal: to_i64(ordinal, "record_content.ordinal")?,
-                source_kind: content.source_kind.as_str().to_string(),
-                visibility: content.visibility().as_str().to_string(),
-                contributes_to_search: content.contributes_to_search(),
-                contributes_to_references: content.contributes_to_reference_occurrences(),
-                label: content.label.clone(),
-                content_json,
-            });
+        if !canonical_record_keys.contains(&record.identity.key.to_string()) {
+            let mut content_inputs = Vec::new();
+            for (ordinal, content) in record.content.documents.iter().enumerate() {
+                let content_json = serde_json::to_string(&content.document)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+                content_inputs.push((ordinal, content, content_json));
+            }
+            let content_keys = allocated_content_keys(&content_inputs);
+            for ((ordinal, content, content_json), content_key) in
+                content_inputs.into_iter().zip(content_keys)
+            {
+                content_rows.push(RecordContentRow {
+                    record_key: record.identity.key.to_string(),
+                    content_key,
+                    authored_order: to_i64(ordinal, "record_content.authored_order")?,
+                    identity_stability: "unstable_authored_ordinal".to_string(),
+                    owner_kind: "record".to_string(),
+                    owner_record_key: Some(record.identity.key.to_string()),
+                    owner_entity_id: None,
+                    owner_occurrence_id: None,
+                    owner_occurrence_authored_order: None,
+                    role: legacy_content_role(content.source_kind).to_string(),
+                    origin_json: crate::artifact::canonical_json::encode(
+                        &ContentOrigin::RecordField {
+                            source_kind: content.source_kind,
+                            relative_source_path: content.source_kind.as_str().to_string(),
+                        },
+                    )
+                    .map_err(IndexWriteError::WriteFailed)?,
+                    source_kind: content.source_kind.as_str().to_string(),
+                    visibility: content.visibility().as_str().to_string(),
+                    provenance_json: crate::artifact::canonical_json::encode(&ContentProvenance {
+                        source_record_key: record.identity.key.clone(),
+                        relative_source_path: content.source_kind.as_str().to_string(),
+                        field_or_pointer_family: content.source_kind.as_str().to_string(),
+                        nested_source_id: None,
+                        authored_ordinal_or_range: Some(ordinal.to_string()),
+                        authored_label: content.label.clone(),
+                    })
+                    .map_err(IndexWriteError::WriteFailed)?,
+                    contributes_to_search: content.contributes_to_search(),
+                    contributes_to_references: content.contributes_to_reference_occurrences(),
+                    label: content.label.clone(),
+                    content_json,
+                    content_hash: atlas_record::ContentHash::for_document(&content.document)
+                        .as_str()
+                        .to_string(),
+                    duplicate_status_json: crate::artifact::canonical_json::encode(
+                        &DuplicateContentStatus::Unique,
+                    )
+                    .map_err(IndexWriteError::WriteFailed)?,
+                    diagnostics_json: crate::artifact::canonical_json::encode(&Vec::<
+                        ContentDiagnostic,
+                    >::new(
+                    ))
+                    .map_err(IndexWriteError::WriteFailed)?,
+                });
+            }
         }
         for trait_value in &record.classification.traits {
             trait_rows.push(RecordTraitRow {
@@ -269,6 +315,18 @@ pub(super) fn write_records(
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+fn legacy_content_role(source_kind: atlas_record::ContentSourceKind) -> &'static str {
+    use atlas_record::ContentSourceKind;
+    match source_kind {
+        ContentSourceKind::Description => "primary_description",
+        ContentSourceKind::Blurb => "summary",
+        ContentSourceKind::EmbeddedItemDescription
+        | ContentSourceKind::EmbeddedSpellDescription => "embedded_capability",
+        ContentSourceKind::GeneratedAffliction => "generated_narrative",
+        _ => "supplemental_rules",
+    }
 }
 
 pub(crate) fn allocated_content_keys(

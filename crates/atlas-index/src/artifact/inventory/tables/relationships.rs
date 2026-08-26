@@ -39,11 +39,18 @@ pub mod reference_occurrences {
         pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
         pub const CONTENT_KEY: Column = Column::new(TABLE, "content_key");
         pub const OCCURRENCE_ORDINAL: Column = Column::new(TABLE, "occurrence_ordinal");
-        pub const TARGET_RECORD_KEY: Column = Column::new(TABLE, "target_record_key");
-        pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
+        pub const OWNER_KIND: Column = Column::new(TABLE, "owner_kind");
+        pub const OWNER_RECORD_KEY: Column = Column::new(TABLE, "owner_record_key");
+        pub const OWNER_ENTITY_ID: Column = Column::new(TABLE, "owner_entity_id");
+        pub const OWNER_OCCURRENCE_ID: Column = Column::new(TABLE, "owner_occurrence_id");
+        pub const ROLE: Column = Column::new(TABLE, "role");
+        pub const ORIGIN_JSON: Column = Column::new(TABLE, "origin_json");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
-        pub const DISPLAY_TEXT: Column = Column::new(TABLE, "display_text");
-        pub const REFERENCE_TEXT: Column = Column::new(TABLE, "reference_text");
+        pub const PROVENANCE_JSON: Column = Column::new(TABLE, "provenance_json");
+        pub const TARGET_KIND: Column = Column::new(TABLE, "target_kind");
+        pub const TARGET_RECORD_KEY: Column = Column::new(TABLE, "target_record_key");
+        pub const TARGET_JSON: Column = Column::new(TABLE, "target_json");
+        pub const LABEL: Column = Column::new(TABLE, "label");
         pub const RELATION_KIND: Column = Column::new(TABLE, "relation_kind");
     }
 
@@ -51,11 +58,18 @@ pub mod reference_occurrences {
         columns::RECORD_KEY,
         columns::CONTENT_KEY,
         columns::OCCURRENCE_ORDINAL,
-        columns::TARGET_RECORD_KEY,
-        columns::SOURCE_KIND,
+        columns::OWNER_KIND,
+        columns::OWNER_RECORD_KEY,
+        columns::OWNER_ENTITY_ID,
+        columns::OWNER_OCCURRENCE_ID,
+        columns::ROLE,
+        columns::ORIGIN_JSON,
         columns::VISIBILITY,
-        columns::DISPLAY_TEXT,
-        columns::REFERENCE_TEXT,
+        columns::PROVENANCE_JSON,
+        columns::TARGET_KIND,
+        columns::TARGET_RECORD_KEY,
+        columns::TARGET_JSON,
+        columns::LABEL,
         columns::RELATION_KIND,
     ];
 }

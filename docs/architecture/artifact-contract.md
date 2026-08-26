@@ -6,22 +6,21 @@ For the broader crate and data-flow architecture around this artifact contract, 
 
 Durable mutable local state is not part of this artifact contract. Saved lists and future user-authored or agent-authored local data live in the separate local-state database owned by `atlas-local-state`; artifact rebuilds do not copy, preserve, or validate those rows.
 
-## Checkpoint B Canonical Artifact Target
+## Canonical Artifact Boundary
 
-Proposed [ADR 0035](./decisions/0035-atomic-canonical-artifact.md) defines the source-faithful target and remains implementation-blocked until Checkpoint B approves the exact documentation candidate.
+[ADR 0035](./decisions/0035-atomic-canonical-artifact.md) defines the source-faithful artifact boundary approved at Checkpoint B.
 
 The target stores canonical entities, contextual occurrences, owned content, exact reference occurrences, and derived query projections with stable identities. Product-addressable activities, spellcasting entries, resources, content, and occurrences are relational. Nested mechanics normally consumed with one entity may use deterministic Atlas-owned typed JSON; independently queryable/filterable/joinable facts require authoritative relational projections. Complete canonical hydration belongs only to `atlas-index::read`.
 
-B5 now supplies the storage-neutral creature owned-content input to that future C1 boundary:
+B5 supplies the storage-neutral creature owned-content input to the C1 boundary:
 stable composite content identity, typed owner/role/origin/visibility/provenance, authored order,
 canonical `RichDocument`, content hash, duplicate-source status, diagnostics, and exact ordered
-reference occurrences. This does not change the current physical schema. C1 remains responsible
-for persisting and hydrating that model atomically. Migrated creature metric rows and categorical
+reference occurrences. Schema v2 persists and hydrates that model atomically. Migrated creature metric rows and categorical
 side facts are already one-way projections from `CreatureRecord`, and current display/FTS inputs
 consume those same projections; C1 persists them without reinterpreting raw source. D1 remains
 responsible for later search projection and duplicate-ranking policy.
 
-C1 lands its migration/version bump, checked-in schema, writer, complete reader, validation, inspection, corruption fixtures, atomic publication, CLI diagnostics, and source-normalized/artifact-hydrated equality in one serialized non-splittable candidate. Old artifacts receive rebuild guidance; no compatibility shim is authorized.
+The v2 writer publishes only after the completed temporary SQLite artifact passes deep validation. `atlas-index::read` decodes the canonical typed body and exposes canonical-body and combined hydrated-record reads; no other crate owns complete hydration. Old artifacts receive explicit rebuild guidance and are never upgraded in place.
 
 Typed visibility/provenance and product retrieval disposition are separate. Atlas has no authentication boundary, but the pinned base still uses `is_default_visible` and public-only content/reference predicates across FTS, embeddings, graph, discovery/metrics, and validation, so it is not GM-complete. Checkpoint A's target makes useful authored information eligible regardless of classification. Classification makes no current privacy/security claim. Every retained excluded record, content unit, reference, FTS row, or embedding unit needs a non-auth product rationale, owner, fixture, validation, and audit checkpoint.
 
@@ -30,13 +29,13 @@ Typed visibility/provenance and product retrieval disposition are separate. Atla
 The first supported contract version is:
 
 ```text
-pf2e-atlas-artifact/v1
+pf2e-atlas-artifact/v2
 ```
 
 The SQLite schema version for this active development artifact family is:
 
 ```text
-1
+2
 ```
 
 These values are stored in `artifact_metadata` as `artifact_contract_version` and `schema_version`. Setup and index diagnostic commands must fail validation when they do not support either value. Normal lookup and search commands open the resolved artifact read-only and report operational failures from the requested action instead of running validation as a command preflight.
@@ -58,8 +57,8 @@ Required keys:
 
 | Key | Required value or rule |
 | --- | --- |
-| `artifact_contract_version` | `pf2e-atlas-artifact/v1` |
-| `schema_version` | `1` |
+| `artifact_contract_version` | `pf2e-atlas-artifact/v2` |
+| `schema_version` | `2` |
 | `source_kind` | `foundry-pf2e` |
 | `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |
 | `source_record_count` | positive integer count of loaded Foundry source records before Rust-generated records are added |
@@ -115,11 +114,11 @@ Validation diagnostics are grouped by contract family:
 
 ## Adjacent Manifest
 
-`adjacent_manifest_path` points to the JSON artifact manifest written beside the SQLite artifact. The first manifest version is `pf2e-atlas-artifact-manifest/v1`. The manifest records artifact contract/schema identity, source kind, source root display path, full `source_signature`, source record count, artifact/generated record counts, document embedding count, selected embedding model, and the source position used for setup freshness.
+`adjacent_manifest_path` points to the JSON artifact manifest written beside the SQLite artifact. The current manifest version is `pf2e-atlas-artifact-manifest/v2`. The manifest records artifact contract/schema identity, source kind, source root display path, full `source_signature`, source record count, artifact/generated record counts, document embedding count, selected embedding model, the SQLite artifact SHA-256, and the source position used for setup freshness. A reader that finds the adjacent manifest accepts the SQLite file only when that digest matches; a mismatch is a split or stale pair and requires a complete rebuild.
 
 The source position is an invalidation hint for setup freshness, not a replacement for the full source signature. For git source checkouts, the manifest records the PF2E checkout `git_commit` and setup compares it to the current `HEAD`. For non-git source roots, the source position uses the source manifest content plus pack JSON file paths, sizes, and mtimes; when it differs from the manifest, setup falls back to full source analysis and compares the authoritative source signature.
 
-Runtime artifact validation requires only the relative `adjacent_manifest_path` metadata and SQLite coherence. Setup owns freshness policy by reading the adjacent manifest, verifying that its source and record counts match artifact metadata, comparing the current source position, and deciding whether full source analysis is needed before planning a rebuild.
+Runtime artifact validation requires the relative `adjacent_manifest_path` metadata, a manifest-bound matching SQLite digest, and SQLite coherence. Setup owns freshness policy by reading the adjacent manifest, verifying that its source and record counts match artifact metadata, comparing the current source position, and deciding whether full source analysis is needed before planning a rebuild. Builds stage the complete SQLite file and manifest before publication; manifest-publication failure restores the prior matching pair.
 
 ## Source Signature
 
@@ -153,9 +152,9 @@ Required runtime table families for Rust-written artifacts are:
 | --- | --- | --- |
 | Artifact identity | `artifact_metadata` | Runtime contract, source identity, embedding identity, tokenizer/FTS contract, and adjacent manifest pointer. |
 | Source packs | `packs` | Pack labels, document type, source paths, and record counts for display, filtering, and source parity. |
-| Records | `records` plus canonical body/entity families introduced by C1 | Canonical normalized record identity, classification, publication, source path/provenance, kind-specific facts, stable target identities, retrieval disposition, and raw JSON for parity/debugging. Authored rich content is not stored on `records`; raw JSON is not a hydration fallback. |
-| Rich content | `record_content` plus owner/occurrence integrity introduced by C1 | All authored `RichDocument` rows keyed by record and stable `content_key`, with ordinal, typed owner, role, source kind, visibility, provenance, retrieval/reference disposition, optional label, and content JSON. Under the approved target, useful authored content is available regardless of classification; every excluded implementation/provenance source requires a non-auth rationale. |
-| Canonical mechanics entities | C1-owned activity, spellcasting-entry, spell-occurrence, resource, capability, and supporting entity tables | Product-addressable canonical entities and contextual occurrences with stable IDs, order, owners, typed mechanics, and runtime target identities. Nested rolls/damage/modes may use deterministic Atlas-owned typed JSON when they are consumed with their entity. |
+| Records | `records`, `canonical_creature_records` | Canonical normalized record identity, classification, publication, source path/provenance, kind-specific facts, stable target identities, retrieval disposition, and raw JSON for parity/debugging. Authored rich content is not stored on `records`; raw JSON is not a hydration fallback. Every v2 NPC requires one deterministic canonical creature body, and non-NPC rows cannot own one. |
+| Rich content | `record_content`, `record_content_exclusions` | All authored `RichDocument` rows keyed by record, canonical `content_key`, and authored order, with typed owner, role, source kind, visibility, provenance, retrieval/reference disposition, optional label, and content JSON. Authored order is part of the relational locator so approved repeated Stage B source identities remain unchanged canonically without dropping rows. Under the approved target, useful authored content is available regardless of classification; every excluded implementation/provenance source requires a non-auth rationale. |
+| Canonical mechanics entities | `canonical_creature_resources`, `canonical_creature_entities`, `canonical_creature_occurrences`, `canonical_creature_relationships` | Product-addressable canonical resources and entities, contextual occurrences, and non-executing grant/item-grant/linked-weapon/prepared-spell relationships with stable IDs, source order, authored order, owners, typed mechanics, locators, lifecycle provenance, and runtime target identities. Nested rolls/damage/modes may use deterministic Atlas-owned typed JSON when they are consumed with their entity. |
 | Generated source-backed records | `records`, `reference_edges` | Derived affliction canonicals and source-instance occurrences generated from staged action, consumable, and spell records. Canonical records own user-facing meaning; instances remain addressable provenance/graph context and may be excluded from ordinary ranking to prevent duplicate canonicals, not because their visibility is hidden. |
 | Aliases and remaster links | `record_aliases`, `remaster_links` | Lookup aliases and explicit premaster-to-remaster record bridges extracted from remaster journals and migration aliases. `record_aliases` stores `canonical_record_key`, alias text, normalized alias text, `source_kind`, and `source_ref`; `remaster_links` stores `remaster_record_key`, `legacy_record_key`, `source_kind`, and `source_ref`. Source and presentation metadata is derived by joining to `records`. |
 | Filterable row projections | `record_traits`, actor/item/spell side tables; later `record_tags` after the tagging implementation | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. Tag rows will be written during regular `atlas index build` from validated YAML catalog and assignment files. |
@@ -202,6 +201,8 @@ Metadata validation must remain available without loading `sqlite-vec`. For Rust
 
 - required runtime table presence
 - required column presence for the current artifact schema
+- exact canonical relational row sets across all authoritative resource, entity, occurrence, creature-relationship, content, reference, exclusion, and metric columns, with no missing, extra, or foreign-key-valid-but-wrong rows
+- one canonical creature body for every NPC record and no creature body for non-NPC records
 - `artifact_record_count` agreement with `records`
 - `source_record_count` plus `generated_record_count` agreement with `artifact_record_count`
 - SQLite foreign-key integrity plus explicit relationship orphan checks

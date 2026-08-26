@@ -4,6 +4,7 @@ use std::process::Command;
 
 use rusqlite::Connection;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 mod support;
 
@@ -328,6 +329,7 @@ fn catalog_validation_rejects_missing_rows() -> Result<(), Box<dyn std::error::E
         [],
     )?;
     drop(connection);
+    rebind_test_manifest(&index_path)?;
 
     let validate_data = validate_contract_violation(&index_path)?;
     assert_diagnostic(&validate_data, "filter_field_catalog.missing_rows");
@@ -357,6 +359,7 @@ fn catalog_validation_rejects_missing_payload_rows() -> Result<(), Box<dyn std::
         [],
     )?;
     drop(connection);
+    rebind_test_manifest(&index_path)?;
 
     let validate_data = validate_contract_violation(&index_path)?;
     for key in [
@@ -403,6 +406,7 @@ fn catalog_validation_rejects_stale_payload_rows() -> Result<(), Box<dyn std::er
         [],
     )?;
     drop(connection);
+    rebind_test_manifest(&index_path)?;
 
     let validate_data = validate_contract_violation(&index_path)?;
     for key in [
@@ -449,6 +453,7 @@ fn catalog_validation_rejects_duplicate_global_rows() -> Result<(), Box<dyn std:
         connection.execute(sql, [])?;
     }
     drop(connection);
+    rebind_test_manifest(&index_path)?;
 
     let validate_data = validate_contract_violation(&index_path)?;
     for key in [
@@ -562,6 +567,18 @@ fn validate_contract_violation(path: &Path) -> Result<Value, Box<dyn std::error:
     let data = ok_data(&json);
     assert_eq!(data["code"], "artifact_contract_violation");
     Ok(data.clone())
+}
+
+fn rebind_test_manifest(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("manifest.json");
+    let mut manifest: Value = serde_json::from_slice(&fs::read(&manifest_path)?)?;
+    manifest["build"]["artifact_sha256"] =
+        Value::String(format!("{:x}", Sha256::digest(fs::read(path)?)));
+    fs::write(manifest_path, serde_json::to_vec_pretty(&manifest)?)?;
+    Ok(())
 }
 
 fn assert_diagnostic(data: &Value, key: &str) {

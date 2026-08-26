@@ -16,9 +16,10 @@ pub(super) fn read_record_content(
 ) -> Result<BTreeMap<String, Vec<RecordContentDocument>>, RecordLoadError> {
     let rows = record_content::table
         .select(RecordContentRow::as_select())
+        .filter(record_content::owner_kind.eq("record"))
         .order((
             record_content::record_key.asc(),
-            record_content::ordinal.asc(),
+            record_content::authored_order.asc(),
         ))
         .load::<RecordContentRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
@@ -35,10 +36,11 @@ pub(super) fn read_record_content_by_keys(
     let key_strings = keys.iter().map(ToString::to_string).collect::<Vec<_>>();
     let rows = record_content::table
         .filter(record_content::record_key.eq_any(key_strings))
+        .filter(record_content::owner_kind.eq("record"))
         .select(RecordContentRow::as_select())
         .order((
             record_content::record_key.asc(),
-            record_content::ordinal.asc(),
+            record_content::authored_order.asc(),
         ))
         .load::<RecordContentRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;

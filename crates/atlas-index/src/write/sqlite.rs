@@ -18,6 +18,7 @@ mod relationships;
 mod schema;
 mod vector_index;
 
+use canonical::write_canonical_records;
 use discovery_catalogs::write_discovery_catalogs;
 use embeddings::write_document_embedding_cache;
 use metadata::write_artifact_metadata;
@@ -80,6 +81,15 @@ fn write_artifact(
     let mut connection = SqliteConnection::establish(&database_url)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     connection.transaction::<_, IndexWriteError, _>(|connection| {
+        let canonical_record_keys = input
+            .canonical_bodies
+            .iter()
+            .map(|body| match body {
+                atlas_record::RecordBody::Creature(creature) => {
+                    creature.identity.record_key.to_string()
+                }
+            })
+            .collect::<std::collections::BTreeSet<_>>();
         artifact_progress("artifact_write", "Creating artifact schema");
         info!("creating artifact schema");
         schema::create_artifact_schema(connection)?;
@@ -103,7 +113,10 @@ fn write_artifact(
             &input.records,
             &input.aliases,
             &input.remaster_links,
+            &canonical_record_keys,
         )?;
+        artifact_progress("artifact_write", "Writing canonical record artifact");
+        write_canonical_records(connection, &input.canonical_bodies)?;
         artifact_progress("artifact_write", "Writing reference edges");
         info!(
             reference_edges = input.references.len(),
@@ -115,7 +128,7 @@ fn write_artifact(
             records = input.records.len(),
             "writing reference occurrences"
         );
-        write_reference_occurrences(connection, &input.records)?;
+        write_reference_occurrences(connection, &input.records, &canonical_record_keys)?;
         artifact_progress("artifact_write", "Writing record aliases");
         info!(aliases = input.aliases.len(), "writing record aliases");
         write_record_aliases(connection, &input.aliases)?;
@@ -150,6 +163,28 @@ fn write_artifact(
         Ok(())
     })?;
     drop(connection);
+
+    artifact_progress("artifact_write", "Validating complete candidate artifact");
+    let validation_connection = rusqlite::Connection::open(output.temp_path())
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let report = crate::validate_index_connection(
+        output.temp_path().display().to_string(),
+        &validation_connection,
+    )
+    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    if report.status != crate::ValidationStatus::Ok {
+        let details = report
+            .diagnostics
+            .iter()
+            .take(10)
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(IndexWriteError::WriteFailed(format!(
+            "candidate artifact failed deep validation before publication: {details}"
+        )));
+    }
+    drop(validation_connection);
 
     artifact_progress("artifact_write", "Publishing artifact");
     info!("publishing artifact");
@@ -247,6 +282,7 @@ mod tests {
                 record_count: records_len,
             }],
             records,
+            canonical_bodies: Vec::new(),
             references,
             aliases,
             remaster_links,
@@ -368,6 +404,7 @@ mod tests {
             source_record_count: 1,
             packs: Vec::new(),
             records: Vec::new(),
+            canonical_bodies: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -409,6 +446,7 @@ mod tests {
             source_record_count: 0,
             packs: Vec::new(),
             records: Vec::new(),
+            canonical_bodies: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -443,6 +481,7 @@ mod tests {
                 record_count: 0,
             }],
             records: Vec::new(),
+            canonical_bodies: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -645,3 +684,4 @@ mod tests {
         }])
     }
 }
+mod canonical;

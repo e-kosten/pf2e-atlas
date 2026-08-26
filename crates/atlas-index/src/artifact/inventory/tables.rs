@@ -8,6 +8,10 @@ mod record_tables;
 mod relationships;
 mod search;
 
+pub use canonical::{
+    canonical_creature_entities, canonical_creature_occurrences, canonical_creature_records,
+    canonical_creature_relationships, canonical_creature_resources, record_content_exclusions,
+};
 pub use discovery::{
     filter_field_catalog, filter_numeric_catalog, filter_sample_catalog, filter_value_catalog,
 };
@@ -36,6 +40,12 @@ pub const REQUIRED_TABLES: &[Table] = &[
     packs::TABLE,
     records::TABLE,
     record_content::TABLE,
+    canonical_creature_records::TABLE,
+    canonical_creature_resources::TABLE,
+    canonical_creature_entities::TABLE,
+    canonical_creature_occurrences::TABLE,
+    canonical_creature_relationships::TABLE,
+    record_content_exclusions::TABLE,
     record_traits::TABLE,
     reference_edges::TABLE,
     reference_occurrences::TABLE,
@@ -60,6 +70,30 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (packs::TABLE, packs::ALL_COLUMNS),
     (records::TABLE, records::ALL_COLUMNS),
     (record_content::TABLE, record_content::ALL_COLUMNS),
+    (
+        canonical_creature_records::TABLE,
+        canonical_creature_records::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_resources::TABLE,
+        canonical_creature_resources::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_entities::TABLE,
+        canonical_creature_entities::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_occurrences::TABLE,
+        canonical_creature_occurrences::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_relationships::TABLE,
+        canonical_creature_relationships::ALL_COLUMNS,
+    ),
+    (
+        record_content_exclusions::TABLE,
+        record_content_exclusions::ALL_COLUMNS,
+    ),
     (record_traits::TABLE, record_traits::ALL_COLUMNS),
     (reference_edges::TABLE, reference_edges::ALL_COLUMNS),
     (
@@ -107,3 +141,4 @@ pub fn required_tables() -> &'static [Table] {
 pub fn required_columns() -> &'static [(Table, &'static [Column])] {
     REQUIRED_COLUMNS
 }
+mod canonical;

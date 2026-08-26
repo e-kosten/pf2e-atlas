@@ -339,10 +339,13 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
 
     let connection = Connection::open(&output_path)?;
     let mut statement = connection.prepare(
-        "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text, relation_kind
-         FROM reference_occurrences
-         WHERE record_key = 'actions:occurrenceAction1'
-         ORDER BY content_key, occurrence_ordinal",
+        "SELECT r.content_key, r.occurrence_ordinal, r.target_record_key,
+                c.source_kind, r.visibility, r.label, r.target_kind, r.relation_kind
+         FROM reference_occurrences r
+         JOIN record_content c
+           ON c.record_key = r.record_key AND c.content_key = r.content_key
+         WHERE r.record_key = 'actions:occurrenceAction1'
+         ORDER BY r.content_key, r.occurrence_ordinal",
     )?;
     let rows = statement
         .query_map([], |row| {
@@ -372,7 +375,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "description",
         "public",
         "Heal One",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
     assert_occurrence(
@@ -383,7 +386,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "description",
         "public",
         "Heal Two",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
     assert_occurrence(
@@ -394,7 +397,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "description",
         "public",
         "Heal Embed",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "embed",
     );
     assert_occurrence(
@@ -405,7 +408,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "embedded_item_description",
         "public",
         "Heal Embedded",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
     assert_occurrence(
@@ -416,7 +419,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "public_notes",
         "public",
         "Heal Notes",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
 
@@ -445,7 +448,7 @@ fn assert_occurrence(
     source_kind: &str,
     visibility: &str,
     display_text: &str,
-    reference_text: &str,
+    target_kind: &str,
     relation_kind: &str,
 ) {
     assert!(
@@ -457,7 +460,7 @@ fn assert_occurrence(
                 row_source_kind,
                 row_visibility,
                 row_display,
-                row_reference,
+                row_target_kind,
                 row_relation,
             )| {
                 content_key.starts_with(content_key_prefix)
@@ -466,7 +469,7 @@ fn assert_occurrence(
                     && row_source_kind == source_kind
                     && row_visibility == visibility
                     && row_display == display_text
-                    && row_reference == reference_text
+                    && row_target_kind == target_kind
                     && row_relation == relation_kind
             },
         ),
@@ -1179,8 +1182,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_rarity, "common");
     assert_eq!(spell_publication_family, "core");
     assert_eq!(trait_count, 13);
-    assert_eq!(metric_count, 20);
-    assert!(metric_key_catalog_count >= 20);
+    assert_eq!(metric_count, 17);
+    assert!(metric_key_catalog_count >= 17);
     assert!(metric_value_catalog_count >= 3);
     assert_eq!(actor_side_count, 1);
     assert_eq!(item_side_count, 4);

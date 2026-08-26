@@ -1,7 +1,7 @@
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_record::{
-    ActorMechanics, AtlasRecord, AtlasRecordSet, FoundryDocumentMechanics, ItemMechanics,
-    ItemTypeMechanics, SpellMechanics,
+    ActorMechanics, AtlasRecord, AtlasRecordSet, FoundryDocumentMechanics, FoundryRecordType,
+    ItemMechanics, ItemTypeMechanics, SpellMechanics,
 };
 use diesel::SqliteConnection;
 use thiserror::Error;
@@ -10,6 +10,7 @@ use crate::sqlite::SqliteIndexReader;
 use crate::{FilterCompileError, RecordIdentityMatch, SearchCandidateRecord};
 
 mod candidates;
+mod canonical;
 mod content;
 mod identity;
 mod mechanics;
@@ -26,6 +27,12 @@ pub enum RecordLoadError {
     QueryFailed(String),
     #[error("record data is invalid: {0}")]
     InvalidData(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HydratedRecord {
+    pub record: AtlasRecord,
+    pub body: Option<atlas_record::RecordBody>,
 }
 
 pub fn load_persisted_record_set_from_diesel_connection(
@@ -73,6 +80,63 @@ pub fn resolve_record_identity_matches_from_diesel_connection(
 }
 
 impl SqliteIndexReader {
+    /// Runs only canonical hydration and relational projection reconciliation.
+    /// Normal artifact readiness should use [`Self::validate`].
+    pub fn validate_canonical_coherence(
+        &self,
+    ) -> Result<Vec<crate::ArtifactValidationDiagnostic>, crate::IndexValidationError> {
+        let connection = self.validation_connection()?;
+        let mut diagnostics = Vec::new();
+        crate::artifact::validation::canonical::validate_canonical_records(
+            &connection,
+            &mut diagnostics,
+        )?;
+        Ok(diagnostics)
+    }
+
+    pub fn load_canonical_record_bodies(
+        &self,
+    ) -> Result<Vec<atlas_record::RecordBody>, RecordLoadError> {
+        self.ensure_canonical_coherence()?;
+        self.with_diesel_connection(canonical::read_canonical_record_bodies)
+    }
+
+    pub fn load_canonical_record_bodies_by_key(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<atlas_record::RecordBody>, RecordLoadError> {
+        self.ensure_canonical_coherence()?;
+        self.with_diesel_connection(|connection| {
+            canonical::read_canonical_record_bodies_by_key(connection, keys)
+        })
+    }
+
+    pub fn load_hydrated_records(&self) -> Result<Vec<HydratedRecord>, RecordLoadError> {
+        let hydrated = self.with_diesel_connection(|connection| {
+            let records = load_persisted_records_from_diesel_connection(connection)?;
+            let bodies =
+                canonical::bodies_by_key(canonical::read_canonical_record_bodies(connection)?);
+            hydrate_records(records, bodies)
+        })?;
+        self.ensure_canonical_coherence()?;
+        Ok(hydrated)
+    }
+
+    pub fn load_hydrated_records_by_key(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<HydratedRecord>, RecordLoadError> {
+        let hydrated = self.with_diesel_connection(|connection| {
+            let records = load_persisted_records_by_key_from_diesel_connection(connection, keys)?;
+            let bodies = canonical::bodies_by_key(canonical::read_canonical_record_bodies_by_key(
+                connection, keys,
+            )?);
+            hydrate_records(records, bodies)
+        })?;
+        self.ensure_canonical_coherence()?;
+        Ok(hydrated)
+    }
+
     pub fn load_records(&self) -> Result<Vec<AtlasRecord>, RecordLoadError> {
         self.with_diesel_connection(load_persisted_records_from_diesel_connection)
     }
@@ -114,6 +178,56 @@ impl SqliteIndexReader {
             )
         })
     }
+
+    fn ensure_canonical_coherence(&self) -> Result<(), RecordLoadError> {
+        let diagnostics = self
+            .validate_canonical_coherence()
+            .map_err(|error| RecordLoadError::Unavailable(error.to_string()))?;
+        if let Some(diagnostic) = diagnostics.first() {
+            return Err(RecordLoadError::InvalidData(format!(
+                "canonical artifact coherence failed: {}{}",
+                diagnostic.message,
+                diagnostic
+                    .key
+                    .as_deref()
+                    .map(|key| format!(" ({key})"))
+                    .unwrap_or_default()
+            )));
+        }
+        Ok(())
+    }
+}
+
+fn hydrate_records(
+    records: Vec<AtlasRecord>,
+    mut bodies: std::collections::BTreeMap<RecordKey, atlas_record::RecordBody>,
+) -> Result<Vec<HydratedRecord>, RecordLoadError> {
+    let mut hydrated = Vec::with_capacity(records.len());
+    for record in records {
+        let body = bodies.remove(&record.identity.key);
+        match (&record.foundry.record_type, body.is_some()) {
+            (FoundryRecordType::Npc, false) => {
+                return Err(RecordLoadError::InvalidData(format!(
+                    "v2 canonical NPC `{}` is missing its required creature body",
+                    record.identity.key
+                )));
+            }
+            (FoundryRecordType::Npc, true) | (_, false) => {}
+            (_, true) => {
+                return Err(RecordLoadError::InvalidData(format!(
+                    "non-NPC record `{}` has an unexpected canonical creature body",
+                    record.identity.key
+                )));
+            }
+        }
+        hydrated.push(HydratedRecord { record, body });
+    }
+    if let Some(extra) = bodies.keys().next() {
+        return Err(RecordLoadError::InvalidData(format!(
+            "canonical creature body `{extra}` has no matching persisted record"
+        )));
+    }
+    Ok(hydrated)
 }
 
 fn attach_record_details(

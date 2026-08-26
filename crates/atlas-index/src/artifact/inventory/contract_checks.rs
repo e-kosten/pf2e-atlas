@@ -86,13 +86,6 @@ pub const REQUIRED_REFERENCES: &[RequiredReference] = &[
         referenced_column: records::columns::RECORD_KEY,
     },
     RequiredReference {
-        key: "reference_occurrences.target_record_key",
-        table: reference_occurrences::TABLE,
-        column: reference_occurrences::columns::TARGET_RECORD_KEY,
-        referenced_table: records::TABLE,
-        referenced_column: records::columns::RECORD_KEY,
-    },
-    RequiredReference {
         key: "record_aliases.canonical_record_key",
         table: record_aliases::TABLE,
         column: record_aliases::columns::CANONICAL_RECORD_KEY,

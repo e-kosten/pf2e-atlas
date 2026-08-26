@@ -1,11 +1,12 @@
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use tracing::info;
 
-use atlas_index::{IndexArtifactWriter, SqliteIndexWriter};
+use atlas_index::{IndexArtifactWriter, SqliteIndexWriter, publish_artifact_pair};
 
 use crate::artifact_manifest::{
-    ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path,
+    ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path, artifact_sha256,
     compute_source_position_report, write_artifact_manifest,
 };
 use crate::embeddings::generation::generate_document_embeddings_for_source;
@@ -49,10 +50,12 @@ pub(crate) fn build_artifact(
     let skipped_records = std::mem::take(&mut source.skipped_records);
     let warnings = std::mem::take(&mut source.warnings);
     let index_input = index_build_input(source);
-    let output = SqliteIndexWriter::new(options.output_path.clone());
+    let staged_artifact = staged_path(&options.output_path, "artifact");
+    let staged_manifest = staged_path(&options.output_path, "manifest");
+    let output = SqliteIndexWriter::new(staged_artifact.clone());
     info!(
         backend = output.label(),
-        output = %output.output_path().display(),
+        output = %options.output_path.display(),
         "writing artifact output"
     );
     output
@@ -65,6 +68,7 @@ pub(crate) fn build_artifact(
     let source_signature = index_input.source_signature.clone();
     let source_position =
         compute_source_position_report(&options.source_root, options.manifest_path.as_deref());
+    let artifact_sha256 = artifact_sha256(&staged_artifact)?;
     let manifest = ArtifactManifest::new(ArtifactManifestInput {
         source_root: options.source_root.clone(),
         source_signature: source_signature.clone(),
@@ -73,12 +77,17 @@ pub(crate) fn build_artifact(
         generated_record_count,
         document_embedding_count,
         embedding_model: options.embedding_model_id.clone(),
+        artifact_sha256,
         source_position,
     });
-    write_artifact_manifest(
+    write_artifact_manifest(&staged_manifest, &manifest)?;
+    publish_artifact_pair(
+        &staged_artifact,
+        &staged_manifest,
+        &options.output_path,
         &adjacent_artifact_manifest_path(&options.output_path),
-        &manifest,
-    )?;
+    )
+    .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let build_duration_ms = build_started_at.elapsed().as_millis();
     info!(
         output = %options.output_path.display(),
@@ -110,4 +119,16 @@ pub(crate) fn build_artifact(
         skipped_records,
         warnings,
     })
+}
+
+fn staged_path(target: &Path, kind: &str) -> PathBuf {
+    let parent = target.parent().unwrap_or_else(|| Path::new("."));
+    let file = target.file_name().unwrap_or_default().to_string_lossy();
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_nanos());
+    parent.join(format!(
+        ".{file}.{kind}-{}-{nonce}.stage",
+        std::process::id()
+    ))
 }

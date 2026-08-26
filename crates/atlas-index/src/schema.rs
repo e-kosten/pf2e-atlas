@@ -63,20 +63,115 @@ diesel::table! {
         source_path -> Text,
         is_default_visible -> Bool,
         raw_json -> Text,
+        record_role -> Text,
+        retrieval_disposition -> Text,
+        retrieval_rationale -> Text,
     }
 }
 
 diesel::table! {
-    record_content (record_key, content_key) {
+    record_content (record_key, content_key, authored_order) {
         record_key -> Text,
         content_key -> Text,
-        ordinal -> BigInt,
-        source_kind -> Text,
+        authored_order -> BigInt,
+        identity_stability -> Text,
+        owner_kind -> Text,
+        owner_record_key -> Nullable<Text>,
+        owner_entity_id -> Nullable<Text>,
+        owner_occurrence_id -> Nullable<Text>,
+        owner_occurrence_authored_order -> Nullable<BigInt>,
+        role -> Text,
+        origin_json -> Text,
         visibility -> Text,
+        provenance_json -> Text,
+        source_kind -> Text,
         contributes_to_search -> Bool,
         contributes_to_references -> Bool,
         label -> Nullable<Text>,
         content_json -> Text,
+        content_hash -> Text,
+        duplicate_status_json -> Text,
+        diagnostics_json -> Text,
+    }
+}
+
+diesel::table! {
+    record_content_exclusions (record_key, content_key) {
+        record_key -> Text,
+        content_key -> Text,
+        relative_source_path -> Text,
+        label -> Nullable<Text>,
+        reason -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_creature_records (record_key) {
+        record_key -> Text,
+        source_id -> Text,
+        name -> Text,
+        family -> Text,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_creature_resources (record_key, resource_id) {
+        record_key -> Text,
+        resource_id -> Text,
+        authored_order -> BigInt,
+        resource_kind -> Text,
+        resource_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_creature_entities (record_key, entity_id) {
+        record_key -> Text,
+        entity_id -> Text,
+        family -> Text,
+        label -> Text,
+        source_identity_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_creature_occurrences (record_key, occurrence_id, authored_order) {
+        record_key -> Text,
+        occurrence_id -> Text,
+        identity_stability -> Text,
+        family -> Text,
+        authored_order -> BigInt,
+        source_sort_json -> Text,
+        source_folder_json -> Text,
+        source_identity_json -> Text,
+        parent_kind -> Text,
+        parent_occurrence_id -> Nullable<Text>,
+        parent_occurrence_authored_order -> Nullable<BigInt>,
+        target_kind -> Text,
+        target_record_key -> Nullable<Text>,
+        target_entity_id -> Nullable<Text>,
+        context_json -> Text,
+        capability_json -> Text,
+        deltas_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_creature_relationships (record_key, relationship_order) {
+        record_key -> Text,
+        relationship_order -> BigInt,
+        source_occurrence_id -> Text,
+        source_occurrence_authored_order -> BigInt,
+        relationship_kind -> Text,
+        target_kind -> Text,
+        target_occurrence_id -> Nullable<Text>,
+        target_occurrence_authored_order -> Nullable<BigInt>,
+        target_source_id -> Nullable<Text>,
+        source_path -> Text,
+        contextual_label_json -> Text,
+        lifecycle_json -> Text,
+        execution -> Text,
     }
 }
 
@@ -101,15 +196,24 @@ diesel::table! {
 }
 
 diesel::table! {
-    reference_occurrences (record_key, content_key, occurrence_ordinal) {
+    reference_occurrences (record_key, content_key, content_authored_order, occurrence_ordinal) {
         record_key -> Text,
         content_key -> Text,
+        content_authored_order -> BigInt,
         occurrence_ordinal -> BigInt,
-        target_record_key -> Text,
-        source_kind -> Text,
+        owner_kind -> Text,
+        owner_record_key -> Nullable<Text>,
+        owner_entity_id -> Nullable<Text>,
+        owner_occurrence_id -> Nullable<Text>,
+        owner_occurrence_authored_order -> Nullable<BigInt>,
+        role -> Text,
+        origin_json -> Text,
         visibility -> Text,
-        display_text -> Nullable<Text>,
-        reference_text -> Text,
+        provenance_json -> Text,
+        target_kind -> Text,
+        target_record_key -> Nullable<Text>,
+        target_json -> Text,
+        label -> Nullable<Text>,
         relation_kind -> Text,
     }
 }
@@ -310,6 +414,11 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     actor_records,
     artifact_metadata,
+    canonical_creature_entities,
+    canonical_creature_occurrences,
+    canonical_creature_relationships,
+    canonical_creature_records,
+    canonical_creature_resources,
     document_embedding_cache,
     filter_field_catalog,
     filter_numeric_catalog,
@@ -321,6 +430,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     packs,
     record_aliases,
     record_content,
+    record_content_exclusions,
     record_metrics,
     record_traits,
     records,

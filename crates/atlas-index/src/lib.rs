@@ -19,11 +19,12 @@ mod write;
 pub use artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND,
 };
+pub use artifact::publication::publish_artifact_pair;
 pub use artifact::validation::validation_report_for_error;
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
 pub use inspect::{
-    IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
-    TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
+    CanonicalCoverageReport, IndexInspectionReport, MetricCoverageReport, RecordCoverageReport,
+    RelationshipCoverageReport, TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
 pub use read::RetrievalReadIndex;
 pub use read::discovery::{
@@ -34,7 +35,7 @@ pub use read::graph::product::{
     IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup, ReferenceReadIndex,
     RemasterReadIndex, VariantReadIndex,
 };
-pub use read::records::RecordLoadError;
+pub use read::records::{HydratedRecord, RecordLoadError};
 pub use read::search::filters::FilterCompileError;
 pub use read::search::vector::{RecordEmbeddingVector, VectorQueryError, VectorSearchHit};
 pub use read::search::{
