@@ -1,9 +1,12 @@
 use std::cell::RefCell;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use diesel::connection::SimpleConnection;
 use diesel::{Connection as DieselConnection, SqliteConnection};
 use rusqlite::{Connection, OpenFlags};
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
 
 use crate::IndexValidationError;
 use crate::read::search::vector::register_sqlite_vec_extension;
@@ -22,6 +25,7 @@ impl SqliteIndexReader {
                 path.display()
             )));
         }
+        verify_adjacent_manifest_pair(&path)?;
         let database_url = read_only_sqlite_uri(&path)?;
         let mut diesel_connection = SqliteConnection::establish(&database_url)
             .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
@@ -58,6 +62,66 @@ impl SqliteIndexReader {
     }
 }
 
+#[derive(Deserialize)]
+struct PairManifest {
+    build: PairManifestBuild,
+}
+
+#[derive(Deserialize)]
+struct PairManifestBuild {
+    artifact_sha256: String,
+}
+
+fn verify_adjacent_manifest_pair(path: &Path) -> Result<(), IndexValidationError> {
+    let manifest_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("manifest.json");
+    if !manifest_path.exists() {
+        return Ok(());
+    }
+    for _ in 0..100 {
+        let before = std::fs::read(&manifest_path)
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+        let actual = sha256_file(path)?;
+        let after = std::fs::read(&manifest_path)
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+        if before != after {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+            continue;
+        }
+        let manifest: PairManifest = serde_json::from_slice(&after).map_err(|error| {
+            IndexValidationError::Unavailable(format!(
+                "adjacent manifest is not a v2 pair manifest: {error}; rebuild the artifact and manifest together"
+            ))
+        })?;
+        if actual == manifest.build.artifact_sha256 {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    Err(IndexValidationError::Unavailable(
+        "SQLite artifact and adjacent manifest are not a matching published pair; rebuild them together with `atlas index build`".to_string(),
+    ))
+}
+
+fn sha256_file(path: &Path) -> Result<String, IndexValidationError> {
+    let mut file = std::fs::File::open(path)
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 fn read_only_sqlite_uri(path: &Path) -> Result<String, IndexValidationError> {
     let path = path.to_str().ok_or_else(|| {
         IndexValidationError::Unavailable(format!(
@@ -92,5 +156,21 @@ mod tests {
 
         assert!(matches!(error, IndexValidationError::Unavailable(_)));
         assert!(error.to_string().contains("not valid UTF-8"));
+    }
+
+    #[test]
+    fn old_unbound_manifest_is_rejected_with_rebuild_guidance() {
+        let root = std::env::temp_dir().join(format!("atlas-old-pair-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("index.sqlite");
+        rusqlite::Connection::open(&path).unwrap();
+        std::fs::write(root.join("manifest.json"), r#"{"build":{}}"#).unwrap();
+        let error = match SqliteIndexReader::open_read_only(&path) {
+            Ok(_) => panic!("old unbound manifest must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("rebuild"));
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

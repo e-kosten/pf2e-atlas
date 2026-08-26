@@ -27,9 +27,9 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
     assert_eq!(actual["message"], "artifact metadata is valid");
     assert_eq!(
         actual["artifact_contract_version"],
-        "pf2e-atlas-artifact/v1"
+        "pf2e-atlas-artifact/v2"
     );
-    assert_eq!(actual["schema_version"], "1");
+    assert_eq!(actual["schema_version"], "2");
     assert_eq!(actual["source_signature"], "foundry-pf2e:fixture");
     assert_eq!(actual["embedding_dimensions"], "384");
     fs::remove_file(path)?;
@@ -177,20 +177,20 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
 fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-unsupported-schema");
-    create_valid_artifact_database_with_override(&path, Some(("schema_version", "2")))?;
+    create_valid_artifact_database_with_override(&path, Some(("schema_version", "3")))?;
 
     let output = validate_index(&path)?;
 
     assert_eq!(output.status.code(), Some(3));
     let actual = parse_ok_data(&output)?;
     assert_metadata_failure(&actual, &path, "unsupported_schema_version");
-    assert_eq!(actual["schema_version"], "2");
+    assert_eq!(actual["schema_version"], "3");
     assert_diagnostic(
         &actual,
         "unsupported_schema_version",
         "schema_version",
-        "1",
         "2",
+        "3",
     );
     fs::remove_file(path)?;
     Ok(())
@@ -216,7 +216,7 @@ fn assert_metadata_failure(value: &serde_json::Value, path: &std::path::Path, co
         value["message"],
         "artifact metadata is incompatible with this runtime"
     );
-    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v1");
+    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v2");
 }
 
 fn assert_diagnostic(

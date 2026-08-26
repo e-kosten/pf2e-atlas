@@ -55,6 +55,9 @@ pub mod records {
         pub const SOURCE_PATH: Column = Column::new(TABLE, "source_path");
         pub const IS_DEFAULT_VISIBLE: Column = Column::new(TABLE, "is_default_visible");
         pub const RAW_JSON: Column = Column::new(TABLE, "raw_json");
+        pub const RECORD_ROLE: Column = Column::new(TABLE, "record_role");
+        pub const RETRIEVAL_DISPOSITION: Column = Column::new(TABLE, "retrieval_disposition");
+        pub const RETRIEVAL_RATIONALE: Column = Column::new(TABLE, "retrieval_rationale");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
@@ -103,6 +106,9 @@ pub mod records {
         columns::SOURCE_PATH,
         columns::IS_DEFAULT_VISIBLE,
         columns::RAW_JSON,
+        columns::RECORD_ROLE,
+        columns::RETRIEVAL_DISPOSITION,
+        columns::RETRIEVAL_RATIONALE,
     ];
 }
 
@@ -116,7 +122,14 @@ pub mod record_content {
 
         pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
         pub const CONTENT_KEY: Column = Column::new(TABLE, "content_key");
-        pub const ORDINAL: Column = Column::new(TABLE, "ordinal");
+        pub const AUTHORED_ORDER: Column = Column::new(TABLE, "authored_order");
+        pub const IDENTITY_STABILITY: Column = Column::new(TABLE, "identity_stability");
+        pub const OWNER_KIND: Column = Column::new(TABLE, "owner_kind");
+        pub const OWNER_RECORD_KEY: Column = Column::new(TABLE, "owner_record_key");
+        pub const OWNER_ENTITY_ID: Column = Column::new(TABLE, "owner_entity_id");
+        pub const OWNER_OCCURRENCE_ID: Column = Column::new(TABLE, "owner_occurrence_id");
+        pub const ROLE: Column = Column::new(TABLE, "role");
+        pub const ORIGIN_JSON: Column = Column::new(TABLE, "origin_json");
         pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
         pub const CONTRIBUTES_TO_SEARCH: Column = Column::new(TABLE, "contributes_to_search");
@@ -124,18 +137,33 @@ pub mod record_content {
             Column::new(TABLE, "contributes_to_references");
         pub const LABEL: Column = Column::new(TABLE, "label");
         pub const CONTENT_JSON: Column = Column::new(TABLE, "content_json");
+        pub const PROVENANCE_JSON: Column = Column::new(TABLE, "provenance_json");
+        pub const CONTENT_HASH: Column = Column::new(TABLE, "content_hash");
+        pub const DUPLICATE_STATUS_JSON: Column = Column::new(TABLE, "duplicate_status_json");
+        pub const DIAGNOSTICS_JSON: Column = Column::new(TABLE, "diagnostics_json");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::RECORD_KEY,
         columns::CONTENT_KEY,
-        columns::ORDINAL,
+        columns::AUTHORED_ORDER,
+        columns::IDENTITY_STABILITY,
+        columns::OWNER_KIND,
+        columns::OWNER_RECORD_KEY,
+        columns::OWNER_ENTITY_ID,
+        columns::OWNER_OCCURRENCE_ID,
+        columns::ROLE,
+        columns::ORIGIN_JSON,
         columns::SOURCE_KIND,
         columns::VISIBILITY,
         columns::CONTRIBUTES_TO_SEARCH,
         columns::CONTRIBUTES_TO_REFERENCES,
         columns::LABEL,
         columns::CONTENT_JSON,
+        columns::PROVENANCE_JSON,
+        columns::CONTENT_HASH,
+        columns::DUPLICATE_STATUS_JSON,
+        columns::DIAGNOSTICS_JSON,
     ];
 }
 

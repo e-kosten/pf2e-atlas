@@ -20,6 +20,7 @@ mod metrics;
 mod relationships;
 mod schema;
 
+use canonical::validate_canonical_records;
 use content::validate_content_json;
 use discovery::validate_filter_discovery_catalogs;
 use embeddings::validate_document_embedding_cache;
@@ -48,9 +49,13 @@ pub(crate) fn validate_artifact_coherence(
 
     validate_record_counts(connection, metadata, &mut diagnostics)?;
     validate_foreign_keys(connection, &mut diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(diagnostics);
+    }
     validate_boolean_columns(connection, &mut diagnostics)?;
     validate_metric_values(connection, &mut diagnostics)?;
     validate_content_json(connection, &mut diagnostics)?;
+    validate_canonical_records(connection, &mut diagnostics)?;
     validate_fts_coverage(connection, &mut diagnostics)?;
     validate_document_embedding_cache(connection, metadata, &mut diagnostics)?;
     validate_relationships(connection, &mut diagnostics)?;
@@ -251,3 +256,4 @@ pub(crate) fn artifact_validation_diagnostic_with_code(
         actual,
     }
 }
+pub(crate) mod canonical;

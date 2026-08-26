@@ -1,6 +1,6 @@
 # ADR 0035: Atomic Canonical Artifact
 
-Status: proposed for Checkpoint B
+Status: accepted at Checkpoint B; C1 candidate awaiting Checkpoint C
 Date: 2026-08-24
 
 ## Context
@@ -9,11 +9,11 @@ Source-faithful records require durable canonical entities, contextual occurrenc
 
 ## Decision
 
-`atlas-index` owns the physical artifact schema, migrations, write model, complete canonical hydration, validation, inspection, and publication. Product-addressable activities, spellcasting entries, resource pools, owned content, and occurrence/reference identities use relational entities. Nested mechanics normally consumed with one parent may use deterministic Atlas-owned typed JSON. Facts that require independent filtering, joins, or aggregation use authoritative relational projections.
+`atlas-index` owns the physical artifact schema, migrations, write model, complete canonical hydration, validation, inspection, and publication. Product-addressable activities, spellcasting entries, resource pools, owned content, occurrence/reference identities, and typed creature grant/item-grant/linked-weapon/prepared-spell relationships use relational entities. Nested mechanics normally consumed with one parent may use deterministic Atlas-owned typed JSON. Facts that require independent filtering, joins, or aggregation use authoritative relational projections.
 
 Canonical hydration has one owner: `atlas-index::read`. Search may consume hydrated records or explicit narrow read traits, but it may not create a second complete hydration path. Raw Foundry JSON is provenance and offline audit input, never a runtime fallback.
 
-C1 is serialized, non-splittable, and atomic. One candidate must include:
+C1 is serialized, non-splittable, and atomic. Its v2 artifact unit includes:
 
 - the migration and artifact contract/schema version bump;
 - checked-in Diesel schema/models and required inventory;
@@ -30,4 +30,10 @@ Typed visibility/provenance remains stored independently from product retrieval 
 
 ## Consequences
 
-Checkpoint C must approve the exact C1 commit and artifact hash before search, runtime, app, CLI, or UI consumers depend on the new artifact. Later search work may not amend canonical hydration under its own scope.
+Schema v2 stores creature bodies in deterministic typed JSON together with relational resources, entities, contextual occurrences, non-executing creature relationships, owned content, exclusions, and reference occurrences. Strict hydration and deep validation decode each body and require exact relational row sets across every authoritative column, including owners, parents, targets, source locators, lifecycle provenance, reference context, exclusions, typed content, and canonical metric facts; missing, extra, or valid-but-wrong foreign-key rows are corruption. Approved Stage B canonical identities are not rewritten when the source repeats a nested ID. Those repeated semantic IDs remain unchanged in the canonical body, while the relational primary/foreign-key locator includes authored order so every occurrence and content row remains independently durable.
+
+Every v2 NPC row has exactly one required canonical creature body, every non-NPC row has none, and both all-record and by-key combined hydration reject missing or extra bodies. Inspection reports canonical creature-owned content separately from total artifact content.
+
+Publication stages both files before changing the visible target. The adjacent v2 manifest binds `build.artifact_sha256`; pair publication replaces the SQLite file without an absent-target window, then replaces the manifest, and restores the prior artifact if manifest publication fails. Readers compare the manifest before and after hashing the artifact and accept only a matching digest, retrying across an in-progress replacement. This protocol prevents a split pair from being exposed as a readable artifact while preserving the stable user-facing SQLite and `manifest.json` paths.
+
+Checkpoint C must approve the exact C1 commit and artifact hashes before search, runtime, app, CLI, or UI consumers depend on the new artifact. Later search work may not amend canonical hydration under its own scope.

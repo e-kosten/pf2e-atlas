@@ -3,6 +3,16 @@ use atlas_index::{IndexBuildInput, IndexBuildPack};
 use crate::source::SourceLoad;
 
 pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
+    let mut records = Vec::with_capacity(source.records.len());
+    let mut canonical_bodies = Vec::new();
+    for loaded in source.records {
+        let mut record = loaded.record;
+        if let Some(atlas_record::RecordBody::Creature(creature)) = &loaded.facts.canonical_body {
+            record.mechanics.metrics = atlas_record::project_creature_facts(creature).metrics;
+        }
+        records.push(record);
+        canonical_bodies.extend(loaded.facts.canonical_body);
+    }
     IndexBuildInput {
         source_signature: source.source_signature,
         source_record_count: source.source_record_count,
@@ -18,11 +28,8 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
                 record_count: pack.record_count,
             })
             .collect(),
-        records: source
-            .records
-            .into_iter()
-            .map(|loaded| loaded.record)
-            .collect(),
+        records,
+        canonical_bodies,
         references: source.references,
         aliases: source.aliases,
         remaster_links: source.remaster_links,
@@ -33,7 +40,7 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use atlas_domain::{PackName, RecordId, RecordKey, RecordKind, RemasterLinkSource};
     use atlas_embedding::{
@@ -41,15 +48,415 @@ mod tests {
         PendingDocumentEmbedding,
     };
     use atlas_record::{
-        AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, RecordAlias, RecordClassification, RecordIdentity,
+        AliasSource, AtlasRecord, ContentExclusion, ContentExclusionReason, ContentKey,
+        ContentSourceKind, ContentVisibility, FoundryDocumentType, FoundryRecordInfo,
+        FoundryRecordType, RecordAlias, RecordBody, RecordClassification, RecordIdentity,
         RecordProvenance, ReferenceEdge, RemasterLink,
     };
 
     use super::index_build_input;
     use crate::diagnostics::IngestDiagnostics;
+    use crate::records::references::{build_record_reference_index, resolve_content_references};
     use crate::records::{LoadedSourceRecord, SourceConstructionFacts};
+    use crate::source::normalize::normalize_record;
+    use crate::source::npc_entities::finalize_npc_embedded_entities;
+    use crate::source::owned_content::finalize_npc_owned_content;
     use crate::source::{LoadedPack, SourceLoad};
+    use serde_json::json;
+
+    #[test]
+    fn ordinary_fixture_rejects_wrong_valid_relational_values_extra_rows_and_hydration_gaps()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let input = canonical_fixture_input();
+        let path = unique_temp_path("ordinary-canonical-coherence.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        assert_eq!(reader.validate()?.status, atlas_index::ValidationStatus::Ok);
+        assert!(
+            reader
+                .load_hydrated_records()?
+                .iter()
+                .any(|row| row.body.is_some())
+        );
+        let npc_key = input.records[0].identity.key.clone();
+        assert_eq!(
+            reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))?
+                .len(),
+            1
+        );
+
+        let cases = [
+            (
+                "wrong-target",
+                "UPDATE canonical_creature_occurrences SET target_entity_id=(SELECT entity_id FROM canonical_creature_entities e WHERE e.record_key=canonical_creature_occurrences.record_key AND e.entity_id<>canonical_creature_occurrences.target_entity_id ORDER BY entity_id LIMIT 1) WHERE family='action' AND authored_order=(SELECT MIN(authored_order) FROM canonical_creature_occurrences WHERE family='action')",
+            ),
+            (
+                "wrong-parent",
+                "UPDATE canonical_creature_occurrences SET parent_kind='spellcasting_entry', parent_occurrence_id=(SELECT occurrence_id FROM canonical_creature_occurrences WHERE family='spellcasting-entry' LIMIT 1), parent_occurrence_authored_order=(SELECT authored_order FROM canonical_creature_occurrences WHERE family='spellcasting-entry' LIMIT 1) WHERE family='action' AND authored_order=(SELECT MIN(authored_order) FROM canonical_creature_occurrences WHERE family='action')",
+            ),
+            (
+                "wrong-owner",
+                "UPDATE record_content SET owner_entity_id=(SELECT entity_id FROM canonical_creature_entities e WHERE e.record_key=record_content.record_key AND e.entity_id<>record_content.owner_entity_id ORDER BY entity_id LIMIT 1) WHERE owner_kind='creature_entity' AND rowid=(SELECT rowid FROM record_content WHERE owner_kind='creature_entity' LIMIT 1)",
+            ),
+            (
+                "wrong-reference",
+                "UPDATE reference_occurrences SET relation_kind=CASE relation_kind WHEN 'reference' THEN 'embed' ELSE 'reference' END WHERE rowid=(SELECT rowid FROM reference_occurrences LIMIT 1)",
+            ),
+            (
+                "wrong-content",
+                "UPDATE record_content SET visibility=CASE visibility WHEN 'public' THEN 'gm_only' ELSE 'public' END WHERE rowid=(SELECT rowid FROM record_content LIMIT 1)",
+            ),
+            (
+                "wrong-exclusion",
+                "UPDATE record_content_exclusions SET reason=CASE reason WHEN 'missing_typed_owner' THEN 'deferred_entity_family' ELSE 'missing_typed_owner' END WHERE rowid=(SELECT rowid FROM record_content_exclusions LIMIT 1)",
+            ),
+            (
+                "wrong-metric",
+                "UPDATE record_metrics SET number_value=number_value+1 WHERE value_type='number' AND rowid=(SELECT rowid FROM record_metrics WHERE value_type='number' LIMIT 1)",
+            ),
+            (
+                "extra-row",
+                "INSERT INTO record_metrics(record_key,metric_domain,metric_key,value_type,text_value) SELECT record_key,'actor','fixture.extra','text','extra' FROM canonical_creature_records LIMIT 1",
+            ),
+            (
+                "typed-json",
+                "UPDATE canonical_creature_occurrences SET context_json='{}' WHERE rowid=(SELECT rowid FROM canonical_creature_occurrences LIMIT 1)",
+            ),
+        ];
+        for (name, sql) in cases {
+            assert_corruption_detected(&path, name, sql, "exact relational projection")?;
+        }
+
+        let missing = copy_for_corruption(&path, "missing-body")?;
+        rusqlite::Connection::open(&missing)?
+            .execute_batch("PRAGMA foreign_keys=OFF; DELETE FROM canonical_creature_records;")?;
+        let missing_reader = atlas_index::SqliteIndexReader::open_read_only(&missing)?;
+        assert!(
+            missing_reader
+                .load_hydrated_records()
+                .unwrap_err()
+                .to_string()
+                .contains("missing its required creature body")
+        );
+        assert!(
+            missing_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
+                .unwrap_err()
+                .to_string()
+                .contains("missing its required creature body")
+        );
+        std::fs::remove_file(missing)?;
+
+        let extra = copy_for_corruption(&path, "extra-body")?;
+        rusqlite::Connection::open(&extra)?.execute(
+            "UPDATE records SET foundry_record_type='action' WHERE record_key=?1",
+            [npc_key.to_string()],
+        )?;
+        let extra_reader = atlas_index::SqliteIndexReader::open_read_only(&extra)?;
+        assert!(
+            extra_reader
+                .load_hydrated_records()
+                .unwrap_err()
+                .to_string()
+                .contains("unexpected canonical creature body")
+        );
+        assert!(
+            extra_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
+                .unwrap_err()
+                .to_string()
+                .contains("unexpected canonical creature body")
+        );
+        std::fs::remove_file(extra)?;
+        std::fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn pinned_night_hag_round_trips_through_atomic_artifact_and_detects_corruption()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let Some(source_root) = std::env::var_os("PF2E_SOURCE_ROOT") else {
+            return Ok(());
+        };
+        let source =
+            crate::source_pipeline::load_foundry_source(std::path::Path::new(&source_root), None)?;
+        let input = index_build_input(source);
+        let expected = input
+            .canonical_bodies
+            .iter()
+            .find(|body| match body {
+                atlas_record::RecordBody::Creature(creature) => {
+                    creature.identity.name == "Night Hag"
+                }
+            })
+            .cloned()
+            .expect("pinned Night Hag canonical body");
+        let atlas_record::RecordBody::Creature(night_hag) = &expected;
+        let embedded = night_hag
+            .embedded_entities
+            .value
+            .as_value()
+            .expect("Night Hag embedded entities");
+        assert_eq!(
+            embedded
+                .occurrences_of(atlas_record::CreatureEntityFamily::SpellcastingEntry)
+                .count(),
+            2
+        );
+        assert_eq!(
+            embedded
+                .occurrences_of(atlas_record::CreatureEntityFamily::Spell)
+                .count(),
+            27
+        );
+        assert_eq!(
+            embedded
+                .occurrences_of(atlas_record::CreatureEntityFamily::Strike)
+                .count(),
+            2
+        );
+        assert_eq!(
+            embedded
+                .occurrences_of(atlas_record::CreatureEntityFamily::Action)
+                .count(),
+            9
+        );
+        assert_eq!(
+            embedded
+                .occurrences_of(atlas_record::CreatureEntityFamily::Equipment)
+                .count(),
+            1
+        );
+        assert_eq!(night_hag.content.documents.len(), 36);
+        assert!(night_hag.content.exclusions.is_empty());
+        assert!(
+            embedded
+                .occurrences
+                .iter()
+                .enumerate()
+                .all(|(index, occurrence)| occurrence.authored_order == index as u32)
+        );
+        let mut duplicate_occurrence_ids = 0;
+        let mut duplicate_content_keys = 0;
+        for body in &input.canonical_bodies {
+            let atlas_record::RecordBody::Creature(creature) = body;
+            if let Some(embedded) = creature.embedded_entities.value.as_value() {
+                let mut ids = std::collections::BTreeSet::new();
+                for occurrence in &embedded.occurrences {
+                    duplicate_occurrence_ids += usize::from(!ids.insert(occurrence.id.as_str()));
+                }
+            }
+            let mut content_keys = std::collections::BTreeSet::new();
+            for document in &creature.content.documents {
+                duplicate_content_keys +=
+                    usize::from(!content_keys.insert(document.id.content_key.as_str()));
+            }
+        }
+        assert!(
+            duplicate_occurrence_ids > 0,
+            "pinned B6 duplicate source identities remain canonical"
+        );
+        assert!(
+            duplicate_content_keys > 0,
+            "pinned B6 duplicate content identities remain canonical"
+        );
+
+        let (path, remove_artifact) = match std::env::var_os("CANDIDATE_INDEX_NO_EMBEDDINGS") {
+            Some(path) if std::path::Path::new(&path).is_file() => {
+                (std::path::PathBuf::from(path), false)
+            }
+            _ => {
+                let path = unique_temp_path("canonical-round-trip.sqlite");
+                atlas_index::IndexArtifactWriter::write(
+                    &atlas_index::SqliteIndexWriter::new(path.clone()),
+                    &input,
+                    atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+                )?;
+                (path, true)
+            }
+        };
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        assert_eq!(reader.validate()?.status, atlas_index::ValidationStatus::Ok);
+        let hydrated = reader.load_canonical_record_bodies()?;
+        let mut expected_bodies = input.canonical_bodies.clone();
+        expected_bodies.sort_by_key(|body| canonical_record_key(body).to_string());
+        assert_eq!(hydrated.len(), expected_bodies.len());
+        for (actual, expected) in hydrated.iter().zip(&expected_bodies) {
+            assert_canonical_body_equal(actual, expected);
+        }
+        assert!(hydrated.contains(&expected));
+
+        let cases = [
+            (
+                "orphan",
+                "PRAGMA foreign_keys=OFF; UPDATE canonical_creature_occurrences SET target_entity_id='missing-owner' WHERE target_kind='actor_owned' AND rowid=(SELECT rowid FROM canonical_creature_occurrences WHERE target_kind='actor_owned' LIMIT 1)",
+                "foreign key",
+            ),
+            (
+                "enum",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET record_role='invalid' WHERE rowid=(SELECT rowid FROM records LIMIT 1)",
+                "unsupported value",
+            ),
+            (
+                "typed-json",
+                "UPDATE canonical_creature_occurrences SET context_json='{}' WHERE rowid=(SELECT rowid FROM canonical_creature_occurrences ORDER BY record_key LIMIT 1)",
+                "exact relational projection",
+            ),
+            (
+                "owner",
+                "PRAGMA foreign_keys=OFF; UPDATE record_content SET owner_entity_id='missing-owner' WHERE rowid=(SELECT c.rowid FROM record_content c JOIN canonical_creature_records r ON r.record_key=c.record_key WHERE c.owner_kind='creature_entity' ORDER BY c.record_key LIMIT 1)",
+                "exact relational projection",
+            ),
+            (
+                "reference",
+                "UPDATE canonical_creature_relationships SET relationship_kind=CASE relationship_kind WHEN 'granted_by' THEN 'item_grant' ELSE 'granted_by' END WHERE rowid=(SELECT rowid FROM canonical_creature_relationships ORDER BY record_key,relationship_order LIMIT 1)",
+                "exact relational projection",
+            ),
+            (
+                "order",
+                "PRAGMA foreign_keys=OFF; UPDATE canonical_creature_occurrences SET authored_order=999999 WHERE rowid=(SELECT rowid FROM canonical_creature_occurrences ORDER BY record_key LIMIT 1)",
+                "exact relational projection",
+            ),
+            (
+                "entity",
+                "UPDATE canonical_creature_entities SET label=label || ' corrupt' WHERE rowid=(SELECT rowid FROM canonical_creature_entities ORDER BY record_key LIMIT 1)",
+                "exact relational projection",
+            ),
+            (
+                "metric",
+                "UPDATE record_metrics SET number_value=number_value+1 WHERE rowid=(SELECT m.rowid FROM record_metrics m JOIN canonical_creature_records c ON c.record_key=m.record_key WHERE m.metric_key='perception.mod' ORDER BY m.record_key LIMIT 1)",
+                "exact relational projection",
+            ),
+        ];
+        for (name, sql, expected_message) in cases {
+            assert_corruption_detected(&path, name, sql, expected_message)?;
+        }
+        let duplicate_path = copy_for_corruption(&path, "duplicate")?;
+        let connection = rusqlite::Connection::open(&duplicate_path)?;
+        let (duplicate_record_key, json): (String, String) = connection.query_row(
+            "SELECT c.record_key, c.canonical_json FROM canonical_creature_records c WHERE EXISTS (SELECT 1 FROM canonical_creature_entities e WHERE e.record_key=c.record_key) ORDER BY c.record_key LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let mut value: serde_json::Value = serde_json::from_str(&json)?;
+        let entities = value
+            .pointer_mut("/value/embedded_entities/value/value/entities")
+            .and_then(serde_json::Value::as_array_mut)
+            .expect("canonical entity array");
+        entities.push(entities.first().expect("Night Hag entity").clone());
+        connection.execute(
+            "UPDATE canonical_creature_records SET canonical_json=?1 WHERE record_key=?2",
+            rusqlite::params![serde_json::to_string(&value)?, duplicate_record_key],
+        )?;
+        drop(connection);
+        assert_validation_message(&duplicate_path, "duplicate canonical entity ID", false)?;
+
+        if remove_artifact {
+            std::fs::remove_file(path)?;
+        }
+        Ok(())
+    }
+
+    fn assert_canonical_body_equal(
+        actual: &atlas_record::RecordBody,
+        expected: &atlas_record::RecordBody,
+    ) {
+        if actual == expected {
+            return;
+        }
+        let actual_debug = format!("{actual:#?}");
+        let expected_debug = format!("{expected:#?}");
+        let mismatch = actual_debug
+            .bytes()
+            .zip(expected_debug.bytes())
+            .position(|(left, right)| left != right)
+            .unwrap_or_else(|| actual_debug.len().min(expected_debug.len()));
+        let mut start = mismatch.saturating_sub(160);
+        while !actual_debug.is_char_boundary(start) || !expected_debug.is_char_boundary(start) {
+            start += 1;
+        }
+        let mut actual_end = (mismatch + 320).min(actual_debug.len());
+        while !actual_debug.is_char_boundary(actual_end) {
+            actual_end -= 1;
+        }
+        let mut expected_end = (mismatch + 320).min(expected_debug.len());
+        while !expected_debug.is_char_boundary(expected_end) {
+            expected_end -= 1;
+        }
+        panic!(
+            "canonical hydration mismatch for {} near byte {mismatch}:\nactual: {}\nexpected: {}",
+            canonical_record_key(actual),
+            &actual_debug[start..actual_end],
+            &expected_debug[start..expected_end],
+        );
+    }
+
+    fn assert_corruption_detected(
+        source: &std::path::Path,
+        name: &str,
+        sql: &str,
+        expected_message: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = copy_for_corruption(source, name)?;
+        let connection = rusqlite::Connection::open(&path)?;
+        connection
+            .execute_batch(sql)
+            .map_err(|error| format!("corruption fixture `{name}` failed to apply: {error}"))?;
+        drop(connection);
+        assert_validation_message(&path, expected_message, name == "orphan")
+    }
+
+    fn canonical_record_key(body: &atlas_record::RecordBody) -> &atlas_domain::RecordKey {
+        match body {
+            atlas_record::RecordBody::Creature(creature) => &creature.identity.record_key,
+        }
+    }
+
+    fn assert_validation_message(
+        path: &std::path::Path,
+        expected_message: &str,
+        full_validation: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let reader = atlas_index::SqliteIndexReader::open_read_only(path)?;
+        let diagnostics = if full_validation {
+            let report = reader.validate()?;
+            assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+            report.diagnostics
+        } else {
+            reader.validate_canonical_coherence()?
+        };
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains(expected_message)),
+            "expected `{expected_message}` in {:#?}",
+            diagnostics
+        );
+        std::fs::remove_file(path)?;
+        Ok(())
+    }
+
+    fn copy_for_corruption(
+        source: &std::path::Path,
+        name: &str,
+    ) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+        let target = unique_temp_path(&format!("canonical-corruption-{name}.sqlite"));
+        std::fs::copy(source, &target)?;
+        Ok(target)
+    }
+
+    fn unique_temp_path(name: &str) -> std::path::PathBuf {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        std::env::temp_dir().join(format!("atlas-{nonce}-{name}"))
+    }
 
     #[test]
     fn maps_source_load_to_index_build_input_without_changing_boundaries()
@@ -142,6 +549,7 @@ mod tests {
         assert_eq!(input.records.len(), 2);
         assert_eq!(input.records[0].identity.key, source_key);
         assert_eq!(input.records[1].identity.key, generated_key);
+        assert!(input.canonical_bodies.is_empty());
 
         assert_eq!(input.references.len(), 1);
         assert_eq!(input.aliases.len(), 1);
@@ -149,6 +557,74 @@ mod tests {
         assert_eq!(input.pending_document_embeddings.len(), 1);
         assert_eq!(input.document_embeddings.len(), 1);
         Ok(())
+    }
+
+    fn canonical_fixture_input() -> atlas_index::IndexBuildInput {
+        let pack_name = PackName::new("bestiary").expect("pack name");
+        let loaded = normalize_record(
+            &crate::source::ManifestPack {
+                name: "bestiary".to_string(), label: "Bestiary".to_string(), document_type: "Actor".to_string(), path: "packs/bestiary".to_string(),
+            },
+            &pack_name,
+            Path::new("packs/bestiary/actor.json"),
+            Path::new("."),
+            json!({
+                "_id":"actor", "name":"Coherence Creature", "type":"npc",
+                "system": {
+                    "details":{"level":{"value":5},"publication":{"title":"Fixture"}},
+                    "attributes":{"ac":{"value":22},"hp":{"value":80,"max":80},"speed":{"value":25}},
+                    "perception":{"mod":15}, "saves":{"fortitude":{"value":14},"reflex":{"value":12},"will":{"value":13}},
+                    "traits":{"rarity":"common","size":{"value":"med"},"value":["fiend"]},
+                    "description":{"value":"<p>@UUID[Compendium.pf2e.bestiary.Actor.actor]{Self}</p>"}
+                },
+                "items":[
+                    {"_id":"action-a","name":"First Action","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":1},"description":{"value":"<p>First.</p>"}}},
+                    {"_id":"action-b","name":"Second Action","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":1},"description":{"value":"<p>Second.</p>"}}},
+                    {"_id":"entry","name":"Innate Spells","type":"spellcastingEntry","system":{"prepared":{"value":"innate"},"tradition":{"value":"occult"},"spelldc":{"value":12,"dc":22},"slots":{}}}
+                ]
+            }),
+            None,
+        ).expect("fixture normalizes");
+        let mut records = vec![loaded];
+        let reference_index = build_record_reference_index(&records);
+        finalize_npc_embedded_entities(&mut records, &reference_index);
+        finalize_npc_owned_content(&mut records);
+        resolve_content_references(&mut records, &reference_index);
+        let RecordBody::Creature(creature) = records[0]
+            .facts
+            .canonical_body
+            .as_mut()
+            .expect("creature body");
+        creature.content.exclusions.push(ContentExclusion {
+            parent_record_key: creature.identity.record_key.clone(),
+            content_key: ContentKey::new("fixture:excluded").expect("content key"),
+            relative_source_path: "$.items[excluded].system.description.value".to_string(),
+            label: Some("Excluded fixture".to_string()),
+            reason: ContentExclusionReason::MissingTypedOwner,
+        });
+        index_build_input(SourceLoad {
+            manifest_path: PathBuf::from("manifest.json"),
+            source_signature: "foundry-pf2e:fixture-coherence".to_string(),
+            source_record_count: 1,
+            packs: vec![LoadedPack {
+                name: pack_name,
+                label: "Bestiary".to_string(),
+                document_type: "Actor".to_string(),
+                declared_path: "packs/bestiary".to_string(),
+                resolved_path: PathBuf::from("packs/bestiary"),
+                record_count: 1,
+            }],
+            records,
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links: Vec::new(),
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
+            document_embedding_tokenization: DocumentEmbeddingTokenizationTelemetry::default(),
+            diagnostics: IngestDiagnostics::default(),
+            skipped_records: Vec::new(),
+            warnings: Vec::new(),
+        })
     }
 
     fn record(pack_name: &str, id: &str, kind: RecordKind) -> AtlasRecord {

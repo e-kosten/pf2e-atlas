@@ -54,24 +54,15 @@ impl ArtifactOutput {
     }
 
     pub(super) fn commit(self) -> Result<(), IndexWriteError> {
-        let backup_path = backup_artifact_path(&self.target_path)?;
-        remove_sqlite_files(&backup_path)?;
-        move_existing_sqlite_files(&self.target_path, &backup_path)?;
-        match move_required_sqlite_files(&self.temp_path, &self.target_path) {
-            Ok(()) => {
-                remove_sqlite_files(&backup_path)?;
-                Ok(())
-            }
-            Err(error) => {
-                let _ = remove_sqlite_files(&self.target_path);
-                match move_existing_sqlite_files(&backup_path, &self.target_path) {
-                    Ok(()) => Err(error),
-                    Err(restore_error) => Err(IndexWriteError::WriteFailed(format!(
-                        "{error}; also failed to restore previous artifact: {restore_error}"
-                    ))),
-                }
-            }
+        let temp_paths = sqlite_paths(&self.temp_path);
+        if temp_paths[1].exists() || temp_paths[2].exists() {
+            return Err(IndexWriteError::WriteFailed(
+                "staged SQLite artifact still has WAL companions and cannot be atomically published"
+                    .to_string(),
+            ));
         }
+        fs::rename(&temp_paths[0], &self.target_path)
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
     }
 }
 
@@ -83,10 +74,6 @@ impl Drop for ArtifactOutput {
 
 fn temp_artifact_path(target_path: &Path) -> Result<PathBuf, IndexWriteError> {
     suffixed_artifact_path(target_path, "rebuild")
-}
-
-fn backup_artifact_path(target_path: &Path) -> Result<PathBuf, IndexWriteError> {
-    suffixed_artifact_path(target_path, "publish-backup")
 }
 
 fn suffixed_artifact_path(target_path: &Path, purpose: &str) -> Result<PathBuf, IndexWriteError> {
@@ -131,26 +118,7 @@ pub(super) fn remove_sqlite_files(path: &Path) -> Result<(), IndexWriteError> {
     Ok(())
 }
 
-fn move_required_sqlite_files(
-    source_path: &Path,
-    target_path: &Path,
-) -> Result<(), IndexWriteError> {
-    let source_paths = sqlite_paths(source_path);
-    let target_paths = sqlite_paths(target_path);
-
-    fs::rename(&source_paths[0], &target_paths[0])
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-
-    for (source, target) in source_paths.iter().zip(target_paths.iter()).skip(1) {
-        if source.exists() {
-            fs::rename(source, target)
-                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-        }
-    }
-
-    Ok(())
-}
-
+#[cfg(test)]
 pub(super) fn move_existing_sqlite_files(
     source_path: &Path,
     target_path: &Path,
@@ -176,6 +144,7 @@ pub(super) fn move_existing_sqlite_files(
     Ok(())
 }
 
+#[cfg(test)]
 fn restore_moved_sqlite_files(moved: &mut Vec<(PathBuf, PathBuf)>) -> Result<(), std::io::Error> {
     while let Some((source, target)) = moved.pop() {
         if target.exists() {

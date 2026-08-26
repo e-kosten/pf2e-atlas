@@ -102,21 +102,27 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           '{\"nodes\":[]}'
+           'actions:testAction1', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction1', 'primary_description', '{}', 'public', '{}', 'description',
+           1, 1, NULL, '{\"nodes\":[]}', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction2', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           'not json'
+           'actions:testAction2', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction2', 'primary_description', '{}', 'public', '{}', 'description',
+           1, 1, NULL, 'not json', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
@@ -208,11 +214,14 @@ fn loads_search_candidate_records_without_detail_hydration()
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           'not json'
+           'actions:testAction1', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction1', 'primary_description', '{}', 'public', '{}', 'description',
+           1, 1, NULL, 'not json', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
@@ -372,11 +381,14 @@ fn load_records_rejects_content_policy_mismatch() -> Result<(), Box<dyn std::err
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction1', 'content:policy', 0, 'private_notes', 'public', 0, 0, NULL,
-           '{\"nodes\":[]}'
+           'actions:testAction1', 'content:policy', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction1', 'supplemental_rules', '{}', 'public', '{}', 'private_notes',
+           0, 0, NULL, '{\"nodes\":[]}', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
