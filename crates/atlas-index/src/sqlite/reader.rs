@@ -1,6 +1,7 @@
 use std::cell::{RefCell, RefMut};
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 use diesel::connection::SimpleConnection;
 use diesel::{Connection as DieselConnection, SqliteConnection};
@@ -13,9 +14,20 @@ use crate::artifact::pair::{
 };
 use crate::read::search::vector::register_sqlite_vec_extension;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VerifiedArtifactGenerationIdentity {
+    canonical_artifact_path: PathBuf,
+    generation_path: PathBuf,
+    file_identity: String,
+    bytes: u64,
+    trusted_sha256: String,
+    modified_unix_nanos: Option<u128>,
+}
+
 pub struct SqliteIndexReader {
     path: PathBuf,
     _verified_artifact_sha256: Option<String>,
+    verified_generation: Option<VerifiedArtifactGenerationIdentity>,
     diesel_connection: RefCell<SqliteConnection>,
     validation_connection: RefCell<Connection>,
     _artifact_file: File,
@@ -42,10 +54,17 @@ impl SqliteIndexReader {
         after_verification();
         let database_url = immutable_read_only_sqlite_uri(&generation.file, &generation.path)?;
         let (diesel_connection, validation_connection) = open_connections(&database_url)?;
+        let verified_generation = verified_generation_identity(
+            &path,
+            &generation.path,
+            &generation.file,
+            verified.sha256.clone(),
+        )?;
         drop(pair_lock);
         Ok(Self {
             path,
             _verified_artifact_sha256: Some(verified.sha256),
+            verified_generation: Some(verified_generation),
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: generation.file,
@@ -65,6 +84,7 @@ impl SqliteIndexReader {
         Ok(Self {
             path,
             _verified_artifact_sha256: None,
+            verified_generation: None,
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: artifact_file,
@@ -104,10 +124,108 @@ impl SqliteIndexReader {
         f(&mut self.diesel_connection.borrow_mut())
     }
 
+    fn verified_generation_identity(
+        &self,
+    ) -> Result<&VerifiedArtifactGenerationIdentity, IndexValidationError> {
+        let identity = self.verified_generation.as_ref().ok_or_else(|| {
+            IndexValidationError::Unavailable(
+                "validation composition requires a manifest-verified artifact generation"
+                    .to_string(),
+            )
+        })?;
+        self.verify_generation_unchanged(identity)?;
+        Ok(identity)
+    }
+
+    fn verify_generation_unchanged(
+        &self,
+        expected: &VerifiedArtifactGenerationIdentity,
+    ) -> Result<(), IndexValidationError> {
+        let metadata = self
+            ._artifact_file
+            .metadata()
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+        if metadata.len() != expected.bytes
+            || file_identity(&metadata) != expected.file_identity
+            || modified_unix_nanos(&metadata) != expected.modified_unix_nanos
+            || self.verified_generation.as_ref() != Some(expected)
+        {
+            return Err(IndexValidationError::Unavailable(
+                "verified artifact generation changed after validation binding".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    pub fn validate_generation_binding(&self) -> Result<(), IndexValidationError> {
+        self.verified_generation_identity().map(|_| ())
+    }
+
+    #[doc(hidden)]
+    pub fn verified_generation_evidence(&self) -> Result<serde_json::Value, IndexValidationError> {
+        let identity = self.verified_generation_identity()?;
+        Ok(serde_json::json!({
+            "canonical_artifact_path": identity.canonical_artifact_path,
+            "generation_path": identity.generation_path,
+            "file_identity": identity.file_identity,
+            "bytes": identity.bytes,
+            "trusted_sha256": identity.trusted_sha256,
+        }))
+    }
+
     #[cfg(test)]
     pub(crate) fn verified_artifact_sha256(&self) -> Option<&str> {
         self._verified_artifact_sha256.as_deref()
     }
+}
+
+fn verified_generation_identity(
+    artifact_path: &Path,
+    generation_path: &Path,
+    artifact_file: &File,
+    trusted_sha256: String,
+) -> Result<VerifiedArtifactGenerationIdentity, IndexValidationError> {
+    let metadata = artifact_file
+        .metadata()
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    let canonical_artifact_path = std::fs::canonicalize(artifact_path)
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    let canonical_generation_path = std::fs::canonicalize(generation_path)
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+    Ok(VerifiedArtifactGenerationIdentity {
+        canonical_artifact_path,
+        generation_path: canonical_generation_path,
+        file_identity: file_identity(&metadata),
+        bytes: metadata.len(),
+        trusted_sha256,
+        modified_unix_nanos: modified_unix_nanos(&metadata),
+    })
+}
+
+#[cfg(unix)]
+fn file_identity(metadata: &std::fs::Metadata) -> String {
+    use std::os::unix::fs::MetadataExt;
+
+    format!("dev:{}:ino:{}", metadata.dev(), metadata.ino())
+}
+
+#[cfg(not(unix))]
+fn file_identity(metadata: &std::fs::Metadata) -> String {
+    format!(
+        "bytes:{}:modified:{:?}",
+        metadata.len(),
+        metadata.modified()
+    )
+}
+
+fn modified_unix_nanos(metadata: &std::fs::Metadata) -> Option<u128> {
+    metadata
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_nanos())
 }
 
 fn open_connections(
@@ -274,6 +392,134 @@ mod tests {
         assert_reader_generation(&reader, "Visible New", &new_hash);
         drop(reader);
         assert_eq!(sha256(&artifact), new_hash);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn deep_receipt_preserves_independent_outputs_with_one_coherence_pass() {
+        let root = unique_root("deep-receipt-equality");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        let manifest = root.join("manifest.json");
+        create_valid_generation(&artifact, "Receipt");
+        write_manifest(&manifest, &artifact);
+
+        let independent = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let expected_check = independent.check().unwrap();
+        let expected_inspect = independent.inspect().unwrap();
+        let expected_deep = independent
+            .validate_target(crate::ValidationTarget::BaseOnly)
+            .unwrap();
+
+        crate::artifact::validation::reset_deep_coherence_validation_count();
+        let composed = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let actual_check = composed.check().unwrap();
+        let actual_deep = composed
+            .validate_target(crate::ValidationTarget::BaseOnly)
+            .unwrap();
+        let actual_inspect = composed
+            .inspect_with_validation_report(actual_deep.clone())
+            .unwrap();
+
+        assert_eq!(actual_check, expected_check);
+        assert_eq!(actual_inspect, expected_inspect);
+        assert_eq!(actual_deep, expected_deep);
+        assert_eq!(
+            crate::artifact::validation::deep_coherence_validation_count(),
+            1
+        );
+        drop(composed);
+        drop(independent);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn deep_receipt_preserves_independent_failure_payload_and_order() {
+        let root = unique_root("deep-receipt-error-equality");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        let manifest = root.join("manifest.json");
+        create_valid_generation(&artifact, "Receipt Error");
+        let connection = rusqlite::Connection::open(&artifact).unwrap();
+        connection.execute("DROP TABLE item_records", []).unwrap();
+        drop(connection);
+        write_manifest(&manifest, &artifact);
+
+        let independent = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let expected_error = independent.inspect().unwrap_err().to_string();
+
+        crate::artifact::validation::reset_deep_coherence_validation_count();
+        let composed = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let deep = composed
+            .validate_target(crate::ValidationTarget::BaseOnly)
+            .unwrap();
+        let actual_error = composed
+            .inspect_with_validation_report(deep)
+            .unwrap_err()
+            .to_string();
+
+        assert_eq!(actual_error, expected_error);
+        assert_eq!(
+            crate::artifact::validation::deep_coherence_validation_count(),
+            1
+        );
+        drop(composed);
+        drop(independent);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn generation_evidence_distinguishes_reader_bindings() {
+        let root = unique_root("deep-receipt-cross-generation");
+        let first_root = root.join("first");
+        let second_root = root.join("second");
+        std::fs::create_dir_all(&first_root).unwrap();
+        std::fs::create_dir_all(&second_root).unwrap();
+        let first = first_root.join("index.sqlite");
+        let second = second_root.join("index.sqlite");
+        create_valid_generation(&first, "First");
+        create_valid_generation(&second, "Second");
+        write_manifest(&first_root.join("manifest.json"), &first);
+        write_manifest(&second_root.join("manifest.json"), &second);
+
+        let first_reader = SqliteIndexReader::open_read_only(&first).unwrap();
+        let second_reader = SqliteIndexReader::open_read_only(&second).unwrap();
+        let first_evidence = first_reader.verified_generation_evidence().unwrap();
+        let second_evidence = second_reader.verified_generation_evidence().unwrap();
+        assert_ne!(first_evidence, second_evidence);
+        first_reader.validate_generation_binding().unwrap();
+        second_reader.validate_generation_binding().unwrap();
+
+        drop(second_reader);
+        drop(first_reader);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deep_receipt_detects_retained_generation_tamper_without_path_reopen() {
+        let root = unique_root("deep-receipt-tamper");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Tamper");
+        write_manifest(&root.join("manifest.json"), &artifact);
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let evidence = reader.verified_generation_evidence().unwrap();
+        let generation_path = evidence["generation_path"].as_str().unwrap();
+        let bytes = evidence["bytes"].as_u64().unwrap();
+
+        let file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(generation_path)
+            .unwrap();
+        file.set_len(bytes + 1).unwrap();
+        drop(file);
+        let error = reader
+            .validate_generation_binding()
+            .expect_err("retained generation drift must invalidate the receipt");
+        assert!(error.to_string().contains("generation changed"));
+
+        drop(reader);
         std::fs::remove_dir_all(root).unwrap();
     }
 

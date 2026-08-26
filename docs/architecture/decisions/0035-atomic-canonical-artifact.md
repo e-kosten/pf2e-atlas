@@ -1,6 +1,6 @@
 # ADR 0035: Atomic Canonical Artifact
 
-Status: accepted at Checkpoint B; combined C1/C2/C2R/C1R candidate awaits Checkpoint C
+Status: accepted at Checkpoint B; combined C1/C2/C2R/C2P/C1R candidate awaits Checkpoint C
 Date: 2026-08-24
 
 ## Context
@@ -44,8 +44,19 @@ it does not approve C1 or change the artifact contract. C2R restores the accepte
 pre-localization strict-audit observation from already captured raw records while
 leaving localized product normalization unchanged, and requires complete detailed
 audit evidence to be atomically persisted and checksum-bound before either PASS
-or FAIL returns. C1R then remediates only the independently reproduced C1 findings
-on top of C2 and C2R. Checkpoint C must approve the exact combined
-C1/C2/C2R/C1R commit chain and final independently reproduced artifact hashes
+or FAIL returns. C2P composes validation over one private verified-generation
+handle and one live deep-validation receipt per artifact mode. It preserves every
+independent atomic SHA check and the required generation copy while eliminating
+only repeated validation-side reader/scanning work; neither capability is
+serialized or available to runtime/product consumers. C1R then remediates only
+the independently reproduced C1 findings on top of C2, C2R, and C2P. Checkpoint C
+must approve the exact combined C1/C2/C2R/C2P/C1R commit chain and final independently reproduced artifact hashes
 before search, runtime, app, CLI, or UI consumers depend on the new artifact.
 Later search work may not amend canonical hydration under its own scope.
+
+The provisional-C1 versus combined optimized-head legacy/new matrix is authorized
+once to establish trust in the consolidation. After that independent equivalence
+PASS, it retires immediately: permanent validation consists only of the
+consolidated fast, focused, exhaustive, and reviewer tiers, with exhaustive work
+triggered by relevant changes. The migration matrix is not added to normal CI,
+future candidate acceptance, or Checkpoint C.

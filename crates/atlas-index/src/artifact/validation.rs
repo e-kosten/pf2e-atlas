@@ -32,10 +32,17 @@ use schema::{
     validate_required_columns, validate_required_tables,
 };
 
+#[cfg(test)]
+thread_local! {
+    static DEEP_COHERENCE_VALIDATION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub(crate) fn validate_artifact_coherence(
     connection: &Connection,
     metadata: &BTreeMap<String, String>,
 ) -> Result<Vec<ArtifactValidationDiagnostic>, IndexValidationError> {
+    #[cfg(test)]
+    DEEP_COHERENCE_VALIDATION_COUNT.set(DEEP_COHERENCE_VALIDATION_COUNT.get() + 1);
     let mut diagnostics = Vec::new();
     validate_required_tables(connection, &mut diagnostics)?;
     if !diagnostics.is_empty() {
@@ -62,6 +69,16 @@ pub(crate) fn validate_artifact_coherence(
     validate_metric_catalogs(connection, &mut diagnostics)?;
     validate_filter_discovery_catalogs(connection, &mut diagnostics)?;
     Ok(diagnostics)
+}
+
+#[cfg(test)]
+pub(crate) fn reset_deep_coherence_validation_count() {
+    DEEP_COHERENCE_VALIDATION_COUNT.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn deep_coherence_validation_count() -> usize {
+    DEEP_COHERENCE_VALIDATION_COUNT.get()
 }
 
 pub(crate) fn validate_index_connection(

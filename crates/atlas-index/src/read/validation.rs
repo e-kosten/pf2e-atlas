@@ -105,6 +105,23 @@ impl SqliteIndexReader {
         }
     }
 
+    #[doc(hidden)]
+    pub fn inspect_with_validation_report(
+        &self,
+        validation: ArtifactValidationReport,
+    ) -> Result<IndexInspectionReport, IndexValidationError> {
+        self.validate_generation_binding()?;
+        let connection = self.validation_connection()?;
+        let inspection = inspect::inspect_index_connection(
+            self.path().display().to_string(),
+            validation,
+            &connection,
+        )?;
+        drop(connection);
+        self.validate_generation_binding()?;
+        Ok(inspection)
+    }
+
     pub fn inspect(&self) -> Result<IndexInspectionReport, IndexValidationError> {
         let validation = self.validate()?;
         let connection = self.validation_connection()?;

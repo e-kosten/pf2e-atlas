@@ -129,6 +129,17 @@ The source position is an invalidation hint for setup freshness, not a replaceme
 
 Runtime artifact validation requires the relative `adjacent_manifest_path` metadata, a manifest-bound matching SQLite digest, and SQLite coherence. Reader acquisition takes a shared lock on the persistent pair-coordination file, opens the visible SQLite file once, hashes that open file, and materializes or verifies an adjacent immutable generation snapshot named by that digest. Every Diesel and validation/hydration SQLite connection opens that generation snapshot while the lock still protects the verified visible pair. The reader then releases the shared lock and retains the snapshot connections and file handle, so a publisher may install a new visible pair while long-lived readers remain coherent on the old generation. No reader reopens the visible pathname or combines connections from different generations. Setup owns freshness policy by reading the adjacent manifest, verifying that its source and record counts match artifact metadata, comparing the current source position, and deciding whether full source analysis is needed before planning a rebuild.
 
+The exhaustive validation pipeline composes checks over that existing reader
+boundary. Per artifact mode, one private candidate/snapshot-bound handle retains
+one generation-bound reader, its Diesel hydration connection, and its rusqlite
+validation connection. One complete deep-validation result is retained as a live
+receipt and projected into inspection and evidence after generation-drift checks;
+serialized evidence cannot recreate the receipt. The independent staged-manifest,
+publisher pair/generation, visible-pair reader, and generation
+materialization/open SHA checks and the publication generation copy remain
+separate mandatory operations with closed counters. This validation-side reuse
+does not change publication, recovery, artifact serialization, or product reads.
+
 Builds stage and syncs the complete SQLite file and manifest before publication. Publishers for the same adjacent-manifest target serialize through an exclusive OS lock whose kernel ownership is released after process failure; the coordination file itself remains stable so deleting and recreating it cannot split lock domains. Exclusive acquisition has a five-second deadline and returns actionable retry guidance instead of blocking indefinitely. Under that lock, publication verifies the staged digest, recovers or cleans fixed transaction backups from an interrupted attempt, snapshots a prior matching pair, installs both files, re-verifies the final digest, and removes recovery state. Failure before commit restores both prior files or removes both first-publication files. Readers share the lock only during generation acquisition, never for the long-lived reader or service lifetime. Completed publication removes obsolete generation snapshots when no live operating-system handle prevents deletion; a final old-generation reader also removes its obsolete snapshot on drop. Orphan generation and temporary files from an interrupted attempt are cleaned by the next successful publication, and stale staging files are never selected as visible state.
 
 ## Source Signature
