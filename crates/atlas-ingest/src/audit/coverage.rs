@@ -538,10 +538,6 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
                 "source::dto + source::npc_core + atlas-record::creature_projection",
             ),
             (
-                "$.system.details.publication.authors",
-                "source::normalize::publication",
-            ),
-            (
                 "$.system.details.publication.license",
                 "source::normalize::publication",
             ),
@@ -570,6 +566,11 @@ fn npc_exact_recursive_replacements() -> Vec<CoverageDeclaration> {
         .into_iter()
         .map(|(path, owner)| npc_consumed("npc_exact_consumed_leaf", path, owner)),
     );
+    declarations.push(npc_provenance(
+        "npc_publication_authors_provenance",
+        "$.system.details.publication.authors",
+        "Two exact author strings occur on only nine of 5,492 pinned NPC records and do not currently provide sufficient product usefulness for a canonical field or projection. Preserve exact source attribution and corpus counts as provenance; revisit if coverage or product usefulness materially increases.",
+    ));
     #[rustfmt::skip]
     declarations.extend(
         [

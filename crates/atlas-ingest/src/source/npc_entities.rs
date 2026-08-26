@@ -1380,14 +1380,13 @@ fn modeled_local_path(source: &NpcEmbeddedItemSource, path: &str) -> bool {
         return false;
     }
     if relative.starts_with("spell.system.description.")
-        || relative == "spell.flags.core.sourceId"
-        || relative == "spell._stats.compendiumSource"
-        || relative == "spell.system.counteraction"
-        || relative == "spell.system.traits.traditions[]"
         || relative == "publication.remaster"
         || relative == "traits.value[]"
     {
         return true;
+    }
+    if relative == "bonus.total" {
+        return false;
     }
     let root = relative.split(['.', '[']).next().unwrap_or(relative);
     match source {
@@ -1498,6 +1497,7 @@ fn capability_unsupported_notes(
     }
 }
 
+#[cfg(test)]
 fn capability_unsupported_notes_ref(capability: &CreatureCapability) -> &[UnsupportedMechanicNote] {
     match capability {
         CreatureCapability::Strike(value) => &value.unsupported_notes,
@@ -1508,20 +1508,6 @@ fn capability_unsupported_notes_ref(capability: &CreatureCapability) -> &[Unsupp
         CreatureCapability::Lore(value) => &value.unsupported_notes,
         CreatureCapability::Unsupported(value) => &value.unsupported_notes,
     }
-}
-
-pub(crate) fn capability_note_survival(
-    conversion: &NpcEmbeddedConversion,
-) -> Vec<(&str, &UnsupportedSourceValue)> {
-    let FactValue::Value(embedded) = &conversion.embedded else {
-        return Vec::new();
-    };
-    embedded
-        .occurrences
-        .iter()
-        .flat_map(|occurrence| capability_unsupported_notes_ref(&occurrence.capability))
-        .map(|note| (note.source_path.as_str(), &note.value))
-        .collect()
 }
 
 #[cfg(test)]

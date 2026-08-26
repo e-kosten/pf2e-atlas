@@ -20,7 +20,6 @@ pub(crate) trait LocalizationResolver {
     fn localized_value(&self, key: &str) -> Option<&str>;
 }
 
-#[cfg(test)]
 pub(crate) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
     parse_foundry_content_with_localization(value, None)
 }

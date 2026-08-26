@@ -24,9 +24,10 @@ pub use audit::{
     RetrievalPredicateInventoryEntry, SourceCoverageDiagnostic, SourceCoverageDiagnosticKind,
     SourcePathAuditClosureFailure, SourcePathAuditDiff, SourcePathAuditDiffEntry,
     SourcePathAuditDispositionChange, SourcePathAuditEnforcement, SourcePathAuditFilters,
-    SourcePathAuditMode, SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
-    SourcePathAuditSample, SourcePathAuditSummary, SourcePathAuditValueType,
-    SourcePathCoverageDisposition, audit_source_paths, disposition_label,
+    SourcePathAuditMode, SourcePathAuditObservationMismatch, SourcePathAuditOptions,
+    SourcePathAuditPathReport, SourcePathAuditReport, SourcePathAuditSample,
+    SourcePathAuditSummary, SourcePathAuditValueType, SourcePathCoverageDisposition,
+    audit_source_paths, disposition_label,
 };
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
