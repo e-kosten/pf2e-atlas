@@ -1,6 +1,6 @@
 # ADR 0035: Atomic Canonical Artifact
 
-Status: accepted at Checkpoint B; combined C1/C2/C1R candidate awaits Checkpoint C
+Status: accepted at Checkpoint B; combined C1/C2/C2R/C1R candidate awaits Checkpoint C
 Date: 2026-08-24
 
 ## Context
@@ -38,11 +38,14 @@ Publication stages and syncs both files before changing the visible target. The 
 
 A publisher acquires the exclusive lock with a five-second deadline and actionable retry failure, then holds it across recovery, snapshot, replacement, verification, and cleanup. Fixed artifact-plus-manifest recovery backups make an interrupted replacement identifiable: a matching visible pair is committed and stale backups are removed; an invalid visible pair restores a matching backup pair when available or is removed before a new verified pair is installed. Ordinary failure restores both prior files, and first-publication failure removes both targets. The OS releases lock ownership after a process crash while the persistent coordination file preserves a single lock domain. Concurrent publishers therefore serialize or fail within the documented bound, restoration cannot overwrite a later successful generation, and readers never accept a mixed or manifest-free generation while the stable user-facing SQLite and `manifest.json` paths remain unchanged. Successful publication and final reader drop clean obsolete generation snapshots without deleting a generation that Windows still reports in use.
 
-The provisional C1 commit establishes the artifact semantics. C2 may add only the
+The provisional C1 commit establishes the artifact semantics. C2 adds only the
 private validation-pipeline tooling described above it in the approved task graph;
-it does not approve C1 or change the artifact contract. C1R then remediates only
-the independently reproduced C1 findings on top of C2. Checkpoint C must approve
-the exact combined C1/C2/C1R commit chain and final independently reproduced
-artifact hashes before search, runtime, app, CLI, or UI consumers depend on the
-new artifact. Later search work may not amend canonical hydration under its own
-scope.
+it does not approve C1 or change the artifact contract. C2R restores the accepted
+pre-localization strict-audit observation from already captured raw records while
+leaving localized product normalization unchanged, and requires complete detailed
+audit evidence to be atomically persisted and checksum-bound before either PASS
+or FAIL returns. C1R then remediates only the independently reproduced C1 findings
+on top of C2 and C2R. Checkpoint C must approve the exact combined
+C1/C2/C2R/C1R commit chain and final independently reproduced artifact hashes
+before search, runtime, app, CLI, or UI consumers depend on the new artifact.
+Later search work may not amend canonical hydration under its own scope.

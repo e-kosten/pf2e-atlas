@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::artifact_manifest::ARTIFACT_MANIFEST_VERSION;
-use crate::audit::{SourcePathAuditOptions, SourcePathCoverageDisposition, audit_loaded_source};
+use crate::audit::{SourcePathAuditOptions, SourcePathAuditReport, audit_loaded_source};
 use crate::build::build_artifact_from_source;
 use crate::error::IngestError;
 use crate::index_build_input::index_build_input;
@@ -90,9 +90,25 @@ pub struct ExhaustiveValidationReport {
     pub author_snapshot_used: bool,
     pub source_signature: String,
     pub candidate_commit: String,
+    pub strict_audit: StrictAuditSummary,
     pub timing: BTreeMap<String, u128>,
     pub resources: Value,
     pub assertion_inventory: Vec<AssertionInventoryEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StrictAuditSummary {
+    pub total_paths: usize,
+    pub consumed_paths: usize,
+    pub provenance_only_paths: usize,
+    pub expected_observations: usize,
+    pub observed_observations: usize,
+    pub closure_failures: usize,
+    pub deferred_failures: usize,
+    pub unknown_failures: usize,
+    pub catch_all_failures: usize,
+    pub unowned_failures: usize,
+    pub regression_failures: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -107,6 +123,14 @@ pub fn run_exhaustive_validation(
 ) -> Result<ExhaustiveValidationReport, IngestError> {
     let total_started = Instant::now();
     require_new_file(&options.report_path, "exhaustive report")?;
+    let strict_report_path = strict_report_path(&options);
+    if !options.snapshot_root.exists() {
+        require_new_file(&strict_report_path, "strict audit report")?;
+        require_new_file(
+            &checksum_sidecar_path(&strict_report_path),
+            "strict audit report checksum",
+        )?;
+    }
     let repository_root = current_repo_root()?;
     let candidate = git_identity(&repository_root, "candidate")?;
     if candidate.commit != options.candidate_head {
@@ -133,6 +157,7 @@ pub fn run_exhaustive_validation(
         }
         let report =
             report_from_snapshot(&options, &manifest, total_started.elapsed().as_millis())?;
+        publish_or_verify_strict_report(&options.snapshot_root, &strict_report_path)?;
         write_json_new(&options.report_path, &report)?;
         return Ok(report);
     }
@@ -142,13 +167,11 @@ pub fn run_exhaustive_validation(
     let report = match build_snapshot(&options, &stage, static_identity, total_started) {
         Ok(report) => report,
         Err(error) => {
-            let _ = write_json(
-                stage.join("failure.json"),
-                &json!({"status": "fail", "error": error.to_string()}),
-            );
-            let failed = failed_staging_path(&options.snapshot_root);
-            let _ = fs::rename(&stage, &failed);
-            return Err(error);
+            let failed = preserve_failed_snapshot(&options, &stage, &error)?;
+            return Err(validation_error(format!(
+                "{error}; checksum-bound failed snapshot preserved at {}",
+                failed.display()
+            )));
         }
     };
     fs::rename(&stage, &options.snapshot_root)
@@ -157,6 +180,7 @@ pub fn run_exhaustive_validation(
         &options.snapshot_root,
         Some(&report_identity(&options.snapshot_root)?),
     )?;
+    publish_or_verify_strict_report(&options.snapshot_root, &strict_report_path)?;
     write_json_new(&options.report_path, &report)?;
     Ok(report)
 }
@@ -199,51 +223,22 @@ fn build_snapshot(
         },
         &source,
     )?;
-    if !audit.enforcement.passed || !audit.closure_failures.is_empty() {
-        return Err(validation_error(format!(
-            "strict source audit failed with {} violations and {} closure failures",
-            audit.enforcement.violation_count,
-            audit.closure_failures.len()
-        )));
-    }
     identity.coverage_policy_digest = audit.coverage_policy_digest.clone();
-    let consumed_observations = audit
-        .paths
-        .iter()
-        .filter(|path| {
-            path.document_type == "Actor"
-                && path.record_type == "npc"
-                && path.disposition == SourcePathCoverageDisposition::Consumed
-        })
-        .map(|path| path.occurrence_count)
-        .sum::<usize>();
-    let preserved_observations = audit
-        .paths
-        .iter()
-        .filter(|path| {
-            path.document_type == "Actor"
-                && path.record_type == "npc"
-                && path.disposition == SourcePathCoverageDisposition::Consumed
-        })
-        .map(|path| path.preserved_occurrence_count.unwrap_or_default())
-        .sum::<usize>();
-    let expected_closure = (614, 607, 7, 1_746_725);
-    let actual_closure = (
-        audit.summary.creature_paths,
-        audit.summary.creature_consumed_paths,
-        audit.summary.creature_provenance_only_paths,
-        consumed_observations,
-    );
-    if actual_closure != expected_closure || preserved_observations != expected_closure.3 {
-        return Err(validation_error(format!(
-            "canonical closure mismatch: expected {expected_closure:?}, found {actual_closure:?}, preserved={preserved_observations}"
-        )));
-    }
-    write_json(stage.join("strict-source-audit.json"), &audit)?;
     timing.insert(
         "strict_source_audit_ms".to_string(),
         phase.elapsed().as_millis(),
     );
+    let strict_audit = match persist_and_enforce_strict_audit(stage, &audit) {
+        Ok(summary) => summary,
+        Err(error) => {
+            write_progress(stage, "strict_audit", "failed")?;
+            write_json(
+                stage.join("timing.json"),
+                &json!({"phases_ms": timing, "status": "fail"}),
+            )?;
+            return Err(error);
+        }
+    };
     write_progress(stage, "strict_audit", "passed")?;
 
     let captured_input = index_build_input(source.clone());
@@ -335,12 +330,13 @@ fn build_snapshot(
         "artifact_record_count": source.records.len(),
         "skipped_record_count": source.skipped_records.len(),
         "closure": {
-            "paths": audit.summary.creature_paths,
-            "consumed": audit.summary.creature_consumed_paths,
-            "provenance_only": audit.summary.creature_provenance_only_paths,
-            "expected_observations": consumed_observations,
-            "preserved_observations": preserved_observations,
+            "paths": strict_audit.total_paths,
+            "consumed": strict_audit.consumed_paths,
+            "provenance_only": strict_audit.provenance_only_paths,
+            "expected_observations": strict_audit.expected_observations,
+            "preserved_observations": strict_audit.observed_observations,
         },
+        "strict_audit": strict_audit,
         "assertion_inventory_complete": true,
         "assertions": assertions,
         "semantic_changes": [],
@@ -365,6 +361,7 @@ fn build_snapshot(
     let required_files = vec![
         "source-analysis.json".to_string(),
         "strict-source-audit.json".to_string(),
+        "strict-source-audit.json.sha256".to_string(),
         "corpus-assertions.json".to_string(),
         "index-build-input.json".to_string(),
         "artifact-validation.json".to_string(),
@@ -397,10 +394,64 @@ fn build_snapshot(
         author_snapshot_used: false,
         source_signature: identity.source_signature,
         candidate_commit: identity.candidate_commit,
+        strict_audit,
         timing,
         resources,
         assertion_inventory: assertions,
     })
+}
+
+fn strict_audit_summary(audit: &SourcePathAuditReport) -> StrictAuditSummary {
+    StrictAuditSummary {
+        total_paths: audit.summary.creature_paths,
+        consumed_paths: audit.summary.creature_consumed_paths,
+        provenance_only_paths: audit.summary.creature_provenance_only_paths,
+        expected_observations: audit.closure_totals.expected_observation_count,
+        observed_observations: audit.closure_totals.observed_observation_count,
+        closure_failures: audit.closure_totals.failure_count,
+        deferred_failures: audit.summary.creature_deferred_paths,
+        unknown_failures: audit.summary.creature_unknown_paths,
+        catch_all_failures: audit.summary.creature_catch_all_paths,
+        unowned_failures: audit.summary.creature_unowned_paths,
+        regression_failures: audit.summary.creature_consumed_regressions,
+    }
+}
+
+fn persist_and_enforce_strict_audit(
+    stage: &Path,
+    audit: &SourcePathAuditReport,
+) -> Result<StrictAuditSummary, IngestError> {
+    let report_path = stage.join("strict-source-audit.json");
+    write_json_atomic_new(&report_path, audit)?;
+    write_checksum_sidecar_atomic(&report_path)?;
+
+    let summary = strict_audit_summary(audit);
+    if !audit.enforcement.passed || !audit.closure_failures.is_empty() {
+        return Err(validation_error(format!(
+            "strict source audit failed with {} violations and {} closure failures",
+            audit.enforcement.violation_count,
+            audit.closure_failures.len()
+        )));
+    }
+    let expected = StrictAuditSummary {
+        total_paths: 614,
+        consumed_paths: 607,
+        provenance_only_paths: 7,
+        expected_observations: 1_746_725,
+        observed_observations: 1_746_725,
+        closure_failures: 0,
+        deferred_failures: 0,
+        unknown_failures: 0,
+        catch_all_failures: 0,
+        unowned_failures: 0,
+        regression_failures: 0,
+    };
+    if summary != expected {
+        return Err(validation_error(format!(
+            "canonical closure mismatch: expected {expected:?}, found {summary:?}"
+        )));
+    }
+    Ok(summary)
 }
 
 fn assertion_inventory() -> Vec<AssertionInventoryEntry> {
@@ -604,6 +655,13 @@ fn report_from_snapshot(
             "reused snapshot corpus assertions did not pass",
         ));
     }
+    let strict_audit = serde_json::from_value(
+        corpus
+            .get("strict_audit")
+            .cloned()
+            .ok_or_else(|| validation_error("reused snapshot has no strict audit summary"))?,
+    )
+    .map_err(|error| validation_error(format!("invalid strict audit summary: {error}")))?;
     Ok(ExhaustiveValidationReport {
         status: "pass".to_string(),
         source_traversal_count: 1,
@@ -616,6 +674,7 @@ fn report_from_snapshot(
         author_snapshot_used: false,
         source_signature: manifest.identity.source_signature.clone(),
         candidate_commit: manifest.identity.candidate_commit.clone(),
+        strict_audit,
         timing: BTreeMap::from([("snapshot_validation_ms".to_string(), elapsed_ms)]),
         resources: json!({"reused": true}),
         assertion_inventory: assertion_inventory(),
@@ -674,6 +733,136 @@ fn write_json_new(path: &Path, value: &impl Serialize) -> Result<(), IngestError
         .map_err(io_error("create no-clobber validation report"))?;
     file.write_all(&bytes)
         .map_err(io_error("write validation report"))
+}
+
+fn write_json_atomic_new(path: &Path, value: &impl Serialize) -> Result<(), IngestError> {
+    let bytes =
+        serde_json::to_vec_pretty(value).map_err(|error| validation_error(error.to_string()))?;
+    write_bytes_atomic_new(path, &bytes, "strict audit report")
+}
+
+fn write_bytes_atomic_new(
+    path: &Path,
+    bytes: &[u8],
+    label: &'static str,
+) -> Result<(), IngestError> {
+    require_new_file(path, label)?;
+    let temporary = atomic_file_staging_path(path);
+    let result = (|| {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(io_error("create atomic validation file"))?;
+        file.write_all(bytes)
+            .map_err(io_error("write atomic validation file"))?;
+        file.sync_all()
+            .map_err(io_error("sync atomic validation file"))?;
+        if path.exists() {
+            return Err(validation_error(format!(
+                "{label} appeared during atomic publication: {}",
+                path.display()
+            )));
+        }
+        fs::rename(&temporary, path).map_err(io_error("publish atomic validation file"))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+fn write_checksum_sidecar_atomic(path: &Path) -> Result<(), IngestError> {
+    let digest = digest_file(path)?;
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| validation_error("strict audit report has no file name"))?
+        .to_string_lossy();
+    let contents = format!("{digest}  {file_name}\n");
+    write_bytes_atomic_new(
+        &checksum_sidecar_path(path),
+        contents.as_bytes(),
+        "strict audit report checksum",
+    )
+}
+
+fn strict_report_path(options: &ExhaustiveValidationOptions) -> PathBuf {
+    options
+        .report_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("strict-source-audit.json")
+}
+
+fn checksum_sidecar_path(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_os_string();
+    name.push(".sha256");
+    PathBuf::from(name)
+}
+
+fn publish_or_verify_strict_report(snapshot: &Path, target: &Path) -> Result<(), IngestError> {
+    let source = snapshot.join("strict-source-audit.json");
+    let bytes = fs::read(&source).map_err(io_error("read persisted strict audit report"))?;
+    if target.exists() {
+        let sidecar = checksum_sidecar_path(target);
+        if fs::symlink_metadata(target)
+            .map_err(io_error("inspect strict audit report"))?
+            .file_type()
+            .is_symlink()
+            || fs::symlink_metadata(&sidecar)
+                .map_err(io_error("inspect strict audit report checksum"))?
+                .file_type()
+                .is_symlink()
+        {
+            return Err(validation_error(
+                "strict audit report and checksum must be regular non-symlink files",
+            ));
+        }
+        let expected = format!(
+            "{}  {}\n",
+            digest_file(target)?,
+            target
+                .file_name()
+                .ok_or_else(|| validation_error("strict audit report has no file name"))?
+                .to_string_lossy()
+        );
+        let actual =
+            fs::read_to_string(&sidecar).map_err(io_error("read strict audit report checksum"))?;
+        if actual != expected
+            || fs::read(target).map_err(io_error("read strict audit report"))? != bytes
+        {
+            return Err(validation_error(
+                "existing strict audit report or checksum does not match the validated snapshot",
+            ));
+        }
+        return Ok(());
+    }
+    require_new_file(
+        &checksum_sidecar_path(target),
+        "strict audit report checksum",
+    )?;
+    write_bytes_atomic_new(target, &bytes, "strict audit report")?;
+    write_checksum_sidecar_atomic(target)
+}
+
+fn preserve_failed_snapshot(
+    options: &ExhaustiveValidationOptions,
+    stage: &Path,
+    error: &IngestError,
+) -> Result<PathBuf, IngestError> {
+    write_json_atomic_new(
+        &stage.join("failure.json"),
+        &json!({"status": "fail", "error": error.to_string()}),
+    )?;
+    write_file_sizes(stage)?;
+    write_checksums(stage)?;
+    verify_checksums(stage)?;
+    let failed = failed_staging_path(&options.snapshot_root);
+    fs::rename(stage, &failed).map_err(io_error("atomically preserve failed snapshot"))?;
+    if failed.join("strict-source-audit.json").is_file() {
+        publish_or_verify_strict_report(&failed, &strict_report_path(options))?;
+    }
+    Ok(failed)
 }
 
 fn require_new_file(path: &Path, label: &str) -> Result<(), IngestError> {
@@ -866,6 +1055,15 @@ fn staging_path(target: &Path) -> PathBuf {
     parent.join(format!(".{name}.{}.{nonce}.stage", std::process::id()))
 }
 
+fn atomic_file_staging_path(target: &Path) -> PathBuf {
+    let parent = target.parent().unwrap_or_else(|| Path::new("."));
+    let name = target.file_name().unwrap_or_default().to_string_lossy();
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_nanos());
+    parent.join(format!(".{name}.{}.{nonce}.atomic", std::process::id()))
+}
+
 fn failed_staging_path(target: &Path) -> PathBuf {
     let parent = target.parent().unwrap_or_else(|| Path::new("."));
     let name = target.file_name().unwrap_or_default().to_string_lossy();
@@ -886,6 +1084,9 @@ fn io_error(label: &'static str) -> impl FnOnce(std::io::Error) -> IngestError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::audit::{
+        SourcePathAuditClosureFailure, SourcePathAuditObservationMismatch, audit_source_paths,
+    };
     use std::sync::{Arc, Barrier};
 
     fn temp_path(label: &str) -> PathBuf {
@@ -949,6 +1150,121 @@ mod tests {
         fs::remove_file(root.join("payload")).expect("remove payload");
         assert!(verify_checksums(&root).is_err());
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn strict_failure_is_atomically_persisted_with_detailed_checksum_bound_evidence() {
+        let source_root = temp_path("strict-failure-source");
+        fs::create_dir(&source_root).expect("strict failure source root");
+        fs::write(source_root.join("module.json"), br#"{"packs":[]}"#)
+            .expect("strict failure manifest");
+        let mut report = audit_source_paths(SourcePathAuditOptions {
+            source_root: source_root.clone(),
+            strict: true,
+            ..SourcePathAuditOptions::default()
+        })
+        .expect("empty strict report");
+        report.closure_failures.push(SourcePathAuditClosureFailure {
+            document_type: "Actor".to_string(),
+            record_type: "npc".to_string(),
+            path: "$.system.description.value".to_string(),
+            source_occurrence_count: 1,
+            preserved_occurrence_count: 1,
+            mismatches: vec![SourcePathAuditObservationMismatch {
+                normalized_path: "$.system.description.value".to_string(),
+                record_key: "fixture-actors:localized-npc".to_string(),
+                member_identity: "record:fixture-actors:localized-npc".to_string(),
+                contextual_source_path: "$.system.description.value".to_string(),
+                destination: "canonical::SourceContentFact::document".to_string(),
+                expected_state: "value".to_string(),
+                expected_type: "string".to_string(),
+                expected_value: "unlocalized".to_string(),
+                observed_state: "value".to_string(),
+                observed_type: "string".to_string(),
+                observed_value: "localized".to_string(),
+                expected_multiplicity: 1,
+                observed_multiplicity: 1,
+                expected_order: Some(0),
+                observed_order: Some(0),
+            }],
+        });
+        report.closure_totals.expected_observation_count = 1;
+        report.closure_totals.observed_observation_count = 1;
+        report.closure_totals.failure_count = 1;
+        report.closure_totals.mismatch_count = 1;
+        report.summary.creature_consumed_regressions = 1;
+        report.enforcement.passed = false;
+        report.enforcement.violation_count = 1;
+
+        let stage = temp_path("strict-failure-stage");
+        fs::create_dir(&stage).expect("strict failure stage");
+        let error = persist_and_enforce_strict_audit(&stage, &report)
+            .expect_err("deliberate strict mismatch must fail");
+        assert!(
+            error
+                .to_string()
+                .contains("1 violations and 1 closure failures")
+        );
+
+        let report_path = stage.join("strict-source-audit.json");
+        let checksum_path = checksum_sidecar_path(&report_path);
+        let persisted: Value = serde_json::from_slice(
+            &fs::read(&report_path).expect("persisted detailed strict report"),
+        )
+        .expect("parse persisted detailed strict report");
+        let mismatch = &persisted["closure_failures"][0]["mismatches"][0];
+        assert_eq!(
+            persisted["enforcement"]["violation_count"],
+            serde_json::json!(1)
+        );
+        assert_eq!(
+            persisted["closure_totals"],
+            serde_json::json!({
+                "expected_observation_count": 1,
+                "observed_observation_count": 1,
+                "failure_count": 1,
+                "mismatch_count": 1
+            })
+        );
+        for (field, expected) in [
+            ("normalized_path", "$.system.description.value"),
+            ("contextual_source_path", "$.system.description.value"),
+            ("record_key", "fixture-actors:localized-npc"),
+            ("member_identity", "record:fixture-actors:localized-npc"),
+            ("destination", "canonical::SourceContentFact::document"),
+            ("expected_state", "value"),
+            ("expected_type", "string"),
+            ("expected_value", "unlocalized"),
+            ("observed_state", "value"),
+            ("observed_type", "string"),
+            ("observed_value", "localized"),
+        ] {
+            assert_eq!(mismatch[field], serde_json::json!(expected), "{field}");
+        }
+        assert_eq!(mismatch["expected_multiplicity"], serde_json::json!(1));
+        assert_eq!(mismatch["observed_multiplicity"], serde_json::json!(1));
+        assert_eq!(mismatch["expected_order"], serde_json::json!(0));
+        assert_eq!(mismatch["observed_order"], serde_json::json!(0));
+        let checksum = fs::read_to_string(checksum_path).expect("strict report checksum");
+        assert_eq!(
+            checksum,
+            format!(
+                "{}  strict-source-audit.json\n",
+                digest_file(&report_path).expect("strict report digest")
+            )
+        );
+        assert!(
+            fs::read_dir(&stage)
+                .expect("strict stage entries")
+                .all(|entry| !entry
+                    .expect("strict stage entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(".atomic"))
+        );
+
+        let _ = fs::remove_dir_all(source_root);
+        let _ = fs::remove_dir_all(stage);
     }
 
     #[test]

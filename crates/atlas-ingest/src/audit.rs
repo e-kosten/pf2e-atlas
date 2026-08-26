@@ -68,6 +68,7 @@ pub struct SourcePathAuditReport {
     pub filters: SourcePathAuditFilters,
     pub summary: SourcePathAuditSummary,
     pub enforcement: SourcePathAuditEnforcement,
+    pub closure_totals: SourcePathAuditClosureTotals,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_diff: Option<SourcePathAuditDiff>,
     pub closure_failures: Vec<SourcePathAuditClosureFailure>,
@@ -120,6 +121,14 @@ pub struct SourcePathAuditEnforcement {
     pub passed: bool,
     pub violation_count: usize,
     pub aggregate_warning_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourcePathAuditClosureTotals {
+    pub expected_observation_count: usize,
+    pub observed_observation_count: usize,
+    pub failure_count: usize,
+    pub mismatch_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -250,6 +259,7 @@ pub struct SourcePathAuditClosureFailure {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SourcePathAuditObservationMismatch {
+    pub normalized_path: String,
     pub record_key: String,
     pub member_identity: String,
     pub contextual_source_path: String,
@@ -260,6 +270,10 @@ pub struct SourcePathAuditObservationMismatch {
     pub observed_state: String,
     pub observed_type: String,
     pub observed_value: String,
+    pub expected_multiplicity: usize,
+    pub observed_multiplicity: usize,
+    pub expected_order: Option<usize>,
+    pub observed_order: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -499,14 +513,27 @@ pub(crate) fn audit_loaded_source(
             ))
         })?;
         let context = RecordContext {
-            document_type,
-            record_type,
+            document_type: document_type.clone(),
+            record_type: record_type.clone(),
             record_key: loaded.record.identity.key.to_string(),
             source_path: loaded.record.provenance.source_path.clone(),
         };
         record_count += 1;
         collect_value_paths("$", &value, &context, &mut stats);
-        collect_creature_survival(&value, &context, Some(loaded), &mut creature_survival);
+        let audit_record = legacy_audit_record_from_capture(
+            &source_root,
+            source,
+            loaded,
+            &value,
+            &document_type,
+            &record_type,
+        )?;
+        collect_creature_survival(
+            &value,
+            &context,
+            audit_record.as_ref(),
+            &mut creature_survival,
+        );
         validate_typed_source(&value, &context, &mut typed_diagnostics);
     }
 
@@ -520,6 +547,50 @@ pub(crate) fn audit_loaded_source(
         typed_diagnostics,
         creature_survival,
     )
+}
+
+fn legacy_audit_record_from_capture(
+    source_root: &Path,
+    source: &SourceLoad,
+    loaded: &LoadedSourceRecord,
+    value: &Value,
+    document_type: &str,
+    record_type: &str,
+) -> Result<Option<LoadedSourceRecord>, IngestError> {
+    if document_type != "Actor" || record_type != "npc" {
+        return Ok(None);
+    }
+    let pack_name = loaded.record.identity.key.pack();
+    let pack = source
+        .packs
+        .iter()
+        .find(|pack| {
+            !pack.declared_path.starts_with("derived://")
+                && &pack.name == pack_name
+                && pack.document_type == document_type
+        })
+        .ok_or_else(|| {
+            IngestError::RecordParseFailed(format!(
+                "captured source record {} has no matching source pack for strict audit",
+                loaded.record.identity.key
+            ))
+        })?;
+    let manifest_pack = crate::source::ManifestPack {
+        name: pack.name.as_str().to_string(),
+        label: pack.label.clone(),
+        document_type: pack.document_type.clone(),
+        path: pack.declared_path.clone(),
+    };
+    let source_file = source_root.join(&loaded.record.provenance.source_path);
+    normalize_record(
+        &manifest_pack,
+        &pack.name,
+        &source_file,
+        source_root,
+        value.clone(),
+        None,
+    )
+    .map(Some)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -543,6 +614,29 @@ fn finish_source_path_audit(
     paths.sort_by(path_report_order);
     let path_count = paths.len();
     let closure_failures = reconcile_creature_survival(&mut paths, &creature_survival);
+    let closure_totals = SourcePathAuditClosureTotals {
+        expected_observation_count: paths
+            .iter()
+            .filter(|path| {
+                is_creature_path(&path.document_type, &path.record_type)
+                    && path.disposition == SourcePathCoverageDisposition::Consumed
+            })
+            .map(|path| path.occurrence_count)
+            .sum(),
+        observed_observation_count: paths
+            .iter()
+            .filter(|path| {
+                is_creature_path(&path.document_type, &path.record_type)
+                    && path.disposition == SourcePathCoverageDisposition::Consumed
+            })
+            .map(|path| path.preserved_occurrence_count.unwrap_or_default())
+            .sum(),
+        failure_count: closure_failures.len(),
+        mismatch_count: closure_failures
+            .iter()
+            .map(|failure| failure.mismatches.len())
+            .sum(),
+    };
     let mut diagnostics = typed_diagnostics
         .into_iter()
         .map(|(key, diagnostic)| SourceCoverageDiagnostic {
@@ -618,6 +712,7 @@ fn finish_source_path_audit(
         },
         summary,
         enforcement,
+        closure_totals,
         source_diff,
         closure_failures,
         diagnostics,
@@ -967,6 +1062,7 @@ fn collect_sequence_closure(
         .entry("$.system.traits.value[]".to_string())
         .or_default()
         .push(SourcePathAuditObservationMismatch {
+            normalized_path: "$.system.traits.value[]".to_string(),
             record_key: loaded.record.identity.key.to_string(),
             member_identity: format!("record:{}", loaded.record.identity.key),
             contextual_source_path: "$.system.traits.value[]".to_string(),
@@ -977,6 +1073,10 @@ fn collect_sequence_closure(
             observed_state: "value".to_string(),
             observed_type: "array".to_string(),
             observed_value: canonical_json(&serde_json::json!(observed)),
+            expected_multiplicity: expected.len(),
+            observed_multiplicity: observed.len(),
+            expected_order: None,
+            observed_order: None,
         });
 }
 
@@ -3292,6 +3392,7 @@ fn reconcile_reverse_collection_closure(inventory: &mut CreatureSurvivalInventor
         }
         let expected_surplus = expected_count > observed_count;
         mismatches.push(SourcePathAuditObservationMismatch {
+            normalized_path: observation.normalized_path.clone(),
             record_key: observation.record_key.clone(),
             member_identity: observation.member_identity.clone(),
             contextual_source_path: format!(
@@ -3335,6 +3436,10 @@ fn reconcile_reverse_collection_closure(inventory: &mut CreatureSurvivalInventor
                     observation.normalized_value
                 )
             },
+            expected_multiplicity: expected_count,
+            observed_multiplicity: observed_count,
+            expected_order: (expected_count > 0).then_some(observation.order),
+            observed_order: (observed_count > 0).then_some(observation.order),
         });
     }
 }
@@ -3539,6 +3644,7 @@ fn observe_canonical_value(
         .or_default();
     if mismatches.len() < SAMPLE_LIMIT {
         mismatches.push(SourcePathAuditObservationMismatch {
+            normalized_path: normalized_path.to_string(),
             record_key: loaded.record.identity.key.to_string(),
             member_identity,
             contextual_source_path: indexed_path.to_string(),
@@ -3549,6 +3655,10 @@ fn observe_canonical_value(
             observed_state: observed.state.to_string(),
             observed_type: observed.value_type,
             observed_value: observed.normalized_value,
+            expected_multiplicity: usize::from(expected.state != "missing"),
+            observed_multiplicity: usize::from(observed.state != "missing"),
+            expected_order: (expected.state != "missing").then_some(ordinal),
+            observed_order: (observed.state != "missing").then_some(ordinal),
         });
     }
     let _ = owner;
@@ -6128,6 +6238,101 @@ pub fn disposition_label(disposition: SourcePathCoverageDisposition) -> &'static
 mod tests {
     use super::*;
 
+    fn localization_audit_fixture_root() -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "atlas-audit-localization-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join("packs/fixture-actors")).expect("actor fixture directory");
+        fs::create_dir_all(root.join("packs/fixture-spells")).expect("spell fixture directory");
+        fs::create_dir_all(root.join("static/lang")).expect("localization fixture directory");
+        fs::write(
+            root.join("module.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "packs": [
+                    {"name": "fixture-actors", "label": "Fixture Actors", "type": "Actor", "path": "packs/fixture-actors"},
+                    {"name": "fixture-spells", "label": "Fixture Spells", "type": "Item", "path": "packs/fixture-spells"}
+                ]
+            }))
+            .expect("serialize fixture manifest"),
+        )
+        .expect("write fixture manifest");
+        fs::write(
+            root.join("static/lang/en.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "PF2E": {"C2R": {
+                    "Record": "<p>Localized record body.</p>",
+                    "Embedded": "<p>Localized embedded body.</p>",
+                    "Actor": "<p>Localized actor disable.</p>",
+                    "Spell": "<p>Localized spell target.</p>"
+                }}
+            }))
+            .expect("serialize fixture localization"),
+        )
+        .expect("write fixture localization");
+        fs::write(
+            root.join("packs/fixture-actors/localized-npc.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "_id": "localized-npc",
+                "name": "Localized NPC",
+                "type": "npc",
+                "system": {
+                    "description": {"value": "@Localize[PF2E.C2R.Record]"},
+                    "details": {"level": {"value": 1}},
+                    "traits": {"rarity": "common", "size": {"value": "med"}, "value": ["humanoid"]}
+                },
+                "items": [{
+                    "_id": "localized-action",
+                    "name": "Localized Action",
+                    "type": "action",
+                    "sort": 10,
+                    "system": {
+                        "description": {"value": "@Localize[PF2E.C2R.Embedded]"},
+                        "publication": {"remaster": false},
+                        "rules": []
+                    }
+                }]
+            }))
+            .expect("serialize localized NPC fixture"),
+        )
+        .expect("write localized NPC fixture");
+        fs::write(
+            root.join("packs/fixture-actors/localized-hazard.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "_id": "localized-hazard",
+                "name": "Localized Hazard",
+                "type": "hazard",
+                "system": {
+                    "details": {"disable": "@Localize[PF2E.C2R.Actor]", "level": {"value": 1}},
+                    "traits": {"rarity": "common", "size": {"value": "med"}, "value": []}
+                }
+            }))
+            .expect("serialize localized actor fixture"),
+        )
+        .expect("write localized actor fixture");
+        fs::write(
+            root.join("packs/fixture-spells/localized-spell.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "_id": "localized-spell",
+                "name": "Localized Spell",
+                "type": "spell",
+                "system": {
+                    "description": {"value": "<p>Spell body.</p>"},
+                    "level": {"value": 1},
+                    "target": {"value": "@Localize[PF2E.C2R.Spell]"},
+                    "traits": {"rarity": "common", "traditions": ["arcane"], "value": []}
+                }
+            }))
+            .expect("serialize localized spell fixture"),
+        )
+        .expect("write localized spell fixture");
+        root
+    }
+
     #[test]
     fn path_normalization_wildcards_dynamic_keys() {
         assert_eq!(
@@ -6593,6 +6798,63 @@ mod tests {
         notes.push(novel_note);
         let mismatch = observe_mutation_fixture(&source, &loaded, &extra_member);
         assert_public_strict_failure(&mismatch, "$.items[].system.rules[].novelClosureMember", 0);
+    }
+
+    #[test]
+    fn reused_audit_matches_legacy_pre_localization_observations_exactly() {
+        let source_root = localization_audit_fixture_root();
+        let source = crate::source_pipeline::load_foundry_source(&source_root, None)
+            .expect("localized fixture source load");
+
+        let npc = source
+            .records
+            .iter()
+            .find(|loaded| loaded.record.identity.key.id().as_str() == "localized-npc")
+            .expect("localized NPC");
+        let localized_content = npc
+            .facts
+            .source_facts
+            .content_sources
+            .iter()
+            .map(|content| format!("{:?}", content.document))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(localized_content.contains("Localized record body"));
+        assert!(localized_content.contains("Localized embedded body"));
+
+        let actor = source
+            .records
+            .iter()
+            .find(|loaded| loaded.record.identity.key.id().as_str() == "localized-hazard")
+            .and_then(|loaded| loaded.record.mechanics.actor())
+            .expect("localized actor mechanics");
+        assert_eq!(
+            actor.disable_text.as_deref(),
+            Some("Localized actor disable.")
+        );
+        let spell = source
+            .records
+            .iter()
+            .find(|loaded| loaded.record.identity.key.id().as_str() == "localized-spell")
+            .and_then(|loaded| loaded.record.mechanics.spell())
+            .expect("localized spell mechanics");
+        assert_eq!(
+            spell.target.as_ref().map(|target| target.text.as_str()),
+            Some("Localized spell target.")
+        );
+
+        let options = SourcePathAuditOptions {
+            source_root: source_root.clone(),
+            min_records: 1,
+            limit: Some(usize::MAX),
+            strict: true,
+            ..SourcePathAuditOptions::default()
+        };
+        let legacy = audit_source_paths(options.clone()).expect("legacy fixture audit");
+        let reused = audit_loaded_source(options, &source).expect("reused fixture audit");
+        assert_eq!(reused, legacy);
+
+        let _ = fs::remove_dir_all(source_root);
     }
 
     #[test]
