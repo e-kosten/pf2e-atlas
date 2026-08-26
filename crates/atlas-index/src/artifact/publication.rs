@@ -3,7 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::IndexWriteError;
-use crate::artifact::pair::{PairLock, verify_pair_files};
+use crate::artifact::pair::{
+    PairLock, cleanup_generation_files, prepare_generation_file, verify_pair_files,
+};
 
 pub fn publish_artifact_pair(
     staged_artifact: &Path,
@@ -37,12 +39,13 @@ fn publish_artifact_pair_with_hook(
     failure_disposition: FailureDisposition,
 ) -> Result<(), IndexWriteError> {
     ensure_same_parent(target_artifact, target_manifest)?;
-    verify_pair_files(staged_artifact, staged_manifest)?;
+    let staged_sha256 = verify_pair_files(staged_artifact, staged_manifest)?;
     sync_file(staged_artifact)?;
     sync_file(staged_manifest)?;
 
     let _pair_lock = PairLock::exclusive(target_manifest)?;
     recover_interrupted_publication(target_artifact, target_manifest)?;
+    prepare_generation_file(staged_artifact, target_artifact, &staged_sha256)?;
     let had_previous = snapshot_previous_pair(target_artifact, target_manifest)?;
 
     remove_sqlite_companions(target_artifact)?;
@@ -117,6 +120,7 @@ fn publish_artifact_pair_with_hook(
     }
 
     cleanup_backups(target_artifact, target_manifest)?;
+    cleanup_generation_files(target_artifact, &staged_sha256)?;
     sync_parent(target_artifact)?;
     Ok(())
 }
@@ -208,7 +212,10 @@ fn restore_previous_pair(
     if had_previous {
         replace_file(&backup_path(target_artifact), target_artifact)?;
         replace_file(&backup_path(target_manifest), target_manifest)?;
-        verify_pair_files(target_artifact, target_manifest)?;
+        let sha256 = verify_pair_files(target_artifact, target_manifest)?;
+        cleanup_generation_files(target_artifact, &sha256)?;
+    } else {
+        cleanup_generation_files(target_artifact, "")?;
     }
     cleanup_backups(target_artifact, target_manifest)?;
     sync_parent(target_artifact)
@@ -297,6 +304,7 @@ mod tests {
     use super::*;
     use sha2::{Digest, Sha256};
     use std::sync::{Arc, Barrier, mpsc};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn manifest_failure_restores_prior_matching_pair() {
@@ -550,32 +558,43 @@ mod tests {
     }
 
     #[test]
-    fn generation_binding_preserves_old_and_new_reader_generations() {
+    fn generation_binding_publishes_with_multiple_long_lived_readers() {
         let fixture = PairFixture::new("reader-generation");
         fixture.publish_initial("old");
         let old_hash = sha256(&fixture.artifact);
-        let old_reader = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
+        let old_generation = crate::artifact::pair::generation_path(&fixture.artifact, &old_hash);
+        let old_reader_a = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
+        let old_reader_b = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
         let (new_artifact, new_manifest) = fixture.stage("new");
         let new_hash = sha256(&new_artifact);
+        let new_generation = crate::artifact::pair::generation_path(&fixture.artifact, &new_hash);
         let target_artifact = fixture.artifact.clone();
         let target_manifest = fixture.manifest.clone();
+        let (published_tx, published_rx) = mpsc::channel();
 
         let publisher = std::thread::spawn(move || {
-            publish_artifact_pair(
-                &new_artifact,
-                &new_manifest,
-                &target_artifact,
-                &target_manifest,
-            )
+            published_tx
+                .send(publish_artifact_pair(
+                    &new_artifact,
+                    &new_manifest,
+                    &target_artifact,
+                    &target_manifest,
+                ))
+                .unwrap();
         });
 
-        assert_eq!(reader_marker(&old_reader), "old");
+        published_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("publisher must finish while long-lived readers remain active")
+            .unwrap();
+        publisher.join().unwrap();
+
+        assert_eq!(reader_marker(&old_reader_a), "old");
+        assert_eq!(reader_marker(&old_reader_b), "old");
         assert_eq!(
-            old_reader.verified_artifact_sha256(),
+            old_reader_a.verified_artifact_sha256(),
             Some(old_hash.as_str())
         );
-        drop(old_reader);
-        publisher.join().unwrap().unwrap();
 
         let new_reader = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
         assert_eq!(reader_marker(&new_reader), "new");
@@ -584,6 +603,51 @@ mod tests {
             Some(new_hash.as_str())
         );
         assert_ne!(old_hash, new_hash);
+        assert!(new_generation.exists());
+        drop(old_reader_a);
+        drop(old_reader_b);
+        assert!(!old_generation.exists());
+    }
+
+    #[test]
+    fn generation_binding_writer_lock_has_an_actionable_deadline() {
+        let fixture = PairFixture::new("writer-lock-deadline");
+        fixture.publish_initial("old");
+        let _reader_acquisition = PairLock::shared(&fixture.manifest).unwrap();
+        let timeout = Duration::from_millis(75);
+        let started = Instant::now();
+        let error = match PairLock::exclusive_with_timeout(&fixture.manifest, timeout) {
+            Ok(_) => panic!("exclusive publication lock must not bypass an active reader lock"),
+            Err(error) => error,
+        };
+
+        assert!(started.elapsed() >= timeout);
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(error.to_string().contains("timed out"));
+        assert!(error.to_string().contains("retry"));
+    }
+
+    #[test]
+    fn generation_binding_rebuilds_a_corrupted_cached_snapshot() {
+        let fixture = PairFixture::new("corrupted-generation-snapshot");
+        fixture.publish_initial("old");
+        let (new_artifact, new_manifest) = fixture.stage("new");
+        let new_sha256 = sha256(&new_artifact);
+        let corrupted_generation =
+            crate::artifact::pair::generation_path(&fixture.artifact, &new_sha256);
+        fs::write(&corrupted_generation, b"corrupted generation cache").unwrap();
+
+        publish_artifact_pair(
+            &new_artifact,
+            &new_manifest,
+            &fixture.artifact,
+            &fixture.manifest,
+        )
+        .unwrap();
+
+        fixture.assert_published("new");
+        assert_eq!(sha256(&corrupted_generation), new_sha256);
+        fixture.assert_no_transaction_residue();
     }
 
     #[test]
@@ -614,6 +678,10 @@ mod tests {
         let stale_manifest = fixture.root.join(".index.sqlite.manifest-stale.stage");
         fs::write(&stale_artifact, b"untrusted stale bytes").unwrap();
         fs::write(&stale_manifest, b"untrusted stale bytes").unwrap();
+        let stale_generation =
+            crate::artifact::pair::generation_path(&fixture.artifact, &"f".repeat(64));
+        fs::create_dir_all(stale_generation.parent().unwrap()).unwrap();
+        fs::write(&stale_generation, b"untrusted stale generation").unwrap();
         let (new_artifact, new_manifest) = fixture.stage("new");
 
         publish_artifact_pair(
@@ -627,6 +695,7 @@ mod tests {
         fixture.assert_published("new");
         assert_eq!(fs::read(stale_artifact).unwrap(), b"untrusted stale bytes");
         assert_eq!(fs::read(stale_manifest).unwrap(), b"untrusted stale bytes");
+        assert!(!stale_generation.exists());
     }
 
     struct PairFixture {
@@ -683,6 +752,29 @@ mod tests {
         fn assert_no_transaction_residue(&self) {
             assert!(!backup_path(&self.artifact).exists());
             assert!(!backup_path(&self.manifest).exists());
+            let generation_directory = crate::artifact::pair::generation_path(&self.artifact, "")
+                .parent()
+                .unwrap()
+                .to_path_buf();
+            let mut actual = if generation_directory.exists() {
+                fs::read_dir(&generation_directory)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().path())
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            actual.sort();
+            let expected = verify_pair_files(&self.artifact, &self.manifest)
+                .ok()
+                .map(|sha256| {
+                    vec![crate::artifact::pair::generation_path(
+                        &self.artifact,
+                        &sha256,
+                    )]
+                })
+                .unwrap_or_default();
+            assert_eq!(actual, expected);
         }
     }
 
