@@ -1,10 +1,223 @@
-use rusqlite::Connection;
-use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 
+use atlas_domain::RecordKey;
+use atlas_record::{AtlasRecord, RemasterLink};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use rusqlite::Connection;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use thiserror::Error;
+
+use crate::SqliteIndexReader;
 use crate::artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, artifact_metadata_keys,
 };
 use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
+use crate::schema;
+use crate::write::visibility::RetrievalVisibility;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordRoundTripRecordRole {
+    Source,
+    SourceInstance,
+    Canonical,
+}
+
+impl RecordRoundTripRecordRole {
+    fn parse(record_key: &RecordKey, value: &str) -> Result<Self, RecordRoundTripDiagnosticError> {
+        match value {
+            "source" => Ok(Self::Source),
+            "source_instance" => Ok(Self::SourceInstance),
+            "canonical" => Ok(Self::Canonical),
+            _ => Err(RecordRoundTripDiagnosticError::UnknownRecordRole {
+                record_key: record_key.clone(),
+                value: value.to_string(),
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordRoundTripRetrievalDisposition {
+    Ordinary,
+    DirectOnly,
+    InspectionOnly,
+}
+
+impl RecordRoundTripRetrievalDisposition {
+    fn parse(record_key: &RecordKey, value: &str) -> Result<Self, RecordRoundTripDiagnosticError> {
+        match value {
+            "ordinary" => Ok(Self::Ordinary),
+            "direct_only" => Ok(Self::DirectOnly),
+            "inspection_only" => Ok(Self::InspectionOnly),
+            _ => Err(
+                RecordRoundTripDiagnosticError::UnknownRetrievalDisposition {
+                    record_key: record_key.clone(),
+                    value: value.to_string(),
+                },
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordRoundTripRetrievalRationale {
+    ToolingNoAddressableProductMeaning,
+    CanonicalEditionDuplicate,
+    DuplicateSourceInstance,
+    GeneratedCanonical,
+    SourceRecord,
+}
+
+impl RecordRoundTripRetrievalRationale {
+    fn parse(record_key: &RecordKey, value: &str) -> Result<Self, RecordRoundTripDiagnosticError> {
+        match value {
+            "tooling_no_addressable_product_meaning" => {
+                Ok(Self::ToolingNoAddressableProductMeaning)
+            }
+            "canonical_edition_duplicate" => Ok(Self::CanonicalEditionDuplicate),
+            "duplicate_source_instance" => Ok(Self::DuplicateSourceInstance),
+            "generated_canonical" => Ok(Self::GeneratedCanonical),
+            "source_record" => Ok(Self::SourceRecord),
+            _ => Err(RecordRoundTripDiagnosticError::UnknownRetrievalRationale {
+                record_key: record_key.clone(),
+                value: value.to_string(),
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecordRoundTripPersistedProjectionRow {
+    pub record_key: RecordKey,
+    pub record_role: RecordRoundTripRecordRole,
+    pub retrieval_disposition: RecordRoundTripRetrievalDisposition,
+    pub retrieval_rationale: RecordRoundTripRetrievalRationale,
+    pub is_default_visible: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum RecordRoundTripDiagnosticError {
+    #[error("persisted retrieval projection query failed: {message}")]
+    PersistedProjectionQuery { message: String },
+    #[error("invalid persisted record key `{value}`: {message}")]
+    InvalidRecordKey { value: String, message: String },
+    #[error("record `{record_key}` has unknown record role `{value}`")]
+    UnknownRecordRole {
+        record_key: RecordKey,
+        value: String,
+    },
+    #[error("record `{record_key}` has unknown retrieval disposition `{value}`")]
+    UnknownRetrievalDisposition {
+        record_key: RecordKey,
+        value: String,
+    },
+    #[error("record `{record_key}` has unknown retrieval rationale `{value}`")]
+    UnknownRetrievalRationale {
+        record_key: RecordKey,
+        value: String,
+    },
+    #[error("record-round-trip projection contains duplicate key `{record_key}`")]
+    DuplicateRecordKey { record_key: RecordKey },
+}
+
+pub fn record_round_trip_persisted_retrieval_projection(
+    reader: &SqliteIndexReader,
+) -> Result<
+    BTreeMap<RecordKey, RecordRoundTripPersistedProjectionRow>,
+    RecordRoundTripDiagnosticError,
+> {
+    let rows = reader.with_diesel_connection(|connection| {
+        schema::records::table
+            .select((
+                schema::records::record_key,
+                schema::records::record_role,
+                schema::records::retrieval_disposition,
+                schema::records::retrieval_rationale,
+                schema::records::is_default_visible,
+            ))
+            .order(schema::records::record_key.asc())
+            .load::<(String, String, String, String, bool)>(connection)
+    });
+    let rows = rows.map_err(
+        |error| RecordRoundTripDiagnosticError::PersistedProjectionQuery {
+            message: error.to_string(),
+        },
+    )?;
+
+    let mut projection = BTreeMap::new();
+    for (record_key, record_role, disposition, rationale, is_default_visible) in rows {
+        let record_key_value = record_key;
+        let record_key = RecordKey::parse(&record_key_value).map_err(|error| {
+            RecordRoundTripDiagnosticError::InvalidRecordKey {
+                value: record_key_value.clone(),
+                message: error.to_string(),
+            }
+        })?;
+        let row = record_round_trip_projection_row(
+            record_key.clone(),
+            &record_role,
+            &disposition,
+            &rationale,
+            is_default_visible,
+        )?;
+        if projection.insert(record_key.clone(), row).is_some() {
+            return Err(RecordRoundTripDiagnosticError::DuplicateRecordKey { record_key });
+        }
+    }
+    Ok(projection)
+}
+
+pub fn record_round_trip_expected_retrieval_projection(
+    records: &[AtlasRecord],
+    remaster_links: &[RemasterLink],
+) -> Result<
+    BTreeMap<RecordKey, RecordRoundTripPersistedProjectionRow>,
+    RecordRoundTripDiagnosticError,
+> {
+    let visibility = RetrievalVisibility::from_remaster_links(remaster_links);
+    let mut projection = BTreeMap::new();
+    for record in records {
+        let record_key = record.identity.key.clone();
+        let (record_role, disposition, rationale) = visibility.policy(record);
+        let row = record_round_trip_projection_row(
+            record_key.clone(),
+            record_role,
+            disposition,
+            rationale,
+            disposition == "ordinary",
+        )?;
+        if projection.insert(record_key.clone(), row).is_some() {
+            return Err(RecordRoundTripDiagnosticError::DuplicateRecordKey { record_key });
+        }
+    }
+    Ok(projection)
+}
+
+fn record_round_trip_projection_row(
+    record_key: RecordKey,
+    record_role: &str,
+    retrieval_disposition: &str,
+    retrieval_rationale: &str,
+    is_default_visible: bool,
+) -> Result<RecordRoundTripPersistedProjectionRow, RecordRoundTripDiagnosticError> {
+    Ok(RecordRoundTripPersistedProjectionRow {
+        record_role: RecordRoundTripRecordRole::parse(&record_key, record_role)?,
+        retrieval_disposition: RecordRoundTripRetrievalDisposition::parse(
+            &record_key,
+            retrieval_disposition,
+        )?,
+        retrieval_rationale: RecordRoundTripRetrievalRationale::parse(
+            &record_key,
+            retrieval_rationale,
+        )?,
+        record_key,
+        is_default_visible,
+    })
+}
 
 pub fn create_record_vector_index_sql(dimensions: usize) -> String {
     crate::read::search::sqlite_vector_index::create_sql(dimensions)

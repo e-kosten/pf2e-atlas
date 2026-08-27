@@ -2685,3 +2685,6 @@ mod tests {
 
 #[cfg(test)]
 mod c2pr_tests;
+
+#[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+mod record_round_trip_diagnostic;
