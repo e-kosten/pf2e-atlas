@@ -139,6 +139,12 @@ publisher pair/generation, visible-pair reader, and generation
 materialization/open SHA checks and the publication generation copy remain
 separate mandatory operations with closed counters. This validation-side reuse
 does not change publication, recovery, artifact serialization, or product reads.
+Requested selector aliases are normalized through the embedding catalog before
+source traversal, while the canonical artifact metadata comparison remains after
+publication. Failure evidence carries the typed identity, completed/in-progress
+operation timings, counters, and the already trusted visible/generation digests;
+checksum closure hashes only evidence that lacks a trusted digest. These rules
+belong to validation orchestration and do not extend this artifact contract.
 
 Builds stage and syncs the complete SQLite file and manifest before publication. Publishers for the same adjacent-manifest target serialize through an exclusive OS lock whose kernel ownership is released after process failure; the coordination file itself remains stable so deleting and recreating it cannot split lock domains. Exclusive acquisition has a five-second deadline and returns actionable retry guidance instead of blocking indefinitely. Under that lock, publication verifies the staged digest, recovers or cleans fixed transaction backups from an interrupted attempt, snapshots a prior matching pair, installs both files, re-verifies the final digest, and removes recovery state. Failure before commit restores both prior files or removes both first-publication files. Readers share the lock only during generation acquisition, never for the long-lived reader or service lifetime. Completed publication removes obsolete generation snapshots when no live operating-system handle prevents deletion; a final old-generation reader also removes its obsolete snapshot on drop. Orphan generation and temporary files from an interrupted attempt are cleaned by the next successful publication, and stale staging files are never selected as visible state.
 

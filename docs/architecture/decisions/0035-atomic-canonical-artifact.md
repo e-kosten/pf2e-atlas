@@ -1,6 +1,6 @@
 # ADR 0035: Atomic Canonical Artifact
 
-Status: accepted at Checkpoint B; combined C1/C2/C2R/C2P/C1R candidate awaits Checkpoint C
+Status: accepted at Checkpoint B; combined C1/C2/C2R/C2P/C2PR/C1R candidate awaits Checkpoint C
 Date: 2026-08-24
 
 ## Context
@@ -48,9 +48,14 @@ or FAIL returns. C2P composes validation over one private verified-generation
 handle and one live deep-validation receipt per artifact mode. It preserves every
 independent atomic SHA check and the required generation copy while eliminating
 only repeated validation-side reader/scanning work; neither capability is
-serialized or available to runtime/product consumers. C1R then remediates only
-the independently reproduced C1 findings on top of C2, C2R, and C2P. Checkpoint C
-must approve the exact combined C1/C2/C2R/C2P/C1R commit chain and final independently reproduced artifact hashes
+serialized or available to runtime/product consumers. C2PR resolves private
+validation selectors through the existing typed embedding catalog before source
+work, retains canonical artifact-metadata checks after publication, and
+atomically preserves typed failure/partial-timing evidence while reusing already
+trusted generation digests. It changes neither embedding nor artifact semantics.
+C1R then remediates only the independently reproduced C1 findings on top of C2,
+C2R, C2P, and C2PR. Checkpoint C must approve the exact combined
+C1/C2/C2R/C2P/C2PR/C1R commit chain and final independently reproduced artifact hashes
 before search, runtime, app, CLI, or UI consumers depend on the new artifact.
 Later search work may not amend canonical hydration under its own scope.
 

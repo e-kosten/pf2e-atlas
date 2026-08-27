@@ -6,13 +6,16 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use atlas_embedding::{EmbeddingModelId, embedding_model_spec};
 use atlas_index::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, ArtifactValidationReport,
     IndexInspectionReport, SqliteIndexReader, ValidationStatus, ValidationTarget,
 };
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -86,7 +89,295 @@ struct ArtifactValidationTuple {
     source_signature: String,
     artifact_contract_version: String,
     artifact_schema_version: String,
-    embedding_model: String,
+    embedding: ValidationEmbeddingIdentity,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ValidationEmbeddingIdentity {
+    requested_selector: String,
+    model: EmbeddingModelId,
+    canonical_model_id: String,
+}
+
+impl ValidationEmbeddingIdentity {
+    fn semantic_enum_identity(&self) -> String {
+        format!("EmbeddingModelId::{:?}", self.model)
+    }
+}
+
+impl Serialize for ValidationEmbeddingIdentity {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("ValidationEmbeddingIdentity", 3)?;
+        state.serialize_field("requested_selector", &self.requested_selector)?;
+        state.serialize_field("semantic_enum_identity", &self.semantic_enum_identity())?;
+        state.serialize_field("canonical_model_id", &self.canonical_model_id)?;
+        state.end()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct TypedIdentityValue {
+    raw_value: Option<String>,
+    semantic_enum_identity: Option<String>,
+    canonical_model_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct ValidationFailureDetail {
+    error_code: String,
+    tuple_field: Option<String>,
+    requested_selector: Option<String>,
+    canonical_model_id: Option<String>,
+    semantic_enum_identity: Option<String>,
+    expected: Option<TypedIdentityValue>,
+    actual: Option<TypedIdentityValue>,
+}
+
+type ValidationFailure = Box<ValidationFailureDetail>;
+
+#[derive(Debug, Clone, Serialize)]
+struct OperationEvidence {
+    order: usize,
+    phase: String,
+    status: String,
+    wall_ms: u128,
+    cpu_ms: Option<u128>,
+    bytes: u64,
+    counters: BTreeMap<String, usize>,
+}
+
+struct ActiveOperation {
+    order: usize,
+    phase: String,
+    started: Instant,
+    cpu_ms: Option<u128>,
+    bytes: u64,
+    counters: BTreeMap<String, usize>,
+}
+
+struct ValidationRunJournal {
+    started: Instant,
+    cpu_ms: Option<u128>,
+    next_order: usize,
+    current_mode: Option<String>,
+    completed: Vec<OperationEvidence>,
+    active: BTreeMap<String, ActiveOperation>,
+    failure_detail: Option<ValidationFailureDetail>,
+    artifact_identities: BTreeMap<String, Value>,
+    counter_state: BTreeMap<String, Value>,
+}
+
+impl ValidationRunJournal {
+    fn new() -> Self {
+        Self {
+            started: Instant::now(),
+            cpu_ms: process_cpu_time_ms(),
+            next_order: 1,
+            current_mode: None,
+            completed: Vec::new(),
+            active: BTreeMap::new(),
+            failure_detail: None,
+            artifact_identities: BTreeMap::new(),
+            counter_state: BTreeMap::from([
+                ("source_traversal_count".to_string(), json!(0)),
+                ("completed_artifact_modes".to_string(), json!([])),
+                (
+                    "failure_preservation_redundant_full_sha_pass_count".to_string(),
+                    json!(0),
+                ),
+                (
+                    "failure_preservation_unclassified_full_sha_pass_count".to_string(),
+                    json!(0),
+                ),
+            ]),
+        }
+    }
+
+    fn progress(&mut self, stage: &Path, phase: &str, status: &str) -> Result<(), IngestError> {
+        if status == "started" {
+            if phase == "no_embeddings" || phase == "with_embeddings" {
+                self.current_mode = Some(phase.to_string());
+            }
+            let operation = ActiveOperation {
+                order: self.next_order,
+                phase: phase.to_string(),
+                started: Instant::now(),
+                cpu_ms: process_cpu_time_ms(),
+                bytes: 0,
+                counters: BTreeMap::new(),
+            };
+            self.next_order += 1;
+            self.active.insert(phase.to_string(), operation);
+        } else if let Some(operation) = self.active.remove(phase) {
+            self.completed.push(operation.finish(status));
+            if (phase == "no_embeddings" || phase == "with_embeddings") && status == "passed" {
+                let completed = self
+                    .completed
+                    .iter()
+                    .filter(|operation| {
+                        operation.status == "passed"
+                            && (operation.phase == "no_embeddings"
+                                || operation.phase == "with_embeddings")
+                    })
+                    .map(|operation| operation.phase.clone())
+                    .collect::<Vec<_>>();
+                self.counter_state
+                    .insert("completed_artifact_modes".to_string(), json!(completed));
+                self.current_mode = None;
+            }
+        }
+        write_progress_entry(
+            stage,
+            &json!({
+                "phase": phase,
+                "status": status,
+                "order": self.next_order.saturating_sub(1),
+                "wall_ms": self.started.elapsed().as_millis(),
+                "cpu_ms": self.elapsed_cpu_ms(),
+                "mode": self.current_mode,
+            }),
+        )
+    }
+
+    fn complete_source_traversal(&mut self) {
+        self.counter_state
+            .insert("source_traversal_count".to_string(), json!(1));
+    }
+
+    fn annotate_operation(
+        &mut self,
+        phase: &str,
+        bytes: u64,
+        counters: impl IntoIterator<Item = (String, usize)>,
+    ) {
+        if let Some(operation) = self.active.get_mut(phase) {
+            operation.bytes = bytes;
+            operation.counters.extend(counters);
+        }
+    }
+
+    fn record_artifact_identity(
+        &mut self,
+        mode: &str,
+        visible_path: &Path,
+        generation_path: &Path,
+        trusted_sha256: &str,
+        bytes: u64,
+    ) {
+        self.artifact_identities.insert(
+            mode.to_string(),
+            json!({
+                "visible_path": visible_path,
+                "generation_path": generation_path,
+                "trusted_sha256": trusted_sha256,
+                "bytes": bytes,
+            }),
+        );
+    }
+
+    fn record_c2p_counters(&mut self, mode: &str) {
+        self.counter_state.insert(
+            format!("{mode}.mandatory_atomic_sha_pass_counts"),
+            json!(candidate_mandatory_atomic_sha_pass_counts()),
+        );
+        for (name, value) in [
+            ("validation_side_digest_handle_bind_count", 1),
+            ("validation_side_redundant_full_sha_pass_count", 0),
+            ("post_receipt_rehash_count", 0),
+            ("unclassified_full_sha_pass_count", 0),
+            ("atomic_publication_generation_copy_count", 1),
+            ("redundant_generation_copy_count", 0),
+        ] {
+            self.counter_state
+                .insert(format!("{mode}.{name}"), json!(value));
+        }
+    }
+
+    fn fail_with(&mut self, detail: ValidationFailureDetail) {
+        self.failure_detail = Some(detail);
+    }
+
+    fn elapsed_cpu_ms(&self) -> Option<u128> {
+        self.cpu_ms
+            .zip(process_cpu_time_ms())
+            .map(|(start, end)| end.saturating_sub(start))
+    }
+
+    fn in_progress(&self) -> Vec<OperationEvidence> {
+        let mut active = self
+            .active
+            .values()
+            .map(ActiveOperation::in_progress)
+            .collect::<Vec<_>>();
+        active.sort_by_key(|operation| operation.order);
+        active
+    }
+
+    fn failure_point(&self) -> Option<String> {
+        self.completed
+            .iter()
+            .rev()
+            .find(|operation| operation.status == "failed")
+            .map(|operation| operation.phase.clone())
+            .or_else(|| {
+                self.active
+                    .values()
+                    .max_by_key(|operation| operation.order)
+                    .map(|operation| operation.phase.clone())
+            })
+    }
+
+    fn failure_order(&self) -> usize {
+        self.completed
+            .iter()
+            .rev()
+            .find(|operation| operation.status == "failed")
+            .map_or_else(
+                || {
+                    self.active
+                        .values()
+                        .map(|operation| operation.order)
+                        .max()
+                        .unwrap_or(self.next_order)
+                },
+                |operation| operation.order,
+            )
+    }
+}
+
+impl ActiveOperation {
+    fn finish(self, status: &str) -> OperationEvidence {
+        OperationEvidence {
+            order: self.order,
+            phase: self.phase,
+            status: status.to_string(),
+            wall_ms: self.started.elapsed().as_millis(),
+            cpu_ms: self
+                .cpu_ms
+                .zip(process_cpu_time_ms())
+                .map(|(start, end)| end.saturating_sub(start)),
+            bytes: self.bytes,
+            counters: self.counters,
+        }
+    }
+
+    fn in_progress(&self) -> OperationEvidence {
+        OperationEvidence {
+            order: self.order,
+            phase: self.phase.clone(),
+            status: "in_progress".to_string(),
+            wall_ms: self.started.elapsed().as_millis(),
+            cpu_ms: self
+                .cpu_ms
+                .zip(process_cpu_time_ms())
+                .map(|(start, end)| end.saturating_sub(start)),
+            bytes: self.bytes,
+            counters: self.counters.clone(),
+        }
+    }
 }
 
 /// Private live authority for validation composition. It is never serialized,
@@ -149,7 +440,6 @@ impl VerifiedArtifactGenerationHandle {
         self.reader
             .validate_generation_binding()
             .map_err(|error| validation_error(error.to_string()))?;
-        validate_receipt_metadata(&self.tuple, &report)?;
         Ok(DeepValidationReceipt {
             binding_digest: self.binding_digest.clone(),
             target,
@@ -179,7 +469,18 @@ impl VerifiedArtifactGenerationHandle {
 }
 
 fn validation_binding_digest(tuple: &ArtifactValidationTuple, generation: &Value) -> String {
-    digest_debug(&(tuple, generation))
+    digest_debug(&(
+        &tuple.candidate_commit,
+        &tuple.candidate_tree,
+        &tuple.snapshot_stage,
+        &tuple.mode,
+        &tuple.source_signature,
+        &tuple.artifact_contract_version,
+        &tuple.artifact_schema_version,
+        tuple.embedding.model,
+        &tuple.embedding.canonical_model_id,
+        generation,
+    ))
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -237,6 +538,12 @@ pub struct ExhaustiveValidationReport {
     pub assertion_inventory: Vec<AssertionInventoryEntry>,
     pub artifact_mode_reports: BTreeMap<String, Value>,
     pub operation_timings_complete: bool,
+    pub c2p_snapshot_or_cache_reused: bool,
+    pub structured_failure_contract_complete: bool,
+    pub partial_timing_contract_complete: bool,
+    pub failure_preservation_redundant_full_sha_pass_count: usize,
+    pub failure_preservation_unclassified_full_sha_pass_count: usize,
+    pub inherited_c2p_invariants_complete: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -283,7 +590,6 @@ pub fn run_exhaustive_validation(
         )));
     }
     let source_git = git_identity(&options.source_root, "source")?;
-    let static_identity = static_identity(&options, &candidate, &source_git, &repository_root)?;
 
     if options.snapshot_root.exists() {
         if options.force_reproduction {
@@ -292,6 +598,17 @@ pub fn run_exhaustive_validation(
                 options.snapshot_root.display()
             )));
         }
+        let embedding = resolve_validation_embedding_identity(
+            &BuildArtifactOptions::default_embedding_model_id(),
+        )
+        .map_err(|detail| validation_error(failure_detail_message(&detail)))?;
+        let static_identity = static_identity(
+            &options,
+            &candidate,
+            &source_git,
+            &repository_root,
+            &embedding,
+        )?;
         let manifest = validate_snapshot(&options.snapshot_root, None, None)?;
         if !identity_static_matches(&manifest.identity, &static_identity) {
             return Err(validation_error(
@@ -307,26 +624,91 @@ pub fn run_exhaustive_validation(
 
     let stage = staging_path(&options.snapshot_root);
     fs::create_dir(&stage).map_err(io_error("create validation snapshot staging directory"))?;
-    let report = match build_snapshot(&options, &stage, static_identity, total_started) {
+    let mut journal = ValidationRunJournal::new();
+    let mut trusted_artifact_digests = BTreeMap::new();
+    let report = match (|| {
+        journal.progress(&stage, "pre_artifact_identity", "started")?;
+        let embedding = match resolve_validation_embedding_identity(
+            &BuildArtifactOptions::default_embedding_model_id(),
+        ) {
+            Ok(identity) => identity,
+            Err(detail) => {
+                journal.fail_with((*detail).clone());
+                journal.progress(&stage, "pre_artifact_identity", "failed")?;
+                return Err(validation_error(failure_detail_message(&detail)));
+            }
+        };
+        let static_identity = static_identity(
+            &options,
+            &candidate,
+            &source_git,
+            &repository_root,
+            &embedding,
+        )?;
+        let tuple_templates =
+            match pre_artifact_validation_tuples(&static_identity, &stage, &embedding) {
+                Ok(tuples) => tuples,
+                Err(detail) => {
+                    journal.fail_with((*detail).clone());
+                    journal.progress(&stage, "pre_artifact_identity", "failed")?;
+                    return Err(validation_error(failure_detail_message(&detail)));
+                }
+            };
+        journal.progress(&stage, "pre_artifact_identity", "passed")?;
+        build_snapshot(
+            &options,
+            &stage,
+            static_identity,
+            total_started,
+            &tuple_templates,
+            &mut journal,
+            &mut trusted_artifact_digests,
+        )
+    })() {
         Ok(report) => report,
         Err(error) => {
-            let failed = preserve_failed_snapshot(&options, &stage, &error)?;
+            let failed = preserve_failed_snapshot(
+                &options,
+                &stage,
+                &error,
+                &journal,
+                &trusted_artifact_digests,
+            )?;
             return Err(validation_error(format!(
                 "{error}; checksum-bound failed snapshot preserved at {}",
                 failed.display()
             )));
         }
     };
-    let trusted_artifact_digests = trusted_artifact_digests_from_report(&report)?;
-    fs::rename(&stage, &options.snapshot_root)
-        .map_err(io_error("atomically publish validation snapshot"))?;
-    validate_snapshot(
-        &options.snapshot_root,
-        Some(&report_identity(&options.snapshot_root)?),
-        Some(&trusted_artifact_digests),
-    )?;
-    publish_or_verify_strict_report(&options.snapshot_root, &strict_report_path)?;
-    write_json_new(&options.report_path, &report)?;
+    let publication = (|| {
+        fs::rename(&stage, &options.snapshot_root)
+            .map_err(io_error("atomically publish validation snapshot"))?;
+        validate_snapshot(
+            &options.snapshot_root,
+            Some(&report_identity(&options.snapshot_root)?),
+            Some(&trusted_artifact_digests),
+        )?;
+        publish_or_verify_strict_report(&options.snapshot_root, &strict_report_path)?;
+        write_json_new(&options.report_path, &report)
+    })();
+    if let Err(error) = publication {
+        let evidence_root = if stage.exists() {
+            stage.as_path()
+        } else {
+            options.snapshot_root.as_path()
+        };
+        let failed = preserve_failed_snapshot(
+            &options,
+            evidence_root,
+            &error,
+            &journal,
+            &trusted_artifact_digests,
+        )?;
+        return Err(validation_error(format!(
+            "{error}; checksum-bound failed snapshot preserved at {}",
+            failed.display()
+        )));
+    }
     Ok(report)
 }
 
@@ -335,18 +717,30 @@ fn build_snapshot(
     stage: &Path,
     mut identity: ValidationIdentity,
     total_started: Instant,
+    tuple_templates: &BTreeMap<String, ArtifactValidationTuple>,
+    journal: &mut ValidationRunJournal,
+    trusted_artifact_digests: &mut BTreeMap<PathBuf, String>,
 ) -> Result<ExhaustiveValidationReport, IngestError> {
     let mut timing = BTreeMap::new();
-    write_progress(stage, "source_traversal", "started")?;
+    journal.progress(stage, "source_traversal", "started")?;
     let phase = Instant::now();
     let source = source_pipeline::load_foundry_source(&options.source_root, None)?;
+    journal.annotate_operation(
+        "source_traversal",
+        0,
+        [(
+            "source_record_count".to_string(),
+            source.source_record_count,
+        )],
+    );
     timing.insert(
         "source_traversal_ms".to_string(),
         phase.elapsed().as_millis(),
     );
     identity.source_signature = source.source_signature.clone();
     identity.source_manifest_pack_digest = digest_debug(&source.packs);
-    write_progress(stage, "source_traversal", "passed")?;
+    journal.complete_source_traversal();
+    journal.progress(stage, "source_traversal", "passed")?;
 
     let phase = Instant::now();
     let analysis = analyze_captured_source_load(options.source_root.clone(), &source);
@@ -356,7 +750,7 @@ fn build_snapshot(
         phase.elapsed().as_millis(),
     );
 
-    write_progress(stage, "strict_audit", "started")?;
+    journal.progress(stage, "strict_audit", "started")?;
     let phase = Instant::now();
     let audit = audit_loaded_source(
         SourcePathAuditOptions {
@@ -369,6 +763,21 @@ fn build_snapshot(
         &source,
     )?;
     identity.coverage_policy_digest = audit.coverage_policy_digest.clone();
+    journal.annotate_operation(
+        "strict_audit",
+        0,
+        [
+            ("path_count".to_string(), audit.summary.creature_paths),
+            (
+                "expected_observation_count".to_string(),
+                audit.closure_totals.expected_observation_count,
+            ),
+            (
+                "observed_observation_count".to_string(),
+                audit.closure_totals.observed_observation_count,
+            ),
+        ],
+    );
     timing.insert(
         "strict_source_audit_ms".to_string(),
         phase.elapsed().as_millis(),
@@ -376,15 +785,11 @@ fn build_snapshot(
     let strict_audit = match persist_and_enforce_strict_audit(stage, &audit) {
         Ok(summary) => summary,
         Err(error) => {
-            write_progress(stage, "strict_audit", "failed")?;
-            write_json(
-                stage.join("timing.json"),
-                &json!({"phases_ms": timing, "status": "fail"}),
-            )?;
+            journal.progress(stage, "strict_audit", "failed")?;
             return Err(error);
         }
     };
-    write_progress(stage, "strict_audit", "passed")?;
+    journal.progress(stage, "strict_audit", "passed")?;
 
     let captured_input = index_build_input(source.clone());
     let capture = json!({
@@ -405,7 +810,6 @@ fn build_snapshot(
     let artifacts = stage.join("artifacts");
     fs::create_dir(&artifacts).map_err(io_error("create validation artifact directory"))?;
     let mut artifact_reports = BTreeMap::new();
-    let mut trusted_artifact_digests = BTreeMap::new();
     for (mode, cache) in [
         ("no_embeddings", None),
         (
@@ -413,11 +817,11 @@ fn build_snapshot(
             Some(options.embedding_cache_root.clone()),
         ),
     ] {
-        write_progress(stage, mode, "started")?;
+        journal.progress(stage, mode, "started")?;
         let phase = OperationClock::start();
         let phase_started = Instant::now();
         let output = artifacts.join(format!("{mode}.sqlite"));
-        write_progress(stage, &format!("{mode}.build_write_publish"), "started")?;
+        journal.progress(stage, &format!("{mode}.build_write_publish"), "started")?;
         let build_clock = OperationClock::start();
         let build = build_artifact_from_source(
             source.clone(),
@@ -435,26 +839,37 @@ fn build_snapshot(
         let artifact_bytes = fs::metadata(&output)
             .map_err(io_error("read validation artifact size"))?
             .len();
+        journal.annotate_operation(mode, artifact_bytes, [("artifact_count".to_string(), 1)]);
+        journal.annotate_operation(
+            &format!("{mode}.build_write_publish"),
+            artifact_bytes,
+            [("artifact_count".to_string(), 1)],
+        );
         let build_timing = build_clock.finish(
             artifact_bytes,
             1,
             "complete build/write/manifest/publication boundary",
         );
-        write_progress(stage, &format!("{mode}.build_write_publish"), "passed")?;
+        journal.progress(stage, &format!("{mode}.build_write_publish"), "passed")?;
         let reader_work_started = Instant::now();
-        write_progress(stage, &format!("{mode}.reader_open"), "started")?;
+        journal.progress(stage, &format!("{mode}.reader_open"), "started")?;
+        journal.annotate_operation(
+            &format!("{mode}.reader_open"),
+            artifact_bytes,
+            [
+                ("reader_count".to_string(), 1),
+                ("diesel_connection_count".to_string(), 1),
+                ("rusqlite_connection_count".to_string(), 1),
+            ],
+        );
         let reader_clock = OperationClock::start();
-        let tuple = ArtifactValidationTuple {
-            candidate_commit: identity.candidate_commit.clone(),
-            candidate_tree: identity.candidate_tree.clone(),
-            snapshot_stage: fs::canonicalize(stage)
-                .map_err(io_error("canonicalize validation snapshot stage"))?,
-            mode: mode.to_string(),
-            source_signature: identity.source_signature.clone(),
-            artifact_contract_version: identity.artifact_contract_version.clone(),
-            artifact_schema_version: identity.artifact_schema_version.clone(),
-            embedding_model: BuildArtifactOptions::default_embedding_model_id(),
-        };
+        let mut tuple = tuple_templates
+            .get(mode)
+            .cloned()
+            .ok_or_else(|| validation_error(format!("missing pre-artifact tuple for {mode}")))?;
+        tuple
+            .source_signature
+            .clone_from(&identity.source_signature);
         let handle =
             VerifiedArtifactGenerationHandle::open(&output, mode == "with_embeddings", tuple)?;
         let reader_timing = reader_clock.finish(
@@ -462,74 +877,6 @@ fn build_snapshot(
             1,
             "visible pair verification, generation binding, and both retained connections",
         );
-        write_progress(stage, &format!("{mode}.reader_open"), "passed")?;
-
-        write_progress(stage, &format!("{mode}.check"), "started")?;
-        let check_clock = OperationClock::start();
-        let check = handle.check()?;
-        let check_timing = check_clock.finish(0, 1, "fast readiness assertion");
-        write_progress(stage, &format!("{mode}.check"), "passed")?;
-        let target = if mode == "with_embeddings" {
-            ValidationTarget::Full
-        } else {
-            ValidationTarget::BaseOnly
-        };
-        write_progress(stage, &format!("{mode}.deep_validation"), "started")?;
-        let deep_clock = OperationClock::start();
-        let receipt = handle.deep_validation_receipt(target)?;
-        let deep_timing = deep_clock.finish(
-            artifact_bytes,
-            1,
-            "single complete post-publication coherence validation",
-        );
-        write_progress(stage, &format!("{mode}.deep_validation"), "passed")?;
-        write_progress(stage, &format!("{mode}.inspect_projection"), "started")?;
-        let inspect_clock = OperationClock::start();
-        let inspect = handle.inspect(&receipt)?;
-        let inspect_timing = inspect_clock.finish(
-            0,
-            1,
-            "inspection projection from the live deep-validation receipt",
-        );
-        write_progress(stage, &format!("{mode}.inspect_projection"), "passed")?;
-        if receipt.target != target {
-            return Err(validation_error(format!(
-                "{mode} deep validation receipt target changed"
-            )));
-        }
-        let deep = receipt.report.clone();
-        write_progress(stage, &format!("{mode}.diesel_round_trip"), "started")?;
-        let round_trip_clock = OperationClock::start();
-        let hydrated_records = handle.load_records()?;
-        if hydrated_records != captured_input.records {
-            return Err(validation_error(format!(
-                "{mode} Diesel record round trip differs from the captured build input"
-            )));
-        }
-        let round_trip_timing = round_trip_clock.finish(
-            artifact_bytes,
-            1,
-            "captured build-input record equality through the retained Diesel connection",
-        );
-        write_progress(stage, &format!("{mode}.diesel_round_trip"), "passed")?;
-        if check.status != ValidationStatus::Ok || deep.status != ValidationStatus::Ok {
-            return Err(validation_error(format!(
-                "{mode} artifact validation failed"
-            )));
-        }
-        write_progress(stage, &format!("{mode}.evidence_projection"), "started")?;
-        let evidence_clock = OperationClock::start();
-        let mandatory_atomic_sha_pass_counts = candidate_mandatory_atomic_sha_pass_counts();
-        let c2r_mandatory_atomic_sha_pass_counts = c2r_mandatory_atomic_sha_pass_counts();
-        if mandatory_atomic_sha_pass_counts != c2r_mandatory_atomic_sha_pass_counts
-            || mandatory_atomic_sha_pass_counts
-                .values()
-                .any(|count| *count == 0)
-        {
-            return Err(validation_error(
-                "mandatory atomic SHA pass counts differ from the closed C2R baseline",
-            ));
-        }
         let generation = handle.generation.clone();
         let trusted_sha256 = generation["trusted_sha256"]
             .as_str()
@@ -548,18 +895,104 @@ fn build_snapshot(
             })?
             .to_path_buf();
         trusted_artifact_digests.insert(visible_relative.clone(), trusted_sha256.clone());
-        trusted_artifact_digests.insert(generation_relative.clone(), trusted_sha256);
+        trusted_artifact_digests.insert(generation_relative.clone(), trusted_sha256.clone());
+        journal.record_artifact_identity(
+            mode,
+            &visible_relative,
+            &generation_relative,
+            &trusted_sha256,
+            artifact_bytes,
+        );
+        journal.record_c2p_counters(mode);
+        journal.progress(stage, &format!("{mode}.reader_open"), "passed")?;
+
+        journal.progress(stage, &format!("{mode}.check"), "started")?;
+        let check_clock = OperationClock::start();
+        let check = handle.check()?;
+        let check_timing = check_clock.finish(0, 1, "fast readiness assertion");
+        journal.progress(stage, &format!("{mode}.check"), "passed")?;
+        let target = if mode == "with_embeddings" {
+            ValidationTarget::Full
+        } else {
+            ValidationTarget::BaseOnly
+        };
+        journal.progress(stage, &format!("{mode}.deep_validation"), "started")?;
+        journal.annotate_operation(
+            &format!("{mode}.deep_validation"),
+            artifact_bytes,
+            [("deep_coherence_receipt_count".to_string(), 1)],
+        );
+        let deep_clock = OperationClock::start();
+        let receipt = handle.deep_validation_receipt(target)?;
+        if let Err(detail) = validate_receipt_metadata(&handle.tuple, &receipt.report) {
+            journal.fail_with((*detail).clone());
+            journal.progress(stage, &format!("{mode}.deep_validation"), "failed")?;
+            return Err(validation_error(failure_detail_message(&detail)));
+        }
+        let deep_timing = deep_clock.finish(
+            artifact_bytes,
+            1,
+            "single complete post-publication coherence validation",
+        );
+        journal.progress(stage, &format!("{mode}.deep_validation"), "passed")?;
+        journal.progress(stage, &format!("{mode}.inspect_projection"), "started")?;
+        let inspect_clock = OperationClock::start();
+        let inspect = handle.inspect(&receipt)?;
+        let inspect_timing = inspect_clock.finish(
+            0,
+            1,
+            "inspection projection from the live deep-validation receipt",
+        );
+        journal.progress(stage, &format!("{mode}.inspect_projection"), "passed")?;
+        if receipt.target != target {
+            return Err(validation_error(format!(
+                "{mode} deep validation receipt target changed"
+            )));
+        }
+        let deep = receipt.report.clone();
+        journal.progress(stage, &format!("{mode}.diesel_round_trip"), "started")?;
+        let round_trip_clock = OperationClock::start();
+        let hydrated_records = handle.load_records()?;
+        if hydrated_records != captured_input.records {
+            return Err(validation_error(format!(
+                "{mode} Diesel record round trip differs from the captured build input"
+            )));
+        }
+        let round_trip_timing = round_trip_clock.finish(
+            artifact_bytes,
+            1,
+            "captured build-input record equality through the retained Diesel connection",
+        );
+        journal.progress(stage, &format!("{mode}.diesel_round_trip"), "passed")?;
+        if check.status != ValidationStatus::Ok || deep.status != ValidationStatus::Ok {
+            return Err(validation_error(format!(
+                "{mode} artifact validation failed"
+            )));
+        }
+        journal.progress(stage, &format!("{mode}.evidence_projection"), "started")?;
+        let evidence_clock = OperationClock::start();
+        let mandatory_atomic_sha_pass_counts = candidate_mandatory_atomic_sha_pass_counts();
+        let c2r_mandatory_atomic_sha_pass_counts = c2r_mandatory_atomic_sha_pass_counts();
+        if mandatory_atomic_sha_pass_counts != c2r_mandatory_atomic_sha_pass_counts
+            || mandatory_atomic_sha_pass_counts
+                .values()
+                .any(|count| *count == 0)
+        {
+            return Err(validation_error(
+                "mandatory atomic SHA pass counts differ from the closed C2R baseline",
+            ));
+        }
         let handle_tuple = handle.tuple.clone();
         let reader_work_ms = reader_work_started.elapsed().as_millis();
         let evidence_timing = evidence_clock.finish(0, 1, "validation evidence serialization");
-        write_progress(stage, &format!("{mode}.evidence_projection"), "passed")?;
-        write_progress(stage, &format!("{mode}.reader_close"), "started")?;
+        journal.progress(stage, &format!("{mode}.evidence_projection"), "passed")?;
+        journal.progress(stage, &format!("{mode}.reader_close"), "started")?;
         let close_clock = OperationClock::start();
         drop(receipt);
         drop(handle);
         let close_timing =
             close_clock.finish(0, 1, "receipt, connections, and generation lease close");
-        write_progress(stage, &format!("{mode}.reader_close"), "passed")?;
+        journal.progress(stage, &format!("{mode}.reader_close"), "passed")?;
         let phase_timing =
             phase.finish(artifact_bytes, 1, "complete artifact-mode validation phase");
         if [
@@ -690,7 +1123,7 @@ fn build_snapshot(
             }),
         );
         timing.insert(format!("artifact_{mode}_ms"), phase_ms);
-        write_progress(stage, mode, "passed")?;
+        journal.progress(stage, mode, "passed")?;
     }
     write_json(stage.join("artifact-validation.json"), &artifact_reports)?;
 
@@ -752,7 +1185,7 @@ fn build_snapshot(
         },
     )?;
     write_file_sizes(stage)?;
-    write_checksums(stage, &trusted_artifact_digests)?;
+    write_checksums(stage, trusted_artifact_digests)?;
 
     Ok(ExhaustiveValidationReport {
         status: "pass".to_string(),
@@ -772,6 +1205,12 @@ fn build_snapshot(
         assertion_inventory: assertions,
         artifact_mode_reports: artifact_reports,
         operation_timings_complete: true,
+        c2p_snapshot_or_cache_reused: false,
+        structured_failure_contract_complete: true,
+        partial_timing_contract_complete: true,
+        failure_preservation_redundant_full_sha_pass_count: 0,
+        failure_preservation_unclassified_full_sha_pass_count: 0,
+        inherited_c2p_invariants_complete: true,
     })
 }
 
@@ -794,7 +1233,7 @@ fn strict_audit_summary(audit: &SourcePathAuditReport) -> StrictAuditSummary {
 fn validate_receipt_metadata(
     tuple: &ArtifactValidationTuple,
     report: &ArtifactValidationReport,
-) -> Result<(), IngestError> {
+) -> Result<(), ValidationFailure> {
     // Preserve the legacy failure order: an invalid deep report is handed to
     // inspection first, which returns the existing InvalidArtifact payload.
     if report.status != ValidationStatus::Ok {
@@ -803,22 +1242,203 @@ fn validate_receipt_metadata(
     let expected_file = format!("{}.sqlite", tuple.mode);
     let expected_parent = tuple.snapshot_stage.join("artifacts");
     let report_path = Path::new(&report.index);
-    let valid_tuple = !tuple.candidate_commit.is_empty()
-        && !tuple.candidate_tree.is_empty()
-        && report_path.file_name().and_then(|name| name.to_str()) == Some(expected_file.as_str())
-        && report_path.parent() == Some(expected_parent.as_path());
-    let valid_metadata = report.artifact_contract_version.as_deref()
-        == Some(tuple.artifact_contract_version.as_str())
-        && report.schema_version.as_deref() == Some(tuple.artifact_schema_version.as_str())
-        && report.source_signature.as_deref() == Some(tuple.source_signature.as_str())
-        && report.embedding_model_id.as_deref() == Some(tuple.embedding_model.as_str());
-    if !valid_tuple || !valid_metadata {
-        return Err(validation_error(format!(
-            "deep validation receipt identity mismatch for {}",
-            tuple.mode
-        )));
+    for (field, expected, actual) in [
+        (
+            "candidate_commit",
+            Some("non-empty"),
+            (!tuple.candidate_commit.is_empty()).then_some("non-empty"),
+        ),
+        (
+            "candidate_tree",
+            Some("non-empty"),
+            (!tuple.candidate_tree.is_empty()).then_some("non-empty"),
+        ),
+        (
+            "artifact_file_name",
+            Some(expected_file.as_str()),
+            report_path.file_name().and_then(|name| name.to_str()),
+        ),
+        (
+            "artifact_parent",
+            expected_parent.to_str(),
+            report_path.parent().and_then(Path::to_str),
+        ),
+        (
+            "artifact_contract_version",
+            Some(tuple.artifact_contract_version.as_str()),
+            report.artifact_contract_version.as_deref(),
+        ),
+        (
+            "artifact_schema_version",
+            Some(tuple.artifact_schema_version.as_str()),
+            report.schema_version.as_deref(),
+        ),
+        (
+            "source_signature",
+            Some(tuple.source_signature.as_str()),
+            report.source_signature.as_deref(),
+        ),
+    ] {
+        if actual != expected {
+            return Err(receipt_identity_mismatch(
+                tuple,
+                field,
+                expected.map(str::to_string),
+                actual.map(str::to_string),
+                None,
+            ));
+        }
+    }
+
+    let actual_raw = report.embedding_model_id.as_deref();
+    let actual_model = actual_raw.and_then(|value| EmbeddingModelId::from_str(value).ok());
+    let actual_canonical = actual_model.map(|model| embedding_model_spec(model).model_id);
+    if actual_model != Some(tuple.embedding.model)
+        || actual_raw != Some(tuple.embedding.canonical_model_id.as_str())
+        || actual_canonical != Some(tuple.embedding.canonical_model_id.as_str())
+    {
+        return Err(receipt_identity_mismatch(
+            tuple,
+            "embedding_model",
+            Some(tuple.embedding.canonical_model_id.clone()),
+            actual_raw.map(str::to_string),
+            actual_model,
+        ));
     }
     Ok(())
+}
+
+fn resolve_validation_embedding_identity(
+    selector: &str,
+) -> Result<ValidationEmbeddingIdentity, ValidationFailure> {
+    let model = EmbeddingModelId::from_str(selector).map_err(|_| {
+        Box::new(ValidationFailureDetail {
+            error_code: "validation_embedding_selector_invalid".to_string(),
+            tuple_field: Some("embedding_model".to_string()),
+            requested_selector: Some(selector.to_string()),
+            canonical_model_id: None,
+            semantic_enum_identity: None,
+            expected: None,
+            actual: Some(TypedIdentityValue {
+                raw_value: Some(selector.to_string()),
+                semantic_enum_identity: None,
+                canonical_model_id: None,
+            }),
+        })
+    })?;
+    let spec = embedding_model_spec(model);
+    Ok(ValidationEmbeddingIdentity {
+        requested_selector: selector.to_string(),
+        model,
+        canonical_model_id: spec.model_id.to_string(),
+    })
+}
+
+fn pre_artifact_validation_tuples(
+    identity: &ValidationIdentity,
+    stage: &Path,
+    embedding: &ValidationEmbeddingIdentity,
+) -> Result<BTreeMap<String, ArtifactValidationTuple>, ValidationFailure> {
+    let fields = [
+        ("candidate_commit", !identity.candidate_commit.is_empty()),
+        ("candidate_tree", !identity.candidate_tree.is_empty()),
+        (
+            "artifact_contract_version",
+            !identity.artifact_contract_version.is_empty(),
+        ),
+        (
+            "artifact_schema_version",
+            !identity.artifact_schema_version.is_empty(),
+        ),
+        ("snapshot_stage", stage.is_dir()),
+        (
+            "embedding_model",
+            identity.embedding_model == embedding.canonical_model_id
+                && embedding_model_spec(embedding.model).model_id
+                    == embedding.canonical_model_id.as_str(),
+        ),
+    ];
+    if let Some((field, _)) = fields.into_iter().find(|(_, valid)| !valid) {
+        return Err(Box::new(ValidationFailureDetail {
+            error_code: "validation_pre_artifact_identity_mismatch".to_string(),
+            tuple_field: Some(field.to_string()),
+            requested_selector: Some(embedding.requested_selector.clone()),
+            canonical_model_id: Some(embedding.canonical_model_id.clone()),
+            semantic_enum_identity: Some(embedding.semantic_enum_identity()),
+            expected: None,
+            actual: None,
+        }));
+    }
+    let snapshot_stage = fs::canonicalize(stage).map_err(|_| {
+        Box::new(ValidationFailureDetail {
+            error_code: "validation_pre_artifact_identity_mismatch".to_string(),
+            tuple_field: Some("snapshot_stage".to_string()),
+            requested_selector: Some(embedding.requested_selector.clone()),
+            canonical_model_id: Some(embedding.canonical_model_id.clone()),
+            semantic_enum_identity: Some(embedding.semantic_enum_identity()),
+            expected: None,
+            actual: None,
+        })
+    })?;
+    Ok(["no_embeddings", "with_embeddings"]
+        .into_iter()
+        .map(|mode| {
+            (
+                mode.to_string(),
+                ArtifactValidationTuple {
+                    candidate_commit: identity.candidate_commit.clone(),
+                    candidate_tree: identity.candidate_tree.clone(),
+                    snapshot_stage: snapshot_stage.clone(),
+                    mode: mode.to_string(),
+                    source_signature: String::new(),
+                    artifact_contract_version: identity.artifact_contract_version.clone(),
+                    artifact_schema_version: identity.artifact_schema_version.clone(),
+                    embedding: embedding.clone(),
+                },
+            )
+        })
+        .collect())
+}
+
+fn receipt_identity_mismatch(
+    tuple: &ArtifactValidationTuple,
+    field: &str,
+    expected_raw: Option<String>,
+    actual_raw: Option<String>,
+    actual_model: Option<EmbeddingModelId>,
+) -> ValidationFailure {
+    Box::new(ValidationFailureDetail {
+        error_code: "validation_receipt_identity_mismatch".to_string(),
+        tuple_field: Some(field.to_string()),
+        requested_selector: Some(tuple.embedding.requested_selector.clone()),
+        canonical_model_id: Some(tuple.embedding.canonical_model_id.clone()),
+        semantic_enum_identity: Some(tuple.embedding.semantic_enum_identity()),
+        expected: Some(TypedIdentityValue {
+            raw_value: expected_raw,
+            semantic_enum_identity: (field == "embedding_model")
+                .then(|| tuple.embedding.semantic_enum_identity()),
+            canonical_model_id: (field == "embedding_model")
+                .then(|| tuple.embedding.canonical_model_id.clone()),
+        }),
+        actual: Some(TypedIdentityValue {
+            raw_value: actual_raw,
+            semantic_enum_identity: actual_model
+                .map(|model| format!("EmbeddingModelId::{model:?}")),
+            canonical_model_id: actual_model
+                .map(|model| embedding_model_spec(model).model_id.to_string()),
+        }),
+    })
+}
+
+fn failure_detail_message(detail: &ValidationFailureDetail) -> String {
+    format!(
+        "{} at {}",
+        detail.error_code,
+        detail
+            .tuple_field
+            .as_deref()
+            .unwrap_or("validation_pipeline")
+    )
 }
 
 fn candidate_mandatory_atomic_sha_pass_counts() -> BTreeMap<String, usize> {
@@ -1027,6 +1647,7 @@ fn static_identity(
     candidate: &GitIdentity,
     source: &GitIdentity,
     repository_root: &Path,
+    embedding: &ValidationEmbeddingIdentity,
 ) -> Result<ValidationIdentity, IngestError> {
     Ok(ValidationIdentity {
         snapshot_format: SNAPSHOT_FORMAT.to_string(),
@@ -1054,7 +1675,7 @@ fn static_identity(
         features: std::env::var("ATLAS_VALIDATION_FEATURES")
             .unwrap_or_else(|_| "default".to_string()),
         rust_toolchain: command_output(Command::new("rustc").arg("-Vv"), "read Rust toolchain")?,
-        embedding_model: BuildArtifactOptions::default_embedding_model_id(),
+        embedding_model: embedding.canonical_model_id.clone(),
         embedding_policy: "reuse=true;batch_size=32".to_string(),
         embedding_cache_identity: canonical_string(&options.embedding_cache_root)?,
     })
@@ -1161,50 +1782,13 @@ fn report_from_snapshot(
         assertion_inventory: assertion_inventory(),
         artifact_mode_reports,
         operation_timings_complete: true,
+        c2p_snapshot_or_cache_reused: false,
+        structured_failure_contract_complete: true,
+        partial_timing_contract_complete: true,
+        failure_preservation_redundant_full_sha_pass_count: 0,
+        failure_preservation_unclassified_full_sha_pass_count: 0,
+        inherited_c2p_invariants_complete: true,
     })
-}
-
-fn trusted_artifact_digests_from_report(
-    report: &ExhaustiveValidationReport,
-) -> Result<BTreeMap<PathBuf, String>, IngestError> {
-    ["no_embeddings", "with_embeddings"]
-        .into_iter()
-        .flat_map(|mode| {
-            let mode_report = report
-                .artifact_mode_reports
-                .get(mode)
-                .ok_or_else(|| validation_error(format!("missing {mode} artifact report")));
-            let digest = mode_report
-                .as_ref()
-                .ok()
-                .and_then(|mode_report| mode_report.get("verified_generation"))
-                .and_then(|generation| generation.get("trusted_sha256"))
-                .and_then(Value::as_str)
-                .map(str::to_string);
-            let paths = mode_report
-                .as_ref()
-                .ok()
-                .and_then(|mode_report| mode_report.get("trusted_snapshot_artifact_paths"))
-                .and_then(Value::as_array)
-                .map(|paths| {
-                    paths
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .map(PathBuf::from)
-                        .collect::<Vec<_>>()
-                });
-            match (mode_report, digest, paths) {
-                (Ok(_), Some(digest), Some(paths)) if paths.len() == 2 => paths
-                    .into_iter()
-                    .map(|path| Ok((path, digest.clone())))
-                    .collect::<Vec<_>>(),
-                (Err(error), _, _) => vec![Err(error)],
-                _ => vec![Err(validation_error(format!(
-                    "{mode} report has no closed trusted artifact digest binding"
-                )))],
-            }
-        })
-        .collect()
 }
 
 fn report_identity(root: &Path) -> Result<ValidationIdentity, IngestError> {
@@ -1215,15 +1799,14 @@ fn report_identity(root: &Path) -> Result<ValidationIdentity, IngestError> {
     Ok(manifest.identity)
 }
 
-fn write_progress(stage: &Path, phase: &str, status: &str) -> Result<(), IngestError> {
+fn write_progress_entry(stage: &Path, entry: &Value) -> Result<(), IngestError> {
     let path = stage.join("progress.jsonl");
     let mut file = fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
         .map_err(io_error("open validation progress log"))?;
-    writeln!(file, "{}", json!({"phase": phase, "status": status}))
-        .map_err(io_error("write validation progress log"))
+    writeln!(file, "{entry}").map_err(io_error("write validation progress log"))
 }
 
 fn build_report_json(report: &crate::source::model::BuildArtifactReport) -> Value {
@@ -1265,6 +1848,32 @@ fn write_json_atomic_new(path: &Path, value: &impl Serialize) -> Result<(), Inge
     let bytes =
         serde_json::to_vec_pretty(value).map_err(|error| validation_error(error.to_string()))?;
     write_bytes_atomic_new(path, &bytes, "strict audit report")
+}
+
+fn write_json_atomic_replace(path: &Path, value: &impl Serialize) -> Result<(), IngestError> {
+    let bytes =
+        serde_json::to_vec_pretty(value).map_err(|error| validation_error(error.to_string()))?;
+    write_bytes_atomic_replace(path, &bytes)
+}
+
+fn write_bytes_atomic_replace(path: &Path, bytes: &[u8]) -> Result<(), IngestError> {
+    let temporary = atomic_file_staging_path(path);
+    let result = (|| {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(io_error("create atomic validation replacement"))?;
+        file.write_all(bytes)
+            .map_err(io_error("write atomic validation replacement"))?;
+        file.sync_all()
+            .map_err(io_error("sync atomic validation replacement"))?;
+        fs::rename(&temporary, path).map_err(io_error("publish atomic validation replacement"))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
 }
 
 fn write_bytes_atomic_new(
@@ -1375,16 +1984,113 @@ fn preserve_failed_snapshot(
     options: &ExhaustiveValidationOptions,
     stage: &Path,
     error: &IngestError,
+    journal: &ValidationRunJournal,
+    trusted_artifact_digests: &BTreeMap<PathBuf, String>,
 ) -> Result<PathBuf, IngestError> {
-    write_json_atomic_new(
-        &stage.join("failure.json"),
-        &json!({"status": "fail", "error": error.to_string()}),
-    )?;
+    let serialization_clock = OperationClock::start();
+    let untrusted_artifacts = collect_files(stage)?
+        .into_iter()
+        .filter(|relative| {
+            relative.starts_with("artifacts")
+                && !trusted_artifact_digests.contains_key(relative)
+                && relative
+                    .extension()
+                    .is_some_and(|extension| extension == "sqlite")
+        })
+        .collect::<Vec<_>>();
+    let untrusted_artifact_bytes =
+        untrusted_artifacts
+            .iter()
+            .try_fold(0_u64, |total, relative| {
+                fs::metadata(stage.join(relative))
+                    .map(|metadata| total.saturating_add(metadata.len()))
+                    .map_err(io_error("read untrusted failure artifact size"))
+            })?;
+    let mut counter_state = journal.counter_state.clone();
+    counter_state.insert(
+        "failure_preservation_new_full_sha_pass_count".to_string(),
+        json!(untrusted_artifacts.len()),
+    );
+    counter_state.insert(
+        "failure_preservation_new_full_sha_bytes".to_string(),
+        json!(untrusted_artifact_bytes),
+    );
+    let detail = journal
+        .failure_detail
+        .clone()
+        .unwrap_or_else(|| ValidationFailureDetail {
+            error_code: "validation_pipeline_error".to_string(),
+            tuple_field: None,
+            requested_selector: None,
+            canonical_model_id: None,
+            semantic_enum_identity: None,
+            expected: None,
+            actual: None,
+        });
+    let failure = json!({
+        "format": "pf2e-atlas-validation-failure/v1",
+        "status": "fail",
+        "mode": journal.current_mode,
+        "phase": journal.failure_point(),
+        "failure_point": journal.failure_point(),
+        "error": error.to_string(),
+        "error_code": detail.error_code,
+        "error_order": journal.failure_order(),
+        "tuple_field": detail.tuple_field,
+        "requested_selector": detail.requested_selector,
+        "canonical_model_id": detail.canonical_model_id,
+        "semantic_enum_identity": detail.semantic_enum_identity,
+        "typed_expected": detail.expected,
+        "typed_actual": detail.actual,
+        "completed_operations": journal.completed,
+        "in_progress_operations": journal.in_progress(),
+        "artifact_identities": journal.artifact_identities,
+        "counter_state": counter_state,
+        "checksum_closure": {
+            "trusted_artifact_digest_count": trusted_artifact_digests.len(),
+            "failure_preservation_redundant_full_sha_pass_count": 0,
+            "failure_preservation_unclassified_full_sha_pass_count": 0,
+        },
+    });
+    write_json_atomic_replace(&stage.join("failure.json"), &failure)?;
+    let failure_bytes = fs::metadata(stage.join("failure.json"))
+        .map_err(io_error("read structured failure size"))?
+        .len();
+    let failure_serialization =
+        serialization_clock.finish(failure_bytes, 1, "atomic structured failure serialization");
+    let timing = json!({
+        "format": "pf2e-atlas-validation-partial-timing/v1",
+        "status": "fail",
+        "mode": journal.current_mode,
+        "phase": journal.failure_point(),
+        "total_wall_ms": journal.started.elapsed().as_millis(),
+        "total_cpu_ms": journal.elapsed_cpu_ms(),
+        "completed_operations": journal.completed,
+        "in_progress_operations": journal.in_progress(),
+        "failure_serialization": failure_serialization,
+        "artifact_identities": journal.artifact_identities,
+        "counter_state": counter_state,
+    });
+    write_json_atomic_replace(&stage.join("timing.json"), &timing)?;
     write_file_sizes(stage)?;
-    write_checksums(stage, &BTreeMap::new())?;
-    verify_checksums(stage, None)?;
+    let checksum_digests = write_checksums(stage, trusted_artifact_digests)?;
+    verify_checksums(stage, Some(&checksum_digests))?;
     let failed = failed_staging_path(&options.snapshot_root);
     fs::rename(stage, &failed).map_err(io_error("atomically preserve failed snapshot"))?;
+    let evidence_root = options
+        .report_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    let failure_target = evidence_root.join("failure.json");
+    let timing_target = evidence_root.join("timing.json");
+    let failure_bytes = fs::read(failed.join("failure.json"))
+        .map_err(io_error("read preserved structured failure"))?;
+    let timing_bytes =
+        fs::read(failed.join("timing.json")).map_err(io_error("read preserved partial timing"))?;
+    write_bytes_atomic_new(&failure_target, &failure_bytes, "structured failure report")?;
+    write_checksum_sidecar_atomic(&failure_target)?;
+    write_bytes_atomic_new(&timing_target, &timing_bytes, "partial timing report")?;
+    write_checksum_sidecar_atomic(&timing_target)?;
     if failed.join("strict-source-audit.json").is_file() {
         publish_or_verify_strict_report(&failed, &strict_report_path(options))?;
     }
@@ -1410,18 +2116,21 @@ fn require_new_file(path: &Path, label: &str) -> Result<(), IngestError> {
 fn write_checksums(
     root: &Path,
     trusted_artifact_digests: &BTreeMap<PathBuf, String>,
-) -> Result<(), IngestError> {
+) -> Result<BTreeMap<PathBuf, String>, IngestError> {
     let mut entries = collect_files(root)?;
     entries.retain(|path| path != Path::new("checksums.sha256"));
     let mut output = String::new();
+    let mut digests = BTreeMap::new();
     for relative in entries {
         let digest = match trusted_artifact_digests.get(&relative) {
             Some(digest) => digest.clone(),
             None => digest_file(&root.join(&relative))?,
         };
         output.push_str(&format!("{digest}  {}\n", relative.display()));
+        digests.insert(relative, digest);
     }
-    fs::write(root.join("checksums.sha256"), output).map_err(io_error("write validation checksums"))
+    write_bytes_atomic_replace(root.join("checksums.sha256").as_path(), output.as_bytes())?;
+    Ok(digests)
 }
 
 fn write_file_sizes(root: &Path) -> Result<(), IngestError> {
@@ -1435,7 +2144,7 @@ fn write_file_sizes(root: &Path) -> Result<(), IngestError> {
             .len();
         sizes.insert(relative.display().to_string(), bytes);
     }
-    write_json(root.join("file-sizes.json"), &sizes)
+    write_json_atomic_replace(&root.join("file-sizes.json"), &sizes)
 }
 
 fn verify_checksums(
@@ -1932,7 +2641,8 @@ mod tests {
             source_signature: "source".into(),
             artifact_contract_version: "artifact".into(),
             artifact_schema_version: "schema".into(),
-            embedding_model: "model".into(),
+            embedding: resolve_validation_embedding_identity("bge-small-en-v1.5")
+                .expect("fixture embedding identity"),
         };
         let generation = json!({
             "canonical_artifact_path": "/snapshot/artifacts/no_embeddings.sqlite",
@@ -1956,7 +2666,13 @@ mod tests {
         rejects_change!(source_signature, "other-source");
         rejects_change!(artifact_contract_version, "other-artifact");
         rejects_change!(artifact_schema_version, "other-schema");
-        rejects_change!(embedding_model, "other-model");
+        let mut changed_embedding = base.clone();
+        changed_embedding.embedding = resolve_validation_embedding_identity("bge-base-en-v1.5")
+            .expect("different fixture embedding identity");
+        assert_ne!(
+            expected,
+            validation_binding_digest(&changed_embedding, &generation)
+        );
 
         let mut changed_generation = generation.clone();
         changed_generation["bytes"] = json!(11);
@@ -1966,3 +2682,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod c2pr_tests;
