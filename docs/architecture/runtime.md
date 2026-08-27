@@ -119,6 +119,14 @@ without another reader, pathname reopen, full validation scan, digest pass, or
 generation copy. The handle and receipt are validation-process capabilities, not
 runtime inputs, caches, product models, or artifact contracts.
 
+Validation resolves requested embedding selectors through the existing
+`EmbeddingModelId` catalog before source traversal and binds receipts to the
+typed model plus its canonical provider ID. Artifact metadata remains a
+post-publication check. Every later validation exit atomically retains typed
+failure and partial-timing evidence, carrying forward trusted visible/generation
+digests for checksum closure instead of rereading artifact bytes. This is private
+validation plumbing only and does not alter model selection or artifact metadata.
+
 The strict audit preserves its accepted pre-localization observation contract by
 normalizing each already captured raw source record for audit only; it does not
 reread the corpus and does not alter the localized `SourceLoad` used by canonical

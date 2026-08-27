@@ -128,6 +128,15 @@ and it preserves the required publication generation copy. Per-operation timing,
 byte, reader/connection, hash-category, validation, and copy counters are emitted
 with the author report.
 
+Requested embedding selectors are resolved through the existing embedding-model
+catalog before source traversal. Validation binds the typed model and canonical
+provider ID, so accepted aliases do not create different receipt identities;
+artifact metadata is still checked after publication. Any later validation
+failure atomically preserves a typed `failure.json`, partial `timing.json`, and
+checksum closure. When a live generation already supplies trusted visible and
+generation digests, failure preservation reuses them and does not rehash the
+artifact pair.
+
 Legacy/new matrix reproduction is a one-time trust-establishment review for this
 migration only. Once an independent reviewer proves equivalence, permanent
 candidate acceptance and CI use only the consolidated fast, focused, exhaustive,
