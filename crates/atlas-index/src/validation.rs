@@ -244,11 +244,22 @@ impl ArtifactValidationReport {
             .first()
             .map(|diagnostic| diagnostic.code.clone())
             .unwrap_or(ValidationCode::QueryFailed);
+        let message = if code == ValidationCode::UnsupportedSchemaVersion
+            && diagnostics.first().is_some_and(|diagnostic| {
+                diagnostic
+                    .key
+                    .as_deref()
+                    .is_some_and(|key| key.starts_with("table:") || key.starts_with("column:"))
+            }) {
+            "artifact layout is older than this runtime and must be rebuilt; run `atlas setup` to repair the configured installation or `atlas index build` to rebuild an explicitly selected artifact"
+        } else {
+            "artifact metadata is incompatible with this runtime"
+        };
         Self {
             status: ValidationStatus::Error,
             code,
             index,
-            message: "artifact metadata is incompatible with this runtime".to_string(),
+            message: message.to_string(),
             artifact_contract_version: metadata.artifact_contract_version.clone(),
             schema_version: metadata.schema_version.clone(),
             source_kind: metadata.source_kind.clone(),

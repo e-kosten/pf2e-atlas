@@ -181,7 +181,9 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
     let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
-    assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
+    assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
+    assert!(report.message.contains("`atlas setup`"));
+    assert!(report.message.contains("`atlas index build`"));
     assert_eq!(report.diagnostics.len(), 1);
     assert_eq!(
         report.diagnostics[0].family,
@@ -191,7 +193,105 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
         report.diagnostics[0].key.as_deref(),
         Some("table:item_records")
     );
+    assert_eq!(
+        report.diagnostics[0].code,
+        ValidationCode::UnsupportedSchemaVersion
+    );
+    assert!(
+        report.diagnostics[0]
+            .message
+            .contains("cannot be upgraded in place")
+    );
+    assert!(report.diagnostics[0].message.contains("`atlas setup`"));
+    assert!(
+        report.diagnostics[0]
+            .message
+            .contains("`atlas index build`")
+    );
     fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn old_v2_layouts_fail_with_actionable_rebuild_guidance() -> Result<(), Box<dyn std::error::Error>>
+{
+    let cases = [
+        (
+            "missing-activities-table",
+            "DROP TABLE record_activities",
+            "table:record_activities",
+            "required artifact table `record_activities` is missing",
+        ),
+        (
+            "missing-spellcasting-table",
+            "DROP TABLE record_spellcasting_entries",
+            "table:record_spellcasting_entries",
+            "required artifact table `record_spellcasting_entries` is missing",
+        ),
+        (
+            "missing-metric-ordinal",
+            "ALTER TABLE record_metrics RENAME COLUMN ordinal TO legacy_ordinal",
+            "column:record_metrics.ordinal",
+            "required artifact column `record_metrics.ordinal` is missing",
+        ),
+        (
+            "missing-visibility-state",
+            "ALTER TABLE records RENAME COLUMN visibility_state TO legacy_visibility_state",
+            "column:records.visibility_state",
+            "required artifact column `records.visibility_state` is missing",
+        ),
+        (
+            "missing-visibility-reason",
+            "ALTER TABLE records RENAME COLUMN visibility_reason TO legacy_visibility_reason",
+            "column:records.visibility_reason",
+            "required artifact column `records.visibility_reason` is missing",
+        ),
+    ];
+
+    for (name, mutation, key, fact) in cases {
+        let path = temp_db_path(name);
+        create_valid_artifact_database(&path)?;
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(mutation)?;
+        drop(connection);
+
+        let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
+        let report = reader.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{name}: {report:?}");
+        assert_eq!(
+            report.code,
+            ValidationCode::UnsupportedSchemaVersion,
+            "{name}: {report:?}"
+        );
+        assert!(
+            report.message.contains("`atlas setup`"),
+            "{name}: {report:?}"
+        );
+        assert!(
+            report.message.contains("`atlas index build`"),
+            "{name}: {report:?}"
+        );
+        assert_eq!(report.diagnostics.len(), 1, "{name}: {report:?}");
+        let diagnostic = &report.diagnostics[0];
+        assert_eq!(diagnostic.code, ValidationCode::UnsupportedSchemaVersion);
+        assert_eq!(diagnostic.family, ArtifactValidationFamily::Schema);
+        assert_eq!(diagnostic.key.as_deref(), Some(key));
+        assert!(diagnostic.message.contains(fact), "{name}: {diagnostic:?}");
+        assert!(diagnostic.message.contains("cannot be upgraded in place"));
+        assert!(diagnostic.message.contains("`atlas setup`"));
+        assert!(diagnostic.message.contains("`atlas index build`"));
+
+        let fast_report = reader.check()?;
+        if key.starts_with("table:") {
+            assert_eq!(
+                fast_report.code,
+                ValidationCode::UnsupportedSchemaVersion,
+                "{name}: {fast_report:?}"
+            );
+            assert_eq!(fast_report.diagnostics[0].key.as_deref(), Some(key));
+        }
+        fs::remove_file(path)?;
+    }
     Ok(())
 }
 

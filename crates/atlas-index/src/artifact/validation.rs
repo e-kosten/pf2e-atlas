@@ -119,7 +119,7 @@ pub(crate) fn check_index_connection(
             let table_name = table.name();
             match sql::table_exists(connection, table_name) {
                 Ok(true) => None,
-                Ok(false) => Some(Ok(artifact_validation_diagnostic(
+                Ok(false) => Some(Ok(artifact_rebuild_required_diagnostic(
                     ArtifactValidationFamily::Schema,
                     format!("required artifact table `{table_name}` is missing"),
                     Some(format!("table:{table_name}")),
@@ -272,5 +272,24 @@ pub(crate) fn artifact_validation_diagnostic_with_code(
         expected,
         actual,
     }
+}
+
+pub(crate) fn artifact_rebuild_required_diagnostic(
+    family: ArtifactValidationFamily,
+    fact: String,
+    key: Option<String>,
+    expected: Option<String>,
+    actual: Option<String>,
+) -> ArtifactValidationDiagnostic {
+    artifact_validation_diagnostic_with_code(
+        family,
+        format!(
+            "{fact}; this unreleased v2 artifact cannot be upgraded in place: run `atlas setup` to repair the configured installation or `atlas index build` to rebuild an explicitly selected artifact"
+        ),
+        key,
+        expected,
+        actual,
+        ValidationCode::UnsupportedSchemaVersion,
+    )
 }
 pub(crate) mod canonical;
