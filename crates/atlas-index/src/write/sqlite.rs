@@ -613,6 +613,95 @@ mod tests {
     }
 
     #[test]
+    fn interleaved_multi_parent_ordered_mechanics_round_trip_full_and_by_key()
+    -> Result<(), Box<dyn std::error::Error>> {
+        const FIRST_KEY: &str = "actions:testAction00";
+        const SECOND_KEY: &str = "actions:testAction99";
+
+        let target_path = unique_temp_path("interleaved-ordered-mechanics.sqlite");
+        let pack_name = PackName::new("actions")?;
+        let mut first = fixture_record(&pack_name, "testAction00", "Test Action 00");
+        first.mechanics.metrics[0].value = MetricValue::Number(11.0);
+        first.mechanics.metrics[1].value = MetricValue::Number(12.0);
+        first.mechanics.activities[0].activity_id = "first-duplicate".to_string();
+        first.mechanics.activities[1].activity_id = "first-duplicate".to_string();
+        first.mechanics.spellcasting_entries[0].label = "First Prepared".to_string();
+        first.mechanics.spellcasting_entries[1].label = "First Ritual".to_string();
+
+        let mut second = fixture_record(&pack_name, "testAction99", "Test Action 99");
+        second.mechanics.metrics[0].value = MetricValue::Number(91.0);
+        second.mechanics.metrics[1].value = MetricValue::Number(92.0);
+        second.mechanics.activities[0].activity_id = "second-duplicate".to_string();
+        second.mechanics.activities[0].label = "Second Arcane Claw".to_string();
+        second.mechanics.activities[1].activity_id = "second-duplicate".to_string();
+        second.mechanics.activities[1].label = "Second Empty Activity".to_string();
+        second.mechanics.spellcasting_entries[0].entry_id = "second-casting-1".to_string();
+        second.mechanics.spellcasting_entries[0].label = "Second Prepared".to_string();
+        second.mechanics.spellcasting_entries[1].entry_id = "second-casting-2".to_string();
+        second.mechanics.spellcasting_entries[1].label = "Second Ritual".to_string();
+
+        let expected = vec![first, second];
+        write_fixture_records(&target_path, expected.clone(), Vec::new())?;
+
+        let connection = Connection::open(&target_path)?;
+        reinsert_ordered_mechanics_interleaved(&connection)?;
+        for table_name in [
+            "record_metrics",
+            "record_activities",
+            "record_spellcasting_entries",
+        ] {
+            assert_interleaved_storage_order(&connection, table_name, FIRST_KEY, SECOND_KEY)?;
+        }
+        drop(connection);
+
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
+        let full = reader.load_record_set()?.records;
+        let reversed_keys = vec![RecordKey::parse(SECOND_KEY)?, RecordKey::parse(FIRST_KEY)?];
+        let by_key = reader.load_records_by_key(&reversed_keys)?;
+
+        for (hydration_path, records) in [("full", &full), ("by_key", &by_key)] {
+            assert_eq!(
+                records, &expected,
+                "{hydration_path} hydration must preserve complete typed records"
+            );
+            for expected_record in &expected {
+                let loaded = records
+                    .iter()
+                    .find(|record| record.identity.key == expected_record.identity.key)
+                    .expect("requested parent must hydrate");
+                assert_eq!(
+                    loaded.mechanics.metrics, expected_record.mechanics.metrics,
+                    "{hydration_path} metrics must retain parent-local ordinal order"
+                );
+                assert_eq!(
+                    loaded.mechanics.activities, expected_record.mechanics.activities,
+                    "{hydration_path} activities must retain parent-local ordinal order"
+                );
+                assert_eq!(
+                    loaded.mechanics.spellcasting_entries,
+                    expected_record.mechanics.spellcasting_entries,
+                    "{hydration_path} spellcasting must retain parent-local ordinal order"
+                );
+                assert_eq!(
+                    loaded.mechanics.activities[0].activity_id,
+                    loaded.mechanics.activities[1].activity_id,
+                    "{hydration_path} must preserve duplicate parent-local activity_id payloads"
+                );
+                assert_ne!(
+                    loaded.mechanics.activities[0], loaded.mechanics.activities[1],
+                    "{hydration_path} must preserve distinct Activity bodies at distinct ordinals"
+                );
+            }
+        }
+
+        let validation = reader.validate()?;
+        assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
+
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
     fn ordered_mechanics_reject_complete_negative_mutation_matrix()
     -> Result<(), Box<dyn std::error::Error>> {
         let base_path = unique_temp_path("ordered-mechanics-mutation-base.sqlite");
@@ -1259,6 +1348,71 @@ mod tests {
         );
         assert_eq!(pair[0].usage, MechanicActivityUsage::Limited);
         assert_eq!(pair[1].usage, MechanicActivityUsage::Unlimited);
+    }
+
+    fn reinsert_ordered_mechanics_interleaved(
+        connection: &Connection,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        connection.execute_batch(
+            "CREATE TEMP TABLE interleaved_metrics AS SELECT * FROM record_metrics;
+             CREATE TEMP TABLE interleaved_activities AS SELECT * FROM record_activities;
+             CREATE TEMP TABLE interleaved_spellcasting AS
+                 SELECT * FROM record_spellcasting_entries;
+
+             DELETE FROM record_metrics;
+             INSERT INTO record_metrics (
+                 record_key,ordinal,metric_domain,metric_key,value_type,
+                 number_value,text_value,bool_value
+             )
+             SELECT record_key,ordinal,metric_domain,metric_key,value_type,
+                    number_value,text_value,bool_value
+             FROM interleaved_metrics
+             ORDER BY ordinal DESC,record_key DESC;
+
+             DELETE FROM record_activities;
+             INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json)
+             SELECT record_key,activity_id,ordinal,payload_json
+             FROM interleaved_activities
+             ORDER BY ordinal DESC,record_key DESC;
+
+             DELETE FROM record_spellcasting_entries;
+             INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json)
+             SELECT record_key,entry_id,ordinal,payload_json
+             FROM interleaved_spellcasting
+             ORDER BY ordinal DESC,record_key DESC;
+
+             DROP TABLE interleaved_metrics;
+             DROP TABLE interleaved_activities;
+             DROP TABLE interleaved_spellcasting;",
+        )?;
+        Ok(())
+    }
+
+    fn assert_interleaved_storage_order(
+        connection: &Connection,
+        table_name: &str,
+        first_key: &str,
+        second_key: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut statement = connection.prepare(&format!(
+            "SELECT record_key,ordinal FROM {table_name} ORDER BY rowid"
+        ))?;
+        let actual = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            actual,
+            vec![
+                (second_key.to_string(), 1),
+                (first_key.to_string(), 1),
+                (second_key.to_string(), 0),
+                (first_key.to_string(), 0),
+            ],
+            "{table_name} rows must be physically interleaved across parents with non-sorted parent-local ordinals"
+        );
+        Ok(())
     }
 
     fn assert_mechanics_mutation_rejected(
