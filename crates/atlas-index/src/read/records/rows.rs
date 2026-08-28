@@ -81,7 +81,8 @@ struct RecordRow {
     variant_confidence: Option<f64>,
     variant_source: String,
     source_path: String,
-    is_default_visible: bool,
+    visibility_state: String,
+    visibility_reason: String,
     raw_json: String,
 }
 
@@ -162,12 +163,28 @@ fn record_from_row(row: RecordRow) -> Result<AtlasRecord, RecordLoadError> {
             documents: Vec::new(),
         },
         variant: variant_group,
-        visibility: if row.is_default_visible {
-            RecordVisibility::visible(RecordVisibilityReason::SourceRecord)
-        } else {
-            RecordVisibility::hidden(RecordVisibilityReason::SourceRecord)
-        },
+        visibility: record_visibility(&row.visibility_state, &row.visibility_reason)?,
     })
+}
+
+fn record_visibility(state: &str, reason: &str) -> Result<RecordVisibility, RecordLoadError> {
+    let reason = match reason {
+        "source_record" => RecordVisibilityReason::SourceRecord,
+        "generated_canonical" => RecordVisibilityReason::GeneratedCanonical,
+        "generated_instance" => RecordVisibilityReason::GeneratedInstance,
+        _ => {
+            return Err(RecordLoadError::InvalidData(format!(
+                "records.visibility_reason contains unsupported value `{reason}`"
+            )));
+        }
+    };
+    match state {
+        "visible" => Ok(RecordVisibility::visible(reason)),
+        "hidden" => Ok(RecordVisibility::hidden(reason)),
+        _ => Err(RecordLoadError::InvalidData(format!(
+            "records.visibility_state contains unsupported value `{state}`"
+        ))),
+    }
 }
 
 fn variant_group_from_row(

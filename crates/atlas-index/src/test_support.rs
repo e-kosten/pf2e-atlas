@@ -247,7 +247,30 @@ pub fn write_bound_test_manifest(path: &std::path::Path) -> Result<(), Box<dyn s
 pub fn create_minimal_artifact_schema(
     connection: &Connection,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    connection.execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)?;
+    // Cross-crate fixtures predate the persisted metric ordinal and insert one
+    // metric per statement without naming it. Keep that convenience confined
+    // to test support: production writers always enumerate the canonical
+    // vector explicitly, while this trigger assigns the next fixture ordinal.
+    let schema = CREATE_ARTIFACT_SCHEMA_SQL.replacen(
+        "ordinal INTEGER NOT NULL DEFAULT 9223372036854775807 CHECK (ordinal >= 0)",
+        "ordinal INTEGER NOT NULL DEFAULT -1 CHECK (ordinal >= -1)",
+        1,
+    );
+    connection.execute_batch(&schema)?;
+    connection.execute_batch(
+        "CREATE TRIGGER test_assign_record_metric_ordinal
+         AFTER INSERT ON record_metrics
+         FOR EACH ROW WHEN NEW.ordinal = -1
+         BEGIN
+           UPDATE record_metrics
+           SET ordinal = COALESCE((
+             SELECT MAX(ordinal) + 1
+             FROM record_metrics
+             WHERE record_key = NEW.record_key AND ordinal >= 0
+           ), 0)
+           WHERE rowid = NEW.rowid;
+         END;",
+    )?;
     Ok(())
 }
 

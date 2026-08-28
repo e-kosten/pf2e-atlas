@@ -54,6 +54,15 @@ pub mod records {
         pub const VARIANT_SOURCE: Column = Column::new(TABLE, "variant_source");
         pub const SOURCE_PATH: Column = Column::new(TABLE, "source_path");
         pub const IS_DEFAULT_VISIBLE: Column = Column::new(TABLE, "is_default_visible");
+        pub const VISIBILITY_STATE: Column = Column::new(TABLE, "visibility_state");
+        pub const VISIBILITY_REASON: Column = Column::new(TABLE, "visibility_reason");
+        pub const METRIC_COUNT: Column = Column::new(TABLE, "metric_count");
+        pub const METRIC_ORDER_SHA256: Column = Column::new(TABLE, "metric_order_sha256");
+        pub const ACTIVITY_COUNT: Column = Column::new(TABLE, "activity_count");
+        pub const ACTIVITY_ORDER_SHA256: Column = Column::new(TABLE, "activity_order_sha256");
+        pub const SPELLCASTING_ENTRY_COUNT: Column = Column::new(TABLE, "spellcasting_entry_count");
+        pub const SPELLCASTING_ENTRY_ORDER_SHA256: Column =
+            Column::new(TABLE, "spellcasting_entry_order_sha256");
         pub const RAW_JSON: Column = Column::new(TABLE, "raw_json");
         pub const RECORD_ROLE: Column = Column::new(TABLE, "record_role");
         pub const RETRIEVAL_DISPOSITION: Column = Column::new(TABLE, "retrieval_disposition");
@@ -105,10 +114,62 @@ pub mod records {
         columns::VARIANT_SOURCE,
         columns::SOURCE_PATH,
         columns::IS_DEFAULT_VISIBLE,
+        columns::VISIBILITY_STATE,
+        columns::VISIBILITY_REASON,
+        columns::METRIC_COUNT,
+        columns::METRIC_ORDER_SHA256,
+        columns::ACTIVITY_COUNT,
+        columns::ACTIVITY_ORDER_SHA256,
+        columns::SPELLCASTING_ENTRY_COUNT,
+        columns::SPELLCASTING_ENTRY_ORDER_SHA256,
         columns::RAW_JSON,
         columns::RECORD_ROLE,
         columns::RETRIEVAL_DISPOSITION,
         columns::RETRIEVAL_RATIONALE,
+    ];
+}
+
+pub mod record_activities {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("record_activities");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const ACTIVITY_ID: Column = Column::new(TABLE, "activity_id");
+        pub const ORDINAL: Column = Column::new(TABLE, "ordinal");
+        pub const PAYLOAD_JSON: Column = Column::new(TABLE, "payload_json");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[
+        columns::RECORD_KEY,
+        columns::ACTIVITY_ID,
+        columns::ORDINAL,
+        columns::PAYLOAD_JSON,
+    ];
+}
+
+pub mod record_spellcasting_entries {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("record_spellcasting_entries");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const ENTRY_ID: Column = Column::new(TABLE, "entry_id");
+        pub const ORDINAL: Column = Column::new(TABLE, "ordinal");
+        pub const PAYLOAD_JSON: Column = Column::new(TABLE, "payload_json");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[
+        columns::RECORD_KEY,
+        columns::ENTRY_ID,
+        columns::ORDINAL,
+        columns::PAYLOAD_JSON,
     ];
 }
 

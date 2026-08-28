@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use atlas_domain::{MetricValueType, RecordKey};
-use atlas_record::{MetricRow, MetricValue};
+use atlas_domain::RecordKey;
+use atlas_record::MetricRow;
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
 use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
@@ -9,7 +9,6 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 use crate::schema::record_metrics;
 
 use super::RecordLoadError;
-use super::parse::{parse_metric_domain, parse_metric_value_type};
 
 pub(super) fn read_metrics(
     connection: &mut SqliteConnection,
@@ -18,8 +17,7 @@ pub(super) fn read_metrics(
         .select(RecordMetricRow::as_select())
         .order((
             record_metrics::record_key.asc(),
-            record_metrics::metric_domain.asc(),
-            record_metrics::metric_key.asc(),
+            record_metrics::ordinal.asc(),
         ))
         .load::<RecordMetricRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
@@ -39,8 +37,7 @@ pub(super) fn read_metrics_by_keys(
         .select(RecordMetricRow::as_select())
         .order((
             record_metrics::record_key.asc(),
-            record_metrics::metric_domain.asc(),
-            record_metrics::metric_key.asc(),
+            record_metrics::ordinal.asc(),
         ))
         .load::<RecordMetricRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
@@ -52,6 +49,7 @@ pub(super) fn read_metrics_by_keys(
 #[diesel(check_for_backend(Sqlite))]
 struct RecordMetricRow {
     record_key: String,
+    ordinal: i64,
     metric_domain: String,
     metric_key: String,
     value_type: String,
@@ -65,31 +63,29 @@ fn metrics_from_rows(
 ) -> Result<BTreeMap<String, Vec<MetricRow>>, RecordLoadError> {
     let mut metrics: BTreeMap<String, Vec<MetricRow>> = BTreeMap::new();
     for row in rows {
-        let domain = parse_metric_domain(&row.metric_domain)?;
-        let value = match parse_metric_value_type(&row.value_type)? {
-            MetricValueType::Number => MetricValue::Number(required_metric_value(
-                "record_metrics.number_value",
-                row.number_value,
-            )?),
-            MetricValueType::Text => MetricValue::Text(required_metric_value(
-                "record_metrics.text_value",
-                row.text_value,
-            )?),
-            MetricValueType::Boolean => MetricValue::Boolean(required_metric_value(
-                "record_metrics.bool_value",
-                row.bool_value,
-            )?),
-        };
-        metrics.entry(row.record_key).or_default().push(MetricRow {
-            domain,
-            key: row.metric_key,
-            value,
-        });
+        let expected = metrics.get(&row.record_key).map_or(0, Vec::len);
+        let expected = i64::try_from(expected).map_err(|_| {
+            RecordLoadError::InvalidData(format!(
+                "record_metrics[{}] has too many rows",
+                row.record_key
+            ))
+        })?;
+        if row.ordinal != expected {
+            return Err(RecordLoadError::InvalidData(format!(
+                "record_metrics[{}] expected ordinal {expected}, found {}",
+                row.record_key, row.ordinal
+            )));
+        }
+        let metric = super::children::metric_from_storage(
+            &row.metric_domain,
+            row.metric_key,
+            &row.value_type,
+            row.number_value,
+            row.text_value,
+            row.bool_value,
+        )
+        .map_err(RecordLoadError::InvalidData)?;
+        metrics.entry(row.record_key).or_default().push(metric);
     }
     Ok(metrics)
-}
-
-fn required_metric_value<T>(field: &'static str, value: Option<T>) -> Result<T, RecordLoadError> {
-    value
-        .ok_or_else(|| RecordLoadError::InvalidData(format!("required field `{field}` is missing")))
 }

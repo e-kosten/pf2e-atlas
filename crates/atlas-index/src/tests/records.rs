@@ -35,17 +35,25 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_metrics (
-           record_key, metric_domain, metric_key, value_type, number_value
+           record_key, ordinal, metric_domain, metric_key, value_type, number_value
          ) VALUES (
-           'actions:testAction1', 'actor', 'level', 'number', 2.0
+           'actions:testAction1', 1, 'actor', 'rank', 'number', 4.0
          )",
         [],
     )?;
     connection.execute(
         "INSERT INTO record_metrics (
-           record_key, metric_domain, metric_key, value_type
+           record_key, ordinal, metric_domain, metric_key, value_type
          ) VALUES (
-           'actions:testAction2', 'actor', 'level', 'number'
+           'actions:testAction2', 0, 'actor', 'level', 'number'
+         )",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_metrics (
+           record_key, ordinal, metric_domain, metric_key, value_type, number_value
+         ) VALUES (
+           'actions:testAction1', 0, 'actor', 'level', 'number', 2.0
          )",
         [],
     )?;
@@ -135,9 +143,11 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     let record = &records[0];
     assert_eq!(record.identity.key.to_string(), "actions:testAction1");
     assert!(record.visibility.visible_by_default());
-    assert_eq!(record.mechanics.metrics.len(), 1);
+    assert_eq!(record.mechanics.metrics.len(), 2);
     assert_eq!(record.mechanics.metrics[0].key, "level");
     assert_eq!(record.mechanics.metrics[0].value, MetricValue::Number(2.0));
+    assert_eq!(record.mechanics.metrics[1].key, "rank");
+    assert_eq!(record.mechanics.metrics[1].value, MetricValue::Number(4.0));
     assert!(record.mechanics.actor().is_none());
 
     let item = record
