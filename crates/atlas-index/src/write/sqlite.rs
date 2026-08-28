@@ -561,6 +561,471 @@ mod tests {
     }
 
     #[test]
+    fn shobhad_duplicate_activity_ids_round_trip_by_parent_ordinal()
+    -> Result<(), Box<dyn std::error::Error>> {
+        const HUNTER_KEY: &str = "pfs-season-3-bestiary:EB00f6ADElWInuix";
+        const HUNTER_ACTIVITY_ID: &str = "AMqdiX2GpuYvsQOp";
+        const SNIPER_KEY: &str = "strength-of-thousands-bestiary:RJKVH3fxPEiTCwt5";
+        const SNIPER_ACTIVITY_ID: &str = "lLXZFku1wFZoAPdz";
+
+        let target_path = unique_temp_path("shobhad-activity-identities.sqlite");
+        let hunter_pack = PackName::new("pfs-season-3-bestiary")?;
+        let sniper_pack = PackName::new("strength-of-thousands-bestiary")?;
+        let mut hunter = fixture_record(&hunter_pack, "EB00f6ADElWInuix", "Shobhad Hunter");
+        hunter.mechanics.activities = shobhad_activities(6, HUNTER_ACTIVITY_ID);
+        let mut sniper = fixture_record(&sniper_pack, "RJKVH3fxPEiTCwt5", "Shobhad Sniper");
+        sniper.mechanics.activities = shobhad_activities(2, SNIPER_ACTIVITY_ID);
+        let expected = vec![hunter, sniper];
+
+        write_fixture_records(&target_path, expected.clone(), Vec::new())?;
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
+        let full = reader.load_record_set()?.records;
+        let requested = vec![RecordKey::parse(SNIPER_KEY)?, RecordKey::parse(HUNTER_KEY)?];
+        let by_key = reader.load_records_by_key(&requested)?;
+
+        for (records, path) in [(&full, "full"), (&by_key, "by_key")] {
+            let hunter = records
+                .iter()
+                .find(|record| record.identity.key.to_string() == HUNTER_KEY)
+                .expect("Shobhad Hunter must hydrate");
+            assert_shobhad_duplicate_pair(
+                &hunter.mechanics.activities,
+                6,
+                HUNTER_ACTIVITY_ID,
+                path,
+            );
+            let sniper = records
+                .iter()
+                .find(|record| record.identity.key.to_string() == SNIPER_KEY)
+                .expect("Shobhad Sniper must hydrate");
+            assert_shobhad_duplicate_pair(
+                &sniper.mechanics.activities,
+                2,
+                SNIPER_ACTIVITY_ID,
+                path,
+            );
+        }
+        assert_eq!(full, expected);
+        assert_eq!(by_key.len(), 2);
+
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn ordered_mechanics_reject_complete_negative_mutation_matrix()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let base_path = unique_temp_path("ordered-mechanics-mutation-base.sqlite");
+        let pack_name = PackName::new("actions")?;
+        let source = fixture_record(&pack_name, "testAction00", "Test Action 00");
+        let mut target = fixture_record(&pack_name, "testAction99", "Test Action 99");
+        target.mechanics.metrics.clear();
+        target.mechanics.activities.clear();
+        target.mechanics.spellcasting_entries.clear();
+        write_fixture_records(&base_path, vec![source, target], Vec::new())?;
+
+        for (name, sql, expected_key) in [
+            (
+                "metric-missing",
+                "UPDATE records SET metric_count=3 WHERE record_key='actions:testAction00'",
+                "record_metrics[actions:testAction00].count",
+            ),
+            (
+                "activity-missing",
+                "UPDATE records SET activity_count=3 WHERE record_key='actions:testAction00'",
+                "record_activities[actions:testAction00].count",
+            ),
+            (
+                "spellcasting-missing",
+                "UPDATE records SET spellcasting_entry_count=3 WHERE record_key='actions:testAction00'",
+                "record_spellcasting_entries[actions:testAction00].count",
+            ),
+            (
+                "metric-extra",
+                "UPDATE records SET metric_count=1 WHERE record_key='actions:testAction00'",
+                "record_metrics[actions:testAction00].count",
+            ),
+            (
+                "activity-extra",
+                "UPDATE records SET activity_count=1 WHERE record_key='actions:testAction00'",
+                "record_activities[actions:testAction00].count",
+            ),
+            (
+                "spellcasting-extra",
+                "UPDATE records SET spellcasting_entry_count=1 WHERE record_key='actions:testAction00'",
+                "record_spellcasting_entries[actions:testAction00].count",
+            ),
+            (
+                "metric-deleted",
+                "DELETE FROM record_metrics WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_metrics[actions:testAction00].count",
+            ),
+            (
+                "activity-deleted",
+                "DELETE FROM record_activities WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_activities[actions:testAction00].count",
+            ),
+            (
+                "spellcasting-deleted",
+                "DELETE FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_spellcasting_entries[actions:testAction00].count",
+            ),
+            (
+                "metric-duplicated",
+                "INSERT INTO record_metrics (record_key,ordinal,metric_domain,metric_key,value_type,number_value) VALUES ('actions:testAction00',2,'item','duplicate.metric','number',1)",
+                "record_metrics[actions:testAction00].count",
+            ),
+            (
+                "activity-duplicated",
+                "INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json) SELECT record_key,activity_id,2,payload_json FROM record_activities WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_activities[actions:testAction00].count",
+            ),
+            (
+                "spellcasting-duplicated",
+                "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json) SELECT record_key,'casting-3',2,replace(payload_json,'casting-2','casting-3') FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_spellcasting_entries[actions:testAction00].count",
+            ),
+            (
+                "metric-reordered",
+                "UPDATE record_metrics SET ordinal=99 WHERE record_key='actions:testAction00' AND ordinal=0; UPDATE record_metrics SET ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1; UPDATE record_metrics SET ordinal=1 WHERE record_key='actions:testAction00' AND ordinal=99",
+                "record_metrics[actions:testAction00].order_sha256",
+            ),
+            (
+                "activity-reordered",
+                "UPDATE record_activities SET ordinal=99 WHERE record_key='actions:testAction00' AND ordinal=0; UPDATE record_activities SET ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1; UPDATE record_activities SET ordinal=1 WHERE record_key='actions:testAction00' AND ordinal=99",
+                "record_activities[actions:testAction00].order_sha256",
+            ),
+            (
+                "spellcasting-reordered",
+                "UPDATE record_spellcasting_entries SET ordinal=99 WHERE record_key='actions:testAction00' AND ordinal=0; UPDATE record_spellcasting_entries SET ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1; UPDATE record_spellcasting_entries SET ordinal=1 WHERE record_key='actions:testAction00' AND ordinal=99",
+                "record_spellcasting_entries[actions:testAction00].order_sha256",
+            ),
+            (
+                "metric-reparented",
+                "UPDATE record_metrics SET record_key='actions:testAction99',ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_metrics[actions:testAction00].count",
+            ),
+            (
+                "activity-reparented",
+                "UPDATE record_activities SET record_key='actions:testAction99',ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_activities[actions:testAction00].count",
+            ),
+            (
+                "spellcasting-reparented",
+                "UPDATE record_spellcasting_entries SET record_key='actions:testAction99',ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1",
+                "record_spellcasting_entries[actions:testAction00].count",
+            ),
+            (
+                "activity-malformed",
+                "UPDATE record_activities SET payload_json='{\"bad\":true}' WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_activities[actions:testAction00:0].payload_json",
+            ),
+            (
+                "spellcasting-malformed",
+                "UPDATE record_spellcasting_entries SET payload_json='{\"bad\":true}' WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_spellcasting_entries[actions:testAction00:casting-1].payload_json",
+            ),
+            (
+                "activity-payload-id-divergence",
+                "UPDATE record_activities SET activity_id='relational-only' WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_activities[actions:testAction00:0].payload_json",
+            ),
+            (
+                "spellcasting-payload-id-divergence",
+                "UPDATE record_spellcasting_entries SET entry_id='relational-only' WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_spellcasting_entries[actions:testAction00:relational-only].payload_json",
+            ),
+        ] {
+            assert_mechanics_mutation_rejected(&base_path, name, sql, expected_key)?;
+        }
+        assert_malformed_metric_mutation_rejected(&base_path)?;
+
+        let connection = Connection::open(&base_path)?;
+        for (name, sql, constraint) in [
+            (
+                "metric-duplicate-ordinal",
+                "INSERT INTO record_metrics (record_key,ordinal,metric_domain,metric_key,value_type,number_value) VALUES ('actions:testAction00',0,'item','duplicate.metric','number',1)",
+                "record_metrics.record_key, record_metrics.ordinal",
+            ),
+            (
+                "activity-duplicate-ordinal",
+                "INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json) SELECT record_key,'duplicate',ordinal,payload_json FROM record_activities WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_activities.record_key, record_activities.ordinal",
+            ),
+            (
+                "spellcasting-duplicate-ordinal",
+                "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json) SELECT record_key,'casting-3',ordinal,replace(payload_json,'casting-1','casting-3') FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_spellcasting_entries.record_key, record_spellcasting_entries.ordinal",
+            ),
+            (
+                "spellcasting-duplicate-id",
+                "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json) SELECT record_key,entry_id,99,payload_json FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=0",
+                "record_spellcasting_entries.record_key, record_spellcasting_entries.entry_id",
+            ),
+        ] {
+            let error = connection
+                .execute_batch(sql)
+                .expect_err("duplicate ordered child identity must be rejected");
+            assert!(error.to_string().contains(constraint), "{name}: {error}");
+        }
+
+        let _ = fs::remove_file(&base_path);
+        Ok(())
+    }
+
+    #[test]
+    fn visibility_and_retrieval_policy_round_trip_independently_with_exact_170_regression()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let target_path = unique_temp_path("visibility-policy-170.sqlite");
+        let pack_name = PackName::new("actions")?;
+        let mut records = Vec::new();
+        for index in 0..150 {
+            let mut record = fixture_record(
+                &pack_name,
+                &format!("tooling{index:03}"),
+                &format!("Tooling {index:03}"),
+            );
+            record.classification.kind = RecordKind::Tooling;
+            records.push(record);
+        }
+        let mut remaster_links = Vec::new();
+        for index in 0..20 {
+            let legacy = fixture_record(
+                &pack_name,
+                &format!("legacy{index:03}"),
+                &format!("Legacy {index:03}"),
+            );
+            let remaster = fixture_record(
+                &pack_name,
+                &format!("remaster{index:03}"),
+                &format!("Remaster {index:03}"),
+            );
+            remaster_links.push(RemasterLink {
+                remaster_record_key: remaster.identity.key.clone(),
+                legacy_record_key: legacy.identity.key.clone(),
+                source: atlas_domain::RemasterLinkSource::Migration,
+                source_ref: "focused exact-170 fixture".to_string(),
+            });
+            records.extend([legacy, remaster]);
+        }
+        write_fixture_records(&target_path, records, remaster_links)?;
+
+        let connection = Connection::open(&target_path)?;
+        let visible_source_but_not_default: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM records WHERE visibility_state='visible' AND visibility_reason='source_record' AND is_default_visible=0",
+            [],
+            |row| row.get(0),
+        )?;
+        let inspection_only: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM records WHERE retrieval_disposition='inspection_only' AND retrieval_rationale='tooling_no_addressable_product_meaning'",
+            [],
+            |row| row.get(0),
+        )?;
+        let direct_only: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM records WHERE retrieval_disposition='direct_only' AND retrieval_rationale='canonical_edition_duplicate'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(visible_source_but_not_default, 170);
+        assert_eq!(inspection_only, 150);
+        assert_eq!(direct_only, 20);
+        drop(connection);
+
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
+        let full = reader.load_record_set()?.records;
+        assert_eq!(full.len(), 190);
+        assert_eq!(
+            full.iter()
+                .filter(|record| record.visibility.visible_by_default()
+                    && record.visibility.reason() == RecordVisibilityReason::SourceRecord)
+                .count(),
+            190
+        );
+        let non_default_keys = full
+            .iter()
+            .filter(|record| {
+                record.classification.kind == RecordKind::Tooling
+                    || record.identity.id().as_str().starts_with("legacy")
+            })
+            .map(|record| record.identity.key.clone())
+            .collect::<Vec<_>>();
+        let by_key = reader.load_records_by_key(&non_default_keys)?;
+        assert_eq!(by_key.len(), 170);
+        assert!(by_key.iter().all(|record| {
+            record.visibility.visible_by_default()
+                && record.visibility.reason() == RecordVisibilityReason::SourceRecord
+        }));
+        let validation = reader.validate()?;
+        assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
+
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn visibility_and_retrieval_policy_mutations_have_typed_independent_diagnostics()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let base_path = unique_temp_path("visibility-policy-mutation-base.sqlite");
+        let pack_name = PackName::new("actions")?;
+        write_fixture_records(
+            &base_path,
+            vec![fixture_record(&pack_name, "testAction00", "Test Action 00")],
+            Vec::new(),
+        )?;
+
+        for (name, sql, expected_key) in [
+            (
+                "unknown-visibility-state",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET visibility_state='unknown'",
+                "records.visibility_state",
+            ),
+            (
+                "unknown-visibility-reason",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET visibility_reason='unknown'",
+                "records.visibility_reason",
+            ),
+            (
+                "unknown-record-role",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET record_role='unknown'",
+                "records.record_role",
+            ),
+            (
+                "unknown-retrieval-disposition",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET retrieval_disposition='unknown'",
+                "records.retrieval_disposition",
+            ),
+            (
+                "unknown-retrieval-rationale",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET retrieval_rationale='unknown'",
+                "records.retrieval_rationale",
+            ),
+            (
+                "impossible-policy-tuple",
+                "UPDATE records SET record_role='source',retrieval_disposition='direct_only',retrieval_rationale='source_record',is_default_visible=0; DELETE FROM records_fts",
+                "records.retrieval_policy_tuple",
+            ),
+            (
+                "derived-boolean-divergence",
+                "UPDATE records SET is_default_visible=0",
+                "records.retrieval_policy",
+            ),
+            (
+                "visibility-policy-cross-contract",
+                "UPDATE records SET visibility_reason='generated_canonical'",
+                "records.visibility_role_coherence",
+            ),
+        ] {
+            assert_data_mutation_rejected(&base_path, name, sql, expected_key)?;
+        }
+
+        let visibility_path = unique_temp_path("visibility-only-mutation.sqlite");
+        fs::copy(&base_path, &visibility_path)?;
+        let connection = Connection::open(&visibility_path)?;
+        connection.execute("UPDATE records SET visibility_state='hidden'", [])?;
+        drop(connection);
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&visibility_path)?;
+        let record = reader
+            .load_records_by_key(&[RecordKey::parse("actions:testAction00")?])?
+            .pop()
+            .expect("visibility-only fixture hydrates");
+        assert!(!record.visibility.visible_by_default());
+        let connection = Connection::open(&visibility_path)?;
+        let policy: (String, String, String, i64) = connection.query_row(
+            "SELECT record_role,retrieval_disposition,retrieval_rationale,is_default_visible FROM records",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+        assert_eq!(
+            policy,
+            (
+                "source".to_string(),
+                "ordinary".to_string(),
+                "source_record".to_string(),
+                1,
+            )
+        );
+        drop(connection);
+        assert_eq!(reader.validate()?.status, ValidationStatus::Ok);
+
+        let policy_path = unique_temp_path("policy-only-mutation.sqlite");
+        fs::copy(&base_path, &policy_path)?;
+        let connection = Connection::open(&policy_path)?;
+        connection.execute_batch(
+            "UPDATE records SET retrieval_disposition='inspection_only',retrieval_rationale='tooling_no_addressable_product_meaning',is_default_visible=0; DELETE FROM records_fts",
+        )?;
+        drop(connection);
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&policy_path)?;
+        let record = reader
+            .load_records_by_key(&[RecordKey::parse("actions:testAction00")?])?
+            .pop()
+            .expect("policy-only fixture hydrates");
+        assert!(record.visibility.visible_by_default());
+        assert_eq!(
+            record.visibility.reason(),
+            RecordVisibilityReason::SourceRecord
+        );
+        let connection = Connection::open(&policy_path)?;
+        let policy: (String, String, String, i64) = connection.query_row(
+            "SELECT record_role,retrieval_disposition,retrieval_rationale,is_default_visible FROM records",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+        assert_eq!(
+            policy,
+            (
+                "source".to_string(),
+                "inspection_only".to_string(),
+                "tooling_no_addressable_product_meaning".to_string(),
+                0,
+            )
+        );
+        drop(connection);
+        let report = reader.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{report:?}");
+        assert_eq!(
+            report.code,
+            crate::ValidationCode::ArtifactContractViolation,
+            "{report:?}"
+        );
+        for expected_key in [
+            "metric_key_catalog.stale_keys",
+            "filter_field_catalog.stale_rows",
+        ] {
+            assert!(
+                report
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.key.as_deref() == Some(expected_key)),
+                "expected catalog diagnostic `{expected_key}`, got {report:?}"
+            );
+        }
+        let visibility_policy_keys = [
+            "records.visibility_state",
+            "records.visibility_reason",
+            "records.record_role",
+            "records.retrieval_disposition",
+            "records.retrieval_rationale",
+            "records.retrieval_policy",
+            "records.retrieval_policy_tuple",
+            "records.visibility_role_coherence",
+        ];
+        assert!(
+            report.diagnostics.iter().all(|diagnostic| {
+                diagnostic
+                    .key
+                    .as_deref()
+                    .is_none_or(|key| !visibility_policy_keys.contains(&key))
+            }),
+            "policy-only mutation must not produce a visibility/policy diagnostic: {report:?}"
+        );
+
+        let _ = fs::remove_file(base_path);
+        let _ = fs::remove_file(visibility_path);
+        let _ = fs::remove_file(policy_path);
+        Ok(())
+    }
+
+    #[test]
     fn failed_artifact_write_preserves_existing_target_and_cleans_temp()
     -> Result<(), Box<dyn std::error::Error>> {
         let target_path = unique_temp_path("failed-artifact-write.sqlite");
@@ -697,6 +1162,199 @@ mod tests {
             "atlas-index-{name}-{}-{timestamp}",
             std::process::id()
         ))
+    }
+
+    fn write_fixture_records(
+        target_path: &Path,
+        records: Vec<AtlasRecord>,
+        remaster_links: Vec<RemasterLink>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut pack_counts = BTreeMap::<String, usize>::new();
+        for record in &records {
+            *pack_counts
+                .entry(record.identity.pack().as_str().to_string())
+                .or_default() += 1;
+        }
+        let packs = pack_counts
+            .into_iter()
+            .map(|(name, record_count)| {
+                let pack_name = PackName::new(name.as_str()).expect("fixture pack name parses");
+                IndexBuildPack {
+                    name: pack_name,
+                    label: name.clone(),
+                    document_type: "Item".to_string(),
+                    declared_path: format!("packs/{name}"),
+                    resolved_path: Path::new("packs").join(&name),
+                    record_count,
+                }
+            })
+            .collect::<Vec<_>>();
+        let input = IndexBuildInput {
+            source_signature: "foundry-pf2e:focused-fixture".to_string(),
+            source_record_count: records.len(),
+            packs,
+            records,
+            canonical_bodies: Vec::new(),
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links,
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
+        };
+        SqliteIndexWriter::new(target_path.to_path_buf())
+            .write(&input, EmbeddingModelId::BgeSmallEnV15)?;
+        Ok(())
+    }
+
+    fn shobhad_activities(prefix_count: usize, duplicate_id: &str) -> Vec<MechanicActivity> {
+        let mut activities = (0..prefix_count)
+            .map(|ordinal| MechanicActivity {
+                activity_id: format!("fixture-prefix-{ordinal}"),
+                label: format!("Prefix {ordinal}"),
+                kind: MechanicActivityKind::Other,
+                traits: Vec::new(),
+                compendium_source: None,
+                usage: MechanicActivityUsage::Unlimited,
+                rolls: Vec::new(),
+                damage: Vec::new(),
+                modes: Vec::new(),
+            })
+            .collect::<Vec<_>>();
+        activities.extend([0, 1].map(|duplicate_ordinal| MechanicActivity {
+            activity_id: duplicate_id.to_string(),
+            label: "Four-Armed".to_string(),
+            kind: MechanicActivityKind::Other,
+            traits: Vec::new(),
+            compendium_source: None,
+            usage: if duplicate_ordinal == 0 {
+                MechanicActivityUsage::Limited
+            } else {
+                MechanicActivityUsage::Unlimited
+            },
+            rolls: Vec::new(),
+            damage: Vec::new(),
+            modes: Vec::new(),
+        }));
+        activities
+    }
+
+    fn assert_shobhad_duplicate_pair(
+        activities: &[MechanicActivity],
+        first_ordinal: usize,
+        activity_id: &str,
+        hydration_path: &str,
+    ) {
+        let pair = &activities[first_ordinal..first_ordinal + 2];
+        assert_eq!(
+            pair.iter()
+                .map(|activity| activity.activity_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![activity_id, activity_id],
+            "{hydration_path} hydration must preserve duplicate activity_id payloads"
+        );
+        assert!(pair.iter().all(|activity| activity.label == "Four-Armed"));
+        assert!(
+            pair.iter()
+                .all(|activity| activity.kind == MechanicActivityKind::Other)
+        );
+        assert_eq!(pair[0].usage, MechanicActivityUsage::Limited);
+        assert_eq!(pair[1].usage, MechanicActivityUsage::Unlimited);
+    }
+
+    fn assert_mechanics_mutation_rejected(
+        base_path: &Path,
+        name: &str,
+        sql: &str,
+        expected_key: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = unique_temp_path(&format!("ordered-mechanics-{name}.sqlite"));
+        fs::copy(base_path, &path)?;
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(sql)?;
+        drop(connection);
+
+        let report = crate::SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{name}: {report:?}");
+        assert_eq!(
+            report.code,
+            crate::ValidationCode::ArtifactContractViolation,
+            "{name}: {report:?}"
+        );
+        assert!(
+            report.diagnostics.iter().any(|diagnostic| {
+                diagnostic.family == crate::ArtifactValidationFamily::Data
+                    && diagnostic.key.as_deref() == Some(expected_key)
+                    && diagnostic.expected.is_some()
+                    && diagnostic.actual.is_some()
+            }),
+            "{name}: expected typed diagnostic `{expected_key}`, got {report:?}"
+        );
+        let _ = fs::remove_file(path);
+        Ok(())
+    }
+
+    fn assert_malformed_metric_mutation_rejected(
+        base_path: &Path,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = unique_temp_path("ordered-mechanics-metric-malformed.sqlite");
+        fs::copy(base_path, &path)?;
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(
+            "PRAGMA ignore_check_constraints=ON; UPDATE record_metrics SET value_type='text',number_value=NULL,text_value=NULL WHERE record_key='actions:testAction00' AND ordinal=0",
+        )?;
+        drop(connection);
+
+        let report = crate::SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{report:?}");
+        assert_eq!(
+            report.code,
+            crate::ValidationCode::ArtifactContractViolation,
+            "{report:?}"
+        );
+        let diagnostic = report
+            .diagnostics
+            .first()
+            .expect("malformed metric produces a typed diagnostic");
+        assert_eq!(diagnostic.family, crate::ArtifactValidationFamily::Data);
+        assert_eq!(diagnostic.key.as_deref(), Some("record_metrics:text_value"));
+        assert_eq!(
+            diagnostic.message,
+            "metric value shape `record_metrics:text_value` is inconsistent with value_type"
+        );
+        assert_eq!(
+            diagnostic.expected.as_deref(),
+            Some("exactly one matching value column")
+        );
+        assert_eq!(diagnostic.actual.as_deref(), Some("1 invalid rows"));
+        let _ = fs::remove_file(path);
+        Ok(())
+    }
+
+    fn assert_data_mutation_rejected(
+        base_path: &Path,
+        name: &str,
+        sql: &str,
+        expected_key: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = unique_temp_path(&format!("data-mutation-{name}.sqlite"));
+        fs::copy(base_path, &path)?;
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(sql)?;
+        drop(connection);
+
+        let report = crate::SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{name}: {report:?}");
+        assert!(
+            report.diagnostics.iter().any(|diagnostic| {
+                diagnostic.family == crate::ArtifactValidationFamily::Data
+                    && diagnostic.key.as_deref() == Some(expected_key)
+                    && diagnostic.expected.is_some()
+                    && diagnostic.actual.is_some()
+            }),
+            "{name}: expected typed diagnostic `{expected_key}`, got {report:?}"
+        );
+        let _ = fs::remove_file(path);
+        Ok(())
     }
 
     #[cfg(unix)]
