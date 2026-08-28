@@ -11,9 +11,9 @@ use atlas_index::test_support::{
     RecordRoundTripDiagnosticError, RecordRoundTripPersistedProjectionRow,
     RecordRoundTripRecordRole, RecordRoundTripRetrievalDisposition,
     RecordRoundTripRetrievalRationale, record_round_trip_expected_retrieval_projection,
-    record_round_trip_persisted_retrieval_projection,
+    record_round_trip_persisted_retrieval_projection, write_bound_test_manifest,
 };
-use atlas_index::{RecordReadIndex, SqliteIndexReader};
+use atlas_index::{IndexArtifactWriter, RecordReadIndex, SqliteIndexReader, SqliteIndexWriter};
 use atlas_record::AtlasRecord;
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -50,6 +50,8 @@ enum RecordRoundTripStage {
     RequiredEnvironment,
     SourceLoad,
     BuildInput,
+    ArtifactBuild,
+    ManifestWrite,
     ReaderOpen,
     GenerationBefore,
     PersistedProjection,
@@ -61,10 +63,12 @@ enum RecordRoundTripStage {
 }
 
 impl RecordRoundTripStage {
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 13] = [
         Self::RequiredEnvironment,
         Self::SourceLoad,
         Self::BuildInput,
+        Self::ArtifactBuild,
+        Self::ManifestWrite,
         Self::ReaderOpen,
         Self::GenerationBefore,
         Self::PersistedProjection,
@@ -86,6 +90,12 @@ enum RecordRoundTripEnvelopeError {
         message: String,
     },
     BuildInput {
+        message: String,
+    },
+    ArtifactBuild {
+        message: String,
+    },
+    ManifestWrite {
         message: String,
     },
     ReaderOpen {
@@ -123,6 +133,8 @@ impl RecordRoundTripEnvelopeError {
             RecordRoundTripStage::RequiredEnvironment => Self::RequiredEnvironment { message },
             RecordRoundTripStage::SourceLoad => Self::SourceLoad { message },
             RecordRoundTripStage::BuildInput => Self::BuildInput { message },
+            RecordRoundTripStage::ArtifactBuild => Self::ArtifactBuild { message },
+            RecordRoundTripStage::ManifestWrite => Self::ManifestWrite { message },
             RecordRoundTripStage::ReaderOpen => Self::ReaderOpen { message },
             RecordRoundTripStage::GenerationBefore => Self::GenerationBefore { message },
             RecordRoundTripStage::PersistedProjection => Self::PersistedProjection { message },
@@ -144,6 +156,11 @@ struct RecordRoundTripCounters {
     required_environment_count: usize,
     source_load_count: usize,
     build_input_count: usize,
+    no_embedding_artifact_build_count: usize,
+    embedding_generation_count: usize,
+    manifest_write_count: usize,
+    strict_audit_count: usize,
+    duplicate_deep_validation_hash_copy_count: usize,
     reader_open_count: usize,
     generation_before_count: usize,
     persisted_projection_count: usize,
@@ -160,6 +177,8 @@ impl RecordRoundTripCounters {
             RecordRoundTripStage::RequiredEnvironment => self.required_environment_count += 1,
             RecordRoundTripStage::SourceLoad => self.source_load_count += 1,
             RecordRoundTripStage::BuildInput => self.build_input_count += 1,
+            RecordRoundTripStage::ArtifactBuild => self.no_embedding_artifact_build_count += 1,
+            RecordRoundTripStage::ManifestWrite => self.manifest_write_count += 1,
             RecordRoundTripStage::ReaderOpen => self.reader_open_count += 1,
             RecordRoundTripStage::GenerationBefore => self.generation_before_count += 1,
             RecordRoundTripStage::PersistedProjection => self.persisted_projection_count += 1,
@@ -354,6 +373,49 @@ fn run_record_key_aligned_round_trip(
             started,
         ));
     }
+
+    if !input.document_embeddings.is_empty() {
+        return Err(RecordRoundTripFailure::at(
+            RecordRoundTripStage::ArtifactBuild,
+            "compact record round trip requires an empty generated-embedding collection",
+            &counters,
+            started,
+        ));
+    }
+    if artifact_path.exists() {
+        return Err(RecordRoundTripFailure::at(
+            RecordRoundTripStage::ArtifactBuild,
+            format!(
+                "compact artifact path already exists: {}",
+                artifact_path.display()
+            ),
+            &counters,
+            started,
+        ));
+    }
+    counters.no_embedding_artifact_build_count += 1;
+    IndexArtifactWriter::write(
+        &SqliteIndexWriter::new(artifact_path.clone()),
+        &input,
+        atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+    )
+    .map_err(|error| {
+        RecordRoundTripFailure::at(
+            RecordRoundTripStage::ArtifactBuild,
+            error.to_string(),
+            &counters,
+            started,
+        )
+    })?;
+    counters.manifest_write_count += 1;
+    write_bound_test_manifest(&artifact_path).map_err(|error| {
+        RecordRoundTripFailure::at(
+            RecordRoundTripStage::ManifestWrite,
+            error.to_string(),
+            &counters,
+            started,
+        )
+    })?;
 
     counters.reader_open_count += 1;
     let reader = SqliteIndexReader::open_read_only(&artifact_path).map_err(|error| {

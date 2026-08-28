@@ -209,15 +209,17 @@ mod tests {
     };
     use atlas_embedding::EmbeddingModelId;
     use atlas_record::{
-        ActivationTimeSourceField, AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility,
-        DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue,
+        ActivationTimeSourceField, ActivityRoll, ActivityRollAbility, ActivityRollSurface,
+        AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility, DamageEffectKind,
+        DamageExpression, DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType,
+        FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics, MechanicActivity,
+        MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricRow, MetricValue,
         NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
         RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
         RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
         RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
         RemasterLink, RichDocument, RichNode, SpellArea, SpellDefense, SpellMechanics, SpellRange,
-        SpellTarget, VariantSource,
+        SpellTarget, SpellcastingEntryMechanics, SpellcastingPreparation, VariantSource,
     };
     use rusqlite::Connection;
 
@@ -335,6 +337,60 @@ mod tests {
             loaded.provenance.raw_json.as_deref(),
             Some(r#"{"fixture":true}"#)
         );
+        assert!(loaded.visibility.visible_by_default());
+        assert_eq!(
+            loaded.visibility.reason(),
+            RecordVisibilityReason::SourceRecord
+        );
+        assert_eq!(loaded.mechanics.metrics[0].key, "level.value");
+        assert_eq!(loaded.mechanics.metrics[1].key, "rank.value");
+        assert_eq!(
+            loaded
+                .mechanics
+                .spellcasting_entries
+                .iter()
+                .map(|entry| entry.entry_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["casting-1", "casting-2"]
+        );
+        assert_eq!(
+            loaded
+                .mechanics
+                .activities
+                .iter()
+                .map(|activity| activity.activity_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["activity-1", "activity-1"]
+        );
+        assert_eq!(
+            loaded
+                .mechanics
+                .activities
+                .iter()
+                .map(|activity| activity.label.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Arcane Claw", "Empty Activity"]
+        );
+        assert_eq!(
+            loaded.mechanics.activities[0].traits,
+            vec!["attack", "magical"]
+        );
+        assert_eq!(loaded.mechanics.activities[0].rolls[0].base_value, 17);
+        assert_eq!(loaded.mechanics.activities[0].damage[0].formula, "2d6+4");
+        assert_eq!(
+            loaded.mechanics.activities[0].modes[0].damage[0].formula,
+            "3d6+4"
+        );
+        assert!(loaded.mechanics.activities[1].traits.is_empty());
+        assert!(loaded.mechanics.activities[1].rolls.is_empty());
+        assert!(loaded.mechanics.activities[1].damage.is_empty());
+        assert!(loaded.mechanics.activities[1].modes.is_empty());
+        assert_eq!(
+            loaded.mechanics.spellcasting_entries[1].preparation,
+            SpellcastingPreparation::Other("ritual".to_string())
+        );
+        assert_eq!(loaded.mechanics.spellcasting_entries[1].spell_attack, None);
+        assert_eq!(loaded.mechanics.spellcasting_entries[1].spell_dc, None);
         assert!(loaded.content.description().is_some());
         assert!(loaded.content.blurb().is_some());
         assert!(
@@ -371,6 +427,116 @@ mod tests {
         assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
 
         let connection = Connection::open(&target_path)?;
+        let independent_visibility: (String, String, String, String, String, i64) = connection
+            .query_row(
+                "SELECT visibility_state,visibility_reason,record_role,retrieval_disposition,
+                        retrieval_rationale,is_default_visible
+                 FROM records WHERE record_key='actions:testAction00'",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                    ))
+                },
+            )?;
+        assert_eq!(
+            independent_visibility,
+            (
+                "visible".to_string(),
+                "source_record".to_string(),
+                "source".to_string(),
+                "direct_only".to_string(),
+                "canonical_edition_duplicate".to_string(),
+                0,
+            )
+        );
+        let duplicate_metric_ordinal = connection.execute(
+            "INSERT INTO record_metrics (
+                 record_key,ordinal,metric_domain,metric_key,value_type,number_value
+             ) VALUES ('actions:testAction00',0,'item','duplicate.metric','number',1)",
+            [],
+        );
+        assert!(
+            duplicate_metric_ordinal
+                .expect_err("duplicate metric ordinal must be rejected")
+                .to_string()
+                .contains("record_metrics.record_key, record_metrics.ordinal")
+        );
+        let duplicate_activity_ordinal = connection.execute(
+            "INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json)
+             SELECT record_key,'duplicate-activity',ordinal,payload_json
+             FROM record_activities
+             WHERE record_key='actions:testAction00' AND ordinal=0",
+            [],
+        );
+        assert!(
+            duplicate_activity_ordinal
+                .expect_err("duplicate activity ordinal must be rejected")
+                .to_string()
+                .contains("record_activities.record_key, record_activities.ordinal")
+        );
+        let duplicate_spellcasting_id = connection.execute(
+            "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json)
+             SELECT record_key,entry_id,99,payload_json
+             FROM record_spellcasting_entries
+             WHERE record_key='actions:testAction00' AND ordinal=0",
+            [],
+        );
+        assert!(
+            duplicate_spellcasting_id
+                .expect_err("duplicate spellcasting child ID must be rejected")
+                .to_string()
+                .contains(
+                    "record_spellcasting_entries.record_key, record_spellcasting_entries.entry_id"
+                )
+        );
+        let first_activity_payload: String = connection.query_row(
+            "SELECT payload_json FROM record_activities
+             WHERE record_key='actions:testAction00' AND ordinal=0",
+            [],
+            |row| row.get(0),
+        )?;
+        let second_activity_payload: String = connection.query_row(
+            "SELECT payload_json FROM record_activities
+             WHERE record_key='actions:testAction00' AND ordinal=1",
+            [],
+            |row| row.get(0),
+        )?;
+        connection.execute(
+            "UPDATE record_activities SET payload_json=?1
+             WHERE record_key='actions:testAction00' AND ordinal=0",
+            [&second_activity_payload],
+        )?;
+        connection.execute(
+            "UPDATE record_activities SET payload_json=?1
+             WHERE record_key='actions:testAction00' AND ordinal=1",
+            [&first_activity_payload],
+        )?;
+        let reordered =
+            crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?.validate()?;
+        assert_eq!(reordered.status, ValidationStatus::Error, "{reordered:?}");
+        assert!(reordered.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref()
+                == Some("record_activities[actions:testAction00].order_sha256")
+        }));
+        connection.execute(
+            "UPDATE record_activities SET payload_json=?1
+             WHERE record_key='actions:testAction00' AND ordinal=0",
+            [&first_activity_payload],
+        )?;
+        connection.execute(
+            "UPDATE record_activities SET payload_json=?1
+             WHERE record_key='actions:testAction00' AND ordinal=1",
+            [&second_activity_payload],
+        )?;
+        let restored =
+            crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?.validate()?;
+        assert_eq!(restored.status, ValidationStatus::Ok, "{restored:?}");
         let metric_count: i64 = connection.query_row(
             "SELECT COUNT(*) FROM metric_key_catalog WHERE metric_key = 'level.value'",
             [],
@@ -603,11 +769,18 @@ mod tests {
                 }),
             },
             mechanics: RecordMechanics {
-                metrics: vec![MetricRow {
-                    domain: MetricDomain::Item,
-                    key: "level.value".to_string(),
-                    value: MetricValue::Number(1.0),
-                }],
+                metrics: vec![
+                    MetricRow {
+                        domain: MetricDomain::Item,
+                        key: "level.value".to_string(),
+                        value: MetricValue::Number(1.0),
+                    },
+                    MetricRow {
+                        domain: MetricDomain::Item,
+                        key: "rank.value".to_string(),
+                        value: MetricValue::Number(2.0),
+                    },
+                ],
                 document: FoundryDocumentMechanics::Item(ItemMechanics {
                     foundry_type: Some(ItemTypeMechanics::Spell(SpellMechanics {
                         traditions: vec!["arcane".to_string()],
@@ -640,8 +813,76 @@ mod tests {
                     hands_requirement: Some("1".to_string()),
                     damage_types: vec!["mental".to_string()],
                 }),
-                spellcasting_entries: Vec::new(),
-                activities: Vec::new(),
+                spellcasting_entries: vec![
+                    SpellcastingEntryMechanics {
+                        entry_id: "casting-1".to_string(),
+                        label: "Arcane Prepared Spells".to_string(),
+                        preparation: SpellcastingPreparation::Prepared,
+                        spell_attack: Some(17),
+                        spell_dc: Some(27),
+                    },
+                    SpellcastingEntryMechanics {
+                        entry_id: "casting-2".to_string(),
+                        label: "Rituals".to_string(),
+                        preparation: SpellcastingPreparation::Other("ritual".to_string()),
+                        spell_attack: None,
+                        spell_dc: None,
+                    },
+                ],
+                activities: vec![
+                    MechanicActivity {
+                        activity_id: "activity-1".to_string(),
+                        label: "Arcane Claw".to_string(),
+                        kind: MechanicActivityKind::Strike,
+                        traits: vec!["attack".to_string(), "magical".to_string()],
+                        compendium_source: Some(
+                            "Compendium.pf2e.actionspf2e.Item.test".to_string(),
+                        ),
+                        usage: MechanicActivityUsage::Limited,
+                        rolls: vec![ActivityRoll {
+                            roll_id: "attack".to_string(),
+                            label: "Attack".to_string(),
+                            base_value: 17,
+                            surface: ActivityRollSurface::AttackRoll,
+                            ability: Some(ActivityRollAbility::Strength),
+                        }],
+                        damage: vec![DamageExpression {
+                            damage_id: "base".to_string(),
+                            label: Some("slashing".to_string()),
+                            formula: "2d6+4".to_string(),
+                            damage_type: Some("slashing".to_string()),
+                            effect_kind: DamageEffectKind::Damage,
+                            ability: Some(ActivityRollAbility::Strength),
+                        }],
+                        modes: vec![MechanicActivityMode {
+                            mode_id: "two-action".to_string(),
+                            label: "Two Actions".to_string(),
+                            sort: 1,
+                            target: Some("one creature".to_string()),
+                            range: Some("reach 10 feet".to_string()),
+                            time: Some("2 actions".to_string()),
+                            damage: vec![DamageExpression {
+                                damage_id: "mode".to_string(),
+                                label: None,
+                                formula: "3d6+4".to_string(),
+                                damage_type: Some("force".to_string()),
+                                effect_kind: DamageEffectKind::Damage,
+                                ability: None,
+                            }],
+                        }],
+                    },
+                    MechanicActivity {
+                        activity_id: "activity-1".to_string(),
+                        label: "Empty Activity".to_string(),
+                        kind: MechanicActivityKind::Other,
+                        traits: Vec::new(),
+                        compendium_source: None,
+                        usage: MechanicActivityUsage::Unlimited,
+                        rolls: Vec::new(),
+                        damage: Vec::new(),
+                        modes: Vec::new(),
+                    },
+                ],
             },
             content: RecordContent {
                 documents: vec![

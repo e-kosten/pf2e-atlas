@@ -1,6 +1,5 @@
 use atlas_domain::{
-    MetricDomain, MetricValueType, PublicationCategory, Rarity, RecordKey, RecordKind,
-    RemasterLinkSource, TimeKind, TimeUnit,
+    PublicationCategory, Rarity, RecordKey, RecordKind, RemasterLinkSource, TimeKind, TimeUnit,
 };
 use atlas_record::{
     AliasSource, ContentSourceKind, ContentVisibility, NormalizedTime, ReferenceRelationKind,
@@ -65,16 +64,6 @@ pub(super) fn parse_publication_family(
 ) -> Result<PublicationCategory, RecordLoadError> {
     PublicationCategory::from_canonical(value)
         .ok_or_else(|| invalid_value("records.publication_family", value.to_string()))
-}
-
-pub(super) fn parse_metric_domain(value: &str) -> Result<MetricDomain, RecordLoadError> {
-    MetricDomain::from_canonical(value)
-        .ok_or_else(|| invalid_value("record_metrics.metric_domain", value.to_string()))
-}
-
-pub(super) fn parse_metric_value_type(value: &str) -> Result<MetricValueType, RecordLoadError> {
-    MetricValueType::from_canonical(value)
-        .ok_or_else(|| invalid_value("record_metrics.value_type", value.to_string()))
 }
 
 pub(super) fn parse_alias_source(value: &str) -> Result<AliasSource, RecordLoadError> {

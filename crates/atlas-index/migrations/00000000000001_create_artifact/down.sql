@@ -11,6 +11,8 @@ DROP TABLE IF EXISTS filter_field_catalog;
 DROP TABLE IF EXISTS metric_value_catalog;
 DROP TABLE IF EXISTS metric_key_catalog;
 DROP TABLE IF EXISTS record_metrics;
+DROP TABLE IF EXISTS record_activities;
+DROP TABLE IF EXISTS record_spellcasting_entries;
 DROP TABLE IF EXISTS remaster_links;
 DROP TABLE IF EXISTS record_aliases;
 DROP TABLE IF EXISTS reference_occurrences;

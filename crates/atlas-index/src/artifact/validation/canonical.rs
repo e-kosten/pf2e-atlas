@@ -96,7 +96,7 @@ const PROJECTION_TABLES: &[(&str, &str)] = &[
     ),
     (
         "record_metrics",
-        "record_key,metric_domain,metric_key,value_type,number_value,text_value,bool_value",
+        "record_key,ordinal,metric_domain,metric_key,value_type,number_value,text_value,bool_value",
     ),
 ];
 
@@ -121,6 +121,10 @@ pub(crate) fn validate_canonical_records(
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
     validate_enums(connection, diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(());
+    }
+    validate_record_mechanics(connection, diagnostics)?;
     if !diagnostics.is_empty() {
         return Ok(());
     }
@@ -416,7 +420,11 @@ fn reconcile(
             ]),
         );
     }
-    for metric in project_creature_facts(creature).metrics {
+    for (ordinal, metric) in project_creature_facts(creature)
+        .metrics
+        .into_iter()
+        .enumerate()
+    {
         let (kind, number, text, boolean) = match metric.value {
             MetricValue::Number(value) => ("number", Some(value), None, None),
             MetricValue::Text(value) => ("text", None, Some(value), None),
@@ -427,6 +435,7 @@ fn reconcile(
             "record_metrics",
             json!([
                 record_key,
+                i64::try_from(ordinal).unwrap_or(i64::MAX),
                 metric.domain.as_str(),
                 metric.key,
                 kind,
@@ -600,6 +609,14 @@ fn validate_enums(
 ) -> Result<(), IndexValidationError> {
     for (key, sql) in [
         (
+            "records.visibility_state",
+            "SELECT COUNT(*) FROM records WHERE visibility_state NOT IN ('visible','hidden')",
+        ),
+        (
+            "records.visibility_reason",
+            "SELECT COUNT(*) FROM records WHERE visibility_reason NOT IN ('source_record','generated_canonical','generated_instance')",
+        ),
+        (
             "records.record_role",
             "SELECT COUNT(*) FROM records WHERE record_role NOT IN ('source','canonical','source_instance')",
         ),
@@ -608,8 +625,30 @@ fn validate_enums(
             "SELECT COUNT(*) FROM records WHERE retrieval_disposition NOT IN ('ordinary','direct_only','inspection_only')",
         ),
         (
+            "records.retrieval_rationale",
+            "SELECT COUNT(*) FROM records WHERE retrieval_rationale NOT IN ('source_record','generated_canonical','duplicate_source_instance','canonical_edition_duplicate','tooling_no_addressable_product_meaning')",
+        ),
+        (
             "records.retrieval_policy",
             "SELECT COUNT(*) FROM records WHERE (retrieval_disposition='ordinary') <> (is_default_visible=1)",
+        ),
+        (
+            "records.retrieval_policy_tuple",
+            "SELECT COUNT(*) FROM records WHERE NOT (
+               (record_role='source' AND retrieval_disposition='ordinary' AND retrieval_rationale='source_record')
+               OR (record_role='canonical' AND retrieval_disposition='ordinary' AND retrieval_rationale='generated_canonical')
+               OR (record_role='source_instance' AND retrieval_disposition='direct_only' AND retrieval_rationale='duplicate_source_instance')
+               OR (record_role='source' AND retrieval_disposition='direct_only' AND retrieval_rationale='canonical_edition_duplicate')
+               OR (record_role='source' AND retrieval_disposition='inspection_only' AND retrieval_rationale='tooling_no_addressable_product_meaning')
+             )",
+        ),
+        (
+            "records.visibility_role_coherence",
+            "SELECT COUNT(*) FROM records WHERE NOT (
+               (visibility_reason='source_record' AND record_role='source')
+               OR (visibility_reason='generated_canonical' AND record_role='canonical')
+               OR (visibility_reason='generated_instance' AND record_role='source_instance')
+             )",
         ),
         (
             "canonical_creature_occurrences.family",
@@ -638,6 +677,299 @@ fn validate_enums(
         }
     }
     Ok(())
+}
+
+fn validate_record_mechanics(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let mut metrics = BTreeMap::<String, Vec<atlas_record::MetricRow>>::new();
+    let mut statement = connection
+        .prepare(
+            "SELECT record_key,ordinal,metric_domain,metric_key,value_type,number_value,text_value,bool_value
+             FROM record_metrics ORDER BY record_key,ordinal",
+        )
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<f64>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<i64>>(7)?,
+            ))
+        })
+        .map_err(query_failed)?;
+    for row in rows {
+        let (record_key, ordinal, domain, key, value_type, number, text, boolean) =
+            row.map_err(query_failed)?;
+        if !expected_ordinal(
+            &metrics,
+            &record_key,
+            ordinal,
+            "record_metrics",
+            diagnostics,
+        ) {
+            return Ok(());
+        }
+        let metric = match crate::read::records::children::metric_from_storage(
+            &domain,
+            key,
+            &value_type,
+            number,
+            text,
+            boolean.map(|value| value != 0),
+        ) {
+            Ok(metric) => metric,
+            Err(error) => {
+                invalid(
+                    diagnostics,
+                    &error,
+                    &format!("record_metrics[{record_key}:{ordinal}]"),
+                );
+                return Ok(());
+            }
+        };
+        metrics.entry(record_key).or_default().push(metric);
+    }
+
+    let mut activities = BTreeMap::<String, Vec<atlas_record::MechanicActivity>>::new();
+    let mut statement = connection
+        .prepare(
+            "SELECT record_key,ordinal,activity_id,payload_json
+             FROM record_activities ORDER BY record_key,ordinal",
+        )
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(query_failed)?;
+    for row in rows {
+        let (record_key, ordinal, activity_id, payload) = row.map_err(query_failed)?;
+        if !expected_ordinal(
+            &activities,
+            &record_key,
+            ordinal,
+            "record_activities",
+            diagnostics,
+        ) {
+            return Ok(());
+        }
+        let path = format!("record_activities[{record_key}:{ordinal}].payload_json");
+        let activity = match crate::read::records::children::decode_activity(&payload, &path) {
+            Ok(value) => value,
+            Err(error) => {
+                invalid(diagnostics, &error, &path);
+                return Ok(());
+            }
+        };
+        if activity.activity_id != activity_id {
+            mismatch(
+                diagnostics,
+                "activity payload ID diverges from stored activity_id",
+                &path,
+                activity_id,
+                activity.activity_id.clone(),
+            );
+            return Ok(());
+        }
+        activities.entry(record_key).or_default().push(activity);
+    }
+
+    let mut entries = BTreeMap::<String, Vec<atlas_record::SpellcastingEntryMechanics>>::new();
+    let mut statement = connection
+        .prepare(
+            "SELECT record_key,entry_id,ordinal,payload_json
+             FROM record_spellcasting_entries ORDER BY record_key,ordinal",
+        )
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(query_failed)?;
+    for row in rows {
+        let (record_key, child_id, ordinal, payload) = row.map_err(query_failed)?;
+        if !expected_ordinal(
+            &entries,
+            &record_key,
+            ordinal,
+            "record_spellcasting_entries",
+            diagnostics,
+        ) {
+            return Ok(());
+        }
+        let path = format!("record_spellcasting_entries[{record_key}:{child_id}].payload_json");
+        let entry = match crate::read::records::children::decode_spellcasting_entry(&payload, &path)
+        {
+            Ok(value) => value,
+            Err(error) => {
+                invalid(diagnostics, &error, &path);
+                return Ok(());
+            }
+        };
+        if entry.entry_id != child_id {
+            mismatch(
+                diagnostics,
+                "spellcasting payload ID diverges from relational child ID",
+                &path,
+                child_id,
+                entry.entry_id.clone(),
+            );
+            return Ok(());
+        }
+        entries.entry(record_key).or_default().push(entry);
+    }
+
+    let mut statement = connection
+        .prepare(
+            "SELECT record_key,metric_count,metric_order_sha256,activity_count,activity_order_sha256,
+                    spellcasting_entry_count,spellcasting_entry_order_sha256
+             FROM records ORDER BY record_key",
+        )
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })
+        .map_err(query_failed)?;
+    for row in rows {
+        let (
+            record_key,
+            metric_count,
+            metric_digest,
+            activity_count,
+            activity_digest,
+            entry_count,
+            entry_digest,
+        ) = row.map_err(query_failed)?;
+        let metric_values = metrics
+            .get(&record_key)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let activity_values = activities
+            .get(&record_key)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let entry_values = entries
+            .get(&record_key)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        validate_summary(
+            diagnostics,
+            &record_key,
+            "record_metrics",
+            metric_count,
+            &metric_digest,
+            metric_values.len(),
+            crate::read::records::children::metric_order_digest(metric_values),
+        );
+        validate_summary(
+            diagnostics,
+            &record_key,
+            "record_activities",
+            activity_count,
+            &activity_digest,
+            activity_values.len(),
+            crate::read::records::children::activity_order_digest(activity_values),
+        );
+        validate_summary(
+            diagnostics,
+            &record_key,
+            "record_spellcasting_entries",
+            entry_count,
+            &entry_digest,
+            entry_values.len(),
+            crate::read::records::children::spellcasting_order_digest(entry_values),
+        );
+        if !diagnostics.is_empty() {
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
+fn expected_ordinal<T>(
+    rows: &BTreeMap<String, Vec<T>>,
+    record_key: &str,
+    actual: i64,
+    table: &str,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> bool {
+    let expected = rows.get(record_key).map_or(0, Vec::len);
+    let expected = i64::try_from(expected).unwrap_or(i64::MAX);
+    if actual == expected {
+        true
+    } else {
+        mismatch(
+            diagnostics,
+            "ordered mechanics exact relational projection is not contiguous in canonical vector order",
+            &format!("{table}[{record_key}].ordinal"),
+            expected.to_string(),
+            actual.to_string(),
+        );
+        false
+    }
+}
+
+fn validate_summary(
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+    record_key: &str,
+    table: &str,
+    expected_count: i64,
+    expected_digest: &str,
+    actual_count: usize,
+    actual_digest: Result<String, String>,
+) {
+    let actual_count = i64::try_from(actual_count).unwrap_or(i64::MAX);
+    if expected_count != actual_count {
+        mismatch(
+            diagnostics,
+            "mechanics child row count diverges from the writer-bound canonical vector",
+            &format!("{table}[{record_key}].count"),
+            expected_count.to_string(),
+            actual_count.to_string(),
+        );
+        return;
+    }
+    match actual_digest {
+        Ok(actual) if actual == expected_digest => {}
+        Ok(actual) => mismatch(
+            diagnostics,
+            "mechanics child exact relational projection values or order diverge from the writer-bound canonical vector",
+            &format!("{table}[{record_key}].order_sha256"),
+            expected_digest.to_string(),
+            actual,
+        ),
+        Err(error) => invalid(
+            diagnostics,
+            &error,
+            &format!("{table}[{record_key}].order_sha256"),
+        ),
+    }
 }
 
 fn text_column(connection: &Connection, sql: &str) -> Result<Vec<String>, IndexValidationError> {

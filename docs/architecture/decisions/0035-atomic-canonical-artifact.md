@@ -1,6 +1,6 @@
 # ADR 0035: Atomic Canonical Artifact
 
-Status: accepted at Checkpoint B; combined C1/C2/C2R/C2P/C2PR/C1R candidate awaits Checkpoint C
+Status: accepted at Checkpoint B; combined C1/C2/C2R/C2P/C2PR/C1C/C1R candidate awaits Checkpoint C
 Date: 2026-08-24
 
 ## Context
@@ -28,9 +28,11 @@ Old artifacts are rejected with actionable rebuild guidance. Compatibility adapt
 
 Typed visibility/provenance remains stored independently from product retrieval disposition. Pinned-base retrieval still uses default-visible/public-only predicates and is not GM-complete. C1 must persist and validate the approved target disposition and rationale identity across FTS, embeddings, graph, discovery/metrics, inspection, and validation; useful authored information is eligible regardless of classification, and every retained exclusion requires non-auth product rationale and audit evidence.
 
+The unreleased v2/schema-2 layout directly persists canonical vector order for record metrics and already-modeled Activity and Spellcasting children. Metrics retain semantic-key uniqueness plus a non-null parent ordinal. Activity rows use `(record_key, ordinal)` as the internal storage identity because approved canonical parent-local `activity_id` values may repeat; `activity_id` remains unchanged, non-unique typed payload data and is not a public storage locator. Spellcasting rows retain parent/entry-ID identity and a unique parent ordinal. Both child tables cascade with record ownership and retain canonical typed payloads. All-record and by-key hydration order by parent and ordinal before grouping. The same layout stores closed typed visibility state/reason directly from `AtlasRecord.visibility`, while the role/disposition/rationale routing tuple and its derived `is_default_visible` projection remain a separate contract. Neither contract is reconstructed from the other.
+
 ## Consequences
 
-Schema v2 stores creature bodies in deterministic typed JSON together with relational resources, entities, contextual occurrences, non-executing creature relationships, owned content, exclusions, and reference occurrences. Strict hydration and deep validation decode each body and require exact relational row sets across every authoritative column, including owners, parents, targets, source locators, lifecycle provenance, reference context, exclusions, typed content, and canonical metric facts; missing, extra, or valid-but-wrong foreign-key rows are corruption. Approved Stage B canonical identities are not rewritten when the source repeats a nested ID. Those repeated semantic IDs remain unchanged in the canonical body, while the relational primary/foreign-key locator includes authored order so every occurrence and content row remains independently durable.
+Schema v2 stores creature bodies in deterministic typed JSON together with relational resources, entities, contextual occurrences, non-executing creature relationships, owned content, exclusions, reference occurrences, and ordered record mechanics children. Strict hydration and deep validation decode each body and mechanics payload and require exact relational row sets across every authoritative column, including owners, parents, targets, source locators, lifecycle provenance, reference context, exclusions, typed content, canonical metric facts, child IDs, and vector order; missing, extra, reordered, reparented, or valid-but-wrong foreign-key rows are corruption. Approved Stage B canonical identities are not rewritten when the source repeats a nested ID. Those repeated semantic IDs remain unchanged in the canonical body, while the relational primary/foreign-key locator includes authored order so every occurrence and content row remains independently durable.
 
 Every v2 NPC row has exactly one required canonical creature body, every non-NPC row has none, and both all-record and by-key combined hydration reject missing or extra bodies. Inspection reports canonical creature-owned content separately from total artifact content.
 
@@ -53,9 +55,9 @@ validation selectors through the existing typed embedding catalog before source
 work, retains canonical artifact-metadata checks after publication, and
 atomically preserves typed failure/partial-timing evidence while reusing already
 trusted generation digests. It changes neither embedding nor artifact semantics.
-C1R then remediates only the independently reproduced C1 findings on top of C2,
-C2R, C2P, and C2PR. Checkpoint C must approve the exact combined
-C1/C2/C2R/C2P/C2PR/C1R commit chain and final independently reproduced artifact hashes
+C1C corrects only the unreleased artifact persistence and hydration contract for already-modeled ordered mechanics and independent typed visibility, without changing Stage B canonical semantics. C1R then remediates only the independently reproduced residual C1 findings on top of C2,
+C2R, C2P, C2PR, and an independently accepted C1C. Checkpoint C must approve the exact combined
+C1/C2/C2R/C2P/C2PR/C1C/C1R commit chain and final independently reproduced artifact hashes
 before search, runtime, app, CLI, or UI consumers depend on the new artifact.
 Later search work may not amend canonical hydration under its own scope.
 

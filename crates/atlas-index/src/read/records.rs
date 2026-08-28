@@ -11,6 +11,7 @@ use crate::{FilterCompileError, RecordIdentityMatch, SearchCandidateRecord};
 
 mod candidates;
 mod canonical;
+pub(crate) mod children;
 mod content;
 mod identity;
 mod mechanics;
@@ -235,6 +236,8 @@ fn attach_record_details(
     records: &mut [AtlasRecord],
 ) -> Result<(), RecordLoadError> {
     let metrics = metrics::read_metrics(connection)?;
+    let activities = children::read_activities(connection)?;
+    let spellcasting_entries = children::read_spellcasting_entries(connection)?;
     let actor_data = mechanics::read_actor_mechanics(connection)?;
     let item_data = mechanics::read_item_mechanics(connection)?;
     let spell_data = mechanics::read_spell_mechanics(connection)?;
@@ -243,6 +246,9 @@ fn attach_record_details(
     for record in records {
         let key = record.identity.key.to_string();
         record.mechanics.metrics = metrics.get(&key).cloned().unwrap_or_default();
+        record.mechanics.activities = activities.get(&key).cloned().unwrap_or_default();
+        record.mechanics.spellcasting_entries =
+            spellcasting_entries.get(&key).cloned().unwrap_or_default();
         record.mechanics.document =
             document_mechanics_for_key(&key, &actor_data, &item_data, &spell_data);
         record
@@ -264,6 +270,8 @@ fn attach_record_details_by_key(
     }
 
     let metrics = metrics::read_metrics_by_keys(connection, keys)?;
+    let activities = children::read_activities_by_keys(connection, keys)?;
+    let spellcasting_entries = children::read_spellcasting_entries_by_keys(connection, keys)?;
     let actor_data = mechanics::read_actor_mechanics_by_keys(connection, keys)?;
     let item_data = mechanics::read_item_mechanics_by_keys(connection, keys)?;
     let spell_data = mechanics::read_spell_mechanics_by_keys(connection, keys)?;
@@ -272,6 +280,9 @@ fn attach_record_details_by_key(
     for record in records {
         let key = record.identity.key.to_string();
         record.mechanics.metrics = metrics.get(&key).cloned().unwrap_or_default();
+        record.mechanics.activities = activities.get(&key).cloned().unwrap_or_default();
+        record.mechanics.spellcasting_entries =
+            spellcasting_entries.get(&key).cloned().unwrap_or_default();
         record.mechanics.document =
             document_mechanics_for_key(&key, &actor_data, &item_data, &spell_data);
         record
