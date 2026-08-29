@@ -32,10 +32,6 @@ pub(crate) struct BuildArtifactValidationOutcome {
     pub(crate) artifact_sha256: String,
     #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
     pub(crate) manifest_stage_ms: u128,
-    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
-    pub(crate) validation_to_receipt_rejection_count: u64,
-    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
-    pub(crate) hard_link_alias_operation_count: u64,
 }
 
 pub(crate) fn build_artifact(
@@ -202,10 +198,6 @@ fn build_artifact_from_source_started(
         artifact_sha256,
         #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
         manifest_stage_ms,
-        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
-        validation_to_receipt_rejection_count: 0,
-        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
-        hard_link_alias_operation_count: 0,
     })
 }
 
