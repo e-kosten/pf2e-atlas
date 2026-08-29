@@ -3,27 +3,33 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::error::Error;
 use std::fmt::Debug;
+use std::fs;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use atlas_domain::RecordKey;
 use atlas_index::test_support::{
     RecordRoundTripDiagnosticError, RecordRoundTripPersistedProjectionRow,
     RecordRoundTripRecordRole, RecordRoundTripRetrievalDisposition,
     RecordRoundTripRetrievalRationale, record_round_trip_expected_retrieval_projection,
-    record_round_trip_persisted_retrieval_projection, write_bound_test_manifest,
+    record_round_trip_persisted_retrieval_projection,
 };
-use atlas_index::{IndexArtifactWriter, RecordReadIndex, SqliteIndexReader, SqliteIndexWriter};
+use atlas_index::{RecordReadIndex, SqliteIndexReader};
 use atlas_record::AtlasRecord;
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-use crate::index_build_input::index_build_input;
+use crate::build::{BuildArtifactValidationOutcome, build_artifact_from_source_for_validation};
+use crate::source::model::BuildArtifactOptions;
 use crate::source_pipeline;
 
 const SOURCE_ROOT_ENV: &str = "PF2E_SOURCE_ROOT";
-const ARTIFACT_PATH_ENV: &str = "ATLAS_RECORD_ROUND_TRIP_ARTIFACT";
+const RETAIN_OUTPUT_ENV: &str = "ATLAS_RECORD_ROUND_TRIP_RETAIN_OUTPUT";
+const EXPECTED_SOURCE_SIGNATURE: &str =
+    "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a";
+const EXPECTED_RECORD_COUNT: usize = 27_014;
 const FIELD_REGISTRY: [&str; 11] = [
     "AtlasRecord.identity",
     "AtlasRecord.classification",
@@ -43,6 +49,7 @@ const EXPECTED_SOURCE_INSTANCE_COUNT: usize = 911;
 const EXPECTED_DIRECT_ONLY_COUNT: usize = 20;
 const EXPECTED_INSPECTION_ONLY_COUNT: usize = 150;
 const CAPTURE_LIMIT_BYTES: usize = 1024 * 1024;
+static NEXT_TEMP_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -169,6 +176,10 @@ struct RecordRoundTripCounters {
     generation_after_count: usize,
     serialization_count: usize,
     process_capture_count: usize,
+    production_builder_count: usize,
+    publication_count: usize,
+    generation_bound_reader_count: usize,
+    performance_counter_projection_count: usize,
 }
 
 impl RecordRoundTripCounters {
@@ -295,6 +306,59 @@ impl RecordRoundTripPolicyCategoryCounts {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct C1oTimingEvidence {
+    write_ms: u128,
+    deep_validation_ms: u128,
+    writer_digest_ms: u128,
+    manifest_stage_ms: u128,
+    lock_wait_ms: u128,
+    recovery_ms: u128,
+    generation_materialization_ms: u128,
+    prior_pair_snapshot_ms: u128,
+    pair_install_ms: u128,
+    visible_pair_verification_ms: u128,
+    cleanup_ms: u128,
+    reader_acquisition_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct C1oCounterEvidence {
+    artifact_bytes: Option<u64>,
+    deep_validation_count: Option<u64>,
+    validation_handle_identity_check_count: Option<u64>,
+    validation_to_receipt_rejection_count: Option<u64>,
+    writer_digest_pass_count: Option<u64>,
+    writer_digest_bytes: Option<u64>,
+    receipt_issue_count: Option<u64>,
+    receipt_identity_check_count: Option<u64>,
+    receipt_reuse_count: Option<u64>,
+    receipt_invalidation_count: Option<u64>,
+    publication_sha_pass_count: Option<u64>,
+    publication_sha_bytes: Option<u64>,
+    generation_copy_count: Option<u64>,
+    generation_copy_bytes: Option<u64>,
+    generation_copy_verify_sha_pass_count: Option<u64>,
+    generation_distinct_identity_check_count: Option<u64>,
+    generation_alias_rejection_count: Option<u64>,
+    hard_link_alias_operation_count: Option<u64>,
+    reader_visible_sha_pass_count: Option<u64>,
+    reader_generation_sha_pass_count: Option<u64>,
+    recovery_sha_pass_count: Option<u64>,
+    unclassified_sha_pass_count: Option<u64>,
+    unclassified_copy_count: Option<u64>,
+    embedding_generation_count: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct C1oPerformanceEvidence {
+    timing: C1oTimingEvidence,
+    counters: C1oCounterEvidence,
+    artifact_sha256: String,
+    generation_sha256: String,
+    generation_bytes: u64,
+}
+
 #[test]
 #[ignore]
 fn record_key_aligned_round_trip() -> Result<(), Box<dyn Error>> {
@@ -328,6 +392,9 @@ struct RecordRoundTripSuccess {
     counters: RecordRoundTripCounters,
 }
 
+// The structured failure intentionally retains counters, mismatch details, and
+// evidence so a failed corpus run is independently diagnosable.
+#[allow(clippy::result_large_err)]
 fn run_record_key_aligned_round_trip(
     started: &Instant,
 ) -> Result<RecordRoundTripSuccess, RecordRoundTripFailure> {
@@ -342,15 +409,57 @@ fn run_record_key_aligned_round_trip(
             started,
         )
     })?;
-    counters.required_environment_count += 1;
-    let artifact_path = required_path(ARTIFACT_PATH_ENV).map_err(|message| {
+
+    let workspace = RecordRoundTripWorkspace::create().map_err(|error| {
         RecordRoundTripFailure::at(
-            RecordRoundTripStage::RequiredEnvironment,
-            message,
+            RecordRoundTripStage::ArtifactBuild,
+            format!("failed to create a fresh validation workspace: {error}"),
             &counters,
             started,
         )
     })?;
+    let artifact_path = workspace.artifact_path();
+
+    match run_record_key_aligned_round_trip_in_workspace(
+        started,
+        counters,
+        source_root,
+        artifact_path,
+    ) {
+        Ok(success) => {
+            workspace.finish_success().map_err(|error| {
+                RecordRoundTripFailure::at(
+                    RecordRoundTripStage::Serialization,
+                    format!("failed to clean the validation workspace: {error}"),
+                    &success.counters,
+                    started,
+                )
+            })?;
+            Ok(success)
+        }
+        Err(failure) => Err(failure),
+    }
+}
+
+// See `run_record_key_aligned_round_trip`.
+#[allow(clippy::result_large_err)]
+fn run_record_key_aligned_round_trip_in_workspace(
+    started: &Instant,
+    mut counters: RecordRoundTripCounters,
+    source_root: PathBuf,
+    artifact_path: PathBuf,
+) -> Result<RecordRoundTripSuccess, RecordRoundTripFailure> {
+    if artifact_path.exists() {
+        return Err(RecordRoundTripFailure::at(
+            RecordRoundTripStage::ArtifactBuild,
+            format!(
+                "compact artifact path already exists: {}",
+                artifact_path.display()
+            ),
+            &counters,
+            started,
+        ));
+    }
 
     counters.source_load_count += 1;
     let source = source_pipeline::load_foundry_source(&source_root, None).map_err(|error| {
@@ -361,9 +470,45 @@ fn run_record_key_aligned_round_trip(
             started,
         )
     })?;
+    if source.source_signature != EXPECTED_SOURCE_SIGNATURE {
+        return Err(RecordRoundTripFailure::at(
+            RecordRoundTripStage::SourceLoad,
+            format!(
+                "pinned source signature mismatch: expected {EXPECTED_SOURCE_SIGNATURE}, got {}",
+                source.source_signature
+            ),
+            &counters,
+            started,
+        ));
+    }
 
+    counters.no_embedding_artifact_build_count += 1;
+    counters.production_builder_count += 1;
+    let outcome = build_artifact_from_source_for_validation(
+        source,
+        BuildArtifactOptions {
+            source_root,
+            output_path: artifact_path.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: true,
+            embedding_batch_size: 32,
+        },
+    )
+    .map_err(|error| {
+        RecordRoundTripFailure::at(
+            RecordRoundTripStage::ArtifactBuild,
+            error.to_string(),
+            &counters,
+            started,
+        )
+    })?;
     counters.build_input_count += 1;
-    let input = index_build_input(source);
+    counters.manifest_write_count += 1;
+    counters.publication_count += 1;
+    counters.embedding_generation_count = outcome.report.generated_document_embedding_count;
+    let input = &outcome.index_input;
     let (expected_records, expected_duplicate_keys) = records_by_key(&input.records);
     if !expected_duplicate_keys.is_empty() {
         return Err(duplicate_failure(
@@ -382,42 +527,8 @@ fn run_record_key_aligned_round_trip(
             started,
         ));
     }
-    if artifact_path.exists() {
-        return Err(RecordRoundTripFailure::at(
-            RecordRoundTripStage::ArtifactBuild,
-            format!(
-                "compact artifact path already exists: {}",
-                artifact_path.display()
-            ),
-            &counters,
-            started,
-        ));
-    }
-    counters.no_embedding_artifact_build_count += 1;
-    IndexArtifactWriter::write(
-        &SqliteIndexWriter::new(artifact_path.clone()),
-        &input,
-        atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
-    )
-    .map_err(|error| {
-        RecordRoundTripFailure::at(
-            RecordRoundTripStage::ArtifactBuild,
-            error.to_string(),
-            &counters,
-            started,
-        )
-    })?;
-    counters.manifest_write_count += 1;
-    write_bound_test_manifest(&artifact_path).map_err(|error| {
-        RecordRoundTripFailure::at(
-            RecordRoundTripStage::ManifestWrite,
-            error.to_string(),
-            &counters,
-            started,
-        )
-    })?;
-
     counters.reader_open_count += 1;
+    counters.generation_bound_reader_count += 1;
     let reader = SqliteIndexReader::open_read_only(&artifact_path).map_err(|error| {
         RecordRoundTripFailure::at(
             RecordRoundTripStage::ReaderOpen,
@@ -440,6 +551,16 @@ fn run_record_key_aligned_round_trip(
         RecordRoundTripFailure::at(
             RecordRoundTripStage::GenerationBefore,
             error.to_string(),
+            &counters,
+            started,
+        )
+    })?;
+
+    counters.performance_counter_projection_count += 1;
+    let performance = c1o_performance_evidence(&outcome, &generation).map_err(|message| {
+        RecordRoundTripFailure::at(
+            RecordRoundTripStage::GenerationBefore,
+            message,
             &counters,
             started,
         )
@@ -593,7 +714,11 @@ fn run_record_key_aligned_round_trip(
         expected_key_hash == persisted_key_hash && expected_key_hash == hydrated_key_hash;
     let key_sets_equal =
         expected_keys == persisted_keys && expected_keys == hydrated_keys && key_hashes_equal;
+    let record_count_closure = expected_records.len() == EXPECTED_RECORD_COUNT
+        && persisted_projection.len() == EXPECTED_RECORD_COUNT
+        && hydrated_records.len() == EXPECTED_RECORD_COUNT;
     let records_equal = key_sets_equal
+        && record_count_closure
         && aligned_record_count == expected_records.len()
         && equal_record_count == expected_records.len()
         && unequal_record_count == 0
@@ -609,12 +734,26 @@ fn run_record_key_aligned_round_trip(
         && persisted_policy_categories.total() == EXPECTED_POLICY_TUPLE_COUNT
         && policy_difference_count == 0
         && expected_policy_hash == persisted_policy_hash;
-    let passed = key_sets_equal && records_equal && policy_closure_equal && mismatches.is_empty();
+    let passed = key_sets_equal
+        && record_count_closure
+        && records_equal
+        && policy_closure_equal
+        && mismatches.is_empty();
 
     mismatches.sort_by(|left, right| mismatch_sort_key(left).cmp(&mismatch_sort_key(right)));
     counters.serialization_count += 1;
     let evidence = json!({
         "generation": generation,
+        "performance": performance,
+        "build": {
+            "source_signature": outcome.report.source_signature,
+            "source_record_count": outcome.report.source_record_count,
+            "artifact_record_count": outcome.report.artifact_record_count,
+            "generated_record_count": outcome.report.generated_record_count,
+            "document_embedding_count": outcome.report.document_embedding_count,
+            "generated_document_embedding_count": outcome.report.generated_document_embedding_count,
+            "build_duration_ms": outcome.report.build_duration_ms,
+        },
         "duplicate_counts": {
             "source": expected_duplicate_keys.len(),
             "persisted": 0,
@@ -624,10 +763,12 @@ fn run_record_key_aligned_round_trip(
             "source_count": expected_records.len(),
             "persisted_count": persisted_projection.len(),
             "hydrated_count": hydrated_records.len(),
+            "required_count": EXPECTED_RECORD_COUNT,
             "source_sha256": expected_key_hash,
             "persisted_sha256": persisted_key_hash,
             "hydrated_sha256": hydrated_key_hash,
             "hashes_equal": key_hashes_equal,
+            "count_closure": record_count_closure,
             "equal": key_sets_equal,
         },
         "records": {
@@ -689,10 +830,363 @@ fn run_record_key_aligned_round_trip(
     })
 }
 
+struct RecordRoundTripWorkspace {
+    root: PathBuf,
+    retain_on_success: bool,
+    finished: bool,
+}
+
+impl RecordRoundTripWorkspace {
+    fn create() -> std::io::Result<Self> {
+        Self::create_with_retention(retain_output_requested())
+    }
+
+    fn create_with_retention(retain_on_success: bool) -> std::io::Result<Self> {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let sequence = NEXT_TEMP_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+        let root = env::temp_dir().join(format!(
+            "pf2e-atlas-record-round-trip-{}-{timestamp}-{sequence}",
+            std::process::id()
+        ));
+        fs::create_dir(&root)?;
+        Ok(Self {
+            root,
+            retain_on_success,
+            finished: false,
+        })
+    }
+
+    fn artifact_path(&self) -> PathBuf {
+        self.root.join("pf2e-atlas.sqlite")
+    }
+
+    fn finish_success(mut self) -> std::io::Result<()> {
+        if self.retain_on_success {
+            eprintln!(
+                "record round-trip output retained by {RETAIN_OUTPUT_ENV}: {}",
+                self.root.display()
+            );
+        } else {
+            fs::remove_dir_all(&self.root)?;
+        }
+        self.finished = true;
+        Ok(())
+    }
+}
+
+impl Drop for RecordRoundTripWorkspace {
+    fn drop(&mut self) {
+        if !self.finished {
+            eprintln!(
+                "record round-trip output retained after failure: {}",
+                self.root.display()
+            );
+        }
+    }
+}
+
+fn retain_output_requested() -> bool {
+    env::var(RETAIN_OUTPUT_ENV).is_ok_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes"
+        )
+    })
+}
+
+fn c1o_performance_evidence(
+    outcome: &BuildArtifactValidationOutcome,
+    generation: &Value,
+) -> Result<C1oPerformanceEvidence, String> {
+    let generation_sha256 = required_generation_string(generation, "trusted_sha256")?;
+    let generation_bytes = required_generation_u64(generation, "bytes")?;
+    let reader_acquisition_ms = required_generation_u64(generation, "reader_acquisition_ms")?;
+    let reader_visible_sha_pass_count =
+        required_generation_u64(generation, "reader_visible_sha_pass_count")?;
+    let reader_generation_sha_pass_count =
+        required_generation_u64(generation, "reader_generation_sha_pass_count")?;
+    let receipt = &outcome.receipt_telemetry;
+    let publication = &outcome.publication_telemetry;
+    let evidence = C1oPerformanceEvidence {
+        timing: C1oTimingEvidence {
+            write_ms: receipt.write_ms,
+            deep_validation_ms: receipt.deep_validation_ms,
+            writer_digest_ms: receipt.writer_digest_ms,
+            manifest_stage_ms: outcome.manifest_stage_ms,
+            lock_wait_ms: publication.lock_wait_ms,
+            recovery_ms: publication.recovery_ms,
+            generation_materialization_ms: publication.generation_materialization_ms,
+            prior_pair_snapshot_ms: publication.prior_pair_snapshot_ms,
+            pair_install_ms: publication.pair_install_ms,
+            visible_pair_verification_ms: publication.visible_pair_verification_ms,
+            cleanup_ms: publication.cleanup_ms,
+            reader_acquisition_ms,
+        },
+        counters: C1oCounterEvidence {
+            artifact_bytes: Some(receipt.artifact_bytes),
+            deep_validation_count: Some(receipt.deep_validation_count),
+            validation_handle_identity_check_count: Some(
+                receipt.validation_handle_identity_check_count,
+            ),
+            validation_to_receipt_rejection_count: Some(
+                outcome.validation_to_receipt_rejection_count,
+            ),
+            writer_digest_pass_count: Some(receipt.writer_digest_pass_count),
+            writer_digest_bytes: Some(receipt.writer_digest_bytes),
+            receipt_issue_count: Some(receipt.receipt_issue_count),
+            receipt_identity_check_count: Some(receipt.receipt_identity_check_count),
+            receipt_reuse_count: Some(publication.receipt_reuse_count),
+            receipt_invalidation_count: Some(publication.receipt_invalidation_count),
+            publication_sha_pass_count: Some(publication.publication_sha_pass_count),
+            publication_sha_bytes: Some(publication.publication_sha_bytes),
+            generation_copy_count: Some(publication.generation_copy_count),
+            generation_copy_bytes: Some(publication.generation_copy_bytes),
+            generation_copy_verify_sha_pass_count: Some(
+                publication.generation_copy_verify_sha_pass_count,
+            ),
+            generation_distinct_identity_check_count: Some(
+                publication.generation_distinct_identity_check_count,
+            ),
+            generation_alias_rejection_count: Some(publication.generation_alias_rejection_count),
+            hard_link_alias_operation_count: Some(outcome.hard_link_alias_operation_count),
+            reader_visible_sha_pass_count: Some(reader_visible_sha_pass_count),
+            reader_generation_sha_pass_count: Some(reader_generation_sha_pass_count),
+            recovery_sha_pass_count: Some(publication.recovery_sha_pass_count),
+            unclassified_sha_pass_count: Some(publication.unclassified_sha_pass_count),
+            unclassified_copy_count: Some(publication.unclassified_copy_count),
+            embedding_generation_count: Some(
+                u64::try_from(outcome.report.generated_document_embedding_count)
+                    .map_err(|error| error.to_string())?,
+            ),
+        },
+        artifact_sha256: outcome.artifact_sha256.clone(),
+        generation_sha256,
+        generation_bytes,
+    };
+    let violations = c1o_performance_violations(&evidence);
+    if violations.is_empty() {
+        Ok(evidence)
+    } else {
+        Err(format!(
+            "C1O performance acceptance failed: {}",
+            violations.join("; ")
+        ))
+    }
+}
+
+fn required_generation_u64(generation: &Value, key: &str) -> Result<u64, String> {
+    generation
+        .get(key)
+        .and_then(Value::as_u64)
+        .ok_or_else(|| format!("verified generation evidence is missing integer `{key}`"))
+}
+
+fn required_generation_string(generation: &Value, key: &str) -> Result<String, String> {
+    generation
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| format!("verified generation evidence is missing string `{key}`"))
+}
+
+fn c1o_performance_violations(evidence: &C1oPerformanceEvidence) -> Vec<String> {
+    let counters = &evidence.counters;
+    let mut violations = Vec::new();
+    let artifact_bytes = match counters.artifact_bytes {
+        Some(bytes) if bytes > 0 => bytes,
+        actual => {
+            violations.push(format!(
+                "artifact_bytes expected a positive value, got {actual:?}"
+            ));
+            0
+        }
+    };
+    expect_counter(
+        &mut violations,
+        "deep_validation_count",
+        counters.deep_validation_count,
+        1,
+    );
+    expect_counter_at_least(
+        &mut violations,
+        "validation_handle_identity_check_count",
+        counters.validation_handle_identity_check_count,
+        4,
+    );
+    expect_counter(
+        &mut violations,
+        "validation_to_receipt_rejection_count",
+        counters.validation_to_receipt_rejection_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "writer_digest_pass_count",
+        counters.writer_digest_pass_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "writer_digest_bytes",
+        counters.writer_digest_bytes,
+        artifact_bytes,
+    );
+    expect_counter(
+        &mut violations,
+        "receipt_issue_count",
+        counters.receipt_issue_count,
+        1,
+    );
+    expect_counter_at_least(
+        &mut violations,
+        "receipt_identity_check_count",
+        counters.receipt_identity_check_count,
+        4,
+    );
+    expect_counter(
+        &mut violations,
+        "receipt_reuse_count",
+        counters.receipt_reuse_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "receipt_invalidation_count",
+        counters.receipt_invalidation_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "publication_sha_pass_count",
+        counters.publication_sha_pass_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "publication_sha_bytes",
+        counters.publication_sha_bytes,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "generation_copy_count",
+        counters.generation_copy_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "generation_copy_bytes",
+        counters.generation_copy_bytes,
+        artifact_bytes,
+    );
+    expect_counter(
+        &mut violations,
+        "generation_copy_verify_sha_pass_count",
+        counters.generation_copy_verify_sha_pass_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "generation_distinct_identity_check_count",
+        counters.generation_distinct_identity_check_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "generation_alias_rejection_count",
+        counters.generation_alias_rejection_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "hard_link_alias_operation_count",
+        counters.hard_link_alias_operation_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "reader_visible_sha_pass_count",
+        counters.reader_visible_sha_pass_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "reader_generation_sha_pass_count",
+        counters.reader_generation_sha_pass_count,
+        1,
+    );
+    expect_counter(
+        &mut violations,
+        "recovery_sha_pass_count",
+        counters.recovery_sha_pass_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "unclassified_sha_pass_count",
+        counters.unclassified_sha_pass_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "unclassified_copy_count",
+        counters.unclassified_copy_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "embedding_generation_count",
+        counters.embedding_generation_count,
+        0,
+    );
+    if evidence.artifact_sha256 != evidence.generation_sha256 {
+        violations.push(format!(
+            "generation_sha256 expected {}, got {}",
+            evidence.artifact_sha256, evidence.generation_sha256
+        ));
+    }
+    if evidence.generation_bytes != artifact_bytes {
+        violations.push(format!(
+            "generation_bytes expected {artifact_bytes}, got {}",
+            evidence.generation_bytes
+        ));
+    }
+    violations
+}
+
+fn expect_counter(violations: &mut Vec<String>, name: &str, actual: Option<u64>, expected: u64) {
+    if actual != Some(expected) {
+        violations.push(format!("{name} expected {expected}, got {actual:?}"));
+    }
+}
+
+fn expect_counter_at_least(
+    violations: &mut Vec<String>,
+    name: &str,
+    actual: Option<u64>,
+    minimum: u64,
+) {
+    if actual.is_none_or(|actual| actual < minimum) {
+        violations.push(format!(
+            "{name} expected at least {minimum}, got {actual:?}"
+        ));
+    }
+}
+
 fn required_path(name: &'static str) -> Result<PathBuf, String> {
-    env::var_os(name)
+    let path = env::var_os(name)
         .map(PathBuf::from)
-        .ok_or_else(|| format!("required environment variable `{name}` is not set"))
+        .ok_or_else(|| format!("required environment variable `{name}` is not set"))?;
+    if !path.is_dir() {
+        return Err(format!(
+            "required environment variable `{name}` does not name a directory: {}",
+            path.display()
+        ));
+    }
+    Ok(path)
 }
 
 type RecordMap<'a> = BTreeMap<RecordKey, &'a AtlasRecord>;
@@ -703,10 +1197,13 @@ fn records_by_key(records: &[AtlasRecord]) -> (RecordMap<'_>, DuplicateKeyCounts
     let mut duplicate_keys = BTreeMap::new();
     for record in records {
         let record_key = record.identity.key.clone();
-        if by_key.contains_key(&record_key) {
-            *duplicate_keys.entry(record_key).or_insert(1) += 1;
-        } else {
-            by_key.insert(record_key, record);
+        match by_key.entry(record_key) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(record);
+            }
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                *duplicate_keys.entry(entry.key().clone()).or_insert(1) += 1;
+            }
         }
     }
     (by_key, duplicate_keys)
@@ -754,7 +1251,7 @@ fn duplicate_failure(
 }
 
 fn projection_failure_detail(side: &str, error: &RecordRoundTripDiagnosticError) -> Option<Value> {
-    let mismatch = match &error {
+    match &error {
         RecordRoundTripDiagnosticError::DuplicateRecordKey { record_key } => Some(json!({
             "kind": "duplicate_key",
             "record_key": record_key,
@@ -823,8 +1320,7 @@ fn projection_failure_detail(side: &str, error: &RecordRoundTripDiagnosticError)
         }
         RecordRoundTripDiagnosticError::PersistedProjectionQuery { .. }
         | RecordRoundTripDiagnosticError::InvalidRecordKey { .. } => None,
-    };
-    mismatch
+    }
 }
 
 fn projection_failure(
@@ -870,14 +1366,10 @@ fn emit_failure_rows(failure: &RecordRoundTripFailure) {
             }
         }
         Err(_) => {
-            println!(
-                "{}",
-                r#"{"kind":"record_round_trip_failure","stage":"serialization","error":{"kind":"serialization","message":"failure envelope serialization failed"},"counters":{},"timing":{"elapsed_ms":0}}"#
-            );
-            println!(
-                "{}",
-                r#"{"kind":"record_round_trip_summary","status":"fail","stage":"serialization","error":{"kind":"serialization","message":"failure envelope serialization failed"},"counters":{},"timing":{"elapsed_ms":0},"evidence":{},"success_row_count":0,"mismatch_row_count":0,"error_row_count":1,"summary_row_count":1,"candidate_owner":null}"#
-            );
+            let failure = r#"{"kind":"record_round_trip_failure","stage":"serialization","error":{"kind":"serialization","message":"failure envelope serialization failed"},"counters":{},"timing":{"elapsed_ms":0}}"#;
+            let summary = r#"{"kind":"record_round_trip_summary","status":"fail","stage":"serialization","error":{"kind":"serialization","message":"failure envelope serialization failed"},"counters":{},"timing":{"elapsed_ms":0},"evidence":{},"success_row_count":0,"mismatch_row_count":0,"error_row_count":1,"summary_row_count":1,"candidate_owner":null}"#;
+            println!("{failure}");
+            println!("{summary}");
         }
     }
 }
@@ -969,13 +1461,66 @@ fn capture_stream(stream: &[u8]) -> RecordRoundTripStreamCapture {
     }
 }
 
+fn synthetic_performance_evidence() -> C1oPerformanceEvidence {
+    C1oPerformanceEvidence {
+        timing: C1oTimingEvidence {
+            write_ms: 1,
+            deep_validation_ms: 2,
+            writer_digest_ms: 3,
+            manifest_stage_ms: 4,
+            lock_wait_ms: 5,
+            recovery_ms: 6,
+            generation_materialization_ms: 7,
+            prior_pair_snapshot_ms: 8,
+            pair_install_ms: 9,
+            visible_pair_verification_ms: 10,
+            cleanup_ms: 11,
+            reader_acquisition_ms: 12,
+        },
+        counters: C1oCounterEvidence {
+            artifact_bytes: Some(4096),
+            deep_validation_count: Some(1),
+            validation_handle_identity_check_count: Some(4),
+            validation_to_receipt_rejection_count: Some(0),
+            writer_digest_pass_count: Some(1),
+            writer_digest_bytes: Some(4096),
+            receipt_issue_count: Some(1),
+            receipt_identity_check_count: Some(4),
+            receipt_reuse_count: Some(1),
+            receipt_invalidation_count: Some(0),
+            publication_sha_pass_count: Some(0),
+            publication_sha_bytes: Some(0),
+            generation_copy_count: Some(1),
+            generation_copy_bytes: Some(4096),
+            generation_copy_verify_sha_pass_count: Some(1),
+            generation_distinct_identity_check_count: Some(1),
+            generation_alias_rejection_count: Some(0),
+            hard_link_alias_operation_count: Some(0),
+            reader_visible_sha_pass_count: Some(1),
+            reader_generation_sha_pass_count: Some(1),
+            recovery_sha_pass_count: Some(0),
+            unclassified_sha_pass_count: Some(0),
+            unclassified_copy_count: Some(0),
+            embedding_generation_count: Some(0),
+        },
+        artifact_sha256: "a".repeat(64),
+        generation_sha256: "a".repeat(64),
+        generation_bytes: 4096,
+    }
+}
+
 #[test]
 fn synthetic_success() {
-    assert_smoke_environment_is_unset();
     let mut counters = RecordRoundTripCounters::default();
     for stage in RecordRoundTripStage::ALL {
         counters.record_stage(stage);
     }
+    counters.production_builder_count = 1;
+    counters.publication_count = 1;
+    counters.generation_bound_reader_count = 1;
+    counters.performance_counter_projection_count = 1;
+    let performance = synthetic_performance_evidence();
+    assert!(c1o_performance_violations(&performance).is_empty());
     let summary = json!({
         "kind": "record_round_trip_summary",
         "status": "pass",
@@ -986,6 +1531,7 @@ fn synthetic_success() {
             "key_sets": { "equal": true },
             "records": { "equal": true },
             "policy": { "equal": true },
+            "performance": performance,
         },
         "success_row_count": 0,
         "mismatch_row_count": 0,
@@ -1000,11 +1546,95 @@ fn synthetic_success() {
     assert_eq!(persisted["summary_row_count"], 1);
     assert_eq!(persisted["mismatch_row_count"], 0);
     assert_eq!(persisted["candidate_owner"], "atlas-ingest-validation");
+    assert_eq!(
+        persisted["evidence"]["performance"]["counters"]["generation_copy_count"],
+        1
+    );
+}
+
+#[test]
+fn temporary_workspaces_are_unique_and_cleaned_after_success() {
+    let first = RecordRoundTripWorkspace::create_with_retention(false)
+        .expect("first temporary workspace is created");
+    let second = RecordRoundTripWorkspace::create_with_retention(false)
+        .expect("second temporary workspace is created");
+    let first_root = first.root.clone();
+    let second_root = second.root.clone();
+
+    assert_ne!(first_root, second_root);
+    assert!(first_root.is_dir());
+    assert!(second_root.is_dir());
+
+    first
+        .finish_success()
+        .expect("first temporary workspace is cleaned");
+    second
+        .finish_success()
+        .expect("second temporary workspace is cleaned");
+    assert!(!first_root.exists());
+    assert!(!second_root.exists());
+}
+
+#[test]
+fn synthetic_performance_counter_failures_are_closed() {
+    type PerformanceMutation = (&'static str, fn(&mut C1oPerformanceEvidence));
+    let cases: [PerformanceMutation; 13] = [
+        ("writer_digest_pass_count", |evidence| {
+            evidence.counters.writer_digest_pass_count = None;
+        }),
+        ("writer_digest_bytes", |evidence| {
+            evidence.counters.writer_digest_bytes = Some(1);
+        }),
+        ("receipt_issue_count", |evidence| {
+            evidence.counters.receipt_issue_count = None;
+        }),
+        ("receipt_reuse_count", |evidence| {
+            evidence.counters.receipt_reuse_count = Some(0);
+        }),
+        ("publication_sha_bytes", |evidence| {
+            evidence.counters.publication_sha_bytes = None;
+        }),
+        ("publication_sha_pass_count", |evidence| {
+            evidence.counters.publication_sha_pass_count = Some(1);
+        }),
+        ("generation_copy_count", |evidence| {
+            evidence.counters.generation_copy_count = None;
+        }),
+        ("generation_copy_bytes", |evidence| {
+            evidence.counters.generation_copy_bytes = Some(1);
+        }),
+        ("reader_visible_sha_pass_count", |evidence| {
+            evidence.counters.reader_visible_sha_pass_count = None;
+        }),
+        ("reader_generation_sha_pass_count", |evidence| {
+            evidence.counters.reader_generation_sha_pass_count = Some(0);
+        }),
+        ("hard_link_alias_operation_count", |evidence| {
+            evidence.counters.hard_link_alias_operation_count = Some(1);
+        }),
+        ("unclassified_sha_pass_count", |evidence| {
+            evidence.counters.unclassified_sha_pass_count = Some(1);
+        }),
+        ("unclassified_copy_count", |evidence| {
+            evidence.counters.unclassified_copy_count = Some(1);
+        }),
+    ];
+
+    for (expected_violation, mutate) in cases {
+        let mut evidence = synthetic_performance_evidence();
+        mutate(&mut evidence);
+        let violations = c1o_performance_violations(&evidence);
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.contains(expected_violation)),
+            "missing {expected_violation} violation in {violations:?}"
+        );
+    }
 }
 
 #[test]
 fn synthetic_failure_stages() {
-    assert_smoke_environment_is_unset();
     for stage in RecordRoundTripStage::ALL {
         let mut counters = RecordRoundTripCounters::default();
         counters.record_stage(stage);
@@ -1035,7 +1665,6 @@ fn synthetic_failure_stages() {
 
 #[test]
 fn synthetic_error_persistence() {
-    assert_smoke_environment_is_unset();
     let mut counters = RecordRoundTripCounters::default();
     counters.record_stage(RecordRoundTripStage::SourceLoad);
     let failure = RecordRoundTripFailure::with_elapsed(
@@ -1082,15 +1711,6 @@ fn synthetic_error_persistence() {
         truncated.disposition,
         RecordRoundTripCaptureDisposition::Truncated
     );
-}
-
-fn assert_smoke_environment_is_unset() {
-    for variable in [SOURCE_ROOT_ENV, ARTIFACT_PATH_ENV] {
-        assert!(
-            env::var_os(variable).is_none(),
-            "synthetic smoke requires `{variable}` to be unset"
-        );
-    }
 }
 
 fn push_key_set_differences(
