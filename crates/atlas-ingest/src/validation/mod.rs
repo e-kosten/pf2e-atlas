@@ -1,7 +1,7 @@
 //! Private validation-pipeline state. Nothing in this module is a product
 //! artifact, runtime input, fallback, or public serialization contract.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,9 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-use crate::artifact_manifest::ARTIFACT_MANIFEST_VERSION;
+use crate::artifact_manifest::{
+    ARTIFACT_MANIFEST_VERSION, adjacent_artifact_manifest_path, read_artifact_manifest,
+};
 use crate::audit::{SourcePathAuditOptions, SourcePathAuditReport, audit_loaded_source};
 use crate::build::build_artifact_from_source;
 use crate::error::IngestError;
@@ -90,6 +92,16 @@ struct ArtifactValidationTuple {
     artifact_contract_version: String,
     artifact_schema_version: String,
     embedding: ValidationEmbeddingIdentity,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct PersistedArtifactPairEvidence {
+    artifact_path: PathBuf,
+    manifest_path: PathBuf,
+    lock_path: PathBuf,
+    artifact_sha256: String,
+    artifact_bytes: u64,
+    document_embedding_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -712,6 +724,102 @@ pub fn run_exhaustive_validation(
     Ok(report)
 }
 
+fn validation_artifact_outputs(artifacts: &Path) -> BTreeMap<&'static str, PathBuf> {
+    BTreeMap::from([
+        (
+            "no_embeddings",
+            artifacts.join("no_embeddings").join("index.sqlite"),
+        ),
+        (
+            "with_embeddings",
+            artifacts.join("with_embeddings").join("index.sqlite"),
+        ),
+    ])
+}
+
+fn adjacent_artifact_lock_path(artifact: &Path) -> PathBuf {
+    let manifest = adjacent_artifact_manifest_path(artifact);
+    let mut lock = manifest.as_os_str().to_os_string();
+    lock.push(".pair.lock");
+    PathBuf::from(lock)
+}
+
+fn require_distinct_artifact_pair_namespaces(
+    outputs: &BTreeMap<&str, PathBuf>,
+) -> Result<(), IngestError> {
+    let mut parents = BTreeSet::new();
+    let mut manifests = BTreeSet::new();
+    let mut locks = BTreeSet::new();
+    for (mode, artifact) in outputs {
+        let parent = artifact.parent().unwrap_or_else(|| Path::new("."));
+        let manifest = adjacent_artifact_manifest_path(artifact);
+        let lock = adjacent_artifact_lock_path(artifact);
+        if !parents.insert(parent.to_path_buf())
+            || !manifests.insert(manifest)
+            || !locks.insert(lock)
+        {
+            return Err(validation_error(format!(
+                "artifact mode `{mode}` does not have a distinct publication pair namespace"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn persisted_artifact_pair_evidence(
+    stage: &Path,
+    artifact: &Path,
+    trusted_sha256: &str,
+    expected_bytes: u64,
+    expected_document_embedding_count: usize,
+) -> Result<PersistedArtifactPairEvidence, IngestError> {
+    let manifest_path = adjacent_artifact_manifest_path(artifact);
+    let lock_path = adjacent_artifact_lock_path(artifact);
+    let artifact_bytes = fs::metadata(artifact)
+        .map_err(io_error("read retained validation artifact size"))?
+        .len();
+    if artifact_bytes != expected_bytes {
+        return Err(validation_error(format!(
+            "retained artifact size changed: expected {expected_bytes}, found {artifact_bytes}"
+        )));
+    }
+    let manifest = read_artifact_manifest(&manifest_path)?;
+    if manifest.build.artifact_sha256 != trusted_sha256 {
+        return Err(validation_error(format!(
+            "retained artifact manifest cross-binding: expected SHA-256 {trusted_sha256}, found {}",
+            manifest.build.artifact_sha256
+        )));
+    }
+    if manifest.build.document_embedding_count != expected_document_embedding_count {
+        return Err(validation_error(format!(
+            "retained artifact manifest embedding count changed: expected {expected_document_embedding_count}, found {}",
+            manifest.build.document_embedding_count
+        )));
+    }
+    if !lock_path.is_file() {
+        return Err(validation_error(format!(
+            "retained artifact pair lock is missing: {}",
+            lock_path.display()
+        )));
+    }
+
+    let relative = |path: &Path| {
+        path.strip_prefix(stage)
+            .map(Path::to_path_buf)
+            .map_err(|error| {
+                validation_error(format!("artifact pair path escaped snapshot: {error}"))
+            })
+    };
+    Ok(PersistedArtifactPairEvidence {
+        artifact_path: relative(artifact)?,
+        manifest_path: relative(&manifest_path)?,
+        lock_path: relative(&lock_path)?,
+        artifact_sha256: trusted_sha256.to_string(),
+        artifact_bytes,
+        document_embedding_count: manifest.build.document_embedding_count,
+    })
+}
+
 fn build_snapshot(
     options: &ExhaustiveValidationOptions,
     stage: &Path,
@@ -809,6 +917,8 @@ fn build_snapshot(
 
     let artifacts = stage.join("artifacts");
     fs::create_dir(&artifacts).map_err(io_error("create validation artifact directory"))?;
+    let artifact_outputs = validation_artifact_outputs(&artifacts);
+    require_distinct_artifact_pair_namespaces(&artifact_outputs)?;
     let mut artifact_reports = BTreeMap::new();
     for (mode, cache) in [
         ("no_embeddings", None),
@@ -820,7 +930,16 @@ fn build_snapshot(
         journal.progress(stage, mode, "started")?;
         let phase = OperationClock::start();
         let phase_started = Instant::now();
-        let output = artifacts.join(format!("{mode}.sqlite"));
+        let output = artifact_outputs
+            .get(mode)
+            .cloned()
+            .ok_or_else(|| validation_error(format!("missing artifact output for {mode}")))?;
+        fs::create_dir(
+            output
+                .parent()
+                .ok_or_else(|| validation_error(format!("missing artifact parent for {mode}")))?,
+        )
+        .map_err(io_error("create validation artifact mode directory"))?;
         journal.progress(stage, &format!("{mode}.build_write_publish"), "started")?;
         let build_clock = OperationClock::start();
         let build = build_artifact_from_source(
@@ -882,7 +1001,10 @@ fn build_snapshot(
             .as_str()
             .ok_or_else(|| validation_error("verified generation evidence has no trusted SHA-256"))?
             .to_string();
-        let visible_relative = PathBuf::from(format!("artifacts/{mode}.sqlite"));
+        let visible_relative = output
+            .strip_prefix(stage)
+            .map_err(|error| validation_error(format!("artifact path escaped snapshot: {error}")))?
+            .to_path_buf();
         let generation_path = Path::new(
             generation["generation_path"]
                 .as_str()
@@ -896,6 +1018,13 @@ fn build_snapshot(
             .to_path_buf();
         trusted_artifact_digests.insert(visible_relative.clone(), trusted_sha256.clone());
         trusted_artifact_digests.insert(generation_relative.clone(), trusted_sha256.clone());
+        let pair_evidence = persisted_artifact_pair_evidence(
+            stage,
+            &output,
+            &trusted_sha256,
+            artifact_bytes,
+            build.document_embedding_count,
+        )?;
         journal.record_artifact_identity(
             mode,
             &visible_relative,
@@ -1101,6 +1230,7 @@ fn build_snapshot(
                 "deep_validation": deep,
                 "verified_generation": generation,
                 "verified_handle_tuple": handle_tuple,
+                "artifact_pair": pair_evidence,
                 "trusted_snapshot_artifact_paths": [visible_relative, generation_relative],
                 "phase_seconds": phase_seconds,
                 "reader_work_seconds": reader_work_seconds,
@@ -2432,6 +2562,49 @@ mod tests {
         fs::rename(stage, target).map_err(io_error("publish fixture"))
     }
 
+    fn write_artifact_pair_fixture(
+        stage: &Path,
+        artifact: &Path,
+        bytes: &[u8],
+        document_embedding_count: usize,
+    ) -> PersistedArtifactPairEvidence {
+        fs::create_dir_all(artifact.parent().expect("artifact parent"))
+            .expect("create artifact parent");
+        fs::write(artifact, bytes).expect("write artifact fixture");
+        let artifact_sha256 = digest_file(artifact).expect("digest artifact fixture");
+        write_json(
+            adjacent_artifact_manifest_path(artifact),
+            &json!({
+                "manifest_version": ARTIFACT_MANIFEST_VERSION,
+                "artifact_contract_version": ARTIFACT_CONTRACT_VERSION,
+                "schema_version": ARTIFACT_SCHEMA_VERSION,
+                "source": {
+                    "kind": "foundry-pf2e",
+                    "root": "/fixture/source",
+                    "signature": "fixture-source-signature",
+                    "record_count": 1
+                },
+                "build": {
+                    "artifact_sha256": artifact_sha256,
+                    "artifact_record_count": 1,
+                    "generated_record_count": 0,
+                    "document_embedding_count": document_embedding_count,
+                    "embedding_model": "BAAI/bge-small-en-v1.5"
+                }
+            }),
+        )
+        .expect("write artifact manifest fixture");
+        fs::write(adjacent_artifact_lock_path(artifact), b"").expect("write pair lock fixture");
+        persisted_artifact_pair_evidence(
+            stage,
+            artifact,
+            &artifact_sha256,
+            bytes.len() as u64,
+            document_embedding_count,
+        )
+        .expect("inspect matching artifact pair fixture")
+    }
+
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct KeyAlignedFixture {
         key: &'static str,
@@ -2478,6 +2651,111 @@ mod tests {
         assert!(wrong.contains("record `b` differs"));
         assert!(wrong.contains("expected_sha256="));
         assert!(wrong.contains("actual_sha256="));
+    }
+
+    #[test]
+    fn exhaustive_artifact_variants_retain_distinct_matching_pairs() {
+        let stage = temp_path("artifact-pair-layout");
+        let outputs = validation_artifact_outputs(&stage.join("artifacts"));
+        require_distinct_artifact_pair_namespaces(&outputs)
+            .expect("variant outputs have distinct pair namespaces");
+
+        let no_embeddings = write_artifact_pair_fixture(
+            &stage,
+            &outputs["no_embeddings"],
+            b"no-embedding artifact",
+            0,
+        );
+        let with_embeddings = write_artifact_pair_fixture(
+            &stage,
+            &outputs["with_embeddings"],
+            b"with-embedding artifact",
+            7,
+        );
+
+        assert_eq!(
+            no_embeddings.artifact_path,
+            PathBuf::from("artifacts/no_embeddings/index.sqlite")
+        );
+        assert_eq!(
+            no_embeddings.manifest_path,
+            PathBuf::from("artifacts/no_embeddings/manifest.json")
+        );
+        assert_eq!(
+            no_embeddings.lock_path,
+            PathBuf::from("artifacts/no_embeddings/manifest.json.pair.lock")
+        );
+        assert_eq!(no_embeddings.artifact_bytes, 21);
+        assert_eq!(no_embeddings.document_embedding_count, 0);
+        assert_eq!(
+            with_embeddings.artifact_path,
+            PathBuf::from("artifacts/with_embeddings/index.sqlite")
+        );
+        assert_eq!(
+            with_embeddings.manifest_path,
+            PathBuf::from("artifacts/with_embeddings/manifest.json")
+        );
+        assert_eq!(
+            with_embeddings.lock_path,
+            PathBuf::from("artifacts/with_embeddings/manifest.json.pair.lock")
+        );
+        assert_eq!(with_embeddings.artifact_bytes, 23);
+        assert_eq!(with_embeddings.document_embedding_count, 7);
+        assert_ne!(
+            no_embeddings.artifact_sha256,
+            with_embeddings.artifact_sha256
+        );
+        let _ = fs::remove_dir_all(stage);
+    }
+
+    #[test]
+    fn exhaustive_artifact_variants_reject_shared_parent_overwrite_layout() {
+        let artifacts = temp_path("artifact-pair-overwrite");
+        let outputs = BTreeMap::from([
+            ("no_embeddings", artifacts.join("no_embeddings.sqlite")),
+            ("with_embeddings", artifacts.join("with_embeddings.sqlite")),
+        ]);
+        let error = require_distinct_artifact_pair_namespaces(&outputs)
+            .expect_err("one parent would overwrite the adjacent manifest and lock namespace");
+        assert!(
+            error
+                .to_string()
+                .contains("does not have a distinct publication pair namespace")
+        );
+    }
+
+    #[test]
+    fn exhaustive_artifact_variants_reject_cross_bound_manifest() {
+        let stage = temp_path("artifact-pair-cross-binding");
+        let outputs = validation_artifact_outputs(&stage.join("artifacts"));
+        let no_embeddings = write_artifact_pair_fixture(
+            &stage,
+            &outputs["no_embeddings"],
+            b"no-embedding artifact",
+            0,
+        );
+        let with_embeddings = write_artifact_pair_fixture(
+            &stage,
+            &outputs["with_embeddings"],
+            b"with-embedding artifact",
+            7,
+        );
+        fs::copy(
+            stage.join(&no_embeddings.manifest_path),
+            stage.join(&with_embeddings.manifest_path),
+        )
+        .expect("overwrite with the other variant manifest");
+
+        let error = persisted_artifact_pair_evidence(
+            &stage,
+            &outputs["with_embeddings"],
+            &with_embeddings.artifact_sha256,
+            with_embeddings.artifact_bytes,
+            with_embeddings.document_embedding_count,
+        )
+        .expect_err("a manifest from the other variant must fail closed");
+        assert!(error.to_string().contains("manifest cross-binding"));
+        let _ = fs::remove_dir_all(stage);
     }
 
     #[test]
