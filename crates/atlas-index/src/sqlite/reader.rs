@@ -1,7 +1,7 @@
 use std::cell::{RefCell, RefMut};
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
+use std::time::{Instant, UNIX_EPOCH};
 
 use diesel::connection::SimpleConnection;
 use diesel::{Connection as DieselConnection, SqliteConnection};
@@ -28,6 +28,9 @@ pub struct SqliteIndexReader {
     path: PathBuf,
     _verified_artifact_sha256: Option<String>,
     verified_generation: Option<VerifiedArtifactGenerationIdentity>,
+    reader_acquisition_ms: u128,
+    reader_visible_sha_pass_count: u64,
+    reader_generation_sha_pass_count: u64,
     diesel_connection: RefCell<SqliteConnection>,
     validation_connection: RefCell<Connection>,
     _artifact_file: File,
@@ -45,6 +48,7 @@ impl SqliteIndexReader {
         path: &Path,
         after_verification: impl FnOnce(),
     ) -> Result<Self, IndexValidationError> {
+        let acquisition_started = Instant::now();
         let path = path.to_path_buf();
         let manifest_path = adjacent_manifest_path(&path);
         let pair_lock = PairLock::shared(&manifest_path)?;
@@ -65,6 +69,9 @@ impl SqliteIndexReader {
             path,
             _verified_artifact_sha256: Some(verified.sha256),
             verified_generation: Some(verified_generation),
+            reader_acquisition_ms: acquisition_started.elapsed().as_millis(),
+            reader_visible_sha_pass_count: 1,
+            reader_generation_sha_pass_count: 1,
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: generation.file,
@@ -85,6 +92,9 @@ impl SqliteIndexReader {
             path,
             _verified_artifact_sha256: None,
             verified_generation: None,
+            reader_acquisition_ms: 0,
+            reader_visible_sha_pass_count: 0,
+            reader_generation_sha_pass_count: 0,
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: artifact_file,
@@ -171,6 +181,9 @@ impl SqliteIndexReader {
             "file_identity": identity.file_identity,
             "bytes": identity.bytes,
             "trusted_sha256": identity.trusted_sha256,
+            "reader_acquisition_ms": self.reader_acquisition_ms,
+            "reader_visible_sha_pass_count": self.reader_visible_sha_pass_count,
+            "reader_generation_sha_pass_count": self.reader_generation_sha_pass_count,
         }))
     }
 
@@ -210,13 +223,20 @@ fn file_identity(metadata: &std::fs::Metadata) -> String {
     format!("dev:{}:ino:{}", metadata.dev(), metadata.ino())
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
 fn file_identity(metadata: &std::fs::Metadata) -> String {
+    use std::os::windows::fs::MetadataExt;
+
     format!(
-        "bytes:{}:modified:{:?}",
-        metadata.len(),
-        metadata.modified()
+        "volume:{}:file-index:{}",
+        metadata.volume_serial_number().unwrap_or_default(),
+        metadata.file_index().unwrap_or_default()
     )
+}
+
+#[cfg(not(any(unix, windows)))]
+fn file_identity(metadata: &std::fs::Metadata) -> String {
+    format!("unsupported:bytes:{}", metadata.len())
 }
 
 fn modified_unix_nanos(metadata: &std::fs::Metadata) -> Option<u128> {
@@ -366,9 +386,14 @@ mod tests {
                     std::fs::TryLockError::WouldBlock
                 ));
                 attempted_tx.send(()).unwrap();
+                let receipt = crate::ValidatedArtifactReceipt::issue_test(
+                    &replacement_artifact,
+                    &target_artifact,
+                )
+                .unwrap();
                 published_tx
                     .send(crate::publish_artifact_pair(
-                        &replacement_artifact,
+                        receipt,
                         &replacement_manifest,
                         &target_artifact,
                         &target_manifest,

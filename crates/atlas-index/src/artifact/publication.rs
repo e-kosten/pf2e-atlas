@@ -1,20 +1,45 @@
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use crate::IndexWriteError;
 use crate::artifact::pair::{
-    PairLock, cleanup_generation_files, prepare_generation_file, verify_pair_files,
+    PairLock, ValidatedArtifactReceipt, cleanup_generation_files, prepare_generation_file,
+    verify_manifest_digest, verify_pair_files,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct ArtifactPublicationTelemetry {
+    pub lock_wait_ms: u128,
+    pub recovery_ms: u128,
+    pub generation_materialization_ms: u128,
+    pub prior_pair_snapshot_ms: u128,
+    pub pair_install_ms: u128,
+    pub visible_pair_verification_ms: u128,
+    pub cleanup_ms: u128,
+    pub publication_sha_pass_count: u64,
+    pub publication_sha_bytes: u64,
+    pub generation_copy_count: u64,
+    pub generation_copy_bytes: u64,
+    pub generation_copy_verify_sha_pass_count: u64,
+    pub generation_distinct_identity_check_count: u64,
+    pub generation_alias_rejection_count: u64,
+    pub receipt_reuse_count: u64,
+    pub receipt_invalidation_count: u64,
+    pub recovery_sha_pass_count: u64,
+    pub unclassified_sha_pass_count: u64,
+    pub unclassified_copy_count: u64,
+}
+
 pub fn publish_artifact_pair(
-    staged_artifact: &Path,
+    receipt: ValidatedArtifactReceipt,
     staged_manifest: &Path,
     target_artifact: &Path,
     target_manifest: &Path,
-) -> Result<(), IndexWriteError> {
+) -> Result<ArtifactPublicationTelemetry, IndexWriteError> {
     publish_artifact_pair_with_hook(
-        staged_artifact,
+        receipt,
         staged_manifest,
         target_artifact,
         target_manifest,
@@ -31,28 +56,49 @@ enum FailureDisposition {
 }
 
 fn publish_artifact_pair_with_hook(
-    staged_artifact: &Path,
+    receipt: ValidatedArtifactReceipt,
     staged_manifest: &Path,
     target_artifact: &Path,
     target_manifest: &Path,
     after_artifact_publish: impl FnOnce() -> Result<(), IndexWriteError>,
     failure_disposition: FailureDisposition,
-) -> Result<(), IndexWriteError> {
+) -> Result<ArtifactPublicationTelemetry, IndexWriteError> {
+    let staged_artifact = receipt.staged_path().to_path_buf();
     ensure_same_parent(target_artifact, target_manifest)?;
-    let staged_sha256 = verify_pair_files(staged_artifact, staged_manifest)?;
-    sync_file(staged_artifact)?;
+    receipt.require_target(target_artifact)?;
+    receipt.assert_staged_current()?;
+    let staged_sha256 = receipt.artifact_sha256().to_string();
+    verify_manifest_digest(staged_manifest, &staged_sha256)?;
+    receipt
+        .retained_file()?
+        .sync_all()
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     sync_file(staged_manifest)?;
 
+    let mut telemetry = ArtifactPublicationTelemetry::default();
+    let phase = Instant::now();
     let _pair_lock = PairLock::exclusive(target_manifest)?;
+    telemetry.lock_wait_ms = phase.elapsed().as_millis();
+    let phase = Instant::now();
     recover_interrupted_publication(target_artifact, target_manifest)?;
-    prepare_generation_file(staged_artifact, target_artifact, &staged_sha256)?;
+    telemetry.recovery_ms = phase.elapsed().as_millis();
+    let phase = Instant::now();
+    let (_, generation) = prepare_generation_file(&receipt, target_artifact)?;
+    telemetry.generation_materialization_ms = phase.elapsed().as_millis();
+    telemetry.generation_copy_count = generation.copy_count;
+    telemetry.generation_copy_bytes = generation.copied_bytes;
+    telemetry.generation_copy_verify_sha_pass_count = generation.verify_sha_pass_count;
+    telemetry.generation_distinct_identity_check_count = generation.distinct_identity_check_count;
+    let phase = Instant::now();
     let had_previous = snapshot_previous_pair(target_artifact, target_manifest)?;
+    telemetry.prior_pair_snapshot_ms = phase.elapsed().as_millis();
 
+    let phase = Instant::now();
     remove_sqlite_companions(target_artifact)?;
-    if let Err(error) = replace_file(staged_artifact, target_artifact) {
+    if let Err(error) = replace_file(&staged_artifact, target_artifact) {
         return handle_publication_failure(
             error,
-            staged_artifact,
+            &staged_artifact,
             staged_manifest,
             target_artifact,
             target_manifest,
@@ -63,7 +109,7 @@ fn publish_artifact_pair_with_hook(
     if let Err(error) = sync_parent(target_artifact) {
         return handle_publication_failure(
             error,
-            staged_artifact,
+            &staged_artifact,
             staged_manifest,
             target_artifact,
             target_manifest,
@@ -75,7 +121,7 @@ fn publish_artifact_pair_with_hook(
     if let Err(error) = after_artifact_publish() {
         return handle_publication_failure(
             error,
-            staged_artifact,
+            &staged_artifact,
             staged_manifest,
             target_artifact,
             target_manifest,
@@ -87,7 +133,7 @@ fn publish_artifact_pair_with_hook(
     if let Err(error) = replace_file(staged_manifest, target_manifest) {
         return handle_publication_failure(
             error,
-            staged_artifact,
+            &staged_artifact,
             staged_manifest,
             target_artifact,
             target_manifest,
@@ -98,7 +144,7 @@ fn publish_artifact_pair_with_hook(
     if let Err(error) = sync_parent(target_manifest) {
         return handle_publication_failure(
             error,
-            staged_artifact,
+            &staged_artifact,
             staged_manifest,
             target_artifact,
             target_manifest,
@@ -107,10 +153,16 @@ fn publish_artifact_pair_with_hook(
         );
     }
 
-    if let Err(error) = verify_pair_files(target_artifact, target_manifest) {
+    telemetry.pair_install_ms = phase.elapsed().as_millis();
+
+    let phase = Instant::now();
+    if let Err(error) = receipt
+        .assert_published_current(target_artifact)
+        .and_then(|()| verify_manifest_digest(target_manifest, &staged_sha256))
+    {
         return handle_publication_failure(
             error,
-            staged_artifact,
+            &staged_artifact,
             staged_manifest,
             target_artifact,
             target_manifest,
@@ -118,14 +170,18 @@ fn publish_artifact_pair_with_hook(
             failure_disposition,
         );
     }
+    telemetry.visible_pair_verification_ms = phase.elapsed().as_millis();
+    telemetry.receipt_reuse_count = 1;
 
+    let phase = Instant::now();
     cleanup_backups(target_artifact, target_manifest)?;
     cleanup_generation_files(target_artifact, &staged_sha256)?;
     sync_parent(target_artifact)?;
-    Ok(())
+    telemetry.cleanup_ms = phase.elapsed().as_millis();
+    Ok(telemetry)
 }
 
-fn handle_publication_failure(
+fn handle_publication_failure<T>(
     error: IndexWriteError,
     staged_artifact: &Path,
     staged_manifest: &Path,
@@ -133,7 +189,7 @@ fn handle_publication_failure(
     target_manifest: &Path,
     had_previous: bool,
     disposition: FailureDisposition,
-) -> Result<(), IndexWriteError> {
+) -> Result<T, IndexWriteError> {
     #[cfg(test)]
     if matches!(disposition, FailureDisposition::AbandonForCrashSimulation) {
         return Err(error);
@@ -305,6 +361,118 @@ mod tests {
     use sha2::{Digest, Sha256};
     use std::sync::{Arc, Barrier, mpsc};
     use std::time::{Duration, Instant};
+
+    fn publish_artifact_pair(
+        staged_artifact: &Path,
+        staged_manifest: &Path,
+        target_artifact: &Path,
+        target_manifest: &Path,
+    ) -> Result<(), IndexWriteError> {
+        let receipt = ValidatedArtifactReceipt::issue_test(staged_artifact, target_artifact)?;
+        super::publish_artifact_pair(receipt, staged_manifest, target_artifact, target_manifest)
+            .map(|_| ())
+    }
+
+    fn publish_artifact_pair_with_hook(
+        staged_artifact: &Path,
+        staged_manifest: &Path,
+        target_artifact: &Path,
+        target_manifest: &Path,
+        after_artifact_publish: impl FnOnce() -> Result<(), IndexWriteError>,
+        failure_disposition: FailureDisposition,
+    ) -> Result<(), IndexWriteError> {
+        let receipt = ValidatedArtifactReceipt::issue_test(staged_artifact, target_artifact)?;
+        super::publish_artifact_pair_with_hook(
+            receipt,
+            staged_manifest,
+            target_artifact,
+            target_manifest,
+            after_artifact_publish,
+            failure_disposition,
+        )
+        .map(|_| ())
+    }
+
+    #[test]
+    fn live_receipt_reuses_writer_digest_and_materializes_one_distinct_copy() {
+        let fixture = PairFixture::new("receipt-telemetry");
+        let (staged_artifact, staged_manifest) = fixture.stage("new");
+        let bytes = fs::metadata(&staged_artifact).unwrap().len();
+        let receipt =
+            ValidatedArtifactReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
+
+        let telemetry = super::publish_artifact_pair(
+            receipt,
+            &staged_manifest,
+            &fixture.artifact,
+            &fixture.manifest,
+        )
+        .unwrap();
+
+        assert_eq!(telemetry.publication_sha_pass_count, 0);
+        assert_eq!(telemetry.publication_sha_bytes, 0);
+        assert_eq!(telemetry.generation_copy_count, 1);
+        assert_eq!(telemetry.generation_copy_bytes, bytes);
+        assert_eq!(telemetry.generation_copy_verify_sha_pass_count, 1);
+        assert_eq!(telemetry.generation_distinct_identity_check_count, 1);
+        assert_eq!(telemetry.receipt_reuse_count, 1);
+        assert_eq!(telemetry.unclassified_sha_pass_count, 0);
+        assert_eq!(telemetry.unclassified_copy_count, 0);
+        fixture.assert_published("new");
+    }
+
+    #[test]
+    fn manifest_digest_mismatch_invalidates_receipt_before_visible_mutation() {
+        let fixture = PairFixture::new("receipt-manifest-mismatch");
+        let (staged_artifact, staged_manifest) = fixture.stage("new");
+        let receipt =
+            ValidatedArtifactReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
+        fs::write(
+            &staged_manifest,
+            format!(
+                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{}"}}}}"#,
+                "0".repeat(64)
+            ),
+        )
+        .unwrap();
+
+        let error = super::publish_artifact_pair(
+            receipt,
+            &staged_manifest,
+            &fixture.artifact,
+            &fixture.manifest,
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, IndexWriteError::ReceiptInvalidated(_)));
+        assert!(!fixture.artifact.exists());
+        assert!(!fixture.manifest.exists());
+    }
+
+    #[test]
+    fn hard_link_generation_alias_is_rejected_before_visible_install() {
+        let fixture = PairFixture::new("receipt-generation-alias");
+        let (staged_artifact, staged_manifest) = fixture.stage("new");
+        let receipt =
+            ValidatedArtifactReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
+        let generation =
+            crate::artifact::pair::generation_path(&fixture.artifact, receipt.artifact_sha256());
+        fs::create_dir_all(generation.parent().unwrap()).unwrap();
+        fs::hard_link(&staged_artifact, &generation).unwrap();
+
+        let error = super::publish_artifact_pair(
+            receipt,
+            &staged_manifest,
+            &fixture.artifact,
+            &fixture.manifest,
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, IndexWriteError::ReceiptInvalidated(_)));
+        assert!(!fixture.artifact.exists());
+        assert!(!fixture.manifest.exists());
+        assert!(!generation.exists());
+    }
 
     #[test]
     fn manifest_failure_restores_prior_matching_pair() {

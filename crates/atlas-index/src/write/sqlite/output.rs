@@ -61,7 +61,19 @@ impl ArtifactOutput {
                     .to_string(),
             ));
         }
+        fs::File::open(&temp_paths[0])
+            .and_then(|file| file.sync_all())
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        let mut permissions = fs::metadata(&temp_paths[0])
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
+            .permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(&temp_paths[0], permissions)
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         fs::rename(&temp_paths[0], &self.target_path)
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        fs::File::open(self.target_path.parent().unwrap_or_else(|| Path::new(".")))
+            .and_then(|directory| directory.sync_all())
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
     }
 }

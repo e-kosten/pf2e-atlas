@@ -137,12 +137,6 @@ pub fn read_artifact_manifest(path: &Path) -> Result<ArtifactManifest, IngestErr
         .map_err(|error| IngestError::ManifestParseFailed(error.to_string()))
 }
 
-pub(crate) fn artifact_sha256(path: &Path) -> Result<String, IngestError> {
-    let bytes =
-        fs::read(path).map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    Ok(sha256_hex(&bytes))
-}
-
 pub fn compute_source_position_report(
     source_root: &Path,
     manifest_path: Option<&Path>,

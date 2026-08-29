@@ -7,6 +7,7 @@ pub(crate) mod input;
 pub(crate) mod sqlite;
 pub(crate) mod visibility;
 
+use crate::ValidatedArtifactReceipt;
 use crate::write::input::{IndexBuildInput, IndexBuildInputError};
 
 #[derive(Debug, Error)]
@@ -15,6 +16,8 @@ pub enum IndexWriteError {
     InvalidInput(#[from] IndexBuildInputError),
     #[error("index write failed: {0}")]
     WriteFailed(String),
+    #[error("validated artifact receipt was invalidated: {0}")]
+    ReceiptInvalidated(String),
 }
 
 impl From<diesel::result::Error> for IndexWriteError {
@@ -30,5 +33,5 @@ pub trait IndexArtifactWriter {
         &self,
         input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
-    ) -> Result<(), IndexWriteError>;
+    ) -> Result<ValidatedArtifactReceipt, IndexWriteError>;
 }
