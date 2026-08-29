@@ -182,6 +182,75 @@ mod tests {
     }
 
     #[test]
+    fn canonical_mechanics_drive_the_written_fts_baseline_contract()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let input = canonical_fixture_input();
+        let path = unique_temp_path("canonical-search-projection.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        let connection = rusqlite::Connection::open(&path)?;
+        let (mechanic_terms, metric_terms): (String, String) = connection.query_row(
+            "SELECT mechanic_terms, metric_terms FROM records_fts WHERE record_key='bestiary:actor'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+
+        for expected in [
+            "AC 22",
+            "Max HP 80",
+            "Perception 15",
+            "Fortitude 14",
+            "Arcana 16",
+            "Land Speed 25",
+            "Focus 3",
+            "Pulse",
+            "2 actions",
+            "Bolt",
+            "2d8 electricity",
+            "Innate Spells",
+            "Spell Attack 18",
+            "Spell DC 27",
+            "Reactive Spell",
+            "reaction",
+        ] {
+            assert!(
+                mechanic_terms.contains(expected),
+                "missing canonical FTS term `{expected}` from:\n{mechanic_terms}"
+            );
+        }
+        for expected in [
+            "AC",
+            "Max HP",
+            "Perception",
+            "Fortitude",
+            "Arcana",
+            "Land Speed",
+            "Focus",
+            "Bolt",
+            "Pulse",
+            "Innate Spells",
+            "Reactive Spell",
+        ] {
+            assert!(
+                metric_terms.contains(expected),
+                "missing canonical metric term `{expected}` from:\n{metric_terms}"
+            );
+        }
+        let matched: String = connection.query_row(
+            "SELECT record_key FROM records_fts WHERE records_fts MATCH 'spell AND dc'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(matched, "bestiary:actor");
+        drop(connection);
+        remove_test_artifact(&path)?;
+        Ok(())
+    }
+
+    #[test]
     fn pinned_night_hag_round_trips_through_atomic_artifact_and_detects_corruption()
     -> Result<(), Box<dyn std::error::Error>> {
         let Some(source_root) = std::env::var_os("PF2E_SOURCE_ROOT") else {
@@ -600,13 +669,17 @@ mod tests {
                     "details":{"level":{"value":5},"publication":{"title":"Fixture"}},
                     "attributes":{"ac":{"value":22},"hp":{"value":80,"max":80},"speed":{"value":25}},
                     "perception":{"mod":15}, "saves":{"fortitude":{"value":14},"reflex":{"value":12},"will":{"value":13}},
+                    "skills":{"arcana":{"base":16}},
+                    "resources":{"focus":{"max":3,"value":1}},
                     "traits":{"rarity":"common","size":{"value":"med"},"value":["fiend"]},
                     "description":{"value":"<p>@UUID[Compendium.pf2e.bestiary.Actor.actor]{Self}</p>"}
                 },
                 "items":[
-                    {"_id":"action-a","name":"First Action","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":1},"description":{"value":"<p>First.</p>"}}},
+                    {"_id":"action-a","name":"Pulse","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":2},"bonus":{"value":17},"dc":{"value":26},"damageRolls":{"pulse":{"damage":"2d6","damageType":"mental"}},"description":{"value":"<p>First.</p>"}}},
                     {"_id":"action-b","name":"Second Action","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":1},"description":{"value":"<p>Second.</p>"}}},
-                    {"_id":"entry","name":"Innate Spells","type":"spellcastingEntry","system":{"prepared":{"value":"innate"},"tradition":{"value":"occult"},"spelldc":{"value":12,"dc":22},"slots":{}}}
+                    {"_id":"strike","name":"Bolt","type":"melee","system":{"bonus":{"value":19},"damageRolls":{"bolt":{"damage":"2d8","damageType":"electricity"}}}},
+                    {"_id":"entry","name":"Innate Spells","type":"spellcastingEntry","system":{"prepared":{"value":"innate"},"tradition":{"value":"occult"},"spelldc":{"value":18,"dc":27},"slots":{"slot4":{"max":2,"value":1}}}},
+                    {"_id":"spell","name":"Reactive Spell","type":"spell","system":{"level":{"value":4},"location":{"value":"entry"},"time":{"value":"reaction"},"damage":{}}}
                 ]
             }),
             None,

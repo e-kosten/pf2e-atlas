@@ -1,6 +1,14 @@
 use atlas_domain::TimeKind;
 
-use crate::{AtlasRecord, label_for_row};
+use crate::{
+    AtlasRecord, CreatureActionCost, CreatureDamageKind, CreatureNumber, CreatureRecord,
+    CreatureResourceAmount, CreatureSourceScalar, FactValue, MechanicActivityFamily,
+    MechanicBaseValue, MechanicFact, MechanicSourceFamily, MechanicSurface, PresentationBlock,
+    PresentationFact, PresentationSection, PresentationSectionKind, RecordBody,
+    RecordContentDocument, RecordPresentationDocument,
+    build_record_presentation_document_with_content_filter, label_for_row, project_creature_facts,
+    project_creature_mechanics,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RecordFtsProjection {
@@ -23,18 +31,67 @@ pub fn build_record_fts_projection(
     record: &AtlasRecord,
     aliases: &[String],
 ) -> RecordFtsProjection {
+    build_search_fts_projection(record, aliases, None)
+}
+
+pub fn build_search_fts_projection(
+    record: &AtlasRecord,
+    aliases: &[String],
+    canonical_body: Option<&RecordBody>,
+) -> RecordFtsProjection {
     let mut projection = RecordFtsProjection {
         title: record.identity.name.clone(),
         aliases: aliases.join("\n"),
         traits: record.classification.traits.join(" "),
         ..RecordFtsProjection::default()
     };
-    append_structured_terms(record, &mut projection);
+    let canonical_creature = canonical_creature_for_record(record, canonical_body);
+    append_structured_terms(record, canonical_creature, &mut projection);
 
     projection
 }
 
-fn append_structured_terms(record: &AtlasRecord, projection: &mut RecordFtsProjection) {
+pub fn build_search_presentation_document_with_content_filter(
+    record: &AtlasRecord,
+    canonical_body: Option<&RecordBody>,
+    include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
+) -> RecordPresentationDocument {
+    let mut document = build_record_presentation_document_with_content_filter(
+        record,
+        include_supplemental_content,
+    );
+    let Some(creature) = canonical_creature_for_record(record, canonical_body) else {
+        return document;
+    };
+
+    document.sections.retain(|section| {
+        !matches!(
+            section.kind,
+            PresentationSectionKind::Summary
+                | PresentationSectionKind::Defense
+                | PresentationSectionKind::Movement
+                | PresentationSectionKind::Offense
+        )
+    });
+    let mut canonical_sections = canonical_mechanics_search_projection(creature).sections;
+    canonical_sections.extend(document.sections);
+    document.sections = canonical_sections;
+    document
+}
+
+fn canonical_creature_for_record<'a>(
+    record: &AtlasRecord,
+    canonical_body: Option<&'a RecordBody>,
+) -> Option<&'a CreatureRecord> {
+    let RecordBody::Creature(creature) = canonical_body?;
+    (creature.identity.record_key == record.identity.key).then_some(creature)
+}
+
+fn append_structured_terms(
+    record: &AtlasRecord,
+    canonical_creature: Option<&CreatureRecord>,
+    projection: &mut RecordFtsProjection,
+) {
     let mut taxonomy = TermCollector::default();
     taxonomy.add_slug(record.classification.kind.as_str());
     taxonomy.add_slug(record.foundry.record_type.as_str());
@@ -108,7 +165,9 @@ fn append_structured_terms(record: &AtlasRecord, projection: &mut RecordFtsProje
         mechanics.add_optional_text(item.usage.as_deref());
         mechanics.add_slugs(&item.damage_types);
     }
-    if let Some(actor) = record.mechanics.actor() {
+    if canonical_creature.is_none()
+        && let Some(actor) = record.mechanics.actor()
+    {
         mechanics.add_optional_slug(actor.size.as_deref());
         mechanics.add_slugs(&actor.languages);
         mechanics.add_slugs(&actor.speed_types);
@@ -121,8 +180,6 @@ fn append_structured_terms(record: &AtlasRecord, projection: &mut RecordFtsProje
             mechanics.add_text("complex");
         }
     }
-    append_text(&mut projection.mechanic_terms, &mechanics.render());
-
     let mut source = TermCollector::default();
     source.add_optional_text(record.publication.title.as_deref());
     if record.publication.category != atlas_domain::PublicationCategory::Unknown {
@@ -132,14 +189,343 @@ fn append_structured_terms(record: &AtlasRecord, projection: &mut RecordFtsProje
     append_text(&mut projection.source_terms, &source.render());
 
     let mut metrics = TermCollector::default();
-    for metric in &record.mechanics.metrics {
-        let label = label_for_row(metric);
-        metrics.add_text(&label.label);
-        if let Some(short_label) = label.short_label.as_deref() {
-            metrics.add_text(short_label);
+    if let Some(creature) = canonical_creature {
+        let canonical = canonical_mechanics_search_projection(creature);
+        mechanics.add_text(&canonical.mechanic_terms);
+        metrics.add_text(&canonical.metric_terms);
+    } else {
+        for metric in &record.mechanics.metrics {
+            let label = label_for_row(metric);
+            metrics.add_text(&label.label);
+            if let Some(short_label) = label.short_label.as_deref() {
+                metrics.add_text(short_label);
+            }
         }
     }
+    append_text(&mut projection.mechanic_terms, &mechanics.render());
     append_text(&mut projection.metric_terms, &metrics.render());
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CanonicalMechanicsSearchProjection {
+    mechanic_terms: String,
+    metric_terms: String,
+    sections: Vec<PresentationSection>,
+}
+
+fn canonical_mechanics_search_projection(
+    creature: &CreatureRecord,
+) -> CanonicalMechanicsSearchProjection {
+    let mechanics = project_creature_mechanics(creature);
+    let mut mechanic_terms = TermCollector::default();
+    let mut metric_terms = TermCollector::default();
+    let mut summary = Vec::new();
+    let mut defense = Vec::new();
+    let mut movement = Vec::new();
+    let mut offense = Vec::new();
+
+    if let FactValue::Value(level) = mechanics.level {
+        mechanic_terms.add_text(&format!("level {level}"));
+        mechanic_terms.add_text(&ordinal_phrase(level, "level"));
+        summary.push(PresentationFact {
+            key: "level".to_string(),
+            label: "Level".to_string(),
+            value: level.to_string(),
+        });
+    }
+
+    let canonical_facts = project_creature_facts(creature);
+    for metric in &canonical_facts.metrics {
+        let label = label_for_row(metric);
+        metric_terms.add_text(&label.label);
+        metric_terms.add_optional_text(label.short_label.as_deref());
+    }
+    let actor_side_facts = canonical_facts.actor_side_facts;
+    mechanic_terms.add_optional_slug(actor_side_facts.size.as_deref());
+    mechanic_terms.add_slugs(&actor_side_facts.languages);
+    mechanic_terms.add_slugs(&actor_side_facts.speed_types);
+    mechanic_terms.add_slugs(&actor_side_facts.senses);
+    mechanic_terms.add_slugs(&actor_side_facts.immunities);
+    mechanic_terms.add_slugs(&actor_side_facts.resistances);
+    mechanic_terms.add_slugs(&actor_side_facts.weaknesses);
+    push_canonical_list_fact(
+        &mut summary,
+        "actor.languages",
+        "Languages",
+        &actor_side_facts.languages,
+    );
+    push_canonical_list_fact(
+        &mut summary,
+        "actor.senses",
+        "Senses",
+        &actor_side_facts.senses,
+    );
+    push_canonical_list_fact(
+        &mut defense,
+        "actor.immunities",
+        "Immunities",
+        &actor_side_facts.immunities,
+    );
+    push_canonical_list_fact(
+        &mut defense,
+        "actor.resistances",
+        "Resistances",
+        &actor_side_facts.resistances,
+    );
+    push_canonical_list_fact(
+        &mut defense,
+        "actor.weaknesses",
+        "Weaknesses",
+        &actor_side_facts.weaknesses,
+    );
+
+    for fact in &mechanics.facts {
+        add_canonical_fact_terms(fact, None, &mut mechanic_terms, &mut metric_terms);
+        if let Some(presentation_fact) = canonical_presentation_fact(fact, None) {
+            match presentation_section_kind(fact.facets.family) {
+                PresentationSectionKind::Defense => defense.push(presentation_fact),
+                PresentationSectionKind::Movement => movement.push(presentation_fact),
+                PresentationSectionKind::Offense => offense.push(presentation_fact),
+                _ => summary.push(presentation_fact),
+            }
+        }
+    }
+
+    for activity in &mechanics.activities {
+        let family = activity_family_label(activity.family);
+        mechanic_terms.add_text(family);
+        mechanic_terms.add_text(&activity.label);
+        metric_terms.add_text(&activity.label);
+        offense.push(PresentationFact {
+            key: format!("activity.{}", activity.occurrence_id.as_str()),
+            label: family.to_string(),
+            value: activity.label.clone(),
+        });
+        for fact in &activity.facts {
+            add_canonical_fact_terms(
+                fact,
+                Some(&activity.label),
+                &mut mechanic_terms,
+                &mut metric_terms,
+            );
+            if let Some(fact) = canonical_presentation_fact(fact, Some(&activity.label)) {
+                offense.push(fact);
+            }
+        }
+    }
+
+    CanonicalMechanicsSearchProjection {
+        mechanic_terms: mechanic_terms.render(),
+        metric_terms: metric_terms.render(),
+        sections: [
+            (PresentationSectionKind::Summary, summary),
+            (PresentationSectionKind::Defense, defense),
+            (PresentationSectionKind::Movement, movement),
+            (PresentationSectionKind::Offense, offense),
+        ]
+        .into_iter()
+        .filter_map(|(kind, facts)| {
+            (!facts.is_empty())
+                .then(|| PresentationSection::new(kind, vec![PresentationBlock::FactList(facts)]))
+        })
+        .collect(),
+    }
+}
+
+fn push_canonical_list_fact(
+    facts: &mut Vec<PresentationFact>,
+    key: &str,
+    label: &str,
+    values: &[String],
+) {
+    if !values.is_empty() {
+        facts.push(PresentationFact {
+            key: key.to_string(),
+            label: label.to_string(),
+            value: values.join(", "),
+        });
+    }
+}
+
+fn presentation_section_kind(family: MechanicSourceFamily) -> PresentationSectionKind {
+    match family {
+        MechanicSourceFamily::Defense => PresentationSectionKind::Defense,
+        MechanicSourceFamily::Movement => PresentationSectionKind::Movement,
+        MechanicSourceFamily::Strike
+        | MechanicSourceFamily::Spellcasting
+        | MechanicSourceFamily::Spell
+        | MechanicSourceFamily::Action => PresentationSectionKind::Offense,
+        MechanicSourceFamily::Awareness
+        | MechanicSourceFamily::Skill
+        | MechanicSourceFamily::Ability
+        | MechanicSourceFamily::Resource
+        | MechanicSourceFamily::Unsupported => PresentationSectionKind::Summary,
+    }
+}
+
+fn add_canonical_fact_terms(
+    fact: &MechanicFact,
+    activity_label: Option<&str>,
+    mechanic_terms: &mut TermCollector,
+    metric_terms: &mut TermCollector,
+) {
+    if let Some(activity_label) = activity_label {
+        mechanic_terms.add_text(activity_label);
+    }
+    mechanic_terms.add_text(&fact.label);
+    mechanic_terms.add_text(&fact.target.id());
+    mechanic_terms.add_text(mechanic_family_label(fact.facets.family));
+    mechanic_terms.add_text(mechanic_surface_label(fact.facets.surface));
+    metric_terms.add_text(&fact.label);
+    metric_terms.add_text(&humanize_slug(&fact.target.id()));
+    if let Some(value) = canonical_mechanic_value_text(&fact.value) {
+        mechanic_terms.add_text(&format!("{} {value}", fact.label));
+    }
+}
+
+fn canonical_presentation_fact(
+    fact: &MechanicFact,
+    activity_label: Option<&str>,
+) -> Option<PresentationFact> {
+    let value = canonical_mechanic_value_text(&fact.value)?;
+    Some(PresentationFact {
+        key: fact.target.id(),
+        label: activity_label
+            .map(|activity| format!("{activity} {}", fact.label))
+            .unwrap_or_else(|| fact.label.clone()),
+        value,
+    })
+}
+
+fn canonical_mechanic_value_text(value: &MechanicBaseValue) -> Option<String> {
+    match value {
+        MechanicBaseValue::Integer(value) => fact_integer(value),
+        MechanicBaseValue::Number(value) => value.as_value().and_then(|value| match value {
+            CreatureNumber::Integer(value) => Some(value.to_string()),
+            CreatureNumber::Unsupported(_) => None,
+        }),
+        MechanicBaseValue::ResourceAmount(value) => {
+            value.as_value().and_then(|value| match value {
+                CreatureResourceAmount::Integer(value) => Some(value.to_string()),
+                CreatureResourceAmount::Unsupported(_) => None,
+            })
+        }
+        MechanicBaseValue::ActionCost(value) => action_cost_text(value),
+        MechanicBaseValue::Frequency(value) => value.as_value().and_then(|frequency| {
+            let maximum = frequency.maximum.as_value()?;
+            let period = frequency.period.as_value();
+            Some(match period {
+                Some(period) => format!("{maximum} per {period}"),
+                None => maximum.to_string(),
+            })
+        }),
+        MechanicBaseValue::Uses(value) => value
+            .as_value()
+            .and_then(|uses| uses.maximum.as_value())
+            .map(ToString::to_string),
+        MechanicBaseValue::Roll(value) => value
+            .value
+            .as_value()
+            .map(|modifier| format_modifier(*modifier)),
+        MechanicBaseValue::Damage(value) => damage_text(value),
+        MechanicBaseValue::SourceInteger(value) => value.as_value().and_then(|value| match value {
+            CreatureSourceScalar::Value(value) => Some(value.to_string()),
+            CreatureSourceScalar::Unsupported(_) => None,
+        }),
+    }
+}
+
+fn fact_integer(value: &FactValue<i64>) -> Option<String> {
+    value.as_value().map(ToString::to_string)
+}
+
+fn action_cost_text(value: &CreatureActionCost) -> Option<String> {
+    match value {
+        CreatureActionCost::Passive => Some("passive".to_string()),
+        CreatureActionCost::Reaction => Some("reaction".to_string()),
+        CreatureActionCost::FreeAction => Some("free action".to_string()),
+        CreatureActionCost::Actions(actions) => Some(if *actions == 1 {
+            "1 action".to_string()
+        } else {
+            format!("{actions} actions")
+        }),
+        CreatureActionCost::Time(value) => Some(value.clone()),
+        CreatureActionCost::Unsupported(_) => None,
+    }
+}
+
+fn damage_text(value: &crate::CreatureDamage) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(formula) = value.formula.as_value() {
+        parts.push(formula.clone());
+    }
+    if let Some(damage_type) = value.damage_type.as_value() {
+        parts.push(humanize_slug(damage_type));
+    }
+    if let Some(category) = value.category.as_value() {
+        parts.push(humanize_slug(category));
+    }
+    if let Some(kinds) = value.kinds.as_value() {
+        parts.extend(kinds.iter().filter_map(|kind| match kind {
+            CreatureDamageKind::Damage => Some("damage".to_string()),
+            CreatureDamageKind::Healing => Some("healing".to_string()),
+            CreatureDamageKind::Unsupported(_) => None,
+        }));
+    }
+    (!parts.is_empty()).then(|| parts.join(" "))
+}
+
+fn format_modifier(value: i64) -> String {
+    if value >= 0 {
+        format!("+{value}")
+    } else {
+        value.to_string()
+    }
+}
+
+fn activity_family_label(family: MechanicActivityFamily) -> &'static str {
+    match family {
+        MechanicActivityFamily::Strike => "Strike",
+        MechanicActivityFamily::SpellcastingEntry => "Spellcasting",
+        MechanicActivityFamily::Spell => "Spell",
+        MechanicActivityFamily::Action => "Action",
+        MechanicActivityFamily::Unsupported => "Unsupported activity",
+    }
+}
+
+fn mechanic_family_label(family: MechanicSourceFamily) -> &'static str {
+    match family {
+        MechanicSourceFamily::Defense => "defense",
+        MechanicSourceFamily::Awareness => "awareness",
+        MechanicSourceFamily::Skill => "skill",
+        MechanicSourceFamily::Ability => "ability",
+        MechanicSourceFamily::Movement => "movement",
+        MechanicSourceFamily::Resource => "resource",
+        MechanicSourceFamily::Strike => "strike",
+        MechanicSourceFamily::Spellcasting => "spellcasting",
+        MechanicSourceFamily::Spell => "spell",
+        MechanicSourceFamily::Action => "action",
+        MechanicSourceFamily::Unsupported => "unsupported",
+    }
+}
+
+fn mechanic_surface_label(surface: MechanicSurface) -> &'static str {
+    match surface {
+        MechanicSurface::RawModifier => "modifier",
+        MechanicSurface::Check => "check",
+        MechanicSurface::Dc => "difficulty class",
+        MechanicSurface::ArmorClass => "armor class",
+        MechanicSurface::SavingThrow => "saving throw",
+        MechanicSurface::AttackRoll => "attack roll",
+        MechanicSurface::Damage => "damage",
+        MechanicSurface::HitPoints => "hit points",
+        MechanicSurface::Movement => "speed",
+        MechanicSurface::Resource => "resource maximum",
+        MechanicSurface::ActionEconomy => "action economy",
+        MechanicSurface::Frequency => "frequency",
+        MechanicSurface::Uses => "uses",
+        MechanicSurface::SpellSlot => "spell slot",
+    }
 }
 
 fn append_action_cost_terms(kind: TimeKind, actions: Option<i64>, terms: &mut TermCollector) {

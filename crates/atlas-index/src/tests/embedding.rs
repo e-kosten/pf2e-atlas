@@ -75,6 +75,30 @@ fn reusable_document_embedding_cache_rejects_metadata_mismatch()
 }
 
 #[test]
+fn reusable_document_embedding_cache_rejects_previous_unit_policy()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-previous-unit-policy");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE artifact_metadata SET value = 'coverage-driven-rich-content/v1' WHERE key = ?1",
+        [crate::artifact::metadata::artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION],
+    )?;
+    insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())
+        .expect_err("previous unit policy must reject cache reuse");
+
+    assert!(error.to_string().contains(
+        "embedding metadata `embedding_unit_policy_version` is coverage-driven-rich-content/v1; expected canonical-mechanics-owned-content/v2"
+    ));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn reusable_document_embedding_cache_rejects_wrong_dimensions()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-wrong-dimensions");

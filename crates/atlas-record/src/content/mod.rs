@@ -16,7 +16,10 @@ pub use owned::{
     DuplicateContentStatus, InvalidContentKey, OwnedRichContent, OwnedRichContentDocument,
 };
 pub use render::{render_markdown_like, render_plain_text};
-pub use search_projection::{RecordFtsProjection, build_record_fts_projection};
+pub use search_projection::{
+    RecordFtsProjection, build_record_fts_projection, build_search_fts_projection,
+    build_search_presentation_document_with_content_filter,
+};
 pub use section_tree::{ContentSectionNode, ContentSectionOrigin, build_content_section_tree};
 pub use traversal::{FoundryLinkIter, iter_foundry_links, visit_foundry_links_mut};
 

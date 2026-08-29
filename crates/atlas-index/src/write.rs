@@ -5,7 +5,6 @@ use thiserror::Error;
 
 pub(crate) mod input;
 pub(crate) mod sqlite;
-pub(crate) mod visibility;
 
 use crate::ValidatedArtifactReceipt;
 use crate::write::input::{IndexBuildInput, IndexBuildInputError};

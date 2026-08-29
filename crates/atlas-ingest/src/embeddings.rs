@@ -5,12 +5,12 @@ use atlas_embedding::{
     PendingDocumentEmbedding, build_document_embedding_units,
 };
 use atlas_record::{
-    AtlasRecord, ContentSourceKind, DuplicateContentStatus, OwnedRichContent, RecordAlias,
-    RecordBody, RemasterLink, build_record_presentation_document_with_content_filter,
+    AtlasRecord, ContentSourceKind, DuplicateContentStatus, OwnedRichContent,
+    ProductRetrievalPolicy, RecordAlias, RecordBody, RemasterLink,
+    build_search_presentation_document_with_content_filter,
 };
 
 use crate::records::LoadedSourceRecord;
-use crate::records::visibility::ProductRetrievalPolicy;
 
 pub(crate) mod generation;
 
@@ -38,7 +38,7 @@ pub(crate) fn build_pending_document_embeddings(
         .iter()
         .filter_map(|loaded| {
             let record = &loaded.record;
-            if !retrieval_policy.is_ordinary(loaded) {
+            if !retrieval_policy.is_ordinary(record) {
                 return None;
             }
             let canonical_content = canonical_embedding_content_documents(loaded);
@@ -46,8 +46,9 @@ pub(crate) fn build_pending_document_embeddings(
             Some(DocumentEmbeddingSource {
                 record_key,
                 record_name: record.identity.name.clone(),
-                document: build_record_presentation_document_with_content_filter(
+                document: build_search_presentation_document_with_content_filter(
                     record,
+                    loaded.facts.canonical_body.as_ref(),
                     |content| canonical_content.is_none() && content.contributes_to_search(),
                 ),
                 aliases: aliases_by_key
@@ -156,15 +157,18 @@ fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::path::Path;
 
-    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind};
+    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind, RemasterLinkSource};
     use atlas_record::{
-        AtlasRecord, ContentId, ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner,
-        ContentProvenance, ContentRole, ContentSourceKind, DuplicateContentStatus,
-        FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, OwnedRichContent,
-        OwnedRichContentDocument, RecordClassification, RecordContentDocument, RecordIdentity,
-        RecordProvenance, RichDocument, RichNode,
+        AliasSource, AtlasRecord, ContentId, ContentIdentityStability, ContentKey, ContentOrigin,
+        ContentOwner, ContentProvenance, ContentRole, ContentSourceKind, DuplicateContentStatus,
+        FactValue, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, OwnedRichContent,
+        OwnedRichContentDocument, RecordAlias, RecordBody, RecordClassification,
+        RecordContentDocument, RecordIdentity, RecordProvenance, RemasterLink, RichDocument,
+        RichNode,
     };
+    use serde_json::json;
 
     use super::{
         build_pending_document_embeddings, embedding_content_documents_from_owned,
@@ -258,6 +262,134 @@ mod tests {
                 .iter()
                 .any(|value| value == "Copied canonical spell prose")
         );
+    }
+
+    #[test]
+    fn canonical_source_record_builds_stable_search_units_and_remaster_demotion() {
+        let mut loaded = canonical_loaded_fixture();
+        for metric in &mut loaded.record.mechanics.metrics {
+            metric.value = atlas_record::MetricValue::Number(999.0);
+        }
+        let record_key = loaded.record.identity.key.clone();
+        let RecordBody::Creature(creature) = loaded
+            .facts
+            .canonical_body
+            .as_mut()
+            .expect("canonical creature body");
+        let long_unique_prose =
+            format!("Unique embedded tactical context {}", "prose ".repeat(600));
+        creature.content.documents = vec![
+            owned_content_document(
+                &record_key,
+                "unique-embedded",
+                ContentSourceKind::EmbeddedItemDescription,
+                &long_unique_prose,
+                DuplicateContentStatus::Unique,
+            ),
+            owned_content_document(
+                &record_key,
+                "copied-spell",
+                ContentSourceKind::EmbeddedSpellDescription,
+                "Copied canonical spell prose must not enter semantic input",
+                DuplicateContentStatus::CopiedFromCanonicalTarget {
+                    target_record_key: RecordKey::parse("spells:CanonicalSpell")
+                        .expect("target key parses"),
+                },
+            ),
+        ];
+        let aliases = vec![
+            RecordAlias {
+                canonical_record_key: record_key.clone(),
+                alias_text: "Zeta Alias".to_string(),
+                normalized_alias: "zeta alias".to_string(),
+                source: AliasSource::Migration,
+                source_ref: "fixture-zeta".to_string(),
+            },
+            RecordAlias {
+                canonical_record_key: record_key.clone(),
+                alias_text: "Alpha Alias".to_string(),
+                normalized_alias: "alpha alias".to_string(),
+                source: AliasSource::Migration,
+                source_ref: "fixture-alpha".to_string(),
+            },
+            RecordAlias {
+                canonical_record_key: record_key.clone(),
+                alias_text: "Alpha Alias".to_string(),
+                normalized_alias: "alpha alias".to_string(),
+                source: AliasSource::Migration,
+                source_ref: "fixture-duplicate".to_string(),
+            },
+        ];
+
+        let first = build_pending_document_embeddings(&[loaded.clone()], &aliases, &[]);
+        let second = build_pending_document_embeddings(&[loaded.clone()], &aliases, &[]);
+        assert_eq!(first, second);
+        assert_eq!(first.len(), 1);
+        let parent = &first[0];
+        assert_eq!(parent.embedding_unit_key, "bestiary:search-fixture#parent");
+        assert_eq!(parent.ordinal, 0);
+        for expected in [
+            "AC: 22",
+            "Max HP: 80",
+            "Perception: 15",
+            "Fortitude: 14",
+            "Arcana: 16",
+            "Land Speed: 25",
+            "Focus: 3",
+            "Strike: Bolt",
+            "Bolt Attack: +19",
+            "Bolt bolt: 2d8 electricity",
+            "Action: Pulse",
+            "Pulse Action cost: 2 actions",
+            "Spellcasting: Innate Spells",
+            "Innate Spells Spell DC: 27",
+            "Spell: Reactive Spell",
+            "Reactive Spell Action cost: reaction",
+            "Aliases: Alpha Alias, Zeta Alias",
+            "Unique embedded tactical context",
+        ] {
+            assert!(
+                parent.input_text.contains(expected),
+                "missing canonical semantic input `{expected}` from:\n{}",
+                parent.input_text
+            );
+        }
+        assert!(!parent.input_text.contains("Copied canonical spell prose"));
+        assert!(!parent.input_text.contains("999"));
+        assert!(
+            parent.input_text.find("AC: 22")
+                < parent.input_text.find("Unique embedded tactical context")
+        );
+        assert_eq!(
+            parent.input_hash,
+            atlas_embedding::hash_document_embedding_input(&parent.input_text)
+        );
+
+        let mut mutated = loaded.clone();
+        let RecordBody::Creature(creature) = mutated
+            .facts
+            .canonical_body
+            .as_mut()
+            .expect("canonical creature body");
+        let FactValue::Value(defenses) = &mut creature.defenses.value else {
+            panic!("defenses")
+        };
+        let FactValue::Value(armor_class) = &mut defenses.armor_class else {
+            panic!("armor class")
+        };
+        armor_class.value = FactValue::Value(23);
+        let changed = build_pending_document_embeddings(&[mutated], &aliases, &[]);
+        assert!(changed[0].input_text.contains("AC: 23"));
+        assert_ne!(changed[0].input_hash, parent.input_hash);
+
+        let remaster_links = [RemasterLink {
+            remaster_record_key: RecordKey::parse("bestiary:remaster")
+                .expect("remaster key parses"),
+            legacy_record_key: record_key,
+            source: RemasterLinkSource::Migration,
+            source_ref: "fixture".to_string(),
+        }];
+        assert!(build_pending_document_embeddings(&[loaded], &aliases, &remaster_links).is_empty());
     }
 
     #[test]
@@ -359,5 +491,44 @@ mod tests {
             ),
             RecordProvenance::new("test.json").with_raw_json("{}"),
         )
+    }
+
+    fn canonical_loaded_fixture() -> crate::records::LoadedSourceRecord {
+        let loaded = crate::source::normalize::normalize_record(
+            &crate::source::ManifestPack {
+                name: "bestiary".to_string(),
+                label: "Bestiary".to_string(),
+                document_type: "Actor".to_string(),
+                path: "packs/bestiary".to_string(),
+            },
+            &PackName::new("bestiary").expect("pack name parses"),
+            Path::new("packs/bestiary/search-fixture.json"),
+            Path::new("."),
+            json!({
+                "_id":"search-fixture", "name":"Canonical Search Fixture", "type":"npc",
+                "system": {
+                    "details":{"level":{"value":5},"publication":{"title":"Fixture"}},
+                    "attributes":{"ac":{"value":22},"hp":{"value":80,"max":80},"speed":{"value":25}},
+                    "perception":{"mod":15},
+                    "saves":{"fortitude":{"value":14},"reflex":{"value":12},"will":{"value":13}},
+                    "skills":{"arcana":{"base":16}},
+                    "resources":{"focus":{"max":3,"value":1}},
+                    "traits":{"rarity":"common","size":{"value":"med"},"value":["fiend"]}
+                },
+                "items":[
+                    {"_id":"action","name":"Pulse","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":2},"bonus":{"value":17},"dc":{"value":26},"damageRolls":{"pulse":{"damage":"2d6","damageType":"mental"}}}},
+                    {"_id":"strike","name":"Bolt","type":"melee","system":{"bonus":{"value":19},"damageRolls":{"bolt":{"damage":"2d8","damageType":"electricity"}}}},
+                    {"_id":"entry","name":"Innate Spells","type":"spellcastingEntry","system":{"prepared":{"value":"innate"},"tradition":{"value":"occult"},"spelldc":{"value":18,"dc":27},"slots":{"slot4":{"max":2,"value":1}}}},
+                    {"_id":"spell","name":"Reactive Spell","type":"spell","system":{"level":{"value":4},"location":{"value":"entry"},"time":{"value":"reaction"},"damage":{}}}
+                ]
+            }),
+            None,
+        )
+        .expect("fixture normalizes");
+        let mut records = vec![loaded];
+        let reference_index = crate::records::references::build_record_reference_index(&records);
+        crate::source::npc_entities::finalize_npc_embedded_entities(&mut records, &reference_index);
+        crate::source::owned_content::finalize_npc_owned_content(&mut records);
+        records.pop().expect("one canonical fixture")
     }
 }
