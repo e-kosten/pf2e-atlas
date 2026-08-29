@@ -285,7 +285,20 @@ fn similar_records_uses_seed_embedding_and_reranks_with_graph_evidence() {
         result.records[0].record.identity.key.to_string(),
         "actions:graph"
     );
-    assert_eq!(result.records[0].graph.shared_references.len(), 1);
+    assert_eq!(result.records[0].graph.shared_references.len(), 3);
+    assert_eq!(
+        result.records[0]
+            .graph
+            .shared_references
+            .iter()
+            .map(|reference| reference.name.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "Shared Reference",
+            "Shared GM Reference",
+            "Shared Private Reference"
+        ]
+    );
     assert_eq!(result.records[0].graph.shared_traits, vec!["auditory"]);
     assert_eq!(
         result.records[1].record.identity.key.to_string(),
@@ -315,6 +328,8 @@ impl FakeSimilarIndex {
                 fake_record("actions:plain", "Plain Action", &[]),
                 fake_record("actions:graph", "Graph Action", &["auditory"]),
                 fake_record("actions:reference", "Shared Reference", &[]),
+                fake_record("actions:reference-gm", "Shared GM Reference", &[]),
+                fake_record("actions:reference-private", "Shared Private Reference", &[]),
             ],
             expect_filter: false,
         }
@@ -466,7 +481,15 @@ impl ReferenceReadIndex for FakeSimilarIndex {
             "candidate reference evidence should use the batch reader"
         );
         if seed_text == "actions:seed" {
-            Ok(vec![graph_edge(seed, "actions:reference")])
+            Ok(vec![
+                graph_edge(seed, "actions:reference", ContentVisibility::Public),
+                graph_edge(seed, "actions:reference-gm", ContentVisibility::GmOnly),
+                graph_edge(
+                    seed,
+                    "actions:reference-private",
+                    ContentVisibility::Private,
+                ),
+            ])
         } else {
             Ok(Vec::new())
         }
@@ -482,7 +505,10 @@ impl ReferenceReadIndex for FakeSimilarIndex {
             .map(|record| {
                 let targets = if record.to_string() == "actions:graph" {
                     BTreeSet::from([
-                        RecordKey::parse("actions:reference").expect("fixture key should parse")
+                        RecordKey::parse("actions:reference").expect("fixture key should parse"),
+                        RecordKey::parse("actions:reference-gm").expect("fixture key should parse"),
+                        RecordKey::parse("actions:reference-private")
+                            .expect("fixture key should parse"),
                     ])
                 } else {
                     BTreeSet::new()
@@ -547,7 +573,7 @@ fn vector_hit(record_key: &str, distance: f64) -> VectorSearchHit {
     }
 }
 
-fn graph_edge(from: &RecordKey, to: &str) -> GraphReferenceEdge {
+fn graph_edge(from: &RecordKey, to: &str, visibility: ContentVisibility) -> GraphReferenceEdge {
     GraphReferenceEdge {
         from_record_key: from.clone(),
         to_record_key: RecordKey::parse(to).expect("fixture key should parse"),
@@ -555,7 +581,7 @@ fn graph_edge(from: &RecordKey, to: &str) -> GraphReferenceEdge {
         reference_text: "fixture".to_string(),
         relation_kind: atlas_record::ReferenceRelationKind::Reference,
         source_kind: ContentSourceKind::Description,
-        visibility: ContentVisibility::Public,
+        visibility,
     }
 }
 

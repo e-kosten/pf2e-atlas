@@ -16,6 +16,7 @@ mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
 mod reference_policy;
+mod retrieval_policy;
 
 pub use content::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,
@@ -26,8 +27,9 @@ pub use content::{
     FoundryLinkMacroKind, FoundryLinkSource, FoundryNode, InvalidContentKey, OwnedRichContent,
     OwnedRichContentDocument, RecordContentDocument, RecordFtsProjection, ReferenceRelationKind,
     RichDocument, RichLinkTarget, RichNode, build_content_section_tree,
-    build_record_fts_projection, iter_foundry_links, render_markdown_like, render_plain_text,
-    visit_foundry_links_mut,
+    build_record_fts_projection, build_search_fts_projection,
+    build_search_presentation_document_with_content_filter, iter_foundry_links,
+    render_markdown_like, render_plain_text, visit_foundry_links_mut,
 };
 pub use creature::{
     CreatureAdjustment, CreatureAllianceName, CreatureArmorClass, CreatureComponentId,
@@ -108,4 +110,8 @@ pub use presentation_recipe::{
 pub use reference_policy::{
     DEFAULT_EXCLUDED_SOURCE_KINDS, ReferenceEdgeFacts, ReferenceGraphMode, ReferenceGraphPolicy,
     reference_edge_matches_mode, reference_graph_policy,
+};
+pub use retrieval_policy::{
+    ProductRetrievalPolicy, RecordRole, RetrievalDisposition, RetrievalPolicyDecision,
+    RetrievalRationale,
 };

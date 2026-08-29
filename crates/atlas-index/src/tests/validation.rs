@@ -115,7 +115,7 @@ fn reports_embedding_unit_policy_mismatch() -> Result<(), Box<dyn std::error::Er
     create_valid_artifact_database_with_override(
         &path,
         artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
-        "legacy-child-sections/v0",
+        "coverage-driven-rich-content/v1",
     )?;
 
     let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;

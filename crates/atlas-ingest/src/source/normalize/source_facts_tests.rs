@@ -6,7 +6,8 @@ use atlas_record::{
     CreatureResourceAmount, CreatureSourceAlliance, CreatureUnsupportedSourceField,
     DamageEffectKind, FactValue, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType,
     ItemTypeMechanics, MechanicActivityUsage, MetricValue, PresentationBlock, RecordBody,
-    build_record_fts_projection, build_record_presentation_document, render_plain_text,
+    build_search_fts_projection, build_search_presentation_document_with_content_filter,
+    render_plain_text,
 };
 use serde_json::json;
 
@@ -229,23 +230,44 @@ fn npc_canonical_facts_drive_metrics_side_display_and_fts_inputs() {
     assert_eq!(actor.senses, ["scent"]);
     assert_eq!(actor.resistances, ["mental"]);
 
-    let presentation = build_record_presentation_document(record);
+    let canonical_body = loaded
+        .facts
+        .canonical_body
+        .as_ref()
+        .expect("canonical body");
+    let presentation = build_search_presentation_document_with_content_filter(
+        record,
+        Some(canonical_body),
+        |_| true,
+    );
     assert!(presentation.sections.iter().any(|section| {
         section.blocks.iter().any(|block| {
             matches!(
                 block,
                 PresentationBlock::FactList(facts)
                     if facts.iter().any(|fact| {
-                        fact.label == "Skills" && fact.value.contains("Arcana +18")
+                        fact.label == "Arcana" && fact.value == "18"
                     })
             )
         })
     }));
-    let fts = build_record_fts_projection(record, &[]);
+    let mut conflicting_record = record.clone();
+    for metric in &mut conflicting_record.mechanics.metrics {
+        metric.value = MetricValue::Number(999.0);
+    }
+    let fts = build_search_fts_projection(&conflicting_record, &[], Some(canonical_body));
     assert!(fts.metric_terms.contains("Arcana"));
-    assert!(fts.metric_terms.contains("Scent range"));
-    assert!(!fts.metric_terms.contains("60"));
-    assert!(fts.mechanic_terms.contains("mental"));
+    assert!(fts.mechanic_terms.contains("AC 28"));
+    assert!(fts.mechanic_terms.contains("Max HP 170"));
+    assert!(fts.mechanic_terms.contains("Perception 18"));
+    assert!(fts.mechanic_terms.contains("Fortitude 19"));
+    assert!(fts.mechanic_terms.contains("Arcana 18"));
+    assert!(fts.mechanic_terms.contains("Land Speed 25"));
+    assert!(fts.mechanic_terms.contains("Fly Speed 40"));
+    assert!(
+        !fts.mechanic_terms.contains("999"),
+        "legacy metrics must not contribute to canonical FTS terms"
+    );
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
-use atlas_record::{AtlasRecord, RemasterLink};
+use atlas_record::{AtlasRecord, ProductRetrievalPolicy, RemasterLink};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use rusqlite::Connection;
 use serde::Serialize;
@@ -14,7 +14,6 @@ use crate::artifact::metadata::{
 };
 use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use crate::schema;
-use crate::write::visibility::RetrievalVisibility;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -178,11 +177,14 @@ pub fn record_round_trip_expected_retrieval_projection(
     BTreeMap<RecordKey, RecordRoundTripPersistedProjectionRow>,
     RecordRoundTripDiagnosticError,
 > {
-    let visibility = RetrievalVisibility::from_remaster_links(remaster_links);
+    let policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
     let mut projection = BTreeMap::new();
     for record in records {
         let record_key = record.identity.key.clone();
-        let (record_role, disposition, rationale) = visibility.policy(record);
+        let decision = policy.decision(record);
+        let record_role = decision.role.as_str();
+        let disposition = decision.disposition.as_str();
+        let rationale = decision.rationale.as_str();
         let row = record_round_trip_projection_row(
             record_key.clone(),
             record_role,
@@ -453,7 +455,7 @@ pub fn legacy_minilm_metadata_entries() -> Vec<(&'static str, &'static str)> {
         (artifact_metadata_keys::EMBEDDING_QUERY_PREFIX, ""),
         (
             artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
-            "coverage-driven-rich-content/v1",
+            atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION,
         ),
         (
             artifact_metadata_keys::FTS_TOKENIZER,

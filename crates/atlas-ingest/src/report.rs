@@ -115,13 +115,12 @@ pub(crate) fn analyze_captured_source_load(
     source_root: PathBuf,
     source: &SourceLoad,
 ) -> SourceAnalysisReport {
-    let retrieval_policy = crate::records::visibility::ProductRetrievalPolicy::from_remaster_links(
-        &source.remaster_links,
-    );
+    let retrieval_policy =
+        atlas_record::ProductRetrievalPolicy::from_remaster_links(&source.remaster_links);
     let ordinary_record_count = source
         .records
         .iter()
-        .filter(|loaded| retrieval_policy.is_ordinary(loaded))
+        .filter(|loaded| retrieval_policy.is_ordinary(&loaded.record))
         .count();
     let generated_record_count = source
         .records
@@ -338,14 +337,14 @@ fn count_by_publication_category(records: &[LoadedSourceRecord]) -> BTreeMap<Str
 
 fn metrics_report(
     records: &[LoadedSourceRecord],
-    retrieval_policy: &crate::records::visibility::ProductRetrievalPolicy,
+    retrieval_policy: &atlas_record::ProductRetrievalPolicy,
 ) -> SourceAnalysisMetricReport {
     let mut rows_by_domain = BTreeMap::<String, usize>::new();
     let mut keys_by_domain = BTreeMap::<String, BTreeSet<String>>::new();
     let mut text_boolean_values = BTreeSet::<(String, String, String, String)>::new();
     for loaded in records {
         let record = &loaded.record;
-        let is_ordinary = retrieval_policy.is_ordinary(loaded);
+        let is_ordinary = retrieval_policy.is_ordinary(record);
         for metric in &record.mechanics.metrics {
             let domain = metric_domain_label(metric.domain).to_string();
             *rows_by_domain.entry(domain.clone()).or_insert(0) += 1;

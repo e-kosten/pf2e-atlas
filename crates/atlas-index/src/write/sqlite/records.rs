@@ -1,6 +1,6 @@
 use atlas_record::{
     AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
-    build_record_fts_projection,
+    ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
 };
 use diesel::SqliteConnection;
 use diesel::prelude::*;
@@ -15,7 +15,6 @@ use super::models::{
     RecordSpellcastingEntryRow, RecordTraitRow, RecordsFtsRow, SpellRecordRow,
 };
 use crate::IndexWriteError;
-use crate::write::visibility::RetrievalVisibility;
 use atlas_record::{RecordAlias, RemasterLink};
 
 pub(super) fn write_records(
@@ -23,9 +22,16 @@ pub(super) fn write_records(
     records: &[AtlasRecord],
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
+    canonical_bodies: &[RecordBody],
     canonical_record_keys: &std::collections::BTreeSet<String>,
 ) -> Result<(), IndexWriteError> {
-    let retrieval_visibility = RetrievalVisibility::from_remaster_links(remaster_links);
+    let retrieval_policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
+    let canonical_bodies_by_key = canonical_bodies
+        .iter()
+        .map(|body| match body {
+            RecordBody::Creature(creature) => (creature.identity.record_key.to_string(), body),
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
     let mut record_rows = Vec::new();
     let mut content_rows = Vec::new();
     let mut trait_rows = Vec::new();
@@ -37,9 +43,11 @@ pub(super) fn write_records(
     let mut spellcasting_entry_rows = Vec::new();
     let mut fts_rows = Vec::new();
     for record in records {
-        let (record_role, retrieval_disposition, retrieval_rationale) =
-            retrieval_visibility.policy(record);
-        let is_default_visible = retrieval_visibility.is_default_visible(record);
+        let retrieval = retrieval_policy.decision(record);
+        let record_role = retrieval.role.as_str();
+        let retrieval_disposition = retrieval.disposition.as_str();
+        let retrieval_rationale = retrieval.rationale.as_str();
+        let is_default_visible = retrieval.disposition.is_ordinary();
         let traits_json = serde_json::to_string(&record.classification.traits)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         let prerequisites_json = serde_json::to_string(&record.requirements.prerequisites)
@@ -300,7 +308,13 @@ pub(super) fn write_records(
                 .filter(|alias| alias.canonical_record_key == record.identity.key)
                 .map(|alias| alias.alias_text.clone())
                 .collect::<Vec<_>>();
-            let fts = build_record_fts_projection(record, &record_aliases);
+            let fts = build_search_fts_projection(
+                record,
+                &record_aliases,
+                canonical_bodies_by_key
+                    .get(&record.identity.key.to_string())
+                    .copied(),
+            );
             fts_rows.push(RecordsFtsRow {
                 record_key: record.identity.key.to_string(),
                 title: Some(fts.title),

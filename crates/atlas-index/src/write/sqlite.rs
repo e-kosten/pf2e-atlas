@@ -127,6 +127,7 @@ fn write_artifact(
             &input.records,
             &input.aliases,
             &input.remaster_links,
+            &input.canonical_bodies,
             &canonical_record_keys,
         )?;
         artifact_progress("artifact_write", "Writing canonical record artifact");
