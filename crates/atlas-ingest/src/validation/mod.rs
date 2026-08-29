@@ -953,15 +953,18 @@ fn build_snapshot(
         journal.progress(stage, &format!("{mode}.diesel_round_trip"), "started")?;
         let round_trip_clock = OperationClock::start();
         let hydrated_records = handle.load_records()?;
-        if hydrated_records != captured_input.records {
-            return Err(validation_error(format!(
-                "{mode} Diesel record round trip differs from the captured build input"
-            )));
-        }
+        require_key_aligned_equality(&captured_input.records, &hydrated_records, |record| {
+            record.identity.key.clone()
+        })
+        .map_err(|detail| {
+            validation_error(format!(
+                "{mode} Diesel record round trip differs from the captured build input: {detail}"
+            ))
+        })?;
         let round_trip_timing = round_trip_clock.finish(
             artifact_bytes,
             1,
-            "captured build-input record equality through the retained Diesel connection",
+            "duplicate-free key-aligned captured build-input record equality through the retained Diesel connection",
         );
         journal.progress(stage, &format!("{mode}.diesel_round_trip"), "passed")?;
         if check.status != ValidationStatus::Ok || deep.status != ValidationStatus::Ok {
@@ -2273,6 +2276,65 @@ fn digest_debug(value: &impl std::fmt::Debug) -> String {
     format!("{:x}", Sha256::digest(format!("{value:#?}").as_bytes()))
 }
 
+fn require_key_aligned_equality<T, K>(
+    expected: &[T],
+    actual: &[T],
+    key: impl Fn(&T) -> K,
+) -> Result<(), String>
+where
+    T: std::fmt::Debug + PartialEq,
+    K: Clone + Ord + std::fmt::Display,
+{
+    let expected_by_key = values_by_key("captured build input", expected, &key)?;
+    let actual_by_key = values_by_key("hydrated artifact", actual, &key)?;
+
+    if let Some(missing) = expected_by_key
+        .keys()
+        .find(|record_key| !actual_by_key.contains_key(*record_key))
+    {
+        return Err(format!("hydrated artifact is missing record `{missing}`"));
+    }
+    if let Some(extra) = actual_by_key
+        .keys()
+        .find(|record_key| !expected_by_key.contains_key(*record_key))
+    {
+        return Err(format!("hydrated artifact has unexpected record `{extra}`"));
+    }
+    for (record_key, expected_value) in expected_by_key {
+        let Some(actual_value) = actual_by_key.get(&record_key) else {
+            return Err(format!(
+                "hydrated artifact is missing record `{record_key}`"
+            ));
+        };
+        if expected_value != *actual_value {
+            return Err(format!(
+                "record `{record_key}` differs (expected_sha256={}, actual_sha256={})",
+                digest_debug(expected_value),
+                digest_debug(*actual_value),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn values_by_key<'a, T, K>(
+    label: &str,
+    values: &'a [T],
+    key: &impl Fn(&T) -> K,
+) -> Result<BTreeMap<K, &'a T>, String>
+where
+    K: Clone + Ord + std::fmt::Display,
+{
+    let mut by_key = BTreeMap::new();
+    for value in values {
+        let record_key = key(value);
+        if by_key.insert(record_key.clone(), value).is_some() {
+            return Err(format!("{label} contains duplicate record `{record_key}`"));
+        }
+    }
+    Ok(by_key)
+}
+
 fn git(root: &Path, args: &[&str]) -> Result<String, IngestError> {
     let mut command = Command::new("git");
     command.arg("-C").arg(root).args(args);
@@ -2368,6 +2430,54 @@ mod tests {
         fs::create_dir(&stage).map_err(io_error("create fixture stage"))?;
         fs::write(stage.join("payload"), b"complete").map_err(io_error("write fixture"))?;
         fs::rename(stage, target).map_err(io_error("publish fixture"))
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct KeyAlignedFixture {
+        key: &'static str,
+        value: i32,
+    }
+
+    #[test]
+    fn exhaustive_record_equality_is_key_aligned_and_rejects_every_semantic_mismatch() {
+        let first = KeyAlignedFixture { key: "a", value: 1 };
+        let second = KeyAlignedFixture { key: "b", value: 2 };
+        let expected = vec![first.clone(), second.clone()];
+        let reordered = vec![second.clone(), first.clone()];
+        require_key_aligned_equality(&expected, &reordered, |record| record.key)
+            .expect("container order is not canonical record semantics");
+
+        let missing =
+            require_key_aligned_equality(&expected, std::slice::from_ref(&first), |record| {
+                record.key
+            })
+            .expect_err("missing record must fail");
+        assert!(missing.contains("missing record `b`"));
+
+        let extra_record = KeyAlignedFixture { key: "c", value: 3 };
+        let mut extra = expected.clone();
+        extra.push(extra_record);
+        let extra = require_key_aligned_equality(&expected, &extra, |record| record.key)
+            .expect_err("extra record must fail");
+        assert!(extra.contains("unexpected record `c`"));
+
+        let duplicate = vec![first.clone(), first.clone(), second.clone()];
+        let duplicate = require_key_aligned_equality(&expected, &duplicate, |record| record.key)
+            .expect_err("duplicate record must fail");
+        assert!(duplicate.contains("hydrated artifact contains duplicate record `a`"));
+
+        let duplicate_expected = vec![first.clone(), first.clone(), second.clone()];
+        let duplicate_expected =
+            require_key_aligned_equality(&duplicate_expected, &reordered, |record| record.key)
+                .expect_err("duplicate captured record must fail");
+        assert!(duplicate_expected.contains("captured build input contains duplicate record `a`"));
+
+        let wrong = vec![first, KeyAlignedFixture { key: "b", value: 3 }];
+        let wrong = require_key_aligned_equality(&expected, &wrong, |record| record.key)
+            .expect_err("wrong record value must fail");
+        assert!(wrong.contains("record `b` differs"));
+        assert!(wrong.contains("expected_sha256="));
+        assert!(wrong.contains("actual_sha256="));
     }
 
     #[test]
