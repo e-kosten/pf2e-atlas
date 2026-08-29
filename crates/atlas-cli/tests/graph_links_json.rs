@@ -41,7 +41,7 @@ fn graph_links_json_returns_bounded_context() -> Result<(), Box<dyn std::error::
     assert_eq!(data["detail"], "summary");
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
     assert_eq!(data["outgoing"]["total_records"], 2);
-    assert_eq!(data["outgoing"]["total_edges"], 3);
+    assert_eq!(data["outgoing"]["total_edges"], 4);
     assert_eq!(data["outgoing"]["truncated"], true);
     assert_eq!(data["outgoing"]["records"].as_array().unwrap().len(), 1);
     assert_eq!(data["outgoing"]["records"][0]["key"], "actions:testAction2");
@@ -127,7 +127,7 @@ fn graph_links_json_defaults_to_outgoing_only() -> Result<(), Box<dyn std::error
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["outgoing"]["total_records"], 2);
-    assert_eq!(data["outgoing"]["total_edges"], 3);
+    assert_eq!(data["outgoing"]["total_edges"], 4);
     assert_eq!(data["backlinks"]["total_records"], 0);
     assert_eq!(data["backlinks"]["total_edges"], 0);
     assert_eq!(data["backlinks"]["records"].as_array().unwrap().len(), 0);
@@ -354,7 +354,7 @@ fn graph_links_human_output_is_summary_oriented() -> Result<(), Box<dyn std::err
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("actions:testAction1"));
-    assert!(stdout.contains("Outgoing: 1 records, 2 edges (of 2 records, 3 edges)"));
+    assert!(stdout.contains("Outgoing: 1 records, 2 edges (of 2 records, 4 edges)"));
     assert!(stdout.contains("Backlinks: disabled"));
     remove_fixture_artifact(&path)?;
     Ok(())
@@ -425,7 +425,7 @@ fn graph_links_json_accepts_non_default_visible_seed() -> Result<(), Box<dyn std
     let data = ok_data(&json);
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
     assert_eq!(data["outgoing"]["total_records"], 2);
-    assert_eq!(data["outgoing"]["total_edges"], 3);
+    assert_eq!(data["outgoing"]["total_edges"], 4);
 
     remove_fixture_artifact(&path)?;
     Ok(())

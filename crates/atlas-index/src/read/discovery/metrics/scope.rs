@@ -42,14 +42,15 @@ pub(super) fn matching_count_for_catalog_scope(
 ) -> Result<u64, DiscoveryError> {
     match scope {
         MetricCatalogScope::Global => bind_sql_query(
-            "SELECT COUNT(*) AS count FROM records WHERE is_default_visible = 1".to_string(),
+            "SELECT COUNT(*) AS count FROM records WHERE retrieval_disposition = 'ordinary'"
+                .to_string(),
             &[],
         )
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)
         .map_err(query_error),
         MetricCatalogScope::Kind(kind) => bind_sql_query(
-            "SELECT COUNT(*) AS count FROM records WHERE is_default_visible = 1 AND record_kind = ?1"
+            "SELECT COUNT(*) AS count FROM records WHERE retrieval_disposition = 'ordinary' AND record_kind = ?1"
                 .to_string(),
             &[SqlBindValue::Text(record_kind_string(kind))],
         )

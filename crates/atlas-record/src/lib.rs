@@ -107,5 +107,5 @@ pub use presentation_recipe::{
 };
 pub use reference_policy::{
     DEFAULT_EXCLUDED_SOURCE_KINDS, ReferenceEdgeFacts, ReferenceGraphMode, ReferenceGraphPolicy,
-    ReferenceVisibilityPolicy, reference_edge_matches_mode, reference_graph_policy,
+    reference_edge_matches_mode, reference_graph_policy,
 };

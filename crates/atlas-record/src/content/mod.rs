@@ -307,24 +307,11 @@ impl ContentSourceKind {
     }
 
     pub const fn contributes_to_default_retrieval(self) -> bool {
-        match self.default_visibility() {
-            ContentVisibility::Public => true,
-            ContentVisibility::GmOnly
-            | ContentVisibility::Owner
-            | ContentVisibility::Private
-            | ContentVisibility::Internal => false,
-        }
+        !self.is_embedded()
     }
 
     pub const fn contributes_to_default_backlinks(self) -> bool {
-        match self {
-            Self::EmbeddedItemDescription
-            | Self::EmbeddedGmDescription
-            | Self::EmbeddedSpellDescription
-            | Self::GmNotes
-            | Self::PrivateNotes => false,
-            _ => self.contributes_to_default_retrieval(),
-        }
+        !self.is_embedded()
     }
 
     pub const fn fts_field(self) -> ContentFtsField {
@@ -344,7 +331,7 @@ impl ContentSourceKind {
     }
 
     pub const fn default_contributes_to_reference_occurrences(self) -> bool {
-        self.contributes_to_default_retrieval()
+        true
     }
 
     pub const fn is_embedded(self) -> bool {
@@ -469,7 +456,10 @@ mod tests {
             ContentVisibility::GmOnly
         );
         assert!(ContentSourceKind::EmbeddedGmDescription.is_embedded());
-        assert!(!ContentSourceKind::PrivateNotes.contributes_to_default_retrieval());
+        assert!(ContentSourceKind::PrivateNotes.contributes_to_default_retrieval());
+        assert!(ContentSourceKind::GmNotes.default_contributes_to_search());
+        assert!(ContentSourceKind::PrivateNotes.contributes_to_default_backlinks());
+        assert!(!ContentSourceKind::EmbeddedGmDescription.default_contributes_to_search());
         assert!(!ContentSourceKind::EmbeddedItemDescription.contributes_to_default_backlinks());
         assert!(
             ContentSourceKind::EmbeddedItemDescription

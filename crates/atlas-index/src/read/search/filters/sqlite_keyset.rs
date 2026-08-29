@@ -73,11 +73,11 @@ impl<'a> SqliteEligibleRecordKeyset<'a> {
     pub(crate) fn compile(self) -> Result<CompiledSqliteEligibleRecordKeyset, FilterCompileError> {
         let mut compiler = FilterCompiler::default();
         let mut select_sql = format!(
-            "SELECT {record_key} FROM {records_table} {records_alias} WHERE {default_visible} = 1",
+            "SELECT {record_key} FROM {records_table} {records_alias} WHERE {retrieval_disposition} = 'ordinary'",
             record_key = record_column(records::columns::RECORD_KEY),
             records_table = records::TABLE.name(),
             records_alias = RECORDS_ALIAS,
-            default_visible = record_column(records::columns::IS_DEFAULT_VISIBLE),
+            retrieval_disposition = record_column(records::columns::RETRIEVAL_DISPOSITION),
         );
         if let Some(record_keys) = self.record_keys {
             if record_keys.is_empty() {

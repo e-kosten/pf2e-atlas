@@ -14,7 +14,7 @@ The Rust runtime needs shared ownership rules for artifact shape, metric meaning
 
 `atlas-record` owns storage-agnostic normalized metric definitions. `MetricRow` remains open-ended record data, while typed static and pattern definitions describe known metric keys, value types, labels, namespaces, and groups. Ingest uses definition-owned key helpers for known metrics and validates emitted rows against the catalog during metric extraction. Emitted metric keys and value types are ingest invariants; broader source-field coverage analysis belongs to explicit offline audit tooling rather than default artifact builds.
 
-`atlas-record` also owns the semantic default reference graph policy. The default graph is public non-embedded reference edges. Public embedded edges and non-public edges remain stored with source metadata and require expanded graph modes. `atlas-index` lowers this policy to SQL predicates over `reference_edges`; the artifact does not store an `is_default_graph_edge` projection.
+`atlas-record` also owns the semantic default reference graph policy. The default graph includes authored non-embedded reference edges across typed visibility classifications. Embedded-description edges remain stored with source metadata and require the expanded graph mode because copied embedded prose would otherwise duplicate canonical targets and add noisy context. `atlas-index` lowers this policy to SQL predicates over `reference_edges`; the artifact does not store an `is_default_graph_edge` projection.
 
 ## Consequences
 

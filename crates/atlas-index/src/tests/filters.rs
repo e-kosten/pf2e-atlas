@@ -17,12 +17,16 @@ use crate::read::sql::SqlBindValue;
 use crate::{FilteredRecordSort, FtsQuery, SqliteIndexReader};
 
 #[test]
-fn compiles_empty_filter_to_default_visible_keyset() -> Result<(), Box<dyn std::error::Error>> {
+fn compiles_empty_filter_to_ordinary_retrieval_keyset() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-empty");
     create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "UPDATE records SET is_default_visible = 0 WHERE record_key = 'actions:testAction3'",
+        "UPDATE records
+         SET retrieval_disposition = 'direct_only',
+             retrieval_rationale = 'canonical_edition_duplicate',
+             is_default_visible = 0
+         WHERE record_key = 'actions:testAction3'",
         [],
     )?;
 
@@ -157,10 +161,15 @@ fn shared_sqlite_keyset_applies_same_filter_to_lookup_fts_identity_and_vector()
              WHEN 'actions:testAction2' THEN 2
              ELSE 3
          END,
-         is_default_visible = CASE record_key
-             WHEN 'actions:testAction3' THEN 0
-             ELSE 1
-         END",
+         retrieval_disposition = CASE record_key
+             WHEN 'actions:testAction3' THEN 'direct_only'
+             ELSE 'ordinary'
+         END,
+         retrieval_rationale = CASE record_key
+             WHEN 'actions:testAction3' THEN 'canonical_edition_duplicate'
+             ELSE 'source_record'
+         END,
+         is_default_visible = CASE record_key WHEN 'actions:testAction3' THEN 0 ELSE 1 END",
         [],
     )?;
     drop(connection);

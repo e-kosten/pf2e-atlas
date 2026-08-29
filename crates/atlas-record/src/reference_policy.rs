@@ -3,9 +3,7 @@ use crate::{ContentSourceKind, ContentVisibility};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReferenceGraphMode {
     Default,
-    PublicWithEmbedded,
-    AllVisible,
-    Internal,
+    WithEmbedded,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -15,39 +13,22 @@ pub struct ReferenceEdgeFacts {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ReferenceVisibilityPolicy {
-    Only(ContentVisibility),
-    Exclude(ContentVisibility),
-    Any,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ReferenceGraphPolicy {
-    pub visibility: ReferenceVisibilityPolicy,
     pub excluded_source_kinds: &'static [ContentSourceKind],
 }
 
 pub const DEFAULT_EXCLUDED_SOURCE_KINDS: &[ContentSourceKind] = &[
     ContentSourceKind::EmbeddedItemDescription,
+    ContentSourceKind::EmbeddedGmDescription,
     ContentSourceKind::EmbeddedSpellDescription,
 ];
 
 pub const fn reference_graph_policy(mode: ReferenceGraphMode) -> ReferenceGraphPolicy {
     match mode {
         ReferenceGraphMode::Default => ReferenceGraphPolicy {
-            visibility: ReferenceVisibilityPolicy::Only(ContentVisibility::Public),
             excluded_source_kinds: DEFAULT_EXCLUDED_SOURCE_KINDS,
         },
-        ReferenceGraphMode::PublicWithEmbedded => ReferenceGraphPolicy {
-            visibility: ReferenceVisibilityPolicy::Only(ContentVisibility::Public),
-            excluded_source_kinds: &[],
-        },
-        ReferenceGraphMode::AllVisible => ReferenceGraphPolicy {
-            visibility: ReferenceVisibilityPolicy::Exclude(ContentVisibility::Internal),
-            excluded_source_kinds: &[],
-        },
-        ReferenceGraphMode::Internal => ReferenceGraphPolicy {
-            visibility: ReferenceVisibilityPolicy::Any,
+        ReferenceGraphMode::WithEmbedded => ReferenceGraphPolicy {
             excluded_source_kinds: &[],
         },
     }
@@ -59,12 +40,7 @@ pub fn reference_edge_matches_mode(edge: ReferenceEdgeFacts, mode: ReferenceGrap
 
 impl ReferenceGraphPolicy {
     pub fn matches(self, edge: ReferenceEdgeFacts) -> bool {
-        let visibility_matches = match self.visibility {
-            ReferenceVisibilityPolicy::Only(visibility) => edge.visibility == visibility,
-            ReferenceVisibilityPolicy::Exclude(visibility) => edge.visibility != visibility,
-            ReferenceVisibilityPolicy::Any => true,
-        };
-        visibility_matches && !self.excluded_source_kinds.contains(&edge.source_kind)
+        !self.excluded_source_kinds.contains(&edge.source_kind)
     }
 }
 
@@ -80,9 +56,17 @@ mod tests {
     }
 
     #[test]
-    fn default_graph_includes_public_non_embedded_edges() {
+    fn default_graph_includes_non_embedded_edges_across_visibility_classes() {
         assert!(reference_edge_matches_mode(
             edge(ContentSourceKind::Description, ContentVisibility::Public),
+            ReferenceGraphMode::Default
+        ));
+        assert!(reference_edge_matches_mode(
+            edge(ContentSourceKind::GmNotes, ContentVisibility::GmOnly),
+            ReferenceGraphMode::Default
+        ));
+        assert!(reference_edge_matches_mode(
+            edge(ContentSourceKind::PrivateNotes, ContentVisibility::Private),
             ReferenceGraphMode::Default
         ));
         assert!(reference_edge_matches_mode(
@@ -95,7 +79,7 @@ mod tests {
     }
 
     #[test]
-    fn default_graph_excludes_embedded_and_non_public_edges() {
+    fn default_graph_excludes_embedded_edges_only_for_duplicate_control() {
         assert!(!reference_edge_matches_mode(
             edge(
                 ContentSourceKind::EmbeddedItemDescription,
@@ -104,35 +88,29 @@ mod tests {
             ReferenceGraphMode::Default
         ));
         assert!(!reference_edge_matches_mode(
-            edge(ContentSourceKind::Description, ContentVisibility::Private),
-            ReferenceGraphMode::Default
-        ));
-        assert!(!reference_edge_matches_mode(
-            edge(ContentSourceKind::Description, ContentVisibility::Internal),
+            edge(
+                ContentSourceKind::EmbeddedGmDescription,
+                ContentVisibility::GmOnly
+            ),
             ReferenceGraphMode::Default
         ));
     }
 
     #[test]
-    fn expanded_modes_include_expected_edge_sets() {
+    fn expanded_graph_includes_embedded_edges_across_visibility_classes() {
         assert!(reference_edge_matches_mode(
             edge(
                 ContentSourceKind::EmbeddedSpellDescription,
                 ContentVisibility::Public
             ),
-            ReferenceGraphMode::PublicWithEmbedded
+            ReferenceGraphMode::WithEmbedded
         ));
         assert!(reference_edge_matches_mode(
-            edge(ContentSourceKind::Description, ContentVisibility::Private),
-            ReferenceGraphMode::AllVisible
-        ));
-        assert!(!reference_edge_matches_mode(
-            edge(ContentSourceKind::Description, ContentVisibility::Internal),
-            ReferenceGraphMode::AllVisible
-        ));
-        assert!(reference_edge_matches_mode(
-            edge(ContentSourceKind::Description, ContentVisibility::Internal),
-            ReferenceGraphMode::Internal
+            edge(
+                ContentSourceKind::EmbeddedGmDescription,
+                ContentVisibility::GmOnly
+            ),
+            ReferenceGraphMode::WithEmbedded
         ));
     }
 }
