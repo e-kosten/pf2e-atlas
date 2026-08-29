@@ -23,7 +23,9 @@ pub struct SourceAnalysisReport {
     pub record_count: usize,
     pub loaded_source_record_count: usize,
     pub generated_record_count: usize,
+    /// Ordinary-retrieval count retained under the existing serialized report field name.
     pub default_visible_record_count: usize,
+    /// Direct-only plus inspection-only count retained under the existing report field name.
     pub hidden_record_count: usize,
     pub by_kind: BTreeMap<String, usize>,
     pub by_foundry_taxonomy: BTreeMap<String, usize>,
@@ -113,13 +115,13 @@ pub(crate) fn analyze_captured_source_load(
     source_root: PathBuf,
     source: &SourceLoad,
 ) -> SourceAnalysisReport {
-    let retrieval_visibility = crate::records::visibility::RetrievalVisibility::from_remaster_links(
+    let retrieval_policy = crate::records::visibility::ProductRetrievalPolicy::from_remaster_links(
         &source.remaster_links,
     );
-    let default_visible_record_count = source
+    let ordinary_record_count = source
         .records
         .iter()
-        .filter(|loaded| retrieval_visibility.is_default_visible(&loaded.record))
+        .filter(|loaded| retrieval_policy.is_ordinary(loaded))
         .count();
     let generated_record_count = source
         .records
@@ -143,8 +145,8 @@ pub(crate) fn analyze_captured_source_load(
         record_count: source.records.len(),
         loaded_source_record_count: source.records.len() - generated_record_count,
         generated_record_count,
-        default_visible_record_count,
-        hidden_record_count: source.records.len() - default_visible_record_count,
+        default_visible_record_count: ordinary_record_count,
+        hidden_record_count: source.records.len() - ordinary_record_count,
         by_kind: count_by_kind(&source.records),
         by_foundry_taxonomy: count_by_foundry_taxonomy(&source.records),
         by_publication_category: count_by_publication_category(&source.records),
@@ -178,7 +180,7 @@ pub(crate) fn analyze_captured_source_load(
                 .filter(|loaded| loaded.record.mechanics.spell().is_some())
                 .count(),
         },
-        metrics: metrics_report(&source.records, &retrieval_visibility),
+        metrics: metrics_report(&source.records, &retrieval_policy),
         relationships: SourceAnalysisRelationshipReport {
             reference_edges: source.references.len(),
             default_reference_edges: reference_edge_count(
@@ -187,7 +189,7 @@ pub(crate) fn analyze_captured_source_load(
             ),
             expanded_reference_edges: reference_edge_count(
                 &source.references,
-                ReferenceGraphMode::AllVisible,
+                ReferenceGraphMode::WithEmbedded,
             ),
             record_aliases: source.aliases.len(),
             remaster_links: source.remaster_links.len(),
@@ -336,14 +338,14 @@ fn count_by_publication_category(records: &[LoadedSourceRecord]) -> BTreeMap<Str
 
 fn metrics_report(
     records: &[LoadedSourceRecord],
-    retrieval_visibility: &crate::records::visibility::RetrievalVisibility,
+    retrieval_policy: &crate::records::visibility::ProductRetrievalPolicy,
 ) -> SourceAnalysisMetricReport {
     let mut rows_by_domain = BTreeMap::<String, usize>::new();
     let mut keys_by_domain = BTreeMap::<String, BTreeSet<String>>::new();
     let mut text_boolean_values = BTreeSet::<(String, String, String, String)>::new();
     for loaded in records {
         let record = &loaded.record;
-        let is_default_visible = retrieval_visibility.is_default_visible(record);
+        let is_ordinary = retrieval_policy.is_ordinary(loaded);
         for metric in &record.mechanics.metrics {
             let domain = metric_domain_label(metric.domain).to_string();
             *rows_by_domain.entry(domain.clone()).or_insert(0) += 1;
@@ -352,7 +354,7 @@ fn metrics_report(
                 .or_default()
                 .insert(metric.key.clone());
             match &metric.value {
-                MetricValue::Text(value) if is_default_visible => {
+                MetricValue::Text(value) if is_ordinary => {
                     text_boolean_values.insert((
                         domain,
                         record.classification.kind.as_str().to_string(),
@@ -361,7 +363,7 @@ fn metrics_report(
                     ));
                 }
                 MetricValue::Boolean(value) => {
-                    if is_default_visible {
+                    if is_ordinary {
                         text_boolean_values.insert((
                             domain,
                             record.classification.kind.as_str().to_string(),

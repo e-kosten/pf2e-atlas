@@ -8,7 +8,7 @@ use crate::{ReferenceEdgeDirection, RemasterReadIndex, SqliteIndexReader, Varian
 use super::{create_valid_artifact_database, insert_reference_edge, temp_db_path};
 
 #[test]
-fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
+fn reference_edges_for_seed_returns_authored_outgoing_edges()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-outgoing");
     create_valid_artifact_database(&path)?;
@@ -39,6 +39,17 @@ fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
         "embedded_item_description",
         "public",
     )?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET record_role = 'source_instance',
+             retrieval_disposition = 'direct_only',
+             retrieval_rationale = 'duplicate_source_instance',
+             is_default_visible = 0
+         WHERE record_key = 'actions:testAction3'",
+        [],
+    )?;
+    drop(connection);
 
     let index = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let edges = index.reference_edges_for_seed(
@@ -46,20 +57,33 @@ fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
         ReferenceEdgeDirection::Outgoing,
     )?;
 
-    assert_eq!(edges.len(), 1);
+    assert_eq!(edges.len(), 2);
+    let edges = edges
+        .into_iter()
+        .map(|edge| (edge.reference_text.clone(), edge))
+        .collect::<std::collections::BTreeMap<_, _>>();
     assert_eq!(
-        edges[0].to_record_key,
+        edges["visible-ref"].to_record_key,
         RecordKey::parse("actions:testAction2")?
     );
-    assert_eq!(edges[0].display_text.as_deref(), Some("Visible"));
-    assert_eq!(edges[0].reference_text, "visible-ref");
+    assert_eq!(
+        edges["visible-ref"].display_text.as_deref(),
+        Some("Visible")
+    );
+    assert_eq!(
+        edges["private-ref"].to_record_key,
+        RecordKey::parse("actions:testAction3")?
+    );
+    assert_eq!(
+        edges["private-ref"].display_text.as_deref(),
+        Some("Private")
+    );
     fs::remove_file(path)?;
     Ok(())
 }
 
 #[test]
-fn reference_edges_for_seed_returns_policy_visible_backlinks()
--> Result<(), Box<dyn std::error::Error>> {
+fn reference_edges_for_seed_returns_authored_backlinks() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-backlinks");
     create_valid_artifact_database(&path)?;
     insert_reference_edge(
@@ -87,18 +111,23 @@ fn reference_edges_for_seed_returns_policy_visible_backlinks()
         ReferenceEdgeDirection::Backlink,
     )?;
 
-    assert_eq!(edges.len(), 1);
+    assert_eq!(edges.len(), 2);
     assert_eq!(
         edges[0].from_record_key,
         RecordKey::parse("actions:testAction2")?
     );
     assert_eq!(edges[0].reference_text, "incoming-ref");
+    assert_eq!(
+        edges[1].from_record_key,
+        RecordKey::parse("actions:testAction3")?
+    );
+    assert_eq!(edges[1].reference_text, "private-ref");
     fs::remove_file(path)?;
     Ok(())
 }
 
 #[test]
-fn outgoing_reference_targets_for_records_batches_policy_visible_edges()
+fn outgoing_reference_targets_for_records_batches_authored_edges()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-outgoing-batch");
     create_valid_artifact_database(&path)?;
@@ -151,7 +180,7 @@ fn outgoing_reference_targets_for_records_batches_policy_visible_edges()
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>(),
-        vec!["actions:testAction2"]
+        vec!["actions:testAction2", "actions:testAction3"]
     );
     assert_eq!(
         targets[&RecordKey::parse("actions:testAction2")?]
@@ -217,15 +246,16 @@ fn variant_group_reports_missing_and_non_variant_seed() -> Result<(), Box<dyn st
 }
 
 #[test]
-fn variant_base_name_returns_default_visible_matching_groups()
--> Result<(), Box<dyn std::error::Error>> {
+fn variant_base_name_returns_ordinary_matching_groups() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-variant-base");
     create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_variant_group(&connection)?;
     connection.execute(
         "UPDATE records
-         SET is_default_visible = 0
+         SET retrieval_disposition = 'direct_only',
+             retrieval_rationale = 'canonical_edition_duplicate',
+             is_default_visible = 0
          WHERE record_key = 'actions:testAction3'",
         [],
     )?;

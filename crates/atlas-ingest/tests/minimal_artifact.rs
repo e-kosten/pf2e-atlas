@@ -1,6 +1,7 @@
 use std::fs;
 
-use atlas_index::{SqliteIndexReader, ValidationStatus};
+use atlas_domain::RecordKey;
+use atlas_index::{ReferenceEdgeDirection, SqliteIndexReader, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -858,7 +859,8 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.generated_record_count, 2);
     assert_eq!(report.pending_document_embedding_count, 2);
     assert_eq!(report.document_embedding_count, 0);
-    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
+    let reader = SqliteIndexReader::open_read_only(&output_path)?;
+    let validation = reader.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(validation.source_record_count.as_deref(), Some("1"));
     assert_eq!(validation.artifact_record_count.as_deref(), Some("3"));
@@ -882,6 +884,17 @@ fn generates_affliction_records_from_staged_embedded_items()
         "SELECT COUNT(*) FROM reference_edges WHERE reference_text LIKE 'derived-affliction-%'",
         [],
         |row| row.get(0),
+    )?;
+    let source_instance_key: String = connection.query_row(
+        "SELECT record_key FROM records WHERE record_role = 'source_instance'",
+        [],
+        |row| row.get(0),
+    )?;
+    let source_instance_policy: (String, String, i64) = connection.query_row(
+        "SELECT retrieval_disposition, retrieval_rationale, is_default_visible
+         FROM records WHERE record_key = ?1",
+        [&source_instance_key],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;
     let ghoul_fever_count: usize = connection.query_row(
         "SELECT COUNT(*) FROM records
@@ -924,6 +937,26 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(ghoul_fever_count, 1);
     assert_eq!(generated_roles, ["canonical", "source_instance"]);
     assert_eq!(serpent_dagger_count, 0);
+    assert_eq!(
+        source_instance_policy,
+        (
+            "direct_only".to_string(),
+            "duplicate_source_instance".to_string(),
+            0
+        )
+    );
+    let source_instance_key = RecordKey::parse(&source_instance_key)?;
+    assert_eq!(
+        reader
+            .load_records_by_key(std::slice::from_ref(&source_instance_key))?
+            .len(),
+        1
+    );
+    assert!(
+        !reader
+            .reference_edges_for_seed(&source_instance_key, ReferenceEdgeDirection::Outgoing)?
+            .is_empty()
+    );
 
     drop(connection);
     fs::remove_dir_all(root)?;

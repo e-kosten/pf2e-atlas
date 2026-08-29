@@ -31,37 +31,18 @@ where
     let mut record_set = index
         .load_record_set()
         .map_err(SearchError::from_record_load)?;
-    record_set
-        .records
-        .retain(|record| record.visibility.visible_by_default());
-    let default_visible_keys = record_set
-        .records
-        .iter()
-        .map(|record| record.identity.key.clone())
+    let allowed = index
+        .list_filtered_record_keys(filter, None, FilteredRecordSort::RecordKey, u32::MAX, 0)
+        .map_err(SearchError::from_filter)?
+        .record_keys
+        .into_iter()
         .collect::<std::collections::BTreeSet<_>>();
     record_set
+        .records
+        .retain(|record| allowed.contains(&record.identity.key));
+    record_set
         .aliases
-        .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
-    if let Some(filter) = filter {
-        let allowed = index
-            .list_filtered_record_keys(
-                Some(filter),
-                None,
-                FilteredRecordSort::RecordKey,
-                u32::MAX,
-                0,
-            )
-            .map_err(SearchError::from_filter)?
-            .record_keys
-            .into_iter()
-            .collect::<std::collections::BTreeSet<_>>();
-        record_set
-            .records
-            .retain(|record| allowed.contains(&record.identity.key));
-        record_set
-            .aliases
-            .retain(|alias| allowed.contains(&alias.canonical_record_key));
-    }
+        .retain(|alias| allowed.contains(&alias.canonical_record_key));
 
     let mut matches = resolution_matches_for_kind(
         query,
