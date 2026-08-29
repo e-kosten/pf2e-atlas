@@ -6,7 +6,7 @@ use tracing::info;
 use atlas_index::{IndexArtifactWriter, SqliteIndexWriter, publish_artifact_pair};
 
 use crate::artifact_manifest::{
-    ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path, artifact_sha256,
+    ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path,
     compute_source_position_report, write_artifact_manifest,
 };
 use crate::embeddings::generation::generate_document_embeddings_for_source;
@@ -68,15 +68,19 @@ fn build_artifact_from_source_started(
     let index_input = index_build_input(source);
     let staged_artifact = staged_path(&options.output_path, "artifact");
     let staged_manifest = staged_path(&options.output_path, "manifest");
-    let output = SqliteIndexWriter::new(staged_artifact.clone());
+    let output = SqliteIndexWriter::new_for_publication(
+        staged_artifact.clone(),
+        options.output_path.clone(),
+    );
     info!(
         backend = output.label(),
         output = %options.output_path.display(),
         "writing artifact output"
     );
-    output
+    let receipt = output
         .write(&index_input, embedding_model)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let receipt_telemetry = receipt.telemetry().clone();
     let artifact_record_count = index_input.records.len();
     let source_record_count = index_input.source_record_count;
     let generated_record_count = artifact_record_count - source_record_count;
@@ -84,7 +88,8 @@ fn build_artifact_from_source_started(
     let source_signature = index_input.source_signature.clone();
     let source_position =
         compute_source_position_report(&options.source_root, options.manifest_path.as_deref());
-    let artifact_sha256 = artifact_sha256(&staged_artifact)?;
+    let artifact_sha256 = receipt.artifact_sha256().to_string();
+    let manifest_started = Instant::now();
     let manifest = ArtifactManifest::new(ArtifactManifestInput {
         source_root: options.source_root.clone(),
         source_signature: source_signature.clone(),
@@ -97,8 +102,9 @@ fn build_artifact_from_source_started(
         source_position,
     });
     write_artifact_manifest(&staged_manifest, &manifest)?;
-    publish_artifact_pair(
-        &staged_artifact,
+    let manifest_stage_ms = manifest_started.elapsed().as_millis();
+    let publication = publish_artifact_pair(
+        receipt,
         &staged_manifest,
         &options.output_path,
         &adjacent_artifact_manifest_path(&options.output_path),
@@ -112,6 +118,25 @@ fn build_artifact_from_source_started(
         document_embeddings = index_input.document_embeddings.len(),
         duration_ms = build_duration_ms,
         "artifact build complete"
+    );
+    info!(
+        write_ms = receipt_telemetry.write_ms,
+        deep_validation_ms = receipt_telemetry.deep_validation_ms,
+        writer_digest_ms = receipt_telemetry.writer_digest_ms,
+        manifest_stage_ms,
+        lock_wait_ms = publication.lock_wait_ms,
+        recovery_ms = publication.recovery_ms,
+        generation_materialization_ms = publication.generation_materialization_ms,
+        prior_pair_snapshot_ms = publication.prior_pair_snapshot_ms,
+        pair_install_ms = publication.pair_install_ms,
+        visible_pair_verification_ms = publication.visible_pair_verification_ms,
+        cleanup_ms = publication.cleanup_ms,
+        artifact_bytes = receipt_telemetry.artifact_bytes,
+        writer_digest_bytes = receipt_telemetry.writer_digest_bytes,
+        publication_sha_bytes = publication.publication_sha_bytes,
+        generation_copy_bytes = publication.generation_copy_bytes,
+        receipt_reuse_count = publication.receipt_reuse_count,
+        "artifact publication receipt telemetry"
     );
     Ok(BuildArtifactReport {
         output_path: options.output_path,

@@ -19,7 +19,8 @@ mod write;
 pub use artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND,
 };
-pub use artifact::publication::publish_artifact_pair;
+pub use artifact::pair::{ArtifactReceiptTelemetry, ValidatedArtifactReceipt};
+pub use artifact::publication::{ArtifactPublicationTelemetry, publish_artifact_pair};
 pub use artifact::validation::validation_report_for_error;
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
 pub use inspect::{

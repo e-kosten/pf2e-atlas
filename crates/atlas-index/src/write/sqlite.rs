@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
-use crate::{IndexArtifactWriter, IndexBuildInput};
+use crate::{IndexArtifactWriter, IndexBuildInput, ValidatedArtifactReceipt};
 use atlas_embedding::EmbeddingModelId;
 use diesel::{Connection, SqliteConnection};
 use tracing::info;
@@ -37,11 +38,22 @@ const INSERT_BATCH_ROWS: usize = 16;
 
 pub struct SqliteIndexWriter {
     path: PathBuf,
+    publication_target: PathBuf,
 }
 
 impl SqliteIndexWriter {
     pub fn new(path: PathBuf) -> Self {
-        Self { path }
+        Self {
+            publication_target: path.clone(),
+            path,
+        }
+    }
+
+    pub fn new_for_publication(path: PathBuf, publication_target: PathBuf) -> Self {
+        Self {
+            path,
+            publication_target,
+        }
     }
 }
 
@@ -58,16 +70,18 @@ impl IndexArtifactWriter for SqliteIndexWriter {
         &self,
         input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
-    ) -> Result<(), IndexWriteError> {
-        write_artifact(&self.path, input, embedding_model)
+    ) -> Result<ValidatedArtifactReceipt, IndexWriteError> {
+        write_artifact(&self.path, &self.publication_target, input, embedding_model)
     }
 }
 
 fn write_artifact(
     path: &Path,
+    publication_target: &Path,
     input: &IndexBuildInput,
     embedding_model: EmbeddingModelId,
-) -> Result<(), IndexWriteError> {
+) -> Result<ValidatedArtifactReceipt, IndexWriteError> {
+    let write_started = Instant::now();
     artifact_progress("artifact_write", "Preparing artifact output");
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
@@ -164,31 +178,17 @@ fn write_artifact(
     })?;
     drop(connection);
 
+    artifact_progress("artifact_write", "Sealing candidate artifact");
+    output.commit()?;
+    let write_ms = write_started.elapsed().as_millis();
     artifact_progress("artifact_write", "Validating complete candidate artifact");
-    let validation_connection = rusqlite::Connection::open(output.temp_path())
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let report = crate::validate_index_connection(
-        output.temp_path().display().to_string(),
-        &validation_connection,
-    )
-    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    if report.status != crate::ValidationStatus::Ok {
-        let details = report
-            .diagnostics
-            .iter()
-            .take(10)
-            .map(|diagnostic| diagnostic.message.as_str())
-            .collect::<Vec<_>>()
-            .join("; ");
-        return Err(IndexWriteError::WriteFailed(format!(
-            "candidate artifact failed deep validation before publication: {details}"
-        )));
+    match ValidatedArtifactReceipt::issue(path, publication_target, write_ms) {
+        Ok(receipt) => Ok(receipt),
+        Err(error) => {
+            let _ = output::remove_sqlite_files(path);
+            Err(error)
+        }
     }
-    drop(validation_connection);
-
-    artifact_progress("artifact_write", "Publishing artifact");
-    info!("publishing artifact");
-    output.commit()
 }
 
 fn artifact_progress(phase: &'static str, message: &'static str) {
@@ -1132,8 +1132,13 @@ mod tests {
             document_embeddings: Vec::new(),
         };
 
-        let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
-            .expect_err("invalid input should fail before publish");
+        let error = write_artifact(
+            &target_path,
+            &target_path,
+            &input,
+            EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("invalid input should fail before publish");
 
         assert!(matches!(error, IndexWriteError::InvalidInput(_)));
         assert_eq!(fs::read(&target_path)?, b"existing artifact");
@@ -1174,8 +1179,13 @@ mod tests {
             document_embeddings: Vec::new(),
         };
 
-        let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
-            .expect_err("non-UTF-8 database path should be rejected");
+        let error = write_artifact(
+            &target_path,
+            &target_path,
+            &input,
+            EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("non-UTF-8 database path should be rejected");
 
         assert!(matches!(error, IndexWriteError::WriteFailed(_)));
         assert!(error.to_string().contains("not valid UTF-8"));
@@ -1209,8 +1219,13 @@ mod tests {
             document_embeddings: Vec::new(),
         };
 
-        let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
-            .expect_err("non-UTF-8 pack path should be rejected");
+        let error = write_artifact(
+            &target_path,
+            &target_path,
+            &input,
+            EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("non-UTF-8 pack path should be rejected");
 
         assert!(matches!(error, IndexWriteError::WriteFailed(_)));
         assert!(error.to_string().contains("pack resolved path"));
