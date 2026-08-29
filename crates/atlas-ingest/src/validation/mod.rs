@@ -1372,8 +1372,8 @@ fn validate_receipt_metadata(
     if report.status != ValidationStatus::Ok {
         return Ok(());
     }
-    let expected_file = format!("{}.sqlite", tuple.mode);
-    let expected_parent = tuple.snapshot_stage.join("artifacts");
+    let expected_file = "index.sqlite";
+    let expected_parent = tuple.snapshot_stage.join("artifacts").join(&tuple.mode);
     let report_path = Path::new(&report.index);
     for (field, expected, actual) in [
         (
@@ -1388,7 +1388,7 @@ fn validate_receipt_metadata(
         ),
         (
             "artifact_file_name",
-            Some(expected_file.as_str()),
+            Some(expected_file),
             report_path.file_name().and_then(|name| name.to_str()),
         ),
         (
@@ -3033,8 +3033,8 @@ mod tests {
                 .expect("fixture embedding identity"),
         };
         let generation = json!({
-            "canonical_artifact_path": "/snapshot/artifacts/no_embeddings.sqlite",
-            "generation_path": "/snapshot/artifacts/.generations/sha.sqlite",
+            "canonical_artifact_path": "/snapshot/artifacts/no_embeddings/index.sqlite",
+            "generation_path": "/snapshot/artifacts/no_embeddings/index.sqlite.atlas-generations/sha.sqlite",
             "file_identity": "dev:1:ino:2",
             "bytes": 10,
             "trusted_sha256": "sha",

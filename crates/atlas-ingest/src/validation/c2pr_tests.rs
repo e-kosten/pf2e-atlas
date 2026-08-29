@@ -44,7 +44,7 @@ fn receipt_report(
     ArtifactValidationReport::ok(
         tuple
             .snapshot_stage
-            .join("artifacts/no_embeddings.sqlite")
+            .join("artifacts/no_embeddings/index.sqlite")
             .display()
             .to_string(),
         ArtifactMetadataSummary {
@@ -71,8 +71,8 @@ fn alias_and_canonical_selectors_bind_to_one_typed_receipt_identity() {
     );
 
     let generation = json!({
-        "canonical_artifact_path": "/validation/snapshot/artifacts/no_embeddings.sqlite",
-        "generation_path": "/validation/snapshot/artifacts/.generations/sha.sqlite",
+        "canonical_artifact_path": "/validation/snapshot/artifacts/no_embeddings/index.sqlite",
+        "generation_path": "/validation/snapshot/artifacts/no_embeddings/index.sqlite.atlas-generations/sha.sqlite",
         "file_identity": "dev:1:ino:2",
         "bytes": 10,
         "trusted_sha256": "sha",
