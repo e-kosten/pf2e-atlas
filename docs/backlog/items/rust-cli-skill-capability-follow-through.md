@@ -17,7 +17,8 @@ Improve the CLI and skill around real task friction found during use.
 
 Candidate areas:
 
-- richer kind-specific preview facts in search results
+- family-specific `RecordJson` variants that replace explicit `unmigrated` registry entries under their H1-H10 plans
+- refinement of typed creature preview density from observed CLI and agent use without reintroducing generic mechanics blocks
 - typo-tolerant or suggestion-oriented discovery without weakening strict `record resolve`
 - pack/source listing if it proves useful for agents
 - clearer command examples and command-choice rules in the skill package
@@ -31,6 +32,7 @@ Candidate areas:
 - Prefer small measured improvements tied to observed CLI or skill friction.
 - Keep the product surface CLI-first; do not introduce a transport-specific compatibility layer.
 - Keep durable behavior in runtime/search/index crates and command presentation in `atlas-cli`.
+- Preserve one tagged CLI model distinct from canonical records and app/web DTOs; each future family owns a direct optimized variant rather than a compatibility shim or universal mechanics bag.
 
 ## Related
 

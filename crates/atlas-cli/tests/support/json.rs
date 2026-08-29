@@ -33,10 +33,18 @@ pub fn parse_error(
 }
 
 pub fn record_sections(record: &Value) -> Vec<&str> {
-    record["sections"]
-        .as_array()
-        .expect("sections")
-        .iter()
+    record
+        .get("sections")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .chain(
+            record
+                .get("supplementary_sections")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten(),
+        )
         .map(|section| section["kind"].as_str().expect("section kind"))
         .collect()
 }

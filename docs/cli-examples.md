@@ -191,5 +191,25 @@ Most JSON commands return a shared envelope:
 - batch commands can have per-record failures inside `data.results[].error`
 - artifact validation can return `status: "ok"` with `data.valid: false`
 
+Every record-bearing result uses one tagged record contract. Check
+`presentation_type` before reading entity fields. Creature records expose
+`defenses`, `perception`, `languages`, `skills`, `movement`, `resources`,
+`strikes`, `actions`, and separate `spellcasting.entries` and
+`spellcasting.spells` directly. Rich prose and relationships live under
+`supplementary_sections`; do not search generic sections for creature
+mechanics. A non-creature `presentation_type: "unmigrated"` payload names its
+temporary H-family registry assignment in `migration` and retains generic fact
+`sections` until that family contract lands.
+
+Raw source is always an independent explicit opt-in. It is omitted without
+`--include-raw`, and it may be requested with any supported detail level:
+
+```bash
+atlas record get pathfinder-bestiary:WQy7HBUcgDLsfVJd --detail preview --include-raw --json
+```
+
+Do not require `--detail full` merely to use `--include-raw`; choose `full`
+only when full source metadata and hydration are useful.
+
 For agent workflows, check the top-level `status`, inspect `error` when
 present, and inspect per-result errors before trusting batch output.

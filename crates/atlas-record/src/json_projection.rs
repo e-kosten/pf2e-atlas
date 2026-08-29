@@ -1,5 +1,17 @@
-use atlas_domain::DetailLevel;
+mod creature;
+
+use std::ops::Deref;
+
+use atlas_domain::{DetailLevel, RecordKind};
 use serde::Serialize;
+
+pub use creature::{
+    CreatureActionJson, CreatureActivityModeJson, CreatureArmorClassJson, CreatureDamageJson,
+    CreatureDefensesJson, CreatureHitPointsJson, CreatureIwrJson, CreatureMovementJson,
+    CreatureMovementModeJson, CreatureResourceJson, CreatureRollJson, CreatureSaveJson,
+    CreatureSavesJson, CreatureSenseJson, CreatureSkillJson, CreatureSpellJson,
+    CreatureSpellcastingEntryJson, CreatureSpellcastingJson, CreatureStrikeJson,
+};
 
 use crate::{
     AtlasRecord, PresentationBlock, PresentationContent, PresentationFact,
@@ -15,8 +27,34 @@ pub struct RecordJsonOptions {
     pub include_source_json: bool,
 }
 
+/// The one durable CLI/agent record presentation contract.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RecordJson {
+    #[serde(flatten)]
+    pub base: RecordJsonBase,
+    #[serde(flatten)]
+    pub presentation: RecordPresentationJson,
+}
+
+impl Deref for RecordJson {
+    type Target = RecordJsonBase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl RecordJson {
+    pub fn generic_sections(&self) -> &[RecordSectionJson] {
+        match &self.presentation {
+            RecordPresentationJson::Creature { .. } => &[],
+            RecordPresentationJson::Unmigrated { sections, .. } => sections,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RecordJsonBase {
     pub key: String,
     pub name: String,
     pub kind: &'static str,
@@ -29,9 +67,45 @@ pub struct RecordJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<RecordSourceJson>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub sections: Vec<RecordSectionJson>,
+    pub supplementary_sections: Vec<RecordSectionJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_json: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "presentation_type", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)] // The serialized variants intentionally stay flat.
+pub enum RecordPresentationJson {
+    Creature {
+        defenses: CreatureDefensesJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        perception: Option<CreaturePerceptionJson>,
+        languages: Vec<String>,
+        skills: Vec<CreatureSkillJson>,
+        movement: CreatureMovementJson,
+        resources: Vec<CreatureResourceJson>,
+        strikes: Vec<CreatureStrikeJson>,
+        actions: Vec<CreatureActionJson>,
+        spellcasting: CreatureSpellcastingJson,
+    },
+    Unmigrated {
+        migration: UnmigratedRegistryJson,
+        sections: Vec<RecordSectionJson>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreaturePerceptionJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modifier: Option<i64>,
+    pub senses: Vec<CreatureSenseJson>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct UnmigratedRegistryJson {
+    pub family: &'static str,
+    pub plan_id: &'static str,
+    pub acceptance_checkpoint: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -103,31 +177,42 @@ pub struct RecordRelationshipJson {
 }
 
 pub fn record_json(record: &AtlasRecord, options: RecordJsonOptions) -> RecordJson {
-    let presentation = build_record_presentation_document(record);
-    let mut sections = sections_for_detail(record, &presentation.sections, options.detail);
-    sections.retain(|section| !section.blocks.is_empty());
+    let document = build_record_presentation_document(record);
+    let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
+    let presentation = if record.classification.kind == RecordKind::Creature {
+        creature::creature_presentation(record, options.detail)
+    } else {
+        RecordPresentationJson::Unmigrated {
+            migration: unmigrated_registry(record),
+            sections: generic_sections(&detailed_sections),
+        }
+    };
+
     RecordJson {
-        key: record.identity.key.to_string(),
-        name: record.identity.name.clone(),
-        kind: record.classification.kind.as_str(),
-        level: record.classification.level,
-        rarity: record
-            .classification
-            .rarity
-            .map(|rarity| rarity.as_str().to_string()),
-        traits: record.classification.traits.clone(),
-        source: source_json(record, options.detail),
-        sections,
-        source_json: options
-            .include_source_json
-            .then(|| record.provenance.raw_json.clone())
-            .flatten(),
+        base: RecordJsonBase {
+            key: record.identity.key.to_string(),
+            name: record.identity.name.clone(),
+            kind: record.classification.kind.as_str(),
+            level: record.classification.level,
+            rarity: record
+                .classification
+                .rarity
+                .map(|rarity| rarity.as_str().to_string()),
+            traits: record.classification.traits.clone(),
+            source: source_json(record, options.detail),
+            supplementary_sections: supplementary_sections(&detailed_sections),
+            source_json: options
+                .include_source_json
+                .then(|| record.provenance.raw_json.clone())
+                .flatten(),
+        },
+        presentation,
     }
 }
 
 fn source_json(record: &AtlasRecord, detail: DetailLevel) -> Option<RecordSourceJson> {
     let full = detail == DetailLevel::Full;
-    let source = RecordSourceJson {
+    Some(RecordSourceJson {
         publication_title: record.publication.title.clone(),
         pack: Some(RecordPackJson {
             name: record.identity.pack().to_string(),
@@ -140,18 +225,36 @@ fn source_json(record: &AtlasRecord, detail: DetailLevel) -> Option<RecordSource
             document_type: record.foundry.document_type.as_str().to_string(),
             record_type: record.foundry.record_type.as_str().to_string(),
         }),
-    };
+    })
+}
 
-    if source.publication_title.is_none()
-        && source.pack.is_none()
-        && source.category.is_none()
-        && source.publication_remaster.is_none()
-        && source.source_path.is_none()
-        && source.foundry.is_none()
-    {
-        None
-    } else {
-        Some(source)
+fn unmigrated_registry(record: &AtlasRecord) -> UnmigratedRegistryJson {
+    use crate::FoundryRecordType;
+
+    let (family, plan_id) = match record.classification.kind {
+        RecordKind::Creature => unreachable!("creatures have a dedicated presentation"),
+        RecordKind::Hazard => ("hazard", "H1"),
+        RecordKind::Spell => ("spell_or_ritual", "H2"),
+        RecordKind::Equipment => match record.foundry.record_type {
+            FoundryRecordType::Weapon | FoundryRecordType::Ammo => ("weapon_or_ammunition", "H3"),
+            FoundryRecordType::Armor | FoundryRecordType::Shield => ("armor_or_shield", "H4"),
+            FoundryRecordType::Consumable => ("consumable", "H5"),
+            _ => ("remaining_physical_item", "H6"),
+        },
+        RecordKind::Feat
+        | RecordKind::Affliction
+        | RecordKind::Rule
+        | RecordKind::CharacterOption => ("rules_content", "H7"),
+        RecordKind::Lore | RecordKind::CampaignFeature => ("journal_or_table_content", "H8"),
+        RecordKind::Character | RecordKind::Companion | RecordKind::Army | RecordKind::Vehicle => {
+            ("actor_family", "H9")
+        }
+        RecordKind::Tooling => ("generated_container_or_embedded_context", "H10"),
+    };
+    UnmigratedRegistryJson {
+        family,
+        plan_id,
+        acceptance_checkpoint: "H12",
     }
 }
 
@@ -241,8 +344,40 @@ fn truncate_words(text: &str, max_words: usize) -> Option<String> {
     Some(output)
 }
 
+fn supplementary_sections(sections: &[RecordSectionJson]) -> Vec<RecordSectionJson> {
+    sections
+        .iter()
+        .filter_map(|section| section_with_blocks(section, false))
+        .collect()
+}
+
+fn generic_sections(sections: &[RecordSectionJson]) -> Vec<RecordSectionJson> {
+    sections
+        .iter()
+        .filter_map(|section| section_with_blocks(section, true))
+        .collect()
+}
+
+fn section_with_blocks(section: &RecordSectionJson, facts: bool) -> Option<RecordSectionJson> {
+    let blocks = section
+        .blocks
+        .iter()
+        .filter(|block| matches!(block, RecordBlockJson::FactList { .. }) == facts)
+        .cloned()
+        .collect::<Vec<_>>();
+    (!blocks.is_empty()).then(|| RecordSectionJson {
+        kind: section.kind,
+        title: section.title.clone(),
+        blocks,
+    })
+}
+
 fn section_json(section: &PresentationSection) -> Option<RecordSectionJson> {
-    let blocks: Vec<_> = section.blocks.iter().filter_map(block_json).collect();
+    let blocks = section
+        .blocks
+        .iter()
+        .filter_map(block_json)
+        .collect::<Vec<_>>();
     (!blocks.is_empty()).then(|| RecordSectionJson {
         kind: section.kind.as_str(),
         title: section.title.clone(),
@@ -253,7 +388,7 @@ fn section_json(section: &PresentationSection) -> Option<RecordSectionJson> {
 fn block_json(block: &PresentationBlock) -> Option<RecordBlockJson> {
     match block {
         PresentationBlock::FactList(facts) => {
-            let facts: Vec<_> = facts.iter().map(fact_json).collect();
+            let facts = facts.iter().map(fact_json).collect::<Vec<_>>();
             (!facts.is_empty()).then_some(RecordBlockJson::FactList { facts })
         }
         PresentationBlock::Prose(text) => {
@@ -267,7 +402,10 @@ fn block_json(block: &PresentationBlock) -> Option<RecordBlockJson> {
             })
         }
         PresentationBlock::Relationships(relationships) => {
-            let relationships: Vec<_> = relationships.iter().map(relationship_json).collect();
+            let relationships = relationships
+                .iter()
+                .map(relationship_json)
+                .collect::<Vec<_>>();
             (!relationships.is_empty()).then_some(RecordBlockJson::Relationships { relationships })
         }
     }
@@ -296,108 +434,102 @@ fn relationship_json(relationship: &PresentationRelationship) -> RecordRelations
 mod tests {
     use std::collections::BTreeMap;
 
-    use atlas_domain::{
-        MetricDomain, PackName, PublicationCategory, RecordId, RecordKey, RecordKind, TimeKind,
-        TimeUnit,
-    };
+    use atlas_domain::{MetricDomain, PackName, PublicationCategory, RecordId, RecordKey};
 
     use super::*;
     use crate::{
-        ActivationTimeSourceField, ActorMechanics, ContentSourceKind, DurationTimeSourceField,
-        FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-        MetricRow, MetricValue, RecordActivationTiming, RecordClassification, RecordContent,
-        RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
-        RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
-        RecordVisibility, RichDocument, RichNode,
+        ActorMechanics, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
+        FoundryRecordInfo, FoundryRecordType, MetricRow, MetricValue, RecordClassification,
+        RecordContent, RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance,
+        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+        RichDocument, RichNode,
     };
 
     #[test]
-    fn summary_record_json_uses_stable_identity_shape() {
+    fn non_creature_is_registry_bound_and_raw_is_an_independent_opt_in() {
         let record = fixture_record();
+        let without_raw = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Preview,
+                include_source_json: false,
+            },
+        );
+        let with_raw = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Preview,
+                include_source_json: true,
+            },
+        );
+
+        assert!(without_raw.source_json.is_none());
+        assert!(with_raw.source_json.is_some());
+        assert!(matches!(
+            without_raw.presentation,
+            RecordPresentationJson::Unmigrated {
+                migration: UnmigratedRegistryJson { plan_id: "H7", .. },
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn creature_exposes_direct_typed_scan_fields_without_generic_mechanics() {
         let json = record_json(
+            &fixture_creature_record(),
+            RecordJsonOptions {
+                detail: DetailLevel::Standard,
+                include_source_json: false,
+            },
+        );
+        let RecordPresentationJson::Creature {
+            defenses,
+            perception,
+            languages,
+            movement,
+            ..
+        } = &json.presentation
+        else {
+            panic!("creature presentation")
+        };
+
+        assert_eq!(defenses.ac.as_ref().expect("ac").value, 25);
+        assert_eq!(defenses.hp.as_ref().expect("hp").maximum, Some(80));
+        assert_eq!(
+            defenses.saves.fortitude.as_ref().expect("fortitude").value,
+            14
+        );
+        assert_eq!(perception.as_ref().expect("perception").modifier, Some(12));
+        assert_eq!(languages, &["Common".to_string()]);
+        assert_eq!(movement.modes[0].value_feet, 25);
+        assert!(json.generic_sections().is_empty());
+        assert!(json.supplementary_sections.iter().all(|section| {
+            section
+                .blocks
+                .iter()
+                .all(|block| !matches!(block, RecordBlockJson::FactList { .. }))
+        }));
+    }
+
+    #[test]
+    fn creature_detail_levels_keep_the_tagged_schema_with_purposeful_hydration() {
+        let record = fixture_creature_record();
+        let summary = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Summary,
                 include_source_json: false,
             },
         );
-
-        assert_eq!(json.key, "actions:treat-wounds");
-        assert_eq!(json.name, "Treat Wounds");
-        assert_eq!(json.kind, "rule");
-        assert_eq!(json.traits, vec!["exploration", "healing", "manipulate"]);
-        assert!(json.source_json.is_none());
-        assert_eq!(
-            json.source.expect("source").pack.expect("pack").name,
-            "actions"
-        );
-        assert_eq!(json.sections[0].kind, "summary");
-        assert_eq!(json.sections.len(), 1);
-    }
-
-    #[test]
-    fn preview_record_json_uses_truncated_description() {
-        let record = fixture_record();
-        let json = record_json(
+        let preview = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Preview,
                 include_source_json: false,
             },
         );
-
-        assert_eq!(json.sections[0].kind, "summary");
-        assert_eq!(json.sections[1].kind, "description_preview");
-    }
-
-    #[test]
-    fn preview_record_json_includes_kind_fact_sections_without_full_detail_sections() {
-        let record = fixture_creature_record();
-        let json = record_json(
-            &record,
-            RecordJsonOptions {
-                detail: DetailLevel::Preview,
-                include_source_json: false,
-            },
-        );
-        let section_kinds = json
-            .sections
-            .iter()
-            .map(|section| section.kind)
-            .collect::<Vec<_>>();
-
-        assert_eq!(
-            section_kinds,
-            vec![
-                "summary",
-                "defense",
-                "movement",
-                "offense",
-                "description_preview"
-            ]
-        );
-        assert!(!section_kinds.contains(&"description"));
-        assert!(!section_kinds.contains(&"details"));
-        assert!(
-            json.sections
-                .iter()
-                .find(|section| section.kind == "defense")
-                .expect("defense section")
-                .blocks
-                .iter()
-                .any(|block| match block {
-                    RecordBlockJson::FactList { facts } => facts
-                        .iter()
-                        .any(|fact| fact.key == "ac" && fact.value == "25"),
-                    _ => false,
-                })
-        );
-    }
-
-    #[test]
-    fn description_record_json_uses_full_description_without_details() {
-        let record = fixture_record();
-        let json = record_json(
+        let description = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Description,
@@ -405,76 +537,19 @@ mod tests {
             },
         );
 
-        assert_eq!(json.sections[0].kind, "summary");
+        let RecordPresentationJson::Creature { defenses, .. } = summary.presentation else {
+            panic!("summary creature")
+        };
+        assert!(defenses.ac.is_none());
+        let RecordPresentationJson::Creature { defenses, .. } = preview.presentation else {
+            panic!("preview creature")
+        };
+        assert_eq!(defenses.ac.expect("preview ac").value, 25);
         assert!(
-            json.sections
+            description
+                .supplementary_sections
                 .iter()
                 .any(|section| section.kind == "description")
-        );
-        assert!(
-            !json
-                .sections
-                .iter()
-                .any(|section| section.kind == "details")
-        );
-    }
-
-    #[test]
-    fn full_record_json_hydrates_source_and_raw_json_when_requested() {
-        let record = fixture_record();
-        let json = record_json(
-            &record,
-            RecordJsonOptions {
-                detail: DetailLevel::Full,
-                include_source_json: true,
-            },
-        );
-        let source = json.source.expect("source");
-
-        assert_eq!(source.category, Some("core"));
-        assert_eq!(source.publication_remaster, Some(true));
-        assert_eq!(
-            source.foundry.expect("foundry").document_type,
-            "Item".to_string()
-        );
-        assert_eq!(
-            json.source_json,
-            Some("{\"name\":\"Treat Wounds\"}".to_string())
-        );
-        assert!(
-            json.sections
-                .iter()
-                .any(|section| section.kind == "description")
-        );
-        assert!(
-            !json
-                .sections
-                .iter()
-                .any(|section| section.kind == "description_preview")
-        );
-    }
-
-    #[test]
-    fn standard_record_json_uses_full_description_without_preview() {
-        let record = fixture_record();
-        let json = record_json(
-            &record,
-            RecordJsonOptions {
-                detail: DetailLevel::Standard,
-                include_source_json: false,
-            },
-        );
-
-        assert!(
-            json.sections
-                .iter()
-                .any(|section| section.kind == "description")
-        );
-        assert!(
-            !json
-                .sections
-                .iter()
-                .any(|section| section.kind == "description_preview")
         );
     }
 
@@ -491,11 +566,7 @@ mod tests {
                 kind: RecordKind::Rule,
                 level: None,
                 rarity: None,
-                traits: vec![
-                    "exploration".to_string(),
-                    "healing".to_string(),
-                    "manipulate".to_string(),
-                ],
+                traits: vec!["healing".to_string()],
                 taxonomy: RecordTaxonomy::default(),
             },
             foundry: FoundryRecordInfo {
@@ -514,28 +585,7 @@ mod tests {
                 category: PublicationCategory::Core,
             },
             requirements: RecordRequirements::default(),
-            timing: RecordTiming {
-                activation: Some(RecordActivationTiming {
-                    time: crate::NormalizedTime {
-                        kind: TimeKind::Actions,
-                        actions: Some(1),
-                        duration_value: None,
-                        duration_unit: None,
-                        text: "1".to_string(),
-                    },
-                    source_field: ActivationTimeSourceField::ActionsValue,
-                }),
-                duration: Some(RecordDurationTiming {
-                    time: crate::NormalizedTime {
-                        kind: TimeKind::Duration,
-                        actions: None,
-                        duration_value: Some(10),
-                        duration_unit: Some(TimeUnit::Minute),
-                        text: "10 minutes".to_string(),
-                    },
-                    source_field: DurationTimeSourceField::DurationValue,
-                }),
-            },
+            timing: RecordTiming::default(),
             mechanics: RecordMechanics::default(),
             content: RecordContent {
                 documents: vec![RecordContentDocument {
@@ -545,8 +595,7 @@ mod tests {
                         tag: "p".to_string(),
                         attributes: BTreeMap::new(),
                         children: vec![RichNode::Text {
-                            text: "You spend 10 minutes treating one injured living creature."
-                                .to_string(),
+                            text: "You spend 10 minutes treating one injured creature.".to_string(),
                         }],
                     }]),
                 }],
@@ -564,27 +613,20 @@ mod tests {
         );
         record.identity.name = "Test Guardian".to_string();
         record.classification.kind = RecordKind::Creature;
-        record.foundry.pack_label = "Creatures".to_string();
+        record.classification.level = Some(5);
         record.foundry.document_type = FoundryDocumentType::Actor;
         record.foundry.record_type = FoundryRecordType::Npc;
-        record.classification.level = Some(5);
-        record.classification.traits = vec!["human".to_string(), "humanoid".to_string()];
         record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
             size: Some("med".to_string()),
             languages: vec!["Common".to_string()],
             speed_types: vec!["land".to_string()],
             senses: vec!["Darkvision".to_string()],
-            immunities: Vec::new(),
-            resistances: Vec::new(),
-            weaknesses: Vec::new(),
-            disable_text: None,
-            disable_skills: Vec::new(),
-            is_complex: false,
+            ..ActorMechanics::default()
         });
         record.mechanics.metrics = vec![
             metric("perception.mod", 12.0),
             metric("ac.value", 25.0),
-            metric("hp.value", 80.0),
+            metric("hp.max", 80.0),
             metric("save.fort.mod", 14.0),
             metric("save.ref.mod", 11.0),
             metric("save.will.mod", 12.0),

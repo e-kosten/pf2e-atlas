@@ -9,7 +9,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0020-rust-content-documents.md`](./0020-rust-content-documents.md): records preserve authored rich text as `RichDocument`, with presentation, structured FTS, semantic chunks, and reference edges derived from that canonical content model.
 - [`0021-rust-runtime-index-and-retrieval-boundaries.md`](./0021-rust-runtime-index-and-retrieval-boundaries.md): runtime path policy belongs to `atlas-runtime`, SQLite read access belongs to `SqliteIndexReader` behind focused read traits and the `RetrievalReadIndex` bundle, artifact writes go through `IndexArtifactWriter`, and product retrieval routes through `AtlasRetrievalService`.
 - [`0022-rust-artifact-policy-ownership.md`](./0022-rust-artifact-policy-ownership.md): artifact shape/storage, typed metric definitions, and default reference graph policy have explicit owning crates.
-- [`0023-rust-cli-json-contract.md`](./0023-rust-cli-json-contract.md): CLI JSON uses one envelope, shared record/result DTOs, stable detail hydration levels, and standard exit-code classes.
+- [`0023-rust-cli-json-contract.md`](./0023-rust-cli-json-contract.md): CLI JSON uses one envelope, a shared-base tagged entity `RecordJson`, stable detail hydration levels, explicit raw opt-in, and standard exit-code classes.
 - [`0024-rust-search-retrieval-and-fusion-controls.md`](./0024-rust-search-retrieval-and-fusion-controls.md): text search uses one default hybrid surface with advanced FTS/vector retrieval controls, weighted-RRF fusion, and exact identity tiering.
 - [`0025-rust-graph-context-retrieval.md`](./0025-rust-graph-context-retrieval.md): graph context retrieval is key-based, one-hop, and separate from search relationship filters.
 - [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): PF2e Atlas is a Rust CLI plus first-party skill product; future TUI and derived tags are Rust-owned follow-ups.
@@ -27,7 +27,7 @@ Checkpoint B approved these decisions as the dependency-ordered implementation c
 - [`0033-source-fidelity-and-exhaustive-coverage.md`](./0033-source-fidelity-and-exhaustive-coverage.md): source interpretation uses a pinned serialized-Source boundary and exhaustive zero-unassigned registry, with a truthful default-visible/public-only base and an approved unauthenticated GM-complete target whose exclusions need non-auth rationales.
 - [`0034-canonical-entities-occurrences-and-projections.md`](./0034-canonical-entities-occurrences-and-projections.md): canonical entities own intrinsic facts, occurrences own context, runtime instances own mutable state, and profiles are projections.
 - [`0035-atomic-canonical-artifact.md`](./0035-atomic-canonical-artifact.md): canonical artifact migration, writing, complete hydration, validation, and round-trip proof land as one non-splittable unit.
-- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service composes shared record profiles, ADR 0023 RecordJson remains the CLI model, and Checkpoint E owns visual approval.
+- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service composes shared record profiles, ADR 0023 owns the distinct tagged CLI entity-presentation model, and Checkpoint E owns visual approval.
 
 ## Historical ADRs
 
