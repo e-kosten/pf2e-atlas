@@ -3,6 +3,8 @@ use std::time::Instant;
 
 use tracing::info;
 
+#[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+use atlas_index::{ArtifactPublicationTelemetry, ArtifactReceiptTelemetry, IndexBuildInput};
 use atlas_index::{IndexArtifactWriter, SqliteIndexWriter, publish_artifact_pair};
 
 use crate::artifact_manifest::{
@@ -18,6 +20,24 @@ use crate::source::model::{
 };
 use crate::source_pipeline;
 
+pub(crate) struct BuildArtifactValidationOutcome {
+    pub(crate) report: BuildArtifactReport,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) index_input: IndexBuildInput,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) receipt_telemetry: ArtifactReceiptTelemetry,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) publication_telemetry: ArtifactPublicationTelemetry,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) artifact_sha256: String,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) manifest_stage_ms: u128,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) validation_to_receipt_rejection_count: u64,
+    #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+    pub(crate) hard_link_alias_operation_count: u64,
+}
+
 pub(crate) fn build_artifact(
     options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
@@ -32,6 +52,7 @@ pub(crate) fn build_artifact(
         options.manifest_path.as_deref(),
     )?;
     build_artifact_from_source_started(source, options, build_started_at)
+        .map(|outcome| outcome.report)
 }
 
 pub(crate) fn build_artifact_from_source(
@@ -39,13 +60,22 @@ pub(crate) fn build_artifact_from_source(
     options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
     build_artifact_from_source_started(source, options, Instant::now())
+        .map(|outcome| outcome.report)
+}
+
+#[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+pub(crate) fn build_artifact_from_source_for_validation(
+    source: SourceLoad,
+    options: BuildArtifactOptions,
+) -> Result<BuildArtifactValidationOutcome, IngestError> {
+    build_artifact_from_source_started(source, options, Instant::now())
 }
 
 fn build_artifact_from_source_started(
     mut source: SourceLoad,
     options: BuildArtifactOptions,
     build_started_at: Instant,
-) -> Result<BuildArtifactReport, IngestError> {
+) -> Result<BuildArtifactValidationOutcome, IngestError> {
     info!(
         packs = source.packs.len(),
         source_records = source.source_record_count,
@@ -98,7 +128,7 @@ fn build_artifact_from_source_started(
         generated_record_count,
         document_embedding_count,
         embedding_model: options.embedding_model_id.clone(),
-        artifact_sha256,
+        artifact_sha256: artifact_sha256.clone(),
         source_position,
     });
     write_artifact_manifest(&staged_manifest, &manifest)?;
@@ -138,7 +168,7 @@ fn build_artifact_from_source_started(
         receipt_reuse_count = publication.receipt_reuse_count,
         "artifact publication receipt telemetry"
     );
-    Ok(BuildArtifactReport {
+    let report = BuildArtifactReport {
         output_path: options.output_path,
         pack_count: index_input.packs.len(),
         record_count: artifact_record_count,
@@ -159,6 +189,23 @@ fn build_artifact_from_source_started(
         diagnostics,
         skipped_records,
         warnings,
+    };
+    Ok(BuildArtifactValidationOutcome {
+        report,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        index_input,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        receipt_telemetry,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        publication_telemetry: publication,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        artifact_sha256,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        manifest_stage_ms,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        validation_to_receipt_rejection_count: 0,
+        #[cfg(all(test, feature = "record-round-trip-diagnostic"))]
+        hard_link_alias_operation_count: 0,
     })
 }
 
