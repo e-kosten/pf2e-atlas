@@ -266,6 +266,24 @@ fn project_embedded(
     }
 
     for occurrence in &embedded.occurrences {
+        let unsupported_only_notes = match &occurrence.capability {
+            CreatureCapability::Equipment(equipment) => Some(&equipment.unsupported_notes),
+            CreatureCapability::Lore(lore) => Some(&lore.unsupported_notes),
+            CreatureCapability::Strike(_)
+            | CreatureCapability::Action(_)
+            | CreatureCapability::SpellcastingEntry(_)
+            | CreatureCapability::Spell(_)
+            | CreatureCapability::Unsupported(_) => None,
+        };
+        if let Some(notes) = unsupported_only_notes {
+            projection.unsupported.extend(
+                notes
+                    .iter()
+                    .cloned()
+                    .map(|note| unsupported_note(None, Some(occurrence.id.clone()), note)),
+            );
+            continue;
+        }
         let Some(mut activity) = project_activity(occurrence, embedded) else {
             continue;
         };
@@ -686,24 +704,26 @@ mod tests {
 
     use super::{
         CanonicalMechanicActivity, MechanicBaseValue, MechanicFact, MechanicTarget,
-        UnsupportedMechanicValue, project_creature_mechanics,
+        UnsupportedMechanic, UnsupportedMechanicValue, project_creature_mechanics,
     };
     use crate::{
         ActivityRollAbility, CreatureActionCapability, CreatureActionCost,
         CreatureActorSpellcastingContext, CreatureArmorClass, CreatureCapability,
         CreatureComponentId, CreatureDamage, CreatureDamageKind, CreatureDefenses,
         CreatureEmbeddedEntities, CreatureEntity, CreatureEntityFamily, CreatureEntityId,
-        CreatureEntityOccurrence, CreatureEntitySourceIdentity, CreatureEntityTarget, CreatureFact,
-        CreatureFamily, CreatureFrequency, CreatureHitPoints, CreatureIdentity,
-        CreatureMovementMode, CreatureNumber, CreatureOccurrenceContext, CreatureOccurrenceId,
-        CreatureOccurrenceParent, CreaturePerception, CreatureProvenance, CreatureRecord,
+        CreatureEntityOccurrence, CreatureEntitySourceIdentity, CreatureEntityTarget,
+        CreatureEquipmentCapability, CreatureFact, CreatureFamily, CreatureFrequency,
+        CreatureHitPoints, CreatureIdentity, CreatureLoreCapability, CreatureMovementMode,
+        CreatureNumber, CreatureOccurrenceContext, CreatureOccurrenceId, CreatureOccurrenceParent,
+        CreaturePerception, CreaturePreparedSpellSlot, CreatureProvenance, CreatureRecord,
         CreatureResource, CreatureResourceAmount, CreatureResourceKind, CreatureRoll,
         CreatureRollKind, CreatureSave, CreatureSaveKind, CreatureSaves, CreatureSkill,
         CreatureSkillKind, CreatureSourceField, CreatureSourceId, CreatureSourceScalar,
         CreatureSpeed, CreatureSpellCapability, CreatureSpellDefense, CreatureSpellPreparation,
         CreatureSpellSave, CreatureSpellSlot, CreatureSpellcastingEntryCapability,
-        CreatureStrikeCapability, CreatureUnsupportedCapability, FactValue, MechanicActivityFamily,
-        MechanicSourceFamily, MechanicSurface, OccurrenceIdentityStability, ResourceCurrentPolicy,
+        CreatureStrikeCapability, CreatureUnsupportedCapability, CreatureUnsupportedSourceFact,
+        CreatureUnsupportedSourceField, FactValue, MechanicActivityFamily, MechanicSourceFamily,
+        MechanicSurface, OccurrenceIdentityStability, ResourceCurrentPolicy,
         UnsupportedMechanicNote, UnsupportedSourceReason, UnsupportedSourceShape,
         UnsupportedSourceValue,
     };
@@ -881,6 +901,54 @@ mod tests {
     }
 
     #[test]
+    fn lore_and_equipment_notes_survive_without_duplicate_canonical_facts() {
+        let projection = project_creature_mechanics(&mechanics_creature());
+
+        for (occurrence_id, source_path, value) in [
+            (
+                "occurrence:equipment",
+                "items.equipment.unsupported",
+                "equipment-note",
+            ),
+            ("occurrence:lore", "items.lore.unsupported", "lore-note"),
+        ] {
+            let preserved = projection
+                .unsupported
+                .iter()
+                .find(|unsupported| unsupported.source_path == source_path)
+                .expect("unsupported-only occurrence note");
+            assert_eq!(
+                preserved.activity_occurrence_id,
+                Some(occurrence(occurrence_id))
+            );
+            assert_eq!(preserved.target, None);
+            assert!(matches!(
+                &preserved.value,
+                UnsupportedMechanicValue::Note(UnsupportedMechanicNote {
+                    source_path: note_path,
+                    value: UnsupportedSourceValue { value: note_value, .. },
+                }) if note_path == source_path && note_value == value
+            ));
+            assert!(
+                !projection
+                    .activities
+                    .iter()
+                    .any(|activity| activity.occurrence_id == occurrence(occurrence_id))
+            );
+        }
+
+        assert_eq!(
+            projection
+                .facts
+                .iter()
+                .filter(|fact| matches!(fact.target, MechanicTarget::CreatureSkill { .. }))
+                .count(),
+            1,
+            "Lore occurrence notes must not duplicate the canonical Lore/skill owner"
+        );
+    }
+
+    #[test]
     fn source_mutations_change_values_without_changing_target_identity() {
         let mut creature = mechanics_creature();
         let before = project_creature_mechanics(&creature);
@@ -893,9 +961,25 @@ mod tests {
         };
         armor_class.value = FactValue::Value(31);
 
+        let FactValue::Value(skills) = &mut creature.skills.value else {
+            panic!("fixture skills");
+        };
+        skills[0].label = "prefix.activity.roll.changed".to_string();
+        let FactValue::Value(movement) = &mut creature.movement.value else {
+            panic!("fixture movement");
+        };
+        movement[0].label = FactValue::Value("prefix.resource.changed".to_string());
+        let FactValue::Value(resources) = &mut creature.resources.value else {
+            panic!("fixture resources");
+        };
+        resources[0].label = "prefix.spellcasting.changed".to_string();
+
         let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
             panic!("fixture embedded entities");
         };
+        for entity in &mut embedded.entities {
+            entity.label = format!("prefix.changed.{}", entity.id.as_str());
+        }
         let strike = embedded
             .occurrences
             .iter_mut()
@@ -906,6 +990,7 @@ mod tests {
         };
         strike.action_cost = CreatureActionCost::Actions(2);
         strike.rolls[0].value = FactValue::Value(24);
+        strike.rolls[0].label = "prefix.damage.changed".to_string();
         let FactValue::Value(damage) = &mut strike.damage else {
             panic!("fixture strike damage");
         };
@@ -961,6 +1046,457 @@ mod tests {
                 ..
             }) if formula == "3d8+8"
         ));
+    }
+
+    #[test]
+    fn typed_identity_mutations_change_projected_targets() {
+        let mut creature = mechanics_creature();
+        let before = project_creature_mechanics(&creature);
+
+        let FactValue::Value(skills) = &mut creature.skills.value else {
+            panic!("fixture skills");
+        };
+        skills[0].id = component("component:arcana/mutated");
+        let FactValue::Value(movement) = &mut creature.movement.value else {
+            panic!("fixture movement");
+        };
+        movement[0].id = component("component:land-speed/mutated");
+        let FactValue::Value(resources) = &mut creature.resources.value else {
+            panic!("fixture resources");
+        };
+        resources[0].id = component("component:focus-points/mutated");
+
+        let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
+            panic!("fixture embedded entities");
+        };
+        let strike = embedded
+            .occurrences
+            .iter_mut()
+            .find(|entry| entry.id == occurrence("occurrence:strike"))
+            .expect("fixture strike");
+        strike.id = occurrence("occurrence:strike/mutated");
+        let CreatureCapability::Strike(capability) = &mut strike.capability else {
+            panic!("fixture strike capability");
+        };
+        capability.rolls[0].id = "roll/mutated".to_string();
+        let FactValue::Value(damage) = &mut capability.damage else {
+            panic!("fixture strike damage");
+        };
+        damage[0].id = "damage/mutated".to_string();
+
+        let after = project_creature_mechanics(&creature);
+        assert_ne!(projection_targets(&before), projection_targets(&after));
+        for target in [
+            MechanicTarget::CreatureSkill {
+                skill_id: component("component:arcana/mutated"),
+                kind: CreatureSkillKind::Arcana,
+            },
+            MechanicTarget::Movement {
+                speed_id: component("component:land-speed/mutated"),
+            },
+            MechanicTarget::ResourceMaximum {
+                resource_id: component("component:focus-points/mutated"),
+            },
+        ] {
+            assert!(fact(&after.facts, &target).is_some(), "missing {target:?}");
+        }
+        let strike = activity(&after.activities, "occurrence:strike/mutated");
+        for target in [
+            MechanicTarget::ActivityActionCost {
+                occurrence_id: occurrence("occurrence:strike/mutated"),
+            },
+            MechanicTarget::ActivityRoll {
+                occurrence_id: occurrence("occurrence:strike/mutated"),
+                roll_id: "roll/mutated".to_string(),
+            },
+            MechanicTarget::ActivityDamage {
+                occurrence_id: occurrence("occurrence:strike/mutated"),
+                damage_id: "damage/mutated".to_string(),
+            },
+        ] {
+            assert!(fact(&strike.facts, &target).is_some(), "missing {target:?}");
+        }
+    }
+
+    #[test]
+    fn presence_states_and_numeric_zero_remain_distinct_in_base_facts() {
+        for value in [FactValue::Missing, FactValue::Null, FactValue::Value(0)] {
+            let mut creature = mechanics_creature();
+            let FactValue::Value(perception) = &mut creature.perception.value else {
+                panic!("fixture perception");
+            };
+            perception.modifier = value.clone();
+
+            let projection = project_creature_mechanics(&creature);
+            assert_eq!(
+                fact(&projection.facts, &MechanicTarget::Perception).map(|fact| &fact.value),
+                Some(&MechanicBaseValue::Integer(value))
+            );
+        }
+
+        for absent in [FactValue::Missing, FactValue::Null] {
+            let mut creature = mechanics_creature();
+            creature.perception.value = absent;
+            let projection = project_creature_mechanics(&creature);
+            assert!(fact(&projection.facts, &MechanicTarget::Perception).is_none());
+        }
+
+        for maximum in [
+            FactValue::Missing,
+            FactValue::Null,
+            FactValue::Value(CreatureResourceAmount::Integer(0)),
+        ] {
+            let mut creature = mechanics_creature();
+            let FactValue::Value(resources) = &mut creature.resources.value else {
+                panic!("fixture resources");
+            };
+            resources[0].maximum = maximum.clone();
+            let target = MechanicTarget::ResourceMaximum {
+                resource_id: resources[0].id.clone(),
+            };
+            let projection = project_creature_mechanics(&creature);
+            assert_eq!(
+                fact(&projection.facts, &target).map(|fact| &fact.value),
+                Some(&MechanicBaseValue::ResourceAmount(maximum))
+            );
+        }
+    }
+
+    #[test]
+    fn activity_and_inner_fact_order_are_repeatable_and_preserve_authored_input() {
+        let creature = mechanics_creature();
+        let first = project_creature_mechanics(&creature);
+        let second = project_creature_mechanics(&creature);
+        assert_eq!(first, second);
+
+        let expected = [
+            ("occurrence:strike", 0),
+            ("occurrence:action", 1),
+            ("occurrence:spellcasting", 2),
+            ("occurrence:spell", 3),
+            ("occurrence:unsupported", 4),
+        ];
+        assert_eq!(
+            first
+                .activities
+                .iter()
+                .map(|activity| (activity.occurrence_id.as_str(), activity.authored_order))
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert!(first.activities.iter().all(|activity| {
+            activity
+                .facts
+                .windows(2)
+                .all(|pair| pair[0].target <= pair[1].target)
+        }));
+
+        let mut reversed = creature;
+        let FactValue::Value(embedded) = &mut reversed.embedded_entities.value else {
+            panic!("fixture embedded entities");
+        };
+        embedded.occurrences.reverse();
+        let reversed = project_creature_mechanics(&reversed);
+        assert_eq!(
+            reversed
+                .activities
+                .iter()
+                .map(|activity| (activity.occurrence_id.as_str(), activity.authored_order))
+                .collect::<Vec<_>>(),
+            expected.into_iter().rev().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn every_unsupported_branch_retains_exact_target_occurrence_and_source_path() {
+        let projection = project_creature_mechanics(&unsupported_mechanics_creature());
+
+        for (source_path, target, occurrence_id, value) in [
+            (
+                "defenses.hit_points.value",
+                Some(MechanicTarget::MaxHp),
+                None,
+                "unsupported-hp",
+            ),
+            (
+                "movement.component:unsupported-speed.mode",
+                Some(MechanicTarget::Movement {
+                    speed_id: component("component:unsupported-speed"),
+                }),
+                None,
+                "teleport",
+            ),
+            (
+                "resources.component:focus-points.maximum",
+                Some(MechanicTarget::ResourceMaximum {
+                    resource_id: component("component:focus-points"),
+                }),
+                None,
+                "unsupported-resource",
+            ),
+            (
+                "embedded_entities.actor_spellcasting.rituals_dc",
+                Some(MechanicTarget::ActorRitualDc),
+                None,
+                "unsupported-ritual-dc",
+            ),
+            (
+                "activities.occurrence:strike.action_cost",
+                Some(MechanicTarget::ActivityActionCost {
+                    occurrence_id: occurrence("occurrence:strike"),
+                }),
+                Some("occurrence:strike"),
+                "unsupported-action-cost",
+            ),
+            (
+                "activities.occurrence:strike.damage.prefix.hp.max.kinds",
+                Some(MechanicTarget::ActivityDamage {
+                    occurrence_id: occurrence("occurrence:strike"),
+                    damage_id: "prefix.hp.max".to_string(),
+                }),
+                Some("occurrence:strike"),
+                "unsupported-damage-kind",
+            ),
+            (
+                "activities.occurrence:strike.damage.prefix.hp.max.apply_modifier",
+                Some(MechanicTarget::ActivityDamage {
+                    occurrence_id: occurrence("occurrence:strike"),
+                    damage_id: "prefix.hp.max".to_string(),
+                }),
+                Some("occurrence:strike"),
+                "unsupported-apply-modifier",
+            ),
+            (
+                "activities.occurrence:spell.spell.defense.save",
+                None,
+                Some("occurrence:spell"),
+                "unsupported-spell-save",
+            ),
+            (
+                "activities.occurrence:spellcasting.spellcasting.preparation",
+                None,
+                Some("occurrence:spellcasting"),
+                "unsupported-preparation",
+            ),
+            (
+                "activities.occurrence:spellcasting.spellcasting.slots.5.maximum",
+                Some(MechanicTarget::SpellSlotMaximum {
+                    entry_occurrence_id: occurrence("occurrence:spellcasting"),
+                    rank: 5,
+                }),
+                Some("occurrence:spellcasting"),
+                "unsupported-slot-maximum",
+            ),
+            (
+                "activities.occurrence:spellcasting.spellcasting.slots.5.serialized_value",
+                Some(MechanicTarget::SpellSlotMaximum {
+                    entry_occurrence_id: occurrence("occurrence:spellcasting"),
+                    rank: 5,
+                }),
+                Some("occurrence:spellcasting"),
+                "unsupported-slot-value",
+            ),
+        ] {
+            let unsupported = unsupported_at(&projection, source_path);
+            assert_eq!(unsupported.target, target, "target for {source_path}");
+            assert_eq!(
+                unsupported.activity_occurrence_id,
+                occurrence_id.map(occurrence),
+                "occurrence for {source_path}"
+            );
+            assert_eq!(
+                unsupported.value,
+                UnsupportedMechanicValue::Source(unsupported_value(value)),
+                "value for {source_path}"
+            );
+        }
+
+        let drift = unsupported_at(&projection, "resources.component:focus-points.source_drift");
+        assert_eq!(
+            drift.target,
+            Some(MechanicTarget::ResourceMaximum {
+                resource_id: component("component:focus-points"),
+            })
+        );
+        assert_eq!(drift.activity_occurrence_id, None);
+        assert_eq!(
+            drift.value,
+            UnsupportedMechanicValue::ResourceDrift(CreatureUnsupportedSourceFact {
+                field: CreatureUnsupportedSourceField::ResourceMaximumDrift,
+                value: unsupported_value("unsupported-resource-drift"),
+            })
+        );
+
+        let prepared = unsupported_at(
+            &projection,
+            "activities.occurrence:spellcasting.spellcasting.slots.5.prepared",
+        );
+        assert_eq!(
+            prepared.target,
+            Some(MechanicTarget::SpellSlotMaximum {
+                entry_occurrence_id: occurrence("occurrence:spellcasting"),
+                rank: 5,
+            })
+        );
+        assert_eq!(
+            prepared.activity_occurrence_id,
+            Some(occurrence("occurrence:spellcasting"))
+        );
+        assert_eq!(
+            prepared.value,
+            UnsupportedMechanicValue::PreparedSlot(unsupported_value("unsupported-prepared-slot"))
+        );
+
+        for (source_path, occurrence_id, value) in [
+            ("actor.note", None, "actor-note"),
+            ("strike.note", Some("occurrence:strike"), "strike-note"),
+            ("action.note", Some("occurrence:action"), "action-note"),
+            (
+                "spellcasting.note",
+                Some("occurrence:spellcasting"),
+                "spellcasting-note",
+            ),
+            ("spell.note", Some("occurrence:spell"), "spell-note"),
+            (
+                "items.mystery.system",
+                Some("occurrence:unsupported"),
+                "unknown-system",
+            ),
+            (
+                "items.equipment.unsupported",
+                Some("occurrence:equipment"),
+                "equipment-note",
+            ),
+            (
+                "items.lore.unsupported",
+                Some("occurrence:lore"),
+                "lore-note",
+            ),
+        ] {
+            let unsupported = unsupported_at(&projection, source_path);
+            assert_eq!(unsupported.target, None, "note target for {source_path}");
+            assert_eq!(
+                unsupported.activity_occurrence_id,
+                occurrence_id.map(occurrence),
+                "note occurrence for {source_path}"
+            );
+            assert_eq!(
+                unsupported.value,
+                UnsupportedMechanicValue::Note(unsupported_note_fixture(source_path, value)),
+                "note value for {source_path}"
+            );
+        }
+
+        let capability = unsupported_at(&projection, "embedded_entities.occurrences.capability");
+        assert_eq!(capability.target, None);
+        assert_eq!(
+            capability.activity_occurrence_id,
+            Some(occurrence("occurrence:unsupported"))
+        );
+        assert_eq!(
+            capability.value,
+            UnsupportedMechanicValue::Capability {
+                source_item_type: "mystery".to_string(),
+                source_slug: FactValue::Value("mystery".to_string()),
+            }
+        );
+    }
+
+    fn unsupported_mechanics_creature() -> CreatureRecord {
+        let mut creature = mechanics_creature();
+        let FactValue::Value(defenses) = &mut creature.defenses.value else {
+            panic!("fixture defenses");
+        };
+        let FactValue::Value(hit_points) = &mut defenses.hit_points else {
+            panic!("fixture hit points");
+        };
+        hit_points.value = FactValue::Value(CreatureNumber::Unsupported(unsupported_value(
+            "unsupported-hp",
+        )));
+
+        let FactValue::Value(resources) = &mut creature.resources.value else {
+            panic!("fixture resources");
+        };
+        resources[0].maximum = FactValue::Value(CreatureResourceAmount::Unsupported(
+            unsupported_value("unsupported-resource"),
+        ));
+        resources[0].source_drift = FactValue::Value(vec![CreatureUnsupportedSourceFact {
+            field: CreatureUnsupportedSourceField::ResourceMaximumDrift,
+            value: unsupported_value("unsupported-resource-drift"),
+        }]);
+
+        let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
+            panic!("fixture embedded entities");
+        };
+        let FactValue::Value(actor_spellcasting) = &mut embedded.actor_spellcasting else {
+            panic!("fixture actor spellcasting");
+        };
+        actor_spellcasting.rituals_dc = FactValue::Value(CreatureSourceScalar::Unsupported(
+            unsupported_value("unsupported-ritual-dc"),
+        ));
+        actor_spellcasting.unsupported_notes =
+            vec![unsupported_note_fixture("actor.note", "actor-note")];
+
+        let CreatureCapability::Strike(strike) = capability_mut(embedded, "occurrence:strike")
+        else {
+            panic!("fixture strike");
+        };
+        strike.action_cost =
+            CreatureActionCost::Unsupported(unsupported_value("unsupported-action-cost"));
+        strike.unsupported_notes = vec![unsupported_note_fixture("strike.note", "strike-note")];
+        let FactValue::Value(damage) = &mut strike.damage else {
+            panic!("fixture strike damage");
+        };
+        damage[0].kinds = FactValue::Value(vec![CreatureDamageKind::Unsupported(
+            unsupported_value("unsupported-damage-kind"),
+        )]);
+        damage[0].apply_modifier = FactValue::Value(CreatureSourceScalar::Unsupported(
+            unsupported_value("unsupported-apply-modifier"),
+        ));
+
+        let CreatureCapability::Action(action) = capability_mut(embedded, "occurrence:action")
+        else {
+            panic!("fixture action");
+        };
+        action.unsupported_notes = vec![unsupported_note_fixture("action.note", "action-note")];
+
+        let CreatureCapability::SpellcastingEntry(spellcasting) =
+            capability_mut(embedded, "occurrence:spellcasting")
+        else {
+            panic!("fixture spellcasting");
+        };
+        spellcasting.preparation = FactValue::Value(CreatureSpellPreparation::Unsupported(
+            unsupported_value("unsupported-preparation"),
+        ));
+        spellcasting.unsupported_notes = vec![unsupported_note_fixture(
+            "spellcasting.note",
+            "spellcasting-note",
+        )];
+        let FactValue::Value(slots) = &mut spellcasting.slots else {
+            panic!("fixture spell slots");
+        };
+        slots[0].maximum = FactValue::Value(CreatureSourceScalar::Unsupported(unsupported_value(
+            "unsupported-slot-maximum",
+        )));
+        slots[0].serialized_value = FactValue::Value(CreatureSourceScalar::Unsupported(
+            unsupported_value("unsupported-slot-value"),
+        ));
+        slots[0].prepared = FactValue::Value(vec![CreaturePreparedSpellSlot::Unsupported(
+            unsupported_value("unsupported-prepared-slot"),
+        )]);
+
+        let CreatureCapability::Spell(spell) = capability_mut(embedded, "occurrence:spell") else {
+            panic!("fixture spell");
+        };
+        let FactValue::Value(defense) = &mut spell.defense else {
+            panic!("fixture spell defense");
+        };
+        defense.save = FactValue::Value(CreatureSpellSave::Unsupported(unsupported_value(
+            "unsupported-spell-save",
+        )));
+        spell.unsupported_notes = vec![unsupported_note_fixture("spell.note", "spell-note")];
+
+        creature
     }
 
     fn mechanics_creature() -> CreatureRecord {
@@ -1157,6 +1693,24 @@ mod tests {
                     value: unsupported("unknown-system"),
                 }],
             });
+        let equipment = CreatureCapability::Equipment(CreatureEquipmentCapability {
+            traits: FactValue::Missing,
+            level: FactValue::Missing,
+            usage: FactValue::Missing,
+            quantity: FactValue::Missing,
+            uses: FactValue::Missing,
+            unsupported_notes: vec![unsupported_note_fixture(
+                "items.equipment.unsupported",
+                "equipment-note",
+            )],
+        });
+        let lore = CreatureCapability::Lore(CreatureLoreCapability {
+            modifier: FactValue::Value(18),
+            unsupported_notes: vec![unsupported_note_fixture(
+                "items.lore.unsupported",
+                "lore-note",
+            )],
+        });
         let capabilities = [
             ("occurrence:strike", CreatureEntityFamily::Strike, strike),
             ("occurrence:action", CreatureEntityFamily::Action, action),
@@ -1171,6 +1725,12 @@ mod tests {
                 CreatureEntityFamily::Unsupported,
                 unsupported_capability,
             ),
+            (
+                "occurrence:equipment",
+                CreatureEntityFamily::Equipment,
+                equipment,
+            ),
+            ("occurrence:lore", CreatureEntityFamily::Lore, lore),
         ];
         let mut entities = Vec::new();
         let mut occurrences = Vec::new();
@@ -1259,10 +1819,21 @@ mod tests {
     }
 
     fn unsupported(value: &str) -> UnsupportedSourceValue {
+        unsupported_value(value)
+    }
+
+    fn unsupported_value(value: &str) -> UnsupportedSourceValue {
         UnsupportedSourceValue {
             shape: UnsupportedSourceShape::String,
             value: value.to_string(),
             reason: UnsupportedSourceReason::OpenVocabulary,
+        }
+    }
+
+    fn unsupported_note_fixture(source_path: &str, value: &str) -> UnsupportedMechanicNote {
+        UnsupportedMechanicNote {
+            source_path: source_path.to_string(),
+            value: unsupported(value),
         }
     }
 
@@ -1297,6 +1868,35 @@ mod tests {
             .iter()
             .find(|activity| activity.occurrence_id == occurrence(id))
             .expect("activity")
+    }
+
+    fn capability_mut<'a>(
+        embedded: &'a mut CreatureEmbeddedEntities,
+        id: &str,
+    ) -> &'a mut CreatureCapability {
+        &mut embedded
+            .occurrences
+            .iter_mut()
+            .find(|entry| entry.id == occurrence(id))
+            .expect("fixture occurrence")
+            .capability
+    }
+
+    fn unsupported_at<'a>(
+        projection: &'a super::CanonicalMechanicsProjection,
+        source_path: &str,
+    ) -> &'a UnsupportedMechanic {
+        projection
+            .unsupported
+            .iter()
+            .chain(
+                projection
+                    .activities
+                    .iter()
+                    .flat_map(|activity| &activity.unsupported),
+            )
+            .find(|unsupported| unsupported.source_path == source_path)
+            .unwrap_or_else(|| panic!("missing unsupported mechanic at {source_path}"))
     }
 
     fn assert_activity_target(
