@@ -23,7 +23,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
 - `atlas-ingest` owns source loading, the versioned serialized PF2e Source boundary, exhaustive coverage declarations, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval disposition, embedding execution during builds, and handoff into index-owned artifact writers.
-- `atlas-record` owns storage-neutral canonical records and entities, contextual occurrences, mechanics/activity targets, `RichDocument`, presentation contracts, CLI `RecordJson`, FTS projection, graph/reference policy, and section-tree projection.
+- `atlas-record` owns storage-neutral canonical records and entities, contextual occurrences, canonical mechanics targets/facets and source-fact projections, `RichDocument`, presentation contracts, CLI `RecordJson`, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.

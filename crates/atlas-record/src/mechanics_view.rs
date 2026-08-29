@@ -1,8 +1,8 @@
 use atlas_domain::{MetricDomain, RecordKey, RecordKind};
 
 use crate::{
-    AtlasRecord, MechanicActivity, MetricDefinitionMatch, MetricRow, MetricValue, definition_for,
-    metrics,
+    AbilityKind, AtlasRecord, MechanicActivity, MechanicFacets, MechanicTarget,
+    MetricDefinitionMatch, MetricRow, MetricValue, SaveKind, definition_for, metrics,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,178 +29,6 @@ pub struct MechanicValue {
     pub label: String,
     pub base_value: MechanicScalar,
     pub facets: MechanicFacets,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum MechanicTarget {
-    ArmorClass,
-    MaxHp,
-    Perception,
-    Save { save: SaveKind },
-    Skill { slug: String },
-    AbilityModifier { ability: AbilityKind },
-}
-
-impl MechanicTarget {
-    pub fn id(&self) -> String {
-        match self {
-            Self::ArmorClass => "ac".to_string(),
-            Self::MaxHp => "hp.max".to_string(),
-            Self::Perception => "perception".to_string(),
-            Self::Save { save } => format!("save.{}", save.as_str()),
-            Self::Skill { slug } => format!("skill.{slug}"),
-            Self::AbilityModifier { ability } => format!("ability.{}", ability.as_str()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MechanicFacets {
-    pub surface: MechanicSurface,
-    pub statistic: Option<MechanicStatistic>,
-    pub ability: Option<AbilityKind>,
-}
-
-impl MechanicFacets {
-    pub const fn armor_class() -> Self {
-        Self {
-            surface: MechanicSurface::ArmorClass,
-            statistic: None,
-            ability: Some(AbilityKind::Dexterity),
-        }
-    }
-
-    pub const fn hit_points() -> Self {
-        Self {
-            surface: MechanicSurface::HitPoints,
-            statistic: None,
-            ability: None,
-        }
-    }
-
-    pub const fn perception() -> Self {
-        Self {
-            surface: MechanicSurface::Check,
-            statistic: Some(MechanicStatistic::Perception),
-            ability: Some(AbilityKind::Wisdom),
-        }
-    }
-
-    pub const fn saving_throw(save: SaveKind) -> Self {
-        let ability = match save {
-            SaveKind::Fortitude => AbilityKind::Constitution,
-            SaveKind::Reflex => AbilityKind::Dexterity,
-            SaveKind::Will => AbilityKind::Wisdom,
-        };
-        Self {
-            surface: MechanicSurface::SavingThrow,
-            statistic: Some(MechanicStatistic::Save(save)),
-            ability: Some(ability),
-        }
-    }
-
-    pub fn skill(slug: &str) -> Self {
-        Self {
-            surface: MechanicSurface::Check,
-            statistic: None,
-            ability: skill_ability(slug),
-        }
-    }
-
-    pub const fn ability_modifier(ability: AbilityKind) -> Self {
-        Self {
-            surface: MechanicSurface::RawModifier,
-            statistic: Some(MechanicStatistic::Ability(ability)),
-            ability: Some(ability),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MechanicSurface {
-    RawModifier,
-    Check,
-    Dc,
-    ArmorClass,
-    SavingThrow,
-    AttackRoll,
-    Damage,
-    HitPoints,
-}
-
-impl MechanicSurface {
-    pub const fn is_check_or_dc(self) -> bool {
-        matches!(
-            self,
-            Self::Check | Self::Dc | Self::ArmorClass | Self::SavingThrow | Self::AttackRoll
-        )
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum MechanicStatistic {
-    Ability(AbilityKind),
-    Perception,
-    Save(SaveKind),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum SaveKind {
-    Fortitude,
-    Reflex,
-    Will,
-}
-
-impl SaveKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Fortitude => "fort",
-            Self::Reflex => "ref",
-            Self::Will => "will",
-        }
-    }
-
-    fn label(self) -> &'static str {
-        match self {
-            Self::Fortitude => "Fortitude",
-            Self::Reflex => "Reflex",
-            Self::Will => "Will",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum AbilityKind {
-    Strength,
-    Dexterity,
-    Constitution,
-    Intelligence,
-    Wisdom,
-    Charisma,
-}
-
-impl AbilityKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Strength => "str",
-            Self::Dexterity => "dex",
-            Self::Constitution => "con",
-            Self::Intelligence => "int",
-            Self::Wisdom => "wis",
-            Self::Charisma => "cha",
-        }
-    }
-
-    fn label(self) -> &'static str {
-        match self {
-            Self::Strength => "Strength",
-            Self::Dexterity => "Dexterity",
-            Self::Constitution => "Constitution",
-            Self::Intelligence => "Intelligence",
-            Self::Wisdom => "Wisdom",
-            Self::Charisma => "Charisma",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -344,7 +172,7 @@ fn skill_value(metric: &MetricRow) -> Option<MechanicValue> {
         },
         label: skill.label.clone(),
         base_value: MechanicScalar::Number(value),
-        facets: MechanicFacets::skill(&skill.raw),
+        facets: MechanicFacets::sparse_skill(&skill.raw),
     })
 }
 
@@ -387,24 +215,6 @@ fn speed_sort_key(movement_type: &str) -> (u8, &str) {
     }
 }
 
-fn skill_ability(slug: &str) -> Option<AbilityKind> {
-    match slug {
-        "acr" | "acrobatics" | "ste" | "stealth" | "thi" | "thievery" => {
-            Some(AbilityKind::Dexterity)
-        }
-        "ath" | "athletics" => Some(AbilityKind::Strength),
-        "arc" | "arcana" | "cra" | "crafting" | "occ" | "occultism" | "soc" | "society" => {
-            Some(AbilityKind::Intelligence)
-        }
-        "med" | "medicine" | "nat" | "nature" | "rel" | "religion" | "sur" | "survival" => {
-            Some(AbilityKind::Wisdom)
-        }
-        "dec" | "deception" | "dip" | "diplomacy" | "itm" | "intimidation" | "prf"
-        | "performance" => Some(AbilityKind::Charisma),
-        _ => None,
-    }
-}
-
 fn metric_i64(metric: &MetricRow) -> Option<i64> {
     let MetricValue::Number(value) = metric.value else {
         return None;
@@ -419,9 +229,10 @@ mod tests {
     use super::*;
     use crate::{
         ActorMechanics, AtlasRecord, ContentSourceKind, FoundryDocumentMechanics,
-        FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, RecordClassification,
-        RecordContent, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
-        RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, RichDocument, RichNode,
+        FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, MechanicSurface,
+        RecordClassification, RecordContent, RecordIdentity, RecordMechanics, RecordProvenance,
+        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+        RichDocument, RichNode,
     };
 
     #[test]

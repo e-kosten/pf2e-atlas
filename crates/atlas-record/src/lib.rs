@@ -5,6 +5,7 @@ mod creature;
 mod creature_entities;
 mod creature_projection;
 mod json_projection;
+mod mechanics;
 mod mechanics_view;
 pub mod metrics;
 mod model;
@@ -65,9 +66,14 @@ pub use creature_projection::{CreatureFactProjection, project_creature_facts};
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
 };
+pub use mechanics::{
+    AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,
+    MechanicBaseValue, MechanicFacets, MechanicFact, MechanicSourceFamily, MechanicStatistic,
+    MechanicSurface, MechanicTarget, SaveKind, UnsupportedMechanic, UnsupportedMechanicValue,
+    project_creature_mechanics,
+};
 pub use mechanics_view::{
-    AbilityKind, MechanicFacets, MechanicScalar, MechanicStatistic, MechanicSurface,
-    MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, SaveKind, build_mechanics_view,
+    MechanicScalar, MechanicValue, MechanicsView, MovementSpeed, build_mechanics_view,
 };
 pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
