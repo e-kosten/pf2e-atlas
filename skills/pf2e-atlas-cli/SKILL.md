@@ -110,7 +110,17 @@ atlas similar "Dirge of Doom" --kind spell --json
 atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain
 ```
 
-For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--detail full --include-raw --json` only when raw source metadata is directly relevant.
+For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--include-raw` only when raw source is directly relevant; it is an independent opt-in and does not require `--detail full`.
+
+Every record-bearing JSON result uses the same tagged `RecordJson`. Inspect
+`presentation_type` first. For `creature`, read direct typed fields:
+`defenses`, `perception`, `languages`, `skills`, `movement`, `resources`,
+`strikes`, `actions`, `spellcasting.entries`, and `spellcasting.spells`.
+`supplementary_sections` carries rich prose and relationships, not duplicate
+creature mechanics. Never scrape a generic fact block or infer mechanics from
+prose. Non-creature records may temporarily report `presentation_type:
+"unmigrated"` with an explicit `migration.plan_id`; use their `sections` only
+until that named family-specific contract lands.
 
 Use one Atlas process for a batch when you have multiple exact keys or strict names. `record get` accepts multiple canonical keys, and `record resolve` accepts multiple strict names or verified aliases:
 

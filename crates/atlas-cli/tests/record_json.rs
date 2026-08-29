@@ -8,7 +8,8 @@ mod support;
 use support::json::{ok_data, record_sections};
 use support::path::temp_source_root;
 use support::source::{
-    write_ambiguous_action_source, write_record_search_source, write_tooling_collision_source,
+    write_ambiguous_action_source, write_creature_preview_source, write_record_search_source,
+    write_tooling_collision_source,
 };
 
 #[test]
@@ -40,6 +41,8 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert_eq!(get_data["record"]["key"], "actions:testAction0001");
     assert_eq!(get_data["record"]["name"], "Treat Wounds");
     assert_eq!(get_data["record"]["kind"], "rule");
+    assert_eq!(get_data["record"]["presentation_type"], "unmigrated");
+    assert_eq!(get_data["record"]["migration"]["plan_id"], "H7");
     assert!(record_sections(&get_data["record"]).contains(&"description"));
     assert!(!record_sections(&get_data["record"]).contains(&"description_preview"));
     assert!(get_data["record"].get("source_json").is_none());
@@ -82,7 +85,8 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(record_sections(&description_get_data["record"]).contains(&"description"));
     assert!(!record_sections(&description_get_data["record"]).contains(&"description_preview"));
     assert!(!record_sections(&description_get_data["record"]).contains(&"details"));
-    let description_sections = serde_json::to_string(&description_get_data["record"]["sections"])?;
+    let description_sections =
+        serde_json::to_string(&description_get_data["record"]["supplementary_sections"])?;
     assert!(description_sections.contains("\"label\":\"Treat Wounds\""));
     assert!(description_sections.contains("\"record_key\":\"actions:testAction0001\""));
 
@@ -110,6 +114,27 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     );
     assert!(record_sections(&full_get_data["record"]).contains(&"description"));
     assert!(!record_sections(&full_get_data["record"]).contains(&"description_preview"));
+
+    let preview_raw_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "actions:testAction0001",
+            "--detail",
+            "preview",
+            "--include-raw",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(preview_raw_get_output.status.success());
+    let preview_raw_get_json: Value = serde_json::from_slice(&preview_raw_get_output.stdout)?;
+    assert!(
+        ok_data(&preview_raw_get_json)["record"]["source_json"]
+            .as_str()
+            .is_some()
+    );
 
     let batch_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -483,6 +508,72 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
             .contains("You spend 10 minutes treating one injured living creature with")
     );
     assert!(text_search_preview_stdout.contains("Match: filter"));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn creature_record_uses_direct_tagged_fields_at_each_detail()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-creature-record-contract");
+    write_creature_preview_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .arg("--output")
+        .arg(&index_path)
+        .args(["--no-embeddings", "--json"])
+        .output()?;
+    assert!(build_output.status.success());
+
+    for detail in ["summary", "preview", "description", "standard", "full"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "record",
+                "get",
+                "creatures:testCreature001",
+                "--detail",
+                detail,
+                "--index",
+            ])
+            .arg(&index_path)
+            .arg("--json")
+            .output()?;
+        assert!(output.status.success(), "detail {detail}");
+        let json: Value = serde_json::from_slice(&output.stdout)?;
+        let record = &ok_data(&json)["record"];
+        assert_eq!(record["presentation_type"], "creature");
+        assert!(record.get("sections").is_none());
+        assert!(record["defenses"].is_object());
+        assert!(record["movement"].is_object());
+        assert!(record["spellcasting"]["entries"].is_array());
+        assert!(record["spellcasting"]["spells"].is_array());
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "creatures:testCreature001",
+            "--detail",
+            "standard",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let record = &ok_data(&json)["record"];
+    assert_eq!(record["defenses"]["ac"]["value"], 25);
+    assert_eq!(record["defenses"]["hp"]["maximum"], 80);
+    assert_eq!(record["defenses"]["saves"]["fortitude"]["value"], 14);
+    assert_eq!(record["perception"]["modifier"], 12);
+    assert_eq!(record["languages"][0], "common");
+    assert_eq!(record["movement"]["modes"][0]["value_feet"], 25);
+    assert!(serde_json::to_string(record)?.contains("A sturdy fixture creature."));
+    assert!(!serde_json::to_string(record)?.contains("creature_mechanics"));
 
     fs::remove_dir_all(root)?;
     Ok(())

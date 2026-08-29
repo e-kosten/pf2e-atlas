@@ -66,7 +66,13 @@ pub use creature_entities::{
 };
 pub use creature_projection::{CreatureFactProjection, project_creature_facts};
 pub use json_projection::{
-    RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
+    CreatureActionJson, CreatureActivityModeJson, CreatureArmorClassJson, CreatureDamageJson,
+    CreatureDefensesJson, CreatureHitPointsJson, CreatureIwrJson, CreatureMovementJson,
+    CreatureMovementModeJson, CreaturePerceptionJson, CreatureResourceJson, CreatureRollJson,
+    CreatureSaveJson, CreatureSavesJson, CreatureSenseJson, CreatureSkillJson, CreatureSpellJson,
+    CreatureSpellcastingEntryJson, CreatureSpellcastingJson, CreatureStrikeJson, RecordBlockJson,
+    RecordJson, RecordJsonBase, RecordJsonOptions, RecordPresentationJson, RecordSectionJson,
+    UnmigratedRegistryJson, record_json,
 };
 pub use mechanics::{
     AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,

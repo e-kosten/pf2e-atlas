@@ -5,7 +5,7 @@ use atlas_app_model::{AppError, AppErrorCode};
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{
     PresentationContent, PresentationContentBlock, PresentationInline, RecordBlockJson,
-    RecordJsonOptions, RecordSectionJson, record_json,
+    RecordJsonOptions, RecordPresentationJson, RecordSectionJson, record_json,
 };
 use atlas_search::RecordResolutionResult;
 use serde::Serialize;
@@ -499,8 +499,8 @@ pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail:
     if let Some(prerequisites) = record_prerequisites_label(record) {
         println!("{}: {prerequisites}", style.label("Prerequisites"));
     }
-    if detail == DetailLevel::Preview {
-        for fact_line in preview_fact_lines(record) {
+    if detail != DetailLevel::Summary {
+        for fact_line in record_fact_lines(record) {
             println!("{fact_line}");
         }
     }
@@ -511,7 +511,7 @@ pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail:
 }
 
 pub(crate) fn detail_outputs_description(detail: DetailLevel) -> bool {
-    matches!(detail, DetailLevel::Preview | DetailLevel::Description)
+    detail != DetailLevel::Summary
 }
 
 fn print_record_header(record: &atlas_record::RecordJson, style: TerminalStyle) {
@@ -542,7 +542,7 @@ fn record_source_label(record: &atlas_record::RecordJson) -> Option<String> {
 
 fn record_prerequisites_label(record: &atlas_record::RecordJson) -> Option<String> {
     record
-        .sections
+        .generic_sections()
         .iter()
         .find(|section| section.kind == "summary")
         .into_iter()
@@ -559,10 +559,153 @@ fn record_prerequisites_label(record: &atlas_record::RecordJson) -> Option<Strin
         .filter(|value| !value.trim().is_empty())
 }
 
-fn preview_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
+fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
+    if let RecordPresentationJson::Creature {
+        defenses,
+        perception,
+        languages,
+        skills,
+        movement,
+        resources,
+        strikes,
+        actions,
+        spellcasting,
+    } = &record.presentation
+    {
+        let style = TerminalStyle::stdout();
+        let mut lines = Vec::new();
+        let mut defense_values = Vec::new();
+        if let Some(ac) = &defenses.ac {
+            defense_values.push(format!("AC {}", ac.value));
+        }
+        if let Some(hp) = &defenses.hp {
+            if let Some(maximum) = hp.maximum.or(hp.value) {
+                defense_values.push(format!("HP {maximum}"));
+            }
+        }
+        for (label, save) in [
+            ("Fort", &defenses.saves.fortitude),
+            ("Ref", &defenses.saves.reflex),
+            ("Will", &defenses.saves.will),
+        ] {
+            if let Some(save) = save {
+                defense_values.push(format!("{label} {:+}", save.value));
+            }
+        }
+        if !defense_values.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Defenses"),
+                defense_values.join("; ")
+            ));
+        }
+        if let Some(perception) = perception {
+            let mut values = perception
+                .modifier
+                .map(|value| vec![format!("{value:+}")])
+                .unwrap_or_default();
+            values.extend(perception.senses.iter().map(|sense| sense.kind.clone()));
+            lines.push(format!(
+                "{}: {}",
+                style.label("Perception"),
+                values.join("; ")
+            ));
+        }
+        if !languages.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Languages"),
+                languages.join(", ")
+            ));
+        }
+        if !skills.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Skills"),
+                skills
+                    .iter()
+                    .map(|skill| format!("{} {:+}", skill.label, skill.modifier))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !movement.modes.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Movement"),
+                movement
+                    .modes
+                    .iter()
+                    .map(|mode| format!("{} {} feet", mode.mode, mode.value_feet))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !resources.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Resources"),
+                resources
+                    .iter()
+                    .map(|resource| match resource.maximum {
+                        Some(maximum) => format!("{} {maximum}", resource.label),
+                        None => resource.label.clone(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !strikes.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Strikes"),
+                strikes
+                    .iter()
+                    .map(|strike| strike.label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !actions.is_empty() {
+            lines.push(format!(
+                "{}: {}",
+                style.label("Actions"),
+                actions
+                    .iter()
+                    .map(|action| action.label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !spellcasting.entries.is_empty() || !spellcasting.spells.is_empty() {
+            let entries = spellcasting
+                .entries
+                .iter()
+                .map(|entry| entry.label.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let spells = spellcasting
+                .spells
+                .iter()
+                .map(|spell| spell.label.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            lines.push(format!(
+                "{}: {}{}{}",
+                style.label("Spellcasting"),
+                entries,
+                (!entries.is_empty() && !spells.is_empty())
+                    .then_some("; ")
+                    .unwrap_or(""),
+                spells
+            ));
+        }
+        return lines;
+    }
+
     let style = TerminalStyle::stdout();
     record
-        .sections
+        .generic_sections()
         .iter()
         .filter(|section| section.kind != "description_preview")
         .filter_map(|section| {
@@ -596,11 +739,11 @@ fn record_description_text(
 ) -> Option<String> {
     let section_kind = match detail {
         DetailLevel::Preview => "description_preview",
-        DetailLevel::Description => "description",
+        DetailLevel::Description | DetailLevel::Standard | DetailLevel::Full => "description",
         _ => return None,
     };
     record
-        .sections
+        .supplementary_sections
         .iter()
         .find(|section| section.kind == section_kind)
         .and_then(|section| section_text(section, style))
