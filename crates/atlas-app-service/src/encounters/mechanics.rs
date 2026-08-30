@@ -566,16 +566,14 @@ fn activity_attack_ability(activity: &CanonicalMechanicActivity) -> Option<Activ
 fn canonical_activity_usage(activity: &CanonicalMechanicActivity) -> MechanicActivityUsage {
     match activity.family {
         MechanicActivityFamily::Strike => MechanicActivityUsage::Unlimited,
-        MechanicActivityFamily::Spell | MechanicActivityFamily::SpellcastingEntry => {
-            MechanicActivityUsage::Limited
-        }
-        MechanicActivityFamily::Action => {
+        MechanicActivityFamily::Spell | MechanicActivityFamily::Action => {
             if activity.facts.iter().any(fact_has_limited_use) {
                 MechanicActivityUsage::Limited
             } else {
                 MechanicActivityUsage::Unlimited
             }
         }
+        MechanicActivityFamily::SpellcastingEntry => MechanicActivityUsage::Limited,
         MechanicActivityFamily::Unsupported => MechanicActivityUsage::Ambiguous,
     }
 }
@@ -759,7 +757,7 @@ fn apply_participant_effects(
 
 fn speed_view(speed: MovementSpeed, participant: &EncounterParticipant) -> MovementSpeedView {
     let base_value = speed.value_feet;
-    let (adjustments, suppressed_adjustments) = speed_adjustments(participant, base_value);
+    let (adjustments, suppressed_adjustments) = speed_adjustments(participant);
     let adjusted_value = apply_runtime_adjustments(base_value, &adjustments);
     let notes = speed_notes(participant);
     MovementSpeedView {
@@ -875,8 +873,14 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
             }
             ConditionRule::Prone => notes.push(RuntimeNote {
                 source: condition_source(condition),
-                label: "Prone movement".to_string(),
-                reason: "Prone limits movement choices such as Crawl and Stand; speed is not adjusted automatically."
+                label: "Prone contextual limits".to_string(),
+                reason: "Prone limits movement choices such as Crawl and Stand; cover and falling consequences remain contextual; speed is unchanged."
+                    .to_string(),
+            }),
+            ConditionRule::Immobilized => notes.push(RuntimeNote {
+                source: condition_source(condition),
+                label: "Move actions forbidden".to_string(),
+                reason: "The participant cannot use actions with the move trait; numeric Speed is unchanged."
                     .to_string(),
             }),
             _ => {}
@@ -1022,6 +1026,25 @@ fn activity_view(
 ) -> MechanicActivityView {
     let kind = activity.kind;
     let usage = activity.usage;
+    let mut variant_damage_available = true;
+    let damage = activity
+        .damage
+        .into_iter()
+        .map(|damage| {
+            damage_view(
+                damage,
+                kind,
+                usage,
+                participant,
+                &mut variant_damage_available,
+            )
+        })
+        .collect();
+    let modes = activity
+        .modes
+        .into_iter()
+        .map(|mode| activity_mode_view(mode, kind, usage, participant))
+        .collect();
     MechanicActivityView {
         activity_id: activity.activity_id,
         label: activity.label,
@@ -1032,16 +1055,8 @@ fn activity_view(
             .into_iter()
             .map(|roll| activity_roll_view(roll, kind, participant))
             .collect(),
-        damage: activity
-            .damage
-            .into_iter()
-            .map(|damage| damage_view(damage, kind, usage, participant))
-            .collect(),
-        modes: activity
-            .modes
-            .into_iter()
-            .map(|mode| activity_mode_view(mode, kind, usage, participant))
-            .collect(),
+        damage,
+        modes,
     }
 }
 
@@ -1051,6 +1066,7 @@ fn activity_mode_view(
     activity_usage: MechanicActivityUsage,
     participant: &EncounterParticipant,
 ) -> MechanicActivityModeView {
+    let mut variant_damage_available = true;
     MechanicActivityModeView {
         mode_id: mode.mode_id,
         label: mode.label,
@@ -1060,7 +1076,15 @@ fn activity_mode_view(
         damage: mode
             .damage
             .into_iter()
-            .map(|damage| damage_view(damage, activity_kind, activity_usage, participant))
+            .map(|damage| {
+                damage_view(
+                    damage,
+                    activity_kind,
+                    activity_usage,
+                    participant,
+                    &mut variant_damage_available,
+                )
+            })
             .collect(),
     }
 }
@@ -1107,11 +1131,23 @@ fn damage_view(
     activity_kind: MechanicActivityKind,
     activity_usage: MechanicActivityUsage,
     participant: &EncounterParticipant,
+    variant_damage_available: &mut bool,
 ) -> DamageExpressionView {
+    let apply_variant_damage = *variant_damage_available
+        && damage.effect_kind == DamageEffectKind::Damage
+        && matches!(
+            activity_kind,
+            MechanicActivityKind::Strike | MechanicActivityKind::Spell
+        );
+    if apply_variant_damage {
+        *variant_damage_available = false;
+    }
     let mut modifiers = variant_damage_modifier(
         participant.participant_variant,
+        activity_kind,
         activity_usage,
         damage.effect_kind,
+        apply_variant_damage,
     )
     .into_iter()
     .collect::<Vec<_>>();
@@ -1177,10 +1213,12 @@ fn damage_ability(damage: &DamageExpression) -> Option<AbilityKind> {
 
 fn variant_damage_modifier(
     variant: ParticipantVariant,
+    activity_kind: MechanicActivityKind,
     usage: MechanicActivityUsage,
     effect_kind: DamageEffectKind,
+    apply_variant_damage: bool,
 ) -> Option<StatModifierView> {
-    if effect_kind != DamageEffectKind::Damage {
+    if !apply_variant_damage || effect_kind != DamageEffectKind::Damage {
         return None;
     }
     let direction = match variant {
@@ -1188,10 +1226,12 @@ fn variant_damage_modifier(
         ParticipantVariant::Elite => 1,
         ParticipantVariant::Weak => -1,
     };
-    let magnitude = match usage {
-        MechanicActivityUsage::Unlimited => 2,
-        MechanicActivityUsage::Limited => 4,
-        MechanicActivityUsage::Ambiguous => return None,
+    let magnitude = match (activity_kind, usage) {
+        (MechanicActivityKind::Strike, _) => 2,
+        (MechanicActivityKind::Spell, MechanicActivityUsage::Unlimited) => 2,
+        (MechanicActivityKind::Spell, MechanicActivityUsage::Limited) => 4,
+        (MechanicActivityKind::Spell, MechanicActivityUsage::Ambiguous)
+        | (MechanicActivityKind::Other, _) => return None,
     };
     let source = variant_source(variant).to_string();
     Some(StatModifierView {
@@ -1237,6 +1277,14 @@ fn condition_roll_modifiers(
         }
         ConditionRule::Stupefied if activity_kind == MechanicActivityKind::Spell => {
             vec![status_penalty(amount)]
+        }
+        ConditionRule::Prone if roll.surface == ActivityRollSurface::AttackRoll => {
+            vec![RollModifier {
+                source: source.clone(),
+                label: source,
+                modifier_type: StatModifierTypeView::Circumstance,
+                value: -2,
+            }]
         }
         ConditionRule::OffGuard
         | ConditionRule::Clumsy
@@ -1535,6 +1583,7 @@ fn variant_hp_delta(variant: ParticipantVariant, level: Option<i64>) -> Option<i
         ParticipantVariant::Elite if level <= 4 => Some(15),
         ParticipantVariant::Elite if level <= 19 => Some(20),
         ParticipantVariant::Elite => Some(30),
+        ParticipantVariant::Weak if level <= 0 => Some(0),
         ParticipantVariant::Weak if level <= 2 => Some(-10),
         ParticipantVariant::Weak if level <= 5 => Some(-15),
         ParticipantVariant::Weak if level <= 20 => Some(-20),
@@ -1603,21 +1652,12 @@ fn condition_modifiers(
 
 fn speed_adjustments(
     participant: &EncounterParticipant,
-    base_value: i64,
 ) -> (Vec<RuntimeAdjustment>, Vec<RuntimeAdjustment>) {
     let mut penalties = Vec::new();
-    let mut immobilizing = Vec::new();
     for (condition, rule) in participant_condition_rules(participant) {
         let source = condition_source(condition);
-        match rule {
-            ConditionRule::Immobilized => immobilizing.push(RuntimeAdjustment {
-                source: source.clone(),
-                label: "Movement restricted".to_string(),
-                value: -base_value,
-                reason: Some("You can't use actions with the move trait.".to_string()),
-                floor: Some(0),
-            }),
-            ConditionRule::Encumbered => penalties.push(RuntimeAdjustment {
+        if rule == ConditionRule::Encumbered {
+            penalties.push(RuntimeAdjustment {
                 source: source.clone(),
                 label: "Speed penalty".to_string(),
                 value: -10,
@@ -1625,35 +1665,14 @@ fn speed_adjustments(
                     "Encumbered reduces speeds by 10 feet, to a minimum of 5 feet.".to_string(),
                 ),
                 floor: Some(5),
-            }),
-            _ => {}
+            });
         }
     }
     penalties.sort_by(|left, right| left.source.cmp(&right.source));
-    immobilizing.sort_by(|left, right| left.source.cmp(&right.source));
 
     let mut adjustments = Vec::new();
     let mut suppressed = Vec::new();
-    if let Some(immobilized) = immobilizing.first().cloned() {
-        adjustments.push(immobilized);
-        suppressed.extend(
-            immobilizing
-                .into_iter()
-                .skip(1)
-                .map(|adjustment| RuntimeAdjustment {
-                    reason: Some(
-                        "Another immobilizing effect already fixes speed at 0.".to_string(),
-                    ),
-                    ..adjustment
-                }),
-        );
-        suppressed.extend(penalties.into_iter().map(|adjustment| RuntimeAdjustment {
-            reason: Some(
-                "Immobilized fixes speed at 0, so this speed penalty is suppressed.".to_string(),
-            ),
-            ..adjustment
-        }));
-    } else if let Some(penalty) = penalties.first().cloned() {
+    if let Some(penalty) = penalties.first().cloned() {
         adjustments.push(penalty);
         suppressed.extend(
             penalties
@@ -1676,21 +1695,27 @@ fn speed_notes(participant: &EncounterParticipant) -> Vec<RuntimeNote> {
             ConditionRule::Grabbed => notes.push(RuntimeNote {
                 source: source.clone(),
                 label: "Grabbed restrictions".to_string(),
-                reason: "Grabbed also makes the participant off-guard and can affect manipulate actions."
+                reason: "Grabbed makes the participant off-guard, forbids move-trait actions through immobilized, and can affect manipulate actions; numeric Speed is unchanged."
                     .to_string(),
             }),
             ConditionRule::Restrained => notes.push(RuntimeNote {
                 source: source.clone(),
                 label: "Restrained restrictions".to_string(),
                 reason:
-                    "Restrained also makes the participant off-guard and restricts attack and manipulate actions."
+                    "Restrained makes the participant off-guard, forbids move-trait actions through immobilized, and restricts attack and manipulate actions; numeric Speed is unchanged."
                         .to_string(),
+            }),
+            ConditionRule::Immobilized => notes.push(RuntimeNote {
+                source: source.clone(),
+                label: "Move actions forbidden".to_string(),
+                reason: "The participant cannot use actions with the move trait; numeric Speed is unchanged."
+                    .to_string(),
             }),
             ConditionRule::Prone => notes.push(RuntimeNote {
                 source: source.clone(),
-                label: "Prone movement".to_string(),
+                label: "Prone contextual limits".to_string(),
                 reason:
-                    "Prone limits movement choices such as Crawl and Stand; speed is not adjusted automatically."
+                    "Prone limits movement choices such as Crawl and Stand; cover and falling consequences remain contextual; numeric Speed is unchanged."
                         .to_string(),
             }),
             _ => {}
@@ -1720,10 +1745,22 @@ fn condition_unapplied_effects(
             label: format!("{source} spell disruption flat check"),
             reason: "Flat-check spell disruption is not automated yet.".to_string(),
         }],
+        ConditionRule::Grabbed => vec![UnappliedEffectView {
+            source: source.clone(),
+            label: format!("{source} manipulate-action flat check"),
+            reason: "Manipulate actions require the Grabbed flat check; that contextual roll and action loss are not automated."
+                .to_string(),
+        }],
+        ConditionRule::Restrained => vec![UnappliedEffectView {
+            source: source.clone(),
+            label: format!("{source} attack and manipulate restrictions"),
+            reason: "Attack and manipulate actions remain unavailable except for the contextual actions that can remove the restraint; those exceptions are not automated."
+                .to_string(),
+        }],
         ConditionRule::Prone => vec![UnappliedEffectView {
             source: source.clone(),
-            label: format!("{source} movement limits"),
-            reason: "Prone movement action limits are tracked, not applied as a speed adjustment."
+            label: format!("{source} contextual limits"),
+            reason: "Prone movement, cover, and falling consequences are tracked as notes rather than numeric adjustments."
                 .to_string(),
         }],
         ConditionRule::Frightened
@@ -1733,8 +1770,6 @@ fn condition_unapplied_effects(
         | ConditionRule::Quickened
         | ConditionRule::Stunned
         | ConditionRule::Immobilized
-        | ConditionRule::Grabbed
-        | ConditionRule::Restrained
         | ConditionRule::Encumbered => Vec::new(),
     }
 }
@@ -1770,6 +1805,7 @@ fn expanded_condition_rules(rule: ConditionRule) -> Vec<ConditionRule> {
             ConditionRule::Immobilized,
         ],
         ConditionRule::Encumbered => vec![ConditionRule::Encumbered, ConditionRule::Clumsy],
+        ConditionRule::Prone => vec![ConditionRule::Prone, ConditionRule::OffGuard],
         _ => vec![rule],
     }
 }
@@ -1905,6 +1941,17 @@ mod tests {
             .flat_map(|activity| activity.facts.iter_mut())
             .find(|fact| &fact.target == target)
             .expect("canonical activity fact should exist")
+    }
+
+    fn canonical_activity_mut<'a>(
+        projection: &'a mut CanonicalMechanicsProjection,
+        occurrence_id: &str,
+    ) -> &'a mut CanonicalMechanicActivity {
+        projection
+            .activities
+            .iter_mut()
+            .find(|activity| activity.occurrence_id.as_str() == occurrence_id)
+            .expect("canonical activity should exist")
     }
 
     fn canonical_projection() -> CanonicalMechanicsProjection {
@@ -2043,6 +2090,14 @@ mod tests {
                             label: "Spell DC".to_string(),
                             value: MechanicBaseValue::Integer(FactValue::Value(22)),
                             facets: MechanicFacets::spellcasting_dc(),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::SpellcastingAttack {
+                                entry_occurrence_id: spellcasting_id.clone(),
+                            },
+                            label: "Spell Attack".to_string(),
+                            value: MechanicBaseValue::Integer(FactValue::Value(14)),
+                            facets: MechanicFacets::spellcasting_attack(),
                         },
                         MechanicFact {
                             target: MechanicTarget::SpellSlotMaximum {
@@ -2219,6 +2274,78 @@ mod tests {
     }
 
     #[test]
+    fn canonical_weak_hp_bands_leave_levels_below_one_unchanged() {
+        let cases = [
+            (-1, 100),
+            (0, 100),
+            (1, 90),
+            (2, 90),
+            (3, 85),
+            (5, 85),
+            (6, 80),
+            (20, 80),
+            (21, 70),
+        ];
+        for (level, expected_hp) in cases {
+            let mut canonical = canonical_projection();
+            canonical.level = FactValue::Value(level);
+            let hp = canonical
+                .facts
+                .iter_mut()
+                .find(|fact| fact.target == MechanicTarget::MaxHp)
+                .expect("max hp should exist");
+            hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(100)));
+            let projection = project_canonical_projection(
+                &participant(ParticipantVariant::Weak, Vec::new()),
+                canonical,
+            );
+            assert_eq!(
+                value(&projection, "hp.max").adjusted_value,
+                expected_hp,
+                "unexpected weak HP at starting level {level}"
+            );
+        }
+
+        let mut level_zero = canonical_projection();
+        level_zero.level = FactValue::Value(0);
+        let hp = level_zero
+            .facts
+            .iter_mut()
+            .find(|fact| fact.target == MechanicTarget::MaxHp)
+            .expect("max hp should exist");
+        hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(5)));
+        let unchanged = project_canonical_projection(
+            &participant(ParticipantVariant::Weak, Vec::new()),
+            level_zero,
+        );
+        assert_eq!(value(&unchanged, "hp.max").adjusted_value, 5);
+        assert_eq!(
+            variant_hp_adjustment_delta(
+                ParticipantVariant::Normal,
+                ParticipantVariant::Weak,
+                Some(0),
+            ),
+            0
+        );
+        assert_eq!(
+            variant_hp_adjustment_delta(
+                ParticipantVariant::Normal,
+                ParticipantVariant::Weak,
+                Some(1),
+            ),
+            -10
+        );
+        assert_eq!(
+            variant_hp_adjustment_delta(
+                ParticipantVariant::Weak,
+                ParticipantVariant::Elite,
+                Some(1),
+            ),
+            20
+        );
+    }
+
+    #[test]
     fn canonical_condition_targets_stack_and_suppress_by_type() {
         let projection = project_canonical(&participant(
             ParticipantVariant::Normal,
@@ -2283,13 +2410,7 @@ mod tests {
         let strike_damage = damage(&projection, "strike-claw", "main");
         assert_eq!(strike_damage.adjusted_formula, None);
         assert_eq!(strike_damage.modifiers.len(), 2);
-        assert_damage_modifier(&projection, "action-breath", "fire", 4);
-        assert_eq!(
-            damage(&projection, "action-breath", "fire")
-                .adjusted_formula
-                .as_deref(),
-            Some("4d6 + 4")
-        );
+        assert_no_damage_modifier(&projection, "action-breath", "fire");
         assert!(projection.unapplied_effects.iter().any(|effect| {
             effect.reason.contains("activities.strike-claw.unsupported")
                 && effect.reason.contains("unmodeled-rule")
@@ -2573,6 +2694,223 @@ mod tests {
     }
 
     #[test]
+    fn canonical_variant_damage_adjusts_only_first_melee_or_spell_damage() {
+        let mut strike_projection = canonical_projection();
+        let strike = canonical_activity_mut(&mut strike_projection, "strike-claw");
+        let main = strike
+            .facts
+            .iter()
+            .find(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .expect("strike damage should exist")
+            .clone();
+        let mut unsupported_first = main.clone();
+        unsupported_first.target = MechanicTarget::ActivityDamage {
+            occurrence_id: strike.occurrence_id.clone(),
+            damage_id: "unsupported-first".to_string(),
+        };
+        unsupported_first.label = "unsupported-first".to_string();
+        if let MechanicBaseValue::Damage(damage) = &mut unsupported_first.value {
+            damage.id = "unsupported-first".to_string();
+            damage.formula = FactValue::Value("contextual damage".to_string());
+            damage.kinds = FactValue::Value(vec![CreatureDamageKind::Unsupported(
+                UnsupportedSourceValue {
+                    shape: UnsupportedSourceShape::String,
+                    value: "\"contextual\"".to_string(),
+                    reason: UnsupportedSourceReason::OpenVocabulary,
+                },
+            )]);
+        }
+        let main_index = strike
+            .facts
+            .iter()
+            .position(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .expect("main damage should exist");
+        strike.facts.insert(main_index, unsupported_first);
+        let mut secondary = main;
+        secondary.target = MechanicTarget::ActivityDamage {
+            occurrence_id: strike.occurrence_id.clone(),
+            damage_id: "secondary".to_string(),
+        };
+        secondary.label = "secondary".to_string();
+        if let MechanicBaseValue::Damage(damage) = &mut secondary.value {
+            damage.id = "secondary".to_string();
+            damage.formula = FactValue::Value("1d4".to_string());
+        }
+        strike.facts.push(secondary);
+        let elite_strike = project_canonical_projection(
+            &participant(ParticipantVariant::Elite, Vec::new()),
+            strike_projection,
+        );
+        assert_no_damage_modifier(&elite_strike, "strike-claw", "unsupported-first");
+        assert_eq!(
+            damage(&elite_strike, "strike-claw", "unsupported-first").adjusted_formula,
+            None
+        );
+        assert_damage_modifier(&elite_strike, "strike-claw", "main", 2);
+        assert_no_damage_modifier(&elite_strike, "strike-claw", "secondary");
+        assert!(
+            elite_strike
+                .unapplied_effects
+                .iter()
+                .any(|effect| { effect.label == "Elite ambiguous offensive damage adjustments" })
+        );
+
+        let mut limited_spell_projection = canonical_projection();
+        let limited = canonical_activity_mut(&mut limited_spell_projection, "action-breath");
+        limited.family = MechanicActivityFamily::Spell;
+        let mut secondary = limited
+            .facts
+            .iter()
+            .find(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .expect("spell damage should exist")
+            .clone();
+        secondary.target = MechanicTarget::ActivityDamage {
+            occurrence_id: limited.occurrence_id.clone(),
+            damage_id: "cold".to_string(),
+        };
+        secondary.label = "cold".to_string();
+        if let MechanicBaseValue::Damage(damage) = &mut secondary.value {
+            damage.id = "cold".to_string();
+            damage.formula = FactValue::Value("2d6".to_string());
+            damage.damage_type = FactValue::Value("cold".to_string());
+        }
+        limited.facts.push(secondary);
+        let elite_limited = project_canonical_projection(
+            &participant(ParticipantVariant::Elite, Vec::new()),
+            limited_spell_projection.clone(),
+        );
+        assert_damage_modifier(&elite_limited, "action-breath", "fire", 4);
+        assert_no_damage_modifier(&elite_limited, "action-breath", "cold");
+
+        let at_will = canonical_activity_mut(&mut limited_spell_projection, "action-breath");
+        at_will.facts.retain(|fact| {
+            !matches!(
+                fact.target,
+                MechanicTarget::ActivityUses { .. } | MechanicTarget::ActivityFrequency { .. }
+            )
+        });
+        let fire_index = at_will
+            .facts
+            .iter()
+            .position(|fact| {
+                matches!(
+                    &fact.target,
+                    MechanicTarget::ActivityDamage { damage_id, .. } if damage_id == "fire"
+                )
+            })
+            .expect("fire damage should exist");
+        let cold_index = at_will
+            .facts
+            .iter()
+            .position(|fact| {
+                matches!(
+                    &fact.target,
+                    MechanicTarget::ActivityDamage { damage_id, .. } if damage_id == "cold"
+                )
+            })
+            .expect("cold damage should exist");
+        at_will.facts.swap(fire_index, cold_index);
+        let weak_at_will = project_canonical_projection(
+            &participant(ParticipantVariant::Weak, Vec::new()),
+            limited_spell_projection,
+        );
+        assert_damage_modifier(&weak_at_will, "action-breath", "cold", -2);
+        assert_no_damage_modifier(&weak_at_will, "action-breath", "fire");
+    }
+
+    #[test]
+    fn canonical_prone_applies_off_guard_and_typed_attack_penalty_only() {
+        let projection = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![
+                condition("Prone", None),
+                condition("Prone", None),
+                condition("Frightened", Some(1)),
+            ],
+        ));
+        assert_eq!(value(&projection, "ac").adjusted_value, 19);
+        assert_eq!(value(&projection, "ac").modifiers.len(), 2);
+        assert_eq!(value(&projection, "ac").suppressed_modifiers.len(), 1);
+        let attack = roll(&projection, "strike-claw", "attack");
+        assert_eq!(attack.adjusted_value, 9);
+        assert!(attack.modifiers.iter().any(|modifier| {
+            modifier.source == "Prone"
+                && modifier.modifier_type == StatModifierTypeView::Circumstance
+                && modifier.value == -2
+        }));
+        assert!(attack.modifiers.iter().any(|modifier| {
+            modifier.source == "Frightened 1"
+                && modifier.modifier_type == StatModifierTypeView::Status
+                && modifier.value == -1
+        }));
+        assert!(attack.suppressed_modifiers.iter().any(|modifier| {
+            modifier.source == "Prone"
+                && modifier.modifier_type == StatModifierTypeView::Circumstance
+        }));
+        let spell_dc = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == "spellcasting-arcane")
+            .and_then(|activity| activity.rolls.iter().find(|roll| roll.label == "Spell DC"))
+            .expect("spell DC should project");
+        assert_eq!(spell_dc.adjusted_value, 21);
+        assert!(
+            spell_dc
+                .modifiers
+                .iter()
+                .all(|modifier| modifier.source != "Prone")
+        );
+        let spell_attack = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == "spellcasting-arcane")
+            .and_then(|activity| {
+                activity
+                    .rolls
+                    .iter()
+                    .find(|roll| roll.label == "Spell Attack")
+            })
+            .expect("spell attack should project");
+        assert_eq!(spell_attack.adjusted_value, 11);
+        assert!(spell_attack.modifiers.iter().any(|modifier| {
+            modifier.source == "Prone"
+                && modifier.modifier_type == StatModifierTypeView::Circumstance
+                && modifier.value == -2
+        }));
+        let action_notes = &projection
+            .action_budget
+            .as_ref()
+            .expect("action budget")
+            .notes;
+        assert!(action_notes.iter().any(|note| {
+            note.source == "Prone"
+                && note.reason.contains("cover")
+                && note.reason.contains("falling")
+        }));
+
+        let mut dc_mutation = canonical_projection();
+        let strike_id = atlas_record::CreatureOccurrenceId::new("strike-claw")
+            .expect("occurrence id should be valid");
+        let roll_fact = activity_fact_mut(
+            &mut dc_mutation,
+            &MechanicTarget::ActivityRoll {
+                occurrence_id: strike_id,
+                roll_id: "attack".to_string(),
+            },
+        );
+        if let MechanicBaseValue::Roll(roll) = &mut roll_fact.value {
+            roll.kind = CreatureRollKind::DifficultyClass;
+        }
+        let dc_projection = project_canonical_projection(
+            &participant(ParticipantVariant::Normal, vec![condition("Prone", None)]),
+            dc_mutation,
+        );
+        let mutated = roll(&dc_projection, "strike-claw", "attack");
+        assert_eq!(mutated.adjusted_value, 12);
+        assert!(mutated.modifiers.is_empty());
+    }
+
+    #[test]
     fn canonical_runtime_rules_explain_action_and_movement_suppression() {
         let projection = project_canonical(&participant(
             ParticipantVariant::Normal,
@@ -2591,15 +2929,15 @@ mod tests {
         assert_eq!(budget.actions.adjustments.len(), 2);
         assert_eq!(budget.actions.suppressed_adjustments.len(), 2);
         let land = speed(&projection, "land");
-        assert_eq!(land.adjusted_value_feet, 0);
+        assert_eq!(land.adjusted_value_feet, 15);
         assert_eq!(land.adjustments.len(), 1);
-        assert!(land.suppressed_adjustments.iter().any(|adjustment| {
-            adjustment.source == "Encumbered"
-                && adjustment
-                    .reason
-                    .as_deref()
-                    .is_some_and(|reason| reason.contains("Immobilized"))
-        }));
+        assert!(land.suppressed_adjustments.is_empty());
+        assert!(
+            budget
+                .notes
+                .iter()
+                .any(|note| { note.source == "Grabbed" && note.label == "Move actions forbidden" })
+        );
     }
 
     #[test]
@@ -2717,11 +3055,17 @@ mod tests {
         )
         .expect("stat block");
         assert_damage_modifier(&elite, "claw", "main", 2);
+        assert_no_damage_modifier(&elite, "claw", "secondary");
+        assert_mode_damage_modifier(&elite, "claw", "sweep", "mode-primary", 2);
+        assert_no_mode_damage_modifier(&elite, "claw", "sweep", "mode-persistent");
         assert_eq!(
             damage(&elite, "claw", "main").adjusted_formula.as_deref(),
             Some("1d6 + 6")
         );
         assert_damage_modifier(&elite, "fireball", "0", 4);
+        assert_no_damage_modifier(&elite, "fireball", "persistent");
+        assert_damage_modifier(&elite, "ignition", "fire", 2);
+        assert_no_damage_modifier(&elite, "ignition", "persistent");
         assert_no_damage_modifier(&elite, "breath", "0");
         assert_no_damage_modifier(&elite, "heal", "0");
         assert_no_mode_damage_modifier(&elite, "heal", "living", "0");
@@ -2739,7 +3083,13 @@ mod tests {
         )
         .expect("stat block");
         assert_damage_modifier(&weak, "claw", "main", -2);
+        assert_no_damage_modifier(&weak, "claw", "secondary");
+        assert_mode_damage_modifier(&weak, "claw", "sweep", "mode-primary", -2);
+        assert_no_mode_damage_modifier(&weak, "claw", "sweep", "mode-persistent");
         assert_damage_modifier(&weak, "fireball", "0", -4);
+        assert_no_damage_modifier(&weak, "fireball", "persistent");
+        assert_damage_modifier(&weak, "ignition", "fire", -2);
+        assert_no_damage_modifier(&weak, "ignition", "persistent");
         assert_no_damage_modifier(&weak, "breath", "0");
         assert_no_damage_modifier(&weak, "heal", "0");
     }
@@ -2895,8 +3245,17 @@ mod tests {
             &record(),
         )
         .expect("stat block");
-        assert_eq!(speed(&grabbed, "land").adjusted_value_feet, 0);
+        assert_eq!(speed(&grabbed, "land").adjusted_value_feet, 25);
         assert_eq!(value(&grabbed, "ac").adjusted_value, 20);
+        assert!(
+            grabbed
+                .action_budget
+                .as_ref()
+                .expect("action budget")
+                .notes
+                .iter()
+                .any(|note| note.source == "Grabbed" && note.label == "Move actions forbidden")
+        );
 
         let grabbed_and_encumbered = project_legacy(
             &participant(
@@ -2907,15 +3266,65 @@ mod tests {
         )
         .expect("stat block");
         let land = speed(&grabbed_and_encumbered, "land");
-        assert_eq!(land.adjusted_value_feet, 0);
+        assert_eq!(land.adjusted_value_feet, 15);
         assert_eq!(land.adjustments.len(), 1);
-        assert!(land.suppressed_adjustments.iter().any(|adjustment| {
-            adjustment.source == "Encumbered"
-                && adjustment
-                    .reason
-                    .as_deref()
-                    .is_some_and(|reason| reason.contains("Immobilized"))
-        }));
+        assert!(land.suppressed_adjustments.is_empty());
+
+        for condition_name in ["Immobilized", "Grabbed", "Restrained"] {
+            let restricted = project_legacy(
+                &participant(
+                    ParticipantVariant::Normal,
+                    vec![condition(condition_name, None)],
+                ),
+                &record(),
+            )
+            .expect("stat block");
+            assert_eq!(speed(&restricted, "land").adjusted_value_feet, 25);
+            assert_eq!(speed(&restricted, "fly").adjusted_value_feet, 10);
+            assert!(speed(&restricted, "land").notes.iter().any(|note| {
+                note.source == condition_name
+                    && note.label == "Move actions forbidden"
+                    && note.reason.contains("numeric Speed is unchanged")
+            }));
+            assert!(
+                restricted
+                    .action_budget
+                    .as_ref()
+                    .expect("action budget")
+                    .notes
+                    .iter()
+                    .any(|note| {
+                        note.source == condition_name
+                            && note.label == "Move actions forbidden"
+                            && note.reason.contains("move trait")
+                    })
+            );
+            match condition_name {
+                "Grabbed" => assert!(restricted.unapplied_effects.iter().any(|effect| {
+                    effect.source == "Grabbed"
+                        && effect.label == "Grabbed manipulate-action flat check"
+                })),
+                "Restrained" => assert!(restricted.unapplied_effects.iter().any(|effect| {
+                    effect.source == "Restrained"
+                        && effect.label == "Restrained attack and manipulate restrictions"
+                })),
+                _ => {}
+            }
+        }
+        let unrestricted = project_legacy(
+            &participant(ParticipantVariant::Normal, Vec::new()),
+            &record(),
+        )
+        .expect("stat block");
+        assert!(
+            unrestricted
+                .action_budget
+                .as_ref()
+                .expect("action budget")
+                .notes
+                .iter()
+                .all(|note| note.label != "Move actions forbidden")
+        );
 
         let prone = project_legacy(
             &participant(ParticipantVariant::Normal, vec![condition("Prone", None)]),
@@ -2923,11 +3332,12 @@ mod tests {
         )
         .expect("stat block");
         assert_eq!(speed(&prone, "land").adjusted_value_feet, 25);
+        assert_eq!(value(&prone, "ac").adjusted_value, 20);
         assert!(
             prone
                 .unapplied_effects
                 .iter()
-                .any(|effect| effect.label == "Prone movement limits")
+                .any(|effect| effect.label == "Prone contextual limits")
         );
 
         let zero_speed = project_legacy(
@@ -3223,15 +3633,50 @@ mod tests {
                     surface: atlas_record::ActivityRollSurface::AttackRoll,
                     ability: Some(atlas_record::ActivityRollAbility::Strength),
                 }],
-                damage: vec![atlas_record::DamageExpression {
-                    damage_id: "main".to_string(),
-                    label: None,
-                    formula: "1d6+4".to_string(),
-                    damage_type: Some("slashing".to_string()),
-                    effect_kind: atlas_record::DamageEffectKind::Damage,
-                    ability: Some(atlas_record::ActivityRollAbility::Strength),
+                damage: vec![
+                    atlas_record::DamageExpression {
+                        damage_id: "main".to_string(),
+                        label: None,
+                        formula: "1d6+4".to_string(),
+                        damage_type: Some("slashing".to_string()),
+                        effect_kind: atlas_record::DamageEffectKind::Damage,
+                        ability: Some(atlas_record::ActivityRollAbility::Strength),
+                    },
+                    atlas_record::DamageExpression {
+                        damage_id: "secondary".to_string(),
+                        label: Some("Persistent bleed".to_string()),
+                        formula: "1d4".to_string(),
+                        damage_type: Some("bleed".to_string()),
+                        effect_kind: atlas_record::DamageEffectKind::Damage,
+                        ability: None,
+                    },
+                ],
+                modes: vec![atlas_record::MechanicActivityMode {
+                    mode_id: "sweep".to_string(),
+                    label: "Claw sweep".to_string(),
+                    sort: 1,
+                    target: None,
+                    range: None,
+                    time: None,
+                    damage: vec![
+                        atlas_record::DamageExpression {
+                            damage_id: "mode-primary".to_string(),
+                            label: None,
+                            formula: "3d6".to_string(),
+                            damage_type: Some("slashing".to_string()),
+                            effect_kind: atlas_record::DamageEffectKind::Damage,
+                            ability: None,
+                        },
+                        atlas_record::DamageExpression {
+                            damage_id: "mode-persistent".to_string(),
+                            label: Some("Persistent bleed".to_string()),
+                            formula: "1d6".to_string(),
+                            damage_type: Some("bleed".to_string()),
+                            effect_kind: atlas_record::DamageEffectKind::Damage,
+                            ability: None,
+                        },
+                    ],
                 }],
-                modes: Vec::new(),
             },
             atlas_record::MechanicActivity {
                 activity_id: "fireball".to_string(),
@@ -3256,14 +3701,52 @@ mod tests {
                         ability: None,
                     },
                 ],
-                damage: vec![atlas_record::DamageExpression {
-                    damage_id: "0".to_string(),
-                    label: None,
-                    formula: "6d6".to_string(),
-                    damage_type: Some("fire".to_string()),
-                    effect_kind: atlas_record::DamageEffectKind::Damage,
-                    ability: None,
-                }],
+                damage: vec![
+                    atlas_record::DamageExpression {
+                        damage_id: "0".to_string(),
+                        label: None,
+                        formula: "6d6".to_string(),
+                        damage_type: Some("fire".to_string()),
+                        effect_kind: atlas_record::DamageEffectKind::Damage,
+                        ability: None,
+                    },
+                    atlas_record::DamageExpression {
+                        damage_id: "persistent".to_string(),
+                        label: Some("Persistent fire".to_string()),
+                        formula: "1d6".to_string(),
+                        damage_type: Some("fire".to_string()),
+                        effect_kind: atlas_record::DamageEffectKind::Damage,
+                        ability: None,
+                    },
+                ],
+                modes: Vec::new(),
+            },
+            atlas_record::MechanicActivity {
+                activity_id: "ignition".to_string(),
+                label: "Ignition".to_string(),
+                kind: atlas_record::MechanicActivityKind::Spell,
+                traits: vec!["cantrip".to_string()],
+                compendium_source: None,
+                usage: atlas_record::MechanicActivityUsage::Unlimited,
+                rolls: Vec::new(),
+                damage: vec![
+                    atlas_record::DamageExpression {
+                        damage_id: "fire".to_string(),
+                        label: None,
+                        formula: "2d4".to_string(),
+                        damage_type: Some("fire".to_string()),
+                        effect_kind: atlas_record::DamageEffectKind::Damage,
+                        ability: None,
+                    },
+                    atlas_record::DamageExpression {
+                        damage_id: "persistent".to_string(),
+                        label: Some("Persistent fire".to_string()),
+                        formula: "1d4".to_string(),
+                        damage_type: Some("fire".to_string()),
+                        effect_kind: atlas_record::DamageEffectKind::Damage,
+                        ability: None,
+                    },
+                ],
                 modes: Vec::new(),
             },
             atlas_record::MechanicActivity {
