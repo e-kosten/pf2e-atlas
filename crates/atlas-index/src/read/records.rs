@@ -1,7 +1,7 @@
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_record::{
     ActorMechanics, AtlasRecord, AtlasRecordSet, FoundryDocumentMechanics, FoundryRecordType,
-    ItemMechanics, ItemTypeMechanics, SpellMechanics,
+    ItemMechanics, ItemTypeMechanics, RetrievedRecord, SpellMechanics,
 };
 use diesel::SqliteConnection;
 use thiserror::Error;
@@ -28,12 +28,6 @@ pub enum RecordLoadError {
     QueryFailed(String),
     #[error("record data is invalid: {0}")]
     InvalidData(String),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct HydratedRecord {
-    pub record: AtlasRecord,
-    pub body: Option<atlas_record::RecordBody>,
 }
 
 pub fn load_persisted_record_set_from_diesel_connection(
@@ -112,7 +106,7 @@ impl SqliteIndexReader {
         })
     }
 
-    pub fn load_hydrated_records(&self) -> Result<Vec<HydratedRecord>, RecordLoadError> {
+    pub fn load_hydrated_records(&self) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
         let hydrated = self.with_diesel_connection(|connection| {
             let records = load_persisted_records_from_diesel_connection(connection)?;
             let bodies =
@@ -126,7 +120,7 @@ impl SqliteIndexReader {
     pub fn load_hydrated_records_by_key(
         &self,
         keys: &[RecordKey],
-    ) -> Result<Vec<HydratedRecord>, RecordLoadError> {
+    ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
         let hydrated = self.with_diesel_connection(|connection| {
             let records = load_persisted_records_by_key_from_diesel_connection(connection, keys)?;
             let bodies = canonical::bodies_by_key(canonical::read_canonical_record_bodies_by_key(
@@ -202,7 +196,7 @@ impl SqliteIndexReader {
 fn hydrate_records(
     records: Vec<AtlasRecord>,
     mut bodies: std::collections::BTreeMap<RecordKey, atlas_record::RecordBody>,
-) -> Result<Vec<HydratedRecord>, RecordLoadError> {
+) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
     let mut hydrated = Vec::with_capacity(records.len());
     for record in records {
         let body = bodies.remove(&record.identity.key);
@@ -221,7 +215,7 @@ fn hydrate_records(
                 )));
             }
         }
-        hydrated.push(HydratedRecord { record, body });
+        hydrated.push(RetrievedRecord { record, body });
     }
     if let Some(extra) = bodies.keys().next() {
         return Err(RecordLoadError::InvalidData(format!(

@@ -154,8 +154,8 @@ fn render_result_window_page(
                     .records
                     .iter()
                     .map(|record| ResultWindowRow {
-                        record: record_summary(record),
-                        surface: compact_surface(record),
+                        record: record_summary(&record.record),
+                        surface: compact_surface(&record.record),
                         match_summary: None,
                     })
                     .collect(),
@@ -181,8 +181,8 @@ fn render_result_window_page(
                     .records
                     .iter()
                     .map(|record| ResultWindowRow {
-                        record: record_summary(&record.record),
-                        surface: compact_surface(&record.record),
+                        record: record_summary(&record.record.record),
+                        surface: compact_surface(&record.record.record),
                         match_summary: Some(match_summary(&record.match_info)),
                     })
                     .collect(),

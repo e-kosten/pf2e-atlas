@@ -149,7 +149,8 @@ fn write_record_resolution_ambiguity(
     matches: &[RecordResolutionResult],
     json: bool,
 ) -> Result<(), String> {
-    let ambiguity = ambiguous_record_resolution(record_ref, matches);
+    let ambiguity =
+        ambiguous_record_resolution(record_ref, matches).map_err(|error| error.to_string())?;
     let message = ambiguity.message();
     if json {
         write_json_error_data("record_resolution_ambiguous", message, ambiguity)?;
@@ -204,29 +205,31 @@ impl AmbiguousGraphResolution {
 fn ambiguous_record_resolution(
     record_ref: &str,
     matches: &[RecordResolutionResult],
-) -> AmbiguousGraphResolution {
+) -> Result<AmbiguousGraphResolution, atlas_record::RecordJsonError> {
     let record_options = RecordJsonOptions {
         detail: DetailLevel::Summary,
         include_source_json: false,
     };
-    AmbiguousGraphResolution {
+    Ok(AmbiguousGraphResolution {
         result: AmbiguousGraphResult {
             query: record_ref.to_string(),
             alternatives: matches
                 .iter()
                 .take(5)
-                .map(|resolution| GraphResolutionAlternativeJson {
-                    record: record_json(&resolution.record, record_options),
-                    resolution: GraphResolutionJson {
-                        query: resolution.query.clone(),
-                        normalized_query: resolution.normalized_query.clone(),
-                        match_kind: resolution.match_kind.as_str(),
-                        matched_text: resolution.matched_text.clone(),
-                    },
+                .map(|resolution| {
+                    Ok(GraphResolutionAlternativeJson {
+                        record: record_json(&resolution.record, record_options)?,
+                        resolution: GraphResolutionJson {
+                            query: resolution.query.clone(),
+                            normalized_query: resolution.normalized_query.clone(),
+                            match_kind: resolution.match_kind.as_str(),
+                            matched_text: resolution.matched_text.clone(),
+                        },
+                    })
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, atlas_record::RecordJsonError>>()?,
         },
-    }
+    })
 }
 
 fn write_variant_group_ambiguity(
@@ -242,7 +245,7 @@ fn write_variant_group_ambiguity(
             let first_name = group
                 .variants
                 .first()
-                .map(|record| record.identity.name.as_str())
+                .map(|record| record.record.identity.name.as_str())
                 .unwrap_or("<empty>");
             format!("{group_key} ({first_name})")
         })

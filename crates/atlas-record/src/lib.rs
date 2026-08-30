@@ -17,6 +17,7 @@ mod presentation_recipe;
 mod presentation_recipe_tests;
 mod reference_policy;
 mod retrieval_policy;
+mod retrieved_record;
 
 pub use content::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,
@@ -66,13 +67,16 @@ pub use creature_entities::{
 };
 pub use creature_projection::{CreatureFactProjection, project_creature_facts};
 pub use json_projection::{
-    CreatureActionJson, CreatureActivityModeJson, CreatureArmorClassJson, CreatureDamageJson,
-    CreatureDefensesJson, CreatureHitPointsJson, CreatureIwrJson, CreatureMovementJson,
-    CreatureMovementModeJson, CreaturePerceptionJson, CreatureResourceJson, CreatureRollJson,
-    CreatureSaveJson, CreatureSavesJson, CreatureSenseJson, CreatureSkillJson, CreatureSpellJson,
-    CreatureSpellcastingEntryJson, CreatureSpellcastingJson, CreatureStrikeJson, RecordBlockJson,
-    RecordJson, RecordJsonBase, RecordJsonOptions, RecordPresentationJson, RecordSectionJson,
-    UnmigratedRegistryJson, record_json,
+    CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson, CreatureDamageJson,
+    CreatureDefensesJson, CreatureFrequencyJson, CreatureHitPointsJson, CreatureIwrJson,
+    CreatureMovementJson, CreatureMovementModeJson, CreatureOccurrenceContextJson,
+    CreaturePerceptionJson, CreaturePreparedSpellJson, CreatureResourceJson, CreatureRollJson,
+    CreatureSaveJson, CreatureSavesJson, CreatureSenseJson, CreatureSkillJson,
+    CreatureSkillVariantJson, CreatureSpellJson, CreatureSpellSlotJson,
+    CreatureSpellcastingEntryJson, CreatureSpellcastingJson, CreatureStrikeJson,
+    CreatureUseLimitJson, RecordBlockJson, RecordJson, RecordJsonBase, RecordJsonError,
+    RecordJsonOptions, RecordPresentationJson, RecordSectionJson, UnmigratedRegistryJson,
+    record_json,
 };
 pub use mechanics::{
     AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,
@@ -121,3 +125,4 @@ pub use retrieval_policy::{
     ProductRetrievalPolicy, RecordRole, RetrievalDisposition, RetrievalPolicyDecision,
     RetrievalRationale,
 };
+pub use retrieved_record::RetrievedRecord;

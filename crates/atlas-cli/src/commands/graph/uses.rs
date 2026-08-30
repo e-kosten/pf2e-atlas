@@ -32,7 +32,7 @@ pub(crate) fn run_graph_uses(options: GraphUsesOptions) -> Result<ExitCode, Stri
             GraphCommandOutcome::Exit(code) => return Ok(code),
         },
     };
-    let data = graph_uses_data(&result, options.detail);
+    let data = graph_uses_data(&result, options.detail).map_err(|error| error.to_string())?;
     if options.json {
         write_json_data(data)?;
     } else {

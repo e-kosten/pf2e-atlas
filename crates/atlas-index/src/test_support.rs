@@ -15,6 +15,159 @@ use crate::artifact::metadata::{
 use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use crate::schema;
 
+/// Inserts a minimal canonical NPC body for cross-crate retrieval fixtures.
+pub fn insert_minimal_canonical_npc_body(
+    connection: &Connection,
+    record_key: &str,
+    ac: i64,
+    hp_value: i64,
+    hp_maximum: i64,
+    perception: i64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use atlas_record::{CreatureFact, CreatureSourceField, FactValue};
+
+    macro_rules! missing {
+        ($field:expr) => {
+            CreatureFact::source(FactValue::Missing, $field)
+        };
+    }
+    let key = RecordKey::parse(record_key)?;
+    let source_id = key.id().as_str().to_string();
+    let name = connection.query_row(
+        "SELECT name FROM records WHERE record_key = ?1",
+        [record_key],
+        |row| row.get::<_, String>(0),
+    )?;
+    let creature = atlas_record::CreatureRecord {
+        identity: atlas_record::CreatureIdentity {
+            record_key: key,
+            source_id: atlas_record::CreatureSourceId::new(&source_id)
+                .map_err(|_| "fixture source id is invalid")?,
+            name: name.clone(),
+            family: atlas_record::CreatureFamily::Npc,
+        },
+        level: missing!(CreatureSourceField::Level),
+        rarity: missing!(CreatureSourceField::Rarity),
+        traits: missing!(CreatureSourceField::Traits),
+        size: missing!(CreatureSourceField::Size),
+        publication: missing!(CreatureSourceField::Publication),
+        adjustment: missing!(CreatureSourceField::Adjustment),
+        source_alliance: missing!(CreatureSourceField::SourceAlliance),
+        perception: CreatureFact::source(
+            FactValue::Value(atlas_record::CreaturePerception {
+                modifier: FactValue::Value(perception),
+                details: FactValue::Missing,
+                has_vision: FactValue::Missing,
+                senses: FactValue::Value(Vec::new()),
+            }),
+            CreatureSourceField::Perception,
+        ),
+        initiative: missing!(CreatureSourceField::Initiative),
+        languages: missing!(CreatureSourceField::Languages),
+        skills: missing!(CreatureSourceField::Skills),
+        legacy_abilities: missing!(CreatureSourceField::LegacyAbilities),
+        defenses: CreatureFact::source(
+            FactValue::Value(atlas_record::CreatureDefenses {
+                armor_class: FactValue::Value(atlas_record::CreatureArmorClass {
+                    value: FactValue::Value(ac),
+                    details: FactValue::Missing,
+                }),
+                hit_points: FactValue::Value(atlas_record::CreatureHitPoints {
+                    value: FactValue::Value(atlas_record::CreatureNumber::Integer(hp_value)),
+                    maximum: FactValue::Value(hp_maximum),
+                    temporary: FactValue::Missing,
+                    temporary_maximum: FactValue::Missing,
+                    details: FactValue::Missing,
+                }),
+                hardness: FactValue::Missing,
+                shield: FactValue::Missing,
+                saves: FactValue::Missing,
+                all_saves_note: FactValue::Missing,
+                immunities: FactValue::Missing,
+                resistances: FactValue::Missing,
+                weaknesses: FactValue::Missing,
+            }),
+            CreatureSourceField::Defenses,
+        ),
+        movement: missing!(CreatureSourceField::Movement),
+        resources: missing!(CreatureSourceField::Resources),
+        embedded_entities: missing!(CreatureSourceField::EmbeddedEntities),
+        content: atlas_record::OwnedRichContent::default(),
+        provenance: atlas_record::CreatureProvenance {
+            source_path: format!("packs/actors/{source_id}.json"),
+            source_contract_version: "fixture".to_string(),
+            source_system_version: "fixture".to_string(),
+            source_upstream_commit: "fixture".to_string(),
+        },
+    };
+    let metrics = atlas_record::project_creature_facts(&creature).metrics;
+    let metric_count = i64::try_from(metrics.len())?;
+    let metric_digest = crate::read::records::children::metric_order_digest(&metrics)
+        .map_err(|error| format!("fixture metric digest failed: {error}"))?;
+    connection.execute(
+        "UPDATE records
+         SET metric_count = ?2, metric_order_sha256 = ?3
+         WHERE record_key = ?1",
+        (record_key, metric_count, metric_digest),
+    )?;
+    let body = atlas_record::RecordBody::Creature(creature);
+    let canonical_json = crate::artifact::canonical_json::encode(&body)?;
+    connection.execute(
+        "INSERT INTO canonical_creature_records
+         (record_key, source_id, name, family, canonical_json)
+         VALUES (?1, ?2, ?3, 'npc', ?4)",
+        (record_key, source_id, name, canonical_json),
+    )?;
+    Ok(())
+}
+
+/// Recomputes the writer-bound metric summary after a cross-crate fixture has
+/// inserted its ordered metric rows.
+pub fn refresh_fixture_metric_summary(
+    connection: &Connection,
+    record_key: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut statement = connection.prepare(
+        "SELECT metric_domain,metric_key,value_type,number_value,text_value,bool_value
+         FROM record_metrics WHERE record_key = ?1 ORDER BY ordinal",
+    )?;
+    let rows = statement.query_map([record_key], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<f64>>(3)?,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<i64>>(5)?,
+        ))
+    })?;
+    let mut metrics = Vec::new();
+    for row in rows {
+        let (domain, key, value_type, number, text, boolean) = row?;
+        metrics.push(
+            crate::read::records::children::metric_from_storage(
+                &domain,
+                key,
+                &value_type,
+                number,
+                text,
+                boolean.map(|value| value != 0),
+            )
+            .map_err(|error| format!("fixture metric decode failed: {error}"))?,
+        );
+    }
+    let metric_count = i64::try_from(metrics.len())?;
+    let metric_digest = crate::read::records::children::metric_order_digest(&metrics)
+        .map_err(|error| format!("fixture metric digest failed: {error}"))?;
+    connection.execute(
+        "UPDATE records
+         SET metric_count = ?2, metric_order_sha256 = ?3
+         WHERE record_key = ?1",
+        (record_key, metric_count, metric_digest),
+    )?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordRoundTripRecordRole {

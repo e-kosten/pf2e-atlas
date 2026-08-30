@@ -136,7 +136,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
     };
     let by_key = records
         .into_iter()
-        .map(|record| (record.identity.key.to_string(), record))
+        .map(|record| (record.record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -149,7 +149,8 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
             let data = RecordGetData {
                 detail: options.detail.to_string(),
                 body: SingleRecordBody {
-                    record: record_json(record, record_options),
+                    record: record_json(record, record_options)
+                        .map_err(|error| error.to_string())?,
                 },
             };
             if options.json {
@@ -173,24 +174,26 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
         .map(|key| {
             let key_text = key.to_string();
             if let Some(record) = by_key.get(&key_text) {
-                RecordGetItem {
+                Ok(RecordGetItem {
                     key: key_text,
-                    record: Some(record_json(record, record_options)),
+                    record: Some(
+                        record_json(record, record_options).map_err(|error| error.to_string())?,
+                    ),
                     error: None,
-                }
+                })
             } else {
                 failed += 1;
-                RecordGetItem {
+                Ok(RecordGetItem {
                     key: key_text.clone(),
                     record: None,
                     error: Some(CliError {
                         code: "record_not_found",
                         message: format!("record not found: {key_text}"),
                     }),
-                }
+                })
             }
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
     let data = RecordGetData {
         detail: options.detail.to_string(),
         body: BatchRecordBody {
@@ -246,7 +249,7 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
             Ok(matches) => matches,
             Err(error) => return app_error(error, options.json),
         };
-        let item = resolve_item(query, matches, record_options, options.alternatives);
+        let item = resolve_item(query, matches, record_options, options.alternatives)?;
         if item.error.is_some() {
             failed += 1;
         }
@@ -327,9 +330,9 @@ fn resolve_item(
     matches: Vec<RecordResolutionResult>,
     record_options: RecordJsonOptions,
     alternatives: u8,
-) -> RecordResolveItem {
+) -> Result<RecordResolveItem, String> {
     if matches.is_empty() {
-        return RecordResolveItem {
+        return Ok(RecordResolveItem {
             query: query.to_string(),
             record: None,
             resolution: None,
@@ -338,32 +341,34 @@ fn resolve_item(
                 code: "record_resolution_miss",
                 message: format!("record resolution miss: {query}"),
             }),
-        };
+        });
     }
     if matches.len() > 1 {
-        return RecordResolveItem {
+        let projected_alternatives = matches
+            .iter()
+            .take(alternatives as usize)
+            .map(|resolution| {
+                Ok(RecordResolveAlternative {
+                    record: record_json(&resolution.record, record_options)
+                        .map_err(|error| error.to_string())?,
+                    resolution: resolution_json(resolution, record_options),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        return Ok(RecordResolveItem {
             query: query.to_string(),
             record: None,
             resolution: None,
-            alternatives: Some(
-                matches
-                    .iter()
-                    .take(alternatives as usize)
-                    .map(|resolution| RecordResolveAlternative {
-                        record: record_json(&resolution.record, record_options),
-                        resolution: resolution_json(resolution, record_options),
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .filter(|alternatives| !alternatives.is_empty()),
+            alternatives: Some(projected_alternatives)
+                .filter(|alternatives| !alternatives.is_empty()),
             error: Some(CliError {
                 code: "record_resolution_ambiguous",
                 message: format!("record resolution ambiguous: {query}"),
             }),
-        };
+        });
     }
     let Some(resolution) = matches.into_iter().next() else {
-        return RecordResolveItem {
+        return Ok(RecordResolveItem {
             query: query.to_string(),
             record: None,
             resolution: None,
@@ -372,15 +377,17 @@ fn resolve_item(
                 code: "record_resolution_miss",
                 message: format!("record resolution miss: {query}"),
             }),
-        };
+        });
     };
-    RecordResolveItem {
+    Ok(RecordResolveItem {
         query: query.to_string(),
-        record: Some(record_json(&resolution.record, record_options)),
+        record: Some(
+            record_json(&resolution.record, record_options).map_err(|error| error.to_string())?,
+        ),
         resolution: Some(resolution_json(&resolution, record_options)),
         alternatives: None,
         error: None,
-    }
+    })
 }
 
 fn resolution_json(
@@ -576,21 +583,27 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
         let mut lines = Vec::new();
         let mut defense_values = Vec::new();
         if let Some(defenses) = defenses {
-            if let Some(ac) = &defenses.ac {
-                defense_values.push(format!("AC {}", ac.value));
+            if let Some(ac) = &defenses.ac
+                && let Some(value) = ac.value
+            {
+                defense_values.push(format!("AC {value}"));
             }
             if let Some(hp) = &defenses.hp
                 && let Some(maximum) = hp.maximum.or(hp.value)
             {
                 defense_values.push(format!("HP {maximum}"));
             }
-            for (label, save) in [
-                ("Fort", &defenses.saves.fortitude),
-                ("Ref", &defenses.saves.reflex),
-                ("Will", &defenses.saves.will),
-            ] {
-                if let Some(save) = save {
-                    defense_values.push(format!("{label} {:+}", save.value));
+            if let Some(saves) = &defenses.saves {
+                for (label, save) in [
+                    ("Fort", &saves.fortitude),
+                    ("Ref", &saves.reflex),
+                    ("Will", &saves.will),
+                ] {
+                    if let Some(save) = save
+                        && let Some(value) = save.value
+                    {
+                        defense_values.push(format!("{label} {value:+}"));
+                    }
                 }
             }
         }
@@ -606,7 +619,13 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                 .modifier
                 .map(|value| vec![format!("{value:+}")])
                 .unwrap_or_default();
-            values.extend(perception.senses.iter().map(|sense| sense.kind.clone()));
+            values.extend(
+                perception
+                    .senses
+                    .iter()
+                    .flatten()
+                    .map(|sense| sense.kind.clone()),
+            );
             lines.push(format!(
                 "{}: {}",
                 style.label("Perception"),
@@ -626,7 +645,11 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                 style.label("Skills"),
                 skills
                     .iter()
-                    .map(|skill| format!("{} {:+}", skill.label, skill.modifier))
+                    .filter_map(|skill| {
+                        skill
+                            .modifier
+                            .map(|modifier| format!("{} {modifier:+}", skill.label))
+                    })
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
@@ -638,7 +661,10 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                 movement
                     .modes
                     .iter()
-                    .map(|mode| format!("{} {} feet", mode.mode, mode.value_feet))
+                    .filter_map(|mode| {
+                        mode.value_feet
+                            .map(|value| format!("{} {value} feet", mode.mode))
+                    })
                     .collect::<Vec<_>>()
                     .join(", ")
             ));

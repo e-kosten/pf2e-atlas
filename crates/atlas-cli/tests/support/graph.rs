@@ -185,9 +185,18 @@ pub fn set_record_visibility(
     visible: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
+    let (is_default_visible, disposition, rationale) = if visible {
+        (1_i64, "ordinary", "source_record")
+    } else {
+        (0_i64, "direct_only", "canonical_edition_duplicate")
+    };
     connection.execute(
-        "UPDATE records SET is_default_visible = ?1 WHERE record_key = ?2",
-        (if visible { 1_i64 } else { 0_i64 }, record_key),
+        "UPDATE records
+         SET is_default_visible = ?1,
+             retrieval_disposition = ?2,
+             retrieval_rationale = ?3
+         WHERE record_key = ?4",
+        (is_default_visible, disposition, rationale, record_key),
     )?;
     drop(connection);
     refresh_bound_test_manifest(path)?;

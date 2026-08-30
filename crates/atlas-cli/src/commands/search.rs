@@ -215,7 +215,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     let by_key = list_result
         .records
         .into_iter()
-        .map(|record| (record.identity.key.to_string(), record))
+        .map(|record| (record.record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -225,16 +225,18 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         .record_keys
         .iter()
         .filter_map(|key| by_key.get(&key.to_string()))
-        .map(|record| SearchResultItem {
-            record: record_json(record, record_options),
-            r#match: SearchMatchJson {
-                kind: "filter",
-                retrieval: None,
-                identity_match_kind: None,
-                explain: None,
-            },
+        .map(|record| {
+            Ok(SearchResultItem {
+                record: record_json(record, record_options).map_err(|error| error.to_string())?,
+                r#match: SearchMatchJson {
+                    kind: "filter",
+                    retrieval: None,
+                    identity_match_kind: None,
+                    explain: None,
+                },
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
 
     let data = SearchData {
         detail: options.detail.to_string(),
@@ -329,11 +331,14 @@ fn run_ranked_search_text(
     let results = result
         .records
         .into_iter()
-        .map(|item| SearchResultItem {
-            record: record_json(&item.record, record_options),
-            r#match: search_match_json(item.match_info),
+        .map(|item| {
+            Ok(SearchResultItem {
+                record: record_json(&item.record, record_options)
+                    .map_err(|error| error.to_string())?,
+                r#match: search_match_json(item.match_info),
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
     let data = SearchData {
         detail: options.detail.to_string(),
         query: Some(query.to_string()),

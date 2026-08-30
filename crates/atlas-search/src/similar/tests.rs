@@ -8,10 +8,10 @@ use atlas_index::{
     SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
 };
 use atlas_record::{
-    AtlasRecordSet, ContentSourceKind, ContentVisibility, FoundryDocumentType, FoundryRecordInfo,
-    FoundryRecordType, RecordClassification, RecordContent, RecordIdentity, RecordMechanics,
-    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
-    RecordVisibility, RecordVisibilityReason,
+    AtlasRecord, AtlasRecordSet, ContentSourceKind, ContentVisibility, FoundryDocumentType,
+    FoundryRecordInfo, FoundryRecordType, RecordClassification, RecordContent, RecordIdentity,
+    RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
+    RecordTiming, RecordVisibility, RecordVisibilityReason, RetrievedRecord,
 };
 
 #[test]
@@ -120,11 +120,11 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
 
     assert_eq!(result.records.len(), 2);
     assert_eq!(
-        result.records[0].record.identity.key.to_string(),
+        result.records[0].record.record.identity.key.to_string(),
         "actions:plain"
     );
     assert_eq!(
-        result.records[1].record.identity.key.to_string(),
+        result.records[1].record.record.identity.key.to_string(),
         "actions:graph"
     );
 }
@@ -282,7 +282,7 @@ fn similar_records_uses_seed_embedding_and_reranks_with_graph_evidence() {
 
     assert_eq!(result.records.len(), 2);
     assert_eq!(
-        result.records[0].record.identity.key.to_string(),
+        result.records[0].record.record.identity.key.to_string(),
         "actions:graph"
     );
     assert_eq!(result.records[0].graph.shared_references.len(), 3);
@@ -301,7 +301,7 @@ fn similar_records_uses_seed_embedding_and_reranks_with_graph_evidence() {
     );
     assert_eq!(result.records[0].graph.shared_traits, vec!["auditory"]);
     assert_eq!(
-        result.records[1].record.identity.key.to_string(),
+        result.records[1].record.record.identity.key.to_string(),
         "actions:plain"
     );
 }
@@ -344,7 +344,10 @@ impl FakeSimilarIndex {
 }
 
 impl RecordReadIndex for FakeSimilarIndex {
-    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError> {
+    fn load_records_by_key(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
         Ok(keys
             .iter()
             .filter_map(|key| {
@@ -352,6 +355,7 @@ impl RecordReadIndex for FakeSimilarIndex {
                     .iter()
                     .find(|record| record.identity.key == *key)
                     .cloned()
+                    .map(|record| RetrievedRecord { record, body: None })
             })
             .collect())
     }
@@ -370,7 +374,7 @@ impl RecordReadIndex for FakeSimilarIndex {
         Ok(self
             .load_records_by_key(keys)?
             .into_iter()
-            .map(search_candidate_from_record)
+            .map(|record| search_candidate_from_record(record.record))
             .collect())
     }
 }

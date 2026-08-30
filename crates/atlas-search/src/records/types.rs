@@ -1,6 +1,6 @@
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_index::FilteredRecordSort;
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 use serde::{Deserialize, Serialize};
 
 use crate::{SearchPage, SearchPageInfo};
@@ -103,7 +103,7 @@ impl<'a> RecordScope<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListRecordsResult {
     pub record_keys: Vec<RecordKey>,
-    pub records: Vec<AtlasRecord>,
+    pub records: Vec<RetrievedRecord>,
     pub total: u64,
     pub page: SearchPageInfo,
 }
@@ -116,7 +116,7 @@ pub struct RecordResolutionResult {
     pub matched_text: String,
     pub alias_source: Option<String>,
     pub alias_source_ref: Option<String>,
-    pub record: AtlasRecord,
+    pub record: RetrievedRecord,
 }
 
 #[derive(Debug, Clone, PartialEq)]

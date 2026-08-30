@@ -12,40 +12,43 @@ Exit classes are `0` for success, `1` for a domain miss or partial domain result
 
 Every record-bearing command serializes the same `atlas_record::RecordJson`. Search, resolve, graph, similar, and list payloads wrap that record; they do not define alternate record DTOs.
 
-The record is a flattened shared base plus a flattened entity-specific body with a mandatory `presentation_type` discriminator:
+The record is a flattened shared base plus a flattened entity-specific body with a mandatory `presentation_type` discriminator. This illustrative standard-detail excerpt abbreviates ordered collections to one member and omits some nested member fields:
 
 ```json
 {
-  "key": "pathfinder-bestiary:WQy7HBUcgDLsfVJd",
+  "key": "creatures:WQy7HBUcgDLsfVJd",
   "name": "Night Hag",
   "kind": "creature",
   "level": 9,
-  "traits": ["fiend", "hag"],
+  "traits": ["evil", "fiend", "hag", "humanoid", "unholy"],
   "source": {
-    "publication_title": "Monster Core",
-    "pack": { "name": "pathfinder-bestiary", "label": "Bestiary" }
+    "publication_title": "Pathfinder Bestiary",
+    "pack": { "name": "creatures", "label": "Creatures" }
   },
   "presentation_type": "creature",
   "defenses": {
     "ac": { "value": 28 },
-    "hp": { "value": 145, "maximum": 145 },
+    "hp": { "value": 170, "maximum": 170 },
     "saves": {
-      "fortitude": { "id": "fortitude", "value": 18 },
-      "reflex": { "id": "reflex", "value": 16 },
-      "will": { "id": "will", "value": 21 }
+      "fortitude": { "id": "save:fortitude", "value": 19 },
+      "reflex": { "id": "save:reflex", "value": 17 },
+      "will": { "id": "save:will", "value": 18 }
     },
-    "immunities": [],
-    "resistances": [],
-    "weaknesses": []
+    "immunities": [{ "id": "immunity-0", "order": 0, "iwr_type": "sleep" }],
+    "resistances": [{ "id": "resistance-0", "order": 0, "iwr_type": "mental", "value": 10 }],
+    "weaknesses": [{ "id": "weakness-0", "order": 0, "iwr_type": "cold-iron", "value": 10 }]
   },
-  "perception": { "modifier": 19, "senses": [] },
-  "languages": ["Aklo", "Common", "Infernal"],
-  "skills": [],
-  "movement": { "modes": [] },
-  "resources": [],
-  "strikes": [],
-  "actions": [],
-  "spellcasting": { "entries": [], "spells": [] }
+  "perception": { "modifier": 18, "senses": [{ "id": "sense-0", "order": 0, "kind": "darkvision" }] },
+  "languages": ["aklo", "chthonian", "common"],
+  "skills": [{ "id": "skill-occultism", "order": 0, "slug": "occultism", "label": "Occultism", "modifier": 20, "note": "ancient soul lore" }],
+  "movement": { "modes": [{ "id": "speed-land", "order": 0, "mode": "land", "value_feet": 25 }] },
+  "resources": [{ "id": "resource:focus", "order": 0, "kind": "focus", "label": "Focus", "maximum": 1, "serialized_value": 1, "current_policy": "serialized_value_is_provenance_only" }],
+  "strikes": [{ "id": "occurrence:creatures:WQy7HBUcgDLsfVJd:strike:nightHagJaws001", "order": 5, "label": "Jaws", "action_cost": { "kind": "actions", "actions": 1 } }],
+  "actions": [{ "id": "occurrence:creatures:WQy7HBUcgDLsfVJd:action:changeShape0001", "order": 7, "label": "Change Shape", "traits": ["concentrate", "occult", "polymorph"], "action_cost": { "kind": "actions", "actions": 1 }, "rolls": [] }],
+  "spellcasting": {
+    "entries": [{ "id": "occurrence:creatures:WQy7HBUcgDLsfVJd:spellcasting-entry:occultInnate001", "order": 1, "label": "Occult Innate Spells", "preparation": "innate", "tradition": "occult", "attack": 20, "dc": 28 }],
+    "spells": [{ "id": "occurrence:creatures:WQy7HBUcgDLsfVJd:spell:magicMissile001", "order": 3, "label": "Magic Missile (At Will)", "parent_entry_id": "occurrence:creatures:WQy7HBUcgDLsfVJd:spellcasting-entry:occultInnate001", "context": { "rank": 3, "location": "occultInnate001", "contextual_label": "Magic Missile (At Will)" }, "base_rank": 1 }]
+  }
 }
 ```
 
@@ -56,13 +59,13 @@ The shared base contains only record identity/classification, source metadata, e
 - `defenses`: AC, HP/thresholds, saves, hardness, immunities, resistances, and weaknesses;
 - `perception`, `languages`, ordered `skills`, and ordered movement `modes`;
 - ordered `resources`, `strikes`, and `actions`; and
-- `spellcasting.entries` and `spellcasting.spells` as separate ordered collections. The CLI does not invent an entry-to-spell parent relationship.
+- `spellcasting.entries` and `spellcasting.spells` as separate ordered collections. A spell retains typed occurrence context such as rank, location, uses, and `parent_entry_id` when the canonical occurrence models it; the CLI does not infer a relationship from labels or prose.
 
-Parent-local `id` and `order` values are stable within a record. Activity rolls, damage, modes, usages, spellcasting preparation, attacks, and DCs remain typed fields rather than label/value fact bags.
+Parent-local `id` and `order` values are stable within a record. IWR amounts and exceptions, skill notes and variants, resource maximum/serialized provenance, action costs and frequencies, spell slots and occurrence uses, activity rolls, damage, spellcasting preparation, attacks, and DCs remain typed fields rather than label/value fact bags. These values come from the persisted canonical creature body carried with the retrieved record, never from the legacy sparse mechanics projection.
 
 Detail hydration is represented by field presence, not placeholder values. A field, object, or array that the requested detail level does not hydrate is absent. An empty object or array may be serialized only when its containing section is included at that detail and the empty value intentionally means that the record has no members in that included section. Callers must test field presence before reading detail-dependent entity fields.
 
-Non-creature families use `presentation_type: "unmigrated"` only while their named H1-H10 family plan is pending. The `migration` object records that registry assignment and H12 acceptance checkpoint. Their generic ordered fact sections are temporary and are replaced, not wrapped by compatibility shims, when the family-specific variant lands.
+Non-creature families use `presentation_type: "unmigrated"` only while their named H1-H11 family plan is pending. The `migration` object records that registry assignment and H12 acceptance checkpoint. Their generic ordered fact sections are temporary and are replaced, not wrapped by compatibility shims, when the family-specific variant lands.
 
 ## Detail and raw source behavior
 

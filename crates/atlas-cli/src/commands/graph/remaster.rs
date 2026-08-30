@@ -28,7 +28,7 @@ pub(crate) fn run_graph_remaster(options: GraphRemasterOptions) -> Result<ExitCo
             GraphCommandOutcome::Exit(code) => return Ok(code),
         },
     };
-    let data = graph_remaster_data(&result, options.detail);
+    let data = graph_remaster_data(&result, options.detail).map_err(|error| error.to_string())?;
     if options.json {
         write_json_data(data)?;
     } else {
