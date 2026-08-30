@@ -735,15 +735,9 @@ fn apply_participant_effects(
 ) -> StatBlockView {
     let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
     unapplied_effects.extend(variant_unapplied_effects(participant.participant_variant));
-    for condition in &participant.conditions {
-        let Some(condition_rule) = condition_rule_for_key(condition.condition_key.as_deref())
-        else {
-            continue;
-        };
-        for rule in expanded_condition_rules(condition_rule) {
-            modifiers.extend(condition_modifiers(condition, rule, &mechanics));
-            unapplied_effects.extend(condition_unapplied_effects(condition, rule));
-        }
+    for (condition, rule) in participant_condition_rules(participant) {
+        modifiers.extend(condition_modifiers(condition, rule, &mechanics));
+        unapplied_effects.extend(condition_unapplied_effects(condition, rule));
     }
 
     let mut by_target = BTreeMap::<MechanicTarget, Vec<CandidateModifier>>::new();
@@ -896,19 +890,27 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
                 slowed.push(adjustment);
             }
             ConditionRule::Stunned => {
-                let amount = condition_value(condition);
-                let consumed = amount.min(3);
-                let adjustment = RuntimeAdjustment {
-                    source: condition_source(condition),
-                    label: "Actions lost while stunned".to_string(),
-                    value: -consumed,
-                    reason: Some(
-                        "Stunned reduces actions regained, then reduces its condition value."
-                            .to_string(),
-                    ),
-                    floor: Some(0),
-                };
-                stunned.push((adjustment, amount - consumed, amount));
+                if let Some(amount) = positive_condition_value(condition) {
+                    let consumed = amount.min(3);
+                    let adjustment = RuntimeAdjustment {
+                        source: condition_source(condition),
+                        label: "Actions lost while stunned".to_string(),
+                        value: -consumed,
+                        reason: Some(
+                            "Stunned reduces actions regained, then reduces its condition value."
+                                .to_string(),
+                        ),
+                        floor: Some(0),
+                    };
+                    stunned.push((adjustment, amount - consumed, amount));
+                }
+                if let Some((label, reason)) = stunned_contextual_disposition(condition) {
+                    notes.push(RuntimeNote {
+                        source: condition_source(condition),
+                        label,
+                        reason,
+                    });
+                }
             }
             ConditionRule::Prone => notes.push(RuntimeNote {
                 source: condition_source(condition),
@@ -982,18 +984,33 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
     let stunned_remaining = strongest_stunned
         .as_ref()
         .map(|(_, remaining, _)| *remaining);
-    if let Some((stunned_adjustment, _, _)) = strongest_stunned {
-        if let Some(slowed_adjustment) = strongest_slowed {
-            suppressed_adjustments.push(RuntimeAdjustment {
-                reason: Some(
-                    "Stunned overrides slowed for the same action-regain window.".to_string(),
-                ),
-                ..slowed_adjustment
-            });
+    match (strongest_stunned, strongest_slowed) {
+        (Some((stunned_adjustment, _, _)), Some(slowed_adjustment)) => {
+            let stunned_loss = -stunned_adjustment.value;
+            let slowed_loss = -slowed_adjustment.value;
+            let overlap = stunned_loss.min(slowed_loss);
+            let remaining_slowed_loss = slowed_loss - overlap;
+            adjustments.push(stunned_adjustment);
+            if remaining_slowed_loss > 0 {
+                adjustments.push(RuntimeAdjustment {
+                    value: -remaining_slowed_loss,
+                    reason: Some(format!(
+                        "{overlap} action loss already counts toward slowed; {remaining_slowed_loss} additional slowed action loss applies."
+                    )),
+                    ..slowed_adjustment
+                });
+            } else {
+                suppressed_adjustments.push(RuntimeAdjustment {
+                    reason: Some(format!(
+                        "All {slowed_loss} slowed action loss is already counted by stunned."
+                    )),
+                    ..slowed_adjustment
+                });
+            }
         }
-        adjustments.push(stunned_adjustment);
-    } else if let Some(slowed_adjustment) = strongest_slowed {
-        adjustments.push(slowed_adjustment);
+        (Some((stunned_adjustment, _, _)), None) => adjustments.push(stunned_adjustment),
+        (None, Some(slowed_adjustment)) => adjustments.push(slowed_adjustment),
+        (None, None) => {}
     }
 
     let adjusted_actions = apply_runtime_adjustments(3, &adjustments);
@@ -1797,6 +1814,14 @@ fn condition_unapplied_effects(
             reason: "Attack and manipulate actions remain unavailable except for the contextual actions that can remove the restraint; those exceptions are not automated."
                 .to_string(),
         }],
+        ConditionRule::Stunned => stunned_contextual_disposition(condition)
+            .map(|(label, reason)| UnappliedEffectView {
+                source: source.clone(),
+                label,
+                reason,
+            })
+            .into_iter()
+            .collect(),
         ConditionRule::Prone => vec![UnappliedEffectView {
             source: source.clone(),
             label: format!("{source} contextual limits"),
@@ -1808,7 +1833,6 @@ fn condition_unapplied_effects(
         | ConditionRule::OffGuard
         | ConditionRule::Slowed
         | ConditionRule::Quickened
-        | ConditionRule::Stunned
         | ConditionRule::Immobilized
         | ConditionRule::Encumbered => Vec::new(),
     }
@@ -1824,12 +1848,32 @@ fn participant_runtime_notes(participant: &EncounterParticipant) -> Vec<RuntimeN
 fn participant_condition_rules(
     participant: &EncounterParticipant,
 ) -> impl Iterator<Item = (&EncounterParticipantCondition, ConditionRule)> {
-    participant.conditions.iter().flat_map(|condition| {
+    let restrained_present = participant.conditions.iter().any(|condition| {
         condition_rule_for_key(condition.condition_key.as_deref())
+            == Some(ConditionRule::Restrained)
+    });
+    let mut rules = Vec::new();
+    let mut suppressed_grabbed = Vec::new();
+    for condition in &participant.conditions {
+        let Some(rule) = condition_rule_for_key(condition.condition_key.as_deref()) else {
+            continue;
+        };
+        if restrained_present && rule == ConditionRule::Grabbed {
+            suppressed_grabbed.push(condition);
+            continue;
+        }
+        rules.extend(
+            expanded_condition_rules(rule)
+                .into_iter()
+                .map(|rule| (condition, rule)),
+        );
+    }
+    rules.extend(
+        suppressed_grabbed
             .into_iter()
-            .flat_map(|rule| expanded_condition_rules(rule).into_iter())
-            .map(move |rule| (condition, rule))
-    })
+            .map(|condition| (condition, ConditionRule::OffGuard)),
+    );
+    rules.into_iter()
 }
 
 fn expanded_condition_rules(rule: ConditionRule) -> Vec<ConditionRule> {
@@ -1904,6 +1948,36 @@ fn mental_targets(mechanics: &MechanicsView) -> Vec<MechanicTarget> {
 
 fn condition_value(condition: &EncounterParticipantCondition) -> i64 {
     condition.value.unwrap_or(1).max(1)
+}
+
+fn positive_condition_value(condition: &EncounterParticipantCondition) -> Option<i64> {
+    condition.value.filter(|value| *value > 0)
+}
+
+fn optional_i64(value: Option<i64>) -> String {
+    value.map_or_else(|| "missing".to_string(), |value| format!("value({value})"))
+}
+
+fn stunned_contextual_disposition(
+    condition: &EncounterParticipantCondition,
+) -> Option<(String, String)> {
+    let numeric_value = positive_condition_value(condition);
+    if numeric_value.is_some() && condition.duration_rounds.is_none() {
+        return None;
+    }
+    let action_disposition = if numeric_value.is_some() {
+        "the positive numeric value is applied to this action-regain step"
+    } else {
+        "no numeric action loss is applied"
+    };
+    Some((
+        "Stunned duration/value disposition".to_string(),
+        format!(
+            "Stunned value={}; duration_rounds={}; {action_disposition}; duration timing and lifecycle remain contextual.",
+            optional_i64(condition.value),
+            optional_i64(condition.duration_rounds)
+        ),
+    ))
 }
 
 fn condition_source(condition: &EncounterParticipantCondition) -> String {
@@ -3400,13 +3474,60 @@ mod tests {
             .action_budget
             .as_ref()
             .expect("action budget");
-        assert_eq!(budget.actions.adjusted_value, 2);
+        assert_eq!(budget.actions.adjusted_value, 1);
+        assert!(
+            budget
+                .actions
+                .adjustments
+                .iter()
+                .any(|adjustment| { adjustment.source == "Stunned 1" && adjustment.value == -1 })
+        );
+        assert!(budget.actions.adjustments.iter().any(|adjustment| {
+            adjustment.source == "Slowed 2"
+                && adjustment.value == -1
+                && adjustment.reason.as_deref()
+                    == Some(
+                        "1 action loss already counts toward slowed; 1 additional slowed action loss applies.",
+                    )
+        }));
         assert!(
             budget
                 .actions
                 .suppressed_adjustments
                 .iter()
-                .any(|adjustment| adjustment.source == "Slowed 2")
+                .all(|adjustment| adjustment.source != "Slowed 2")
+        );
+
+        let stronger_stunned = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition("Slowed", Some(1)), condition("Stunned", Some(2))],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        let stronger_budget = stronger_stunned
+            .action_budget
+            .as_ref()
+            .expect("action budget");
+        assert_eq!(stronger_budget.actions.adjusted_value, 1);
+        assert!(
+            stronger_budget
+                .actions
+                .adjustments
+                .iter()
+                .any(|adjustment| { adjustment.source == "Stunned 2" && adjustment.value == -2 })
+        );
+        assert!(
+            stronger_budget
+                .actions
+                .suppressed_adjustments
+                .iter()
+                .any(|adjustment| {
+                    adjustment.source == "Slowed 1"
+                        && adjustment.reason.as_deref()
+                            == Some("All 1 slowed action loss is already counted by stunned.")
+                })
         );
 
         let duplicate_conditions = project_legacy(
@@ -3429,6 +3550,187 @@ mod tests {
         assert_eq!(duplicate_budget.actions.adjusted_value, 2);
         assert_eq!(duplicate_budget.actions.adjustments.len(), 2);
         assert_eq!(duplicate_budget.actions.suppressed_adjustments.len(), 2);
+    }
+
+    #[test]
+    fn duration_form_stunned_is_retained_without_value_coercion() {
+        let duration_only = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition_with_duration("Stunned", None, Some(2))],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        let budget = duration_only.action_budget.as_ref().expect("action budget");
+        assert_eq!(budget.actions.adjusted_value, 3);
+        assert!(budget.actions.adjustments.is_empty());
+        assert!(budget.can_act.available);
+        let expected_duration_reason = "Stunned value=missing; duration_rounds=value(2); no numeric action loss is applied; duration timing and lifecycle remain contextual.";
+        assert!(budget.notes.iter().any(|note| {
+            note.source == "Stunned"
+                && note.label == "Stunned duration/value disposition"
+                && note.reason == expected_duration_reason
+        }));
+        assert!(duration_only.unapplied_effects.iter().any(|effect| {
+            effect.source == "Stunned"
+                && effect.label == "Stunned duration/value disposition"
+                && effect.reason == expected_duration_reason
+        }));
+
+        let numeric = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition("Stunned", Some(1))],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            numeric
+                .action_budget
+                .as_ref()
+                .expect("action budget")
+                .actions
+                .adjusted_value,
+            2
+        );
+        assert!(
+            numeric
+                .unapplied_effects
+                .iter()
+                .all(|effect| { effect.label != "Stunned duration/value disposition" })
+        );
+
+        let mut duration_mutation = condition_with_duration("Stunned", None, Some(2));
+        duration_mutation.duration_rounds = Some(4);
+        let mutated = project_legacy(
+            &participant(ParticipantVariant::Normal, vec![duration_mutation]),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            mutated
+                .action_budget
+                .as_ref()
+                .expect("action budget")
+                .actions
+                .adjusted_value,
+            3
+        );
+        assert!(mutated.unapplied_effects.iter().any(|effect| {
+            effect.reason == "Stunned value=missing; duration_rounds=value(4); no numeric action loss is applied; duration timing and lifecycle remain contextual."
+        }));
+        assert!(
+            mutated
+                .unapplied_effects
+                .iter()
+                .all(|effect| effect.reason != expected_duration_reason)
+        );
+
+        let invalid_numeric = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition_with_duration("Stunned", Some(0), None)],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            invalid_numeric
+                .action_budget
+                .as_ref()
+                .expect("action budget")
+                .actions
+                .adjusted_value,
+            3
+        );
+        assert!(invalid_numeric.unapplied_effects.iter().any(|effect| {
+            effect.reason == "Stunned value=value(0); duration_rounds=missing; no numeric action loss is applied; duration timing and lifecycle remain contextual."
+        }));
+
+        let value_and_duration = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition_with_duration("Stunned", Some(2), Some(3))],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            value_and_duration
+                .action_budget
+                .as_ref()
+                .expect("action budget")
+                .actions
+                .adjusted_value,
+            1
+        );
+        assert!(value_and_duration.unapplied_effects.iter().any(|effect| {
+            effect.reason == "Stunned value=value(2); duration_rounds=value(3); the positive numeric value is applied to this action-regain step; duration timing and lifecycle remain contextual."
+        }));
+    }
+
+    #[test]
+    fn restrained_overrides_grabbed_independent_of_condition_order() {
+        for conditions in [
+            vec![condition("Grabbed", None), condition("Restrained", None)],
+            vec![condition("Restrained", None), condition("Grabbed", None)],
+        ] {
+            let projection = project_legacy(
+                &participant(ParticipantVariant::Normal, conditions),
+                &record(),
+            )
+            .expect("stat block");
+            let ac = value(&projection, "ac");
+            assert_eq!(ac.adjusted_value, 20);
+            assert!(ac.modifiers.iter().any(|modifier| {
+                modifier.source == "Restrained"
+                    && modifier.modifier_type == StatModifierTypeView::Circumstance
+                    && modifier.value == -2
+            }));
+            assert!(ac.suppressed_modifiers.iter().any(|modifier| {
+                modifier.source == "Grabbed"
+                    && modifier.modifier_type == StatModifierTypeView::Circumstance
+                    && modifier.value == -2
+            }));
+            assert!(projection.unapplied_effects.iter().any(|effect| {
+                effect.source == "Restrained"
+                    && effect.label == "Restrained attack and manipulate restrictions"
+            }));
+            assert!(
+                projection
+                    .unapplied_effects
+                    .iter()
+                    .all(|effect| effect.source != "Grabbed")
+            );
+            let budget = projection.action_budget.as_ref().expect("action budget");
+            assert!(budget.notes.iter().any(|note| {
+                note.source == "Restrained" && note.label == "Move actions forbidden"
+            }));
+            assert!(budget.notes.iter().all(|note| note.source != "Grabbed"));
+            assert!(
+                speed(&projection, "land")
+                    .notes
+                    .iter()
+                    .all(|note| note.source != "Grabbed")
+            );
+        }
+
+        let grabbed_only = project_legacy(
+            &participant(ParticipantVariant::Normal, vec![condition("Grabbed", None)]),
+            &record(),
+        )
+        .expect("stat block");
+        assert!(
+            value(&grabbed_only, "ac")
+                .modifiers
+                .iter()
+                .any(|modifier| modifier.source == "Grabbed")
+        );
+        assert!(grabbed_only.unapplied_effects.iter().any(|effect| {
+            effect.source == "Grabbed" && effect.label == "Grabbed manipulate-action flat check"
+        }));
     }
 
     #[test]
@@ -3752,6 +4054,17 @@ mod tests {
             note: None,
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
+        }
+    }
+
+    fn condition_with_duration(
+        name: &str,
+        value: Option<i64>,
+        duration_rounds: Option<i64>,
+    ) -> EncounterParticipantCondition {
+        EncounterParticipantCondition {
+            duration_rounds,
+            ..condition(name, value)
         }
     }
 
