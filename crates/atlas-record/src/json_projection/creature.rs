@@ -3,8 +3,8 @@ use serde::Serialize;
 
 use crate::{
     ActivityRollAbility, ActivityRollSurface, AtlasRecord, DamageEffectKind, MechanicActivity,
-    MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricValue,
-    SpellcastingPreparation, definition_for, metrics,
+    MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricDefinition,
+    MetricKeyDefinition, MetricValue, SpellcastingPreparation, definition_for, metrics,
 };
 
 use super::{CreaturePerceptionJson, RecordPresentationJson};
@@ -114,9 +114,12 @@ pub struct CreatureStrikeJson {
     pub label: String,
     pub traits: Vec<String>,
     pub usage: &'static str,
-    pub rolls: Vec<CreatureRollJson>,
-    pub damage: Vec<CreatureDamageJson>,
-    pub modes: Vec<CreatureActivityModeJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rolls: Option<Vec<CreatureRollJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage: Option<Vec<CreatureDamageJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modes: Option<Vec<CreatureActivityModeJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -126,9 +129,12 @@ pub struct CreatureActionJson {
     pub label: String,
     pub traits: Vec<String>,
     pub usage: &'static str,
-    pub rolls: Vec<CreatureRollJson>,
-    pub damage: Vec<CreatureDamageJson>,
-    pub modes: Vec<CreatureActivityModeJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rolls: Option<Vec<CreatureRollJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage: Option<Vec<CreatureDamageJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modes: Option<Vec<CreatureActivityModeJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
@@ -158,9 +164,12 @@ pub struct CreatureSpellJson {
     pub usage: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compendium_source: Option<String>,
-    pub rolls: Vec<CreatureRollJson>,
-    pub damage: Vec<CreatureDamageJson>,
-    pub modes: Vec<CreatureActivityModeJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rolls: Option<Vec<CreatureRollJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage: Option<Vec<CreatureDamageJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modes: Option<Vec<CreatureActivityModeJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -211,29 +220,18 @@ pub(super) fn creature_presentation(
     );
     let normal_mechanics = matches!(detail, DetailLevel::Standard | DetailLevel::Full);
 
-    let (defenses, perception, languages, skills, movement, resources) = if scans_mechanics {
-        (
-            defenses(record),
-            perception(record),
-            record
-                .mechanics
-                .actor()
-                .map(|actor| actor.languages.clone())
-                .unwrap_or_default(),
-            skills(record),
-            movement(record),
-            resources(record),
-        )
-    } else {
-        (
-            CreatureDefensesJson::default(),
-            None,
-            Vec::new(),
-            Vec::new(),
-            CreatureMovementJson::default(),
-            Vec::new(),
-        )
-    };
+    let defenses = scans_mechanics.then(|| defenses(record));
+    let perception = scans_mechanics.then(|| perception(record)).flatten();
+    let languages = scans_mechanics.then(|| {
+        record
+            .mechanics
+            .actor()
+            .map(|actor| actor.languages.clone())
+            .unwrap_or_default()
+    });
+    let skills = scans_mechanics.then(|| skills(record));
+    let movement = scans_mechanics.then(|| movement(record));
+    let resources = scans_mechanics.then(|| resources(record));
 
     let mut strikes = Vec::new();
     let mut actions = Vec::new();
@@ -279,25 +277,19 @@ pub(super) fn creature_presentation(
         skills,
         movement,
         resources,
-        strikes,
-        actions,
-        spellcasting: CreatureSpellcastingJson { entries, spells },
+        strikes: scans_mechanics.then_some(strikes),
+        actions: scans_mechanics.then_some(actions),
+        spellcasting: scans_mechanics.then_some(CreatureSpellcastingJson { entries, spells }),
     }
 }
 
 fn defenses(record: &AtlasRecord) -> CreatureDefensesJson {
     let actor = record.mechanics.actor();
     CreatureDefensesJson {
-        ac: metric_i64(
-            record,
-            metrics::actor::ARMOR_CLASS.exact_key().expect("static key"),
-        )
-        .map(|value| CreatureArmorClassJson { value }),
+        ac: metric_i64_for_definition(record, metrics::actor::ARMOR_CLASS)
+            .map(|value| CreatureArmorClassJson { value }),
         hp: hp(record),
-        hardness: metric_i64(
-            record,
-            metrics::actor::HARDNESS.exact_key().expect("static key"),
-        ),
+        hardness: metric_i64_for_definition(record, metrics::actor::HARDNESS),
         saves: CreatureSavesJson {
             fortitude: save(record, "fort", "fortitude"),
             reflex: save(record, "ref", "reflex"),
@@ -316,20 +308,9 @@ fn defenses(record: &AtlasRecord) -> CreatureDefensesJson {
 }
 
 fn hp(record: &AtlasRecord) -> Option<CreatureHitPointsJson> {
-    let value = metric_i64(
-        record,
-        metrics::actor::HP_VALUE.exact_key().expect("static key"),
-    );
-    let maximum = metric_i64(
-        record,
-        metrics::actor::HP_MAX.exact_key().expect("static key"),
-    );
-    let broken_threshold = metric_i64(
-        record,
-        metrics::actor::HP_BROKEN_THRESHOLD
-            .exact_key()
-            .expect("static key"),
-    );
+    let value = metric_i64_for_definition(record, metrics::actor::HP_VALUE);
+    let maximum = metric_i64_for_definition(record, metrics::actor::HP_MAX);
+    let broken_threshold = metric_i64_for_definition(record, metrics::actor::HP_BROKEN_THRESHOLD);
     (value.is_some() || maximum.is_some() || broken_threshold.is_some()).then_some(
         CreatureHitPointsJson {
             value,
@@ -357,12 +338,7 @@ fn iwr(prefix: &str, values: &[String]) -> Vec<CreatureIwrJson> {
 }
 
 fn perception(record: &AtlasRecord) -> Option<CreaturePerceptionJson> {
-    let modifier = metric_i64(
-        record,
-        metrics::actor::PERCEPTION_MOD
-            .exact_key()
-            .expect("static key"),
-    );
+    let modifier = metric_i64_for_definition(record, metrics::actor::PERCEPTION_MOD);
     let senses = record
         .mechanics
         .actor()
@@ -462,49 +438,33 @@ fn resources(_record: &AtlasRecord) -> Vec<CreatureResourceJson> {
     Vec::new()
 }
 
-fn strike(activity: &MechanicActivity, order: usize, full: bool) -> CreatureStrikeJson {
+fn strike(activity: &MechanicActivity, order: usize, include_details: bool) -> CreatureStrikeJson {
     CreatureStrikeJson {
         id: activity.activity_id.clone(),
         order,
         label: activity.label.clone(),
         traits: activity.traits.clone(),
         usage: usage(activity.usage),
-        rolls: if full { rolls(activity) } else { Vec::new() },
-        damage: if full {
-            damage(&activity.damage)
-        } else {
-            Vec::new()
-        },
-        modes: if full {
-            modes(&activity.modes)
-        } else {
-            Vec::new()
-        },
+        rolls: include_details.then(|| rolls(activity)),
+        damage: include_details.then(|| damage(&activity.damage)),
+        modes: include_details.then(|| modes(&activity.modes)),
     }
 }
 
-fn action(activity: &MechanicActivity, order: usize, full: bool) -> CreatureActionJson {
+fn action(activity: &MechanicActivity, order: usize, include_details: bool) -> CreatureActionJson {
     CreatureActionJson {
         id: activity.activity_id.clone(),
         order,
         label: activity.label.clone(),
         traits: activity.traits.clone(),
         usage: usage(activity.usage),
-        rolls: if full { rolls(activity) } else { Vec::new() },
-        damage: if full {
-            damage(&activity.damage)
-        } else {
-            Vec::new()
-        },
-        modes: if full {
-            modes(&activity.modes)
-        } else {
-            Vec::new()
-        },
+        rolls: include_details.then(|| rolls(activity)),
+        damage: include_details.then(|| damage(&activity.damage)),
+        modes: include_details.then(|| modes(&activity.modes)),
     }
 }
 
-fn spell(activity: &MechanicActivity, order: usize, full: bool) -> CreatureSpellJson {
+fn spell(activity: &MechanicActivity, order: usize, include_details: bool) -> CreatureSpellJson {
     CreatureSpellJson {
         id: activity.activity_id.clone(),
         order,
@@ -512,17 +472,9 @@ fn spell(activity: &MechanicActivity, order: usize, full: bool) -> CreatureSpell
         traits: activity.traits.clone(),
         usage: usage(activity.usage),
         compendium_source: activity.compendium_source.clone(),
-        rolls: if full { rolls(activity) } else { Vec::new() },
-        damage: if full {
-            damage(&activity.damage)
-        } else {
-            Vec::new()
-        },
-        modes: if full {
-            modes(&activity.modes)
-        } else {
-            Vec::new()
-        },
+        rolls: include_details.then(|| rolls(activity)),
+        damage: include_details.then(|| damage(&activity.damage)),
+        modes: include_details.then(|| modes(&activity.modes)),
     }
 }
 
@@ -618,6 +570,13 @@ fn metric_i64(record: &AtlasRecord, key: &str) -> Option<i64> {
         };
         (value.fract() == 0.0).then_some(value as i64)
     })
+}
+
+fn metric_i64_for_definition(record: &AtlasRecord, definition: MetricDefinition) -> Option<i64> {
+    let MetricKeyDefinition::Static(key) = definition.key else {
+        return None;
+    };
+    metric_i64(record, key)
 }
 
 fn metric_bool(record: &AtlasRecord, key: &str) -> Option<bool> {

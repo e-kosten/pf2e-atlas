@@ -201,6 +201,12 @@ mechanics. A non-creature `presentation_type: "unmigrated"` payload names its
 temporary H-family registry assignment in `migration` and retains generic fact
 `sections` until that family contract lands.
 
+Detail-dependent fields are absent when that detail level does not hydrate
+them. In particular, `summary` and `description` omit the creature mechanics
+fields, while `preview` omits activity `rolls`, `damage`, and `modes`. Empty
+objects or arrays are meaningful only inside a section that is included and
+known to have no members, so check field presence before reading entity data.
+
 Raw source is always an independent explicit opt-in. It is omitted without
 `--include-raw`, and it may be requested with any supported detail level:
 

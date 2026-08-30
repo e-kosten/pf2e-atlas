@@ -478,7 +478,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .output()?;
     assert!(text_get_output.status.success());
     let text_get_stdout = String::from_utf8(text_get_output.stdout)?;
-    assert!(text_get_stdout.contains("actions:testAction0001\tTreat Wounds\trule"));
+    assert!(text_get_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
     assert!(!text_get_stdout.contains("\"status\""));
 
     let text_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -546,10 +546,30 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
         let record = &ok_data(&json)["record"];
         assert_eq!(record["presentation_type"], "creature");
         assert!(record.get("sections").is_none());
-        assert!(record["defenses"].is_object());
-        assert!(record["movement"].is_object());
-        assert!(record["spellcasting"]["entries"].is_array());
-        assert!(record["spellcasting"]["spells"].is_array());
+        let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
+        for field in [
+            "defenses",
+            "languages",
+            "skills",
+            "movement",
+            "resources",
+            "strikes",
+            "actions",
+            "spellcasting",
+        ] {
+            assert_eq!(
+                record.get(field).is_some(),
+                includes_scan_fields,
+                "detail {detail} field {field}"
+            );
+        }
+        if includes_scan_fields {
+            assert!(record["defenses"].is_object());
+            assert!(record["movement"].is_object());
+            assert!(record["resources"].is_array());
+            assert!(record["spellcasting"]["entries"].is_array());
+            assert!(record["spellcasting"]["spells"].is_array());
+        }
     }
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -573,7 +593,92 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
     assert_eq!(record["languages"][0], "common");
     assert_eq!(record["movement"]["modes"][0]["value_feet"], 25);
     assert!(serde_json::to_string(record)?.contains("A sturdy fixture creature."));
-    assert!(!serde_json::to_string(record)?.contains("creature_mechanics"));
+    let forbidden_generic_body = ["creature", "mechanics"].join("_");
+    assert!(!serde_json::to_string(record)?.contains(&forbidden_generic_body));
+
+    for detail in ["summary", "preview", "description", "standard", "full"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "record",
+                "get",
+                "creatures:WQy7HBUcgDLsfVJd",
+                "--detail",
+                detail,
+                "--index",
+            ])
+            .arg(&index_path)
+            .arg("--json")
+            .output()?;
+        assert!(output.status.success(), "Night Hag detail {detail}");
+        let json: Value = serde_json::from_slice(&output.stdout)?;
+        let record = &ok_data(&json)["record"];
+        assert_eq!(record["presentation_type"], "creature");
+        let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
+        assert_eq!(record.get("defenses").is_some(), includes_scan_fields);
+        assert_eq!(record.get("strikes").is_some(), includes_scan_fields);
+        assert_eq!(record.get("actions").is_some(), includes_scan_fields);
+        assert_eq!(record.get("spellcasting").is_some(), includes_scan_fields);
+        if detail == "preview" {
+            assert!(record["strikes"][0].get("rolls").is_none());
+            assert!(record["strikes"][0].get("damage").is_none());
+            assert!(record["strikes"][0].get("modes").is_none());
+            assert!(record["actions"][0].get("rolls").is_none());
+            assert!(record["spellcasting"]["spells"][0].get("damage").is_none());
+        }
+        if matches!(detail, "standard" | "full") {
+            assert_eq!(record["defenses"]["ac"]["value"], 28);
+            assert_eq!(record["defenses"]["hp"]["maximum"], 170);
+            assert_eq!(record["defenses"]["saves"]["fortitude"]["value"], 19);
+            assert_eq!(record["defenses"]["immunities"][0]["iwr_type"], "sleep");
+            assert_eq!(record["defenses"]["resistances"][0]["iwr_type"], "mental");
+            assert_eq!(record["defenses"]["weaknesses"][0]["iwr_type"], "cold-iron");
+            assert_eq!(record["perception"]["modifier"], 18);
+            assert_eq!(record["languages"][0], "aklo");
+            assert_eq!(record["skills"][0]["slug"], "occultism");
+            assert_eq!(record["skills"][1]["slug"], "theater_lore");
+            assert_eq!(record["movement"]["modes"][0]["mode"], "land");
+            assert_eq!(record["movement"]["modes"][1]["mode"], "fly");
+            assert_eq!(record["resources"], serde_json::json!([]));
+            assert_eq!(record["strikes"].as_array().unwrap().len(), 2);
+            assert_eq!(record["actions"].as_array().unwrap().len(), 2);
+            assert_eq!(
+                record["spellcasting"]["entries"].as_array().unwrap().len(),
+                2
+            );
+            assert_eq!(
+                record["spellcasting"]["spells"].as_array().unwrap().len(),
+                2
+            );
+            assert!(record["strikes"][0]["rolls"].is_array());
+            assert!(record["strikes"][0]["damage"].is_array());
+            assert!(record["actions"][0]["rolls"].is_array());
+            assert!(record["spellcasting"]["spells"][0]["damage"].is_array());
+            assert!(serde_json::to_string(record)?.contains("Heartstones"));
+        }
+        if detail == "full" {
+            assert_eq!(record["source"]["foundry"]["document_type"], "Actor");
+        }
+    }
+
+    let resolve_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "resolve",
+            "Night Hag",
+            "--kind",
+            "creature",
+            "--detail",
+            "standard",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(resolve_output.status.success());
+    let resolved_json: Value = serde_json::from_slice(&resolve_output.stdout)?;
+    let resolved = &ok_data(&resolved_json)["result"]["record"];
+    assert_eq!(resolved["presentation_type"], "creature");
+    assert_eq!(resolved["strikes"].as_array().unwrap().len(), 2);
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -663,6 +768,13 @@ fn record_resolve_reports_ambiguity() -> Result<(), Box<dyn std::error::Error>> 
     assert_eq!(
         data["result"]["error"]["code"],
         "record_resolution_ambiguous"
+    );
+    assert!(
+        data["result"]["alternatives"]
+            .as_array()
+            .expect("ambiguity alternatives")
+            .iter()
+            .all(|alternative| alternative["record"]["presentation_type"] == "unmigrated")
     );
     assert_eq!(data["result"]["alternatives"].as_array().unwrap().len(), 2);
     assert_eq!(

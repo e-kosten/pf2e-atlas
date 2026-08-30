@@ -575,21 +575,23 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
         let style = TerminalStyle::stdout();
         let mut lines = Vec::new();
         let mut defense_values = Vec::new();
-        if let Some(ac) = &defenses.ac {
-            defense_values.push(format!("AC {}", ac.value));
-        }
-        if let Some(hp) = &defenses.hp {
-            if let Some(maximum) = hp.maximum.or(hp.value) {
+        if let Some(defenses) = defenses {
+            if let Some(ac) = &defenses.ac {
+                defense_values.push(format!("AC {}", ac.value));
+            }
+            if let Some(hp) = &defenses.hp
+                && let Some(maximum) = hp.maximum.or(hp.value)
+            {
                 defense_values.push(format!("HP {maximum}"));
             }
-        }
-        for (label, save) in [
-            ("Fort", &defenses.saves.fortitude),
-            ("Ref", &defenses.saves.reflex),
-            ("Will", &defenses.saves.will),
-        ] {
-            if let Some(save) = save {
-                defense_values.push(format!("{label} {:+}", save.value));
+            for (label, save) in [
+                ("Fort", &defenses.saves.fortitude),
+                ("Ref", &defenses.saves.reflex),
+                ("Will", &defenses.saves.will),
+            ] {
+                if let Some(save) = save {
+                    defense_values.push(format!("{label} {:+}", save.value));
+                }
             }
         }
         if !defense_values.is_empty() {
@@ -611,14 +613,14 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                 values.join("; ")
             ));
         }
-        if !languages.is_empty() {
+        if let Some(languages) = languages.as_ref().filter(|values| !values.is_empty()) {
             lines.push(format!(
                 "{}: {}",
                 style.label("Languages"),
                 languages.join(", ")
             ));
         }
-        if !skills.is_empty() {
+        if let Some(skills) = skills.as_ref().filter(|values| !values.is_empty()) {
             lines.push(format!(
                 "{}: {}",
                 style.label("Skills"),
@@ -629,7 +631,7 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                     .join(", ")
             ));
         }
-        if !movement.modes.is_empty() {
+        if let Some(movement) = movement.as_ref().filter(|value| !value.modes.is_empty()) {
             lines.push(format!(
                 "{}: {}",
                 style.label("Movement"),
@@ -641,7 +643,7 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                     .join(", ")
             ));
         }
-        if !resources.is_empty() {
+        if let Some(resources) = resources.as_ref().filter(|values| !values.is_empty()) {
             lines.push(format!(
                 "{}: {}",
                 style.label("Resources"),
@@ -655,7 +657,7 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                     .join(", ")
             ));
         }
-        if !strikes.is_empty() {
+        if let Some(strikes) = strikes.as_ref().filter(|values| !values.is_empty()) {
             lines.push(format!(
                 "{}: {}",
                 style.label("Strikes"),
@@ -666,7 +668,7 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                     .join(", ")
             ));
         }
-        if !actions.is_empty() {
+        if let Some(actions) = actions.as_ref().filter(|values| !values.is_empty()) {
             lines.push(format!(
                 "{}: {}",
                 style.label("Actions"),
@@ -677,7 +679,10 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                     .join(", ")
             ));
         }
-        if !spellcasting.entries.is_empty() || !spellcasting.spells.is_empty() {
+        if let Some(spellcasting) = spellcasting
+            .as_ref()
+            .filter(|value| !value.entries.is_empty() || !value.spells.is_empty())
+        {
             let entries = spellcasting
                 .entries
                 .iter()
@@ -694,9 +699,11 @@ fn record_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
                 "{}: {}{}{}",
                 style.label("Spellcasting"),
                 entries,
-                (!entries.is_empty() && !spells.is_empty())
-                    .then_some("; ")
-                    .unwrap_or(""),
+                if !entries.is_empty() && !spells.is_empty() {
+                    "; "
+                } else {
+                    ""
+                },
                 spells
             ));
         }

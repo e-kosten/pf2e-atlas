@@ -87,6 +87,8 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
             "creature",
             "--metric",
             "ac.value>=25",
+            "--max-level",
+            "5",
             "--detail",
             "preview",
             "--index",
@@ -96,12 +98,10 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
     assert!(stdout.contains("creatures:testCreature001  Test Guardian  creature 5"));
-    assert!(
-        stdout
-            .contains("Summary: Size Medium; Languages Common; Senses Darkvision; Perception +12")
-    );
-    assert!(stdout.contains("Defense: AC 25; HP 80; Saves Fort +14, Ref +11, Will +12"));
-    assert!(stdout.contains("Movement: Speed Land 25 feet; Speed Types Land"));
+    assert!(stdout.contains("Defenses: AC 25; HP 80; Fort +14; Ref +11; Will +12"));
+    assert!(stdout.contains("Perception: +12; darkvision"));
+    assert!(stdout.contains("Languages: common"));
+    assert!(stdout.contains("Movement: land 25 feet"));
 
     let json_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -110,6 +110,8 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
             "creature",
             "--metric",
             "ac.value>=25",
+            "--max-level",
+            "5",
             "--detail",
             "preview",
             "--index",
@@ -120,10 +122,12 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
     assert!(json_output.status.success());
     let json: Value = serde_json::from_slice(&json_output.stdout)?;
     let data = ok_data(&json);
-    assert_eq!(
-        record_sections(&data["results"][0]["record"]),
-        vec!["summary", "defense", "movement"]
-    );
+    let record = &data["results"][0]["record"];
+    assert_eq!(record["presentation_type"], "creature");
+    assert!(record["defenses"].is_object());
+    assert!(record["resources"].is_array());
+    assert!(record["strikes"].is_array());
+    assert!(record_sections(record).is_empty());
 
     fs::remove_dir_all(root)?;
     Ok(())

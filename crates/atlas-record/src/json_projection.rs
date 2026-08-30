@@ -77,19 +77,28 @@ pub struct RecordJsonBase {
 #[allow(clippy::large_enum_variant)] // The serialized variants intentionally stay flat.
 pub enum RecordPresentationJson {
     Creature {
-        defenses: CreatureDefensesJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        defenses: Option<CreatureDefensesJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         perception: Option<CreaturePerceptionJson>,
-        languages: Vec<String>,
-        skills: Vec<CreatureSkillJson>,
-        movement: CreatureMovementJson,
-        resources: Vec<CreatureResourceJson>,
-        strikes: Vec<CreatureStrikeJson>,
-        actions: Vec<CreatureActionJson>,
-        spellcasting: CreatureSpellcastingJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        languages: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        skills: Option<Vec<CreatureSkillJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        movement: Option<CreatureMovementJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        resources: Option<Vec<CreatureResourceJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        strikes: Option<Vec<CreatureStrikeJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        actions: Option<Vec<CreatureActionJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        spellcasting: Option<CreatureSpellcastingJson>,
     },
     Unmigrated {
         migration: UnmigratedRegistryJson,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
         sections: Vec<RecordSectionJson>,
     },
 }
@@ -232,7 +241,9 @@ fn unmigrated_registry(record: &AtlasRecord) -> UnmigratedRegistryJson {
     use crate::FoundryRecordType;
 
     let (family, plan_id) = match record.classification.kind {
-        RecordKind::Creature => unreachable!("creatures have a dedicated presentation"),
+        // This private registry is called only from the non-creature branch in
+        // `record_json`; retain an explicit entry so the match stays total.
+        RecordKind::Creature => ("creature", "D2"),
         RecordKind::Hazard => ("hazard", "H1"),
         RecordKind::Spell => ("spell_or_ritual", "H2"),
         RecordKind::Equipment => match record.foundry.record_type {
@@ -438,11 +449,13 @@ mod tests {
 
     use super::*;
     use crate::{
-        ActorMechanics, ContentSourceKind, FoundryDocumentMechanics, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, MetricRow, MetricValue, RecordClassification,
-        RecordContent, RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance,
-        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
-        RichDocument, RichNode,
+        ActivityRoll, ActivityRollSurface, ActorMechanics, ContentSourceKind, DamageEffectKind,
+        DamageExpression, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
+        FoundryRecordType, MechanicActivity, MechanicActivityKind, MechanicActivityUsage,
+        MetricRow, MetricValue, RecordClassification, RecordContent, RecordContentDocument,
+        RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
+        RecordTaxonomy, RecordTiming, RecordVisibility, RichDocument, RichNode,
+        SpellcastingEntryMechanics, SpellcastingPreparation,
     };
 
     #[test]
@@ -494,6 +507,7 @@ mod tests {
             panic!("creature presentation")
         };
 
+        let defenses = defenses.as_ref().expect("standard defenses");
         assert_eq!(defenses.ac.as_ref().expect("ac").value, 25);
         assert_eq!(defenses.hp.as_ref().expect("hp").maximum, Some(80));
         assert_eq!(
@@ -501,8 +515,14 @@ mod tests {
             14
         );
         assert_eq!(perception.as_ref().expect("perception").modifier, Some(12));
-        assert_eq!(languages, &["Common".to_string()]);
-        assert_eq!(movement.modes[0].value_feet, 25);
+        assert_eq!(
+            languages.as_deref(),
+            Some(["Common".to_string()].as_slice())
+        );
+        assert_eq!(
+            movement.as_ref().expect("standard movement").modes[0].value_feet,
+            25
+        );
         assert!(json.generic_sections().is_empty());
         assert!(json.supplementary_sections.iter().all(|section| {
             section
@@ -536,15 +556,68 @@ mod tests {
                 include_source_json: false,
             },
         );
+        let standard = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Standard,
+                include_source_json: false,
+            },
+        );
 
-        let RecordPresentationJson::Creature { defenses, .. } = summary.presentation else {
-            panic!("summary creature")
-        };
-        assert!(defenses.ac.is_none());
+        let summary_value = serde_json::to_value(&summary).expect("summary json");
+        let description_value = serde_json::to_value(&description).expect("description json");
+        for field in [
+            "defenses",
+            "perception",
+            "languages",
+            "skills",
+            "movement",
+            "resources",
+            "strikes",
+            "actions",
+            "spellcasting",
+        ] {
+            assert!(
+                summary_value.get(field).is_none(),
+                "summary omitted {field}"
+            );
+            assert!(
+                description_value.get(field).is_none(),
+                "description omitted {field}"
+            );
+        }
         let RecordPresentationJson::Creature { defenses, .. } = preview.presentation else {
             panic!("preview creature")
         };
-        assert_eq!(defenses.ac.expect("preview ac").value, 25);
+        assert_eq!(
+            defenses
+                .expect("preview defenses")
+                .ac
+                .expect("preview ac")
+                .value,
+            25
+        );
+        let preview_value = serde_json::to_value(record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Preview,
+                include_source_json: false,
+            },
+        ))
+        .expect("preview json");
+        let preview_strike = &preview_value["strikes"][0];
+        assert!(preview_strike.get("rolls").is_none());
+        assert!(preview_strike.get("damage").is_none());
+        assert!(preview_strike.get("modes").is_none());
+        let standard_value = serde_json::to_value(standard).expect("standard json");
+        let standard_strike = &standard_value["strikes"][0];
+        assert!(standard_strike["rolls"].is_array());
+        assert!(standard_strike["damage"].is_array());
+        assert!(standard_strike["modes"].is_array());
+        assert!(standard_value["actions"][0]["rolls"].is_array());
+        assert_eq!(standard_value["skills"][0]["slug"], "theater_lore");
+        assert_eq!(standard_value["spellcasting"]["entries"][0]["order"], 0);
+        assert_eq!(standard_value["spellcasting"]["spells"][0]["order"], 2);
         assert!(
             description
                 .supplementary_sections
@@ -621,6 +694,9 @@ mod tests {
             languages: vec!["Common".to_string()],
             speed_types: vec!["land".to_string()],
             senses: vec!["Darkvision".to_string()],
+            immunities: vec!["sleep".to_string()],
+            resistances: vec!["mental".to_string()],
+            weaknesses: vec!["cold-iron".to_string()],
             ..ActorMechanics::default()
         });
         record.mechanics.metrics = vec![
@@ -631,6 +707,69 @@ mod tests {
             metric("save.ref.mod", 11.0),
             metric("save.will.mod", 12.0),
             metric("speed.land.value", 25.0),
+            metric("skill.theater_lore.mod", 15.0),
+        ];
+        record.mechanics.spellcasting_entries = vec![SpellcastingEntryMechanics {
+            entry_id: "occult-innate".to_string(),
+            label: "Occult Innate Spells".to_string(),
+            preparation: SpellcastingPreparation::Innate,
+            spell_attack: Some(16),
+            spell_dc: Some(26),
+        }];
+        record.mechanics.activities = vec![
+            MechanicActivity {
+                activity_id: "jaws".to_string(),
+                label: "Jaws".to_string(),
+                kind: MechanicActivityKind::Strike,
+                traits: vec!["magical".to_string()],
+                compendium_source: None,
+                usage: MechanicActivityUsage::Unlimited,
+                rolls: vec![ActivityRoll {
+                    roll_id: "attack".to_string(),
+                    label: "Attack".to_string(),
+                    base_value: 17,
+                    surface: ActivityRollSurface::AttackRoll,
+                    ability: None,
+                }],
+                damage: vec![DamageExpression {
+                    damage_id: "piercing".to_string(),
+                    label: None,
+                    formula: "2d8+8".to_string(),
+                    damage_type: Some("piercing".to_string()),
+                    effect_kind: DamageEffectKind::Damage,
+                    ability: None,
+                }],
+                modes: Vec::new(),
+            },
+            MechanicActivity {
+                activity_id: "change-shape".to_string(),
+                label: "Change Shape".to_string(),
+                kind: MechanicActivityKind::Other,
+                traits: vec!["polymorph".to_string()],
+                compendium_source: None,
+                usage: MechanicActivityUsage::Unlimited,
+                rolls: Vec::new(),
+                damage: Vec::new(),
+                modes: Vec::new(),
+            },
+            MechanicActivity {
+                activity_id: "magic-missile".to_string(),
+                label: "Magic Missile".to_string(),
+                kind: MechanicActivityKind::Spell,
+                traits: vec!["force".to_string()],
+                compendium_source: Some("Compendium.pf2e.spells.Item.magic".to_string()),
+                usage: MechanicActivityUsage::Unlimited,
+                rolls: Vec::new(),
+                damage: vec![DamageExpression {
+                    damage_id: "force".to_string(),
+                    label: None,
+                    formula: "1d4+1".to_string(),
+                    damage_type: Some("force".to_string()),
+                    effect_kind: DamageEffectKind::Damage,
+                    ability: None,
+                }],
+                modes: Vec::new(),
+            },
         ];
         record
     }

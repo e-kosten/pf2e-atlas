@@ -40,11 +40,16 @@ fn graph_links_json_returns_bounded_context() -> Result<(), Box<dyn std::error::
     let data = ok_data(&json);
     assert_eq!(data["detail"], "summary");
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
+    assert_eq!(data["seed"]["record"]["presentation_type"], "unmigrated");
     assert_eq!(data["outgoing"]["total_records"], 2);
     assert_eq!(data["outgoing"]["total_edges"], 4);
     assert_eq!(data["outgoing"]["truncated"], true);
     assert_eq!(data["outgoing"]["records"].as_array().unwrap().len(), 1);
     assert_eq!(data["outgoing"]["records"][0]["key"], "actions:testAction2");
+    assert_eq!(
+        data["outgoing"]["records"][0]["presentation_type"],
+        "unmigrated"
+    );
     assert_eq!(data["outgoing"]["edges"].as_array().unwrap().len(), 2);
     assert_eq!(data["outgoing"]["edges"][0]["from"], "actions:testAction1");
     assert_eq!(data["outgoing"]["edges"][0]["to"], "actions:testAction2");
@@ -263,6 +268,11 @@ fn graph_links_json_reports_ambiguous_name_resolution() -> Result<(), Box<dyn st
         .as_array()
         .expect("ambiguous graph resolution should include alternatives");
     assert_eq!(alternatives.len(), 2);
+    assert!(
+        alternatives
+            .iter()
+            .all(|alternative| alternative["record"]["presentation_type"] == "unmigrated")
+    );
     assert!(
         alternatives
             .iter()

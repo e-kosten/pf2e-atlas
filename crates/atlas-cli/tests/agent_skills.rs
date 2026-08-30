@@ -143,6 +143,10 @@ fn differing_install_requires_force() -> Result<(), Box<dyn std::error::Error>> 
     assert!(installed_skill.contains("spells-srd:4koZzrnMXhhosn0D"));
     assert!(installed_skill.contains("conditionitems:AJh5ex99aV6VTggg"));
     assert!(installed_skill.contains("bestiary-ability-glossary-srd:Tkd8sH4pwFIPzqTr"));
+    assert!(installed_skill.contains("Check field presence before reading detail-dependent"));
+    assert!(installed_skill.contains("they are not placeholders for omitted hydration"));
+    let forbidden_generic_body = ["creature", "mechanics"].join("_");
+    assert!(!installed_skill.contains(&forbidden_generic_body));
 
     fs::remove_dir_all(root)?;
     Ok(())

@@ -28,6 +28,7 @@
         "value": 25
       },
       "hp": {
+        "max": 80,
         "value": 80
       },
       "speed": {

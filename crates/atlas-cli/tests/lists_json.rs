@@ -129,6 +129,10 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     );
     assert_eq!(show_data["items"][0]["record"]["name"], "Test Action 1");
     assert_eq!(show_data["items"][0]["record"]["kind"], "rule");
+    assert_eq!(
+        show_data["items"][0]["record"]["presentation_type"],
+        "unmigrated"
+    );
     assert!(show_data["items"][0]["record"].get("record_key").is_none());
 
     let ls_output = Command::new(env!("CARGO_BIN_EXE_atlas"))

@@ -1,0 +1,168 @@
+{
+  "_id": "WQy7HBUcgDLsfVJd",
+  "name": "Night Hag",
+  "type": "npc",
+  "items": [
+    {
+      "_id": "occultInnate001",
+      "name": "Occult Innate Spells",
+      "type": "spellcastingEntry",
+      "system": {
+        "prepared": { "value": "innate" },
+        "spelldc": { "dc": 28, "value": 20 },
+        "tradition": { "value": "occult" }
+      }
+    },
+    {
+      "_id": "covenSpells0001",
+      "name": "Coven Spells",
+      "type": "spellcastingEntry",
+      "system": {
+        "prepared": { "value": "innate" },
+        "spelldc": { "dc": 23, "value": 15 },
+        "tradition": { "value": "occult" }
+      }
+    },
+    {
+      "_id": "magicMissile001",
+      "_stats": {
+        "compendiumSource": "Compendium.pf2e.spells-srd.Item.magicMissile001"
+      },
+      "name": "Magic Missile (At Will)",
+      "type": "spell",
+      "system": {
+        "damage": {
+          "force": {
+            "applyMod": false,
+            "formula": "1d4+1",
+            "kinds": ["damage"],
+            "type": "force"
+          }
+        },
+        "description": { "value": "<p>A dart of force strikes its target.</p>" },
+        "level": { "value": 1 },
+        "location": { "heightenedLevel": 3, "value": "occultInnate001" },
+        "range": { "value": "120 feet" },
+        "target": { "value": "1 creature" },
+        "time": { "value": "1 to 3" },
+        "traits": { "value": ["concentrate", "force", "manipulate"] }
+      }
+    },
+    {
+      "_id": "nightmareSpell01",
+      "name": "Nightmare",
+      "type": "spell",
+      "system": {
+        "damage": {},
+        "description": { "value": "<p>You send a nightmare to disturb the target.</p>" },
+        "level": { "value": 4 },
+        "location": { "heightenedLevel": 5, "value": "covenSpells0001" },
+        "range": { "value": "planetary" },
+        "target": { "value": "1 creature" },
+        "time": { "value": "10 minutes" },
+        "traits": { "value": ["illusion", "mental", "sleep"] }
+      }
+    },
+    {
+      "_id": "nightHagJaws001",
+      "name": "Jaws",
+      "type": "melee",
+      "system": {
+        "attackEffects": { "value": ["abyssal-plague"] },
+        "bonus": { "value": 20 },
+        "damageRolls": {
+          "piercing": { "damage": "2d8+8", "damageType": "piercing" },
+          "spirit": { "damage": "1d6", "damageType": "spirit" }
+        },
+        "traits": { "value": ["magical", "unarmed", "unholy"] },
+        "weaponType": { "value": "melee" }
+      }
+    },
+    {
+      "_id": "nightHagClaw001",
+      "name": "Claw",
+      "type": "melee",
+      "system": {
+        "attackEffects": { "value": [] },
+        "bonus": { "value": 20 },
+        "damageRolls": {
+          "slashing": { "damage": "2d10+8", "damageType": "slashing" }
+        },
+        "traits": { "value": ["agile", "magical", "unarmed", "unholy"] },
+        "weaponType": { "value": "melee" }
+      }
+    },
+    {
+      "_id": "changeShape0001",
+      "name": "Change Shape",
+      "type": "action",
+      "system": {
+        "actionType": { "value": "action" },
+        "actions": { "value": 1 },
+        "category": "offensive",
+        "description": { "value": "<p>The night hag takes another humanoid form.</p>" },
+        "traits": { "value": ["concentrate", "occult", "polymorph"] }
+      }
+    },
+    {
+      "_id": "dreamHaunting01",
+      "name": "Dream Haunting",
+      "type": "action",
+      "system": {
+        "actionType": { "value": "passive" },
+        "actions": { "value": null },
+        "category": "offensive",
+        "description": { "value": "<p>The night hag torments a sleeping creature.</p>" },
+        "traits": { "value": ["curse", "enchantment", "mental", "occult"] }
+      }
+    },
+    {
+      "_id": "theaterLore0001",
+      "name": "Theater Lore",
+      "sort": 100,
+      "type": "lore",
+      "system": {
+        "description": { "value": "" },
+        "mod": { "value": 18 },
+        "proficient": { "value": 0 },
+        "slug": null
+      }
+    }
+  ],
+  "system": {
+    "traits": {
+      "rarity": "common",
+      "value": ["evil", "fiend", "hag", "humanoid", "unholy"],
+      "size": { "value": "med" }
+    },
+    "details": {
+      "level": { "value": 9 },
+      "languages": { "value": ["aklo", "chthonian", "common"] },
+      "publicNotes": "<p>Night hags are thieves and merchants of mortal souls empowered by @UUID[Compendium.pf2e.equipment-srd.Item.Heartstone]{Heartstones}.</p>",
+      "publication": { "remaster": false, "title": "Pathfinder Bestiary" }
+    },
+    "attributes": {
+      "ac": { "value": 28 },
+      "hp": { "max": 170, "value": 170 },
+      "immunities": [{ "type": "sleep" }],
+      "resistances": [{ "type": "mental", "value": 10 }],
+      "speed": {
+        "otherSpeeds": [{ "type": "fly", "value": 40 }],
+        "value": 25
+      },
+      "weaknesses": [{ "type": "cold-iron", "value": 10 }]
+    },
+    "perception": {
+      "mod": 18,
+      "senses": [{ "type": "darkvision" }]
+    },
+    "saves": {
+      "fortitude": { "value": 19 },
+      "reflex": { "value": 17 },
+      "will": { "value": 18 }
+    },
+    "skills": {
+      "occultism": { "base": 20 }
+    }
+  }
+}
