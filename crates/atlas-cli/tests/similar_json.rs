@@ -36,6 +36,7 @@ fn similar_json_returns_semantic_and_reference_evidence() -> Result<(), Box<dyn 
         .expect("results should be an array");
     assert_eq!(results.len(), 2);
     assert_ne!(results[0]["record"]["key"], "actions:testAction1");
+    assert_eq!(results[0]["record"]["presentation_type"], "unmigrated");
     assert!(results[0]["similarity"]["score"].is_number());
     assert_eq!(results[0]["similarity"]["semantic"]["unit_kind"], "parent");
     assert!(results.iter().any(|result| {

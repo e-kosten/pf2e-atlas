@@ -60,17 +60,19 @@ The shared base contains only record identity/classification, source metadata, e
 
 Parent-local `id` and `order` values are stable within a record. Activity rolls, damage, modes, usages, spellcasting preparation, attacks, and DCs remain typed fields rather than label/value fact bags.
 
+Detail hydration is represented by field presence, not placeholder values. A field, object, or array that the requested detail level does not hydrate is absent. An empty object or array may be serialized only when its containing section is included at that detail and the empty value intentionally means that the record has no members in that included section. Callers must test field presence before reading detail-dependent entity fields.
+
 Non-creature families use `presentation_type: "unmigrated"` only while their named H1-H10 family plan is pending. The `migration` object records that registry assignment and H12 acceptance checkpoint. Their generic ordered fact sections are temporary and are replaced, not wrapped by compatibility shims, when the family-specific variant lands.
 
 ## Detail and raw source behavior
 
 `summary`, `preview`, `description`, `standard`, and `full` retain the same tagged record schema and vary only by hydration:
 
-- `summary` is identity-oriented;
-- `preview` includes compact typed scan facts and shortened prose;
-- `description` emphasizes complete descriptive rich content;
-- `standard` is the normal typed entity view; and
-- `full` adds full source metadata and supplementary content.
+- `summary` is identity-oriented; creature mechanics fields are absent;
+- `preview` includes compact typed scan facts and shortened prose; activity `rolls`, `damage`, and `modes` are absent because preview does not hydrate activity detail;
+- `description` emphasizes complete descriptive rich content; creature mechanics fields are absent;
+- `standard` is the normal typed entity view and includes activity-detail collections, including intentional known-empty collections; and
+- `full` adds full source metadata and supplementary content while retaining the standard typed entity body.
 
 `--include-raw` is an independent explicit opt-in at every supported detail level. Without it, `source_json` is omitted. With it, `source_json` may appear even at `preview`; callers must not infer that raw source requires `detail=full`.
 

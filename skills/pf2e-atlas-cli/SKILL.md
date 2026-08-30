@@ -122,6 +122,12 @@ prose. Non-creature records may temporarily report `presentation_type:
 "unmigrated"` with an explicit `migration.plan_id`; use their `sections` only
 until that named family-specific contract lands.
 
+Check field presence before reading detail-dependent entity data. `summary`
+and `description` omit creature mechanics fields, and `preview` omits activity
+`rolls`, `damage`, and `modes`. Empty objects or arrays are meaningful only
+when their section is included at the requested detail and is intentionally
+known to have no members; they are not placeholders for omitted hydration.
+
 Use one Atlas process for a batch when you have multiple exact keys or strict names. `record get` accepts multiple canonical keys, and `record resolve` accepts multiple strict names or verified aliases:
 
 ```bash
