@@ -17,8 +17,9 @@ use atlas_record::{
     MechanicActivity, MechanicActivityFamily, MechanicActivityKind, MechanicActivityMode,
     MechanicActivityUsage, MechanicBaseValue, MechanicFact, MechanicScalar, MechanicSurface,
     MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, RecordBody, RetrievedRecord,
-    UnsupportedMechanic, UnsupportedMechanicValue, UnsupportedSourceReason, UnsupportedSourceShape,
-    UnsupportedSourceValue, build_mechanics_view, project_creature_mechanics,
+    SaveKind, UnsupportedMechanic, UnsupportedMechanicValue, UnsupportedSourceReason,
+    UnsupportedSourceShape, UnsupportedSourceValue, build_mechanics_view,
+    project_creature_mechanics,
 };
 
 use super::conditions::{ConditionRule, condition_rule_for_key};
@@ -1344,6 +1345,7 @@ fn condition_roll_modifiers(
             }]
         }
         ConditionRule::OffGuard
+        | ConditionRule::Fatigued
         | ConditionRule::Clumsy
         | ConditionRule::Enfeebled
         | ConditionRule::Stupefied
@@ -1677,6 +1679,20 @@ fn condition_modifiers(
             .filter(|value| value.facets.surface.is_check_or_dc())
             .map(|value| status_penalty(value.target.clone(), source.clone(), amount))
             .collect(),
+        ConditionRule::Fatigued => mechanics
+            .values
+            .iter()
+            .filter(|value| {
+                matches!(
+                    value.target,
+                    MechanicTarget::ArmorClass
+                        | MechanicTarget::Save {
+                            save: SaveKind::Fortitude | SaveKind::Reflex | SaveKind::Will
+                        }
+                )
+            })
+            .map(|value| status_penalty(value.target.clone(), source.clone(), 1))
+            .collect(),
         ConditionRule::OffGuard => vec![CandidateModifier {
             target: MechanicTarget::ArmorClass,
             source: source.clone(),
@@ -1787,6 +1803,9 @@ fn condition_unapplied_effects(
 ) -> Vec<UnappliedEffectView> {
     let source = condition_source(condition);
     match rule {
+        ConditionRule::Fatigued => vec![unapplied_runtime_note_view(
+            fatigued_exploration_note(condition),
+        )],
         ConditionRule::Clumsy => vec![UnappliedEffectView {
             source: source.clone(),
             label: format!("{source} unmodeled Dexterity attack penalties"),
@@ -1842,7 +1861,21 @@ fn participant_runtime_notes(participant: &EncounterParticipant) -> Vec<RuntimeN
     let mut notes = Vec::new();
     notes.extend(action_projection(participant).notes);
     notes.extend(speed_notes(participant));
+    notes.extend(
+        participant_condition_rules(participant)
+            .filter(|(_, rule)| *rule == ConditionRule::Fatigued)
+            .map(|(condition, _)| fatigued_exploration_note(condition)),
+    );
     notes
+}
+
+fn fatigued_exploration_note(condition: &EncounterParticipantCondition) -> RuntimeNote {
+    RuntimeNote {
+        source: condition_source(condition),
+        label: "Fatigued exploration activity restriction".to_string(),
+        reason: "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
+            .to_string(),
+    }
 }
 
 fn participant_condition_rules(
@@ -2583,6 +2616,244 @@ mod tests {
             skill
                 .target
                 .starts_with("mechanic-target/v1/creature-skill/")
+        );
+    }
+
+    #[test]
+    fn fatigued_applies_fixed_penalty_only_to_ac_and_all_saves() {
+        let projection = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition("Fatigued", Some(9))],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+
+        for (target, base) in [
+            ("ac", 22),
+            ("save.fort", 15),
+            ("save.ref", 12),
+            ("save.will", 12),
+        ] {
+            let stat = value(&projection, target);
+            assert_eq!(stat.adjusted_value, base - 1, "unexpected {target}");
+            assert_eq!(stat.modifiers.len(), 1, "unexpected {target}");
+            assert!(stat.modifiers.iter().any(|modifier| {
+                modifier.source == "Fatigued 9"
+                    && modifier.modifier_type == StatModifierTypeView::Status
+                    && modifier.value == -1
+            }));
+        }
+
+        for target in [
+            "hp.max",
+            "perception",
+            "skill.athletics",
+            "ability.str",
+            "ability.dex",
+        ] {
+            let stat = value(&projection, target);
+            assert_eq!(stat.adjusted_value, stat.base_value, "unexpected {target}");
+            assert!(stat.modifiers.is_empty(), "unexpected {target}");
+            assert!(stat.suppressed_modifiers.is_empty(), "unexpected {target}");
+        }
+        for speed in &projection.speeds {
+            assert_eq!(speed.adjusted_value_feet, speed.base_value_feet);
+            assert!(speed.adjustments.is_empty());
+            assert!(speed.suppressed_adjustments.is_empty());
+            assert!(speed.notes.is_empty());
+        }
+        let budget = projection.action_budget.as_ref().expect("action budget");
+        assert_eq!(budget.actions.adjusted_value, 3);
+        assert!(budget.actions.adjustments.is_empty());
+        assert!(budget.actions.suppressed_adjustments.is_empty());
+        assert!(budget.notes.is_empty());
+        for activity in &projection.activities {
+            for roll in &activity.rolls {
+                assert!(
+                    roll.modifiers
+                        .iter()
+                        .chain(&roll.suppressed_modifiers)
+                        .all(|modifier| modifier.source != "Fatigued 9")
+                );
+            }
+            for damage in &activity.damage {
+                assert!(
+                    damage
+                        .modifiers
+                        .iter()
+                        .all(|modifier| modifier.source != "Fatigued 9")
+                );
+            }
+            for mode in &activity.modes {
+                for damage in &mode.damage {
+                    assert!(
+                        damage
+                            .modifiers
+                            .iter()
+                            .all(|modifier| modifier.source != "Fatigued 9")
+                    );
+                }
+            }
+        }
+
+        let canonical = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![condition("Fatigued", None)],
+        ));
+        let resource = canonical
+            .values
+            .iter()
+            .find(|value| value.label == "Focus")
+            .expect("canonical resource should project");
+        assert_eq!(resource.adjusted_value, resource.base_value);
+        assert!(resource.modifiers.is_empty());
+        assert!(resource.suppressed_modifiers.is_empty());
+
+        let note = projection
+            .unapplied_effects
+            .iter()
+            .find(|effect| effect.label == "Fatigued exploration activity restriction")
+            .expect("travel restriction should remain explicit");
+        assert_eq!(note.source, "Fatigued 9");
+        assert_eq!(
+            note.reason,
+            "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
+        );
+    }
+
+    #[test]
+    fn fatigued_uses_existing_status_stacking_and_suppression() {
+        let projection = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![
+                    condition("Fatigued", None),
+                    condition("Frightened", Some(2)),
+                    condition("Off-Guard", None),
+                ],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+
+        for target in ["ac", "save.fort", "save.ref", "save.will"] {
+            let stat = value(&projection, target);
+            assert!(stat.modifiers.iter().any(|modifier| {
+                modifier.source == "Frightened 2"
+                    && modifier.modifier_type == StatModifierTypeView::Status
+                    && modifier.value == -2
+            }));
+            assert!(stat.suppressed_modifiers.iter().any(|modifier| {
+                modifier.source == "Fatigued"
+                    && modifier.modifier_type == StatModifierTypeView::Status
+                    && modifier.value == -1
+            }));
+        }
+        let ac = value(&projection, "ac");
+        assert!(ac.modifiers.iter().any(|modifier| {
+            modifier.source == "Off-Guard"
+                && modifier.modifier_type == StatModifierTypeView::Circumstance
+                && modifier.value == -2
+        }));
+        let perception = value(&projection, "perception");
+        assert!(
+            perception
+                .modifiers
+                .iter()
+                .chain(&perception.suppressed_modifiers)
+                .all(|modifier| modifier.source != "Fatigued")
+        );
+    }
+
+    #[test]
+    fn fatigued_requires_the_canonical_key_and_preserves_note_order() {
+        let mut first = condition("Fatigued", None);
+        first.name = "First fatigue".to_string();
+        let mut second = condition("Fatigued", None);
+        second.name = "Second fatigue".to_string();
+        let annotation = unmodeled_condition("Fatigued", None);
+
+        let ordered = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![first.clone(), annotation.clone(), second.clone()],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            ordered
+                .unapplied_effects
+                .iter()
+                .filter(|effect| effect.label == "Fatigued exploration activity restriction")
+                .map(|effect| effect.source.as_str())
+                .collect::<Vec<_>>(),
+            vec!["First fatigue", "Second fatigue"]
+        );
+        assert_eq!(value(&ordered, "ac").adjusted_value, 21);
+
+        let reversed = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![second.clone(), first.clone()],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            reversed
+                .unapplied_effects
+                .iter()
+                .filter(|effect| effect.label == "Fatigued exploration activity restriction")
+                .map(|effect| effect.source.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Second fatigue", "First fatigue"]
+        );
+
+        first.condition_key = None;
+        let key_mutation = project_legacy(
+            &participant(ParticipantVariant::Normal, vec![first, second]),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(
+            key_mutation
+                .unapplied_effects
+                .iter()
+                .filter(|effect| effect.label == "Fatigued exploration activity restriction")
+                .map(|effect| effect.source.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Second fatigue"]
+        );
+
+        let annotation_only = project_legacy(
+            &participant(ParticipantVariant::Normal, vec![annotation]),
+            &record(),
+        )
+        .expect("stat block");
+        assert_eq!(value(&annotation_only, "ac").adjusted_value, 22);
+        assert!(annotation_only.unapplied_effects.is_empty());
+    }
+
+    #[test]
+    fn runtime_only_fatigued_keeps_context_without_changing_actions() {
+        let projection = participant_runtime_block(&participant(
+            ParticipantVariant::Normal,
+            vec![condition("Fatigued", None)],
+        ));
+        let budget = projection.action_budget.as_ref().expect("action budget");
+        assert_eq!(budget.actions.adjusted_value, 3);
+        assert!(budget.actions.adjustments.is_empty());
+        assert_eq!(projection.unapplied_effects.len(), 1);
+        assert_eq!(
+            projection.unapplied_effects[0].label,
+            "Fatigued exploration activity restriction"
+        );
+        assert_eq!(
+            projection.unapplied_effects[0].reason,
+            "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
         );
     }
 
@@ -4098,6 +4369,7 @@ mod tests {
             "restrained" => "conditionitems:VcDeM8A5oI6VqhbM",
             "encumbered" => "conditionitems:D5mg6Tc7Jzrj6ro7",
             "prone" => "conditionitems:j91X7x0XSomq8d60",
+            "fatigued" => "conditionitems:HL2l2VRSaQHu9lUw",
             _ => "conditionitems:unsupported",
         }
     }

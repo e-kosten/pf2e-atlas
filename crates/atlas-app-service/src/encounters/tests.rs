@@ -614,6 +614,26 @@ fn encounter_condition_definitions_expose_modeled_canonical_conditions() {
             .contains(&EncounterConditionCategoryView::StatModifier)
     );
 
+    let fatigued = catalog
+        .conditions
+        .iter()
+        .find(|condition| condition.name == "Fatigued")
+        .expect("fatigued should be in catalog");
+    assert_eq!(fatigued.condition_ref, "conditionitems:HL2l2VRSaQHu9lUw");
+    assert_eq!(
+        fatigued.automation_level,
+        EncounterConditionAutomationLevelView::Automated
+    );
+    assert!(!fatigued.has_value);
+    assert_eq!(fatigued.default_value, None);
+    assert_eq!(
+        fatigued.categories,
+        vec![
+            EncounterConditionCategoryView::StatModifier,
+            EncounterConditionCategoryView::RuntimeState,
+        ]
+    );
+
     let broken = catalog
         .conditions
         .iter()
