@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_app_model::{
     ActionBudgetView, ActivityRollSurfaceView, ActivityRollView, DamageEffectKindView,
@@ -72,6 +72,7 @@ pub(super) fn participant_stat_block(
         participant,
         mechanics.view,
         mechanics.unapplied_effects,
+        mechanics.variant_damage_blocked_activity_ids,
     ))
 }
 
@@ -191,6 +192,7 @@ fn base_damage_view(damage: DamageExpression) -> DamageExpressionView {
 struct ParticipantMechanics {
     view: MechanicsView,
     unapplied_effects: Vec<UnappliedEffectView>,
+    variant_damage_blocked_activity_ids: BTreeSet<String>,
 }
 
 fn canonical_participant_mechanics(
@@ -229,6 +231,7 @@ fn canonical_participant_mechanics(
         .map(canonical_unsupported_effect)
         .collect::<Vec<_>>();
     let mut activities = Vec::new();
+    let mut variant_damage_blocked_activity_ids = BTreeSet::new();
     for activity in projection.activities {
         unapplied_effects.extend(
             activity
@@ -238,6 +241,9 @@ fn canonical_participant_mechanics(
                 .map(canonical_unsupported_effect),
         );
         let disposition = canonical_activity(activity);
+        if disposition.variant_damage_blocked {
+            variant_damage_blocked_activity_ids.insert(disposition.activity.activity_id.clone());
+        }
         values.extend(disposition.values);
         unapplied_effects.extend(disposition.unapplied_effects);
         activities.push(disposition.activity);
@@ -254,6 +260,7 @@ fn canonical_participant_mechanics(
             activities,
         },
         unapplied_effects,
+        variant_damage_blocked_activity_ids,
     }
 }
 
@@ -261,11 +268,13 @@ struct CanonicalActivityDisposition {
     activity: MechanicActivity,
     values: Vec<MechanicValue>,
     unapplied_effects: Vec<UnappliedEffectView>,
+    variant_damage_blocked: bool,
 }
 
 fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityDisposition {
     let ability = activity_attack_ability(&activity);
     let usage = canonical_activity_usage(&activity);
+    let variant_damage_blocked = canonical_variant_damage_blocked(&activity);
     let kind = match activity.family {
         MechanicActivityFamily::Strike => MechanicActivityKind::Strike,
         MechanicActivityFamily::Spell | MechanicActivityFamily::SpellcastingEntry => {
@@ -309,7 +318,22 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityD
         },
         values,
         unapplied_effects,
+        variant_damage_blocked,
     }
+}
+
+fn canonical_variant_damage_blocked(activity: &CanonicalMechanicActivity) -> bool {
+    activity
+        .facts
+        .iter()
+        .filter_map(|fact| match (&fact.target, &fact.value) {
+            (MechanicTarget::ActivityDamage { .. }, MechanicBaseValue::Damage(damage)) => {
+                Some(damage)
+            }
+            _ => None,
+        })
+        .find(|damage| canonical_damage_effect_kind(damage) == DamageEffectKind::Damage)
+        .is_some_and(|damage| damage.formula.as_value().is_none())
 }
 
 fn canonical_activity_roll(fact: &MechanicFact) -> Option<ActivityRoll> {
@@ -398,6 +422,16 @@ fn canonical_activity_unapplied_effect(fact: &MechanicFact) -> Option<UnappliedE
             "uses are represented only by coarse activity usage; value={}",
             uses(value)
         ),
+        (target @ MechanicTarget::ActivityDamage { .. }, MechanicBaseValue::Damage(damage))
+            if damage.formula.as_value().is_none() =>
+        {
+            format!(
+                "damage formula cannot populate a structured encounter damage expression; target={}; id={:?}; formula={}",
+                target.id(),
+                damage.id,
+                fact_string(&damage.formula)
+            )
+        }
         (
             MechanicTarget::SpellSlotMaximum { .. },
             MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(_))),
@@ -697,6 +731,7 @@ fn apply_participant_effects(
     participant: &EncounterParticipant,
     mechanics: MechanicsView,
     mut unapplied_effects: Vec<UnappliedEffectView>,
+    variant_damage_blocked_activity_ids: BTreeSet<String>,
 ) -> StatBlockView {
     let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
     unapplied_effects.extend(variant_unapplied_effects(participant.participant_variant));
@@ -749,7 +784,11 @@ fn apply_participant_effects(
         activities: mechanics
             .activities
             .into_iter()
-            .map(|activity| activity_view(activity, participant))
+            .map(|activity| {
+                let variant_damage_blocked =
+                    variant_damage_blocked_activity_ids.contains(&activity.activity_id);
+                activity_view(activity, participant, variant_damage_blocked)
+            })
             .collect(),
         unapplied_effects,
     }
@@ -1023,10 +1062,11 @@ fn apply_runtime_adjustments(base_value: i64, adjustments: &[RuntimeAdjustment])
 fn activity_view(
     activity: MechanicActivity,
     participant: &EncounterParticipant,
+    variant_damage_blocked: bool,
 ) -> MechanicActivityView {
     let kind = activity.kind;
     let usage = activity.usage;
-    let mut variant_damage_available = true;
+    let mut variant_damage_available = !variant_damage_blocked;
     let damage = activity
         .damage
         .into_iter()
@@ -1915,6 +1955,7 @@ mod tests {
             participant,
             mechanics,
             Vec::new(),
+            BTreeSet::new(),
         ))
     }
 
@@ -1928,7 +1969,12 @@ mod tests {
     ) -> StatBlockView {
         let mechanics =
             canonical_participant_mechanics(projection, "Canonical Creature".to_string());
-        apply_participant_effects(participant, mechanics.view, mechanics.unapplied_effects)
+        apply_participant_effects(
+            participant,
+            mechanics.view,
+            mechanics.unapplied_effects,
+            mechanics.variant_damage_blocked_activity_ids,
+        )
     }
 
     fn activity_fact_mut<'a>(
@@ -1952,6 +1998,73 @@ mod tests {
             .iter_mut()
             .find(|activity| activity.occurrence_id.as_str() == occurrence_id)
             .expect("canonical activity should exist")
+    }
+
+    fn canonical_strike_with_unsupported_first_formula(
+        formula: FactValue<String>,
+    ) -> CanonicalMechanicsProjection {
+        let mut projection = canonical_projection();
+        let strike = canonical_activity_mut(&mut projection, "strike-claw");
+        let main_index = strike
+            .facts
+            .iter()
+            .position(|fact| {
+                matches!(
+                    &fact.target,
+                    MechanicTarget::ActivityDamage { damage_id, .. } if damage_id == "main"
+                )
+            })
+            .expect("main damage should exist");
+        let main = strike.facts[main_index].clone();
+
+        let mut unsupported_first = main.clone();
+        unsupported_first.target = MechanicTarget::ActivityDamage {
+            occurrence_id: strike.occurrence_id.clone(),
+            damage_id: "unsupported-first".to_string(),
+        };
+        unsupported_first.label = "unsupported-first".to_string();
+        if let MechanicBaseValue::Damage(damage) = &mut unsupported_first.value {
+            damage.id = "unsupported-first".to_string();
+            damage.formula = formula;
+        }
+        strike.facts.insert(main_index, unsupported_first);
+
+        let mut secondary = main;
+        secondary.target = MechanicTarget::ActivityDamage {
+            occurrence_id: strike.occurrence_id.clone(),
+            damage_id: "secondary".to_string(),
+        };
+        secondary.label = "secondary".to_string();
+        if let MechanicBaseValue::Damage(damage) = &mut secondary.value {
+            damage.id = "secondary".to_string();
+            damage.formula = FactValue::Value("1d4".to_string());
+        }
+        strike.facts.push(secondary);
+        projection
+    }
+
+    fn assert_unsupported_damage_formula_disposition(
+        projection: &StatBlockView,
+        expected_formula: &str,
+    ) {
+        let target = MechanicTarget::ActivityDamage {
+            occurrence_id: atlas_record::CreatureOccurrenceId::new("strike-claw")
+                .expect("occurrence id should be valid"),
+            damage_id: "unsupported-first".to_string(),
+        };
+        let expected_label = format!("{} retained without exact encounter field", target.id());
+        let expected_reason = format!(
+            "unsupported-first: damage formula cannot populate a structured encounter damage expression; target={}; id=\"unsupported-first\"; formula={expected_formula}",
+            target.id()
+        );
+        let matching = projection
+            .unapplied_effects
+            .iter()
+            .filter(|effect| effect.label == expected_label)
+            .collect::<Vec<_>>();
+        assert_eq!(matching.len(), 1);
+        assert_eq!(matching[0].source, "Canonical source");
+        assert_eq!(matching[0].reason, expected_reason);
     }
 
     fn canonical_projection() -> CanonicalMechanicsProjection {
@@ -2268,13 +2381,14 @@ mod tests {
             &participant(ParticipantVariant::Weak, Vec::new()),
             mechanics.view,
             mechanics.unapplied_effects,
+            mechanics.variant_damage_blocked_activity_ids,
         );
 
         assert_stat(&block, "hp.max", 5, 1, "Weak HP adjustment");
     }
 
     #[test]
-    fn canonical_weak_hp_bands_leave_levels_below_one_unchanged() {
+    fn canonical_weak_hp_bands_cover_every_boundary() {
         let cases = [
             (-1, 100),
             (0, 100),
@@ -2319,30 +2433,42 @@ mod tests {
             level_zero,
         );
         assert_eq!(value(&unchanged, "hp.max").adjusted_value, 5);
-        assert_eq!(
-            variant_hp_adjustment_delta(
+    }
+
+    #[test]
+    fn weak_hp_variant_transitions_use_the_starting_level_band() {
+        let cases = [
+            (ParticipantVariant::Normal, ParticipantVariant::Weak, 5, -15),
+            (ParticipantVariant::Weak, ParticipantVariant::Normal, 5, 15),
+            (ParticipantVariant::Normal, ParticipantVariant::Weak, 6, -20),
+            (ParticipantVariant::Weak, ParticipantVariant::Normal, 6, 20),
+            (
                 ParticipantVariant::Normal,
                 ParticipantVariant::Weak,
-                Some(0),
+                20,
+                -20,
             ),
-            0
-        );
-        assert_eq!(
-            variant_hp_adjustment_delta(
+            (ParticipantVariant::Weak, ParticipantVariant::Normal, 20, 20),
+            (
                 ParticipantVariant::Normal,
                 ParticipantVariant::Weak,
-                Some(1),
+                21,
+                -30,
             ),
-            -10
-        );
-        assert_eq!(
-            variant_hp_adjustment_delta(
-                ParticipantVariant::Weak,
-                ParticipantVariant::Elite,
-                Some(1),
-            ),
-            20
-        );
+            (ParticipantVariant::Weak, ParticipantVariant::Normal, 21, 30),
+            (ParticipantVariant::Weak, ParticipantVariant::Elite, 5, 35),
+            (ParticipantVariant::Elite, ParticipantVariant::Weak, 6, -40),
+            (ParticipantVariant::Weak, ParticipantVariant::Elite, 20, 50),
+            (ParticipantVariant::Elite, ParticipantVariant::Weak, 21, -60),
+        ];
+
+        for (old_variant, new_variant, level, expected_delta) in cases {
+            assert_eq!(
+                variant_hp_adjustment_delta(old_variant, new_variant, Some(level)),
+                expected_delta,
+                "unexpected {old_variant:?} -> {new_variant:?} HP delta at starting level {level}"
+            );
+        }
     }
 
     #[test]
@@ -2819,6 +2945,68 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_first_damage_formula_retains_exact_ordered_disposition() {
+        for (formula, expected_formula) in
+            [(FactValue::Missing, "missing"), (FactValue::Null, "null")]
+        {
+            let projection = canonical_strike_with_unsupported_first_formula(formula);
+            let projected = project_canonical_projection(
+                &participant(ParticipantVariant::Elite, Vec::new()),
+                projection,
+            );
+            let strike = projected
+                .activities
+                .iter()
+                .find(|activity| activity.activity_id == "strike-claw")
+                .expect("strike should project");
+            assert_eq!(
+                strike
+                    .damage
+                    .iter()
+                    .map(|damage| damage.damage_id.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["main", "secondary"]
+            );
+            assert_no_damage_modifier(&projected, "strike-claw", "main");
+            assert_no_damage_modifier(&projected, "strike-claw", "secondary");
+            assert_unsupported_damage_formula_disposition(&projected, expected_formula);
+        }
+
+        let mut reordered = canonical_strike_with_unsupported_first_formula(FactValue::Missing);
+        let strike = canonical_activity_mut(&mut reordered, "strike-claw");
+        let unsupported_index = strike
+            .facts
+            .iter()
+            .position(|fact| {
+                matches!(
+                    &fact.target,
+                    MechanicTarget::ActivityDamage { damage_id, .. }
+                        if damage_id == "unsupported-first"
+                )
+            })
+            .expect("unsupported damage should exist");
+        let main_index = strike
+            .facts
+            .iter()
+            .position(|fact| {
+                matches!(
+                    &fact.target,
+                    MechanicTarget::ActivityDamage { damage_id, .. } if damage_id == "main"
+                )
+            })
+            .expect("main damage should exist");
+        strike.facts.swap(unsupported_index, main_index);
+
+        let projected = project_canonical_projection(
+            &participant(ParticipantVariant::Elite, Vec::new()),
+            reordered,
+        );
+        assert_damage_modifier(&projected, "strike-claw", "main", 2);
+        assert_no_damage_modifier(&projected, "strike-claw", "secondary");
+        assert_unsupported_damage_formula_disposition(&projected, "missing");
+    }
+
+    #[test]
     fn canonical_prone_applies_off_guard_and_typed_attack_penalty_only() {
         let projection = project_canonical(&participant(
             ParticipantVariant::Normal,
@@ -2871,11 +3059,28 @@ mod tests {
                     .find(|roll| roll.label == "Spell Attack")
             })
             .expect("spell attack should project");
+        assert_eq!(spell_attack.surface, ActivityRollSurfaceView::AttackRoll);
+        assert_eq!(spell_attack.base_value, 14);
         assert_eq!(spell_attack.adjusted_value, 11);
         assert!(spell_attack.modifiers.iter().any(|modifier| {
             modifier.source == "Prone"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
                 && modifier.value == -2
+        }));
+        assert!(spell_attack.modifiers.iter().any(|modifier| {
+            modifier.source == "Frightened 1"
+                && modifier.modifier_type == StatModifierTypeView::Status
+                && modifier.value == -1
+        }));
+        assert!(spell_attack.suppressed_modifiers.iter().any(|modifier| {
+            modifier.source == "Prone"
+                && modifier.modifier_type == StatModifierTypeView::Circumstance
+        }));
+        assert!(projection.unapplied_effects.iter().any(|effect| {
+            effect
+                .reason
+                .contains("check roll has no encounter roll surface")
+                && effect.reason.contains("Recall Knowledge")
         }));
         let action_notes = &projection
             .action_budget
