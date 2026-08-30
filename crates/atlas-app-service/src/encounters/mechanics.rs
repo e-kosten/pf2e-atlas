@@ -10,10 +10,14 @@ use atlas_app_model::{
 };
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
 use atlas_record::{
-    AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, DamageEffectKind,
-    DamageExpression, MechanicActivity, MechanicActivityKind, MechanicActivityMode,
-    MechanicActivityUsage, MechanicScalar, MechanicSurface, MechanicTarget, MechanicValue,
-    MechanicsView, MovementSpeed, build_mechanics_view,
+    AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, CanonicalMechanicActivity,
+    CanonicalMechanicsProjection, CreatureDamage, CreatureDamageKind, CreatureNumber,
+    CreatureResourceAmount, CreatureRollKind, CreatureSourceScalar, DamageEffectKind,
+    DamageExpression, FactValue, MechanicActivity, MechanicActivityFamily, MechanicActivityKind,
+    MechanicActivityMode, MechanicActivityUsage, MechanicBaseValue, MechanicFact, MechanicScalar,
+    MechanicSurface, MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, RecordBody,
+    RetrievedRecord, UnsupportedMechanic, UnsupportedMechanicValue, build_mechanics_view,
+    project_creature_mechanics,
 };
 
 use super::conditions::{ConditionRule, condition_rule_for_key};
@@ -54,10 +58,20 @@ struct RuntimeNote {
 
 pub(super) fn participant_stat_block(
     participant: &EncounterParticipant,
-    record: &atlas_record::AtlasRecord,
+    retrieved: &RetrievedRecord,
 ) -> Option<StatBlockView> {
-    let mechanics = build_mechanics_view(record)?;
-    Some(apply_participant_effects(participant, mechanics))
+    let Some(RecordBody::Creature(creature)) = retrieved.body.as_ref() else {
+        return None;
+    };
+    let mechanics = canonical_participant_mechanics(
+        project_creature_mechanics(creature),
+        creature.identity.name.clone(),
+    );
+    Some(apply_participant_effects(
+        participant,
+        mechanics.view,
+        mechanics.unapplied_effects,
+    ))
 }
 
 pub(crate) fn record_stat_block(record: &atlas_record::AtlasRecord) -> Option<StatBlockView> {
@@ -173,6 +187,290 @@ fn base_damage_view(damage: DamageExpression) -> DamageExpressionView {
     }
 }
 
+struct ParticipantMechanics {
+    view: MechanicsView,
+    unapplied_effects: Vec<UnappliedEffectView>,
+}
+
+fn canonical_participant_mechanics(
+    projection: CanonicalMechanicsProjection,
+    title: String,
+) -> ParticipantMechanics {
+    let level = fact_integer(&projection.level);
+    let mut values = Vec::new();
+    let mut speeds = Vec::new();
+    for fact in projection.facts {
+        match &fact.target {
+            MechanicTarget::Movement { speed_id } => {
+                if let Some(value_feet) = mechanic_integer(&fact.value) {
+                    speeds.push(MovementSpeed {
+                        movement_type: speed_id.as_str().to_string(),
+                        label: fact.label,
+                        value_feet,
+                    });
+                }
+            }
+            _ => {
+                if let Some(base_value) = mechanic_integer(&fact.value) {
+                    values.push(MechanicValue {
+                        target: fact.target,
+                        label: fact.label,
+                        base_value: MechanicScalar::Number(base_value),
+                        facets: fact.facets,
+                    });
+                }
+            }
+        }
+    }
+    let mut unapplied_effects = projection
+        .unsupported
+        .into_iter()
+        .map(canonical_unsupported_effect)
+        .collect::<Vec<_>>();
+    let activities = projection
+        .activities
+        .into_iter()
+        .map(|activity| {
+            unapplied_effects.extend(
+                activity
+                    .unsupported
+                    .iter()
+                    .cloned()
+                    .map(canonical_unsupported_effect),
+            );
+            canonical_activity(activity)
+        })
+        .collect();
+
+    ParticipantMechanics {
+        view: MechanicsView {
+            record_key: projection.record_key,
+            kind: atlas_domain::RecordKind::Creature,
+            title,
+            level,
+            values,
+            speeds,
+            activities,
+        },
+        unapplied_effects,
+    }
+}
+
+fn canonical_activity(activity: CanonicalMechanicActivity) -> MechanicActivity {
+    let ability = activity_attack_ability(&activity);
+    let usage = canonical_activity_usage(&activity);
+    let kind = match activity.family {
+        MechanicActivityFamily::Strike => MechanicActivityKind::Strike,
+        MechanicActivityFamily::Spell | MechanicActivityFamily::SpellcastingEntry => {
+            MechanicActivityKind::Spell
+        }
+        MechanicActivityFamily::Action | MechanicActivityFamily::Unsupported => {
+            MechanicActivityKind::Other
+        }
+    };
+    let rolls = activity
+        .facts
+        .iter()
+        .filter_map(canonical_activity_roll)
+        .collect();
+    let damage = activity
+        .facts
+        .iter()
+        .filter_map(|fact| canonical_activity_damage(fact, ability))
+        .collect();
+    MechanicActivity {
+        activity_id: activity.occurrence_id.as_str().to_string(),
+        label: activity.label,
+        kind,
+        traits: Vec::new(),
+        compendium_source: None,
+        usage,
+        rolls,
+        damage,
+        modes: Vec::new(),
+    }
+}
+
+fn canonical_activity_roll(fact: &MechanicFact) -> Option<ActivityRoll> {
+    match (&fact.target, &fact.value) {
+        (MechanicTarget::ActivityRoll { roll_id, .. }, MechanicBaseValue::Roll(roll)) => {
+            let surface = match roll.kind {
+                CreatureRollKind::Attack => ActivityRollSurface::AttackRoll,
+                CreatureRollKind::DifficultyClass => ActivityRollSurface::Dc,
+                CreatureRollKind::Check => return None,
+            };
+            Some(ActivityRoll {
+                roll_id: roll_id.clone(),
+                label: fact.label.clone(),
+                base_value: fact_integer(&roll.value)?,
+                surface,
+                ability: fact_activity_ability(&roll.ability),
+            })
+        }
+        (MechanicTarget::SpellcastingAttack { .. }, _) => Some(ActivityRoll {
+            roll_id: fact.target.id(),
+            label: fact.label.clone(),
+            base_value: mechanic_integer(&fact.value)?,
+            surface: ActivityRollSurface::AttackRoll,
+            ability: None,
+        }),
+        (MechanicTarget::SpellcastingDc { .. }, _) => Some(ActivityRoll {
+            roll_id: fact.target.id(),
+            label: fact.label.clone(),
+            base_value: mechanic_integer(&fact.value)?,
+            surface: ActivityRollSurface::Dc,
+            ability: None,
+        }),
+        _ => None,
+    }
+}
+
+fn canonical_activity_damage(
+    fact: &MechanicFact,
+    activity_ability: Option<ActivityRollAbility>,
+) -> Option<DamageExpression> {
+    let MechanicBaseValue::Damage(damage) = &fact.value else {
+        return None;
+    };
+    Some(DamageExpression {
+        damage_id: damage.id.clone(),
+        label: (fact.label != damage.id).then(|| fact.label.clone()),
+        formula: damage.formula.as_value()?.clone(),
+        damage_type: damage.damage_type.as_value().cloned(),
+        effect_kind: canonical_damage_effect_kind(damage),
+        ability: damage_applies_modifier(damage)
+            .then_some(activity_ability)
+            .flatten(),
+    })
+}
+
+fn activity_attack_ability(activity: &CanonicalMechanicActivity) -> Option<ActivityRollAbility> {
+    activity.facts.iter().find_map(|fact| {
+        let MechanicBaseValue::Roll(roll) = &fact.value else {
+            return None;
+        };
+        (roll.kind == CreatureRollKind::Attack)
+            .then(|| fact_activity_ability(&roll.ability))
+            .flatten()
+    })
+}
+
+fn canonical_activity_usage(activity: &CanonicalMechanicActivity) -> MechanicActivityUsage {
+    match activity.family {
+        MechanicActivityFamily::Strike => MechanicActivityUsage::Unlimited,
+        MechanicActivityFamily::Spell | MechanicActivityFamily::SpellcastingEntry => {
+            MechanicActivityUsage::Limited
+        }
+        MechanicActivityFamily::Action => {
+            if activity.facts.iter().any(fact_has_limited_use) {
+                MechanicActivityUsage::Limited
+            } else {
+                MechanicActivityUsage::Unlimited
+            }
+        }
+        MechanicActivityFamily::Unsupported => MechanicActivityUsage::Ambiguous,
+    }
+}
+
+fn fact_has_limited_use(fact: &MechanicFact) -> bool {
+    match &fact.value {
+        MechanicBaseValue::Frequency(value) => value
+            .as_value()
+            .and_then(|frequency| frequency.maximum.as_value())
+            .is_some(),
+        MechanicBaseValue::Uses(value) => value
+            .as_value()
+            .and_then(|uses| uses.maximum.as_value())
+            .is_some(),
+        _ => false,
+    }
+}
+
+fn canonical_damage_effect_kind(damage: &CreatureDamage) -> DamageEffectKind {
+    let Some(kinds) = damage.kinds.as_value() else {
+        return DamageEffectKind::Unknown;
+    };
+    let has_damage = kinds.contains(&CreatureDamageKind::Damage);
+    let has_healing = kinds.contains(&CreatureDamageKind::Healing);
+    match (has_damage, has_healing) {
+        (true, false) => DamageEffectKind::Damage,
+        (false, true) => DamageEffectKind::Healing,
+        (true, true) => DamageEffectKind::DamageOrHealing,
+        (false, false) => DamageEffectKind::Unknown,
+    }
+}
+
+fn damage_applies_modifier(damage: &CreatureDamage) -> bool {
+    matches!(
+        damage.apply_modifier,
+        FactValue::Value(CreatureSourceScalar::Value(true))
+    )
+}
+
+fn mechanic_integer(value: &MechanicBaseValue) -> Option<i64> {
+    match value {
+        MechanicBaseValue::Integer(value) => fact_integer(value),
+        MechanicBaseValue::Number(value) => match value.as_value()? {
+            CreatureNumber::Integer(value) => Some(*value),
+            CreatureNumber::Unsupported(_) => None,
+        },
+        MechanicBaseValue::ResourceAmount(value) => match value.as_value()? {
+            CreatureResourceAmount::Integer(value) => Some(*value),
+            CreatureResourceAmount::Unsupported(_) => None,
+        },
+        MechanicBaseValue::SourceInteger(value) => match value.as_value()? {
+            CreatureSourceScalar::Value(value) => Some(*value),
+            CreatureSourceScalar::Unsupported(_) => None,
+        },
+        MechanicBaseValue::Roll(value) => fact_integer(&value.value),
+        MechanicBaseValue::ActionCost(_)
+        | MechanicBaseValue::Frequency(_)
+        | MechanicBaseValue::Uses(_)
+        | MechanicBaseValue::Damage(_) => None,
+    }
+}
+
+fn fact_integer(value: &FactValue<i64>) -> Option<i64> {
+    value.as_value().copied()
+}
+
+fn fact_activity_ability(value: &FactValue<ActivityRollAbility>) -> Option<ActivityRollAbility> {
+    value.as_value().copied()
+}
+
+fn canonical_unsupported_effect(unsupported: UnsupportedMechanic) -> UnappliedEffectView {
+    let target = unsupported
+        .target
+        .as_ref()
+        .map(MechanicTarget::id)
+        .unwrap_or_else(|| "unmodeled mechanic".to_string());
+    UnappliedEffectView {
+        source: "Canonical source".to_string(),
+        label: format!("{target} retained without automation"),
+        reason: format!(
+            "{}: {}",
+            unsupported.source_path,
+            unsupported_value(&unsupported.value)
+        ),
+    }
+}
+
+fn unsupported_value(value: &UnsupportedMechanicValue) -> String {
+    match value {
+        UnsupportedMechanicValue::Source(value) => value.value.clone(),
+        UnsupportedMechanicValue::Note(note) => note.value.value.clone(),
+        UnsupportedMechanicValue::Capability {
+            source_item_type,
+            source_slug,
+        } => source_slug
+            .as_value()
+            .map(|slug| format!("{source_item_type}: {slug}"))
+            .unwrap_or_else(|| source_item_type.clone()),
+        UnsupportedMechanicValue::PreparedSlot(value) => value.value.clone(),
+        UnsupportedMechanicValue::ResourceDrift(value) => value.value.value.clone(),
+    }
+}
+
 pub(super) fn variant_hp_adjustment_delta(
     old_variant: ParticipantVariant,
     new_variant: ParticipantVariant,
@@ -182,12 +480,20 @@ pub(super) fn variant_hp_adjustment_delta(
         - variant_hp_delta(old_variant, level).unwrap_or(0)
 }
 
+pub(super) fn canonical_creature_level(retrieved: &RetrievedRecord) -> Option<i64> {
+    let Some(RecordBody::Creature(creature)) = retrieved.body.as_ref() else {
+        return None;
+    };
+    fact_integer(&creature.level.value)
+}
+
 fn apply_participant_effects(
     participant: &EncounterParticipant,
     mechanics: MechanicsView,
+    mut unapplied_effects: Vec<UnappliedEffectView>,
 ) -> StatBlockView {
     let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
-    let mut unapplied_effects = variant_unapplied_effects(participant.participant_variant);
+    unapplied_effects.extend(variant_unapplied_effects(participant.participant_variant));
     for condition in &participant.conditions {
         let Some(condition_rule) = condition_rule_for_key(condition.condition_key.as_deref())
         else {
@@ -207,19 +513,27 @@ fn apply_participant_effects(
             .push(modifier);
     }
 
+    let values = mechanics
+        .values
+        .into_iter()
+        .map(|value| {
+            let modifiers = by_target.remove(&value.target).unwrap_or_default();
+            stat_value_view(value, modifiers)
+        })
+        .collect();
+    unapplied_effects.extend(
+        by_target
+            .into_values()
+            .flatten()
+            .map(unmatched_modifier_effect),
+    );
+
     StatBlockView {
         record_key: mechanics.record_key.to_string(),
         title: mechanics.title,
         level: mechanics.level,
         adjusted_level: adjusted_level(mechanics.level, participant.participant_variant),
-        values: mechanics
-            .values
-            .into_iter()
-            .map(|value| {
-                let modifiers = by_target.remove(&value.target).unwrap_or_default();
-                stat_value_view(value, modifiers)
-            })
-            .collect(),
+        values,
         speeds: mechanics
             .speeds
             .into_iter()
@@ -237,7 +551,7 @@ fn apply_participant_effects(
 
 fn speed_view(speed: MovementSpeed, participant: &EncounterParticipant) -> MovementSpeedView {
     let base_value = speed.value_feet;
-    let adjustments = speed_adjustments(participant, base_value);
+    let (adjustments, suppressed_adjustments) = speed_adjustments(participant, base_value);
     let adjusted_value = apply_runtime_adjustments(base_value, &adjustments);
     let notes = speed_notes(participant);
     MovementSpeedView {
@@ -249,7 +563,10 @@ fn speed_view(speed: MovementSpeed, participant: &EncounterParticipant) -> Movem
             .into_iter()
             .map(runtime_adjustment_view)
             .collect(),
-        suppressed_adjustments: Vec::new(),
+        suppressed_adjustments: suppressed_adjustments
+            .into_iter()
+            .map(runtime_adjustment_view)
+            .collect(),
         notes: notes.into_iter().map(runtime_note_view).collect(),
     }
 }
@@ -310,8 +627,8 @@ struct ActionProjection {
 
 fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
     let mut quickened = Vec::new();
-    let mut slowed: Option<RuntimeAdjustment> = None;
-    let mut stunned: Option<(RuntimeAdjustment, i64)> = None;
+    let mut slowed = Vec::new();
+    let mut stunned = Vec::new();
     let mut notes = Vec::new();
     for (condition, rule) in participant_condition_rules(participant) {
         match rule {
@@ -331,7 +648,7 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
                     reason: Some("Applied to the next action-regain step.".to_string()),
                     floor: Some(0),
                 };
-                slowed = strongest_runtime_penalty(slowed, adjustment);
+                slowed.push(adjustment);
             }
             ConditionRule::Stunned => {
                 let amount = condition_value(condition);
@@ -346,13 +663,7 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
                     ),
                     floor: Some(0),
                 };
-                stunned = Some((adjustment, amount - consumed));
-                notes.push(RuntimeNote {
-                    source: condition_source(condition),
-                    label: "Own-turn stunned timing".to_string(),
-                    reason: "If stunned is applied during this participant's turn, finish the current action or activity, then lose remaining actions immediately to reduce stunned."
-                        .to_string(),
-                });
+                stunned.push((adjustment, amount - consumed, amount));
             }
             ConditionRule::Prone => notes.push(RuntimeNote {
                 source: condition_source(condition),
@@ -366,9 +677,62 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
 
     let mut adjustments = Vec::new();
     let mut suppressed_adjustments = Vec::new();
-    let stunned_remaining = stunned.as_ref().map(|(_, remaining)| *remaining);
-    if let Some((stunned_adjustment, _)) = stunned {
-        if let Some(slowed_adjustment) = slowed {
+    quickened.sort_by(|left, right| left.source.cmp(&right.source));
+    if let Some(applied_quickened) = quickened.first().cloned() {
+        adjustments.push(applied_quickened);
+        suppressed_adjustments.extend(quickened.into_iter().skip(1).map(|adjustment| {
+            RuntimeAdjustment {
+                reason: Some(
+                    "Only one restricted bonus action from quickened applies.".to_string(),
+                ),
+                ..adjustment
+            }
+        }));
+    }
+
+    slowed.sort_by(|left, right| {
+        left.value
+            .cmp(&right.value)
+            .then_with(|| left.source.cmp(&right.source))
+    });
+    let strongest_slowed = slowed.first().cloned();
+    suppressed_adjustments.extend(
+        slowed
+            .into_iter()
+            .skip(1)
+            .map(|adjustment| RuntimeAdjustment {
+                reason: Some("A stronger slowed penalty applies.".to_string()),
+                ..adjustment
+            }),
+    );
+
+    stunned.sort_by(|left, right| {
+        right
+            .2
+            .cmp(&left.2)
+            .then_with(|| left.0.source.cmp(&right.0.source))
+    });
+    let strongest_stunned = stunned.first().cloned();
+    if let Some((adjustment, _, _)) = strongest_stunned.as_ref() {
+        notes.push(RuntimeNote {
+            source: adjustment.source.clone(),
+            label: "Own-turn stunned timing".to_string(),
+            reason: "If stunned is applied during this participant's turn, finish the current action or activity, then lose remaining actions immediately to reduce stunned."
+                .to_string(),
+        });
+    }
+    suppressed_adjustments.extend(stunned.into_iter().skip(1).map(|(adjustment, _, _)| {
+        RuntimeAdjustment {
+            reason: Some("A stronger stunned value applies.".to_string()),
+            ..adjustment
+        }
+    }));
+
+    let stunned_remaining = strongest_stunned
+        .as_ref()
+        .map(|(_, remaining, _)| *remaining);
+    if let Some((stunned_adjustment, _, _)) = strongest_stunned {
+        if let Some(slowed_adjustment) = strongest_slowed {
             suppressed_adjustments.push(RuntimeAdjustment {
                 reason: Some(
                     "Stunned overrides slowed for the same action-regain window.".to_string(),
@@ -377,10 +741,9 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
             });
         }
         adjustments.push(stunned_adjustment);
-    } else if let Some(slowed_adjustment) = slowed {
+    } else if let Some(slowed_adjustment) = strongest_slowed {
         adjustments.push(slowed_adjustment);
     }
-    adjustments.extend(quickened);
 
     let adjusted_actions = apply_runtime_adjustments(3, &adjustments);
     let mut action_segments = vec![RuntimeCountSegmentView {
@@ -434,16 +797,6 @@ fn restricted_bonus_total(adjustments: &[RuntimeAdjustment]) -> i64 {
         .filter(|adjustment| adjustment.value > 0)
         .map(|adjustment| adjustment.value)
         .sum()
-}
-
-fn strongest_runtime_penalty(
-    current: Option<RuntimeAdjustment>,
-    candidate: RuntimeAdjustment,
-) -> Option<RuntimeAdjustment> {
-    match current {
-        Some(existing) if existing.value <= candidate.value => Some(existing),
-        _ => Some(candidate),
-    }
 }
 
 fn apply_runtime_adjustments(base_value: i64, adjustments: &[RuntimeAdjustment]) -> i64 {
@@ -829,6 +1182,11 @@ fn stat_value_view(value: MechanicValue, modifiers: Vec<CandidateModifier>) -> S
     let adjusted_value = applied
         .iter()
         .fold(base_value, |total, modifier| total + modifier.value);
+    let adjusted_value = if value.target == MechanicTarget::MaxHp {
+        adjusted_value.max(1)
+    } else {
+        adjusted_value
+    };
     StatValueView {
         target: value.target.id(),
         label: value.label,
@@ -836,6 +1194,17 @@ fn stat_value_view(value: MechanicValue, modifiers: Vec<CandidateModifier>) -> S
         adjusted_value,
         modifiers: applied.into_iter().map(modifier_view).collect(),
         suppressed_modifiers: suppressed.into_iter().map(modifier_view).collect(),
+    }
+}
+
+fn unmatched_modifier_effect(modifier: CandidateModifier) -> UnappliedEffectView {
+    UnappliedEffectView {
+        source: modifier.source,
+        label: format!("{} was not applied", modifier.label),
+        reason: format!(
+            "No supported base value was available for target {}.",
+            modifier.target.id()
+        ),
     }
 }
 
@@ -895,12 +1264,7 @@ fn variant_modifiers(
     let mut modifiers = mechanics
         .values
         .iter()
-        .filter(|value| {
-            !matches!(
-                value.facets.surface,
-                MechanicSurface::HitPoints | MechanicSurface::RawModifier
-            )
-        })
+        .filter(|value| value.facets.surface.is_check_or_dc())
         .map(|value| CandidateModifier {
             target: value.target.clone(),
             source: source.to_string(),
@@ -1032,7 +1396,7 @@ fn condition_modifiers(
 fn speed_adjustments(
     participant: &EncounterParticipant,
     base_value: i64,
-) -> Vec<RuntimeAdjustment> {
+) -> (Vec<RuntimeAdjustment>, Vec<RuntimeAdjustment>) {
     let mut penalties = Vec::new();
     let mut immobilizing = Vec::new();
     for (condition, rule) in participant_condition_rules(participant) {
@@ -1057,9 +1421,43 @@ fn speed_adjustments(
             _ => {}
         }
     }
-    let mut adjustments = penalties;
-    adjustments.extend(immobilizing);
-    adjustments
+    penalties.sort_by(|left, right| left.source.cmp(&right.source));
+    immobilizing.sort_by(|left, right| left.source.cmp(&right.source));
+
+    let mut adjustments = Vec::new();
+    let mut suppressed = Vec::new();
+    if let Some(immobilized) = immobilizing.first().cloned() {
+        adjustments.push(immobilized);
+        suppressed.extend(
+            immobilizing
+                .into_iter()
+                .skip(1)
+                .map(|adjustment| RuntimeAdjustment {
+                    reason: Some(
+                        "Another immobilizing effect already fixes speed at 0.".to_string(),
+                    ),
+                    ..adjustment
+                }),
+        );
+        suppressed.extend(penalties.into_iter().map(|adjustment| RuntimeAdjustment {
+            reason: Some(
+                "Immobilized fixes speed at 0, so this speed penalty is suppressed.".to_string(),
+            ),
+            ..adjustment
+        }));
+    } else if let Some(penalty) = penalties.first().cloned() {
+        adjustments.push(penalty);
+        suppressed.extend(
+            penalties
+                .into_iter()
+                .skip(1)
+                .map(|adjustment| RuntimeAdjustment {
+                    reason: Some("An equivalent speed penalty already applies.".to_string()),
+                    ..adjustment
+                }),
+        );
+    }
+    (adjustments, suppressed)
 }
 
 fn speed_notes(participant: &EncounterParticipant) -> Vec<RuntimeNote> {
@@ -1259,14 +1657,432 @@ mod tests {
     use super::*;
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
-        AtlasRecord, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, MetricDefinition,
-        MetricRow, MetricValue, RecordClassification, RecordIdentity, RecordProvenance, metrics,
+        AtlasRecord, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, MechanicFacets,
+        MetricDefinition, MetricRow, MetricValue, RecordClassification, RecordIdentity,
+        RecordProvenance, metrics,
     };
+
+    fn project_legacy(
+        participant: &EncounterParticipant,
+        record: &AtlasRecord,
+    ) -> Option<StatBlockView> {
+        let mechanics = build_mechanics_view(record)?;
+        Some(apply_participant_effects(
+            participant,
+            mechanics,
+            Vec::new(),
+        ))
+    }
+
+    fn project_canonical(participant: &EncounterParticipant) -> StatBlockView {
+        let mechanics = canonical_participant_mechanics(
+            canonical_projection(),
+            "Canonical Creature".to_string(),
+        );
+        apply_participant_effects(participant, mechanics.view, mechanics.unapplied_effects)
+    }
+
+    fn canonical_projection() -> CanonicalMechanicsProjection {
+        let skill_id =
+            atlas_record::CreatureComponentId::new("athletics").expect("skill id should be valid");
+        let speed_id =
+            atlas_record::CreatureComponentId::new("land").expect("speed id should be valid");
+        let resource_id =
+            atlas_record::CreatureComponentId::new("focus").expect("resource id should be valid");
+        let strike_id = atlas_record::CreatureOccurrenceId::new("strike-claw")
+            .expect("occurrence id should be valid");
+        let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
+            .expect("occurrence id should be valid");
+        let action_id = atlas_record::CreatureOccurrenceId::new("action-breath")
+            .expect("occurrence id should be valid");
+        CanonicalMechanicsProjection {
+            record_key: RecordKey::parse("actors:canonical").expect("record key should parse"),
+            level: FactValue::Value(5),
+            facts: vec![
+                MechanicFact {
+                    target: MechanicTarget::ArmorClass,
+                    label: "AC".to_string(),
+                    value: MechanicBaseValue::Integer(FactValue::Value(22)),
+                    facets: MechanicFacets::armor_class(),
+                },
+                MechanicFact {
+                    target: MechanicTarget::MaxHp,
+                    label: "Max HP".to_string(),
+                    value: MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(60))),
+                    facets: MechanicFacets::hit_points(),
+                },
+                MechanicFact {
+                    target: MechanicTarget::Perception,
+                    label: "Perception".to_string(),
+                    value: MechanicBaseValue::Integer(FactValue::Value(13)),
+                    facets: MechanicFacets::perception(),
+                },
+                MechanicFact {
+                    target: MechanicTarget::Save {
+                        save: atlas_record::SaveKind::Reflex,
+                    },
+                    label: "Reflex".to_string(),
+                    value: MechanicBaseValue::Integer(FactValue::Value(12)),
+                    facets: MechanicFacets::saving_throw(atlas_record::SaveKind::Reflex),
+                },
+                MechanicFact {
+                    target: MechanicTarget::CreatureSkill {
+                        skill_id,
+                        kind: atlas_record::CreatureSkillKind::Athletics,
+                    },
+                    label: "Athletics".to_string(),
+                    value: MechanicBaseValue::Integer(FactValue::Value(9)),
+                    facets: MechanicFacets::creature_skill(
+                        atlas_record::CreatureSkillKind::Athletics,
+                    ),
+                },
+                MechanicFact {
+                    target: MechanicTarget::Movement { speed_id },
+                    label: "Land Speed".to_string(),
+                    value: MechanicBaseValue::Integer(FactValue::Value(25)),
+                    facets: MechanicFacets::movement(),
+                },
+                MechanicFact {
+                    target: MechanicTarget::ResourceMaximum { resource_id },
+                    label: "Focus".to_string(),
+                    value: MechanicBaseValue::ResourceAmount(FactValue::Value(
+                        CreatureResourceAmount::Integer(2),
+                    )),
+                    facets: MechanicFacets::resource(),
+                },
+            ],
+            activities: vec![
+                CanonicalMechanicActivity {
+                    occurrence_id: strike_id.clone(),
+                    family: MechanicActivityFamily::Strike,
+                    label: "Claw".to_string(),
+                    authored_order: 0,
+                    facts: vec![
+                        MechanicFact {
+                            target: MechanicTarget::ActivityRoll {
+                                occurrence_id: strike_id.clone(),
+                                roll_id: "attack".to_string(),
+                            },
+                            label: "Attack".to_string(),
+                            value: MechanicBaseValue::Roll(atlas_record::CreatureRoll {
+                                id: "attack".to_string(),
+                                label: "Attack".to_string(),
+                                kind: CreatureRollKind::Attack,
+                                value: FactValue::Value(12),
+                                ability: FactValue::Value(ActivityRollAbility::Strength),
+                            }),
+                            facets: MechanicFacets::roll(
+                                atlas_record::MechanicSourceFamily::Strike,
+                                CreatureRollKind::Attack,
+                            ),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::ActivityDamage {
+                                occurrence_id: strike_id.clone(),
+                                damage_id: "main".to_string(),
+                            },
+                            label: "main".to_string(),
+                            value: MechanicBaseValue::Damage(CreatureDamage {
+                                id: "main".to_string(),
+                                formula: FactValue::Value("1d6+4".to_string()),
+                                damage_type: FactValue::Value("slashing".to_string()),
+                                category: FactValue::Missing,
+                                kinds: FactValue::Value(vec![CreatureDamageKind::Damage]),
+                                apply_modifier: FactValue::Value(CreatureSourceScalar::Value(true)),
+                            }),
+                            facets: MechanicFacets::damage(
+                                atlas_record::MechanicSourceFamily::Strike,
+                            ),
+                        },
+                    ],
+                    unsupported: vec![UnsupportedMechanic {
+                        target: None,
+                        activity_occurrence_id: Some(strike_id),
+                        source_path: "activities.strike-claw.unsupported".to_string(),
+                        value: UnsupportedMechanicValue::Capability {
+                            source_item_type: "unmodeled-rule".to_string(),
+                            source_slug: FactValue::Missing,
+                        },
+                    }],
+                },
+                CanonicalMechanicActivity {
+                    occurrence_id: spellcasting_id.clone(),
+                    family: MechanicActivityFamily::SpellcastingEntry,
+                    label: "Arcane Prepared Spells".to_string(),
+                    authored_order: 1,
+                    facts: vec![MechanicFact {
+                        target: MechanicTarget::SpellcastingDc {
+                            entry_occurrence_id: spellcasting_id,
+                        },
+                        label: "Spell DC".to_string(),
+                        value: MechanicBaseValue::Integer(FactValue::Value(22)),
+                        facets: MechanicFacets::spellcasting_dc(),
+                    }],
+                    unsupported: Vec::new(),
+                },
+                CanonicalMechanicActivity {
+                    occurrence_id: action_id.clone(),
+                    family: MechanicActivityFamily::Action,
+                    label: "Breath Weapon".to_string(),
+                    authored_order: 2,
+                    facts: vec![
+                        MechanicFact {
+                            target: MechanicTarget::ActivityFrequency {
+                                occurrence_id: action_id.clone(),
+                            },
+                            label: "Frequency".to_string(),
+                            value: MechanicBaseValue::Frequency(FactValue::Value(
+                                atlas_record::CreatureFrequency {
+                                    maximum: FactValue::Value(1),
+                                    period: FactValue::Value("day".to_string()),
+                                    serialized_value: FactValue::Missing,
+                                },
+                            )),
+                            facets: MechanicFacets::frequency(
+                                atlas_record::MechanicSourceFamily::Action,
+                            ),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::ActivityDamage {
+                                occurrence_id: action_id,
+                                damage_id: "fire".to_string(),
+                            },
+                            label: "fire".to_string(),
+                            value: MechanicBaseValue::Damage(CreatureDamage {
+                                id: "fire".to_string(),
+                                formula: FactValue::Value("4d6".to_string()),
+                                damage_type: FactValue::Value("fire".to_string()),
+                                category: FactValue::Missing,
+                                kinds: FactValue::Value(vec![CreatureDamageKind::Damage]),
+                                apply_modifier: FactValue::Value(CreatureSourceScalar::Value(
+                                    false,
+                                )),
+                            }),
+                            facets: MechanicFacets::damage(
+                                atlas_record::MechanicSourceFamily::Action,
+                            ),
+                        },
+                    ],
+                    unsupported: Vec::new(),
+                },
+            ],
+            unsupported: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn canonical_targets_receive_variants_without_adjusting_resources() {
+        let projection = project_canonical(&participant(ParticipantVariant::Elite, Vec::new()));
+
+        assert_eq!(projection.adjusted_level, Some(6));
+        assert_stat(&projection, "ac", 22, 24, "Elite adjustment");
+        assert_stat(&projection, "hp.max", 60, 80, "Elite HP adjustment");
+        let resource = projection
+            .values
+            .iter()
+            .find(|value| value.label == "Focus")
+            .expect("canonical resource should project");
+        assert!(
+            resource
+                .target
+                .starts_with("mechanic-target/v1/resource-maximum/")
+        );
+        assert_eq!(resource.base_value, 2);
+        assert_eq!(resource.adjusted_value, 2);
+        assert!(resource.modifiers.is_empty());
+        assert_eq!(speed(&projection, "land").base_value_feet, 25);
+        assert!(
+            projection
+                .values
+                .iter()
+                .all(|value| !value.target.starts_with("skill."))
+        );
+    }
+
+    #[test]
+    fn canonical_weak_hp_adjustment_has_a_minimum_of_one() {
+        let mut projection = canonical_projection();
+        projection.level = FactValue::Value(1);
+        let hp = projection
+            .facts
+            .iter_mut()
+            .find(|fact| fact.target == MechanicTarget::MaxHp)
+            .expect("max hp should exist");
+        hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(5)));
+        let mechanics = canonical_participant_mechanics(projection, "Fragile".to_string());
+        let block = apply_participant_effects(
+            &participant(ParticipantVariant::Weak, Vec::new()),
+            mechanics.view,
+            mechanics.unapplied_effects,
+        );
+
+        assert_stat(&block, "hp.max", 5, 1, "Weak HP adjustment");
+    }
+
+    #[test]
+    fn canonical_condition_targets_stack_and_suppress_by_type() {
+        let projection = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![
+                condition("Frightened", Some(1)),
+                condition("Sickened", Some(2)),
+                condition("Off-Guard", None),
+            ],
+        ));
+
+        let ac = value(&projection, "ac");
+        assert_eq!(ac.adjusted_value, 18);
+        assert!(
+            ac.modifiers
+                .iter()
+                .any(|modifier| modifier.label == "Sickened 2")
+        );
+        assert!(
+            ac.modifiers
+                .iter()
+                .any(|modifier| modifier.label == "Off-Guard")
+        );
+        assert!(
+            ac.suppressed_modifiers
+                .iter()
+                .any(|modifier| modifier.label == "Frightened 1")
+        );
+        let skill = projection
+            .values
+            .iter()
+            .find(|value| value.label == "Athletics")
+            .expect("canonical skill should project");
+        assert_eq!(skill.adjusted_value, 7);
+        assert!(
+            skill
+                .target
+                .starts_with("mechanic-target/v1/creature-skill/")
+        );
+    }
+
+    #[test]
+    fn canonical_activity_targets_keep_roll_damage_and_unapplied_context() {
+        let projection = project_canonical(&participant(
+            ParticipantVariant::Elite,
+            vec![condition("Enfeebled", Some(2))],
+        ));
+
+        assert_roll(
+            &projection,
+            "strike-claw",
+            "attack",
+            12,
+            12,
+            "Elite adjustment",
+        );
+        assert!(
+            roll(&projection, "strike-claw", "attack")
+                .modifiers
+                .iter()
+                .any(|modifier| modifier.label == "Enfeebled 2")
+        );
+        let strike_damage = damage(&projection, "strike-claw", "main");
+        assert_eq!(strike_damage.adjusted_formula, None);
+        assert_eq!(strike_damage.modifiers.len(), 2);
+        assert_damage_modifier(&projection, "action-breath", "fire", 4);
+        assert_eq!(
+            damage(&projection, "action-breath", "fire")
+                .adjusted_formula
+                .as_deref(),
+            Some("4d6 + 4")
+        );
+        assert!(projection.unapplied_effects.iter().any(|effect| {
+            effect.reason.contains("activities.strike-claw.unsupported")
+                && effect.reason.contains("unmodeled-rule")
+        }));
+    }
+
+    #[test]
+    fn canonical_ability_and_spell_targets_receive_deterministic_conditions() {
+        let projection = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![
+                condition("Clumsy", Some(1)),
+                condition("Enfeebled", Some(2)),
+                condition("Stupefied", Some(1)),
+            ],
+        ));
+
+        assert_eq!(value(&projection, "save.ref").adjusted_value, 11);
+        assert_eq!(value(&projection, "perception").adjusted_value, 12);
+        let athletics = projection
+            .values
+            .iter()
+            .find(|value| value.label == "Athletics")
+            .expect("athletics should project");
+        assert_eq!(athletics.adjusted_value, 7);
+        assert_roll(&projection, "strike-claw", "attack", 12, 10, "Enfeebled 2");
+        let spellcasting = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == "spellcasting-arcane")
+            .expect("spellcasting entry should project");
+        assert_eq!(spellcasting.rolls[0].base_value, 22);
+        assert_eq!(spellcasting.rolls[0].adjusted_value, 21);
+        assert!(
+            spellcasting.rolls[0]
+                .modifiers
+                .iter()
+                .any(|modifier| modifier.label == "Stupefied 1")
+        );
+        assert_damage_modifier(&projection, "strike-claw", "main", -2);
+    }
+
+    #[test]
+    fn canonical_runtime_rules_explain_action_and_movement_suppression() {
+        let projection = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![
+                condition("Quickened", None),
+                condition("Quickened", None),
+                condition("Slowed", Some(1)),
+                condition("Slowed", Some(2)),
+                condition("Grabbed", None),
+                condition("Encumbered", None),
+            ],
+        ));
+
+        let budget = projection.action_budget.as_ref().expect("action budget");
+        assert_eq!(budget.actions.adjusted_value, 2);
+        assert_eq!(budget.actions.adjustments.len(), 2);
+        assert_eq!(budget.actions.suppressed_adjustments.len(), 2);
+        let land = speed(&projection, "land");
+        assert_eq!(land.adjusted_value_feet, 0);
+        assert_eq!(land.adjustments.len(), 1);
+        assert!(land.suppressed_adjustments.iter().any(|adjustment| {
+            adjustment.source == "Encumbered"
+                && adjustment
+                    .reason
+                    .as_deref()
+                    .is_some_and(|reason| reason.contains("Immobilized"))
+        }));
+    }
+
+    #[test]
+    fn participant_projection_never_falls_back_to_sparse_record_mechanics() {
+        let retrieved = RetrievedRecord {
+            record: record(),
+            body: None,
+        };
+
+        assert!(
+            participant_stat_block(
+                &participant(ParticipantVariant::Elite, Vec::new()),
+                &retrieved,
+            )
+            .is_none()
+        );
+    }
 
     #[test]
     fn elite_adjusts_projected_creature_stats_and_hp_by_level_band() {
         let participant = participant(ParticipantVariant::Elite, Vec::new());
-        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+        let projection = project_legacy(&participant, &record()).expect("stat block");
         assert_eq!(projection.adjusted_level, Some(6));
         assert_stat(&projection, "ac", 22, 24, "Elite adjustment");
         assert_stat(&projection, "hp.max", 60, 80, "Elite HP adjustment");
@@ -1275,7 +2091,7 @@ mod tests {
     #[test]
     fn weak_adjusts_projected_creature_stats_and_hp_by_level_band() {
         let participant = participant(ParticipantVariant::Weak, Vec::new());
-        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+        let projection = project_legacy(&participant, &record()).expect("stat block");
         assert_eq!(projection.adjusted_level, Some(4));
         assert_stat(&projection, "perception", 13, 11, "Weak adjustment");
         assert_stat(&projection, "hp.max", 60, 45, "Weak HP adjustment");
@@ -1289,7 +2105,7 @@ mod tests {
             condition("Off-Guard", None),
         ];
         let participant = participant(ParticipantVariant::Normal, conditions);
-        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+        let projection = project_legacy(&participant, &record()).expect("stat block");
         let ac = value(&projection, "ac");
         assert_eq!(ac.adjusted_value, 18);
         assert!(
@@ -1317,7 +2133,7 @@ mod tests {
             condition("Stupefied", Some(1)),
         ];
         let participant = participant(ParticipantVariant::Normal, conditions);
-        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+        let projection = project_legacy(&participant, &record()).expect("stat block");
         assert_eq!(value(&projection, "save.ref").adjusted_value, 11);
         assert_eq!(value(&projection, "skill.athletics").adjusted_value, 7);
         assert_eq!(value(&projection, "save.will").adjusted_value, 11);
@@ -1330,7 +2146,7 @@ mod tests {
             ParticipantVariant::Normal,
             vec![condition("Frightened", Some(1))],
         );
-        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+        let projection = project_legacy(&participant, &record()).expect("stat block");
 
         assert_eq!(value(&projection, "ac").adjusted_value, 21);
         assert_eq!(value(&projection, "perception").adjusted_value, 12);
@@ -1347,7 +2163,7 @@ mod tests {
             ParticipantVariant::Normal,
             vec![unmodeled_condition("Frightened", Some(3))],
         );
-        let projection = participant_stat_block(&participant, &record()).expect("stat block");
+        let projection = project_legacy(&participant, &record()).expect("stat block");
 
         assert_eq!(value(&projection, "ac").adjusted_value, 22);
         assert_eq!(value(&projection, "perception").adjusted_value, 13);
@@ -1356,7 +2172,7 @@ mod tests {
 
     #[test]
     fn elite_and_weak_project_structured_activity_damage_adjustments() {
-        let elite = participant_stat_block(
+        let elite = project_legacy(
             &participant(ParticipantVariant::Elite, Vec::new()),
             &record(),
         )
@@ -1378,7 +2194,7 @@ mod tests {
             Some("1d8 + 4")
         );
 
-        let weak = participant_stat_block(
+        let weak = project_legacy(
             &participant(ParticipantVariant::Weak, Vec::new()),
             &record(),
         )
@@ -1391,7 +2207,7 @@ mod tests {
 
     #[test]
     fn activity_roll_surfaces_receive_variant_and_condition_modifiers() {
-        let elite = participant_stat_block(
+        let elite = project_legacy(
             &participant(ParticipantVariant::Elite, Vec::new()),
             &record(),
         )
@@ -1404,7 +2220,7 @@ mod tests {
             condition("Enfeebled", Some(2)),
             condition("Stupefied", Some(2)),
         ];
-        let projection = participant_stat_block(
+        let projection = project_legacy(
             &participant(ParticipantVariant::Normal, conditions),
             &record(),
         )
@@ -1423,7 +2239,7 @@ mod tests {
 
     #[test]
     fn action_conditions_project_runtime_action_budget() {
-        let slowed = participant_stat_block(
+        let slowed = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Slowed", Some(1))],
@@ -1435,7 +2251,7 @@ mod tests {
         assert_eq!(slowed_budget.actions.adjusted_value, 2);
         assert!(slowed_budget.can_react.available);
 
-        let quickened = participant_stat_block(
+        let quickened = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Quickened", None)],
@@ -1453,7 +2269,7 @@ mod tests {
                 .any(|segment| segment.restricted && segment.value == 1)
         );
 
-        let stunned_one = participant_stat_block(
+        let stunned_one = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Stunned", Some(1))],
@@ -1465,7 +2281,7 @@ mod tests {
         assert_eq!(stunned_one_budget.actions.adjusted_value, 2);
         assert!(stunned_one_budget.can_react.available);
 
-        let stunned_four = participant_stat_block(
+        let stunned_four = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Stunned", Some(4))],
@@ -1478,7 +2294,7 @@ mod tests {
         assert!(!stunned_four_budget.can_act.available);
         assert!(!stunned_four_budget.can_react.available);
 
-        let stunned_and_slowed = participant_stat_block(
+        let stunned_and_slowed = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Stunned", Some(1)), condition("Slowed", Some(2))],
@@ -1498,11 +2314,32 @@ mod tests {
                 .iter()
                 .any(|adjustment| adjustment.source == "Slowed 2")
         );
+
+        let duplicate_conditions = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![
+                    condition("Quickened", None),
+                    condition("Quickened", None),
+                    condition("Slowed", Some(1)),
+                    condition("Slowed", Some(2)),
+                ],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        let duplicate_budget = duplicate_conditions
+            .action_budget
+            .as_ref()
+            .expect("action budget");
+        assert_eq!(duplicate_budget.actions.adjusted_value, 2);
+        assert_eq!(duplicate_budget.actions.adjustments.len(), 2);
+        assert_eq!(duplicate_budget.actions.suppressed_adjustments.len(), 2);
     }
 
     #[test]
     fn movement_conditions_project_speeds_and_chained_effects() {
-        let encumbered = participant_stat_block(
+        let encumbered = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Encumbered", None)],
@@ -1514,7 +2351,7 @@ mod tests {
         assert_eq!(speed(&encumbered, "fly").adjusted_value_feet, 5);
         assert_eq!(value(&encumbered, "save.ref").adjusted_value, 11);
 
-        let grabbed = participant_stat_block(
+        let grabbed = project_legacy(
             &participant(ParticipantVariant::Normal, vec![condition("Grabbed", None)]),
             &record(),
         )
@@ -1522,7 +2359,26 @@ mod tests {
         assert_eq!(speed(&grabbed, "land").adjusted_value_feet, 0);
         assert_eq!(value(&grabbed, "ac").adjusted_value, 20);
 
-        let prone = participant_stat_block(
+        let grabbed_and_encumbered = project_legacy(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition("Grabbed", None), condition("Encumbered", None)],
+            ),
+            &record(),
+        )
+        .expect("stat block");
+        let land = speed(&grabbed_and_encumbered, "land");
+        assert_eq!(land.adjusted_value_feet, 0);
+        assert_eq!(land.adjustments.len(), 1);
+        assert!(land.suppressed_adjustments.iter().any(|adjustment| {
+            adjustment.source == "Encumbered"
+                && adjustment
+                    .reason
+                    .as_deref()
+                    .is_some_and(|reason| reason.contains("Immobilized"))
+        }));
+
+        let prone = project_legacy(
             &participant(ParticipantVariant::Normal, vec![condition("Prone", None)]),
             &record(),
         )
@@ -1535,7 +2391,7 @@ mod tests {
                 .any(|effect| effect.label == "Prone movement limits")
         );
 
-        let zero_speed = participant_stat_block(
+        let zero_speed = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
                 vec![condition("Encumbered", None)],

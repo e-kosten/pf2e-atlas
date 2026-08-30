@@ -58,15 +58,16 @@ pub(super) fn encounter_summary(
 
 pub(super) fn participant_view(
     participant: EncounterParticipant,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+    records_by_key: &BTreeMap<String, atlas_record::RetrievedRecord>,
 ) -> EncounterParticipantView {
-    let record_detail = participant
+    let retrieved = participant
         .record_key
         .as_ref()
         .and_then(|key| records_by_key.get(key));
+    let record_detail = retrieved.map(|retrieved| &retrieved.record);
     let record = record_detail.map(record_summary);
-    let stat_block = record_detail
-        .and_then(|record| participant_stat_block(&participant, record))
+    let stat_block = retrieved
+        .and_then(|retrieved| participant_stat_block(&participant, retrieved))
         .or_else(|| {
             (participant.participant_kind == ParticipantKind::Pc)
                 .then(|| participant_runtime_block(&participant))

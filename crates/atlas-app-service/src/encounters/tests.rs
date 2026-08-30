@@ -340,7 +340,7 @@ fn record_participant_add_rejects_unsupported_record_kind() {
 }
 
 #[test]
-fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
+fn draft_variant_change_fails_closed_when_canonical_level_is_absent() {
     let fixture = encounter_fixture_worker();
     let encounter = fixture
         .worker
@@ -365,7 +365,7 @@ fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
         .stat_block
         .as_ref()
         .expect("stats should project");
-    assert_eq!(base_stats.level, Some(5));
+    assert_eq!(base_stats.level, None);
 
     let mut update = participant_update(
         &local_participant(&fixture, &encounter.slug, &participant.participant_key),
@@ -380,9 +380,9 @@ fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
         updated.participant_variant,
         EncounterParticipantVariantView::Elite
     );
-    assert_eq!(updated.current_hp, Some(37));
+    assert_eq!(updated.current_hp, Some(17));
     let stats = updated.stat_block.as_ref().expect("stats should project");
-    assert_eq!(stats.adjusted_level, Some(6));
+    assert_eq!(stats.adjusted_level, None);
     let ac = stats
         .values
         .iter()
@@ -394,7 +394,9 @@ fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
         .iter()
         .find(|value| value.target == "hp.max")
         .expect("hp should project");
-    assert_eq!(hp.adjusted_value, 45);
+    assert_eq!(hp.base_value, 17);
+    assert_eq!(hp.adjusted_value, 17);
+    assert!(hp.modifiers.is_empty());
 
     fixture
         .worker
@@ -416,7 +418,7 @@ fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
         running_updated.participant_variant,
         EncounterParticipantVariantView::Weak
     );
-    assert_eq!(running_updated.current_hp, Some(37));
+    assert_eq!(running_updated.current_hp, Some(17));
 }
 
 fn local_participant(

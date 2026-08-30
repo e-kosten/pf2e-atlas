@@ -14,7 +14,7 @@ use crate::service::AtlasAppService;
 pub(super) fn hydrate_participant_records(
     service: &AtlasAppService,
     participants: &[EncounterParticipant],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
     let record_keys = participants
         .iter()
         .filter_map(|participant| {
@@ -33,7 +33,7 @@ pub(super) fn hydrate_participant_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved.record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
             .collect())
     })
 }
