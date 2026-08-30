@@ -195,7 +195,11 @@ Every record-bearing result uses one tagged record contract. Check
 `presentation_type` before reading entity fields. Creature records expose
 `defenses`, `perception`, `languages`, `skills`, `movement`, `resources`,
 `strikes`, `actions`, and separate `spellcasting.entries` and
-`spellcasting.spells` directly. Rich prose and relationships live under
+`spellcasting.spells` directly. Read IWR amounts and exceptions from
+`defenses`, skill notes and variants from `skills`, resource maxima and
+serialized provenance from `resources`, action costs and frequencies from
+`actions`, and rank, use, slot, and parent-entry context from spellcasting.
+Rich prose and relationships live under
 `supplementary_sections`; do not search generic sections for creature
 mechanics. A non-creature `presentation_type: "unmigrated"` payload names its
 temporary H-family registry assignment in `migration` and retains generic fact
@@ -206,6 +210,8 @@ them. In particular, `summary` and `description` omit the creature mechanics
 fields, while `preview` omits activity `rolls`, `damage`, and `modes`. Empty
 objects or arrays are meaningful only inside a section that is included and
 known to have no members, so check field presence before reading entity data.
+Source-missing concepts are omitted even at a detail level that otherwise
+includes creature scan facts.
 
 Raw source is always an independent explicit opt-in. It is omitted without
 `--include-raw`, and it may be requested with any supported detail level:

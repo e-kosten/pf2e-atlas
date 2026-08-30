@@ -13,7 +13,7 @@ impl AtlasAppService {
     pub fn get_records(
         &self,
         record_keys: Vec<RecordKey>,
-    ) -> AppServiceResult<Vec<atlas_record::AtlasRecord>> {
+    ) -> AppServiceResult<Vec<atlas_record::RetrievedRecord>> {
         self.submit_retrieval(move |retrieval| {
             Ok(retrieval.get_records(GetRecordsRequest {
                 record_keys: &record_keys,
@@ -62,7 +62,7 @@ impl AtlasAppService {
                         format!("record `{record_key}` was not found"),
                     )
                 })?;
-            record_detail(&record)
+            record_detail(&record.record)
         })
     }
 }

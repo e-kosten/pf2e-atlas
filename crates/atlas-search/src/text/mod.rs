@@ -52,7 +52,7 @@ impl TextRetrieval for AtlasRetrievalService {
             .filter(|identity| {
                 scope_key_set
                     .as_ref()
-                    .is_none_or(|keys| keys.contains(&identity.record.identity.key))
+                    .is_none_or(|keys| keys.contains(&identity.record.record.identity.key))
             })
             .collect::<Vec<_>>();
         let fts_hits = if tuning.retrieval.uses_fts() {
@@ -102,11 +102,11 @@ impl TextRetrieval for AtlasRetrievalService {
         };
         let identity_matches = identity_matches
             .into_iter()
-            .filter(|identity| !excluded_keys.contains(&identity.record.identity.key))
+            .filter(|identity| !excluded_keys.contains(&identity.record.record.identity.key))
             .collect::<Vec<_>>();
         let identity_keys = identity_matches
             .iter()
-            .map(|identity| identity.record.identity.key.clone())
+            .map(|identity| identity.record.record.identity.key.clone())
             .collect::<BTreeSet<_>>();
         let fusion_candidate_keys = candidate_keys(&identity_matches, &fts_hits, &vector_hits)
             .into_iter()
@@ -151,7 +151,7 @@ impl TextRetrieval for AtlasRetrievalService {
             .collect::<Vec<_>>();
         let ranked_page_records = load_records_by_key(self.index.as_ref(), &ranked_page_keys)?
             .into_iter()
-            .map(|record| (record.identity.key.clone(), record))
+            .map(|record| (record.record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let page_records = page_items
             .drain(..)
@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn search_text_uses_candidates_for_fusion_and_hydrates_ranked_page_only() {
+    fn search_text_hydrates_identity_matches_and_the_ranked_page_only() {
         let identity = fake_record("actions:identity", "Identity Action");
         let mut ranked = fake_record("actions:ranked", "Ranked Action");
         ranked.mechanics.metrics.push(MetricRow {
@@ -358,12 +358,12 @@ mod tests {
         assert_eq!(
             page.records
                 .iter()
-                .map(|record| record.record.identity.key.to_string())
+                .map(|record| record.record.record.identity.key.to_string())
                 .collect::<Vec<_>>(),
             vec!["actions:ranked"]
         );
         assert_eq!(
-            page.records[0].record.mechanics.metrics,
+            page.records[0].record.record.mechanics.metrics,
             ranked.mechanics.metrics
         );
         assert_eq!(
@@ -376,7 +376,7 @@ mod tests {
         );
         assert_eq!(
             load_by_key_calls.borrow().as_slice(),
-            &[vec![ranked.identity.key]]
+            &[vec![identity.identity.key], vec![ranked.identity.key]]
         );
     }
 
@@ -515,11 +515,15 @@ mod tests {
         fn load_records_by_key(
             &self,
             keys: &[RecordKey],
-        ) -> Result<Vec<AtlasRecord>, atlas_index::RecordLoadError> {
+        ) -> Result<Vec<atlas_record::RetrievedRecord>, atlas_index::RecordLoadError> {
             if !keys.is_empty() {
                 self.load_by_key_calls.borrow_mut().push(keys.to_vec());
             }
-            Ok(self.records_for_keys(keys))
+            Ok(self
+                .records_for_keys(keys)
+                .into_iter()
+                .map(|record| atlas_record::RetrievedRecord { record, body: None })
+                .collect())
         }
 
         fn load_record_set(&self) -> Result<AtlasRecordSet, atlas_index::RecordLoadError> {

@@ -116,6 +116,12 @@ Every record-bearing JSON result uses the same tagged `RecordJson`. Inspect
 `presentation_type` first. For `creature`, read direct typed fields:
 `defenses`, `perception`, `languages`, `skills`, `movement`, `resources`,
 `strikes`, `actions`, `spellcasting.entries`, and `spellcasting.spells`.
+Use the typed nested values directly: IWR amounts and exceptions live in
+`defenses`, skill notes and variants in `skills`, maximum and serialized
+provenance in `resources`, action costs and frequencies in activities, and
+rank, location, use, slot, and parent-entry context in spellcasting. Do not
+treat labels as typed identity or infer missing parent relationships from
+prose.
 `supplementary_sections` carries rich prose and relationships, not duplicate
 creature mechanics. Never scrape a generic fact block or infer mechanics from
 prose. Non-creature records may temporarily report `presentation_type:
@@ -127,6 +133,8 @@ and `description` omit creature mechanics fields, and `preview` omits activity
 `rolls`, `damage`, and `modes`. Empty objects or arrays are meaningful only
 when their section is included at the requested detail and is intentionally
 known to have no members; they are not placeholders for omitted hydration.
+Source-missing facts are omitted even when the requested detail includes the
+surrounding creature scan surface.
 
 Use one Atlas process for a batch when you have multiple exact keys or strict names. `record get` accepts multiple canonical keys, and `record resolve` accepts multiple strict names or verified aliases:
 

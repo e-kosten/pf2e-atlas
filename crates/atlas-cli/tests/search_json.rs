@@ -125,8 +125,8 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
     let record = &data["results"][0]["record"];
     assert_eq!(record["presentation_type"], "creature");
     assert!(record["defenses"].is_object());
-    assert!(record["resources"].is_array());
-    assert!(record["strikes"].is_array());
+    assert!(record.get("resources").is_none());
+    assert!(record.get("strikes").is_none());
     assert!(record_sections(record).is_empty());
 
     fs::remove_dir_all(root)?;

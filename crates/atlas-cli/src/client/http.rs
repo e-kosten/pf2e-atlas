@@ -42,7 +42,7 @@ impl AtlasClient for HttpAtlasClient {
     fn get_records(
         &self,
         _record_keys: Vec<RecordKey>,
-    ) -> ClientResult<Vec<atlas_record::AtlasRecord>> {
+    ) -> ClientResult<Vec<atlas_record::RetrievedRecord>> {
         Err(not_implemented())
     }
 

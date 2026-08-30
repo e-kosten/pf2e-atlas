@@ -425,7 +425,7 @@ fn hydrate_saved_list_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved.record))
             .collect())
     })
 }
@@ -447,7 +447,7 @@ fn hydrate_export_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved.record))
             .collect())
     })
 }
@@ -499,8 +499,8 @@ fn filtered_saved_list_records(
                     .with_scope(RecordScope::Keys(&record_keys))
                     .with_sort(atlas_search::RecordListSort::RecordKey),
             )?;
-            for record in result.records {
-                records.insert(record.identity.key.to_string(), record);
+            for retrieved in result.records {
+                records.insert(retrieved.record.identity.key.to_string(), retrieved.record);
             }
             if !result.page.has_more {
                 break;
@@ -544,9 +544,12 @@ fn searched_saved_list_records(
                 tuning: Some(tuning),
                 explain: false,
             })?;
-            for record in result.records {
-                if scoped_keys.contains(&record.record.identity.key) {
-                    records.insert(record.record.identity.key.to_string(), record.record);
+            for result_record in result.records {
+                if scoped_keys.contains(&result_record.record.record.identity.key) {
+                    records.insert(
+                        result_record.record.record.identity.key.to_string(),
+                        result_record.record.record,
+                    );
                 }
             }
             if !result.page.has_more {
@@ -583,12 +586,16 @@ fn resolve_record_ref(
         let records = retrieval.get_records(GetRecordsRequest {
             record_keys: std::slice::from_ref(&key),
         })?;
-        records.into_iter().next().ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                format!("record not found: {key}"),
-            )
-        })
+        records
+            .into_iter()
+            .next()
+            .map(|record| record.record)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::RecordNotFound,
+                    format!("record not found: {key}"),
+                )
+            })
     })
 }
 
@@ -622,7 +629,7 @@ fn record_resolution_candidate_view(
     resolution: atlas_search::RecordResolutionResult,
 ) -> RecordResolutionCandidateView {
     RecordResolutionCandidateView {
-        record: record_summary(&resolution.record),
+        record: record_summary(&resolution.record.record),
         query: resolution.query,
         normalized_query: resolution.normalized_query,
         match_kind: resolution.match_kind.as_str().to_string(),

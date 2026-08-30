@@ -6,17 +6,20 @@ use atlas_domain::{DetailLevel, RecordKind};
 use serde::Serialize;
 
 pub use creature::{
-    CreatureActionJson, CreatureActivityModeJson, CreatureArmorClassJson, CreatureDamageJson,
-    CreatureDefensesJson, CreatureHitPointsJson, CreatureIwrJson, CreatureMovementJson,
-    CreatureMovementModeJson, CreatureResourceJson, CreatureRollJson, CreatureSaveJson,
-    CreatureSavesJson, CreatureSenseJson, CreatureSkillJson, CreatureSpellJson,
-    CreatureSpellcastingEntryJson, CreatureSpellcastingJson, CreatureStrikeJson,
+    CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson, CreatureDamageJson,
+    CreatureDefensesJson, CreatureFrequencyJson, CreatureHitPointsJson, CreatureIwrJson,
+    CreatureMovementJson, CreatureMovementModeJson, CreatureOccurrenceContextJson,
+    CreaturePreparedSpellJson, CreatureResourceJson, CreatureRollJson, CreatureSaveJson,
+    CreatureSavesJson, CreatureSenseJson, CreatureSkillJson, CreatureSkillVariantJson,
+    CreatureSpellJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
+    CreatureSpellcastingJson, CreatureStrikeJson, CreatureUseLimitJson,
 };
 
 use crate::{
     AtlasRecord, PresentationBlock, PresentationContent, PresentationFact,
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
-    PresentationSectionKind, build_record_presentation_document, render_plain_text,
+    PresentationSectionKind, RecordBody, RetrievedRecord, build_record_presentation_document,
+    render_plain_text,
 };
 
 const DESCRIPTION_PREVIEW_WORDS: usize = 50;
@@ -26,6 +29,29 @@ pub struct RecordJsonOptions {
     pub detail: DetailLevel,
     pub include_source_json: bool,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordJsonError {
+    MissingCreatureBody { record_key: String },
+    UnexpectedCreatureBody { record_key: String },
+}
+
+impl std::fmt::Display for RecordJsonError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingCreatureBody { record_key } => write!(
+                formatter,
+                "retrieved creature record `{record_key}` is missing its canonical creature body"
+            ),
+            Self::UnexpectedCreatureBody { record_key } => write!(
+                formatter,
+                "retrieved non-creature record `{record_key}` has an unexpected canonical creature body"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for RecordJsonError {}
 
 /// The one durable CLI/agent record presentation contract.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -107,7 +133,12 @@ pub enum RecordPresentationJson {
 pub struct CreaturePerceptionJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modifier: Option<i64>,
-    pub senses: Vec<CreatureSenseJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_vision: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub senses: Option<Vec<CreatureSenseJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -185,19 +216,34 @@ pub struct RecordRelationshipJson {
     pub record_key: Option<String>,
 }
 
-pub fn record_json(record: &AtlasRecord, options: RecordJsonOptions) -> RecordJson {
+pub fn record_json(
+    retrieved: &RetrievedRecord,
+    options: RecordJsonOptions,
+) -> Result<RecordJson, RecordJsonError> {
+    let record = &retrieved.record;
     let document = build_record_presentation_document(record);
     let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
-    let presentation = if record.classification.kind == RecordKind::Creature {
-        creature::creature_presentation(record, options.detail)
-    } else {
-        RecordPresentationJson::Unmigrated {
+    let presentation = match (record.classification.kind, &retrieved.body) {
+        (RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
+            creature::creature_presentation(creature, options.detail)
+        }
+        (RecordKind::Creature, None) => {
+            return Err(RecordJsonError::MissingCreatureBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, Some(RecordBody::Creature(_))) => {
+            return Err(RecordJsonError::UnexpectedCreatureBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, None) => RecordPresentationJson::Unmigrated {
             migration: unmigrated_registry(record),
             sections: generic_sections(&detailed_sections),
-        }
+        },
     };
 
-    RecordJson {
+    Ok(RecordJson {
         base: RecordJsonBase {
             key: record.identity.key.to_string(),
             name: record.identity.name.clone(),
@@ -216,7 +262,7 @@ pub fn record_json(record: &AtlasRecord, options: RecordJsonOptions) -> RecordJs
                 .flatten(),
         },
         presentation,
-    }
+    })
 }
 
 fn source_json(record: &AtlasRecord, detail: DetailLevel) -> Option<RecordSourceJson> {
@@ -445,17 +491,14 @@ fn relationship_json(relationship: &PresentationRelationship) -> RecordRelations
 mod tests {
     use std::collections::BTreeMap;
 
-    use atlas_domain::{MetricDomain, PackName, PublicationCategory, RecordId, RecordKey};
+    use atlas_domain::{PackName, PublicationCategory, RecordId, RecordKey};
 
     use super::*;
     use crate::{
-        ActivityRoll, ActivityRollSurface, ActorMechanics, ContentSourceKind, DamageEffectKind,
-        DamageExpression, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, MechanicActivity, MechanicActivityKind, MechanicActivityUsage,
-        MetricRow, MetricValue, RecordClassification, RecordContent, RecordContentDocument,
-        RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
-        RecordTaxonomy, RecordTiming, RecordVisibility, RichDocument, RichNode,
-        SpellcastingEntryMechanics, SpellcastingPreparation,
+        ContentSourceKind, FactValue, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        RecordClassification, RecordContent, RecordContentDocument, RecordIdentity,
+        RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
+        RecordTiming, RecordVisibility, RichDocument, RichNode,
     };
 
     #[test]
@@ -467,14 +510,16 @@ mod tests {
                 detail: DetailLevel::Preview,
                 include_source_json: false,
             },
-        );
+        )
+        .expect("non-creature projection");
         let with_raw = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Preview,
                 include_source_json: true,
             },
-        );
+        )
+        .expect("non-creature projection with raw source");
 
         assert!(without_raw.source_json.is_none());
         assert!(with_raw.source_json.is_some());
@@ -488,6 +533,35 @@ mod tests {
     }
 
     #[test]
+    fn record_json_fails_closed_on_carrier_body_mismatches() {
+        let mut missing = fixture_creature_record();
+        missing.body = None;
+        assert!(matches!(
+            record_json(
+                &missing,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                }
+            ),
+            Err(RecordJsonError::MissingCreatureBody { .. })
+        ));
+
+        let mut unexpected = fixture_record();
+        unexpected.body = fixture_creature_record().body;
+        assert!(matches!(
+            record_json(
+                &unexpected,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                }
+            ),
+            Err(RecordJsonError::UnexpectedCreatureBody { .. })
+        ));
+    }
+
+    #[test]
     fn creature_exposes_direct_typed_scan_fields_without_generic_mechanics() {
         let json = record_json(
             &fixture_creature_record(),
@@ -495,7 +569,8 @@ mod tests {
                 detail: DetailLevel::Standard,
                 include_source_json: false,
             },
-        );
+        )
+        .expect("creature projection");
         let RecordPresentationJson::Creature {
             defenses,
             perception,
@@ -508,20 +583,27 @@ mod tests {
         };
 
         let defenses = defenses.as_ref().expect("standard defenses");
-        assert_eq!(defenses.ac.as_ref().expect("ac").value, 25);
+        assert_eq!(defenses.ac.as_ref().expect("ac").value, Some(25));
         assert_eq!(defenses.hp.as_ref().expect("hp").maximum, Some(80));
         assert_eq!(
-            defenses.saves.fortitude.as_ref().expect("fortitude").value,
-            14
+            defenses
+                .saves
+                .as_ref()
+                .expect("saves")
+                .fortitude
+                .as_ref()
+                .expect("fortitude")
+                .value,
+            Some(14)
         );
         assert_eq!(perception.as_ref().expect("perception").modifier, Some(12));
         assert_eq!(
             languages.as_deref(),
-            Some(["Common".to_string()].as_slice())
+            Some(["common".to_string()].as_slice())
         );
         assert_eq!(
             movement.as_ref().expect("standard movement").modes[0].value_feet,
-            25
+            Some(25)
         );
         assert!(json.generic_sections().is_empty());
         assert!(json.supplementary_sections.iter().all(|section| {
@@ -541,28 +623,32 @@ mod tests {
                 detail: DetailLevel::Summary,
                 include_source_json: false,
             },
-        );
+        )
+        .expect("summary projection");
         let preview = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Preview,
                 include_source_json: false,
             },
-        );
+        )
+        .expect("preview projection");
         let description = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Description,
                 include_source_json: false,
             },
-        );
+        )
+        .expect("description projection");
         let standard = record_json(
             &record,
             RecordJsonOptions {
                 detail: DetailLevel::Standard,
                 include_source_json: false,
             },
-        );
+        )
+        .expect("standard projection");
 
         let summary_value = serde_json::to_value(&summary).expect("summary json");
         let description_value = serde_json::to_value(&description).expect("description json");
@@ -595,15 +681,18 @@ mod tests {
                 .ac
                 .expect("preview ac")
                 .value,
-            25
+            Some(25)
         );
-        let preview_value = serde_json::to_value(record_json(
-            &record,
-            RecordJsonOptions {
-                detail: DetailLevel::Preview,
-                include_source_json: false,
-            },
-        ))
+        let preview_value = serde_json::to_value(
+            record_json(
+                &record,
+                RecordJsonOptions {
+                    detail: DetailLevel::Preview,
+                    include_source_json: false,
+                },
+            )
+            .expect("preview projection"),
+        )
         .expect("preview json");
         let preview_strike = &preview_value["strikes"][0];
         assert!(preview_strike.get("rolls").is_none());
@@ -613,11 +702,36 @@ mod tests {
         let standard_strike = &standard_value["strikes"][0];
         assert!(standard_strike["rolls"].is_array());
         assert!(standard_strike["damage"].is_array());
-        assert!(standard_strike["modes"].is_array());
         assert!(standard_value["actions"][0]["rolls"].is_array());
-        assert_eq!(standard_value["skills"][0]["slug"], "theater_lore");
+        assert_eq!(standard_value["skills"][0]["slug"], "lore");
+        assert_eq!(standard_value["skills"][0]["note"], "stage performances");
+        assert_eq!(standard_value["resources"][0]["maximum"], 1);
+        assert_eq!(standard_value["resources"][0]["serialized_value"], 1);
+        assert_eq!(standard_value["defenses"]["resistances"][0]["value"], 10);
+        assert_eq!(standard_value["defenses"]["weaknesses"][0]["value"], 10);
+        assert_eq!(
+            standard_value["actions"][0]["action_cost"]["kind"],
+            "actions"
+        );
+        assert_eq!(standard_value["actions"][0]["action_cost"]["actions"], 1);
         assert_eq!(standard_value["spellcasting"]["entries"][0]["order"], 0);
+        assert_eq!(
+            standard_value["spellcasting"]["entries"][0]["slots"][0]["maximum"],
+            1
+        );
         assert_eq!(standard_value["spellcasting"]["spells"][0]["order"], 2);
+        assert_eq!(
+            standard_value["spellcasting"]["spells"][0]["context"]["rank"],
+            1
+        );
+        assert_eq!(
+            standard_value["spellcasting"]["spells"][0]["context"]["uses"]["maximum"],
+            1
+        );
+        assert_eq!(
+            standard_value["spellcasting"]["spells"][0]["parent_entry_id"],
+            "occult-innate"
+        );
         assert!(
             description
                 .supplementary_sections
@@ -626,7 +740,14 @@ mod tests {
         );
     }
 
-    fn fixture_record() -> AtlasRecord {
+    fn fixture_record() -> RetrievedRecord {
+        RetrievedRecord {
+            record: fixture_base_record(),
+            body: None,
+        }
+    }
+
+    fn fixture_base_record() -> AtlasRecord {
         AtlasRecord {
             identity: RecordIdentity {
                 key: RecordKey::new(
@@ -678,8 +799,8 @@ mod tests {
         }
     }
 
-    fn fixture_creature_record() -> AtlasRecord {
-        let mut record = fixture_record();
+    fn fixture_creature_record() -> RetrievedRecord {
+        let mut record = fixture_base_record();
         record.identity.key = RecordKey::new(
             PackName::new("creatures".to_string()).expect("pack"),
             RecordId::new("test-guardian".to_string()).expect("id"),
@@ -689,96 +810,323 @@ mod tests {
         record.classification.level = Some(5);
         record.foundry.document_type = FoundryDocumentType::Actor;
         record.foundry.record_type = FoundryRecordType::Npc;
-        record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
-            size: Some("med".to_string()),
-            languages: vec!["Common".to_string()],
-            speed_types: vec!["land".to_string()],
-            senses: vec!["Darkvision".to_string()],
-            immunities: vec!["sleep".to_string()],
-            resistances: vec!["mental".to_string()],
-            weaknesses: vec!["cold-iron".to_string()],
-            ..ActorMechanics::default()
-        });
-        record.mechanics.metrics = vec![
-            metric("perception.mod", 12.0),
-            metric("ac.value", 25.0),
-            metric("hp.max", 80.0),
-            metric("save.fort.mod", 14.0),
-            metric("save.ref.mod", 11.0),
-            metric("save.will.mod", 12.0),
-            metric("speed.land.value", 25.0),
-            metric("skill.theater_lore.mod", 15.0),
+        let owner = record.identity.key.clone();
+        let entry_id = crate::CreatureOccurrenceId::new("occult-innate").expect("entry id");
+        let occurrence = |id: &str,
+                          order: u32,
+                          family: crate::CreatureEntityFamily,
+                          label: &str,
+                          parent: crate::CreatureOccurrenceParent,
+                          context: crate::CreatureOccurrenceContext,
+                          capability: crate::CreatureCapability| {
+            crate::CreatureEntityOccurrence {
+                id: crate::CreatureOccurrenceId::new(id).expect("occurrence id"),
+                identity_stability: crate::OccurrenceIdentityStability::StableNestedSourceId,
+                owner: owner.clone(),
+                target: crate::CreatureEntityTarget::ActorOwned(
+                    crate::CreatureEntityId::new(id).expect("entity id"),
+                ),
+                family,
+                authored_order: order,
+                source_sort: FactValue::Value(order.into()),
+                source_folder: FactValue::Missing,
+                source_identity: crate::CreatureEntitySourceIdentity {
+                    nested_source_id: FactValue::Missing,
+                    stable_source_locator: FactValue::Missing,
+                    source_locators: Vec::new(),
+                },
+                parent,
+                context: crate::CreatureOccurrenceContext {
+                    contextual_label: FactValue::Value(label.to_string()),
+                    ..context
+                },
+                capability,
+                deltas: Vec::new(),
+            }
+        };
+        let occurrences = vec![
+            occurrence(
+                "occult-innate",
+                0,
+                crate::CreatureEntityFamily::SpellcastingEntry,
+                "Occult Innate Spells",
+                crate::CreatureOccurrenceParent::Creature,
+                crate::CreatureOccurrenceContext::default(),
+                crate::CreatureCapability::SpellcastingEntry(
+                    crate::CreatureSpellcastingEntryCapability {
+                        preparation: FactValue::Value(crate::CreatureSpellPreparation::Innate),
+                        tradition: FactValue::Value("occult".to_string()),
+                        attack: FactValue::Value(16),
+                        dc: FactValue::Value(26),
+                        slots: FactValue::Value(vec![crate::CreatureSpellSlot {
+                            rank: 1,
+                            maximum: FactValue::Value(crate::CreatureSourceScalar::Value(1)),
+                            serialized_value: FactValue::Value(crate::CreatureSourceScalar::Value(
+                                1,
+                            )),
+                            prepared: FactValue::Value(Vec::new()),
+                        }]),
+                        unsupported_notes: Vec::new(),
+                    },
+                ),
+            ),
+            occurrence(
+                "jaws",
+                1,
+                crate::CreatureEntityFamily::Strike,
+                "Jaws",
+                crate::CreatureOccurrenceParent::Creature,
+                crate::CreatureOccurrenceContext::default(),
+                crate::CreatureCapability::Strike(crate::CreatureStrikeCapability {
+                    traits: FactValue::Value(vec!["magical".to_string()]),
+                    attack_effects: FactValue::Value(Vec::new()),
+                    rolls: vec![crate::CreatureRoll {
+                        id: "attack".to_string(),
+                        label: "Attack".to_string(),
+                        kind: crate::CreatureRollKind::Attack,
+                        value: FactValue::Value(17),
+                        ability: FactValue::Missing,
+                    }],
+                    damage: FactValue::Value(vec![crate::CreatureDamage {
+                        id: "piercing".to_string(),
+                        formula: FactValue::Value("2d8+8".to_string()),
+                        damage_type: FactValue::Value("piercing".to_string()),
+                        category: FactValue::Missing,
+                        kinds: FactValue::Value(vec![crate::CreatureDamageKind::Damage]),
+                        apply_modifier: FactValue::Missing,
+                    }]),
+                    action_cost: crate::CreatureActionCost::Actions(1),
+                    unsupported_notes: Vec::new(),
+                }),
+            ),
+            occurrence(
+                "magic-missile",
+                2,
+                crate::CreatureEntityFamily::Spell,
+                "Magic Missile",
+                crate::CreatureOccurrenceParent::SpellcastingEntry(entry_id),
+                crate::CreatureOccurrenceContext {
+                    rank: FactValue::Value(1),
+                    uses: FactValue::Value(crate::CreatureUseLimit {
+                        maximum: FactValue::Value(1),
+                        serialized_value: FactValue::Value(1),
+                    }),
+                    ..crate::CreatureOccurrenceContext::default()
+                },
+                crate::CreatureCapability::Spell(crate::CreatureSpellCapability {
+                    traits: FactValue::Value(vec!["force".to_string()]),
+                    base_rank: FactValue::Value(1),
+                    signature: FactValue::Value(false),
+                    traditions: FactValue::Value(vec!["occult".to_string()]),
+                    requirements: FactValue::Missing,
+                    cost: FactValue::Missing,
+                    counteraction: FactValue::Missing,
+                    ritual: FactValue::Missing,
+                    target: FactValue::Value("one creature".to_string()),
+                    area: FactValue::Missing,
+                    range: FactValue::Value("120 feet".to_string()),
+                    time: FactValue::Missing,
+                    duration: FactValue::Missing,
+                    defense: FactValue::Missing,
+                    damage: FactValue::Value(Vec::new()),
+                    action_cost: crate::CreatureActionCost::Actions(1),
+                    unsupported_notes: Vec::new(),
+                }),
+            ),
+            occurrence(
+                "change-shape",
+                3,
+                crate::CreatureEntityFamily::Action,
+                "Change Shape",
+                crate::CreatureOccurrenceParent::Creature,
+                crate::CreatureOccurrenceContext::default(),
+                crate::CreatureCapability::Action(crate::CreatureActionCapability {
+                    category: FactValue::Value("offensive".to_string()),
+                    traits: FactValue::Value(vec!["polymorph".to_string()]),
+                    action_cost: crate::CreatureActionCost::Actions(1),
+                    frequency: FactValue::Missing,
+                    self_effect: FactValue::Missing,
+                    self_effect_label: FactValue::Missing,
+                    requirements: FactValue::Missing,
+                    cost: FactValue::Missing,
+                    rolls: Vec::new(),
+                    damage: FactValue::Value(Vec::new()),
+                    unsupported_notes: Vec::new(),
+                }),
+            ),
         ];
-        record.mechanics.spellcasting_entries = vec![SpellcastingEntryMechanics {
-            entry_id: "occult-innate".to_string(),
-            label: "Occult Innate Spells".to_string(),
-            preparation: SpellcastingPreparation::Innate,
-            spell_attack: Some(16),
-            spell_dc: Some(26),
-        }];
-        record.mechanics.activities = vec![
-            MechanicActivity {
-                activity_id: "jaws".to_string(),
-                label: "Jaws".to_string(),
-                kind: MechanicActivityKind::Strike,
-                traits: vec!["magical".to_string()],
-                compendium_source: None,
-                usage: MechanicActivityUsage::Unlimited,
-                rolls: vec![ActivityRoll {
-                    roll_id: "attack".to_string(),
-                    label: "Attack".to_string(),
-                    base_value: 17,
-                    surface: ActivityRollSurface::AttackRoll,
-                    ability: None,
-                }],
-                damage: vec![DamageExpression {
-                    damage_id: "piercing".to_string(),
-                    label: None,
-                    formula: "2d8+8".to_string(),
-                    damage_type: Some("piercing".to_string()),
-                    effect_kind: DamageEffectKind::Damage,
-                    ability: None,
-                }],
-                modes: Vec::new(),
+        let entities = ["occult-innate", "jaws", "magic-missile", "change-shape"]
+            .into_iter()
+            .map(|id| crate::CreatureEntity {
+                id: crate::CreatureEntityId::new(id).expect("entity id"),
+                family: match id {
+                    "occult-innate" => crate::CreatureEntityFamily::SpellcastingEntry,
+                    "jaws" => crate::CreatureEntityFamily::Strike,
+                    "magic-missile" => crate::CreatureEntityFamily::Spell,
+                    _ => crate::CreatureEntityFamily::Action,
+                },
+                label: id.to_string(),
+                source_identity: crate::CreatureEntitySourceIdentity {
+                    nested_source_id: FactValue::Missing,
+                    stable_source_locator: FactValue::Missing,
+                    source_locators: Vec::new(),
+                },
+            })
+            .collect();
+        let body = crate::CreatureRecord {
+            identity: crate::CreatureIdentity {
+                record_key: owner,
+                source_id: crate::CreatureSourceId::new("test-guardian").expect("source id"),
+                name: "Test Guardian".to_string(),
+                family: crate::CreatureFamily::Npc,
             },
-            MechanicActivity {
-                activity_id: "change-shape".to_string(),
-                label: "Change Shape".to_string(),
-                kind: MechanicActivityKind::Other,
-                traits: vec!["polymorph".to_string()],
-                compendium_source: None,
-                usage: MechanicActivityUsage::Unlimited,
-                rolls: Vec::new(),
-                damage: Vec::new(),
-                modes: Vec::new(),
+            level: missing(crate::CreatureSourceField::Level),
+            rarity: missing(crate::CreatureSourceField::Rarity),
+            traits: missing(crate::CreatureSourceField::Traits),
+            size: missing(crate::CreatureSourceField::Size),
+            publication: missing(crate::CreatureSourceField::Publication),
+            adjustment: missing(crate::CreatureSourceField::Adjustment),
+            source_alliance: missing(crate::CreatureSourceField::SourceAlliance),
+            perception: crate::CreatureFact::source(
+                FactValue::Value(crate::CreaturePerception {
+                    modifier: FactValue::Value(12),
+                    details: FactValue::Missing,
+                    has_vision: FactValue::Value(true),
+                    senses: FactValue::Value(Vec::new()),
+                }),
+                crate::CreatureSourceField::Perception,
+            ),
+            initiative: missing(crate::CreatureSourceField::Initiative),
+            languages: crate::CreatureFact::source(
+                FactValue::Value(crate::CreatureLanguages {
+                    values: FactValue::Value(vec![crate::Language::new("common").expect("lang")]),
+                    details: FactValue::Missing,
+                }),
+                crate::CreatureSourceField::Languages,
+            ),
+            skills: crate::CreatureFact::source(
+                FactValue::Value(vec![crate::CreatureSkill {
+                    id: crate::CreatureComponentId::new("theater-lore").expect("skill id"),
+                    authored_order: 0,
+                    kind: crate::CreatureSkillKind::Lore,
+                    label: "Theater Lore".to_string(),
+                    modifier: FactValue::Value(15),
+                    note: FactValue::Value(crate::CreatureNote::new("stage performances")),
+                    variants: FactValue::Value(Vec::new()),
+                    source_item_id: FactValue::Missing,
+                }]),
+                crate::CreatureSourceField::Skills,
+            ),
+            legacy_abilities: missing(crate::CreatureSourceField::LegacyAbilities),
+            defenses: crate::CreatureFact::source(
+                FactValue::Value(fixture_defenses()),
+                crate::CreatureSourceField::Defenses,
+            ),
+            movement: crate::CreatureFact::source(
+                FactValue::Value(vec![crate::CreatureSpeed {
+                    id: crate::CreatureComponentId::new("land").expect("speed id"),
+                    authored_order: 0,
+                    mode: crate::CreatureMovementMode::Land,
+                    value: FactValue::Value(25),
+                    label: FactValue::Value("Land Speed".to_string()),
+                    details: FactValue::Missing,
+                }]),
+                crate::CreatureSourceField::Movement,
+            ),
+            resources: crate::CreatureFact::source(
+                FactValue::Value(vec![crate::CreatureResource {
+                    id: crate::CreatureComponentId::new("focus").expect("resource id"),
+                    authored_order: 0,
+                    kind: crate::CreatureResourceKind::new("focus").expect("resource kind"),
+                    label: "Focus Points".to_string(),
+                    maximum: FactValue::Value(crate::CreatureResourceAmount::Integer(1)),
+                    serialized_value: FactValue::Value(crate::CreatureResourceAmount::Integer(1)),
+                    source_drift: FactValue::Value(Vec::new()),
+                    current_policy: crate::ResourceCurrentPolicy::SerializedValueIsProvenanceOnly,
+                }]),
+                crate::CreatureSourceField::Resources,
+            ),
+            embedded_entities: crate::CreatureFact::source(
+                FactValue::Value(crate::CreatureEmbeddedEntities {
+                    entities,
+                    occurrences,
+                    relationships: Vec::new(),
+                    actor_spellcasting: FactValue::Missing,
+                }),
+                crate::CreatureSourceField::EmbeddedEntities,
+            ),
+            content: crate::OwnedRichContent::default(),
+            provenance: crate::CreatureProvenance {
+                source_path: "packs/creatures/test-guardian.json".to_string(),
+                source_contract_version: "test".to_string(),
+                source_system_version: "test".to_string(),
+                source_upstream_commit: "test".to_string(),
             },
-            MechanicActivity {
-                activity_id: "magic-missile".to_string(),
-                label: "Magic Missile".to_string(),
-                kind: MechanicActivityKind::Spell,
-                traits: vec!["force".to_string()],
-                compendium_source: Some("Compendium.pf2e.spells.Item.magic".to_string()),
-                usage: MechanicActivityUsage::Unlimited,
-                rolls: Vec::new(),
-                damage: vec![DamageExpression {
-                    damage_id: "force".to_string(),
-                    label: None,
-                    formula: "1d4+1".to_string(),
-                    damage_type: Some("force".to_string()),
-                    effect_kind: DamageEffectKind::Damage,
-                    ability: None,
-                }],
-                modes: Vec::new(),
-            },
-        ];
-        record
+        };
+        RetrievedRecord {
+            record,
+            body: Some(RecordBody::Creature(body)),
+        }
     }
 
-    fn metric(key: &str, value: f64) -> MetricRow {
-        MetricRow {
-            domain: MetricDomain::Actor,
-            key: key.to_string(),
-            value: MetricValue::Number(value),
+    fn fixture_defenses() -> crate::CreatureDefenses {
+        let save = |id: &str, kind, value| crate::CreatureSave {
+            id: crate::CreatureComponentId::new(id).expect("save id"),
+            kind,
+            value: FactValue::Value(value),
+            details: FactValue::Missing,
+        };
+        let iwr = |id: &str, kind, iwr_type: &str, value| crate::CreatureIwr {
+            id: crate::CreatureComponentId::new(id).expect("iwr id"),
+            authored_order: 0,
+            kind,
+            iwr_type: crate::IwrType::new(iwr_type).expect("iwr type"),
+            value: FactValue::Value(value),
+            exceptions: FactValue::Value(Vec::new()),
+            double_vs: FactValue::Value(Vec::new()),
+            apply_once: FactValue::Missing,
+        };
+        crate::CreatureDefenses {
+            armor_class: FactValue::Value(crate::CreatureArmorClass {
+                value: FactValue::Value(25),
+                details: FactValue::Missing,
+            }),
+            hit_points: FactValue::Value(crate::CreatureHitPoints {
+                value: FactValue::Value(crate::CreatureNumber::Integer(80)),
+                maximum: FactValue::Value(80),
+                temporary: FactValue::Missing,
+                temporary_maximum: FactValue::Missing,
+                details: FactValue::Missing,
+            }),
+            hardness: FactValue::Missing,
+            shield: FactValue::Missing,
+            saves: FactValue::Value(crate::CreatureSaves {
+                fortitude: FactValue::Value(save(
+                    "fortitude",
+                    crate::CreatureSaveKind::Fortitude,
+                    14,
+                )),
+                reflex: FactValue::Value(save("reflex", crate::CreatureSaveKind::Reflex, 11)),
+                will: FactValue::Value(save("will", crate::CreatureSaveKind::Will, 12)),
+            }),
+            all_saves_note: FactValue::Missing,
+            immunities: FactValue::Value(Vec::new()),
+            resistances: FactValue::Value(vec![iwr(
+                "mental",
+                crate::CreatureIwrKind::Resistance,
+                "mental",
+                10,
+            )]),
+            weaknesses: FactValue::Value(vec![iwr(
+                "cold-iron",
+                crate::CreatureIwrKind::Weakness,
+                "cold-iron",
+                10,
+            )]),
         }
+    }
+
+    fn missing<T>(field: crate::CreatureSourceField) -> crate::CreatureFact<T> {
+        crate::CreatureFact::source(FactValue::Missing, field)
     }
 }

@@ -156,13 +156,16 @@
       "mod": 18,
       "senses": [{ "type": "darkvision" }]
     },
+    "resources": {
+      "focus": { "max": 1, "value": 1 }
+    },
     "saves": {
       "fortitude": { "value": 19 },
       "reflex": { "value": 17 },
       "will": { "value": 18 }
     },
     "skills": {
-      "occultism": { "base": 20 }
+      "occultism": { "base": 20, "note": "ancient soul lore" }
     }
   }
 }

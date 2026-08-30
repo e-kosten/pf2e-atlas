@@ -33,7 +33,7 @@ pub(super) fn hydrate_participant_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved.record))
             .collect())
     })
 }
@@ -66,12 +66,16 @@ pub(super) fn resolve_record_ref(
         let records = retrieval.get_records(GetRecordsRequest {
             record_keys: std::slice::from_ref(&key),
         })?;
-        records.into_iter().next().ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                format!("record not found: {key}"),
-            )
-        })
+        records
+            .into_iter()
+            .next()
+            .map(|record| record.record)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::RecordNotFound,
+                    format!("record not found: {key}"),
+                )
+            })
     })
 }
 

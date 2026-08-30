@@ -30,7 +30,7 @@ pub(crate) trait AtlasClient {
     fn get_records(
         &self,
         record_keys: Vec<RecordKey>,
-    ) -> ClientResult<Vec<atlas_record::AtlasRecord>>;
+    ) -> ClientResult<Vec<atlas_record::RetrievedRecord>>;
 
     fn resolve_record(
         &self,

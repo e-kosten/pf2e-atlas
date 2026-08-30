@@ -1,10 +1,14 @@
-use atlas_domain::{DetailLevel, MetricDomain};
+use atlas_domain::DetailLevel;
 use serde::Serialize;
 
 use crate::{
-    ActivityRollAbility, ActivityRollSurface, AtlasRecord, DamageEffectKind, MechanicActivity,
-    MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricDefinition,
-    MetricKeyDefinition, MetricValue, SpellcastingPreparation, definition_for, metrics,
+    ActivityRollAbility, CreatureActionCost, CreatureCapability, CreatureDamage,
+    CreatureDamageKind, CreatureEntity, CreatureEntityOccurrence, CreatureEntityTarget,
+    CreatureFrequency, CreatureIwr, CreatureMovementMode, CreatureNumber,
+    CreatureOccurrenceContext, CreatureOccurrenceParent, CreaturePreparedSpellSlot, CreatureRecord,
+    CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSave, CreatureSkill,
+    CreatureSkillVariant, CreatureSourceScalar, CreatureSpellPreparation, CreatureSpellSlot,
+    CreatureUseLimit, FactValue, ResourceCurrentPolicy,
 };
 
 use super::{CreaturePerceptionJson, RecordPresentationJson};
@@ -17,15 +21,24 @@ pub struct CreatureDefensesJson {
     pub hp: Option<CreatureHitPointsJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hardness: Option<i64>,
-    pub saves: CreatureSavesJson,
-    pub immunities: Vec<CreatureIwrJson>,
-    pub resistances: Vec<CreatureIwrJson>,
-    pub weaknesses: Vec<CreatureIwrJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saves: Option<CreatureSavesJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub all_saves_note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub immunities: Option<Vec<CreatureIwrJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resistances: Option<Vec<CreatureIwrJson>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weaknesses: Option<Vec<CreatureIwrJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureArmorClassJson {
-    pub value: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -35,7 +48,11 @@ pub struct CreatureHitPointsJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub broken_threshold: Option<i64>,
+    pub temporary: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temporary_maximum: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
@@ -50,22 +67,35 @@ pub struct CreatureSavesJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSaveJson {
-    pub id: &'static str,
-    pub value: i64,
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureIwrJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub iwr_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<i64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exceptions: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub double_vs: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apply_once: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSenseJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acuity: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub range_feet: Option<i64>,
 }
@@ -73,14 +103,29 @@ pub struct CreatureSenseJson {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSkillJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub slug: String,
     pub label: String,
-    pub modifier: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rank: Option<i64>,
+    pub modifier: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proficient: Option<bool>,
+    pub note: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<CreatureSkillVariantJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_item_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureSkillVariantJson {
+    pub id: String,
+    pub order: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modifier: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub predicates: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
@@ -91,50 +136,84 @@ pub struct CreatureMovementJson {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureMovementModeJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub mode: String,
-    pub label: String,
-    pub value_feet: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_feet: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureResourceJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub kind: String,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serialized_value: Option<i64>,
+    pub current_policy: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureActionCostJson {
+    pub kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actions: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unsupported: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureFrequencyJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serialized_value: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureStrikeJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub label: String,
     pub traits: Vec<String>,
-    pub usage: &'static str,
+    pub action_cost: CreatureActionCostJson,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attack_effects: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rolls: Option<Vec<CreatureRollJson>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub damage: Option<Vec<CreatureDamageJson>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub modes: Option<Vec<CreatureActivityModeJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureActionJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub label: String,
     pub traits: Vec<String>,
-    pub usage: &'static str,
+    pub action_cost: CreatureActionCostJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency: Option<CreatureFrequencyJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirements: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rolls: Option<Vec<CreatureRollJson>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub damage: Option<Vec<CreatureDamageJson>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub modes: Option<Vec<CreatureActivityModeJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
@@ -146,38 +225,107 @@ pub struct CreatureSpellcastingJson {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSpellcastingEntryJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub label: String,
-    pub preparation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preparation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tradition: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attack: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dc: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slots: Option<Vec<CreatureSpellSlotJson>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureSpellSlotJson {
+    pub rank: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serialized_value: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prepared: Option<Vec<CreaturePreparedSpellJson>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreaturePreparedSpellJson {
+    pub order: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expended: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prepared: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureUseLimitJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serialized_value: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
+pub struct CreatureOccurrenceContextJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rank: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slot: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uses: Option<CreatureUseLimitJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contextual_label: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSpellJson {
     pub id: String,
-    pub order: usize,
+    pub order: u32,
     pub label: String,
     pub traits: Vec<String>,
-    pub usage: &'static str,
+    pub action_cost: CreatureActionCostJson,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub compendium_source: Option<String>,
+    pub target_record_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rolls: Option<Vec<CreatureRollJson>>,
+    pub parent_entry_id: Option<String>,
+    pub context: CreatureOccurrenceContextJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_rank: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<bool>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub traditions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirements: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub range: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub damage: Option<Vec<CreatureDamageJson>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub modes: Option<Vec<CreatureActivityModeJson>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureRollJson {
     pub id: String,
     pub label: String,
-    pub value: i64,
-    pub surface: &'static str,
+    pub kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ability: Option<&'static str>,
 }
@@ -186,367 +334,551 @@ pub struct CreatureRollJson {
 pub struct CreatureDamageJson {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    pub formula: String,
+    pub formula: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub damage_type: Option<String>,
-    pub effect: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ability: Option<&'static str>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct CreatureActivityModeJson {
-    pub id: String,
-    pub order: usize,
-    pub label: String,
-    pub sort: i64,
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub kinds: Vec<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub target: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub range: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<String>,
-    pub damage: Vec<CreatureDamageJson>,
+    pub apply_modifier: Option<bool>,
 }
 
 pub(super) fn creature_presentation(
-    record: &AtlasRecord,
+    creature: &CreatureRecord,
     detail: DetailLevel,
 ) -> RecordPresentationJson {
-    let scans_mechanics = matches!(
+    let include_scan = matches!(
         detail,
         DetailLevel::Preview | DetailLevel::Standard | DetailLevel::Full
     );
-    let normal_mechanics = matches!(detail, DetailLevel::Standard | DetailLevel::Full);
-
-    let defenses = scans_mechanics.then(|| defenses(record));
-    let perception = scans_mechanics.then(|| perception(record)).flatten();
-    let languages = scans_mechanics.then(|| {
-        record
-            .mechanics
-            .actor()
-            .map(|actor| actor.languages.clone())
-            .unwrap_or_default()
-    });
-    let skills = scans_mechanics.then(|| skills(record));
-    let movement = scans_mechanics.then(|| movement(record));
-    let resources = scans_mechanics.then(|| resources(record));
+    let include_details = matches!(detail, DetailLevel::Standard | DetailLevel::Full);
+    if !include_scan {
+        return RecordPresentationJson::Creature {
+            defenses: None,
+            perception: None,
+            languages: None,
+            skills: None,
+            movement: None,
+            resources: None,
+            strikes: None,
+            actions: None,
+            spellcasting: None,
+        };
+    }
 
     let mut strikes = Vec::new();
     let mut actions = Vec::new();
+    let mut entries = Vec::new();
     let mut spells = Vec::new();
-    if scans_mechanics {
-        for (order, activity) in record.mechanics.activities.iter().enumerate() {
-            match activity.kind {
-                MechanicActivityKind::Strike => {
-                    strikes.push(strike(activity, order, normal_mechanics))
+    if let Some(embedded) = creature.embedded_entities.value.as_value() {
+        for occurrence in &embedded.occurrences {
+            let label = occurrence_label(occurrence, &embedded.entities);
+            match &occurrence.capability {
+                CreatureCapability::Strike(capability) => strikes.push(CreatureStrikeJson {
+                    id: occurrence.id.as_str().to_string(),
+                    order: occurrence.authored_order,
+                    label,
+                    traits: strings(&capability.traits),
+                    action_cost: action_cost(&capability.action_cost),
+                    attack_effects: strings(&capability.attack_effects),
+                    rolls: include_details.then(|| rolls(&capability.rolls)),
+                    damage: include_details
+                        .then(|| damage(&capability.damage))
+                        .flatten(),
+                }),
+                CreatureCapability::Action(capability) => actions.push(CreatureActionJson {
+                    id: occurrence.id.as_str().to_string(),
+                    order: occurrence.authored_order,
+                    label,
+                    traits: strings(&capability.traits),
+                    action_cost: action_cost(&capability.action_cost),
+                    category: text(&capability.category),
+                    frequency: capability.frequency.as_value().map(frequency),
+                    requirements: include_details
+                        .then(|| text(&capability.requirements))
+                        .flatten(),
+                    cost: include_details.then(|| text(&capability.cost)).flatten(),
+                    rolls: include_details.then(|| rolls(&capability.rolls)),
+                    damage: include_details
+                        .then(|| damage(&capability.damage))
+                        .flatten(),
+                }),
+                CreatureCapability::SpellcastingEntry(capability) => {
+                    entries.push(CreatureSpellcastingEntryJson {
+                        id: occurrence.id.as_str().to_string(),
+                        order: occurrence.authored_order,
+                        label,
+                        preparation: capability.preparation.as_value().map(preparation),
+                        tradition: text(&capability.tradition),
+                        attack: integer(&capability.attack),
+                        dc: integer(&capability.dc),
+                        slots: include_details
+                            .then(|| spell_slots(&capability.slots))
+                            .flatten(),
+                    });
                 }
-                MechanicActivityKind::Other => {
-                    actions.push(action(activity, order, normal_mechanics))
-                }
-                MechanicActivityKind::Spell => {
-                    spells.push(spell(activity, order, normal_mechanics))
-                }
+                CreatureCapability::Spell(capability) => spells.push(CreatureSpellJson {
+                    id: occurrence.id.as_str().to_string(),
+                    order: occurrence.authored_order,
+                    label,
+                    traits: strings(&capability.traits),
+                    action_cost: action_cost(&capability.action_cost),
+                    target_record_key: match &occurrence.target {
+                        CreatureEntityTarget::CanonicalRecord(key) => Some(key.to_string()),
+                        CreatureEntityTarget::ActorOwned(_) => None,
+                    },
+                    parent_entry_id: match &occurrence.parent {
+                        CreatureOccurrenceParent::SpellcastingEntry(parent) => {
+                            Some(parent.as_str().to_string())
+                        }
+                        CreatureOccurrenceParent::Creature => None,
+                    },
+                    context: occurrence_context(&occurrence.context),
+                    base_rank: integer(&capability.base_rank),
+                    signature: boolean(&capability.signature),
+                    traditions: strings(&capability.traditions),
+                    requirements: include_details
+                        .then(|| text(&capability.requirements))
+                        .flatten(),
+                    cost: include_details.then(|| text(&capability.cost)).flatten(),
+                    target: include_details.then(|| text(&capability.target)).flatten(),
+                    range: include_details.then(|| text(&capability.range)).flatten(),
+                    time: include_details.then(|| text(&capability.time)).flatten(),
+                    damage: include_details
+                        .then(|| damage(&capability.damage))
+                        .flatten(),
+                }),
+                CreatureCapability::Equipment(_)
+                | CreatureCapability::Lore(_)
+                | CreatureCapability::Unsupported(_) => {}
             }
         }
     }
-    let entries = if scans_mechanics {
-        record
-            .mechanics
-            .spellcasting_entries
-            .iter()
-            .enumerate()
-            .map(|(order, entry)| CreatureSpellcastingEntryJson {
-                id: entry.entry_id.clone(),
-                order,
-                label: entry.label.clone(),
-                preparation: preparation(&entry.preparation),
-                attack: entry.spell_attack,
-                dc: entry.spell_dc,
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
+    strikes.sort_by_key(|item| item.order);
+    actions.sort_by_key(|item| item.order);
+    entries.sort_by_key(|item| item.order);
+    spells.sort_by_key(|item| item.order);
 
     RecordPresentationJson::Creature {
-        defenses,
-        perception,
-        languages,
-        skills,
-        movement,
-        resources,
-        strikes: scans_mechanics.then_some(strikes),
-        actions: scans_mechanics.then_some(actions),
-        spellcasting: scans_mechanics.then_some(CreatureSpellcastingJson { entries, spells }),
+        defenses: creature.defenses.value.as_value().map(defenses),
+        perception: creature.perception.value.as_value().map(perception),
+        languages: creature
+            .languages
+            .value
+            .as_value()
+            .and_then(|languages| languages.values.as_value())
+            .map(|values| {
+                values
+                    .iter()
+                    .map(|value| value.as_str().to_string())
+                    .collect()
+            }),
+        skills: creature
+            .skills
+            .value
+            .as_value()
+            .map(|values| values.iter().map(skill).collect()),
+        movement: creature
+            .movement
+            .value
+            .as_value()
+            .map(|values| CreatureMovementJson {
+                modes: values.iter().map(movement).collect(),
+            }),
+        resources: creature
+            .resources
+            .value
+            .as_value()
+            .map(|values| values.iter().map(resource).collect()),
+        strikes: creature.embedded_entities.value.as_value().map(|_| strikes),
+        actions: creature.embedded_entities.value.as_value().map(|_| actions),
+        spellcasting: creature
+            .embedded_entities
+            .value
+            .as_value()
+            .map(|_| CreatureSpellcastingJson { entries, spells }),
     }
 }
 
-fn defenses(record: &AtlasRecord) -> CreatureDefensesJson {
-    let actor = record.mechanics.actor();
+fn defenses(value: &crate::CreatureDefenses) -> CreatureDefensesJson {
     CreatureDefensesJson {
-        ac: metric_i64_for_definition(record, metrics::actor::ARMOR_CLASS)
-            .map(|value| CreatureArmorClassJson { value }),
-        hp: hp(record),
-        hardness: metric_i64_for_definition(record, metrics::actor::HARDNESS),
-        saves: CreatureSavesJson {
-            fortitude: save(record, "fort", "fortitude"),
-            reflex: save(record, "ref", "reflex"),
-            will: save(record, "will", "will"),
-        },
-        immunities: actor
-            .map(|actor| iwr("immunity", &actor.immunities))
-            .unwrap_or_default(),
-        resistances: actor
-            .map(|actor| iwr("resistance", &actor.resistances))
-            .unwrap_or_default(),
-        weaknesses: actor
-            .map(|actor| iwr("weakness", &actor.weaknesses))
-            .unwrap_or_default(),
+        ac: value
+            .armor_class
+            .as_value()
+            .map(|ac| CreatureArmorClassJson {
+                value: integer(&ac.value),
+                details: note(&ac.details),
+            }),
+        hp: value.hit_points.as_value().map(|hp| CreatureHitPointsJson {
+            value: hp.value.as_value().and_then(|value| match value {
+                CreatureNumber::Integer(value) => Some(*value),
+                CreatureNumber::Unsupported(_) => None,
+            }),
+            maximum: integer(&hp.maximum),
+            temporary: integer(&hp.temporary),
+            temporary_maximum: integer(&hp.temporary_maximum),
+            details: note(&hp.details),
+        }),
+        hardness: integer(&value.hardness),
+        saves: value.saves.as_value().map(|saves| CreatureSavesJson {
+            fortitude: saves.fortitude.as_value().map(save),
+            reflex: saves.reflex.as_value().map(save),
+            will: saves.will.as_value().map(save),
+        }),
+        all_saves_note: note(&value.all_saves_note),
+        immunities: iwr_values(&value.immunities),
+        resistances: iwr_values(&value.resistances),
+        weaknesses: iwr_values(&value.weaknesses),
     }
 }
 
-fn hp(record: &AtlasRecord) -> Option<CreatureHitPointsJson> {
-    let value = metric_i64_for_definition(record, metrics::actor::HP_VALUE);
-    let maximum = metric_i64_for_definition(record, metrics::actor::HP_MAX);
-    let broken_threshold = metric_i64_for_definition(record, metrics::actor::HP_BROKEN_THRESHOLD);
-    (value.is_some() || maximum.is_some() || broken_threshold.is_some()).then_some(
-        CreatureHitPointsJson {
-            value,
-            maximum,
-            broken_threshold,
-        },
-    )
+fn save(value: &CreatureSave) -> CreatureSaveJson {
+    CreatureSaveJson {
+        id: value.id.as_str().to_string(),
+        value: integer(&value.value),
+        details: note(&value.details),
+    }
 }
 
-fn save(record: &AtlasRecord, slug: &str, id: &'static str) -> Option<CreatureSaveJson> {
-    metric_i64(record, &metrics::actor::save::mod_key(slug))
-        .map(|value| CreatureSaveJson { id, value })
+fn iwr_values(values: &FactValue<Vec<CreatureIwr>>) -> Option<Vec<CreatureIwrJson>> {
+    values.as_value().map(|values| {
+        values
+            .iter()
+            .map(|value| CreatureIwrJson {
+                id: value.id.as_str().to_string(),
+                order: value.authored_order,
+                iwr_type: value.iwr_type.as_str().to_string(),
+                value: integer(&value.value),
+                exceptions: value
+                    .exceptions
+                    .as_value()
+                    .map(|values| {
+                        values
+                            .iter()
+                            .map(|value| value.as_str().to_string())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                double_vs: value
+                    .double_vs
+                    .as_value()
+                    .map(|values| {
+                        values
+                            .iter()
+                            .map(|value| value.as_str().to_string())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                apply_once: boolean(&value.apply_once),
+            })
+            .collect()
+    })
 }
 
-fn iwr(prefix: &str, values: &[String]) -> Vec<CreatureIwrJson> {
-    values
-        .iter()
-        .enumerate()
-        .map(|(order, value)| CreatureIwrJson {
-            id: format!("{prefix}-{order}"),
-            order,
-            iwr_type: value.clone(),
-        })
-        .collect()
-}
-
-fn perception(record: &AtlasRecord) -> Option<CreaturePerceptionJson> {
-    let modifier = metric_i64_for_definition(record, metrics::actor::PERCEPTION_MOD);
-    let senses = record
-        .mechanics
-        .actor()
-        .map(|actor| {
-            actor
-                .senses
+fn perception(value: &crate::CreaturePerception) -> CreaturePerceptionJson {
+    CreaturePerceptionJson {
+        modifier: integer(&value.modifier),
+        details: note(&value.details),
+        has_vision: boolean(&value.has_vision),
+        senses: value.senses.as_value().map(|values| {
+            values
                 .iter()
-                .enumerate()
-                .map(|(order, sense)| {
-                    let kind = stable_slug(sense);
-                    CreatureSenseJson {
-                        id: format!("sense-{order}"),
-                        order,
-                        range_feet: metric_i64(record, &metrics::actor::sense::range_key(&kind)),
-                        kind,
-                    }
+                .map(|sense| CreatureSenseJson {
+                    id: sense.id.as_str().to_string(),
+                    order: sense.authored_order,
+                    kind: sense.sense_type.as_str().to_string(),
+                    acuity: sense.acuity.as_value().map(|acuity| match acuity {
+                        crate::SenseAcuity::Precise => "precise".to_string(),
+                        crate::SenseAcuity::Imprecise => "imprecise".to_string(),
+                        crate::SenseAcuity::Vague => "vague".to_string(),
+                        crate::SenseAcuity::Unsupported(value) => value.value.clone(),
+                    }),
+                    range_feet: integer(&sense.range),
                 })
+                .collect()
+        }),
+    }
+}
+
+fn skill(value: &CreatureSkill) -> CreatureSkillJson {
+    CreatureSkillJson {
+        id: value.id.as_str().to_string(),
+        order: value.authored_order,
+        slug: value.kind.source_slug().to_string(),
+        label: value.label.clone(),
+        modifier: integer(&value.modifier),
+        note: note(&value.note),
+        variants: value
+            .variants
+            .as_value()
+            .map(|values| values.iter().map(skill_variant).collect())
+            .unwrap_or_default(),
+        source_item_id: value
+            .source_item_id
+            .as_value()
+            .map(|value| value.as_str().to_string()),
+    }
+}
+
+fn skill_variant(value: &CreatureSkillVariant) -> CreatureSkillVariantJson {
+    CreatureSkillVariantJson {
+        id: value.id.as_str().to_string(),
+        order: value.authored_order,
+        modifier: integer(&value.modifier),
+        label: text(&value.label),
+        predicates: value
+            .predicate
+            .as_value()
+            .map(|values| values.iter().map(predicate).collect())
+            .unwrap_or_default(),
+    }
+}
+
+fn predicate(value: &crate::CreaturePredicate) -> String {
+    match value {
+        crate::CreaturePredicate::Term(term) => term.as_str().to_string(),
+        crate::CreaturePredicate::Not(term) => format!("not:{}", term.as_str()),
+        crate::CreaturePredicate::Any(terms) => format!(
+            "any:{}",
+            terms
+                .iter()
+                .map(|term| term.as_str())
                 .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    (modifier.is_some() || !senses.is_empty())
-        .then_some(CreaturePerceptionJson { modifier, senses })
-}
-
-fn skills(record: &AtlasRecord) -> Vec<CreatureSkillJson> {
-    let mut skills = Vec::new();
-    for metric in &record.mechanics.metrics {
-        if metric.domain != MetricDomain::Actor {
-            continue;
+                .join("|")
+        ),
+        crate::CreaturePredicate::AtLeast { term, minimum } => {
+            format!("at_least:{minimum}:{}", term.as_str())
         }
-        let Some(found) = definition_for(metric.domain, &metric.key) else {
-            continue;
-        };
-        if *found.definition != metrics::actor::skill::MOD {
-            continue;
-        }
-        let Some(capture) = found.captures.first() else {
-            continue;
-        };
-        let MetricValue::Number(value) = metric.value else {
-            continue;
-        };
-        if value.fract() != 0.0 {
-            continue;
-        }
-        let order = skills.len();
-        skills.push(CreatureSkillJson {
-            id: format!("skill:{}", capture.raw),
-            order,
-            slug: capture.raw.clone(),
-            label: capture.label.clone(),
-            modifier: value as i64,
-            rank: metric_i64(record, &metrics::actor::skill::rank_key(&capture.raw)),
-            proficient: metric_bool(record, &metrics::actor::skill::proficient_key(&capture.raw)),
-        });
-    }
-    skills
-}
-
-fn movement(record: &AtlasRecord) -> CreatureMovementJson {
-    let mut modes = Vec::new();
-    for metric in &record.mechanics.metrics {
-        if metric.domain != MetricDomain::Actor {
-            continue;
-        }
-        let Some(found) = definition_for(metric.domain, &metric.key) else {
-            continue;
-        };
-        if *found.definition != metrics::actor::speed::VALUE {
-            continue;
-        }
-        let Some(capture) = found.captures.first() else {
-            continue;
-        };
-        let MetricValue::Number(value) = metric.value else {
-            continue;
-        };
-        if value.fract() != 0.0 || value <= 0.0 {
-            continue;
-        }
-        let order = modes.len();
-        modes.push(CreatureMovementModeJson {
-            id: format!("movement:{}", capture.raw),
-            order,
-            mode: capture.raw.clone(),
-            label: format!("{} Speed", capture.label),
-            value_feet: value as i64,
-        });
-    }
-    CreatureMovementJson { modes }
-}
-
-fn resources(_record: &AtlasRecord) -> Vec<CreatureResourceJson> {
-    // The relational CLI record currently carries no canonical resource rows.
-    // Keep the direct typed collection empty rather than infer resource meaning
-    // from undefined metric-key patterns or raw source.
-    Vec::new()
-}
-
-fn strike(activity: &MechanicActivity, order: usize, include_details: bool) -> CreatureStrikeJson {
-    CreatureStrikeJson {
-        id: activity.activity_id.clone(),
-        order,
-        label: activity.label.clone(),
-        traits: activity.traits.clone(),
-        usage: usage(activity.usage),
-        rolls: include_details.then(|| rolls(activity)),
-        damage: include_details.then(|| damage(&activity.damage)),
-        modes: include_details.then(|| modes(&activity.modes)),
+        crate::CreaturePredicate::Unsupported(value) => value.value.clone(),
     }
 }
 
-fn action(activity: &MechanicActivity, order: usize, include_details: bool) -> CreatureActionJson {
-    CreatureActionJson {
-        id: activity.activity_id.clone(),
-        order,
-        label: activity.label.clone(),
-        traits: activity.traits.clone(),
-        usage: usage(activity.usage),
-        rolls: include_details.then(|| rolls(activity)),
-        damage: include_details.then(|| damage(&activity.damage)),
-        modes: include_details.then(|| modes(&activity.modes)),
+fn movement(value: &crate::CreatureSpeed) -> CreatureMovementModeJson {
+    CreatureMovementModeJson {
+        id: value.id.as_str().to_string(),
+        order: value.authored_order,
+        mode: match &value.mode {
+            CreatureMovementMode::Land => "land".to_string(),
+            CreatureMovementMode::Burrow => "burrow".to_string(),
+            CreatureMovementMode::Climb => "climb".to_string(),
+            CreatureMovementMode::Fly => "fly".to_string(),
+            CreatureMovementMode::Swim => "swim".to_string(),
+            CreatureMovementMode::Unsupported(value) => value.value.clone(),
+        },
+        label: text(&value.label),
+        value_feet: integer(&value.value),
+        details: note(&value.details),
     }
 }
 
-fn spell(activity: &MechanicActivity, order: usize, include_details: bool) -> CreatureSpellJson {
-    CreatureSpellJson {
-        id: activity.activity_id.clone(),
-        order,
-        label: activity.label.clone(),
-        traits: activity.traits.clone(),
-        usage: usage(activity.usage),
-        compendium_source: activity.compendium_source.clone(),
-        rolls: include_details.then(|| rolls(activity)),
-        damage: include_details.then(|| damage(&activity.damage)),
-        modes: include_details.then(|| modes(&activity.modes)),
+fn resource(value: &crate::CreatureResource) -> CreatureResourceJson {
+    CreatureResourceJson {
+        id: value.id.as_str().to_string(),
+        order: value.authored_order,
+        kind: value.kind.as_str().to_string(),
+        label: value.label.clone(),
+        maximum: resource_amount(&value.maximum),
+        serialized_value: resource_amount(&value.serialized_value),
+        current_policy: match value.current_policy {
+            ResourceCurrentPolicy::SerializedValueIsProvenanceOnly => {
+                "serialized_value_is_provenance_only"
+            }
+        },
     }
 }
 
-fn rolls(activity: &MechanicActivity) -> Vec<CreatureRollJson> {
-    activity
-        .rolls
-        .iter()
-        .map(|roll| CreatureRollJson {
-            id: roll.roll_id.clone(),
-            label: roll.label.clone(),
-            value: roll.base_value,
-            surface: match roll.surface {
-                ActivityRollSurface::AttackRoll => "attack_roll",
-                ActivityRollSurface::Dc => "dc",
-            },
-            ability: roll.ability.map(ability),
-        })
-        .collect()
+fn resource_amount(value: &FactValue<CreatureResourceAmount>) -> Option<i64> {
+    value.as_value().and_then(|value| match value {
+        CreatureResourceAmount::Integer(value) => Some(*value),
+        CreatureResourceAmount::Unsupported(_) => None,
+    })
 }
 
-fn damage(values: &[crate::DamageExpression]) -> Vec<CreatureDamageJson> {
+fn occurrence_label(occurrence: &CreatureEntityOccurrence, entities: &[CreatureEntity]) -> String {
+    if let Some(label) = occurrence.context.contextual_label.as_value() {
+        return label.clone();
+    }
+    if let CreatureEntityTarget::ActorOwned(id) = &occurrence.target
+        && let Some(entity) = entities.iter().find(|entity| &entity.id == id)
+    {
+        return entity.label.clone();
+    }
+    match &occurrence.target {
+        CreatureEntityTarget::CanonicalRecord(key) => key.to_string(),
+        CreatureEntityTarget::ActorOwned(id) => id.as_str().to_string(),
+    }
+}
+
+fn occurrence_context(value: &CreatureOccurrenceContext) -> CreatureOccurrenceContextJson {
+    CreatureOccurrenceContextJson {
+        group: text(&value.group),
+        rank: integer(&value.rank),
+        location: text(&value.location),
+        slot: text(&value.slot),
+        uses: value.uses.as_value().map(use_limit),
+        contextual_label: text(&value.contextual_label),
+    }
+}
+
+fn use_limit(value: &CreatureUseLimit) -> CreatureUseLimitJson {
+    CreatureUseLimitJson {
+        maximum: integer(&value.maximum),
+        serialized_value: integer(&value.serialized_value),
+    }
+}
+
+fn action_cost(value: &CreatureActionCost) -> CreatureActionCostJson {
+    let (kind, actions, time, unsupported) = match value {
+        CreatureActionCost::Passive => ("passive", None, None, None),
+        CreatureActionCost::Reaction => ("reaction", None, None, None),
+        CreatureActionCost::FreeAction => ("free_action", None, None, None),
+        CreatureActionCost::Actions(actions) => ("actions", Some(*actions), None, None),
+        CreatureActionCost::Time(time) => ("time", None, Some(time.clone()), None),
+        CreatureActionCost::Unsupported(value) => {
+            ("unsupported", None, None, Some(value.value.clone()))
+        }
+    };
+    CreatureActionCostJson {
+        kind,
+        actions,
+        time,
+        unsupported,
+    }
+}
+
+fn frequency(value: &CreatureFrequency) -> CreatureFrequencyJson {
+    CreatureFrequencyJson {
+        maximum: integer(&value.maximum),
+        period: text(&value.period),
+        serialized_value: integer(&value.serialized_value),
+    }
+}
+
+fn preparation(value: &CreatureSpellPreparation) -> String {
+    match value {
+        CreatureSpellPreparation::Prepared => "prepared".to_string(),
+        CreatureSpellPreparation::Spontaneous => "spontaneous".to_string(),
+        CreatureSpellPreparation::Focus => "focus".to_string(),
+        CreatureSpellPreparation::Innate => "innate".to_string(),
+        CreatureSpellPreparation::Ritual => "ritual".to_string(),
+        CreatureSpellPreparation::Unsupported(value) => value.value.clone(),
+    }
+}
+
+fn spell_slots(values: &FactValue<Vec<CreatureSpellSlot>>) -> Option<Vec<CreatureSpellSlotJson>> {
+    values
+        .as_value()
+        .map(|values| values.iter().map(spell_slot).collect())
+}
+
+fn spell_slot(value: &CreatureSpellSlot) -> CreatureSpellSlotJson {
+    CreatureSpellSlotJson {
+        rank: value.rank,
+        maximum: source_integer(&value.maximum),
+        serialized_value: source_integer(&value.serialized_value),
+        prepared: value.prepared.as_value().map(|values| {
+            values
+                .iter()
+                .filter_map(|value| match value {
+                    CreaturePreparedSpellSlot::Spell {
+                        id,
+                        name,
+                        expended,
+                        prepared,
+                        authored_order,
+                    } => Some(CreaturePreparedSpellJson {
+                        order: *authored_order,
+                        id: id.as_value().map(|value| value.as_str().to_string()),
+                        name: text(name),
+                        expended: boolean(expended),
+                        prepared: boolean(prepared),
+                    }),
+                    CreaturePreparedSpellSlot::Unsupported(_) => None,
+                })
+                .collect()
+        }),
+    }
+}
+
+fn source_integer(value: &FactValue<CreatureSourceScalar<i64>>) -> Option<i64> {
+    value.as_value().and_then(|value| match value {
+        CreatureSourceScalar::Value(value) => Some(*value),
+        CreatureSourceScalar::Unsupported(_) => None,
+    })
+}
+
+fn rolls(values: &[CreatureRoll]) -> Vec<CreatureRollJson> {
     values
         .iter()
-        .map(|value| CreatureDamageJson {
-            id: value.damage_id.clone(),
+        .map(|value| CreatureRollJson {
+            id: value.id.clone(),
             label: value.label.clone(),
-            formula: value.formula.clone(),
-            damage_type: value.damage_type.clone(),
-            effect: match value.effect_kind {
-                DamageEffectKind::Damage => "damage",
-                DamageEffectKind::Healing => "healing",
-                DamageEffectKind::DamageOrHealing => "damage_or_healing",
-                DamageEffectKind::Unknown => "unknown",
+            kind: match value.kind {
+                CreatureRollKind::Attack => "attack",
+                CreatureRollKind::DifficultyClass => "difficulty_class",
+                CreatureRollKind::Check => "check",
             },
-            ability: value.ability.map(ability),
+            value: integer(&value.value),
+            ability: value.ability.as_value().copied().map(ability),
         })
         .collect()
 }
 
-fn modes(values: &[MechanicActivityMode]) -> Vec<CreatureActivityModeJson> {
-    values
-        .iter()
-        .enumerate()
-        .map(|(order, mode)| CreatureActivityModeJson {
-            id: mode.mode_id.clone(),
-            order,
-            label: mode.label.clone(),
-            sort: mode.sort,
-            target: mode.target.clone(),
-            range: mode.range.clone(),
-            time: mode.time.clone(),
-            damage: damage(&mode.damage),
-        })
-        .collect()
+fn damage(values: &FactValue<Vec<CreatureDamage>>) -> Option<Vec<CreatureDamageJson>> {
+    values.as_value().map(|values| {
+        values
+            .iter()
+            .map(|value| CreatureDamageJson {
+                id: value.id.clone(),
+                formula: text(&value.formula),
+                damage_type: text(&value.damage_type),
+                category: text(&value.category),
+                kinds: value
+                    .kinds
+                    .as_value()
+                    .map(|values| {
+                        values
+                            .iter()
+                            .filter_map(|kind| match kind {
+                                CreatureDamageKind::Damage => Some("damage"),
+                                CreatureDamageKind::Healing => Some("healing"),
+                                CreatureDamageKind::Unsupported(_) => None,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                apply_modifier: value
+                    .apply_modifier
+                    .as_value()
+                    .and_then(|value| match value {
+                        CreatureSourceScalar::Value(value) => Some(*value),
+                        CreatureSourceScalar::Unsupported(_) => None,
+                    }),
+            })
+            .collect()
+    })
 }
 
-fn usage(value: MechanicActivityUsage) -> &'static str {
-    match value {
-        MechanicActivityUsage::Unlimited => "unlimited",
-        MechanicActivityUsage::Limited => "limited",
-        MechanicActivityUsage::Ambiguous => "ambiguous",
-    }
+fn integer(value: &FactValue<i64>) -> Option<i64> {
+    value.as_value().copied()
 }
 
-fn preparation(value: &SpellcastingPreparation) -> String {
-    match value {
-        SpellcastingPreparation::Prepared => "prepared".to_string(),
-        SpellcastingPreparation::Spontaneous => "spontaneous".to_string(),
-        SpellcastingPreparation::Focus => "focus".to_string(),
-        SpellcastingPreparation::Innate => "innate".to_string(),
-        SpellcastingPreparation::Other(value) => value.clone(),
-    }
+fn boolean(value: &FactValue<bool>) -> Option<bool> {
+    value.as_value().copied()
+}
+
+fn text(value: &FactValue<String>) -> Option<String> {
+    value.as_value().cloned()
+}
+
+fn note(value: &FactValue<crate::CreatureNote>) -> Option<String> {
+    value.as_value().map(|value| value.as_str().to_string())
+}
+
+fn strings(value: &FactValue<Vec<String>>) -> Vec<String> {
+    value.as_value().cloned().unwrap_or_default()
 }
 
 fn ability(value: ActivityRollAbility) -> &'static str {
@@ -558,50 +890,4 @@ fn ability(value: ActivityRollAbility) -> &'static str {
         ActivityRollAbility::Wisdom => "wisdom",
         ActivityRollAbility::Charisma => "charisma",
     }
-}
-
-fn metric_i64(record: &AtlasRecord, key: &str) -> Option<i64> {
-    record.mechanics.metrics.iter().find_map(|metric| {
-        if metric.domain != MetricDomain::Actor || metric.key != key {
-            return None;
-        }
-        let MetricValue::Number(value) = metric.value else {
-            return None;
-        };
-        (value.fract() == 0.0).then_some(value as i64)
-    })
-}
-
-fn metric_i64_for_definition(record: &AtlasRecord, definition: MetricDefinition) -> Option<i64> {
-    let MetricKeyDefinition::Static(key) = definition.key else {
-        return None;
-    };
-    metric_i64(record, key)
-}
-
-fn metric_bool(record: &AtlasRecord, key: &str) -> Option<bool> {
-    record.mechanics.metrics.iter().find_map(|metric| {
-        if metric.domain != MetricDomain::Actor || metric.key != key {
-            return None;
-        }
-        let MetricValue::Boolean(value) = metric.value else {
-            return None;
-        };
-        Some(value)
-    })
-}
-
-fn stable_slug(value: &str) -> String {
-    value
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() {
-                character.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .trim_matches('-')
-        .to_string()
 }

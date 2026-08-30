@@ -33,6 +33,7 @@ Candidate areas:
 - Keep the product surface CLI-first; do not introduce a transport-specific compatibility layer.
 - Keep durable behavior in runtime/search/index crates and command presentation in `atlas-cli`.
 - Preserve one tagged CLI model distinct from canonical records and app/web DTOs; each future family owns a direct optimized variant rather than a compatibility shim or universal mechanics bag.
+- Preserve canonical-body provenance through the shared `RetrievedRecord` aggregate; future variants must not reconstruct typed presentation facts from sparse mechanics, raw source, or prose.
 
 ## Related
 

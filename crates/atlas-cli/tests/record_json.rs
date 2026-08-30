@@ -547,28 +547,22 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
         assert_eq!(record["presentation_type"], "creature");
         assert!(record.get("sections").is_none());
         let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
-        for field in [
-            "defenses",
-            "languages",
-            "skills",
-            "movement",
-            "resources",
-            "strikes",
-            "actions",
-            "spellcasting",
-        ] {
+        for field in ["defenses", "perception", "languages", "movement"] {
             assert_eq!(
                 record.get(field).is_some(),
                 includes_scan_fields,
                 "detail {detail} field {field}"
             );
         }
+        for field in ["skills", "resources", "strikes", "actions", "spellcasting"] {
+            assert!(
+                record.get(field).is_none(),
+                "detail {detail} must omit source-missing field {field}"
+            );
+        }
         if includes_scan_fields {
             assert!(record["defenses"].is_object());
             assert!(record["movement"].is_object());
-            assert!(record["resources"].is_array());
-            assert!(record["spellcasting"]["entries"].is_array());
-            assert!(record["spellcasting"]["spells"].is_array());
         }
     }
 
@@ -635,10 +629,22 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
             assert_eq!(record["perception"]["modifier"], 18);
             assert_eq!(record["languages"][0], "aklo");
             assert_eq!(record["skills"][0]["slug"], "occultism");
-            assert_eq!(record["skills"][1]["slug"], "theater_lore");
+            assert_eq!(record["skills"][0]["note"], "ancient soul lore");
+            assert_eq!(record["skills"][1]["slug"], "lore");
             assert_eq!(record["movement"]["modes"][0]["mode"], "land");
             assert_eq!(record["movement"]["modes"][1]["mode"], "fly");
-            assert_eq!(record["resources"], serde_json::json!([]));
+            assert_eq!(record["resources"][0]["maximum"], 1);
+            assert_eq!(record["resources"][0]["serialized_value"], 1);
+            assert_eq!(record["defenses"]["resistances"][0]["value"], 10);
+            assert_eq!(record["defenses"]["weaknesses"][0]["value"], 10);
+            let change_shape = record["actions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|action| action["label"] == "Change Shape")
+                .expect("Change Shape action");
+            assert_eq!(change_shape["action_cost"]["kind"], "actions");
+            assert_eq!(change_shape["action_cost"]["actions"], 1);
             assert_eq!(record["strikes"].as_array().unwrap().len(), 2);
             assert_eq!(record["actions"].as_array().unwrap().len(), 2);
             assert_eq!(
@@ -653,6 +659,8 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
             assert!(record["strikes"][0]["damage"].is_array());
             assert!(record["actions"][0]["rolls"].is_array());
             assert!(record["spellcasting"]["spells"][0]["damage"].is_array());
+            assert_eq!(record["spellcasting"]["spells"][0]["context"]["rank"], 3);
+            assert!(record["spellcasting"]["spells"][0]["parent_entry_id"].is_string());
             assert!(serde_json::to_string(record)?.contains("Heartstones"));
         }
         if detail == "full" {

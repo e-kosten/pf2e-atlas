@@ -4,7 +4,7 @@ use atlas_domain::RecordKey;
 use atlas_index::{
     GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection, ReferenceReadIndex,
 };
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 
 use crate::{AtlasRetrievalService, SearchError};
 use crate::{GetRecordRequest, GetRecordsRequest, RecordRetrieval};
@@ -51,14 +51,14 @@ impl GraphContextRequest {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphContextResult {
-    pub seed: AtlasRecord,
+    pub seed: RetrievedRecord,
     pub outgoing: GraphContextSection,
     pub backlinks: GraphContextSection,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphContextSection {
-    pub records: Vec<AtlasRecord>,
+    pub records: Vec<RetrievedRecord>,
     pub edges: Vec<GraphContextEdge>,
     pub total_records: usize,
     pub total_edges: usize,
@@ -168,12 +168,12 @@ impl AtlasRetrievalService {
                 record_keys: &retained_keys,
             })?
             .into_iter()
-            .map(|record| (record.identity.key.clone(), record))
+            .map(|record| (record.record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let records = retained_records(&retained_keys, &mut records_by_key)?;
         let retained_key_set = records
             .iter()
-            .map(|record| record.identity.key.clone())
+            .map(|record| record.record.identity.key.clone())
             .collect::<BTreeSet<_>>();
         let retained_edges = edges
             .into_iter()
@@ -205,8 +205,8 @@ where
 
 fn retained_records(
     retained_keys: &[RecordKey],
-    records_by_key: &mut BTreeMap<RecordKey, AtlasRecord>,
-) -> Result<Vec<AtlasRecord>, SearchError> {
+    records_by_key: &mut BTreeMap<RecordKey, RetrievedRecord>,
+) -> Result<Vec<RetrievedRecord>, SearchError> {
     let mut records = Vec::with_capacity(retained_keys.len());
     for key in retained_keys {
         let Some(record) = records_by_key.remove(key) else {

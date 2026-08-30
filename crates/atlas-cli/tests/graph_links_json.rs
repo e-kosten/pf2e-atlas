@@ -430,7 +430,12 @@ fn graph_links_json_accepts_non_default_visible_seed() -> Result<(), Box<dyn std
         .arg("--json")
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
