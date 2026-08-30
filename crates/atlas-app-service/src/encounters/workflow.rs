@@ -20,7 +20,7 @@ use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
 use super::hydration::{default_hp, hydrate_participant_records, resolve_record_ref};
-use super::mechanics::variant_hp_adjustment_delta;
+use super::mechanics::{canonical_creature_level, variant_hp_adjustment_delta};
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, participant_view, reorder_placement,
@@ -235,7 +235,7 @@ impl AtlasAppService {
                 .record_key
                 .as_ref()
                 .and_then(|key| records_by_key.get(key))
-                .and_then(|record| record.classification.level);
+                .and_then(canonical_creature_level);
             let hp_delta =
                 variant_hp_adjustment_delta(existing.participant_variant, new_variant, level);
             current_hp = current_hp.map(|value| (value + hp_delta).max(0));
