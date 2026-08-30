@@ -11,13 +11,14 @@ use atlas_app_model::{
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
 use atlas_record::{
     AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, CanonicalMechanicActivity,
-    CanonicalMechanicsProjection, CreatureDamage, CreatureDamageKind, CreatureNumber,
-    CreatureResourceAmount, CreatureRollKind, CreatureSourceScalar, DamageEffectKind,
-    DamageExpression, FactValue, MechanicActivity, MechanicActivityFamily, MechanicActivityKind,
-    MechanicActivityMode, MechanicActivityUsage, MechanicBaseValue, MechanicFact, MechanicScalar,
-    MechanicSurface, MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, RecordBody,
-    RetrievedRecord, UnsupportedMechanic, UnsupportedMechanicValue, build_mechanics_view,
-    project_creature_mechanics,
+    CanonicalMechanicsProjection, CreatureActionCost, CreatureDamage, CreatureDamageKind,
+    CreatureFrequency, CreatureNumber, CreatureResourceAmount, CreatureRoll, CreatureRollKind,
+    CreatureSourceScalar, CreatureUseLimit, DamageEffectKind, DamageExpression, FactValue,
+    MechanicActivity, MechanicActivityFamily, MechanicActivityKind, MechanicActivityMode,
+    MechanicActivityUsage, MechanicBaseValue, MechanicFact, MechanicScalar, MechanicSurface,
+    MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, RecordBody, RetrievedRecord,
+    UnsupportedMechanic, UnsupportedMechanicValue, UnsupportedSourceReason, UnsupportedSourceShape,
+    UnsupportedSourceValue, build_mechanics_view, project_creature_mechanics,
 };
 
 use super::conditions::{ConditionRule, condition_rule_for_key};
@@ -227,20 +228,20 @@ fn canonical_participant_mechanics(
         .into_iter()
         .map(canonical_unsupported_effect)
         .collect::<Vec<_>>();
-    let activities = projection
-        .activities
-        .into_iter()
-        .map(|activity| {
-            unapplied_effects.extend(
-                activity
-                    .unsupported
-                    .iter()
-                    .cloned()
-                    .map(canonical_unsupported_effect),
-            );
-            canonical_activity(activity)
-        })
-        .collect();
+    let mut activities = Vec::new();
+    for activity in projection.activities {
+        unapplied_effects.extend(
+            activity
+                .unsupported
+                .iter()
+                .cloned()
+                .map(canonical_unsupported_effect),
+        );
+        let disposition = canonical_activity(activity);
+        values.extend(disposition.values);
+        unapplied_effects.extend(disposition.unapplied_effects);
+        activities.push(disposition.activity);
+    }
 
     ParticipantMechanics {
         view: MechanicsView {
@@ -256,7 +257,13 @@ fn canonical_participant_mechanics(
     }
 }
 
-fn canonical_activity(activity: CanonicalMechanicActivity) -> MechanicActivity {
+struct CanonicalActivityDisposition {
+    activity: MechanicActivity,
+    values: Vec<MechanicValue>,
+    unapplied_effects: Vec<UnappliedEffectView>,
+}
+
+fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityDisposition {
     let ability = activity_attack_ability(&activity);
     let usage = canonical_activity_usage(&activity);
     let kind = match activity.family {
@@ -278,16 +285,30 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> MechanicActivity {
         .iter()
         .filter_map(|fact| canonical_activity_damage(fact, ability))
         .collect();
-    MechanicActivity {
-        activity_id: activity.occurrence_id.as_str().to_string(),
-        label: activity.label,
-        kind,
-        traits: Vec::new(),
-        compendium_source: None,
-        usage,
-        rolls,
-        damage,
-        modes: Vec::new(),
+    let values = activity
+        .facts
+        .iter()
+        .filter_map(canonical_activity_value)
+        .collect();
+    let unapplied_effects = activity
+        .facts
+        .iter()
+        .filter_map(canonical_activity_unapplied_effect)
+        .collect();
+    CanonicalActivityDisposition {
+        activity: MechanicActivity {
+            activity_id: activity.occurrence_id.as_str().to_string(),
+            label: activity.label,
+            kind,
+            traits: Vec::new(),
+            compendium_source: None,
+            usage,
+            rolls,
+            damage,
+            modes: Vec::new(),
+        },
+        values,
+        unapplied_effects,
     }
 }
 
@@ -297,6 +318,8 @@ fn canonical_activity_roll(fact: &MechanicFact) -> Option<ActivityRoll> {
             let surface = match roll.kind {
                 CreatureRollKind::Attack => ActivityRollSurface::AttackRoll,
                 CreatureRollKind::DifficultyClass => ActivityRollSurface::Dc,
+                // The encounter DTO has no generic check surface. The complete typed fact is
+                // retained as an explicit unapplied note by `canonical_activity_unapplied_effect`.
                 CreatureRollKind::Check => return None,
             };
             Some(ActivityRoll {
@@ -322,6 +345,191 @@ fn canonical_activity_roll(fact: &MechanicFact) -> Option<ActivityRoll> {
             ability: None,
         }),
         _ => None,
+    }
+}
+
+fn canonical_activity_value(fact: &MechanicFact) -> Option<MechanicValue> {
+    let MechanicTarget::SpellSlotMaximum { .. } = &fact.target else {
+        return None;
+    };
+    let MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(value))) =
+        &fact.value
+    else {
+        return None;
+    };
+    Some(MechanicValue {
+        target: fact.target.clone(),
+        label: fact.label.clone(),
+        base_value: MechanicScalar::Number(*value),
+        facets: fact.facets.clone(),
+    })
+}
+
+fn canonical_activity_unapplied_effect(fact: &MechanicFact) -> Option<UnappliedEffectView> {
+    let disposition = match (&fact.target, &fact.value) {
+        (
+            MechanicTarget::ActivityRoll { .. },
+            MechanicBaseValue::Roll(
+                roll @ CreatureRoll {
+                    kind: CreatureRollKind::Check,
+                    ..
+                },
+            ),
+        ) => format!(
+            "check roll has no encounter roll surface; id={:?}; label={:?}; value={}; ability={}",
+            roll.id,
+            roll.label,
+            fact_i64(&roll.value),
+            fact_roll_ability(&roll.ability)
+        ),
+        (MechanicTarget::ActivityActionCost { .. }, MechanicBaseValue::ActionCost(value)) => {
+            format!(
+                "action cost has no exact encounter activity field; value={}",
+                action_cost(value)
+            )
+        }
+        (MechanicTarget::ActivityFrequency { .. }, MechanicBaseValue::Frequency(value)) => {
+            format!(
+                "frequency is represented only by coarse activity usage; value={}",
+                frequency(value)
+            )
+        }
+        (MechanicTarget::ActivityUses { .. }, MechanicBaseValue::Uses(value)) => format!(
+            "uses are represented only by coarse activity usage; value={}",
+            uses(value)
+        ),
+        (
+            MechanicTarget::SpellSlotMaximum { .. },
+            MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(_))),
+        ) => return None,
+        (MechanicTarget::SpellSlotMaximum { .. }, MechanicBaseValue::SourceInteger(value)) => {
+            format!(
+                "spell-slot maximum cannot populate a numeric encounter value; value={}",
+                source_i64(value)
+            )
+        }
+        _ => return None,
+    };
+    Some(UnappliedEffectView {
+        source: "Canonical source".to_string(),
+        label: format!(
+            "{} retained without exact encounter field",
+            fact.target.id()
+        ),
+        reason: format!("{}: {disposition}", fact.label),
+    })
+}
+
+fn fact_i64(value: &FactValue<i64>) -> String {
+    match value {
+        FactValue::Missing => "missing".to_string(),
+        FactValue::Null => "null".to_string(),
+        FactValue::Value(value) => format!("value({value})"),
+    }
+}
+
+fn fact_string(value: &FactValue<String>) -> String {
+    match value {
+        FactValue::Missing => "missing".to_string(),
+        FactValue::Null => "null".to_string(),
+        FactValue::Value(value) => format!("value({value:?})"),
+    }
+}
+
+fn fact_roll_ability(value: &FactValue<ActivityRollAbility>) -> String {
+    match value {
+        FactValue::Missing => "missing".to_string(),
+        FactValue::Null => "null".to_string(),
+        FactValue::Value(value) => format!("value({})", roll_ability_name(*value)),
+    }
+}
+
+fn roll_ability_name(value: ActivityRollAbility) -> &'static str {
+    match value {
+        ActivityRollAbility::Strength => "strength",
+        ActivityRollAbility::Dexterity => "dexterity",
+        ActivityRollAbility::Constitution => "constitution",
+        ActivityRollAbility::Intelligence => "intelligence",
+        ActivityRollAbility::Wisdom => "wisdom",
+        ActivityRollAbility::Charisma => "charisma",
+    }
+}
+
+fn action_cost(value: &CreatureActionCost) -> String {
+    match value {
+        CreatureActionCost::Passive => "passive".to_string(),
+        CreatureActionCost::Reaction => "reaction".to_string(),
+        CreatureActionCost::FreeAction => "free_action".to_string(),
+        CreatureActionCost::Actions(value) => format!("actions({value})"),
+        CreatureActionCost::Time(value) => format!("time({value:?})"),
+        CreatureActionCost::Unsupported(value) => unsupported_source_value(value),
+    }
+}
+
+fn frequency(value: &FactValue<CreatureFrequency>) -> String {
+    match value {
+        FactValue::Missing => "missing".to_string(),
+        FactValue::Null => "null".to_string(),
+        FactValue::Value(value) => format!(
+            "maximum={}, period={}, serialized_value={}",
+            fact_i64(&value.maximum),
+            fact_string(&value.period),
+            fact_i64(&value.serialized_value)
+        ),
+    }
+}
+
+fn uses(value: &FactValue<CreatureUseLimit>) -> String {
+    match value {
+        FactValue::Missing => "missing".to_string(),
+        FactValue::Null => "null".to_string(),
+        FactValue::Value(value) => format!(
+            "maximum={}, serialized_value={}",
+            fact_i64(&value.maximum),
+            fact_i64(&value.serialized_value)
+        ),
+    }
+}
+
+fn source_i64(value: &FactValue<CreatureSourceScalar<i64>>) -> String {
+    match value {
+        FactValue::Missing => "missing".to_string(),
+        FactValue::Null => "null".to_string(),
+        FactValue::Value(CreatureSourceScalar::Value(value)) => format!("value({value})"),
+        FactValue::Value(CreatureSourceScalar::Unsupported(value)) => {
+            unsupported_source_value(value)
+        }
+    }
+}
+
+fn unsupported_source_value(value: &UnsupportedSourceValue) -> String {
+    format!(
+        "unsupported(shape={}, value={:?}, reason={})",
+        unsupported_source_shape(value.shape),
+        value.value,
+        unsupported_source_reason(value.reason)
+    )
+}
+
+fn unsupported_source_shape(value: UnsupportedSourceShape) -> &'static str {
+    match value {
+        UnsupportedSourceShape::Missing => "missing",
+        UnsupportedSourceShape::Null => "null",
+        UnsupportedSourceShape::String => "string",
+        UnsupportedSourceShape::Number => "number",
+        UnsupportedSourceShape::Boolean => "boolean",
+        UnsupportedSourceShape::Array => "array",
+        UnsupportedSourceShape::Object => "object",
+    }
+}
+
+fn unsupported_source_reason(value: UnsupportedSourceReason) -> &'static str {
+    match value {
+        UnsupportedSourceReason::OpenVocabulary => "open_vocabulary",
+        UnsupportedSourceReason::AmbiguousLegacyShape => "ambiguous_legacy_shape",
+        UnsupportedSourceReason::InvalidPredicate => "invalid_predicate",
+        UnsupportedSourceReason::NonCanonicalRuntimeValue => "non_canonical_runtime_value",
+        UnsupportedSourceReason::SourceFieldDrift => "source_field_drift",
     }
 }
 
@@ -1675,11 +1883,28 @@ mod tests {
     }
 
     fn project_canonical(participant: &EncounterParticipant) -> StatBlockView {
-        let mechanics = canonical_participant_mechanics(
-            canonical_projection(),
-            "Canonical Creature".to_string(),
-        );
+        project_canonical_projection(participant, canonical_projection())
+    }
+
+    fn project_canonical_projection(
+        participant: &EncounterParticipant,
+        projection: CanonicalMechanicsProjection,
+    ) -> StatBlockView {
+        let mechanics =
+            canonical_participant_mechanics(projection, "Canonical Creature".to_string());
         apply_participant_effects(participant, mechanics.view, mechanics.unapplied_effects)
+    }
+
+    fn activity_fact_mut<'a>(
+        projection: &'a mut CanonicalMechanicsProjection,
+        target: &MechanicTarget,
+    ) -> &'a mut MechanicFact {
+        projection
+            .activities
+            .iter_mut()
+            .flat_map(|activity| activity.facts.iter_mut())
+            .find(|fact| &fact.target == target)
+            .expect("canonical activity fact should exist")
     }
 
     fn canonical_projection() -> CanonicalMechanicsProjection {
@@ -1810,14 +2035,47 @@ mod tests {
                     family: MechanicActivityFamily::SpellcastingEntry,
                     label: "Arcane Prepared Spells".to_string(),
                     authored_order: 1,
-                    facts: vec![MechanicFact {
-                        target: MechanicTarget::SpellcastingDc {
-                            entry_occurrence_id: spellcasting_id,
+                    facts: vec![
+                        MechanicFact {
+                            target: MechanicTarget::SpellcastingDc {
+                                entry_occurrence_id: spellcasting_id.clone(),
+                            },
+                            label: "Spell DC".to_string(),
+                            value: MechanicBaseValue::Integer(FactValue::Value(22)),
+                            facets: MechanicFacets::spellcasting_dc(),
                         },
-                        label: "Spell DC".to_string(),
-                        value: MechanicBaseValue::Integer(FactValue::Value(22)),
-                        facets: MechanicFacets::spellcasting_dc(),
-                    }],
+                        MechanicFact {
+                            target: MechanicTarget::SpellSlotMaximum {
+                                entry_occurrence_id: spellcasting_id.clone(),
+                                rank: 3,
+                            },
+                            label: "Rank 3 slots".to_string(),
+                            value: MechanicBaseValue::SourceInteger(FactValue::Value(
+                                CreatureSourceScalar::Value(2),
+                            )),
+                            facets: MechanicFacets::spell_slot(),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::SpellSlotMaximum {
+                                entry_occurrence_id: spellcasting_id.clone(),
+                                rank: 1,
+                            },
+                            label: "Rank 1 slots".to_string(),
+                            value: MechanicBaseValue::SourceInteger(FactValue::Value(
+                                CreatureSourceScalar::Value(4),
+                            )),
+                            facets: MechanicFacets::spell_slot(),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::SpellSlotMaximum {
+                                entry_occurrence_id: spellcasting_id,
+                                rank: 4,
+                            },
+                            label: "Rank 4 slots".to_string(),
+                            value: MechanicBaseValue::SourceInteger(FactValue::Missing),
+                            facets: MechanicFacets::spell_slot(),
+                        },
+                    ],
                     unsupported: Vec::new(),
                 },
                 CanonicalMechanicActivity {
@@ -1826,6 +2084,29 @@ mod tests {
                     label: "Breath Weapon".to_string(),
                     authored_order: 2,
                     facts: vec![
+                        MechanicFact {
+                            target: MechanicTarget::ActivityActionCost {
+                                occurrence_id: action_id.clone(),
+                            },
+                            label: "Action cost".to_string(),
+                            value: MechanicBaseValue::ActionCost(CreatureActionCost::Actions(2)),
+                            facets: MechanicFacets::action_economy(
+                                atlas_record::MechanicSourceFamily::Action,
+                            ),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::ActivityUses {
+                                occurrence_id: action_id.clone(),
+                            },
+                            label: "Uses".to_string(),
+                            value: MechanicBaseValue::Uses(FactValue::Value(CreatureUseLimit {
+                                maximum: FactValue::Value(2),
+                                serialized_value: FactValue::Value(1),
+                            })),
+                            facets: MechanicFacets::uses(
+                                atlas_record::MechanicSourceFamily::Action,
+                            ),
+                        },
                         MechanicFact {
                             target: MechanicTarget::ActivityFrequency {
                                 occurrence_id: action_id.clone(),
@@ -1840,6 +2121,24 @@ mod tests {
                             )),
                             facets: MechanicFacets::frequency(
                                 atlas_record::MechanicSourceFamily::Action,
+                            ),
+                        },
+                        MechanicFact {
+                            target: MechanicTarget::ActivityRoll {
+                                occurrence_id: action_id.clone(),
+                                roll_id: "recall".to_string(),
+                            },
+                            label: "Recall Knowledge".to_string(),
+                            value: MechanicBaseValue::Roll(CreatureRoll {
+                                id: "recall".to_string(),
+                                label: "Recall Knowledge".to_string(),
+                                kind: CreatureRollKind::Check,
+                                value: FactValue::Value(18),
+                                ability: FactValue::Value(ActivityRollAbility::Intelligence),
+                            }),
+                            facets: MechanicFacets::roll(
+                                atlas_record::MechanicSourceFamily::Action,
+                                CreatureRollKind::Check,
                             ),
                         },
                         MechanicFact {
@@ -1995,6 +2294,246 @@ mod tests {
             effect.reason.contains("activities.strike-claw.unsupported")
                 && effect.reason.contains("unmodeled-rule")
         }));
+    }
+
+    #[test]
+    fn canonical_activity_facts_have_exact_existing_surface_or_unapplied_dispositions() {
+        let projection = project_canonical(&participant(ParticipantVariant::Normal, Vec::new()));
+        let action_id = atlas_record::CreatureOccurrenceId::new("action-breath")
+            .expect("occurrence id should be valid");
+        let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
+            .expect("occurrence id should be valid");
+        let action = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == action_id.as_str())
+            .expect("action should project");
+        assert_eq!(action.usage, MechanicActivityUsageView::Limited);
+        assert!(
+            action.rolls.iter().all(|roll| roll.roll_id != "recall"),
+            "a check must not be mislabeled as the existing attack or DC surface"
+        );
+
+        let expected_unapplied = [
+            (
+                MechanicTarget::ActivityActionCost {
+                    occurrence_id: action_id.clone(),
+                },
+                "Action cost: action cost has no exact encounter activity field; value=actions(2)",
+            ),
+            (
+                MechanicTarget::ActivityUses {
+                    occurrence_id: action_id.clone(),
+                },
+                "Uses: uses are represented only by coarse activity usage; value=maximum=value(2), serialized_value=value(1)",
+            ),
+            (
+                MechanicTarget::ActivityFrequency {
+                    occurrence_id: action_id.clone(),
+                },
+                "Frequency: frequency is represented only by coarse activity usage; value=maximum=value(1), period=value(\"day\"), serialized_value=missing",
+            ),
+            (
+                MechanicTarget::ActivityRoll {
+                    occurrence_id: action_id,
+                    roll_id: "recall".to_string(),
+                },
+                "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)",
+            ),
+        ];
+        for (target, reason) in expected_unapplied {
+            let label = format!("{} retained without exact encounter field", target.id());
+            assert!(projection.unapplied_effects.iter().any(|effect| {
+                effect.source == "Canonical source"
+                    && effect.label == label
+                    && effect.reason == reason
+            }));
+        }
+
+        let slot_values = projection
+            .values
+            .iter()
+            .filter(|value| {
+                value
+                    .target
+                    .starts_with("mechanic-target/v1/spell-slot-maximum/")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            slot_values
+                .iter()
+                .map(|value| (value.label.as_str(), value.base_value, value.adjusted_value))
+                .collect::<Vec<_>>(),
+            vec![("Rank 3 slots", 2, 2), ("Rank 1 slots", 4, 4)],
+            "representable spell-slot maxima should retain canonical fact order"
+        );
+        let missing_slot = MechanicTarget::SpellSlotMaximum {
+            entry_occurrence_id: spellcasting_id,
+            rank: 4,
+        };
+        assert!(projection.unapplied_effects.iter().any(|effect| {
+            effect.label
+                == format!(
+                    "{} retained without exact encounter field",
+                    missing_slot.id()
+                )
+                && effect.reason
+                    == "Rank 4 slots: spell-slot maximum cannot populate a numeric encounter value; value=missing"
+        }));
+    }
+
+    #[test]
+    fn canonical_unapplied_activity_facts_preserve_order_and_duplicates() {
+        let mut canonical = canonical_projection();
+        let action_id = atlas_record::CreatureOccurrenceId::new("action-breath")
+            .expect("occurrence id should be valid");
+        let action = canonical
+            .activities
+            .iter_mut()
+            .find(|activity| activity.occurrence_id == action_id)
+            .expect("action should exist");
+        let mut duplicate_uses = action
+            .facts
+            .iter()
+            .find(|fact| matches!(fact.target, MechanicTarget::ActivityUses { .. }))
+            .expect("uses fact should exist")
+            .clone();
+        duplicate_uses.label = "Secondary uses".to_string();
+        duplicate_uses.value = MechanicBaseValue::Uses(FactValue::Value(CreatureUseLimit {
+            maximum: FactValue::Value(3),
+            serialized_value: FactValue::Value(2),
+        }));
+        action.facts.insert(2, duplicate_uses);
+
+        let projection = project_canonical_projection(
+            &participant(ParticipantVariant::Normal, Vec::new()),
+            canonical,
+        );
+        let action_prefixes = [
+            "mechanic-target/v1/activity-action-cost/",
+            "mechanic-target/v1/activity-uses/",
+            "mechanic-target/v1/activity-frequency/",
+            "mechanic-target/v1/activity-roll/",
+        ];
+        let reasons = projection
+            .unapplied_effects
+            .iter()
+            .filter(|effect| {
+                action_prefixes
+                    .iter()
+                    .any(|prefix| effect.label.starts_with(prefix))
+            })
+            .map(|effect| effect.reason.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            reasons,
+            vec![
+                "Action cost: action cost has no exact encounter activity field; value=actions(2)",
+                "Uses: uses are represented only by coarse activity usage; value=maximum=value(2), serialized_value=value(1)",
+                "Secondary uses: uses are represented only by coarse activity usage; value=maximum=value(3), serialized_value=value(2)",
+                "Frequency: frequency is represented only by coarse activity usage; value=maximum=value(1), period=value(\"day\"), serialized_value=missing",
+                "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)",
+            ]
+        );
+    }
+
+    #[test]
+    fn canonical_activity_fact_mutations_change_their_exact_dispositions() {
+        let normal = participant(ParticipantVariant::Normal, Vec::new());
+        let action_id = atlas_record::CreatureOccurrenceId::new("action-breath")
+            .expect("occurrence id should be valid");
+        let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
+            .expect("occurrence id should be valid");
+
+        let mut check = canonical_projection();
+        activity_fact_mut(
+            &mut check,
+            &MechanicTarget::ActivityRoll {
+                occurrence_id: action_id.clone(),
+                roll_id: "recall".to_string(),
+            },
+        )
+        .value = MechanicBaseValue::Roll(CreatureRoll {
+            id: "recall".to_string(),
+            label: "Recall Knowledge".to_string(),
+            kind: CreatureRollKind::Check,
+            value: FactValue::Null,
+            ability: FactValue::Value(ActivityRollAbility::Wisdom),
+        });
+        assert!(
+            project_canonical_projection(&normal, check)
+                .unapplied_effects
+                .iter()
+                .any(|effect| effect.reason.contains("value=null; ability=value(wisdom)"))
+        );
+
+        let mut action_cost_projection = canonical_projection();
+        activity_fact_mut(
+            &mut action_cost_projection,
+            &MechanicTarget::ActivityActionCost {
+                occurrence_id: action_id.clone(),
+            },
+        )
+        .value = MechanicBaseValue::ActionCost(CreatureActionCost::Reaction);
+        assert!(
+            project_canonical_projection(&normal, action_cost_projection)
+                .unapplied_effects
+                .iter()
+                .any(|effect| effect.reason.ends_with("value=reaction"))
+        );
+
+        let mut uses_projection = canonical_projection();
+        activity_fact_mut(
+            &mut uses_projection,
+            &MechanicTarget::ActivityUses {
+                occurrence_id: action_id.clone(),
+            },
+        )
+        .value = MechanicBaseValue::Uses(FactValue::Null);
+        assert!(
+            project_canonical_projection(&normal, uses_projection)
+                .unapplied_effects
+                .iter()
+                .any(|effect| effect.reason.ends_with("value=null"))
+        );
+
+        let mut frequency_projection = canonical_projection();
+        activity_fact_mut(
+            &mut frequency_projection,
+            &MechanicTarget::ActivityFrequency {
+                occurrence_id: action_id,
+            },
+        )
+        .value = MechanicBaseValue::Frequency(FactValue::Value(CreatureFrequency {
+            maximum: FactValue::Value(2),
+            period: FactValue::Value("round".to_string()),
+            serialized_value: FactValue::Value(1),
+        }));
+        assert!(
+            project_canonical_projection(&normal, frequency_projection)
+                .unapplied_effects
+                .iter()
+                .any(|effect| effect.reason.contains(
+                    "maximum=value(2), period=value(\"round\"), serialized_value=value(1)"
+                ))
+        );
+
+        let mut slot_projection = canonical_projection();
+        activity_fact_mut(
+            &mut slot_projection,
+            &MechanicTarget::SpellSlotMaximum {
+                entry_occurrence_id: spellcasting_id,
+                rank: 3,
+            },
+        )
+        .value = MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(5)));
+        let projection = project_canonical_projection(&normal, slot_projection);
+        let slot = projection
+            .values
+            .iter()
+            .find(|value| value.label == "Rank 3 slots")
+            .expect("mutated spell-slot maximum should remain represented");
+        assert_eq!((slot.base_value, slot.adjusted_value), (5, 5));
     }
 
     #[test]
