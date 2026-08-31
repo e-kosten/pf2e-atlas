@@ -1,13 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use atlas_app_model::{
-    AddEncounterRecordParticipantRequest, CreateEncounterRequest, EncounterParticipantSideView,
-    EncounterParticipantVariantView, RecordSurfaceMetadataView, RecordSurfacePresentationView,
-    RecordSurfaceProfileView, RecordSurfaceView, SurfaceUnavailableReasonView,
-    SurfaceUnavailableView, UpdateEncounterParticipantRequest,
+    AddEncounterRecordParticipantRequest, CreateEncounterRequest, CreatureSurfaceContentBlockView,
+    CreatureSurfaceContentInlineView, CreatureSurfaceContentView, CreatureSurfaceView,
+    EncounterParticipantSideView, EncounterParticipantVariantView, RecordSurfaceMetadataView,
+    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceView,
+    SurfaceUnavailableReasonView, SurfaceUnavailableView, UpdateEncounterParticipantRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_record::RecordBody;
@@ -65,6 +67,24 @@ const RECORD_VIEW_RENAME_APPROVAL_SIDECAR_SHA256: &str =
     "673a8ec5835910d71a4d9d46b727eef2a8dcbd86fcc983fe08ef4324d24b6bf5";
 const RECORD_VIEW_RENAME_REVIEW_SHA256: &str =
     "b3c38ad29e8337ed9dd763ffd98b459912554e0e6b6fb8e04ae7c6eb9a88444d";
+const ACTIVITY_CONTENT_BASE: &str = "d4543d1bdce692378ff280254237275b08660487";
+const ACTIVITY_CONTENT_BASE_TREE: &str = "843ac73580ba7fa21377f45f8ed12e77eec7ca64";
+const ACTIVITY_CONTENT_PLAN_SHA256: &str =
+    "9eee39f10437247f4c8744b7cc2e97a8f90b90e8c8945ba4edc626c68e0ca455";
+const ACTIVITY_CONTENT_TASK_MAP_SHA256: &str =
+    "0449100ccd522383bbef7a8e64ea984feb0d28b72f304add9fa24b5a1a53a68a";
+const ACTIVITY_CONTENT_APPROVAL_SHA256: &str =
+    "91fdda8271d2642edab89e6bedc53d6342a148d8065f8d86532b7d169d5e55d1";
+const ACTIVITY_CONTENT_APPROVAL_SIDECAR_SHA256: &str =
+    "32f164571cc69eec6b573a4337cb57fb0b26f00ed957fdade7ab3b236b705e92";
+const ACTIVITY_CONTENT_DIAGNOSIS_SHA256: &str =
+    "10b16ab7b6ef9efb93e6e935ba64619ae59a6b7f2cdbd52d6bdb0fc80aa83761";
+const ACTIVITY_CONTENT_REVIEW_VERDICT_SHA256: &str =
+    "66688a612c1c7fdfe8bb6ed480066b4425ad51cc811d075c849e9d4371d4188c";
+const ACTIVITY_CONTENT_REVIEW_JSON_SHA256: &str =
+    "e5a523eae0854dda2c1a13936d022f66486884df00f4ed09818d3b2cabe9950c";
+const ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256: &str =
+    "90f03fcfee0d35b447e4d7f3792e9ae16cba9c9b002c45a73b3cd6216bd39ffd";
 
 #[test]
 #[ignore = "exports checksum-bound E3 final-candidate samples"]
@@ -547,6 +567,560 @@ fn export_e3_record_surface_final_samples() {
         format!("{}\n", checksum_lines.join("\n")),
     )
     .expect("checksums should write");
+    for relative in relative_files_including_checksums(&sample_root) {
+        let path = sample_root.join(relative);
+        let mut permissions = fs::metadata(&path)
+            .expect("sample metadata should read")
+            .permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(path, permissions).expect("sample file should seal read-only");
+    }
+
+    drop(service);
+    let _ = fs::remove_file(local_state);
+}
+
+#[test]
+#[ignore = "exports checksum-bound E3 activity-content early-direction samples"]
+fn export_e3_activity_content_early_samples() {
+    let sample_root = required_path_env("E3_ACTIVITY_SAMPLE_ROOT");
+    assert!(
+        !sample_root.exists(),
+        "sample root must be fresh and no-clobber: {}",
+        sample_root.display()
+    );
+    fs::create_dir_all(
+        sample_root
+            .parent()
+            .expect("sample root should have a parent"),
+    )
+    .expect("sample parent should be creatable");
+    fs::create_dir(&sample_root).expect("fresh sample root should be creatable");
+    fs::create_dir(sample_root.join("generated"))
+        .expect("generated binding sample directory should be creatable");
+
+    let candidate = required_env("E3_ACTIVITY_SAMPLE_CANDIDATE");
+    let candidate_tree = required_env("E3_ACTIVITY_SAMPLE_TREE");
+    assert_eq!(git_value(Path::new("."), &["rev-parse", "HEAD"]), candidate);
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^{tree}"]),
+        candidate_tree
+    );
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^"]),
+        ACTIVITY_CONTENT_BASE
+    );
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^^{tree}"]),
+        ACTIVITY_CONTENT_BASE_TREE
+    );
+
+    let approval = required_path_env("E3_ACTIVITY_APPROVAL");
+    let plan = required_path_env("E3_ACTIVITY_PLAN");
+    let task_map = required_path_env("E3_ACTIVITY_TASK_MAP");
+    let diagnosis = required_path_env("E3_ACTIVITY_AUDIT");
+    let planning_review_root = required_path_env("E3_ACTIVITY_PLANNING_REVIEW_ROOT");
+    assert_bound_file(&approval, ACTIVITY_CONTENT_APPROVAL_SHA256);
+    assert_bound_file(
+        &PathBuf::from(format!("{}.sha256", approval.display())),
+        ACTIVITY_CONTENT_APPROVAL_SIDECAR_SHA256,
+    );
+    assert_bound_file(&plan, ACTIVITY_CONTENT_PLAN_SHA256);
+    assert_bound_file(&task_map, ACTIVITY_CONTENT_TASK_MAP_SHA256);
+    assert_bound_file(&diagnosis, ACTIVITY_CONTENT_DIAGNOSIS_SHA256);
+    assert_bound_file(
+        &planning_review_root.join("verdict.md"),
+        ACTIVITY_CONTENT_REVIEW_VERDICT_SHA256,
+    );
+    assert_bound_file(
+        &planning_review_root.join("verdict.json"),
+        ACTIVITY_CONTENT_REVIEW_JSON_SHA256,
+    );
+    assert_bound_file(
+        &planning_review_root.join("checksums.sha256"),
+        ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256,
+    );
+    verify_checksums(&planning_review_root);
+
+    let source_root = required_path_env("E3_ACTIVITY_SOURCE_ROOT");
+    let source_commit = required_env("E3_ACTIVITY_SOURCE_COMMIT");
+    let source_tree = required_env("E3_ACTIVITY_SOURCE_TREE");
+    assert_eq!(
+        git_value(&source_root, &["rev-parse", "HEAD"]),
+        source_commit
+    );
+    assert_eq!(
+        git_value(&source_root, &["rev-parse", "HEAD^{tree}"]),
+        source_tree
+    );
+    let night_hag_source = source_root.join("packs/pathfinder-bestiary/night-hag.json");
+    let giant_rat_source = source_root.join("packs/pathfinder-monster-core/giant-rat.json");
+    assert_eq!(file_sha256(&night_hag_source), NIGHT_HAG_SOURCE_SHA256);
+    assert_eq!(file_sha256(&giant_rat_source), GIANT_RAT_SOURCE_SHA256);
+
+    let sample_index = required_path_env("E3_ACTIVITY_INDEX");
+    let sample_index_sha256 = required_env("E3_ACTIVITY_INDEX_SHA256");
+    assert_eq!(file_sha256(&sample_index), sample_index_sha256);
+    let retained_target = required_path_env("E3_ACTIVITY_RETAINED_TARGET");
+    let retained_node_modules = required_path_env("E3_ACTIVITY_RETAINED_NODE_MODULES");
+
+    let local_state = std::env::temp_dir().join(format!(
+        "atlas-e3-activity-content-state-{}-{}.sqlite",
+        std::process::id(),
+        unique_suffix()
+    ));
+    let service = AtlasAppService::new(
+        RetrievalBackend::OnDemandNoEmbeddings,
+        AtlasRuntimeOptions {
+            path_mode: AtlasPathMode::Global,
+            overrides: AtlasPathOverrides {
+                source_root: Some(source_root.clone()),
+                embedding_cache_root: None,
+                index_path: Some(sample_index.clone()),
+            },
+        },
+        local_state.clone(),
+    )
+    .expect("sample service should start from retained substrate");
+
+    let night_hag = service
+        .record_detail(NIGHT_HAG_KEY)
+        .expect("Night Hag detail should project from retained artifact");
+    let giant_rat = service
+        .record_detail(GIANT_RAT_KEY)
+        .expect("Giant Rat detail should project from retained artifact");
+    let night_hag_body = creature_surface_body(&night_hag.surface);
+    let giant_rat_body = creature_surface_body(&giant_rat.surface);
+    let attached_activity_labels = night_hag_body
+        .activities
+        .as_ref()
+        .expect("Night Hag activities should be present")
+        .iter()
+        .filter(|activity| activity.content.is_some())
+        .map(|activity| activity.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        attached_activity_labels
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .len(),
+        attached_activity_labels.len(),
+        "each activity must receive content at most once"
+    );
+    for expected in [
+        "Nightmare Rider",
+        "Abyssal Plague",
+        "Dream Haunting",
+        "Spell Ambush",
+    ] {
+        assert_eq!(
+            attached_activity_labels
+                .iter()
+                .filter(|label| **label == expected)
+                .count(),
+            1,
+            "required actor-local activity content must be attached exactly once"
+        );
+    }
+    let abyssal_plague = night_hag_body
+        .activities
+        .as_ref()
+        .expect("Night Hag activities should be present")
+        .iter()
+        .find(|activity| activity.label == "Abyssal Plague")
+        .expect("Abyssal Plague should be present");
+    let abyssal_content = abyssal_plague
+        .content
+        .as_ref()
+        .expect("Abyssal Plague should own its content");
+    assert_eq!(abyssal_content.len(), 1);
+    assert!(content_blocks_contain_text(
+        &abyssal_content[0].blocks,
+        "Fortitude DC 28"
+    ));
+
+    let public_notes = night_hag_body
+        .content
+        .as_ref()
+        .expect("Night Hag general content should be present")
+        .iter()
+        .find(|content| content.content_key == "public-notes")
+        .expect("public notes should remain general record-owned content");
+    assert_eq!(
+        public_notes
+            .blocks
+            .iter()
+            .filter(|block| matches!(block, CreatureSurfaceContentBlockView::Paragraph { .. }))
+            .count(),
+        4
+    );
+    assert_eq!(
+        public_notes
+            .blocks
+            .iter()
+            .filter(|block| matches!(block, CreatureSurfaceContentBlockView::Divider))
+            .count(),
+        1
+    );
+    assert!(public_notes_preserve_are_reference_adjacency(public_notes));
+    let giant_rat_attached_activity_labels = giant_rat_body
+        .activities
+        .as_ref()
+        .expect("Giant Rat activities should be present")
+        .iter()
+        .filter(|activity| activity.content.is_some())
+        .map(|activity| activity.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        giant_rat_attached_activity_labels,
+        ["Putrid Plague"],
+        "Giant Rat should remain the genuinely sparse one-document comparison"
+    );
+
+    let encounter = service
+        .create_encounter(CreateEncounterRequest {
+            name: "E3 encounter payload early sample".to_string(),
+            description: Some("Candidate-authentic Night Hag and Giant Rat payloads".to_string()),
+            note: None,
+        })
+        .expect("sample encounter should create")
+        .encounter;
+    let after_night_hag = service
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: NIGHT_HAG_KEY.to_string(),
+            quantity: 1,
+            initiative: Some(19),
+        })
+        .expect("Night Hag participant should add");
+    let night_hag_participant = after_night_hag
+        .participants
+        .iter()
+        .find(|participant| participant.record_key.as_deref() == Some(NIGHT_HAG_KEY))
+        .expect("Night Hag participant should be present");
+    let maximum_hp = night_hag_participant
+        .record_view
+        .encounter
+        .as_ref()
+        .and_then(|runtime| runtime.vitals.as_ref())
+        .and_then(|vitals| vitals.maximum_hp.as_ref())
+        .map(|maximum| maximum.adjusted_value);
+    service
+        .update_encounter_participant(
+            &encounter.slug,
+            UpdateEncounterParticipantRequest {
+                participant_key: night_hag_participant.participant_key.clone(),
+                display_name: "Night Hag — Elite".to_string(),
+                side: EncounterParticipantSideView::Enemy,
+                participant_variant: EncounterParticipantVariantView::Elite,
+                initiative: night_hag_participant.initiative,
+                max_hp: maximum_hp,
+                current_hp: maximum_hp,
+                temporary_hp: 0,
+                defeated: false,
+                hidden: false,
+                note: Some("E3 final-runtime-value sample".to_string()),
+            },
+        )
+        .expect("Night Hag participant should adjust to elite");
+    service
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: GIANT_RAT_KEY.to_string(),
+            quantity: 1,
+            initiative: Some(12),
+        })
+        .expect("Giant Rat participant should add");
+    let api_encounter = service
+        .encounter(&encounter.slug)
+        .expect("encounter API detail should project");
+    let encounter_night_hag = api_encounter
+        .participants
+        .iter()
+        .find(|participant| participant.record_key.as_deref() == Some(NIGHT_HAG_KEY))
+        .expect("Night Hag encounter payload should be present");
+    let encounter_giant_rat = api_encounter
+        .participants
+        .iter()
+        .find(|participant| participant.record_key.as_deref() == Some(GIANT_RAT_KEY))
+        .expect("Giant Rat encounter payload should be present");
+    let night_hag_runtime = encounter_night_hag
+        .record_view
+        .encounter
+        .as_ref()
+        .expect("Night Hag runtime payload should be present");
+    let giant_rat_runtime = encounter_giant_rat
+        .record_view
+        .encounter
+        .as_ref()
+        .expect("Giant Rat runtime payload should be present");
+
+    assert_eq!(night_hag_runtime.spellcasting.len(), 2);
+    assert!(
+        night_hag_runtime
+            .spellcasting
+            .windows(2)
+            .all(|entries| { entries[0].authored_order <= entries[1].authored_order })
+    );
+    assert!(night_hag_runtime.spellcasting.iter().all(|entry| {
+        entry.label != "Spell Attack"
+            && entry.preparation.is_some()
+            && entry.tradition.is_some()
+            && entry.attack.is_some()
+            && entry.dc.is_some()
+            && !entry.slots.is_empty()
+    }));
+    let grouped_spells = night_hag_runtime
+        .spellcasting
+        .iter()
+        .flat_map(|entry| entry.spells.iter())
+        .collect::<Vec<_>>();
+    assert_eq!(grouped_spells.len(), 26);
+    assert!(
+        grouped_spells
+            .iter()
+            .all(|spell| spell.target_record_key.is_some())
+    );
+    assert_eq!(night_hag_runtime.standalone_spells.len(), 1);
+    assert_eq!(
+        night_hag_runtime.standalone_spells[0].label,
+        "Control Weather"
+    );
+    assert!(
+        night_hag_runtime
+            .activities
+            .iter()
+            .all(|activity| activity.kind
+                != atlas_app_model::EncounterRuntimeActivityKindView::Spell)
+    );
+
+    for expected in [
+        "Nightmare Rider",
+        "Abyssal Plague",
+        "Dream Haunting",
+        "Spell Ambush",
+    ] {
+        assert_eq!(
+            night_hag_runtime
+                .activities
+                .iter()
+                .filter(|activity| activity.label == expected && activity.content.is_some())
+                .count(),
+            1,
+            "Night Hag runtime activity content must be attached exactly once"
+        );
+    }
+    let runtime_abyssal = night_hag_runtime
+        .activities
+        .iter()
+        .find(|activity| activity.label == "Abyssal Plague")
+        .and_then(|activity| activity.content.as_ref())
+        .expect("Abyssal Plague runtime content should be present");
+    assert!(
+        runtime_abyssal
+            .iter()
+            .any(|content| content_blocks_contain_text(&content.blocks, "Fortitude DC 28"))
+    );
+    assert_eq!(
+        giant_rat_runtime
+            .activities
+            .iter()
+            .filter(|activity| activity.label == "Putrid Plague" && activity.content.is_some())
+            .count(),
+        1
+    );
+
+    let mut concept_surface = night_hag.surface.clone();
+    concept_surface.metadata.record_key = None;
+    concept_surface.metadata.title = "CONCEPT MOCK — Activity Content Fidelity".to_string();
+    concept_surface.metadata.source = None;
+    let concept_mock = json!({
+        "sample_classification": "concept_mock_non_authentic_non_authorizing",
+        "authentic_foundry_record": false,
+        "purpose": "Inspect nested typed activity content and authored RichDocument block fidelity. Values are illustrative and must not be treated as source evidence.",
+        "surface": concept_surface.clone(),
+    });
+
+    write_json(
+        &sample_root.join("concept-mock-activity-content.json"),
+        &concept_mock,
+    );
+    write_json(
+        &sample_root.join("record-detail-night-hag.json"),
+        &night_hag.surface,
+    );
+    write_json(
+        &sample_root.join("record-detail-giant-rat.json"),
+        &giant_rat.surface,
+    );
+    write_json(
+        &sample_root.join("api-record-detail-night-hag.json"),
+        &night_hag,
+    );
+    write_json(
+        &sample_root.join("api-record-detail-giant-rat.json"),
+        &giant_rat,
+    );
+    write_json(
+        &sample_root.join("encounter-participant-night-hag.json"),
+        &encounter_night_hag.record_view,
+    );
+    write_json(
+        &sample_root.join("encounter-participant-giant-rat.json"),
+        &encounter_giant_rat.record_view,
+    );
+    write_json(
+        &sample_root.join("api-encounter-participant-night-hag.json"),
+        encounter_night_hag,
+    );
+    write_json(
+        &sample_root.join("api-encounter-participant-giant-rat.json"),
+        encounter_giant_rat,
+    );
+    write_json(
+        &sample_root.join("api-encounter-detail.json"),
+        &api_encounter,
+    );
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("repository root should resolve");
+    for binding in [
+        "CreatureSurfaceActivityView.ts",
+        "CreatureSurfaceContentView.ts",
+        "CreatureSurfaceContentBlockView.ts",
+        "CreatureSurfaceContentInlineView.ts",
+        "CreatureSurfaceContentListItemView.ts",
+        "CreatureSurfaceContentTableRowView.ts",
+        "CreatureSurfaceUnavailableFieldView.ts",
+        "EncounterRuntimeActivityView.ts",
+        "EncounterRuntimeSpellcastingView.ts",
+        "EncounterRuntimeSpellView.ts",
+        "EncounterRuntimeView.ts",
+    ] {
+        fs::copy(
+            repo_root
+                .join("crates/atlas-app-model/bindings")
+                .join(binding),
+            sample_root.join("generated").join(binding),
+        )
+        .unwrap_or_else(|error| panic!("binding {binding} should copy: {error}"));
+    }
+    fs::copy(
+        repo_root.join("web/atlas-ui/src/generated/atlas.ts"),
+        sample_root.join("generated/atlas.ts"),
+    )
+    .expect("aggregate TypeScript binding should copy");
+
+    fs::write(
+        sample_root.join("activity-content-visual-mock.html"),
+        render_activity_content_visual_mock(creature_surface_body(&concept_surface)),
+    )
+    .expect("visual mock should write");
+    fs::write(
+        sample_root.join("WALKTHROUGH.md"),
+        format!(
+            "# E3 activity-content fidelity early walkthrough\n\nThis is **early-direction evidence**, not E3 re-acceptance, technical review, final evidence, or delivery approval. Candidate `{candidate}` / tree `{candidate_tree}` is a direct child of accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. The four actor-local activity descriptions are nested exactly once; Abyssal Plague retains `Fortitude DC 28`; Public Notes retains four paragraph blocks plus its divider and the authored `are`/reference adjacency.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison.\n5. `generated/` contains the exact candidate TypeScript bindings for activity content.\n6. `proposed-accepted-to-correction-delta-ledger.md` records the proposed early-to-final accounting boundary.\n\nThe app service used the retained authenticated artifact and pinned PF2e checkout. No index rebuild, source query, frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
+        ),
+    )
+    .expect("walkthrough should write");
+    fs::write(
+        sample_root.join("report.md"),
+        format!(
+            "# E3 activity-content fidelity first representative candidate\n\nCandidate `{candidate}` / tree `{candidate_tree}` directly replaces only the accepted E3 activity-content presentation gap. `CreatureSurfaceActivityView.content` contains nonempty ordered typed documents. App-service resolves typed occurrence targets, attaches occurrence-owned and exact actor-local entity-owned content once, removes attached documents from general content, and fails affected activities closed for invalid associations. `atlas-record` supplies typed RichDocument blocks with shared Check display, including Abyssal Plague `Fortitude DC 28`, and preserves authored dividers. The render-only component consumes typed blocks.\n\nFocused Rust and UI tests and binding freshness passed before export. Full validation, polish, independent technical review, final evidence, final user approval, and downstream F1/F2 remain intentionally pending until early-direction approval.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
+        ),
+    )
+    .expect("report should write");
+    write_activity_content_delta_ledger(&sample_root, &candidate, &candidate_tree);
+
+    let output_hashes = relative_files(&sample_root)
+        .into_iter()
+        .map(|relative| {
+            json!({
+                "path": relative.to_string_lossy(),
+                "sha256": file_sha256(&sample_root.join(&relative)),
+            })
+        })
+        .collect::<Vec<_>>();
+    let manifest = json!({
+        "schema": "atlas-e3-activity-content-fidelity-early/v1",
+        "status": "first_representative_candidate_awaiting_explicit_early_direction_approval",
+        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": ACTIVITY_CONTENT_BASE },
+        "authority": {
+            "approval": { "path": approval, "sha256": ACTIVITY_CONTENT_APPROVAL_SHA256, "sidecar_file_sha256": ACTIVITY_CONTENT_APPROVAL_SIDECAR_SHA256, "mode": "0444" },
+            "plan": { "path": plan, "sha256": ACTIVITY_CONTENT_PLAN_SHA256, "mode": "0444" },
+            "task_map": { "path": task_map, "sha256": ACTIVITY_CONTENT_TASK_MAP_SHA256, "mode": "0444" },
+            "audit": { "path": diagnosis, "sha256": ACTIVITY_CONTENT_DIAGNOSIS_SHA256, "mode": "0444" },
+            "planning_review": { "root": planning_review_root, "verdict": "PASS", "verdict_md_sha256": ACTIVITY_CONTENT_REVIEW_VERDICT_SHA256, "verdict_json_sha256": ACTIVITY_CONTENT_REVIEW_JSON_SHA256, "checksums_sha256": ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256, "mode": "0444", "checksum_closure": "pass" }
+        },
+        "accepted_e3": { "commit": ACTIVITY_CONTENT_BASE, "tree": ACTIVITY_CONTENT_BASE_TREE },
+        "producer": {
+            "command": "cargo test -p atlas-app-service e3_sample_export::export_e3_activity_content_early_samples -- --ignored --exact",
+            "test_path": "crates/atlas-app-service/src/e3_sample_export.rs",
+            "artifact_rebuilt": false,
+            "source_query_run": false
+        },
+        "source": {
+            "root": source_root,
+            "commit": source_commit,
+            "tree": source_tree,
+            "signature": SOURCE_SIGNATURE,
+            "records": [
+                { "classification": "real_dense", "record_key": NIGHT_HAG_KEY, "source_path": "packs/pathfinder-bestiary/night-hag.json", "sha256": NIGHT_HAG_SOURCE_SHA256 },
+                { "classification": "real_sparse", "record_key": GIANT_RAT_KEY, "source_path": "packs/pathfinder-monster-core/giant-rat.json", "sha256": GIANT_RAT_SOURCE_SHA256 }
+            ]
+        },
+        "mock_policy": { "mock_file": "concept-mock-activity-content.json", "visual_mock_file": "activity-content-visual-mock.html", "mock_is_authentic": false, "real_record_count": 2, "real_records": [NIGHT_HAG_KEY, GIANT_RAT_KEY] },
+        "contract_evidence": {
+            "night_hag_attached_activity_labels": attached_activity_labels,
+            "abyssal_plague_check": "Fortitude DC 28",
+            "public_notes_paragraph_blocks": 4,
+            "public_notes_divider_blocks": 1,
+            "authored_are_reference_adjacency_preserved": true,
+            "attached_content_removed_from_general_content": true,
+            "typed_blocks_no_flattened_text_or_public_owner": true
+            ,"night_hag_spellcasting_entry_count": night_hag_runtime.spellcasting.len()
+            ,"night_hag_grouped_spell_count": grouped_spells.len()
+            ,"night_hag_standalone_spell_labels": night_hag_runtime.standalone_spells.iter().map(|spell| spell.label.clone()).collect::<Vec<_>>()
+            ,"generic_runtime_spell_activity_count": 0
+            ,"giant_rat_runtime_activity_content": "Putrid Plague"
+        },
+        "validation": {
+            "focused_atlas_record_app_model_app_service": "pass",
+            "focused_atlas_web_transport": "pass",
+            "focused_ui_typed_renderer": "pass",
+            "generated_binding_freshness": "pass",
+            "full_validation": "deferred_until_early_direction_approval"
+        },
+        "retained_substrate": {
+            "source": { "path": source_root, "size_kib": directory_size_kib(&source_root) },
+            "artifact": { "path": sample_index, "sha256": sample_index_sha256, "size_bytes": file_size(&sample_index) },
+            "target": { "path": retained_target, "size_kib": directory_size_kib(&retained_target) },
+            "node_modules": { "path": retained_node_modules, "size_kib": directory_size_kib(&retained_node_modules) }
+        },
+        "outputs": output_hashes
+    });
+    write_json(&sample_root.join("manifest.json"), &manifest);
+
+    let mut checksum_lines = relative_files(&sample_root)
+        .into_iter()
+        .map(|relative| {
+            format!(
+                "{}  {}",
+                file_sha256(&sample_root.join(&relative)),
+                relative.to_string_lossy()
+            )
+        })
+        .collect::<Vec<_>>();
+    checksum_lines.sort();
+    fs::write(
+        sample_root.join("checksums.sha256"),
+        format!("{}\n", checksum_lines.join("\n")),
+    )
+    .expect("checksums should write");
+    verify_checksums(&sample_root);
     for relative in relative_files_including_checksums(&sample_root) {
         let path = sample_root.join(relative);
         let mut permissions = fs::metadata(&path)
@@ -1334,6 +1908,206 @@ fn write_delta_ledger(
         ),
     )
     .expect("delta ledger should write");
+}
+
+fn creature_surface_body(surface: &RecordSurfaceView) -> &CreatureSurfaceView {
+    match &surface.presentation {
+        RecordSurfacePresentationView::Creature { body } => body,
+        RecordSurfacePresentationView::Unavailable { .. } => {
+            panic!("authentic creature sample should have a creature body")
+        }
+    }
+}
+
+fn content_blocks_contain_text(blocks: &[CreatureSurfaceContentBlockView], needle: &str) -> bool {
+    blocks.iter().any(|block| match block {
+        CreatureSurfaceContentBlockView::Heading { text, .. } => text.contains(needle),
+        CreatureSurfaceContentBlockView::Paragraph { spans } => spans
+            .iter()
+            .any(|span| content_inline_contains_text(span, needle)),
+        CreatureSurfaceContentBlockView::List { items, .. } => items
+            .iter()
+            .any(|item| content_blocks_contain_text(&item.blocks, needle)),
+        CreatureSurfaceContentBlockView::Table { caption, rows } => {
+            caption.as_ref().is_some_and(|value| value.contains(needle))
+                || rows.iter().any(|row| {
+                    row.cells
+                        .iter()
+                        .any(|cell| content_blocks_contain_text(cell, needle))
+                })
+        }
+        CreatureSurfaceContentBlockView::Divider => false,
+    })
+}
+
+fn content_inline_contains_text(span: &CreatureSurfaceContentInlineView, needle: &str) -> bool {
+    match span {
+        CreatureSurfaceContentInlineView::Text { text }
+        | CreatureSurfaceContentInlineView::Code { text } => text.contains(needle),
+        CreatureSurfaceContentInlineView::Strong { spans }
+        | CreatureSurfaceContentInlineView::Emphasis { spans } => spans
+            .iter()
+            .any(|span| content_inline_contains_text(span, needle)),
+        CreatureSurfaceContentInlineView::Reference { label, .. } => label.contains(needle),
+        CreatureSurfaceContentInlineView::LineBreak => false,
+    }
+}
+
+fn public_notes_preserve_are_reference_adjacency(content: &CreatureSurfaceContentView) -> bool {
+    content.blocks.iter().any(|block| {
+        let CreatureSurfaceContentBlockView::Paragraph { spans } = block else {
+            return false;
+        };
+        spans.windows(2).any(|pair| {
+            matches!(
+                &pair[0],
+                CreatureSurfaceContentInlineView::Text { text } if text.ends_with("are")
+            ) && matches!(
+                &pair[1],
+                CreatureSurfaceContentInlineView::Reference { label, .. } if label == "Changelings"
+            )
+        })
+    })
+}
+
+fn render_activity_content_visual_mock(body: &CreatureSurfaceView) -> String {
+    let mut cards = String::new();
+    for activity in body
+        .activities
+        .as_ref()
+        .into_iter()
+        .flatten()
+        .filter(|activity| activity.content.is_some())
+    {
+        write!(
+            cards,
+            "<article><header><span class=\"eyebrow\">Activity</span><h2>{}</h2></header>",
+            escape_html(&activity.label)
+        )
+        .expect("string write should succeed");
+        for content in activity
+            .content
+            .as_ref()
+            .expect("filtered activity content")
+        {
+            write!(
+                cards,
+                "<section data-content-key=\"{}\"><p class=\"content-meta\">{} · authored order {}</p>",
+                escape_html(&content.content_key),
+                escape_html(content.label.as_deref().unwrap_or("Activity content")),
+                content.authored_order
+            )
+            .expect("string write should succeed");
+            render_content_blocks_html(&content.blocks, &mut cards);
+            cards.push_str("</section>");
+        }
+        cards.push_str("</article>");
+    }
+    format!(
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>E3 activity-content fidelity mock</title><style>:root{{color-scheme:dark;font-family:ui-serif,Georgia,serif;background:#11131a;color:#f4ecd8}}body{{margin:0;padding:40px 20px;background:radial-gradient(circle at top,#30334b,#11131a 58%)}}main{{max-width:880px;margin:auto}}.notice{{font:700 12px/1.4 ui-sans-serif,system-ui;letter-spacing:.08em;text-transform:uppercase;color:#ffcf70}}h1{{font-size:clamp(34px,6vw,64px);line-height:.95;margin:12px 0}}.intro{{max-width:65ch;color:#c9c4b9}}.grid{{display:grid;gap:18px;margin-top:32px}}article{{background:#1b1e29;border:1px solid #4a5068;border-radius:16px;padding:22px;box-shadow:0 16px 40px #0007}}article header{{border-bottom:1px solid #393e52;margin-bottom:16px}}h2{{margin:4px 0 14px;font-size:26px}}.eyebrow,.content-meta{{font:600 12px/1.4 ui-sans-serif,system-ui;color:#aeb8df;text-transform:uppercase;letter-spacing:.08em}}p,li{{line-height:1.6}}hr{{border:0;border-top:1px solid #737c9f;margin:22px 0}}a{{color:#8ed8ff}}code{{background:#090b10;padding:2px 5px;border-radius:4px}}table{{border-collapse:collapse;width:100%}}td{{border:1px solid #4a5068;padding:8px}}.proof{{margin-top:28px;padding:16px;border-left:4px solid #ffcf70;background:#24202a}}</style></head><body><main><p class=\"notice\">Concept mock · non-authentic · early direction only</p><h1>Activity content, where it belongs.</h1><p class=\"intro\">The backend has already attached each typed content document to its activity. Structured checks and authored blocks arrive ready to render; this view performs no join, label match, ID parsing, or prose interpretation.</p><div class=\"grid\">{cards}</div><p class=\"proof\">Representative fidelity proof: <strong>Fortitude DC 28</strong>. The exact candidate JSON and provenance are adjacent to this mock.</p></main></body></html>"
+    )
+}
+
+fn render_content_blocks_html(blocks: &[CreatureSurfaceContentBlockView], html: &mut String) {
+    for block in blocks {
+        match block {
+            CreatureSurfaceContentBlockView::Heading { level, text } => {
+                let level = (*level).clamp(2, 6);
+                write!(html, "<h{level}>{}</h{level}>", escape_html(text))
+                    .expect("string write should succeed");
+            }
+            CreatureSurfaceContentBlockView::Paragraph { spans } => {
+                html.push_str("<p>");
+                render_content_inlines_html(spans, html);
+                html.push_str("</p>");
+            }
+            CreatureSurfaceContentBlockView::List { ordered, items } => {
+                let tag = if *ordered { "ol" } else { "ul" };
+                write!(html, "<{tag}>").expect("string write should succeed");
+                for item in items {
+                    html.push_str("<li>");
+                    render_content_blocks_html(&item.blocks, html);
+                    html.push_str("</li>");
+                }
+                write!(html, "</{tag}>").expect("string write should succeed");
+            }
+            CreatureSurfaceContentBlockView::Table { caption, rows } => {
+                html.push_str("<table>");
+                if let Some(caption) = caption {
+                    write!(html, "<caption>{}</caption>", escape_html(caption))
+                        .expect("string write should succeed");
+                }
+                for row in rows {
+                    html.push_str("<tr>");
+                    for cell in &row.cells {
+                        html.push_str("<td>");
+                        render_content_blocks_html(cell, html);
+                        html.push_str("</td>");
+                    }
+                    html.push_str("</tr>");
+                }
+                html.push_str("</table>");
+            }
+            CreatureSurfaceContentBlockView::Divider => html.push_str("<hr>"),
+        }
+    }
+}
+
+fn render_content_inlines_html(spans: &[CreatureSurfaceContentInlineView], html: &mut String) {
+    for span in spans {
+        match span {
+            CreatureSurfaceContentInlineView::Text { text } => html.push_str(&escape_html(text)),
+            CreatureSurfaceContentInlineView::Strong { spans } => {
+                html.push_str("<strong>");
+                render_content_inlines_html(spans, html);
+                html.push_str("</strong>");
+            }
+            CreatureSurfaceContentInlineView::Emphasis { spans } => {
+                html.push_str("<em>");
+                render_content_inlines_html(spans, html);
+                html.push_str("</em>");
+            }
+            CreatureSurfaceContentInlineView::Code { text } => {
+                write!(html, "<code>{}</code>", escape_html(text))
+                    .expect("string write should succeed");
+            }
+            CreatureSurfaceContentInlineView::Reference { label, .. } => {
+                write!(html, "<a href=\"#\">{}</a>", escape_html(label))
+                    .expect("string write should succeed");
+            }
+            CreatureSurfaceContentInlineView::LineBreak => html.push_str("<br>"),
+        }
+    }
+}
+
+fn escape_html(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+fn write_activity_content_delta_ledger(sample_root: &Path, candidate: &str, candidate_tree: &str) {
+    let rows = relative_files(sample_root)
+        .into_iter()
+        .map(|relative| {
+            let candidate_hash = file_sha256(&sample_root.join(&relative));
+            format!(
+                "| `{}` | `{candidate_hash}` | fresh candidate-authentic early output |",
+                relative.to_string_lossy()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(
+        sample_root.join("proposed-accepted-to-correction-delta-ledger.md"),
+        format!(
+            "# Proposed accepted-E3 to encounter-payload correction delta ledger\n\nThis is the starting ledger for the fresh representative candidate, not final evidence or historical acceptance evidence.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Fresh correction: `{candidate}` / `{candidate_tree}`, direct child.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Intended contract delta\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Runtime spellcasting is a canonical ordered nested tree retaining final entry attack, DC, and slots; spell rows preserve occurrence identity, canonical target identity where known, typed content, and relevant mechanics.\n3. Spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit in the dedicated standalone collection.\n4. Invalid or ambiguous associations omit only affected rows with typed limitations.\n5. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n6. Same-direction refinements after explicit early approval must append every sample-visible change here before final evidence.\n"
+        ),
+    )
+    .expect("activity-content delta ledger should write");
 }
 
 fn write_json(path: &Path, value: &impl serde::Serialize) {

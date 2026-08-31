@@ -15,6 +15,7 @@ pub use owned::{
     ContentProvenance, ContentReferenceOccurrence, ContentRole, ContentSemanticInputHash,
     DuplicateContentStatus, InvalidContentKey, OwnedRichContent, OwnedRichContentDocument,
 };
+pub(crate) use render::foundry_node_display_text;
 pub use render::{render_markdown_like, render_plain_text};
 pub use search_projection::{
     RecordFtsProjection, build_record_fts_projection, build_search_fts_projection,

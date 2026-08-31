@@ -10,8 +10,9 @@ import type { EncounterRuntimeMovementView } from "./EncounterRuntimeMovementVie
 import type { EncounterRuntimeResourceView } from "./EncounterRuntimeResourceView";
 import type { EncounterRuntimeSavesView } from "./EncounterRuntimeSavesView";
 import type { EncounterRuntimeSkillView } from "./EncounterRuntimeSkillView";
+import type { EncounterRuntimeSpellView } from "./EncounterRuntimeSpellView";
 import type { EncounterRuntimeSpellcastingView } from "./EncounterRuntimeSpellcastingView";
 import type { EncounterRuntimeVitalsView } from "./EncounterRuntimeVitalsView";
 import type { RuntimeNumberView } from "./RuntimeNumberView";
 
-export type EncounterRuntimeView = { level?: RuntimeNumberView, vitals?: EncounterRuntimeVitalsView, defenses?: EncounterRuntimeDefensesView, saves?: EncounterRuntimeSavesView, awareness?: EncounterRuntimeAwarenessView, abilities?: EncounterRuntimeAbilitiesView, skills?: Array<EncounterRuntimeSkillView>, movement?: EncounterRuntimeMovementView, resources?: Array<EncounterRuntimeResourceView>, spellcasting?: Array<EncounterRuntimeSpellcastingView>, activities?: Array<EncounterRuntimeActivityView>, action_budget?: EncounterRuntimeActionBudgetView, conditions?: Array<EncounterRuntimeConditionView>, automation_limitations?: Array<EncounterRuntimeAutomationLimitationView>, };
+export type EncounterRuntimeView = { level?: RuntimeNumberView, vitals?: EncounterRuntimeVitalsView, defenses?: EncounterRuntimeDefensesView, saves?: EncounterRuntimeSavesView, awareness?: EncounterRuntimeAwarenessView, abilities?: EncounterRuntimeAbilitiesView, skills?: Array<EncounterRuntimeSkillView>, movement?: EncounterRuntimeMovementView, resources?: Array<EncounterRuntimeResourceView>, spellcasting?: Array<EncounterRuntimeSpellcastingView>, activities?: Array<EncounterRuntimeActivityView>, standalone_spells?: Array<EncounterRuntimeSpellView>, action_budget?: EncounterRuntimeActionBudgetView, conditions?: Array<EncounterRuntimeConditionView>, automation_limitations?: Array<EncounterRuntimeAutomationLimitationView>, };

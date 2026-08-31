@@ -2,6 +2,9 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
     AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
+    CreatureSurfaceActivityTypeView, CreatureSurfaceActivityView, CreatureSurfaceContentBlockView,
+    CreatureSurfaceContentInlineView, CreatureSurfaceContentProvenanceView,
+    CreatureSurfaceContentRoleView, CreatureSurfaceContentView,
     CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
     CreatureSurfaceFactProvenanceView, CreatureSurfaceProvenanceView,
     CreatureSurfaceSourceFieldView, CreatureSurfaceUnavailableCauseView,
@@ -397,6 +400,24 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
             .get("source_path")
             .is_none()
     );
+}
+
+#[tokio::test]
+async fn record_route_serializes_activity_content_blocks_without_owner_or_flattened_text() {
+    let (status, body) =
+        route_json(Method::GET, "/api/records/creatures:activityContent", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let creature = &body["surface"]["presentation"]["body"];
+    let activity_content = &creature["activities"][0]["content"][0];
+    assert_eq!(activity_content["content_key"], "item:plague:description");
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["text"],
+        "Fortitude DC 28"
+    );
+    assert_eq!(activity_content["blocks"][1]["block_type"], "divider");
+    assert!(activity_content.get("owner").is_none());
+    assert!(activity_content.get("text").is_none());
+    assert!(creature.get("content").is_none());
 }
 
 #[tokio::test]
@@ -895,6 +916,11 @@ impl AtlasWebService for MockService {
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
+        if record_key == "creatures:activityContent" {
+            return Ok(RecordDetailView {
+                surface: activity_content_surface(),
+            });
+        }
         if record_key == "creatures:typedFailure" {
             return Ok(RecordDetailView {
                 surface: typed_failure_surface(),
@@ -1223,6 +1249,73 @@ impl AtlasWebService for MockService {
     }
 }
 
+fn activity_content_surface() -> RecordSurfaceView {
+    RecordSurfaceView {
+        metadata: RecordSurfaceMetadataView {
+            record_key: Some("creatures:activityContent".to_string()),
+            title: "Activity Content".to_string(),
+            kind: "creature".to_string(),
+            kind_label: "Creature".to_string(),
+            level: Some(9),
+            rarity: None,
+            traits: Vec::new(),
+            source: None,
+        },
+        profile: RecordSurfaceProfileView::RecordDetail,
+        presentation: RecordSurfacePresentationView::Creature {
+            body: Box::new(CreatureSurfaceView {
+                vitals: None,
+                defenses: None,
+                saves: None,
+                awareness: None,
+                abilities: None,
+                skills: None,
+                movement: None,
+                resources: None,
+                spellcasting: None,
+                activities: Some(vec![CreatureSurfaceActivityView {
+                    occurrence_id: "occurrence:plague".to_string(),
+                    authored_order: 0,
+                    activity_type: CreatureSurfaceActivityTypeView::Action,
+                    label: "Abyssal Plague".to_string(),
+                    traits: Vec::new(),
+                    action_cost: None,
+                    rolls: Vec::new(),
+                    damage: Vec::new(),
+                    content: Some(vec![CreatureSurfaceContentView {
+                        content_key: "item:plague:description".to_string(),
+                        role: CreatureSurfaceContentRoleView::EmbeddedCapability,
+                        authored_order: 0,
+                        label: Some("Abyssal Plague".to_string()),
+                        blocks: vec![
+                            CreatureSurfaceContentBlockView::Paragraph {
+                                spans: vec![CreatureSurfaceContentInlineView::Text {
+                                    text: "Fortitude DC 28".to_string(),
+                                }],
+                            },
+                            CreatureSurfaceContentBlockView::Divider,
+                        ],
+                        content_hash: "fixture".to_string(),
+                        visibility: "public".to_string(),
+                        provenance: CreatureSurfaceContentProvenanceView {
+                            source_record_key: "creatures:activityContent".to_string(),
+                            relative_source_path: "items[plague].system.description.value"
+                                .to_string(),
+                            field_family: "embedded_item_description".to_string(),
+                            nested_source_id: Some("plague".to_string()),
+                        },
+                    }]),
+                }]),
+                content: None,
+                relationships: None,
+                unavailable_domains: None,
+                provenance: None,
+            }),
+        },
+        encounter: None,
+    }
+}
+
 fn typed_failure_surface() -> RecordSurfaceView {
     RecordSurfaceView {
         metadata: RecordSurfaceMetadataView {
@@ -1395,6 +1488,7 @@ fn test_runtime(
         movement: None,
         resources: Vec::new(),
         spellcasting: Vec::new(),
+        standalone_spells: Vec::new(),
         activities: Vec::new(),
         action_budget: None,
         conditions: include_condition

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::EncounterParticipantVariantView;
+use crate::{CreatureSurfaceContentView, EncounterParticipantVariantView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -35,6 +35,8 @@ pub struct EncounterRuntimeView {
     pub spellcasting: Vec<EncounterRuntimeSpellcastingView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub activities: Vec<EncounterRuntimeActivityView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub standalone_spells: Vec<EncounterRuntimeSpellView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub action_budget: Option<EncounterRuntimeActionBudgetView>,
@@ -161,7 +163,14 @@ pub struct EncounterRuntimeResourceView {
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeSpellcastingView {
     pub entry_id: String,
+    pub authored_order: u32,
     pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub preparation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub tradition: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub attack: Option<RuntimeRollView>,
@@ -170,6 +179,31 @@ pub struct EncounterRuntimeSpellcastingView {
     pub dc: Option<RuntimeRollView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub slots: Vec<EncounterRuntimeSpellSlotView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spells: Vec<EncounterRuntimeSpellView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterRuntimeSpellView {
+    pub occurrence_id: String,
+    pub authored_order: u32,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub target_record_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rank: Option<i64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub traits: Vec<String>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub content: Option<Vec<CreatureSurfaceContentView>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub activity: Option<EncounterRuntimeActivityView>,
+    pub provenance: RuntimeFactProvenanceView,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -316,6 +350,8 @@ pub struct EncounterRuntimeAutomationLimitationView {
 #[ts(rename_all = "snake_case")]
 pub enum EncounterRuntimeAutomationLimitationCodeView {
     ActivityCheckNotAutomated,
+    EncounterPayloadContentUnavailable,
+    EncounterSpellGroupingUnavailable,
     ConditionAttackAdjustmentPartial,
     ConditionDamageAdjustmentPartial,
     ExplorationActivityRestrictionNotAutomated,
@@ -333,6 +369,7 @@ pub enum EncounterRuntimeAutomationLimitationTargetView {
     Participant,
     Condition { condition_id: i64 },
     Activity { activity_id: String },
+    Spell { occurrence_id: String },
     Spellcasting { entry_id: String },
 }
 
@@ -468,6 +505,9 @@ pub struct EncounterRuntimeActivityView {
     pub damage: Vec<RuntimeFormulaView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modes: Vec<EncounterRuntimeActivityModeView>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub content: Option<Vec<CreatureSurfaceContentView>>,
     pub provenance: RuntimeFactProvenanceView,
 }
 
@@ -550,6 +590,10 @@ pub enum EncounterRuntimeActivityUsageView {
     Unlimited,
     Limited,
     Ambiguous,
+}
+
+fn optional_vec_is_empty<T>(values: &Option<Vec<T>>) -> bool {
+    values.as_ref().is_none_or(Vec::is_empty)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

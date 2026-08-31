@@ -236,6 +236,7 @@ pub enum CreatureSurfaceUnavailableFieldView {
     ActivityActionCost,
     ActivityRoll,
     ActivityDamage,
+    ActivityContent,
     DamageFormula,
     DamageType,
     SpellPreparation,
@@ -445,6 +446,9 @@ pub struct CreatureSurfaceActivityView {
     pub rolls: Vec<CreatureSurfaceRollView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub damage: Vec<CreatureSurfaceDamageView>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub content: Option<Vec<CreatureSurfaceContentView>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -534,25 +538,77 @@ pub struct CreatureSurfaceSpellView {
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceContentView {
     pub content_key: String,
-    pub owner: CreatureSurfaceContentOwnerView,
     pub role: CreatureSurfaceContentRoleView,
     pub authored_order: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub label: Option<String>,
-    pub text: String,
+    pub blocks: Vec<CreatureSurfaceContentBlockView>,
     pub content_hash: String,
     pub visibility: String,
     pub provenance: CreatureSurfaceContentProvenanceView,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(tag = "owner_type", rename_all = "snake_case")]
-#[ts(tag = "owner_type", rename_all = "snake_case")]
-pub enum CreatureSurfaceContentOwnerView {
-    Record { record_key: String },
-    Entity { entity_id: String },
-    Occurrence { occurrence_id: String },
+#[serde(tag = "block_type", rename_all = "snake_case")]
+#[ts(tag = "block_type", rename_all = "snake_case")]
+pub enum CreatureSurfaceContentBlockView {
+    Heading {
+        level: u8,
+        text: String,
+    },
+    Paragraph {
+        spans: Vec<CreatureSurfaceContentInlineView>,
+    },
+    List {
+        ordered: bool,
+        items: Vec<CreatureSurfaceContentListItemView>,
+    },
+    Table {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        caption: Option<String>,
+        rows: Vec<CreatureSurfaceContentTableRowView>,
+    },
+    Divider,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceContentListItemView {
+    pub blocks: Vec<CreatureSurfaceContentBlockView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceContentTableRowView {
+    pub cells: Vec<Vec<CreatureSurfaceContentBlockView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "span_type", rename_all = "snake_case")]
+#[ts(tag = "span_type", rename_all = "snake_case")]
+pub enum CreatureSurfaceContentInlineView {
+    Text {
+        text: String,
+    },
+    Strong {
+        spans: Vec<CreatureSurfaceContentInlineView>,
+    },
+    Emphasis {
+        spans: Vec<CreatureSurfaceContentInlineView>,
+    },
+    Code {
+        text: String,
+    },
+    Reference {
+        label: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        record_key: Option<String>,
+        embedded: bool,
+    },
+    LineBreak,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

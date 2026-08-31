@@ -1,10 +1,11 @@
+use crate::content::foundry_node_display_text;
 use crate::{
-    FoundryLink, FoundryLinkBehavior, FoundryNode, PresentationContent, PresentationContentBlock,
+    FoundryLink, FoundryLinkBehavior, PresentationContent, PresentationContentBlock,
     PresentationInline, PresentationListItem, PresentationTableRow, RichDocument, RichLinkTarget,
     RichNode, render_plain_text,
 };
 
-pub(crate) fn project_presentation_content(document: &RichDocument) -> PresentationContent {
+pub fn project_presentation_content(document: &RichDocument) -> PresentationContent {
     PresentationContent::new(project_blocks(&document.nodes))
 }
 
@@ -312,53 +313,6 @@ fn link_display_text(link: &FoundryLink) -> String {
         .unwrap_or_else(|| reference_display_fallback(&link.source.authored_target))
 }
 
-fn foundry_node_display_text(node: &FoundryNode) -> String {
-    match node {
-        FoundryNode::Check {
-            label, statistic, ..
-        } => label_text(label)
-            .or_else(|| statistic.clone())
-            .unwrap_or_default(),
-        FoundryNode::Damage { label, formula, .. } => {
-            label_text(label).unwrap_or_else(|| formula.clone())
-        }
-        FoundryNode::InlineCommand {
-            label, arguments, ..
-        } => label_text(label).unwrap_or_else(|| arguments.clone()),
-        FoundryNode::Template { label, shape, .. } => label_text(label)
-            .or_else(|| shape.clone())
-            .unwrap_or_default(),
-        FoundryNode::ActionGlyph { action } => action.clone(),
-        FoundryNode::Trait { label, traits } => {
-            label_text(label).unwrap_or_else(|| traits.join(" "))
-        }
-        FoundryNode::Localize {
-            key,
-            label,
-            resolved,
-        } => label_text(label)
-            .or_else(|| {
-                resolved
-                    .as_deref()
-                    .map(render_nodes_plain_text)
-                    .filter(|resolved| !resolved.trim().is_empty())
-            })
-            .unwrap_or_else(|| key.clone()),
-        FoundryNode::UnknownFoundry {
-            label, body, name, ..
-        } => label_text(label)
-            .or_else(|| body.clone())
-            .unwrap_or_else(|| name.clone()),
-    }
-}
-
-fn label_text(label: &Option<Vec<RichNode>>) -> Option<String> {
-    label
-        .as_deref()
-        .map(render_nodes_plain_text)
-        .filter(|label| !label.trim().is_empty())
-}
-
 fn render_nodes_plain_text(nodes: &[RichNode]) -> String {
     render_plain_text(&RichDocument::new(nodes.to_vec()))
 }
@@ -547,5 +501,53 @@ mod tests {
                 embedded: true,
             } if label == "embedded treatment" && record_key == &target_key
         )));
+    }
+
+    #[test]
+    fn projection_preserves_paragraph_check_dc_and_divider_order() {
+        let document = RichDocument::new(vec![
+            RichNode::HtmlElement {
+                tag: "p".to_string(),
+                attributes: BTreeMap::new(),
+                children: vec![
+                    RichNode::Text {
+                        text: "Saving Throw ".to_string(),
+                    },
+                    RichNode::Foundry {
+                        node: crate::FoundryNode::Check {
+                            statistic: Some("fortitude".to_string()),
+                            options: BTreeMap::from([("dc".to_string(), "28".to_string())]),
+                            label: None,
+                        },
+                    },
+                ],
+            },
+            RichNode::HtmlElement {
+                tag: "hr".to_string(),
+                attributes: BTreeMap::new(),
+                children: Vec::new(),
+            },
+            RichNode::HtmlElement {
+                tag: "p".to_string(),
+                attributes: BTreeMap::new(),
+                children: vec![RichNode::Text {
+                    text: "After the divider.".to_string(),
+                }],
+            },
+        ]);
+
+        let content = project_presentation_content(&document);
+        assert_eq!(content.blocks.len(), 3);
+        assert!(matches!(
+            &content.blocks[0],
+            PresentationContentBlock::Paragraph { spans }
+                if render_spans_plain_text(spans) == "Saving Throw Fortitude DC 28"
+        ));
+        assert!(matches!(&content.blocks[1], PresentationContentBlock::Rule));
+        assert!(matches!(
+            &content.blocks[2],
+            PresentationContentBlock::Paragraph { spans }
+                if render_spans_plain_text(spans) == "After the divider."
+        ));
     }
 }
