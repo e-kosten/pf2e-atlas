@@ -1,23 +1,21 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::{
-    AppErrorCode, EncounterDetailView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, ReorderEncounterParticipantPlacementView,
+    AppErrorCode, EncounterDetailView, EncounterParticipantKindView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterStatusView, EncounterSummaryView, ReorderEncounterParticipantPlacementView,
 };
 use atlas_local_state::{
-    Encounter, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
-    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderPlacement,
+    Encounter, EncounterParticipant, EncounterStatus, ParticipantKind, ParticipantSide,
+    ParticipantVariant, ReorderPlacement,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::projection::record_summary;
 use crate::service::AtlasAppService;
-use crate::surfaces::encounter_participant_surface;
 
 use super::hydration::hydrate_participant_records;
-use super::mechanics::{participant_runtime_block, participant_stat_block};
+use super::mechanics::{manual_encounter_runtime, participant_encounter_runtime};
 
 pub(super) fn encounter_detail_view(
     service: &AtlasAppService,
@@ -66,12 +64,9 @@ pub(super) fn participant_view(
         .and_then(|key| records_by_key.get(key));
     let record_detail = retrieved.map(|retrieved| &retrieved.record);
     let record = record_detail.map(record_summary);
-    let stat_block = retrieved
-        .and_then(|retrieved| participant_stat_block(&participant, retrieved))
-        .or_else(|| {
-            (participant.participant_kind == ParticipantKind::Pc)
-                .then(|| participant_runtime_block(&participant))
-        });
+    let encounter_runtime = retrieved
+        .and_then(|retrieved| participant_encounter_runtime(&participant, retrieved))
+        .unwrap_or_else(|| manual_encounter_runtime(&participant));
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
     } else if record.is_some() {
@@ -83,7 +78,7 @@ pub(super) fn participant_view(
         .note
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
-    let mut view = EncounterParticipantView {
+    EncounterParticipantView {
         participant_key: participant.participant_key,
         record_key: participant.record_key,
         participant_kind: participant_kind(participant.participant_kind),
@@ -94,29 +89,13 @@ pub(super) fn participant_view(
         side: participant_side_view(participant.side),
         initiative: participant.initiative,
         initiative_order: participant.initiative_order,
-        max_hp: participant.max_hp,
-        current_hp: participant.current_hp,
-        temporary_hp: participant.temporary_hp,
         defeated: participant.defeated,
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
-        conditions: participant
-            .conditions
-            .into_iter()
-            .map(condition_view)
-            .collect(),
-        stat_block,
-        surface: None,
+        encounter_runtime,
         record,
-    };
-    view.surface = match participant_kind(participant.participant_kind) {
-        EncounterParticipantKindView::Creature | EncounterParticipantKindView::Pc => {
-            encounter_participant_surface(&view, record_detail, view.stat_block.as_ref())
-        }
-        EncounterParticipantKindView::Hazard => None,
-    };
-    view
+    }
 }
 
 pub(super) fn encounter_not_found(encounter_ref: &str) -> AppServiceError {
@@ -179,20 +158,6 @@ pub(super) fn reorder_placement(
     match placement {
         ReorderEncounterParticipantPlacementView::Before => ReorderPlacement::Before,
         ReorderEncounterParticipantPlacementView::After => ReorderPlacement::After,
-    }
-}
-
-fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticipantConditionView {
-    EncounterParticipantConditionView {
-        condition_id: condition.condition_id,
-        condition_key: condition.condition_key,
-        name: condition.name,
-        value: condition.value,
-        source_participant_key: condition.source_participant_key,
-        duration_rounds: condition.duration_rounds,
-        note: condition.note,
-        created_at: condition.created_at,
-        updated_at: condition.updated_at,
     }
 }
 

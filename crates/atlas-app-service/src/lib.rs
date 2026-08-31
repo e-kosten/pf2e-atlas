@@ -11,7 +11,6 @@ mod projection;
 mod records;
 mod retrieval;
 mod service;
-mod surfaces;
 mod windows;
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{BasicSearchFilter, RecordSummaryView, RecordSurfaceView};
+use crate::{BasicSearchFilter, RecordSummaryView};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -92,9 +92,6 @@ pub struct ResultWindowPage {
 #[serde(rename_all = "snake_case")]
 pub struct ResultWindowRow {
     pub record: RecordSummaryView,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub surface: Option<RecordSurfaceView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub match_summary: Option<ResultMatchSummary>,

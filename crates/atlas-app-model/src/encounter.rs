@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{RecordSummaryView, RecordSurfaceView};
+use crate::{EncounterRuntimeView, RecordSummaryView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -114,233 +114,6 @@ pub enum EncounterParticipantVariantView {
     Weak,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum StatModifierTypeView {
-    Adjustment,
-    Status,
-    Circumstance,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct StatBlockView {
-    pub record_key: String,
-    pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub level: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub adjusted_level: Option<i64>,
-    pub values: Vec<StatValueView>,
-    pub speeds: Vec<MovementSpeedView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub action_budget: Option<ActionBudgetView>,
-    pub activities: Vec<MechanicActivityView>,
-    pub unapplied_effects: Vec<UnappliedEffectView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct MovementSpeedView {
-    pub movement_type: String,
-    pub label: String,
-    pub base_value_feet: i64,
-    pub adjusted_value_feet: i64,
-    pub adjustments: Vec<RuntimeAdjustmentView>,
-    pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
-    pub notes: Vec<RuntimeEffectNoteView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct ActionBudgetView {
-    pub actions: RuntimeCountView,
-    pub reactions: RuntimeCountView,
-    pub can_act: RuntimeCapabilityView,
-    pub can_react: RuntimeCapabilityView,
-    pub notes: Vec<RuntimeEffectNoteView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct RuntimeCountView {
-    pub label: String,
-    pub base_value: i64,
-    pub adjusted_value: i64,
-    pub segments: Vec<RuntimeCountSegmentView>,
-    pub adjustments: Vec<RuntimeAdjustmentView>,
-    pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct RuntimeCountSegmentView {
-    pub label: String,
-    pub value: i64,
-    pub restricted: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct RuntimeAdjustmentView {
-    pub source: String,
-    pub label: String,
-    pub value: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct RuntimeCapabilityView {
-    pub available: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct RuntimeEffectNoteView {
-    pub source: String,
-    pub label: String,
-    pub reason: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct StatValueView {
-    pub target: String,
-    pub label: String,
-    pub base_value: i64,
-    pub adjusted_value: i64,
-    pub modifiers: Vec<StatModifierView>,
-    pub suppressed_modifiers: Vec<StatModifierView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct StatModifierView {
-    pub source: String,
-    pub label: String,
-    pub modifier_type: StatModifierTypeView,
-    pub value: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct UnappliedEffectView {
-    pub source: String,
-    pub label: String,
-    pub reason: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct MechanicActivityView {
-    pub activity_id: String,
-    pub label: String,
-    pub kind: MechanicActivityKindView,
-    pub usage: MechanicActivityUsageView,
-    pub rolls: Vec<ActivityRollView>,
-    pub damage: Vec<DamageExpressionView>,
-    pub modes: Vec<MechanicActivityModeView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct MechanicActivityModeView {
-    pub mode_id: String,
-    pub label: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub target: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub range: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub time: Option<String>,
-    pub damage: Vec<DamageExpressionView>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum MechanicActivityKindView {
-    Strike,
-    Spell,
-    Other,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum MechanicActivityUsageView {
-    Unlimited,
-    Limited,
-    Ambiguous,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct ActivityRollView {
-    pub roll_id: String,
-    pub label: String,
-    pub base_value: i64,
-    pub adjusted_value: i64,
-    pub surface: ActivityRollSurfaceView,
-    pub modifiers: Vec<StatModifierView>,
-    pub suppressed_modifiers: Vec<StatModifierView>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum ActivityRollSurfaceView {
-    AttackRoll,
-    Dc,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct DamageExpressionView {
-    pub damage_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub label: Option<String>,
-    pub formula: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub adjusted_formula: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub damage_type: Option<String>,
-    pub effect_kind: DamageEffectKindView,
-    pub modifiers: Vec<StatModifierView>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum DamageEffectKindView {
-    Damage,
-    Healing,
-    DamageOrHealing,
-    Unknown,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -419,53 +192,16 @@ pub struct EncounterParticipantView {
     #[ts(optional)]
     pub initiative: Option<i64>,
     pub initiative_order: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub max_hp: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub current_hp: Option<i64>,
-    pub temporary_hp: i64,
     pub defeated: bool,
     pub hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub note: Option<String>,
     pub note_hint: Option<String>,
-    pub conditions: Vec<EncounterParticipantConditionView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub stat_block: Option<StatBlockView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub surface: Option<RecordSurfaceView>,
+    pub encounter_runtime: EncounterRuntimeView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub record: Option<RecordSummaryView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct EncounterParticipantConditionView {
-    pub condition_id: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub condition_key: Option<String>,
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub value: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub source_participant_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub duration_rounds: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub note: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -134,12 +134,9 @@ fn set_encounter_turn_falls_back_to_pcs_when_everyone_is_defeated() {
         .iter()
         .find(|participant| participant.participant_key == pc.participant_key)
         .expect("pc should remain in encounter");
-    let pc_stats = pc_view
-        .stat_block
-        .as_ref()
-        .expect("manual pc should project runtime state");
-    assert!(pc_stats.values.is_empty());
-    assert!(pc_stats.speeds.is_empty());
+    let pc_stats = &pc_view.encounter_runtime;
+    assert!(pc_stats.defenses.is_none());
+    assert!(pc_stats.movement.is_none());
     let action_budget = pc_stats
         .action_budget
         .as_ref()
@@ -265,7 +262,14 @@ fn zero_hp_participant_can_be_marked_active() {
         .update_encounter_participant(&encounter.slug, update)
         .expect("participant should update");
 
-    assert_eq!(updated.current_hp, Some(0));
+    assert_eq!(
+        updated
+            .encounter_runtime
+            .vitals
+            .as_ref()
+            .and_then(|vitals| vitals.current_hp),
+        Some(0)
+    );
     assert!(!updated.defeated);
 }
 
@@ -361,11 +365,8 @@ fn draft_variant_change_fails_closed_when_canonical_level_is_absent() {
         })
         .expect("creature should add");
     let participant = &detail.participants[0];
-    let base_stats = participant
-        .stat_block
-        .as_ref()
-        .expect("stats should project");
-    assert_eq!(base_stats.level, None);
+    let base_stats = &participant.encounter_runtime;
+    assert_eq!(base_stats.adjusted_level, None);
 
     let mut update = participant_update(
         &local_participant(&fixture, &encounter.slug, &participant.participant_key),
@@ -380,19 +381,22 @@ fn draft_variant_change_fails_closed_when_canonical_level_is_absent() {
         updated.participant_variant,
         EncounterParticipantVariantView::Elite
     );
-    assert_eq!(updated.current_hp, Some(17));
-    let stats = updated.stat_block.as_ref().expect("stats should project");
+    assert_eq!(
+        updated
+            .encounter_runtime
+            .vitals
+            .as_ref()
+            .and_then(|vitals| vitals.current_hp),
+        Some(17)
+    );
+    let stats = &updated.encounter_runtime;
     assert_eq!(stats.adjusted_level, None);
-    let ac = stats
-        .values
-        .iter()
-        .find(|value| value.target == "ac")
-        .expect("ac should project");
+    let ac = &stats.defenses.as_ref().expect("defenses").armor_class;
     assert_eq!(ac.adjusted_value, 21);
     let hp = stats
-        .values
-        .iter()
-        .find(|value| value.target == "hp.max")
+        .vitals
+        .as_ref()
+        .and_then(|vitals| vitals.maximum_hp.as_ref())
         .expect("hp should project");
     assert_eq!(hp.base_value, 17);
     assert_eq!(hp.adjusted_value, 17);
@@ -418,7 +422,14 @@ fn draft_variant_change_fails_closed_when_canonical_level_is_absent() {
         running_updated.participant_variant,
         EncounterParticipantVariantView::Weak
     );
-    assert_eq!(running_updated.current_hp, Some(17));
+    assert_eq!(
+        running_updated
+            .encounter_runtime
+            .vitals
+            .as_ref()
+            .and_then(|vitals| vitals.current_hp),
+        Some(17)
+    );
 }
 
 fn local_participant(
@@ -476,27 +487,23 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
             participant.record_key.as_deref(),
             Some("actors:testCreature")
         );
-        assert_eq!(participant.max_hp, Some(25));
-        assert_eq!(participant.current_hp, Some(17));
+        let vitals = participant
+            .encounter_runtime
+            .vitals
+            .as_ref()
+            .expect("vitals");
+        assert_eq!(
+            vitals.maximum_hp.as_ref().map(|value| value.adjusted_value),
+            Some(17)
+        );
+        assert_eq!(vitals.current_hp, Some(17));
         assert_eq!(
             participant.side,
             atlas_app_model::EncounterParticipantSideView::Enemy
         );
         assert!(participant.record.is_some());
-        let surface = participant
-            .surface
-            .as_ref()
-            .expect("creature participant should expose a composed surface");
-        assert_eq!(
-            surface.profile,
-            atlas_app_model::RecordSurfaceProfileView::EncounterParticipant
-        );
-        assert!(surface.fallback_presentation.is_some());
-        assert!(
-            surface.sections.iter().any(
-                |section| section.kind == atlas_app_model::RecordSurfaceSectionKindView::Vitals
-            )
-        );
+        assert!(participant.encounter_runtime.defenses.is_some());
+        assert!(participant.encounter_runtime.vitals.is_some());
     }
 
     let hazard_detail = fixture
@@ -518,10 +525,21 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
         hazard.side,
         atlas_app_model::EncounterParticipantSideView::Hazard
     );
-    assert_eq!(hazard.max_hp, Some(30));
-    assert_eq!(hazard.current_hp, Some(30));
+    let hazard_vitals = hazard
+        .encounter_runtime
+        .vitals
+        .as_ref()
+        .expect("hazard runtime vitals");
+    assert_eq!(
+        hazard_vitals
+            .maximum_hp
+            .as_ref()
+            .map(|value| value.adjusted_value),
+        Some(30)
+    );
+    assert_eq!(hazard_vitals.current_hp, Some(30));
     assert!(hazard.record.is_some());
-    assert!(hazard.surface.is_none());
+    assert!(hazard.encounter_runtime.defenses.is_none());
 }
 
 #[test]
@@ -559,7 +577,7 @@ fn condition_add_resolves_condition_records_and_rejects_other_records() {
             },
         )
         .expect("condition record should add");
-    let condition = &with_condition.participants[0].conditions[0];
+    let condition = &with_condition.participants[0].encounter_runtime.conditions[0];
     assert_eq!(
         condition.condition_key.as_deref(),
         Some("conditionitems:testCondition")
@@ -694,7 +712,7 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
             },
         )
         .expect("record-backed condition should add");
-    let condition = &added.participants[0].conditions[0];
+    let condition = &added.participants[0].encounter_runtime.conditions[0];
     let condition_id = condition.condition_id;
     assert_eq!(
         condition.condition_key.as_deref(),
@@ -717,7 +735,7 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
             },
         )
         .expect("manual condition update should preserve key");
-    let condition = &manual_update.participants[0].conditions[0];
+    let condition = &manual_update.participants[0].encounter_runtime.conditions[0];
     assert_eq!(condition.name, "Renamed Condition");
     assert_eq!(
         condition.condition_key.as_deref(),
@@ -740,7 +758,7 @@ fn condition_update_preserves_and_replaces_resolved_condition_keys() {
             },
         )
         .expect("condition ref update should resolve stored key and name");
-    let condition = &resolved_update.participants[0].conditions[0];
+    let condition = &resolved_update.participants[0].encounter_runtime.conditions[0];
     assert_eq!(condition.name, "Test Condition");
     assert_eq!(
         condition.condition_key.as_deref(),
@@ -802,7 +820,7 @@ fn unresolved_record_backed_participant_preserves_stored_state() {
         EncounterParticipantStatusView::Unresolved
     );
     assert!(participant.record.is_none());
-    assert!(participant.stat_block.is_none());
+    assert!(participant.encounter_runtime.defenses.is_none());
 }
 
 #[test]
@@ -865,7 +883,7 @@ fn encounter_conditions_and_reorder_route_through_app_service() {
             },
         )
         .expect("condition should add");
-    let condition = &added.participants[1].conditions[0];
+    let condition = &added.participants[1].encounter_runtime.conditions[0];
     assert_eq!(condition.name, "Frightened");
     assert_eq!(
         condition.source_participant_key.as_deref(),
@@ -888,7 +906,10 @@ fn encounter_conditions_and_reorder_route_through_app_service() {
             },
         )
         .expect("condition should update");
-    assert_eq!(updated.participants[1].conditions[0].value, Some(2));
+    assert_eq!(
+        updated.participants[1].encounter_runtime.conditions[0].value,
+        Some(2)
+    );
 
     let removed = fixture
         .worker
@@ -898,7 +919,12 @@ fn encounter_conditions_and_reorder_route_through_app_service() {
             condition.condition_id,
         )
         .expect("condition should remove");
-    assert!(removed.participants[1].conditions.is_empty());
+    assert!(
+        removed.participants[1]
+            .encounter_runtime
+            .conditions
+            .is_empty()
+    );
 }
 
 #[test]
@@ -940,7 +966,7 @@ fn condition_update_and_delete_reject_wrong_participant_without_mutating() {
             },
         )
         .expect("condition should add");
-    let condition_id = added.participants[0].conditions[0].condition_id;
+    let condition_id = added.participants[0].encounter_runtime.conditions[0].condition_id;
 
     let update_error = fixture
         .worker
@@ -987,10 +1013,13 @@ fn condition_update_and_delete_reject_wrong_participant_without_mutating() {
         .iter()
         .find(|participant| participant.participant_key == owner.participant_key)
         .expect("owner should remain");
-    assert_eq!(owner.conditions.len(), 1);
-    assert_eq!(owner.conditions[0].name, "Frightened");
-    assert_eq!(owner.conditions[0].value, Some(1));
-    assert_eq!(owner.conditions[0].note.as_deref(), Some("original"));
+    assert_eq!(owner.encounter_runtime.conditions.len(), 1);
+    assert_eq!(owner.encounter_runtime.conditions[0].name, "Frightened");
+    assert_eq!(owner.encounter_runtime.conditions[0].value, Some(1));
+    assert_eq!(
+        owner.encounter_runtime.conditions[0].note.as_deref(),
+        Some("original")
+    );
 }
 
 fn pc(name: &str, initiative: Option<i64>) -> AddEncounterParticipant {

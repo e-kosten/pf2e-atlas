@@ -44,6 +44,8 @@ descriptions are neither orphaned nor duplicated there.
 
 Metrics, facets, FTS, embeddings, CLI records, app DTOs, and UI sections derive from canonical facts and occurrences. They are not canonical stores. `atlas-app-service` is the final static/runtime composition point, and the frontend renders generated DTOs without Foundry interpretation.
 
+Encounter runtime composition matches `MechanicTarget` variants only while constructing the typed result. The public result has named defenses, saves, awareness, abilities, vitals, and action budget plus typed repeated skills, speeds, resources, spellcasting, activities, conditions, and unapplied facts. Base/final values and applied/suppressed adjustments carry tagged provenance; encoded canonical target identity is retained only as provenance or diagnostics and is never a downstream lookup key.
+
 Record-bearing retrieval carries the canonical body beside the narrow record projection in the `atlas-record`-owned `RetrievedRecord` aggregate. This transports the same canonical semantic model rather than defining a second record truth. The index hydrates it once, search retains it without changing selection semantics, app profiles may consume only its `record` member, and the CLI creature contract projects its `RecordBody::Creature` member directly.
 
 For the migrated creature core, `atlas-record` projects metric rows and categorical actor facts together from `CreatureRecord`. Display and FTS consume those shared rows and categories. Ingest may retain raw extraction only for an explicitly non-migrated fact family whose canonical owner is not yet present; it does not use raw values or prepared-data aliases as a fallback for migrated creature facts.

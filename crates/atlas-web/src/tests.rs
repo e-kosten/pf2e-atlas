@@ -6,16 +6,17 @@ use atlas_app_model::{
     DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, FilterControlView, FilterEditorFieldView,
-    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
-    FilterValueListView, FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, SavedListCreateView, SavedListDetailView,
-    SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterRuntimeConditionView, EncounterRuntimeView,
+    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
+    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
+    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
     SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
     UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
@@ -605,7 +606,7 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        body["participants"][0]["conditions"][0]["name"],
+        body["participants"][0]["encounter_runtime"]["conditions"][0]["name"],
         "Frightened"
     );
 
@@ -621,8 +622,14 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["participants"][0]["conditions"][0]["condition_id"], 7);
-    assert_eq!(body["participants"][0]["conditions"][0]["value"], 2);
+    assert_eq!(
+        body["participants"][0]["encounter_runtime"]["conditions"][0]["condition_id"],
+        7
+    );
+    assert_eq!(
+        body["participants"][0]["encounter_runtime"]["conditions"][0]["value"],
+        2
+    );
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -654,7 +661,7 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body["participants"][0]["conditions"]
+        body["participants"][0]["encounter_runtime"]["conditions"]
             .as_array()
             .unwrap()
             .is_empty()
@@ -817,7 +824,6 @@ impl AtlasWebService for MockService {
                 badges: vec![],
                 sections: vec![],
             },
-            surface: None,
         })
     }
 
@@ -922,17 +928,17 @@ impl AtlasWebService for MockService {
             side: request.side,
             initiative: request.initiative,
             initiative_order: 1,
-            max_hp: request.max_hp,
-            current_hp: request.current_hp,
-            temporary_hp: request.temporary_hp,
             defeated: request.defeated,
             hidden: request.hidden,
             note: request.note.clone(),
             note_hint: request.note,
-            conditions: vec![],
-            stat_block: None,
+            encounter_runtime: test_runtime(
+                request.max_hp,
+                request.current_hp,
+                request.temporary_hp,
+                false,
+            ),
             record: Some(record_summary()),
-            surface: None,
         })
     }
 
@@ -995,8 +1001,8 @@ impl AtlasWebService for MockService {
             ));
         }
         let mut detail = encounter_detail(encounter_ref, None, true);
-        detail.participants[0].conditions[0].condition_id = request.condition_id;
-        detail.participants[0].conditions[0].value = request.value;
+        detail.participants[0].encounter_runtime.conditions[0].condition_id = request.condition_id;
+        detail.participants[0].encounter_runtime.conditions[0].value = request.value;
         Ok(detail)
     }
 
@@ -1178,15 +1184,51 @@ fn encounter_participant(
         side: EncounterParticipantSideView::Enemy,
         initiative,
         initiative_order: 1,
-        max_hp: Some(12),
-        current_hp: Some(6),
-        temporary_hp: 0,
         defeated: false,
         hidden: false,
         note: Some("wounded".to_string()),
         note_hint: Some("wounded".to_string()),
-        conditions: if include_condition {
-            vec![EncounterParticipantConditionView {
+        encounter_runtime: test_runtime(Some(12), Some(6), 0, include_condition),
+        record: Some(record_summary()),
+    }
+}
+
+fn test_runtime(
+    maximum_hp: Option<i64>,
+    current_hp: Option<i64>,
+    temporary_hp: i64,
+    include_condition: bool,
+) -> EncounterRuntimeView {
+    let participant_provenance = || RuntimeFactProvenanceView {
+        source: RuntimeFactSourceView::ParticipantState,
+        canonical_target: None,
+    };
+    EncounterRuntimeView {
+        adjusted_level: None,
+        vitals: Some(EncounterRuntimeVitalsView {
+            maximum_hp: maximum_hp.map(|value| RuntimeNumberView {
+                label: "Maximum HP".to_string(),
+                base_value: value,
+                adjusted_value: value,
+                modifiers: Vec::new(),
+                suppressed_modifiers: Vec::new(),
+                provenance: participant_provenance(),
+            }),
+            current_hp,
+            temporary_hp,
+        }),
+        defenses: None,
+        saves: None,
+        awareness: None,
+        abilities: None,
+        skills: Vec::new(),
+        movement: None,
+        resources: Vec::new(),
+        spellcasting: Vec::new(),
+        activities: Vec::new(),
+        action_budget: None,
+        conditions: include_condition
+            .then(|| EncounterRuntimeConditionView {
                 condition_id: 7,
                 condition_key: None,
                 name: "Frightened".to_string(),
@@ -1196,13 +1238,18 @@ fn encounter_participant(
                 note: None,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-01T00:00:00Z".to_string(),
-            }]
-        } else {
-            vec![]
-        },
-        stat_block: None,
-        record: Some(record_summary()),
-        surface: None,
+                provenance: RuntimeFactProvenanceView {
+                    source: RuntimeFactSourceView::Condition {
+                        condition_id: 7,
+                        condition_ref: "frightened".to_string(),
+                        label: "Frightened 1".to_string(),
+                    },
+                    canonical_target: None,
+                },
+            })
+            .into_iter()
+            .collect(),
+        unapplied_facts: Vec::new(),
     }
 }
 
@@ -1232,7 +1279,6 @@ fn record_summary() -> RecordSummaryView {
         publication: None,
         pack: Some("Actions".to_string()),
         preview: None,
-        surface: None,
     }
 }
 
@@ -1251,7 +1297,6 @@ fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
         rows: vec![atlas_app_model::ResultWindowRow {
             record: record_summary(),
             match_summary: None,
-            surface: None,
         }],
     }
 }
