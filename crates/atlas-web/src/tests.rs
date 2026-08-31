@@ -351,6 +351,8 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         "unavailable"
     );
     assert!(body["surface"].get("sections").is_none());
+    assert!(body["surface"]["metadata"].get("traits").is_none());
+    assert_no_empty_containers(&body["surface"]);
 
     let editor_request = json!({
         "context": { "kind": "filtered", "filter": { "clauses": [] } }
@@ -524,6 +526,21 @@ async fn encounter_routes_use_real_router_wiring() {
             .get("adjusted_level")
             .is_none()
     );
+    for known_empty_collection in [
+        "skills",
+        "resources",
+        "spellcasting",
+        "activities",
+        "conditions",
+        "automation_limitations",
+    ] {
+        assert!(
+            body["participants"][0]["surface"]["encounter"]
+                .get(known_empty_collection)
+                .is_none()
+        );
+    }
+    assert_no_empty_containers(&body["participants"][0]["surface"]);
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -647,6 +664,7 @@ async fn encounter_routes_use_real_router_wiring() {
             .get("unapplied_facts")
             .is_none()
     );
+    assert_no_empty_containers(&body["participants"][0]["surface"]);
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -699,11 +717,11 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body["participants"][0]["surface"]["encounter"]["conditions"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+        body["participants"][0]["surface"]["encounter"]
+            .get("conditions")
+            .is_none()
     );
+    assert_no_empty_containers(&body["participants"][0]["surface"]);
 
     let (status, body) = route_json(
         Method::DELETE,
@@ -1391,6 +1409,30 @@ fn runtime_mut(participant: &mut EncounterParticipantView) -> &mut EncounterRunt
         .encounter
         .as_mut()
         .expect("fixture participant should expose encounter runtime")
+}
+
+fn assert_no_empty_containers(value: &Value) {
+    match value {
+        Value::Object(object) => {
+            assert!(
+                !object.is_empty(),
+                "transport JSON must not contain empty objects"
+            );
+            for child in object.values() {
+                assert_no_empty_containers(child);
+            }
+        }
+        Value::Array(values) => {
+            assert!(
+                !values.is_empty(),
+                "transport JSON must not contain empty arrays"
+            );
+            for child in values {
+                assert_no_empty_containers(child);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {

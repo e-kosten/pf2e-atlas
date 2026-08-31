@@ -3,4 +3,4 @@ import type { RuntimeCapabilityView } from "./RuntimeCapabilityView";
 import type { RuntimeCountView } from "./RuntimeCountView";
 import type { RuntimeEffectNoteView } from "./RuntimeEffectNoteView";
 
-export type EncounterRuntimeActionBudgetView = { actions: RuntimeCountView, reactions: RuntimeCountView, can_act: RuntimeCapabilityView, can_react: RuntimeCapabilityView, notes: Array<RuntimeEffectNoteView>, };
+export type EncounterRuntimeActionBudgetView = { actions: RuntimeCountView, reactions: RuntimeCountView, can_act: RuntimeCapabilityView, can_react: RuntimeCapabilityView, notes?: Array<RuntimeEffectNoteView>, };

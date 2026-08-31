@@ -3,4 +3,4 @@ import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 import type { RuntimeModifierView } from "./RuntimeModifierView";
 import type { RuntimeRollSurfaceView } from "./RuntimeRollSurfaceView";
 
-export type RuntimeRollView = { roll_id: string, label: string, base_value: bigint, adjusted_value: bigint, surface: RuntimeRollSurfaceView, modifiers: Array<RuntimeModifierView>, suppressed_modifiers: Array<RuntimeModifierView>, provenance: RuntimeFactProvenanceView, };
+export type RuntimeRollView = { roll_id: string, label: string, base_value: bigint, adjusted_value: bigint, surface: RuntimeRollSurfaceView, modifiers?: Array<RuntimeModifierView>, suppressed_modifiers?: Array<RuntimeModifierView>, provenance: RuntimeFactProvenanceView, };

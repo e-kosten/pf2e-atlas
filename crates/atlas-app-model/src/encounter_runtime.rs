@@ -24,17 +24,23 @@ pub struct EncounterRuntimeView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub abilities: Option<EncounterRuntimeAbilitiesView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub skills: Vec<EncounterRuntimeSkillView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub movement: Option<EncounterRuntimeMovementView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resources: Vec<EncounterRuntimeResourceView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub spellcasting: Vec<EncounterRuntimeSpellcastingView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub activities: Vec<EncounterRuntimeActivityView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub action_budget: Option<EncounterRuntimeActionBudgetView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conditions: Vec<EncounterRuntimeConditionView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub automation_limitations: Vec<EncounterRuntimeAutomationLimitationView>,
 }
 
@@ -120,6 +126,7 @@ pub enum EncounterRuntimeSkillKindView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeMovementView {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub speeds: Vec<RuntimeDistanceView>,
 }
 
@@ -130,8 +137,11 @@ pub struct RuntimeDistanceView {
     pub label: String,
     pub base_value_feet: i64,
     pub adjusted_value_feet: i64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub adjustments: Vec<RuntimeAdjustmentView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<RuntimeEffectNoteView>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -158,6 +168,7 @@ pub struct EncounterRuntimeSpellcastingView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub dc: Option<RuntimeRollView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub slots: Vec<EncounterRuntimeSpellSlotView>,
 }
 
@@ -174,7 +185,9 @@ pub struct RuntimeNumberView {
     pub label: String,
     pub base_value: i64,
     pub adjusted_value: i64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modifiers: Vec<RuntimeModifierView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub suppressed_modifiers: Vec<RuntimeModifierView>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -214,8 +227,11 @@ pub struct RuntimeCountView {
     pub label: String,
     pub base_value: i64,
     pub adjusted_value: i64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub segments: Vec<RuntimeCountSegmentView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub adjustments: Vec<RuntimeAdjustmentView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -258,6 +274,7 @@ pub struct EncounterRuntimeActionBudgetView {
     pub reactions: RuntimeCountView,
     pub can_act: RuntimeCapabilityView,
     pub can_react: RuntimeCapabilityView,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<RuntimeEffectNoteView>,
 }
 
@@ -445,8 +462,11 @@ pub struct EncounterRuntimeActivityView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub uses: Option<EncounterRuntimeUsesView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rolls: Vec<RuntimeRollView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub damage: Vec<RuntimeFormulaView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modes: Vec<EncounterRuntimeActivityModeView>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -510,6 +530,7 @@ pub struct EncounterRuntimeActivityModeView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub time: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub damage: Vec<RuntimeFormulaView>,
 }
 
@@ -539,7 +560,9 @@ pub struct RuntimeRollView {
     pub base_value: i64,
     pub adjusted_value: i64,
     pub surface: RuntimeRollSurfaceView,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modifiers: Vec<RuntimeModifierView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub suppressed_modifiers: Vec<RuntimeModifierView>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -567,6 +590,7 @@ pub struct RuntimeFormulaView {
     #[ts(optional)]
     pub damage_type: Option<String>,
     pub effect_kind: RuntimeDamageEffectKindView,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modifiers: Vec<RuntimeModifierView>,
     pub provenance: RuntimeFactProvenanceView,
 }

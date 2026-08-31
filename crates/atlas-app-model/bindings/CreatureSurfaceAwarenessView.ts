@@ -2,4 +2,4 @@
 import type { CreatureSurfaceFactProvenanceView } from "./CreatureSurfaceFactProvenanceView";
 import type { CreatureSurfaceSenseView } from "./CreatureSurfaceSenseView";
 
-export type CreatureSurfaceAwarenessView = { perception?: bigint, details?: string, has_vision?: boolean, senses: Array<CreatureSurfaceSenseView>, languages: Array<string>, language_details?: string, provenance: CreatureSurfaceFactProvenanceView, };
+export type CreatureSurfaceAwarenessView = { perception?: bigint, details?: string, has_vision?: boolean, senses?: Array<CreatureSurfaceSenseView>, languages?: Array<string>, language_details?: string, provenance: CreatureSurfaceFactProvenanceView, };

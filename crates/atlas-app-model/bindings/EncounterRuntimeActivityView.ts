@@ -9,4 +9,4 @@ import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 import type { RuntimeFormulaView } from "./RuntimeFormulaView";
 import type { RuntimeRollView } from "./RuntimeRollView";
 
-export type EncounterRuntimeActivityView = { activity_id: string, label: string, kind: EncounterRuntimeActivityKindView, usage: EncounterRuntimeActivityUsageView, action_cost?: EncounterRuntimeActionCostView, frequency?: EncounterRuntimeFrequencyView, uses?: EncounterRuntimeUsesView, rolls: Array<RuntimeRollView>, damage: Array<RuntimeFormulaView>, modes: Array<EncounterRuntimeActivityModeView>, provenance: RuntimeFactProvenanceView, };
+export type EncounterRuntimeActivityView = { activity_id: string, label: string, kind: EncounterRuntimeActivityKindView, usage: EncounterRuntimeActivityUsageView, action_cost?: EncounterRuntimeActionCostView, frequency?: EncounterRuntimeFrequencyView, uses?: EncounterRuntimeUsesView, rolls?: Array<RuntimeRollView>, damage?: Array<RuntimeFormulaView>, modes?: Array<EncounterRuntimeActivityModeView>, provenance: RuntimeFactProvenanceView, };
