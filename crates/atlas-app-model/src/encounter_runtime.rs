@@ -35,7 +35,7 @@ pub struct EncounterRuntimeView {
     #[ts(optional)]
     pub action_budget: Option<EncounterRuntimeActionBudgetView>,
     pub conditions: Vec<EncounterRuntimeConditionView>,
-    pub unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
+    pub automation_limitations: Vec<EncounterRuntimeAutomationLimitationView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -288,13 +288,35 @@ pub struct EncounterRuntimeConditionView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct EncounterRuntimeUnappliedFactView {
-    pub provenance: RuntimeFactProvenanceView,
-    pub label: String,
-    pub reason: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub canonical_target: Option<RuntimeCanonicalTargetView>,
+pub struct EncounterRuntimeAutomationLimitationView {
+    pub code: EncounterRuntimeAutomationLimitationCodeView,
+    pub target: EncounterRuntimeAutomationLimitationTargetView,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterRuntimeAutomationLimitationCodeView {
+    ActivityCheckNotAutomated,
+    ConditionAttackAdjustmentPartial,
+    ConditionDamageAdjustmentPartial,
+    ExplorationActivityRestrictionNotAutomated,
+    ManipulateActionCheckNotAutomated,
+    ProneContextRequiresAdjudication,
+    RestrictedActionExceptionsNotAutomated,
+    SpellDisruptionCheckNotAutomated,
+    StunnedTimingRequiresAdjudication,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "target_type", rename_all = "snake_case")]
+#[ts(tag = "target_type", rename_all = "snake_case")]
+pub enum EncounterRuntimeAutomationLimitationTargetView {
+    Participant,
+    Condition { condition_id: i64 },
+    Activity { activity_id: String },
+    Spellcasting { entry_id: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -331,7 +353,6 @@ pub enum RuntimeFactSourceView {
 pub enum RuntimeRuleView {
     ActionBudget,
     Movement,
-    UnsupportedFact,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -54,6 +54,9 @@ export type { EncounterRuntimeActivityKindView } from "../../../../crates/atlas-
 export type { EncounterRuntimeActivityModeView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeActivityModeView";
 export type { EncounterRuntimeActivityUsageView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeActivityUsageView";
 export type { EncounterRuntimeActivityView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeActivityView";
+export type { EncounterRuntimeAutomationLimitationCodeView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeAutomationLimitationCodeView";
+export type { EncounterRuntimeAutomationLimitationTargetView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeAutomationLimitationTargetView";
+export type { EncounterRuntimeAutomationLimitationView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeAutomationLimitationView";
 export type { EncounterRuntimeAwarenessView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeAwarenessView";
 export type { EncounterRuntimeConditionView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeConditionView";
 export type { EncounterRuntimeDefensesView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeDefensesView";
@@ -65,7 +68,6 @@ export type { EncounterRuntimeSkillKindView } from "../../../../crates/atlas-app
 export type { EncounterRuntimeSkillView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSkillView";
 export type { EncounterRuntimeSpellSlotView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSpellSlotView";
 export type { EncounterRuntimeSpellcastingView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSpellcastingView";
-export type { EncounterRuntimeUnappliedFactView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeUnappliedFactView";
 export type { EncounterRuntimeUsesView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeUsesView";
 export type { EncounterRuntimeView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeView";
 export type { EncounterRuntimeVitalsView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeVitalsView";

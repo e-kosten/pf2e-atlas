@@ -18,6 +18,8 @@ The frontend needs a final app-facing presentation contract that is already comp
 
 `atlas-app-service` owns final app presentation composition through generated DTOs exported by `atlas-app-model`. Encounter composition first lands as one `EncounterRuntimeView`: common participant metadata plus named optional runtime domains and typed repeated collections. The former `StatBlockView.values[]` and generic record-section bridge are removed directly.
 
+Public encounter-runtime incompleteness is limited to concise automation limitations with stable typed codes and typed participant, condition, activity, or spellcasting placement targets. Their human-readable messages are display-only and must never be parsed for behavior. Projection details about malformed, duplicate, unsupported, unmapped, raw-path, publication, null, or source-noise facts remain internal to `atlas-app-service`; raw source and provenance stay available through their owning contracts instead of being copied into the runtime DTO. Critical missing or unsafe data fails closed or makes the affected typed value unavailable.
+
 `atlas-record` continues to own normalized source facts, rich content, presentation-neutral mechanics/activity projections, and reference policy. `atlas-app-service` composes those facts with app context:
 
 - search compact record rows;
