@@ -273,20 +273,73 @@ fn runtime_condition_view(
 fn set_named_fact(
     slot: &mut Option<RuntimeNumberView>,
     fact: RuntimeNumberView,
+    target: &MechanicTarget,
+    target_count: usize,
     diagnostics: &mut Vec<EncounterProjectionDiagnostic>,
 ) {
-    if slot.is_some() {
-        diagnostics.push(EncounterProjectionDiagnostic {
-            code: EncounterProjectionDiagnosticCode::DuplicateRuntimeFact,
-            message: format!(
-                "Duplicate {} fact rejected from a zero-or-one runtime field",
-                fact.label
-            ),
-            canonical_target: fact.provenance.canonical_target.clone(),
-        });
-    } else {
+    if target_count == 1 {
+        debug_assert!(slot.is_none(), "pre-counted named runtime target is unique");
         *slot = Some(fact);
+        return;
     }
+
+    *slot = None;
+    diagnostics.push(duplicate_named_runtime_fact(
+        fact.label.as_str(),
+        target,
+        target_count,
+    ));
+}
+
+fn set_spellcasting_roll(
+    slot: &mut Option<RuntimeRollView>,
+    fact: RuntimeRollView,
+    target: &MechanicTarget,
+    target_count: usize,
+    diagnostics: &mut Vec<EncounterProjectionDiagnostic>,
+) {
+    if target_count == 1 {
+        debug_assert!(
+            slot.is_none(),
+            "pre-counted spellcasting runtime target is unique"
+        );
+        *slot = Some(fact);
+        return;
+    }
+
+    *slot = None;
+    diagnostics.push(duplicate_named_runtime_fact(
+        fact.label.as_str(),
+        target,
+        target_count,
+    ));
+}
+
+fn duplicate_named_runtime_fact(
+    label: &str,
+    target: &MechanicTarget,
+    count: usize,
+) -> EncounterProjectionDiagnostic {
+    EncounterProjectionDiagnostic {
+        code: EncounterProjectionDiagnosticCode::DuplicateRuntimeFact,
+        message: format!(
+            "{label}: {count} canonical facts target the same zero-or-one named runtime field; all were rejected"
+        ),
+        canonical_target: canonical_target_view(target),
+    }
+}
+
+fn is_zero_or_one_named_runtime_target(target: &MechanicTarget) -> bool {
+    matches!(
+        target,
+        MechanicTarget::MaxHp
+            | MechanicTarget::ArmorClass
+            | MechanicTarget::Perception
+            | MechanicTarget::Save { .. }
+            | MechanicTarget::AbilityModifier { .. }
+            | MechanicTarget::SpellcastingAttack { .. }
+            | MechanicTarget::SpellcastingDc { .. }
+    )
 }
 
 fn spellcasting_entry<'a>(
@@ -1108,6 +1161,34 @@ fn apply_participant_effects(
             .or_default()
             .push(modifier);
     }
+    let named_target_counts = mechanics
+        .values
+        .iter()
+        .filter(|mechanic| is_zero_or_one_named_runtime_target(&mechanic.target))
+        .fold(
+            BTreeMap::<MechanicTarget, usize>::new(),
+            |mut counts, mechanic| {
+                *counts.entry(mechanic.target.clone()).or_default() += 1;
+                counts
+            },
+        );
+    let ambiguous_spellcasting_entries = named_target_counts
+        .iter()
+        .filter_map(|(target, count)| {
+            if *count < 2 {
+                return None;
+            }
+            match target {
+                MechanicTarget::SpellcastingAttack {
+                    entry_occurrence_id,
+                }
+                | MechanicTarget::SpellcastingDc {
+                    entry_occurrence_id,
+                } => Some(entry_occurrence_id.clone()),
+                _ => None,
+            }
+        })
+        .collect::<BTreeSet<_>>();
 
     let adjusted_level = mechanics.level.map(|base| {
         let value = adjusted_level(Some(base), participant.participant_variant).unwrap_or(base);
@@ -1160,39 +1241,106 @@ fn apply_participant_effects(
     let mut spellcasting = Vec::<EncounterRuntimeSpellcastingView>::new();
     for mechanic in mechanics.values {
         let target = mechanic.target.clone();
+        let target_count = named_target_counts.get(&target).copied().unwrap_or(1);
         let fact = runtime_number_view(mechanic, by_target.remove(&target).unwrap_or_default());
         match target {
-            MechanicTarget::MaxHp => set_named_fact(&mut vitals.maximum_hp, fact, &mut diagnostics),
-            MechanicTarget::ArmorClass => set_named_fact(&mut armor_class, fact, &mut diagnostics),
-            MechanicTarget::Perception => set_named_fact(&mut perception, fact, &mut diagnostics),
+            MechanicTarget::MaxHp => set_named_fact(
+                &mut vitals.maximum_hp,
+                fact,
+                &MechanicTarget::MaxHp,
+                target_count,
+                &mut diagnostics,
+            ),
+            MechanicTarget::ArmorClass => set_named_fact(
+                &mut armor_class,
+                fact,
+                &MechanicTarget::ArmorClass,
+                target_count,
+                &mut diagnostics,
+            ),
+            MechanicTarget::Perception => set_named_fact(
+                &mut perception,
+                fact,
+                &MechanicTarget::Perception,
+                target_count,
+                &mut diagnostics,
+            ),
             MechanicTarget::Save {
                 save: SaveKind::Fortitude,
-            } => set_named_fact(&mut saves.fortitude, fact, &mut diagnostics),
+            } => set_named_fact(
+                &mut saves.fortitude,
+                fact,
+                &MechanicTarget::Save {
+                    save: SaveKind::Fortitude,
+                },
+                target_count,
+                &mut diagnostics,
+            ),
             MechanicTarget::Save {
                 save: SaveKind::Reflex,
-            } => set_named_fact(&mut saves.reflex, fact, &mut diagnostics),
+            } => set_named_fact(
+                &mut saves.reflex,
+                fact,
+                &MechanicTarget::Save {
+                    save: SaveKind::Reflex,
+                },
+                target_count,
+                &mut diagnostics,
+            ),
             MechanicTarget::Save {
                 save: SaveKind::Will,
-            } => set_named_fact(&mut saves.will, fact, &mut diagnostics),
+            } => set_named_fact(
+                &mut saves.will,
+                fact,
+                &MechanicTarget::Save {
+                    save: SaveKind::Will,
+                },
+                target_count,
+                &mut diagnostics,
+            ),
             MechanicTarget::AbilityModifier { ability } => match ability {
-                AbilityKind::Strength => {
-                    set_named_fact(&mut abilities.strength, fact, &mut diagnostics)
-                }
-                AbilityKind::Dexterity => {
-                    set_named_fact(&mut abilities.dexterity, fact, &mut diagnostics)
-                }
-                AbilityKind::Constitution => {
-                    set_named_fact(&mut abilities.constitution, fact, &mut diagnostics)
-                }
-                AbilityKind::Intelligence => {
-                    set_named_fact(&mut abilities.intelligence, fact, &mut diagnostics)
-                }
-                AbilityKind::Wisdom => {
-                    set_named_fact(&mut abilities.wisdom, fact, &mut diagnostics)
-                }
-                AbilityKind::Charisma => {
-                    set_named_fact(&mut abilities.charisma, fact, &mut diagnostics)
-                }
+                AbilityKind::Strength => set_named_fact(
+                    &mut abilities.strength,
+                    fact,
+                    &MechanicTarget::AbilityModifier { ability },
+                    target_count,
+                    &mut diagnostics,
+                ),
+                AbilityKind::Dexterity => set_named_fact(
+                    &mut abilities.dexterity,
+                    fact,
+                    &MechanicTarget::AbilityModifier { ability },
+                    target_count,
+                    &mut diagnostics,
+                ),
+                AbilityKind::Constitution => set_named_fact(
+                    &mut abilities.constitution,
+                    fact,
+                    &MechanicTarget::AbilityModifier { ability },
+                    target_count,
+                    &mut diagnostics,
+                ),
+                AbilityKind::Intelligence => set_named_fact(
+                    &mut abilities.intelligence,
+                    fact,
+                    &MechanicTarget::AbilityModifier { ability },
+                    target_count,
+                    &mut diagnostics,
+                ),
+                AbilityKind::Wisdom => set_named_fact(
+                    &mut abilities.wisdom,
+                    fact,
+                    &MechanicTarget::AbilityModifier { ability },
+                    target_count,
+                    &mut diagnostics,
+                ),
+                AbilityKind::Charisma => set_named_fact(
+                    &mut abilities.charisma,
+                    fact,
+                    &MechanicTarget::AbilityModifier { ability },
+                    target_count,
+                    &mut diagnostics,
+                ),
             },
             MechanicTarget::CreatureSkill { skill_id, kind } => {
                 skills.push(EncounterRuntimeSkillView {
@@ -1228,18 +1376,51 @@ fn apply_participant_effects(
                 entry_occurrence_id,
             } => {
                 let label = fact.label.clone();
-                spellcasting_entry(&mut spellcasting, entry_occurrence_id.as_str(), &label)
-                    .attack = Some(runtime_roll_from_number(
-                    fact,
-                    RuntimeRollSurfaceView::AttackRoll,
-                ));
+                let entry_label = if ambiguous_spellcasting_entries.contains(&entry_occurrence_id) {
+                    "Spellcasting"
+                } else {
+                    label.as_str()
+                };
+                let target = MechanicTarget::SpellcastingAttack {
+                    entry_occurrence_id: entry_occurrence_id.clone(),
+                };
+                set_spellcasting_roll(
+                    &mut spellcasting_entry(
+                        &mut spellcasting,
+                        entry_occurrence_id.as_str(),
+                        entry_label,
+                    )
+                    .attack,
+                    runtime_roll_from_number(fact, RuntimeRollSurfaceView::AttackRoll),
+                    &target,
+                    target_count,
+                    &mut diagnostics,
+                );
             }
             MechanicTarget::SpellcastingDc {
                 entry_occurrence_id,
             } => {
                 let label = fact.label.clone();
-                spellcasting_entry(&mut spellcasting, entry_occurrence_id.as_str(), &label).dc =
-                    Some(runtime_roll_from_number(fact, RuntimeRollSurfaceView::Dc));
+                let entry_label = if ambiguous_spellcasting_entries.contains(&entry_occurrence_id) {
+                    "Spellcasting"
+                } else {
+                    label.as_str()
+                };
+                let target = MechanicTarget::SpellcastingDc {
+                    entry_occurrence_id: entry_occurrence_id.clone(),
+                };
+                set_spellcasting_roll(
+                    &mut spellcasting_entry(
+                        &mut spellcasting,
+                        entry_occurrence_id.as_str(),
+                        entry_label,
+                    )
+                    .dc,
+                    runtime_roll_from_number(fact, RuntimeRollSurfaceView::Dc),
+                    &target,
+                    target_count,
+                    &mut diagnostics,
+                );
             }
             MechanicTarget::SpellSlotMaximum {
                 entry_occurrence_id,
@@ -2697,6 +2878,162 @@ mod tests {
         )
     }
 
+    fn project_mechanic_values_with_diagnostics(
+        values: Vec<MechanicValue>,
+    ) -> EncounterRuntimeProjection {
+        apply_participant_effects(
+            &participant(ParticipantVariant::Normal, Vec::new()),
+            MechanicsView {
+                record_key: RecordKey::parse("actors:named-runtime-duplicate-test")
+                    .expect("record key should parse"),
+                kind: RecordKind::Creature,
+                title: "Named Runtime Duplicate Test".to_string(),
+                level: Some(5),
+                values,
+                speeds: Vec::new(),
+                activities: Vec::new(),
+            },
+            Vec::new(),
+            Vec::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+        )
+    }
+
+    fn named_runtime_mechanic(target: MechanicTarget, label: &str, value: i64) -> MechanicValue {
+        let facets = match &target {
+            MechanicTarget::MaxHp => MechanicFacets::hit_points(),
+            MechanicTarget::ArmorClass => MechanicFacets::armor_class(),
+            MechanicTarget::Perception => MechanicFacets::perception(),
+            MechanicTarget::Save { save } => MechanicFacets::saving_throw(*save),
+            MechanicTarget::AbilityModifier { ability } => {
+                MechanicFacets::ability_modifier(*ability)
+            }
+            MechanicTarget::SpellcastingAttack { .. } => MechanicFacets::spellcasting_attack(),
+            MechanicTarget::SpellcastingDc { .. } => MechanicFacets::spellcasting_dc(),
+            _ => panic!("test helper requires a zero-or-one named runtime target"),
+        };
+        MechanicValue {
+            target,
+            label: label.to_string(),
+            base_value: MechanicScalar::Number(value),
+            facets,
+        }
+    }
+
+    fn named_runtime_value<'a>(
+        runtime: &'a EncounterRuntimeView,
+        target: &MechanicTarget,
+    ) -> Option<&'a RuntimeNumberView> {
+        match target {
+            MechanicTarget::MaxHp => runtime
+                .vitals
+                .as_ref()
+                .and_then(|vitals| vitals.maximum_hp.as_ref()),
+            MechanicTarget::ArmorClass => runtime
+                .defenses
+                .as_ref()
+                .map(|defenses| &defenses.armor_class),
+            MechanicTarget::Perception => runtime
+                .awareness
+                .as_ref()
+                .map(|awareness| &awareness.perception),
+            MechanicTarget::Save {
+                save: SaveKind::Fortitude,
+            } => runtime
+                .saves
+                .as_ref()
+                .and_then(|saves| saves.fortitude.as_ref()),
+            MechanicTarget::Save {
+                save: SaveKind::Reflex,
+            } => runtime
+                .saves
+                .as_ref()
+                .and_then(|saves| saves.reflex.as_ref()),
+            MechanicTarget::Save {
+                save: SaveKind::Will,
+            } => runtime.saves.as_ref().and_then(|saves| saves.will.as_ref()),
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Strength,
+            } => runtime
+                .abilities
+                .as_ref()
+                .and_then(|abilities| abilities.strength.as_ref()),
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Dexterity,
+            } => runtime
+                .abilities
+                .as_ref()
+                .and_then(|abilities| abilities.dexterity.as_ref()),
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Constitution,
+            } => runtime
+                .abilities
+                .as_ref()
+                .and_then(|abilities| abilities.constitution.as_ref()),
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Intelligence,
+            } => runtime
+                .abilities
+                .as_ref()
+                .and_then(|abilities| abilities.intelligence.as_ref()),
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Wisdom,
+            } => runtime
+                .abilities
+                .as_ref()
+                .and_then(|abilities| abilities.wisdom.as_ref()),
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Charisma,
+            } => runtime
+                .abilities
+                .as_ref()
+                .and_then(|abilities| abilities.charisma.as_ref()),
+            _ => None,
+        }
+    }
+
+    fn spellcasting_runtime_roll<'a>(
+        runtime: &'a EncounterRuntimeView,
+        target: &MechanicTarget,
+    ) -> Option<&'a RuntimeRollView> {
+        let (entry_id, attack) = match target {
+            MechanicTarget::SpellcastingAttack {
+                entry_occurrence_id,
+            } => (entry_occurrence_id.as_str(), true),
+            MechanicTarget::SpellcastingDc {
+                entry_occurrence_id,
+            } => (entry_occurrence_id.as_str(), false),
+            _ => return None,
+        };
+        runtime
+            .spellcasting
+            .iter()
+            .find(|entry| entry.entry_id == entry_id)
+            .and_then(|entry| {
+                if attack {
+                    entry.attack.as_ref()
+                } else {
+                    entry.dc.as_ref()
+                }
+            })
+    }
+
+    fn duplicate_diagnostics_for<'a>(
+        projection: &'a EncounterRuntimeProjection,
+        target: &MechanicTarget,
+    ) -> Vec<&'a EncounterProjectionDiagnostic> {
+        let canonical_target = canonical_target_view(target);
+        projection
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic.code == EncounterProjectionDiagnosticCode::DuplicateRuntimeFact
+                    && diagnostic.canonical_target == canonical_target
+            })
+            .collect()
+    }
+
     fn activity_fact_mut<'a>(
         projection: &'a mut CanonicalMechanicsProjection,
         target: &MechanicTarget,
@@ -3696,6 +4033,251 @@ mod tests {
                 "Uses: 2 canonical facts target the same zero-or-one encounter activity field; all were rejected",
                 "Secondary uses: 2 canonical facts target the same zero-or-one encounter activity field; all were rejected",
             ]
+        );
+    }
+
+    #[test]
+    fn unique_named_and_spellcasting_runtime_facts_remain_available() {
+        let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
+            .expect("occurrence id should be valid");
+        let targets = vec![
+            MechanicTarget::MaxHp,
+            MechanicTarget::ArmorClass,
+            MechanicTarget::Perception,
+            MechanicTarget::Save {
+                save: SaveKind::Fortitude,
+            },
+            MechanicTarget::Save {
+                save: SaveKind::Reflex,
+            },
+            MechanicTarget::Save {
+                save: SaveKind::Will,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Strength,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Dexterity,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Constitution,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Intelligence,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Wisdom,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Charisma,
+            },
+            MechanicTarget::SpellcastingAttack {
+                entry_occurrence_id: spellcasting_id.clone(),
+            },
+            MechanicTarget::SpellcastingDc {
+                entry_occurrence_id: spellcasting_id,
+            },
+        ];
+        let values = targets
+            .iter()
+            .enumerate()
+            .map(|(index, target)| {
+                named_runtime_mechanic(target.clone(), &format!("Unique {index}"), index as i64)
+            })
+            .collect();
+
+        let projection = project_mechanic_values_with_diagnostics(values);
+        for (index, target) in targets.iter().enumerate() {
+            let value = named_runtime_value(&projection.runtime, target)
+                .map(|value| value.base_value)
+                .or_else(|| {
+                    spellcasting_runtime_roll(&projection.runtime, target)
+                        .map(|value| value.base_value)
+                });
+            assert_eq!(value, Some(index as i64), "{target:?} should project");
+            assert!(duplicate_diagnostics_for(&projection, target).is_empty());
+        }
+    }
+
+    #[test]
+    fn every_duplicate_named_stat_fails_closed_independent_of_order() {
+        let targets = [
+            MechanicTarget::MaxHp,
+            MechanicTarget::ArmorClass,
+            MechanicTarget::Perception,
+            MechanicTarget::Save {
+                save: SaveKind::Fortitude,
+            },
+            MechanicTarget::Save {
+                save: SaveKind::Reflex,
+            },
+            MechanicTarget::Save {
+                save: SaveKind::Will,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Strength,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Dexterity,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Constitution,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Intelligence,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Wisdom,
+            },
+            MechanicTarget::AbilityModifier {
+                ability: AbilityKind::Charisma,
+            },
+        ];
+
+        for target in targets {
+            let first = named_runtime_mechanic(target.clone(), "First candidate", 10);
+            let second = named_runtime_mechanic(target.clone(), "Second candidate", 99);
+            for values in [
+                vec![first.clone(), second.clone()],
+                vec![second.clone(), first.clone()],
+            ] {
+                let projection = project_mechanic_values_with_diagnostics(values);
+                assert!(
+                    named_runtime_value(&projection.runtime, &target).is_none(),
+                    "{target:?} must expose neither ambiguous value"
+                );
+                let duplicate_diagnostics = duplicate_diagnostics_for(&projection, &target);
+                assert_eq!(duplicate_diagnostics.len(), 2);
+                assert!(duplicate_diagnostics.iter().all(|diagnostic| diagnostic
+                    .message
+                    .ends_with("2 canonical facts target the same zero-or-one named runtime field; all were rejected")));
+                assert!(projection.runtime.automation_limitations.is_empty());
+                let public_json = serde_json::to_string(&projection.runtime)
+                    .expect("public runtime should serialize");
+                assert!(!public_json.contains("duplicate_runtime_fact"));
+                assert!(!public_json.contains("DuplicateRuntimeFact"));
+                assert!(!public_json.contains("First candidate"));
+                assert!(!public_json.contains("Second candidate"));
+            }
+        }
+    }
+
+    #[test]
+    fn duplicate_spellcasting_attack_and_dc_fail_closed_independent_of_order() {
+        let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
+            .expect("occurrence id should be valid");
+        for target in [
+            MechanicTarget::SpellcastingAttack {
+                entry_occurrence_id: spellcasting_id.clone(),
+            },
+            MechanicTarget::SpellcastingDc {
+                entry_occurrence_id: spellcasting_id.clone(),
+            },
+        ] {
+            let first = named_runtime_mechanic(target.clone(), "First spell candidate", 14);
+            let second = named_runtime_mechanic(target.clone(), "Second spell candidate", 31);
+            let sibling_target = match &target {
+                MechanicTarget::SpellcastingAttack {
+                    entry_occurrence_id,
+                } => MechanicTarget::SpellcastingDc {
+                    entry_occurrence_id: entry_occurrence_id.clone(),
+                },
+                MechanicTarget::SpellcastingDc {
+                    entry_occurrence_id,
+                } => MechanicTarget::SpellcastingAttack {
+                    entry_occurrence_id: entry_occurrence_id.clone(),
+                },
+                _ => unreachable!("loop contains only spellcasting roll targets"),
+            };
+            let sibling = named_runtime_mechanic(sibling_target.clone(), "Unique sibling", 20);
+            let mut expected_public_spellcasting = None;
+            for values in [
+                vec![first.clone(), sibling.clone(), second.clone()],
+                vec![second.clone(), sibling.clone(), first.clone()],
+                vec![sibling.clone(), first.clone(), second.clone()],
+            ] {
+                let projection = project_mechanic_values_with_diagnostics(values);
+                assert!(
+                    spellcasting_runtime_roll(&projection.runtime, &target).is_none(),
+                    "{target:?} must expose neither ambiguous value"
+                );
+                assert_eq!(
+                    spellcasting_runtime_roll(&projection.runtime, &sibling_target)
+                        .map(|roll| roll.base_value),
+                    Some(20),
+                    "the unique sibling roll should remain available"
+                );
+                assert_eq!(duplicate_diagnostics_for(&projection, &target).len(), 2);
+                assert!(projection.runtime.automation_limitations.is_empty());
+                let public_json = serde_json::to_string(&projection.runtime)
+                    .expect("public runtime should serialize");
+                assert!(!public_json.contains("duplicate_runtime_fact"));
+                assert!(!public_json.contains("DuplicateRuntimeFact"));
+                assert!(!public_json.contains("First spell candidate"));
+                assert!(!public_json.contains("Second spell candidate"));
+                let public_spellcasting = serde_json::to_value(&projection.runtime.spellcasting)
+                    .expect("spellcasting should serialize");
+                if let Some(expected) = &expected_public_spellcasting {
+                    assert_eq!(
+                        &public_spellcasting, expected,
+                        "duplicate ordering must not alter retained spellcasting fields"
+                    );
+                } else {
+                    expected_public_spellcasting = Some(public_spellcasting);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn duplicate_target_mutations_restore_only_unambiguous_named_values() {
+        let duplicate_ac = vec![
+            named_runtime_mechanic(MechanicTarget::ArmorClass, "First AC", 22),
+            named_runtime_mechanic(MechanicTarget::ArmorClass, "Second AC", 40),
+        ];
+        let rejected = project_mechanic_values_with_diagnostics(duplicate_ac.clone());
+        assert!(named_runtime_value(&rejected.runtime, &MechanicTarget::ArmorClass).is_none());
+
+        let mut separated_stats = duplicate_ac;
+        separated_stats[1] = named_runtime_mechanic(MechanicTarget::MaxHp, "Maximum HP", 40);
+        let restored = project_mechanic_values_with_diagnostics(separated_stats);
+        assert_eq!(
+            named_runtime_value(&restored.runtime, &MechanicTarget::ArmorClass)
+                .map(|value| value.base_value),
+            Some(22)
+        );
+        assert_eq!(
+            named_runtime_value(&restored.runtime, &MechanicTarget::MaxHp)
+                .map(|value| value.base_value),
+            Some(40)
+        );
+
+        let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
+            .expect("occurrence id should be valid");
+        let attack_target = MechanicTarget::SpellcastingAttack {
+            entry_occurrence_id: spellcasting_id.clone(),
+        };
+        let dc_target = MechanicTarget::SpellcastingDc {
+            entry_occurrence_id: spellcasting_id,
+        };
+        let duplicate_attack = vec![
+            named_runtime_mechanic(attack_target.clone(), "First attack", 14),
+            named_runtime_mechanic(attack_target.clone(), "Second attack", 30),
+        ];
+        let rejected = project_mechanic_values_with_diagnostics(duplicate_attack.clone());
+        assert!(spellcasting_runtime_roll(&rejected.runtime, &attack_target).is_none());
+
+        let mut separated_spellcasting = duplicate_attack;
+        separated_spellcasting[1] = named_runtime_mechanic(dc_target.clone(), "Spell DC", 30);
+        let restored = project_mechanic_values_with_diagnostics(separated_spellcasting);
+        assert_eq!(
+            spellcasting_runtime_roll(&restored.runtime, &attack_target)
+                .map(|value| value.base_value),
+            Some(14)
+        );
+        assert_eq!(
+            spellcasting_runtime_roll(&restored.runtime, &dc_target).map(|value| value.base_value),
+            Some(30)
         );
     }
 
@@ -5204,8 +5786,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "exports checksum-bound E2R refined samples"]
-    fn export_typed_encounter_runtime_refined_samples() {
+    #[ignore = "exports checksum-bound E2R correction samples"]
+    fn export_typed_encounter_runtime_correction_samples() {
         let sample_root = required_path_env("E2R_SAMPLE_ROOT");
         assert!(
             !sample_root.exists(),
@@ -5229,7 +5811,7 @@ mod tests {
         );
         assert_eq!(
             git_value(Path::new("."), &["rev-parse", "HEAD^"]),
-            "a34d700efb1afa44a6a0fa1c031f726fb968d085"
+            "6aa8fde079b623a8ab76ad33a126331cf0f26b92"
         );
 
         let source_root = required_path_env("E2R_SAMPLE_SOURCE_ROOT");
@@ -5281,7 +5863,7 @@ mod tests {
             .create_encounter(CreateEncounterRequest {
                 name: "E2R Typed Runtime Evidence".to_string(),
                 description: Some(
-                    "Candidate-authentic API serialization for refined contract inspection"
+                    "Candidate-authentic API serialization for duplicate fail-closed correction inspection"
                         .to_string(),
                 ),
                 note: None,
@@ -5525,14 +6107,14 @@ mod tests {
         fs::write(
             sample_root.join("presentation.md"),
             format!(
-                "# E2R refined candidate samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis package is **refined candidate evidence pending independent E2R technical review**. It is not final sample approval, E2R acceptance, or authorization for E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect the refined candidate contract and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n\nPublic `automation_limitations` use stable codes and typed placement targets. Human messages are display-only. Projection diagnostics and unsafe missing fact details are intentionally absent from public JSON and TypeScript.\n"
+                "# E2R duplicate fail-closed correction samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis package is **bounded correction evidence pending fresh independent E2R technical rereview**. It is not final sample approval, E2R acceptance, or authorization for E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect the corrected candidate contract and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n\nThe correction changes only invalid duplicate projection: every zero-or-one named stat and spellcasting attack/DC now rejects all ambiguous candidates independent of order. Those duplicates remain private diagnostics and never become public values or automation limitations. Ordinary real/mock sample bytes are expected to remain unchanged because these fixtures have no duplicate zero-or-one facts.\n"
             ),
         )
         .expect("presentation should write");
         fs::write(
             sample_root.join("candidate-report.md"),
             format!(
-                "# Refined candidate report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `a34d700efb1afa44a6a0fa1c031f726fb968d085`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_refined_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Approval: `e2r-early-direction-approval.json` SHA-256 `b03d5a78fc964026cd9141954b353d89942ca03a1db6062f9a84043d23180df6`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n\nThis is the bounded same-direction refinement and stops before independent E2R technical review, final sample approval, acceptance, or E3.\n",
+                "# E2R duplicate fail-closed correction report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `6aa8fde079b623a8ab76ad33a126331cf0f26b92`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_correction_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Failed technical review: `2026-08-30-e2r-typed-encounter-runtime-technical-review-001.md` SHA-256 `4026b179c1e50c31146894c87729e5d6caa45188c0c78453984641566006a0e5`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n- UI boundary: candidate UI typecheck/build retains the previously adjudicated 65-diagnostic downstream-consumer failure; frontend source remains intentionally untouched until its serialized task.\n\nThis is the single bounded F-001 correction and stops before fresh independent E2R technical rereview, final sample approval, acceptance, or E3.\n",
                 required_env("E2R_SAMPLE_SOURCE_SIGNATURE"),
                 sample_index.display(),
                 required_env("E2R_SAMPLE_VALIDATION")
@@ -5540,36 +6122,41 @@ mod tests {
         )
         .expect("candidate report should write");
 
-        let early_root = required_path_env("E2R_EARLY_SAMPLE_ROOT");
+        let refined_root = required_path_env("E2R_REFINED_SAMPLE_ROOT");
         for (relative, expected) in [
             (
                 "sample-manifest.json",
-                "2125c4b065e38084c47134026f367e9cdee1b8b39679b6c24034ae822c25079e",
+                "8abf0832548c5ed0404868b1950b25b4d0c65b08c7cf5b990daa44c37e6edf1a",
             ),
             (
                 "checksums.sha256",
-                "3a248a49dcc5300f5e03c9bdb56c0bed7e7a2951ad81c3981952c59bfb317b35",
+                "d5745e6ee698798b98a6eaca38aff6cd2c255d46311db852d67bd3b54efcfa45",
             ),
             (
                 "presentation.md",
-                "1832ec8a7f57d30cd40f18e27f6655e487ea39a872ab08c7496665e4b9ef2a3f",
+                "c5576e6a147a12eb0d02489d388a30e71ad1f9184fa2643dd15bf137c51ea1b8",
             ),
             (
                 "candidate-report.md",
-                "08e8c4fd4e5987eff2ad569f5de21d608fcbde75cfcb631e65bcc454a906df80",
+                "23b3b98807e19517792f34099e76ec70a25ad2db46b7e0e676de807a19c154d4",
+            ),
+            (
+                "early-to-refined-delta-ledger.md",
+                "fc446bdfcf6d2cf94aeb61701e67e831c9425478cfbabcfc1f87c7547728f70f",
             ),
         ] {
-            assert_eq!(file_sha256(&early_root.join(relative)), expected);
+            assert_eq!(file_sha256(&refined_root.join(relative)), expected);
         }
         let metadata_names = [
             "candidate-report.md",
             "checksums.sha256",
             "early-to-refined-delta-ledger.md",
+            "refined-to-correction-delta-ledger.md",
             "presentation.md",
             "sample-manifest.json",
         ];
         let mut compared_outputs = BTreeSet::new();
-        for root in [&early_root, &sample_root] {
+        for root in [&refined_root, &sample_root] {
             for relative in relative_files(root) {
                 if !metadata_names.contains(&relative.to_string_lossy().as_ref()) {
                     compared_outputs.insert(relative);
@@ -5578,12 +6165,14 @@ mod tests {
         }
         let mut delta_rows = Vec::new();
         for relative in compared_outputs {
-            let early_path = early_root.join(&relative);
-            let refined_path = sample_root.join(&relative);
-            let early_hash = early_path.exists().then(|| file_sha256(&early_path));
+            let refined_path = refined_root.join(&relative);
+            let correction_path = sample_root.join(&relative);
             let refined_hash = refined_path.exists().then(|| file_sha256(&refined_path));
-            let disposition = match (&early_hash, &refined_hash) {
-                (Some(early), Some(refined)) if early == refined => "unchanged",
+            let correction_hash = correction_path
+                .exists()
+                .then(|| file_sha256(&correction_path));
+            let disposition = match (&refined_hash, &correction_hash) {
+                (Some(refined), Some(correction)) if refined == correction => "unchanged",
                 (Some(_), Some(_)) => "changed",
                 (Some(_), None) => "removed",
                 (None, Some(_)) => "added",
@@ -5592,15 +6181,15 @@ mod tests {
             delta_rows.push(format!(
                 "| `{}` | `{}` | `{}` | {disposition} |",
                 relative.display(),
-                early_hash.as_deref().unwrap_or("—"),
-                refined_hash.as_deref().unwrap_or("—")
+                refined_hash.as_deref().unwrap_or("—"),
+                correction_hash.as_deref().unwrap_or("—")
             ));
         }
         fs::write(
-            sample_root.join("early-to-refined-delta-ledger.md"),
+            sample_root.join("refined-to-correction-delta-ledger.md"),
             format!(
-                "# E2R early-to-refined delta ledger\n\n## Bound inputs\n\n- Approved early candidate: `a34d700efb1afa44a6a0fa1c031f726fb968d085` (tree `3712e9f7034790db028983e84bca7d7ab9b97399`).\n- Approved early root: `{}`.\n- Early manifest/checksums/presentation/report SHA-256: `2125c4b065e38084c47134026f367e9cdee1b8b39679b6c24034ae822c25079e` / `3a248a49dcc5300f5e03c9bdb56c0bed7e7a2951ad81c3981952c59bfb317b35` / `1832ec8a7f57d30cd40f18e27f6655e487ea39a872ab08c7496665e4b9ef2a3f` / `08e8c4fd4e5987eff2ad569f5de21d608fcbde75cfcb631e65bcc454a906df80`.\n- Refined candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `a34d700efb1afa44a6a0fa1c031f726fb968d085`.\n\n## Complete public-shape delta\n\n1. `unapplied_facts` and `EncounterRuntimeUnappliedFactView` are removed from Rust DTOs, API JSON, checked-in bindings, and the web TypeScript aggregate. There is no alias, fallback, or dual representation.\n2. `automation_limitations` is the sole public incomplete-automation collection. Each member has an enum-backed stable `code`, a tagged typed `target` (`participant`, `condition`, `activity`, or `spellcasting`), and a display-only `message`. No limitation carries raw source paths, canonical-target encodings, or projection provenance.\n3. Valid canonical activity checks without an encounter check surface become `activity_check_not_automated` limitations targeted to their activity. Condition gaps use condition-targeted stable codes. Messages are not behavior keys.\n4. Malformed, duplicate, unsupported, unmapped, raw JSON-path, publication, null, and source-noise facts remain internal projection diagnostics and are absent from public runtime JSON and TypeScript.\n5. Critical missing or unsafe activity metadata, damage, slot, or base facts fail closed or leave the typed value unavailable; they do not become public manual-rule notes or limitations. `RuntimeRuleView.unsupported_fact` is removed.\n6. Existing named runtime values, base/final mechanics, applied/suppressed adjustments, ordering, typed provenance, participant state, and real-record identities are otherwise unchanged.\n\n## Every candidate-produced output\n\nThe table is the no-omission union of candidate-produced outputs in the bound early and refined roots. Metadata files are excluded because this ledger, report, manifest, presentation, and checksum seal necessarily describe different candidates.\n\n| Output | Early SHA-256 | Refined SHA-256 | Delta |\n|---|---|---|---|\n{}\n",
-                early_root.display(),
+                "# E2R refined-to-correction delta ledger\n\n## Bound inputs\n\n- Failed refined candidate: `6aa8fde079b623a8ab76ad33a126331cf0f26b92` (tree `011ba63684484ce263312e048152f10e3082114c`).\n- Refined root: `{}`.\n- Refined manifest/checksums/presentation/report/delta SHA-256: `8abf0832548c5ed0404868b1950b25b4d0c65b08c7cf5b990daa44c37e6edf1a` / `d5745e6ee698798b98a6eaca38aff6cd2c255d46311db852d67bd3b54efcfa45` / `c5576e6a147a12eb0d02489d388a30e71ad1f9184fa2643dd15bf137c51ea1b8` / `23b3b98807e19517792f34099e76ec70a25ad2db46b7e0e676de807a19c154d4` / `fc446bdfcf6d2cf94aeb61701e67e831c9425478cfbabcfc1f87c7547728f70f`.\n- Failed technical review: `/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundry-mcp/pathfinder-2e-foundry-mcp-56/scratch/plan-validation/2026-08-30-e2r-typed-encounter-runtime-technical-review-001.md`, SHA-256 `4026b179c1e50c31146894c87729e5d6caa45188c0c78453984641566006a0e5`, mode `0444`.\n- Correction candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `6aa8fde079b623a8ab76ad33a126331cf0f26b92`.\n\n## Complete correction delta\n\n1. Every duplicate zero-or-one named stat destination (maximum HP, AC, perception, Fortitude/Reflex/Will, and all six abilities) now rejects all candidate values instead of retaining the first.\n2. Duplicate spellcasting attack and DC destinations now reject all candidate values instead of retaining the last; invalid duplicate ordering cannot select a retained spellcasting entry label.\n3. Every rejected candidate creates only an internal `DuplicateRuntimeFact` diagnostic with typed canonical target. No diagnostic, raw source detail, ambiguous value, or new automation limitation is public.\n4. Unique named values, genuinely repeated collections, existing mechanics/adjustments/provenance, public automation limitations, generated bindings, and frontend source remain unchanged.\n5. Focused tests cover positive, negative, reversed-order, unique-sibling, and target-mutation cases for every named stat destination plus spellcasting attack/DC.\n6. Candidate UI typecheck/build retains the previously adjudicated 65-diagnostic serialized downstream boundary; this bounded correction does not edit frontend source.\n\n## Every candidate-produced output\n\nThe table is the no-omission union of candidate-produced outputs in the bound refined and correction roots. Metadata files are excluded because this ledger, report, manifest, presentation, and checksum seal necessarily describe different candidates.\n\n| Output | Refined SHA-256 | Correction SHA-256 | Delta |\n|---|---|---|---|\n{}\n",
+                refined_root.display(),
                 delta_rows.join("\n")
             ),
         )
@@ -5617,11 +6206,11 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let manifest = serde_json::json!({
-            "schema": "e2r-typed-encounter-runtime-refined-samples/v1",
-            "status": "refined_candidate_pending_independent_technical_review",
-            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "a34d700efb1afa44a6a0fa1c031f726fb968d085" },
-            "approval": { "path": "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/source-faithful-records/20260824T210853Z-c7b74cbdc7c4-pathfinder-2e-foundry-mcp-17/approvals/e2r-early-direction-approval.json", "sha256": "b03d5a78fc964026cd9141954b353d89942ca03a1db6062f9a84043d23180df6" },
-            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_refined_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
+            "schema": "e2r-typed-encounter-runtime-correction-samples/v1",
+            "status": "correction_candidate_pending_independent_technical_rereview",
+            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "6aa8fde079b623a8ab76ad33a126331cf0f26b92" },
+            "failed_review": { "path": "/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundry-mcp/pathfinder-2e-foundry-mcp-56/scratch/plan-validation/2026-08-30-e2r-typed-encounter-runtime-technical-review-001.md", "sha256": "4026b179c1e50c31146894c87729e5d6caa45188c0c78453984641566006a0e5", "mode": "0444", "finding": "F-001" },
+            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_correction_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
             "source": {
                 "root": source_root,
                 "commit": source_commit,
