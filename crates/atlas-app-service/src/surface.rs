@@ -34,7 +34,7 @@ pub(crate) fn record_surface(
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
         (atlas_domain::RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
             RecordSurfacePresentationView::Creature {
-                body: creature_surface(creature, profile),
+                body: Box::new(creature_surface(creature, profile)),
             }
         }
         (atlas_domain::RecordKind::Creature, _) => unavailable_presentation(
@@ -102,10 +102,10 @@ fn unavailable_presentation(
 
 fn record_metadata(retrieved: &RetrievedRecord) -> RecordSurfaceMetadataView {
     let record = &retrieved.record;
-    let creature_provenance = match &retrieved.body {
-        Some(RecordBody::Creature(creature)) => Some(&creature.provenance),
-        None => None,
-    };
+    let creature_provenance = retrieved
+        .body
+        .as_ref()
+        .map(|RecordBody::Creature(creature)| &creature.provenance);
     RecordSurfaceMetadataView {
         record_key: Some(record.identity.key.to_string()),
         title: record.identity.name.clone(),
@@ -329,7 +329,7 @@ fn skills(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceSkillView>> {
         })
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
-    Some(projected)
+    non_empty(projected)
 }
 
 fn movement(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceMovementView>> {
@@ -356,7 +356,7 @@ fn movement(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceMovementView
         })
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
-    Some(projected)
+    non_empty(projected)
 }
 
 fn resources(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceResourceView>> {
@@ -377,7 +377,7 @@ fn resources(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceResourceVie
         })
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
-    Some(projected)
+    non_empty(projected)
 }
 
 fn activities(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceActivityView>> {
@@ -408,7 +408,7 @@ fn activities(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceActivityVi
         })
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
-    Some(projected)
+    non_empty(projected)
 }
 
 fn activity(
@@ -481,13 +481,13 @@ fn spellcasting(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceSpellcas
         })
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
-    Some(projected)
+    non_empty(projected)
 }
 
 fn content(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceContentView>> {
     let mut documents = creature.content.documents.iter().collect::<Vec<_>>();
     documents.sort_by_key(|document| document.authored_order);
-    Some(
+    non_empty(
         documents
             .into_iter()
             .map(|document| CreatureSurfaceContentView {
@@ -537,7 +537,7 @@ fn content_role(role: ContentRole) -> CreatureSurfaceContentRoleView {
 
 fn relationships(creature: &CreatureRecord) -> Option<Vec<CreatureSurfaceRelationshipView>> {
     let embedded = creature.embedded_entities.value.as_value()?;
-    Some(
+    non_empty(
         embedded
             .relationships
             .iter()
@@ -672,4 +672,19 @@ fn note(value: &FactValue<atlas_record::CreatureNote>) -> Option<String> {
 
 fn strings(value: &FactValue<Vec<String>>) -> Vec<String> {
     value.as_value().cloned().unwrap_or_default()
+}
+
+fn non_empty<T>(values: Vec<T>) -> Option<Vec<T>> {
+    (!values.is_empty()).then_some(values)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::non_empty;
+
+    #[test]
+    fn collection_projection_distinguishes_populated_from_known_empty() {
+        assert_eq!(non_empty::<u8>(Vec::new()), None);
+        assert_eq!(non_empty(vec![7_u8]), Some(vec![7_u8]));
+    }
 }

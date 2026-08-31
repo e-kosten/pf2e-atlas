@@ -72,7 +72,7 @@ pub struct RecordSurfaceSourceView {
 #[serde(tag = "presentation_type", rename_all = "snake_case")]
 #[ts(tag = "presentation_type", rename_all = "snake_case")]
 pub enum RecordSurfacePresentationView {
-    Creature { body: CreatureSurfaceView },
+    Creature { body: Box<CreatureSurfaceView> },
     Unavailable { unavailable: SurfaceUnavailableView },
 }
 
@@ -111,25 +111,25 @@ pub struct CreatureSurfaceView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub abilities: Option<CreatureSurfaceAbilitiesView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub skills: Option<Vec<CreatureSurfaceSkillView>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub movement: Option<Vec<CreatureSurfaceMovementView>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub resources: Option<Vec<CreatureSurfaceResourceView>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub spellcasting: Option<Vec<CreatureSurfaceSpellcastingView>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub activities: Option<Vec<CreatureSurfaceActivityView>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub content: Option<Vec<CreatureSurfaceContentView>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub relationships: Option<Vec<CreatureSurfaceRelationshipView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -161,8 +161,11 @@ pub struct CreatureSurfaceDefensesView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub hardness: Option<i64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub immunities: Vec<CreatureSurfaceIwrView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resistances: Vec<CreatureSurfaceIwrView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub weaknesses: Vec<CreatureSurfaceIwrView>,
     pub provenance: CreatureSurfaceFactProvenanceView,
 }
@@ -176,7 +179,9 @@ pub struct CreatureSurfaceIwrView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub amount: Option<i64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exceptions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub double_vs: Vec<String>,
 }
 
@@ -222,7 +227,9 @@ pub struct CreatureSurfaceAwarenessView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub has_vision: Option<bool>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub senses: Vec<CreatureSurfaceSenseView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub languages: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -319,11 +326,14 @@ pub struct CreatureSurfaceActivityView {
     pub authored_order: u32,
     pub activity_type: CreatureSurfaceActivityTypeView,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub action_cost: Option<CreatureSurfaceActionCostView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rolls: Vec<CreatureSurfaceRollView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub damage: Vec<CreatureSurfaceDamageView>,
 }
 
@@ -390,6 +400,7 @@ pub struct CreatureSurfaceSpellcastingView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub difficulty_class: Option<i64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub spells: Vec<CreatureSurfaceSpellView>,
 }
 
@@ -405,6 +416,7 @@ pub struct CreatureSurfaceSpellView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub rank: Option<i64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<String>,
 }
 
@@ -520,4 +532,8 @@ pub enum CreatureSurfaceSourceFieldView {
     Languages,
     Skills,
     LegacyAbilities,
+}
+
+fn optional_vec_is_empty<T>(values: &Option<Vec<T>>) -> bool {
+    values.as_ref().is_none_or(Vec::is_empty)
 }

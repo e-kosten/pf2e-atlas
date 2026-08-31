@@ -117,6 +117,47 @@ mod tests {
         }
         assert!(!creature.contains(&["sec", "tions"].concat()));
 
+        for (binding, optional_collections) in [
+            (
+                "CreatureSurfaceDefensesView.ts",
+                &["immunities?", "resistances?", "weaknesses?"][..],
+            ),
+            (
+                "CreatureSurfaceAwarenessView.ts",
+                &["senses?", "languages?"][..],
+            ),
+            (
+                "CreatureSurfaceActivityView.ts",
+                &["traits?", "rolls?", "damage?"][..],
+            ),
+            ("CreatureSurfaceSpellcastingView.ts", &["spells?"][..]),
+            (
+                "EncounterRuntimeView.ts",
+                &[
+                    "skills?",
+                    "resources?",
+                    "spellcasting?",
+                    "activities?",
+                    "conditions?",
+                    "automation_limitations?",
+                ][..],
+            ),
+            (
+                "RuntimeNumberView.ts",
+                &["modifiers?", "suppressed_modifiers?"][..],
+            ),
+        ] {
+            let generated = actual
+                .get(binding)
+                .unwrap_or_else(|| panic!("{binding} binding should exist"));
+            for field in optional_collections {
+                assert!(
+                    generated.contains(field),
+                    "{binding} should expose optional collection `{field}`"
+                );
+            }
+        }
+
         fs::remove_dir_all(&temp_dir).expect("temporary binding directory should be removable");
     }
 
@@ -152,8 +193,137 @@ mod tests {
             "unavailable"
         );
         assert!(serialized.get("encounter").is_none());
-        assert!(serialized.get(&["sec", "tions"].concat()).is_none());
-        assert!(serialized.get(&["section", "order"].join("_")).is_none());
+        assert!(serialized["metadata"].get("traits").is_none());
+        assert!(serialized["presentation"].get("body").is_none());
+        assert!(serialized.get(["sec", "tions"].concat()).is_none());
+        assert!(serialized.get(["section", "order"].join("_")).is_none());
+    }
+
+    #[test]
+    fn record_surface_omits_known_empty_collections_but_keeps_populated_true_many_values() {
+        let surface = RecordSurfaceView {
+            metadata: RecordSurfaceMetadataView {
+                record_key: Some("test:creature".to_string()),
+                title: "Collection Contract".to_string(),
+                kind: "creature".to_string(),
+                kind_label: "Creature".to_string(),
+                level: Some(1),
+                rarity: None,
+                traits: vec!["beast".to_string()],
+                source: None,
+            },
+            profile: RecordSurfaceProfileView::RecordDetail,
+            presentation: RecordSurfacePresentationView::Creature {
+                body: Box::new(CreatureSurfaceView {
+                    vitals: None,
+                    defenses: Some(CreatureSurfaceDefensesView {
+                        armor_class: Some(15),
+                        armor_class_details: None,
+                        hardness: None,
+                        immunities: Vec::new(),
+                        resistances: vec![CreatureSurfaceIwrView {
+                            component_id: "resistance-fire".to_string(),
+                            authored_order: 0,
+                            kind: "fire".to_string(),
+                            amount: Some(5),
+                            exceptions: Vec::new(),
+                            double_vs: Vec::new(),
+                        }],
+                        weaknesses: Vec::new(),
+                        provenance: surface_fact_provenance(),
+                    }),
+                    saves: None,
+                    awareness: Some(CreatureSurfaceAwarenessView {
+                        perception: Some(5),
+                        details: None,
+                        has_vision: Some(true),
+                        senses: Vec::new(),
+                        languages: Vec::new(),
+                        language_details: None,
+                        provenance: surface_fact_provenance(),
+                    }),
+                    abilities: None,
+                    skills: Some(Vec::new()),
+                    movement: None,
+                    resources: None,
+                    spellcasting: None,
+                    activities: Some(vec![CreatureSurfaceActivityView {
+                        occurrence_id: "activity-bite".to_string(),
+                        authored_order: 0,
+                        activity_type: CreatureSurfaceActivityTypeView::Strike,
+                        label: "Bite".to_string(),
+                        traits: Vec::new(),
+                        action_cost: Some(CreatureSurfaceActionCostView::Actions { count: 1 }),
+                        rolls: Vec::new(),
+                        damage: Vec::new(),
+                    }]),
+                    content: Some(Vec::new()),
+                    relationships: Some(Vec::new()),
+                    provenance: None,
+                }),
+            },
+            encounter: None,
+        };
+
+        let serialized = serde_json::to_value(surface).expect("record surface should serialize");
+        assert_eq!(
+            serialized["metadata"]["traits"],
+            serde_json::json!(["beast"])
+        );
+        let body = &serialized["presentation"]["body"];
+        assert!(body.get("skills").is_none());
+        assert!(body.get("content").is_none());
+        assert!(body.get("relationships").is_none());
+        assert!(body["defenses"].get("immunities").is_none());
+        assert!(body["defenses"].get("weaknesses").is_none());
+        assert_eq!(
+            body["defenses"]["resistances"].as_array().map(Vec::len),
+            Some(1)
+        );
+        assert!(
+            body["defenses"]["resistances"][0]
+                .get("exceptions")
+                .is_none()
+        );
+        assert_eq!(body["activities"].as_array().map(Vec::len), Some(1));
+        assert!(body["activities"][0].get("rolls").is_none());
+        assert_no_empty_containers(&serialized);
+    }
+
+    #[test]
+    fn targeted_automation_limitation_remains_explicit_when_empty_runtime_arrays_are_omitted() {
+        let runtime = EncounterRuntimeView {
+            level: None,
+            vitals: None,
+            defenses: None,
+            saves: None,
+            awareness: None,
+            abilities: None,
+            skills: Vec::new(),
+            movement: None,
+            resources: Vec::new(),
+            spellcasting: Vec::new(),
+            activities: Vec::new(),
+            action_budget: None,
+            conditions: Vec::new(),
+            automation_limitations: vec![EncounterRuntimeAutomationLimitationView {
+                code: EncounterRuntimeAutomationLimitationCodeView::ActivityCheckNotAutomated,
+                target: EncounterRuntimeAutomationLimitationTargetView::Activity {
+                    activity_id: "activity-recall".to_string(),
+                },
+                message: "Resolve this check manually.".to_string(),
+            }],
+        };
+
+        let serialized = serde_json::to_value(runtime).expect("runtime should serialize");
+        let object = serialized.as_object().expect("runtime should be an object");
+        assert_eq!(object.len(), 1);
+        assert_eq!(
+            serialized["automation_limitations"][0]["target"]["target_type"],
+            "activity"
+        );
+        assert!(serialized.get("activities").is_none());
+        assert_no_empty_containers(&serialized);
     }
 
     #[test]
@@ -197,14 +367,47 @@ mod tests {
                 "label": "Level",
                 "base_value": 5,
                 "adjusted_value": 6,
-                "modifiers": [],
-                "suppressed_modifiers": [],
                 "provenance": {
                     "source": { "source_type": "canonical_record" },
                     "canonical_target": { "target_type": "level" }
                 }
             }))
         );
+        for empty_collection in [
+            "skills",
+            "resources",
+            "spellcasting",
+            "activities",
+            "conditions",
+            "automation_limitations",
+        ] {
+            assert!(object.get(empty_collection).is_none());
+        }
+    }
+
+    fn surface_fact_provenance() -> CreatureSurfaceFactProvenanceView {
+        CreatureSurfaceFactProvenanceView {
+            owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+            field: CreatureSurfaceSourceFieldView::Defenses,
+        }
+    }
+
+    fn assert_no_empty_containers(value: &serde_json::Value) {
+        match value {
+            serde_json::Value::Object(object) => {
+                assert!(!object.is_empty(), "serialized object should not be empty");
+                for child in object.values() {
+                    assert_no_empty_containers(child);
+                }
+            }
+            serde_json::Value::Array(values) => {
+                assert!(!values.is_empty(), "serialized array should not be empty");
+                for child in values {
+                    assert_no_empty_containers(child);
+                }
+            }
+            _ => {}
+        }
     }
 
     #[test]

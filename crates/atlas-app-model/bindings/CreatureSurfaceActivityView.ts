@@ -4,4 +4,4 @@ import type { CreatureSurfaceActivityTypeView } from "./CreatureSurfaceActivityT
 import type { CreatureSurfaceDamageView } from "./CreatureSurfaceDamageView";
 import type { CreatureSurfaceRollView } from "./CreatureSurfaceRollView";
 
-export type CreatureSurfaceActivityView = { occurrence_id: string, authored_order: number, activity_type: CreatureSurfaceActivityTypeView, label: string, traits: Array<string>, action_cost?: CreatureSurfaceActionCostView, rolls: Array<CreatureSurfaceRollView>, damage: Array<CreatureSurfaceDamageView>, };
+export type CreatureSurfaceActivityView = { occurrence_id: string, authored_order: number, activity_type: CreatureSurfaceActivityTypeView, label: string, traits?: Array<string>, action_cost?: CreatureSurfaceActionCostView, rolls?: Array<CreatureSurfaceRollView>, damage?: Array<CreatureSurfaceDamageView>, };

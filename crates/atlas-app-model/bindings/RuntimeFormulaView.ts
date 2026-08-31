@@ -3,4 +3,4 @@ import type { RuntimeDamageEffectKindView } from "./RuntimeDamageEffectKindView"
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 import type { RuntimeModifierView } from "./RuntimeModifierView";
 
-export type RuntimeFormulaView = { damage_id: string, label?: string, formula: string, adjusted_formula?: string, damage_type?: string, effect_kind: RuntimeDamageEffectKindView, modifiers: Array<RuntimeModifierView>, provenance: RuntimeFactProvenanceView, };
+export type RuntimeFormulaView = { damage_id: string, label?: string, formula: string, adjusted_formula?: string, damage_type?: string, effect_kind: RuntimeDamageEffectKindView, modifiers?: Array<RuntimeModifierView>, provenance: RuntimeFactProvenanceView, };

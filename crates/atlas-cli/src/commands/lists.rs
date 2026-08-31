@@ -667,7 +667,14 @@ fn list_show_item_no_record(item: SavedListItemView) -> ListShowItemNoRecord {
 fn list_show_summary_item(item: SavedListItemView) -> ListShowSummaryItem {
     let status = list_item_status_text(item.status);
     let (name, level, kind) = match item.record {
-        Some(record) => (record.title, record.level_label, record.kind),
+        Some(record) => {
+            let metadata = record.surface.metadata;
+            (
+                metadata.title,
+                metadata.level.map(|level| level.to_string()),
+                metadata.kind,
+            )
+        }
         None => (
             item.snapshot.title,
             None,
@@ -974,7 +981,15 @@ fn legacy_ambiguous_record_refs(
     let keys = ambiguity
         .matches
         .iter()
-        .filter_map(|candidate| RecordKey::parse(&candidate.record.record_key).ok())
+        .filter_map(|candidate| {
+            candidate
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref()
+                .and_then(|record_key| RecordKey::parse(record_key).ok())
+        })
         .collect::<Vec<_>>();
     if keys.len() != ambiguity.matches.len() {
         return Ok(None);
@@ -990,8 +1005,11 @@ fn legacy_ambiguous_record_refs(
         .matches
         .iter()
         .map(|candidate| {
-            Ok(records_by_key
-                .get(&candidate.record.record_key)
+            let metadata = &candidate.record.surface.metadata;
+            Ok(metadata
+                .record_key
+                .as_deref()
+                .and_then(|record_key| records_by_key.get(record_key))
                 .map(|record| {
                     record_json(record, record_json_options(DetailLevel::Standard))
                         .map_err(|error| error.to_string())
@@ -1002,9 +1020,9 @@ fn legacy_ambiguous_record_refs(
                 .transpose()?
                 .unwrap_or_else(|| {
                     serde_json::json!({
-                        "key": candidate.record.record_key,
-                        "name": candidate.record.title,
-                        "kind": candidate.record.kind,
+                        "key": metadata.record_key,
+                        "name": metadata.title,
+                        "kind": metadata.kind,
                     })
                 }))
         })

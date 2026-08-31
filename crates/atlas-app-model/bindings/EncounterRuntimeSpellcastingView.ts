@@ -2,4 +2,4 @@
 import type { EncounterRuntimeSpellSlotView } from "./EncounterRuntimeSpellSlotView";
 import type { RuntimeRollView } from "./RuntimeRollView";
 
-export type EncounterRuntimeSpellcastingView = { entry_id: string, label: string, attack?: RuntimeRollView, dc?: RuntimeRollView, slots: Array<EncounterRuntimeSpellSlotView>, };
+export type EncounterRuntimeSpellcastingView = { entry_id: string, label: string, attack?: RuntimeRollView, dc?: RuntimeRollView, slots?: Array<EncounterRuntimeSpellSlotView>, };
