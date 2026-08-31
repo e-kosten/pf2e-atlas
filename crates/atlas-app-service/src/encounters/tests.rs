@@ -366,7 +366,7 @@ fn draft_variant_change_fails_closed_when_canonical_level_is_absent() {
         .expect("creature should add");
     let participant = &detail.participants[0];
     let base_stats = &participant.encounter_runtime;
-    assert_eq!(base_stats.adjusted_level, None);
+    assert_eq!(base_stats.level, None);
 
     let mut update = participant_update(
         &local_participant(&fixture, &encounter.slug, &participant.participant_key),
@@ -390,7 +390,7 @@ fn draft_variant_change_fails_closed_when_canonical_level_is_absent() {
         Some(17)
     );
     let stats = &updated.encounter_runtime;
-    assert_eq!(stats.adjusted_level, None);
+    assert_eq!(stats.level, None);
     let ac = &stats.defenses.as_ref().expect("defenses").armor_class;
     assert_eq!(ac.adjusted_value, 21);
     let hp = stats

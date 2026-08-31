@@ -8,7 +8,7 @@ use crate::EncounterParticipantVariantView;
 pub struct EncounterRuntimeView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub adjusted_level: Option<RuntimeNumberView>,
+    pub level: Option<RuntimeNumberView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub vitals: Option<EncounterRuntimeVitalsView>,

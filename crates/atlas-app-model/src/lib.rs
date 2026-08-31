@@ -73,8 +73,70 @@ mod tests {
             expected, actual,
             "generated TypeScript bindings are stale; run `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`"
         );
+        let encounter_runtime = actual
+            .get("EncounterRuntimeView.ts")
+            .expect("EncounterRuntimeView binding should exist");
+        assert!(
+            encounter_runtime.contains("level?: RuntimeNumberView"),
+            "generated encounter runtime should expose the canonical outer level field"
+        );
+        assert!(
+            !encounter_runtime.contains("adjusted_level"),
+            "generated encounter runtime must not retain the superseded outer field"
+        );
 
         fs::remove_dir_all(&temp_dir).expect("temporary binding directory should be removable");
+    }
+
+    #[test]
+    fn encounter_runtime_level_serializes_with_inner_adjustment_semantics() {
+        let runtime = EncounterRuntimeView {
+            level: Some(RuntimeNumberView {
+                label: "Level".to_string(),
+                base_value: 5,
+                adjusted_value: 6,
+                modifiers: Vec::new(),
+                suppressed_modifiers: Vec::new(),
+                provenance: RuntimeFactProvenanceView {
+                    source: RuntimeFactSourceView::CanonicalRecord,
+                    canonical_target: Some(RuntimeCanonicalTargetView::Level),
+                },
+            }),
+            vitals: None,
+            defenses: None,
+            saves: None,
+            awareness: None,
+            abilities: None,
+            skills: Vec::new(),
+            movement: None,
+            resources: Vec::new(),
+            spellcasting: Vec::new(),
+            activities: Vec::new(),
+            action_budget: None,
+            conditions: Vec::new(),
+            automation_limitations: Vec::new(),
+        };
+
+        let serialized = serde_json::to_value(runtime).expect("runtime should serialize");
+        let object = serialized
+            .as_object()
+            .expect("runtime should serialize as an object");
+        assert!(object.contains_key("level"));
+        assert!(!object.contains_key("adjusted_level"));
+        assert_eq!(
+            object.get("level"),
+            Some(&serde_json::json!({
+                "label": "Level",
+                "base_value": 5,
+                "adjusted_value": 6,
+                "modifiers": [],
+                "suppressed_modifiers": [],
+                "provenance": {
+                    "source": { "source_type": "canonical_record" },
+                    "canonical_target": { "target_type": "level" }
+                }
+            }))
+        );
     }
 
     #[test]

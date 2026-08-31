@@ -423,7 +423,7 @@ pub(super) fn participant_encounter_runtime(
 
 pub(super) fn manual_encounter_runtime(participant: &EncounterParticipant) -> EncounterRuntimeView {
     EncounterRuntimeView {
-        adjusted_level: None,
+        level: None,
         vitals: Some(EncounterRuntimeVitalsView {
             maximum_hp: participant
                 .max_hp
@@ -1190,8 +1190,8 @@ fn apply_participant_effects(
         })
         .collect::<BTreeSet<_>>();
 
-    let adjusted_level = mechanics.level.map(|base| {
-        let value = adjusted_level(Some(base), participant.participant_variant).unwrap_or(base);
+    let level = mechanics.level.map(|base| {
+        let value = level_for_variant(Some(base), participant.participant_variant).unwrap_or(base);
         RuntimeNumberView {
             label: "Level".to_string(),
             base_value: base,
@@ -1453,7 +1453,7 @@ fn apply_participant_effects(
 
     EncounterRuntimeProjection {
         runtime: EncounterRuntimeView {
-            adjusted_level,
+            level,
             vitals: Some(vitals),
             defenses: armor_class.map(|armor_class| EncounterRuntimeDefensesView { armor_class }),
             saves: (saves.fortitude.is_some() || saves.reflex.is_some() || saves.will.is_some())
@@ -2353,7 +2353,7 @@ fn variant_modifiers(
     modifiers
 }
 
-fn adjusted_level(level: Option<i64>, variant: ParticipantVariant) -> Option<i64> {
+fn level_for_variant(level: Option<i64>, variant: ParticipantVariant) -> Option<i64> {
     let level = level?;
     Some(match variant {
         ParticipantVariant::Normal => level,
@@ -3401,10 +3401,7 @@ mod tests {
         let projection = project_canonical(&participant(ParticipantVariant::Elite, Vec::new()));
 
         assert_eq!(
-            projection
-                .adjusted_level
-                .as_ref()
-                .map(|value| value.adjusted_value),
+            projection.level.as_ref().map(|value| value.adjusted_value),
             Some(6)
         );
         assert_stat(
@@ -4795,10 +4792,7 @@ mod tests {
         let participant = participant(ParticipantVariant::Elite, Vec::new());
         let projection = project_legacy(&participant, &record()).expect("stat block");
         assert_eq!(
-            projection
-                .adjusted_level
-                .as_ref()
-                .map(|value| value.adjusted_value),
+            projection.level.as_ref().map(|value| value.adjusted_value),
             Some(6)
         );
         assert_stat(
@@ -4822,10 +4816,7 @@ mod tests {
         let participant = participant(ParticipantVariant::Weak, Vec::new());
         let projection = project_legacy(&participant, &record()).expect("stat block");
         assert_eq!(
-            projection
-                .adjusted_level
-                .as_ref()
-                .map(|value| value.adjusted_value),
+            projection.level.as_ref().map(|value| value.adjusted_value),
             Some(4)
         );
         assert_stat(
@@ -5786,8 +5777,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "exports checksum-bound E2R correction samples"]
-    fn export_typed_encounter_runtime_correction_samples() {
+    #[ignore = "exports checksum-bound E2R final-direction samples"]
+    fn export_typed_encounter_runtime_final_samples() {
         let sample_root = required_path_env("E2R_SAMPLE_ROOT");
         assert!(
             !sample_root.exists(),
@@ -5811,7 +5802,7 @@ mod tests {
         );
         assert_eq!(
             git_value(Path::new("."), &["rev-parse", "HEAD^"]),
-            "6aa8fde079b623a8ab76ad33a126331cf0f26b92"
+            "4cd7c052a642c3ef52d3ed347fb77303bf2a25a0"
         );
 
         let source_root = required_path_env("E2R_SAMPLE_SOURCE_ROOT");
@@ -5863,7 +5854,7 @@ mod tests {
             .create_encounter(CreateEncounterRequest {
                 name: "E2R Typed Runtime Evidence".to_string(),
                 description: Some(
-                    "Candidate-authentic API serialization for duplicate fail-closed correction inspection"
+                    "Candidate-authentic API serialization for final outer level-field inspection"
                         .to_string(),
                 ),
                 note: None,
@@ -6107,14 +6098,14 @@ mod tests {
         fs::write(
             sample_root.join("presentation.md"),
             format!(
-                "# E2R duplicate fail-closed correction samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis package is **bounded correction evidence pending fresh independent E2R technical rereview**. It is not final sample approval, E2R acceptance, or authorization for E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect the corrected candidate contract and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n\nThe correction changes only invalid duplicate projection: every zero-or-one named stat and spellcasting attack/DC now rejects all ambiguous candidates independent of order. Those duplicates remain private diagnostics and never become public values or automation limitations. Ordinary real/mock sample bytes are expected to remain unchanged because these fixtures have no duplicate zero-or-one facts.\n"
+                "# E2R final-direction candidate samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis is the **fresh candidate-authentic FINAL sample package pending independent E2R technical rereview and separate explicit final sample approval**. It does not itself approve E2R or authorize E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect the final-direction candidate contract and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n\nThe sole product-shape delta is the outer `EncounterRuntimeView.level` property replacing `adjusted_level`. Its `RuntimeNumberView` still carries `base_value`, `adjusted_value`, modifiers, suppressed modifiers, and typed provenance unchanged. There is no alias, shim, dual field, or mechanics change.\n"
             ),
         )
         .expect("presentation should write");
         fs::write(
             sample_root.join("candidate-report.md"),
             format!(
-                "# E2R duplicate fail-closed correction report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `6aa8fde079b623a8ab76ad33a126331cf0f26b92`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_correction_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Failed technical review: `2026-08-30-e2r-typed-encounter-runtime-technical-review-001.md` SHA-256 `4026b179c1e50c31146894c87729e5d6caa45188c0c78453984641566006a0e5`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n- UI boundary: candidate UI typecheck/build retains the previously adjudicated 65-diagnostic downstream-consumer failure; frontend source remains intentionally untouched until its serialized task.\n\nThis is the single bounded F-001 correction and stops before fresh independent E2R technical rereview, final sample approval, acceptance, or E3.\n",
+                "# E2R final-direction candidate report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `4cd7c052a642c3ef52d3ed347fb77303bf2a25a0`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_final_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Final-direction approval: `e2r-final-direction-correction-approval.json` SHA-256 `ee12184fda2cbc51b0a86d29778044c6d9daaefb49eba19082a4a27124a0ed15`\n- Prior technical PASS: `2026-08-30-e2r-typed-encounter-runtime-correction-rereview-002.md` SHA-256 `de9f8f869c94f23d5de7956bad049864118491ab3a919dd0a29e7f1f81ed2547`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n- UI boundary: candidate UI typecheck/build retains the adjudicated 65-diagnostic downstream-consumer failure; frontend source remains intentionally untouched until its serialized task.\n\nThis is the one-field final-direction correction and stops before fresh independent E2R technical rereview, separate final sample approval, acceptance, or E3.\n",
                 required_env("E2R_SAMPLE_SOURCE_SIGNATURE"),
                 sample_index.display(),
                 required_env("E2R_SAMPLE_VALIDATION")
@@ -6122,33 +6113,34 @@ mod tests {
         )
         .expect("candidate report should write");
 
-        let refined_root = required_path_env("E2R_REFINED_SAMPLE_ROOT");
+        let correction_root = required_path_env("E2R_CORRECTION_SAMPLE_ROOT");
         for (relative, expected) in [
             (
                 "sample-manifest.json",
-                "8abf0832548c5ed0404868b1950b25b4d0c65b08c7cf5b990daa44c37e6edf1a",
+                "6b19882ddc8537fdc8512675a9a9f291f0af89fe9436ce16b2eb710a20a3fadb",
             ),
             (
                 "checksums.sha256",
-                "d5745e6ee698798b98a6eaca38aff6cd2c255d46311db852d67bd3b54efcfa45",
+                "9e675e67b2500a7ccd6817c3ee7be3113cfe17630aa0a394082966b44d7de94f",
             ),
             (
                 "presentation.md",
-                "c5576e6a147a12eb0d02489d388a30e71ad1f9184fa2643dd15bf137c51ea1b8",
+                "e821b1e34721bdb86335558ce6ee18c6f5d40d1cfc10eded5426def0cb899d9a",
             ),
             (
                 "candidate-report.md",
-                "23b3b98807e19517792f34099e76ec70a25ad2db46b7e0e676de807a19c154d4",
+                "19cd4afff1600fd58a4bcd6baff28f5bdaffebf6e5ff19881e69472731524207",
             ),
             (
-                "early-to-refined-delta-ledger.md",
-                "fc446bdfcf6d2cf94aeb61701e67e831c9425478cfbabcfc1f87c7547728f70f",
+                "refined-to-correction-delta-ledger.md",
+                "495dee3a55ea851bd47855a8439b28ba62131b76dafa09a9ac9a6a3f91bd10ca",
             ),
         ] {
-            assert_eq!(file_sha256(&refined_root.join(relative)), expected);
+            assert_eq!(file_sha256(&correction_root.join(relative)), expected);
         }
         let metadata_names = [
             "candidate-report.md",
+            "correction-to-final-delta-ledger.md",
             "checksums.sha256",
             "early-to-refined-delta-ledger.md",
             "refined-to-correction-delta-ledger.md",
@@ -6156,7 +6148,7 @@ mod tests {
             "sample-manifest.json",
         ];
         let mut compared_outputs = BTreeSet::new();
-        for root in [&refined_root, &sample_root] {
+        for root in [&correction_root, &sample_root] {
             for relative in relative_files(root) {
                 if !metadata_names.contains(&relative.to_string_lossy().as_ref()) {
                     compared_outputs.insert(relative);
@@ -6165,14 +6157,14 @@ mod tests {
         }
         let mut delta_rows = Vec::new();
         for relative in compared_outputs {
-            let refined_path = refined_root.join(&relative);
-            let correction_path = sample_root.join(&relative);
-            let refined_hash = refined_path.exists().then(|| file_sha256(&refined_path));
+            let correction_path = correction_root.join(&relative);
+            let final_path = sample_root.join(&relative);
             let correction_hash = correction_path
                 .exists()
                 .then(|| file_sha256(&correction_path));
-            let disposition = match (&refined_hash, &correction_hash) {
-                (Some(refined), Some(correction)) if refined == correction => "unchanged",
+            let final_hash = final_path.exists().then(|| file_sha256(&final_path));
+            let disposition = match (&correction_hash, &final_hash) {
+                (Some(correction), Some(final_output)) if correction == final_output => "unchanged",
                 (Some(_), Some(_)) => "changed",
                 (Some(_), None) => "removed",
                 (None, Some(_)) => "added",
@@ -6181,15 +6173,15 @@ mod tests {
             delta_rows.push(format!(
                 "| `{}` | `{}` | `{}` | {disposition} |",
                 relative.display(),
-                refined_hash.as_deref().unwrap_or("—"),
-                correction_hash.as_deref().unwrap_or("—")
+                correction_hash.as_deref().unwrap_or("—"),
+                final_hash.as_deref().unwrap_or("—")
             ));
         }
         fs::write(
-            sample_root.join("refined-to-correction-delta-ledger.md"),
+            sample_root.join("correction-to-final-delta-ledger.md"),
             format!(
-                "# E2R refined-to-correction delta ledger\n\n## Bound inputs\n\n- Failed refined candidate: `6aa8fde079b623a8ab76ad33a126331cf0f26b92` (tree `011ba63684484ce263312e048152f10e3082114c`).\n- Refined root: `{}`.\n- Refined manifest/checksums/presentation/report/delta SHA-256: `8abf0832548c5ed0404868b1950b25b4d0c65b08c7cf5b990daa44c37e6edf1a` / `d5745e6ee698798b98a6eaca38aff6cd2c255d46311db852d67bd3b54efcfa45` / `c5576e6a147a12eb0d02489d388a30e71ad1f9184fa2643dd15bf137c51ea1b8` / `23b3b98807e19517792f34099e76ec70a25ad2db46b7e0e676de807a19c154d4` / `fc446bdfcf6d2cf94aeb61701e67e831c9425478cfbabcfc1f87c7547728f70f`.\n- Failed technical review: `/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundry-mcp/pathfinder-2e-foundry-mcp-56/scratch/plan-validation/2026-08-30-e2r-typed-encounter-runtime-technical-review-001.md`, SHA-256 `4026b179c1e50c31146894c87729e5d6caa45188c0c78453984641566006a0e5`, mode `0444`.\n- Correction candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `6aa8fde079b623a8ab76ad33a126331cf0f26b92`.\n\n## Complete correction delta\n\n1. Every duplicate zero-or-one named stat destination (maximum HP, AC, perception, Fortitude/Reflex/Will, and all six abilities) now rejects all candidate values instead of retaining the first.\n2. Duplicate spellcasting attack and DC destinations now reject all candidate values instead of retaining the last; invalid duplicate ordering cannot select a retained spellcasting entry label.\n3. Every rejected candidate creates only an internal `DuplicateRuntimeFact` diagnostic with typed canonical target. No diagnostic, raw source detail, ambiguous value, or new automation limitation is public.\n4. Unique named values, genuinely repeated collections, existing mechanics/adjustments/provenance, public automation limitations, generated bindings, and frontend source remain unchanged.\n5. Focused tests cover positive, negative, reversed-order, unique-sibling, and target-mutation cases for every named stat destination plus spellcasting attack/DC.\n6. Candidate UI typecheck/build retains the previously adjudicated 65-diagnostic serialized downstream boundary; this bounded correction does not edit frontend source.\n\n## Every candidate-produced output\n\nThe table is the no-omission union of candidate-produced outputs in the bound refined and correction roots. Metadata files are excluded because this ledger, report, manifest, presentation, and checksum seal necessarily describe different candidates.\n\n| Output | Refined SHA-256 | Correction SHA-256 | Delta |\n|---|---|---|---|\n{}\n",
-                refined_root.display(),
+                "# E2R correction-to-final delta ledger\n\n## Bound inputs\n\n- Independently passed correction candidate: `4cd7c052a642c3ef52d3ed347fb77303bf2a25a0` (tree `407f5373d7eb6d10ebcb413ef720da1d968349dd`).\n- Correction root: `{}`.\n- Correction manifest/checksums/presentation/report/ledger SHA-256: `6b19882ddc8537fdc8512675a9a9f291f0af89fe9436ce16b2eb710a20a3fadb` / `9e675e67b2500a7ccd6817c3ee7be3113cfe17630aa0a394082966b44d7de94f` / `e821b1e34721bdb86335558ce6ee18c6f5d40d1cfc10eded5426def0cb899d9a` / `19cd4afff1600fd58a4bcd6baff28f5bdaffebf6e5ff19881e69472731524207` / `495dee3a55ea851bd47855a8439b28ba62131b76dafa09a9ac9a6a3f91bd10ca`.\n- Final-direction approval: `/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/source-faithful-records/20260824T210853Z-c7b74cbdc7c4-pathfinder-2e-foundry-mcp-17/approvals/e2r-final-direction-correction-approval.json`, SHA-256 `ee12184fda2cbc51b0a86d29778044c6d9daaefb49eba19082a4a27124a0ed15`, mode `0444`.\n- Prior technical PASS: `/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundry-mcp/pathfinder-2e-foundry-mcp-56/scratch/plan-validation/2026-08-30-e2r-typed-encounter-runtime-correction-rereview-002.md`, SHA-256 `de9f8f869c94f23d5de7956bad049864118491ab3a919dd0a29e7f1f81ed2547`, mode `0444`.\n- Final-direction candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `4cd7c052a642c3ef52d3ed347fb77303bf2a25a0`.\n\n## Complete public-shape delta\n\n1. The outer optional `EncounterRuntimeView.adjusted_level` property is directly replaced by `EncounterRuntimeView.level` in Rust, JSON, API output, checked-in TypeScript, and the generated web binding surface.\n2. The `level` value remains the identical `RuntimeNumberView`: `base_value`, `adjusted_value`, modifiers, suppressed modifiers, and typed provenance are unchanged.\n3. There is no alias, shim, dual field, fallback, compatibility path, or mechanics change. Exact DTO, transport, and binding tests require `level` and reject `adjusted_level`.\n4. All candidate-produced runtime JSON containing a hydrated canonical level changes only that outer key. Generated `EncounterRuntimeView.ts` changes only that property name; the aggregate `atlas.ts` is regenerated and freshness-checked. Other ordinary outputs remain byte-identical except run-local participant/encounter IDs, timestamps, and the candidate-specific API description regenerated by the authentic exporter.\n5. The adjudicated 65-diagnostic serialized frontend boundary remains expected and frontend source is untouched.\n\n## Every candidate-produced output\n\nThe table is the no-omission union of candidate-produced outputs in the bound correction and final roots. Metadata files are excluded because this ledger, report, manifest, presentation, and checksum seal necessarily describe different candidates.\n\n| Output | Correction SHA-256 | Final SHA-256 | Delta |\n|---|---|---|---|\n{}\n",
+                correction_root.display(),
                 delta_rows.join("\n")
             ),
         )
@@ -6206,11 +6198,11 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let manifest = serde_json::json!({
-            "schema": "e2r-typed-encounter-runtime-correction-samples/v1",
-            "status": "correction_candidate_pending_independent_technical_rereview",
-            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "6aa8fde079b623a8ab76ad33a126331cf0f26b92" },
-            "failed_review": { "path": "/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundry-mcp/pathfinder-2e-foundry-mcp-56/scratch/plan-validation/2026-08-30-e2r-typed-encounter-runtime-technical-review-001.md", "sha256": "4026b179c1e50c31146894c87729e5d6caa45188c0c78453984641566006a0e5", "mode": "0444", "finding": "F-001" },
-            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_correction_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
+            "schema": "e2r-typed-encounter-runtime-final-samples/v1",
+            "status": "final_direction_candidate_pending_independent_technical_rereview_and_final_sample_approval",
+            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "4cd7c052a642c3ef52d3ed347fb77303bf2a25a0" },
+            "approval": { "path": "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/source-faithful-records/20260824T210853Z-c7b74cbdc7c4-pathfinder-2e-foundry-mcp-17/approvals/e2r-final-direction-correction-approval.json", "sha256": "ee12184fda2cbc51b0a86d29778044c6d9daaefb49eba19082a4a27124a0ed15", "mode": "0444" },
+            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_final_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
             "source": {
                 "root": source_root,
                 "commit": source_commit,

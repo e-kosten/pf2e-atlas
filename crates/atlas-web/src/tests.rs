@@ -16,11 +16,11 @@ use atlas_app_model::{
     FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
     ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
     ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, RuntimeFactProvenanceView, RuntimeFactSourceView,
-    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
-    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    ResultWindowModeSummary, ResultWindowPage, RuntimeCanonicalTargetView,
+    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
     UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::AppServiceError;
@@ -501,6 +501,19 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["encounter"]["encounter_key"], "ambush");
     assert_eq!(body["participants"][0]["participant_key"], "participant_a");
+    assert_eq!(
+        body["participants"][0]["encounter_runtime"]["level"]["base_value"],
+        5
+    );
+    assert_eq!(
+        body["participants"][0]["encounter_runtime"]["level"]["adjusted_value"],
+        6
+    );
+    assert!(
+        body["participants"][0]["encounter_runtime"]
+            .get("adjusted_level")
+            .is_none()
+    );
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -1227,7 +1240,17 @@ fn test_runtime(
         canonical_target: None,
     };
     EncounterRuntimeView {
-        adjusted_level: None,
+        level: Some(RuntimeNumberView {
+            label: "Level".to_string(),
+            base_value: 5,
+            adjusted_value: 6,
+            modifiers: Vec::new(),
+            suppressed_modifiers: Vec::new(),
+            provenance: RuntimeFactProvenanceView {
+                source: RuntimeFactSourceView::CanonicalRecord,
+                canonical_target: Some(RuntimeCanonicalTargetView::Level),
+            },
+        }),
         vitals: Some(EncounterRuntimeVitalsView {
             maximum_hp: maximum_hp.map(|value| RuntimeNumberView {
                 label: "Maximum HP".to_string(),
