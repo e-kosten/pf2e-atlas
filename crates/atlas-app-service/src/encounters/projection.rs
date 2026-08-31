@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use atlas_app_model::{
     AppErrorCode, EncounterDetailView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, ReorderEncounterParticipantPlacementView,
+    EncounterStatusView, EncounterSummaryView, RecordSurfaceProfileView,
+    ReorderEncounterParticipantPlacementView, SurfaceUnavailableReasonView,
 };
 use atlas_local_state::{
     Encounter, EncounterParticipant, EncounterStatus, ParticipantKind, ParticipantSide,
@@ -11,8 +12,8 @@ use atlas_local_state::{
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::projection::record_summary;
 use crate::service::AtlasAppService;
+use crate::surface::{record_surface, unavailable_participant_surface};
 
 use super::hydration::hydrate_participant_records;
 use super::mechanics::{manual_encounter_runtime, participant_encounter_runtime};
@@ -62,14 +63,12 @@ pub(super) fn participant_view(
         .record_key
         .as_ref()
         .and_then(|key| records_by_key.get(key));
-    let record_detail = retrieved.map(|retrieved| &retrieved.record);
-    let record = record_detail.map(record_summary);
     let encounter_runtime = retrieved
         .and_then(|retrieved| participant_encounter_runtime(&participant, retrieved))
         .unwrap_or_else(|| manual_encounter_runtime(&participant));
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
-    } else if record.is_some() {
+    } else if retrieved.is_some() {
         EncounterParticipantStatusView::Active
     } else {
         EncounterParticipantStatusView::Unresolved
@@ -78,6 +77,33 @@ pub(super) fn participant_view(
         .note
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
+    let surface = if let Some(retrieved) = retrieved {
+        record_surface(
+            retrieved,
+            RecordSurfaceProfileView::EncounterParticipant,
+            Some(encounter_runtime),
+        )
+    } else {
+        let reason = if participant.participant_kind == ParticipantKind::Pc {
+            SurfaceUnavailableReasonView::ManualParticipant
+        } else {
+            SurfaceUnavailableReasonView::RecordUnavailable
+        };
+        let kind = match participant.participant_kind {
+            ParticipantKind::Creature => "creature",
+            ParticipantKind::Hazard => "hazard",
+            ParticipantKind::Pc => "character",
+        }
+        .to_string();
+        unavailable_participant_surface(
+            participant.record_key.clone(),
+            participant.display_name.clone(),
+            kind,
+            RecordSurfaceProfileView::EncounterParticipant,
+            reason,
+            encounter_runtime,
+        )
+    };
     EncounterParticipantView {
         participant_key: participant.participant_key,
         record_key: participant.record_key,
@@ -93,8 +119,7 @@ pub(super) fn participant_view(
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
-        encounter_runtime,
-        record,
+        surface,
     }
 }
 

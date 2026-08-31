@@ -7,7 +7,6 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atlas-record.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 ts-rs.workspace = true

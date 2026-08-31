@@ -16,7 +16,7 @@ The frontend needs a final app-facing presentation contract that is already comp
 
 ## Decision
 
-`atlas-app-service` owns final app presentation composition through generated DTOs exported by `atlas-app-model`. Encounter composition first lands as one `EncounterRuntimeView`: common participant metadata plus named optional runtime domains and typed repeated collections. The former `StatBlockView.values[]` and generic record-section bridge are removed directly.
+`atlas-app-service` owns final app presentation composition through generated DTOs exported by `atlas-app-model`. `RecordSurfaceView` is the one app-facing record contract: common metadata, a profile tag, a tagged entity-specific typed presentation body, and an optional exact `EncounterRuntimeView` bag. The first entity body is creature; non-creature families return an explicit typed unavailable presentation until their separate migration. Encounter composition uses participant metadata beside that surface and places all current/final mechanics in the optional encounter bag. The former `StatBlockView.values[]` and generic record-section bridge are removed directly.
 
 Public encounter-runtime incompleteness is limited to concise automation limitations with stable typed codes and typed participant, condition, activity, or spellcasting placement targets. Their human-readable messages are display-only and must never be parsed for behavior. Projection details about malformed, duplicate, unsupported, unmapped, raw-path, publication, null, or source-noise facts remain internal to `atlas-app-service`; raw source and provenance stay available through their owning contracts instead of being copied into the runtime DTO. Critical missing or unsafe data fails closed or makes the affected typed value unavailable.
 
@@ -28,7 +28,7 @@ Public encounter-runtime incompleteness is limited to concise automation limitat
 
 `web/atlas-ui` renders composed surfaces and supplies browser interaction slots such as HP controls, condition editors, note editors, and record-preview popovers. Generic surface rendering must not own mutation behavior directly; feature modules provide mutation handlers through explicit slots.
 
-`RecordPresentationDocument` remains transitional evidence during the creature migration, not a permanent second creature record. After the source-faithful surface passes the independent automated and Checkpoint E human visual gates, G1 removes the creature fallback and duplicate sparse mechanics path. Non-creature kinds remain behind explicit kind boundaries until their separately approved family cutovers.
+`RecordPresentationDocument` is not an app DTO or an app-service fallback. CLI and storage-neutral presentation contracts remain owned by `atlas-record`; app-service projects `RetrievedRecord` directly into `RecordSurfaceView`. Non-creature kinds remain behind explicit typed unavailable boundaries until their separately approved family cutovers.
 
 The final profile vocabulary remains `search_compact`, `record_detail`, and `encounter_participant`, but profile shape is not a generic section/value registry. Canonical entities own intrinsic facts, occurrences own context/order/overrides, runtime instances own mutable local state, and profiles own only selection, order, density, disclosure, and interaction slots. Zero-or-one semantic areas use named optional typed fields; arrays are reserved for genuinely repeated entities.
 
@@ -40,9 +40,9 @@ Creature presentation can share the same canonical facts across search, record d
 
 Search rows use compact typed surfaces without encounter mutation controls or variant selectors. Future table-compatible search views should use named contract fields and filter/discovery fields rather than scraping displayed text.
 
-Encounter participant views attach runtime controls to semantic sections such as vitals and conditions. Adjusted values render final values inline, with modifier explanations available through tooltip or popover details.
+Encounter participant views attach runtime controls to named semantic fields such as vitals and conditions. Adjusted values render final values inline, with modifier explanations available through tooltip or popover details. Canonical mechanics that have final/current runtime counterparts are omitted from the encounter-profile creature body rather than serialized twice.
 
-Non-creature record kinds can stay on the existing presentation path until their own surfaces are deliberately designed.
+Non-creature record kinds return the explicit unavailable presentation until their own typed bodies are deliberately designed.
 
 ## Boundaries
 

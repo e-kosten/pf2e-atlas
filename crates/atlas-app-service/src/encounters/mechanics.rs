@@ -6020,19 +6020,35 @@ mod tests {
 
         write_sample_json!(
             &sample_root.join("encounter-runtime-night-hag-normal.json"),
-            &night_hag_normal.encounter_runtime,
+            night_hag_normal
+                .surface
+                .encounter
+                .as_ref()
+                .expect("record-backed participant should expose encounter runtime"),
         );
         write_sample_json!(
             &sample_root.join("encounter-runtime-night-hag-elite.json"),
-            &night_hag_elite.encounter_runtime,
+            night_hag_elite
+                .surface
+                .encounter
+                .as_ref()
+                .expect("record-backed participant should expose encounter runtime"),
         );
         write_sample_json!(
             &sample_root.join("encounter-runtime-night-hag-weak.json"),
-            &night_hag_weak.encounter_runtime,
+            night_hag_weak
+                .surface
+                .encounter
+                .as_ref()
+                .expect("record-backed participant should expose encounter runtime"),
         );
         write_sample_json!(
             &sample_root.join("encounter-runtime-giant-rat-normal.json"),
-            &giant_rat.encounter_runtime,
+            giant_rat
+                .surface
+                .encounter
+                .as_ref()
+                .expect("record-backed participant should expose encounter runtime"),
         );
         write_sample_json!(
             &sample_root.join("encounter-runtime-fatigued.json"),

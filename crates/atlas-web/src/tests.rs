@@ -14,18 +14,19 @@ use atlas_app_model::{
     EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
     FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
     FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, RuntimeCanonicalTargetView,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RecordSurfaceMetadataView,
+    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
+    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
+    RuntimeCanonicalTargetView, RuntimeFactProvenanceView, RuntimeFactSourceView,
+    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::AppServiceError;
-use atlas_domain::{RecordKey, RecordKind};
-use atlas_record::RecordPresentationDocument;
 use axum::Router;
 use axum::body::Body;
 use axum::body::to_bytes;
@@ -339,8 +340,17 @@ async fn result_window_routes_return_success_and_service_errors() {
 async fn record_and_filter_routes_use_real_router_wiring() {
     let (status, body) = route_json(Method::GET, "/api/records/actions:testAction1", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["record_key"], "actions:testAction1");
-    assert_eq!(body["presentation"]["title"], "Test Action 1");
+    assert_eq!(
+        body["surface"]["metadata"]["record_key"],
+        "actions:testAction1"
+    );
+    assert_eq!(body["surface"]["metadata"]["title"], "Test Action 1");
+    assert_eq!(body["surface"]["profile"], "record_detail");
+    assert_eq!(
+        body["surface"]["presentation"]["presentation_type"],
+        "unavailable"
+    );
+    assert!(body["surface"].get("sections").is_none());
 
     let editor_request = json!({
         "context": { "kind": "filtered", "filter": { "clauses": [] } }
@@ -502,15 +512,15 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(body["encounter"]["encounter_key"], "ambush");
     assert_eq!(body["participants"][0]["participant_key"], "participant_a");
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["level"]["base_value"],
+        body["participants"][0]["surface"]["encounter"]["level"]["base_value"],
         5
     );
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["level"]["adjusted_value"],
+        body["participants"][0]["surface"]["encounter"]["level"]["adjusted_value"],
         6
     );
     assert!(
-        body["participants"][0]["encounter_runtime"]
+        body["participants"][0]["surface"]["encounter"]
             .get("adjusted_level")
             .is_none()
     );
@@ -621,19 +631,19 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["conditions"][0]["name"],
+        body["participants"][0]["surface"]["encounter"]["conditions"][0]["name"],
         "Clumsy"
     );
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["automation_limitations"][0]["code"],
+        body["participants"][0]["surface"]["encounter"]["automation_limitations"][0]["code"],
         "condition_attack_adjustment_partial"
     );
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["automation_limitations"][0]["target"],
+        body["participants"][0]["surface"]["encounter"]["automation_limitations"][0]["target"],
         json!({"target_type": "condition", "condition_id": 7})
     );
     assert!(
-        body["participants"][0]["encounter_runtime"]
+        body["participants"][0]["surface"]["encounter"]
             .get("unapplied_facts")
             .is_none()
     );
@@ -651,11 +661,11 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["conditions"][0]["condition_id"],
+        body["participants"][0]["surface"]["encounter"]["conditions"][0]["condition_id"],
         7
     );
     assert_eq!(
-        body["participants"][0]["encounter_runtime"]["conditions"][0]["value"],
+        body["participants"][0]["surface"]["encounter"]["conditions"][0]["value"],
         2
     );
 
@@ -689,7 +699,7 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body["participants"][0]["encounter_runtime"]["conditions"]
+        body["participants"][0]["surface"]["encounter"]["conditions"]
             .as_array()
             .unwrap()
             .is_empty()
@@ -841,17 +851,12 @@ impl AtlasWebService for MockService {
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         Ok(RecordDetailView {
-            record_key: record_key.to_string(),
-            title: "Test Action 1".to_string(),
-            kind: "rule".to_string(),
-            presentation: RecordPresentationDocument {
-                record_key: RecordKey::parse(record_key).expect("fixture key should parse"),
-                kind: RecordKind::Rule,
-                title: "Test Action 1".to_string(),
-                identity: vec![],
-                badges: vec![],
-                sections: vec![],
-            },
+            surface: unavailable_surface(
+                Some(record_key),
+                "Test Action 1",
+                RecordSurfaceProfileView::RecordDetail,
+                None,
+            ),
         })
     }
 
@@ -945,6 +950,7 @@ impl AtlasWebService for MockService {
         if encounter_ref == "missing" {
             return Err(encounter_not_found(encounter_ref));
         }
+        let display_name = request.display_name.clone();
         Ok(EncounterParticipantView {
             participant_key: request.participant_key,
             record_key: Some("actors:testCreature".to_string()),
@@ -960,13 +966,17 @@ impl AtlasWebService for MockService {
             hidden: request.hidden,
             note: request.note.clone(),
             note_hint: request.note,
-            encounter_runtime: test_runtime(
-                request.max_hp,
-                request.current_hp,
-                request.temporary_hp,
-                false,
+            surface: unavailable_surface(
+                Some("actors:testCreature"),
+                &display_name,
+                RecordSurfaceProfileView::EncounterParticipant,
+                Some(test_runtime(
+                    request.max_hp,
+                    request.current_hp,
+                    request.temporary_hp,
+                    false,
+                )),
             ),
-            record: Some(record_summary()),
         })
     }
 
@@ -1029,16 +1039,13 @@ impl AtlasWebService for MockService {
             ));
         }
         let mut detail = encounter_detail(encounter_ref, None, true);
-        detail.participants[0].encounter_runtime.conditions[0].condition_id = request.condition_id;
+        runtime_mut(&mut detail.participants[0]).conditions[0].condition_id = request.condition_id;
         if let EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id } =
-            &mut detail.participants[0]
-                .encounter_runtime
-                .automation_limitations[0]
-                .target
+            &mut runtime_mut(&mut detail.participants[0]).automation_limitations[0].target
         {
             *condition_id = request.condition_id;
         }
-        detail.participants[0].encounter_runtime.conditions[0].value = request.value;
+        runtime_mut(&mut detail.participants[0]).conditions[0].value = request.value;
         Ok(detail)
     }
 
@@ -1224,8 +1231,12 @@ fn encounter_participant(
         hidden: false,
         note: Some("wounded".to_string()),
         note_hint: Some("wounded".to_string()),
-        encounter_runtime: test_runtime(Some(12), Some(6), 0, include_condition),
-        record: Some(record_summary()),
+        surface: unavailable_surface(
+            Some("actors:testCreature"),
+            display_name,
+            RecordSurfaceProfileView::EncounterParticipant,
+            Some(test_runtime(Some(12), Some(6), 0, include_condition)),
+        ),
     }
 }
 
@@ -1326,18 +1337,60 @@ fn saved_list_summary() -> SavedListSummaryView {
 
 fn record_summary() -> RecordSummaryView {
     RecordSummaryView {
-        record_key: "actions:testAction1".to_string(),
-        title: "Test Action 1".to_string(),
-        kind: "rule".to_string(),
-        kind_label: "Rule".to_string(),
-        level_label: None,
-        rarity: None,
-        traits: vec![],
-        taxonomy: vec![],
-        publication: None,
-        pack: Some("Actions".to_string()),
-        preview: None,
+        surface: unavailable_surface(
+            Some("actions:testAction1"),
+            "Test Action 1",
+            RecordSurfaceProfileView::SearchCompact,
+            None,
+        ),
     }
+}
+
+fn unavailable_surface(
+    record_key: Option<&str>,
+    title: &str,
+    profile: RecordSurfaceProfileView,
+    encounter: Option<EncounterRuntimeView>,
+) -> RecordSurfaceView {
+    RecordSurfaceView {
+        metadata: RecordSurfaceMetadataView {
+            record_key: record_key.map(str::to_string),
+            title: title.to_string(),
+            kind: "rule".to_string(),
+            kind_label: "Rule".to_string(),
+            level: None,
+            rarity: None,
+            traits: Vec::new(),
+            source: Some(RecordSurfaceSourceView {
+                publication_title: None,
+                pack_label: "Actions".to_string(),
+                document_type: "Item".to_string(),
+                record_type: "action".to_string(),
+                source_path: None,
+                source_contract_version: None,
+                source_system_version: None,
+                source_upstream_commit: None,
+            }),
+        },
+        profile,
+        presentation: RecordSurfacePresentationView::Unavailable {
+            unavailable: SurfaceUnavailableView {
+                reason: SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
+                requested_kind: "rule".to_string(),
+                message: "Typed record presentation is unavailable for this record family."
+                    .to_string(),
+            },
+        },
+        encounter,
+    }
+}
+
+fn runtime_mut(participant: &mut EncounterParticipantView) -> &mut EncounterRuntimeView {
+    participant
+        .surface
+        .encounter
+        .as_mut()
+        .expect("fixture participant should expose encounter runtime")
 }
 
 fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {

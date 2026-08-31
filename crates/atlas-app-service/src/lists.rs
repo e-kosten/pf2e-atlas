@@ -317,10 +317,10 @@ impl AtlasAppService {
                     record_key: item.record_key,
                     note: item.note,
                     record_title_snapshot: record
-                        .map(|record| record.identity.name.clone())
+                        .map(|record| record.record.identity.name.clone())
                         .unwrap_or_else(|| item.snapshot.title),
                     record_kind_snapshot: record
-                        .map(|record| record.classification.kind.as_str().to_string())
+                        .map(|record| record.record.classification.kind.as_str().to_string())
                         .or(item.snapshot.kind),
                 }
             })
@@ -411,7 +411,7 @@ impl AtlasAppService {
 fn hydrate_saved_list_records(
     service: &AtlasAppService,
     items: &[SavedListItem],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
@@ -425,7 +425,7 @@ fn hydrate_saved_list_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved.record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
             .collect())
     })
 }
@@ -433,7 +433,7 @@ fn hydrate_saved_list_records(
 fn hydrate_export_records(
     service: &AtlasAppService,
     items: &[SavedListExportItemView],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
@@ -447,7 +447,7 @@ fn hydrate_export_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved.record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
             .collect())
     })
 }
@@ -455,7 +455,10 @@ fn hydrate_export_records(
 fn saved_list_export_item(item: SavedListItemView) -> SavedListExportItemView {
     let status = item.status;
     let (record_name, kind) = match item.record {
-        Some(record) => (record.title, Some(record.kind)),
+        Some(record) => (
+            record.surface.metadata.title,
+            Some(record.surface.metadata.kind),
+        ),
         None => (item.snapshot.title.clone(), item.snapshot.kind.clone()),
     };
     SavedListExportItemView {
@@ -483,7 +486,7 @@ fn filtered_saved_list_records(
     service: &AtlasAppService,
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::SearchFilterNode>,
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -500,7 +503,7 @@ fn filtered_saved_list_records(
                     .with_sort(atlas_search::RecordListSort::RecordKey),
             )?;
             for retrieved in result.records {
-                records.insert(retrieved.record.identity.key.to_string(), retrieved.record);
+                records.insert(retrieved.record.identity.key.to_string(), retrieved);
             }
             if !result.page.has_more {
                 break;
@@ -516,7 +519,7 @@ fn searched_saved_list_records(
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::SearchFilterNode>,
     query: &str,
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -548,7 +551,7 @@ fn searched_saved_list_records(
                 if scoped_keys.contains(&result_record.record.record.identity.key) {
                     records.insert(
                         result_record.record.record.identity.key.to_string(),
-                        result_record.record.record,
+                        result_record.record,
                     );
                 }
             }
@@ -629,7 +632,7 @@ fn record_resolution_candidate_view(
     resolution: atlas_search::RecordResolutionResult,
 ) -> RecordResolutionCandidateView {
     RecordResolutionCandidateView {
-        record: record_summary(&resolution.record.record),
+        record: record_summary(&resolution.record),
         query: resolution.query,
         normalized_query: resolution.normalized_query,
         match_kind: resolution.match_kind.as_str().to_string(),
@@ -659,7 +662,7 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
 
 fn saved_list_item_view(
     item: SavedListItem,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+    records_by_key: &BTreeMap<String, atlas_record::RetrievedRecord>,
 ) -> SavedListItemView {
     let record = records_by_key.get(&item.record_key);
     let hydrated = hydrate_saved_list_item(item, record);
@@ -667,7 +670,7 @@ fn saved_list_item_view(
 }
 
 fn saved_list_item_from_hydrated(
-    item: HydratedSavedListItem<&atlas_record::AtlasRecord>,
+    item: HydratedSavedListItem<&atlas_record::RetrievedRecord>,
 ) -> SavedListItemView {
     SavedListItemView {
         record_key: item.record_key,
@@ -801,6 +804,8 @@ mod tests {
                 .record
                 .as_ref()
                 .expect("active item should hydrate")
+                .surface
+                .metadata
                 .title,
             "Test Action 1"
         );
