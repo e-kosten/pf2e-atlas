@@ -8,6 +8,7 @@ mod list;
 mod readiness;
 mod record;
 mod result_window;
+mod surface;
 
 pub use encounter::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
@@ -43,14 +44,15 @@ pub use list::{
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{
-    RecordBadgeView, RecordDetailView, RecordResolutionAmbiguousView,
-    RecordResolutionCandidateView, RecordSummaryView,
+    RecordDetailView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
+    RecordSummaryView,
 };
 pub use result_window::{
     OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
     SearchPageRequest, SearchPageView,
 };
+pub use surface::*;
 
 #[cfg(test)]
 mod tests {
@@ -84,8 +86,74 @@ mod tests {
             !encounter_runtime.contains("adjusted_level"),
             "generated encounter runtime must not retain the superseded outer field"
         );
+        let surface = actual
+            .get("RecordSurfaceView.ts")
+            .expect("RecordSurfaceView binding should exist");
+        assert!(surface.contains("presentation: RecordSurfacePresentationView"));
+        assert!(surface.contains("encounter?: EncounterRuntimeView"));
+        assert!(!surface.contains(&["sec", "tions"].concat()));
+        assert!(!surface.contains(&["section", "order"].join("_")));
+
+        let creature = actual
+            .get("CreatureSurfaceView.ts")
+            .expect("CreatureSurfaceView binding should exist");
+        for named_domain in [
+            "vitals?: CreatureSurfaceVitalsView",
+            "defenses?: CreatureSurfaceDefensesView",
+            "saves?: CreatureSurfaceSavesView",
+            "awareness?: CreatureSurfaceAwarenessView",
+            "abilities?: CreatureSurfaceAbilitiesView",
+            "skills?: Array<CreatureSurfaceSkillView>",
+            "movement?: Array<CreatureSurfaceMovementView>",
+            "spellcasting?: Array<CreatureSurfaceSpellcastingView>",
+            "activities?: Array<CreatureSurfaceActivityView>",
+            "content?: Array<CreatureSurfaceContentView>",
+            "relationships?: Array<CreatureSurfaceRelationshipView>",
+        ] {
+            assert!(
+                creature.contains(named_domain),
+                "generated creature surface should expose `{named_domain}`"
+            );
+        }
+        assert!(!creature.contains(&["sec", "tions"].concat()));
 
         fs::remove_dir_all(&temp_dir).expect("temporary binding directory should be removable");
+    }
+
+    #[test]
+    fn unavailable_record_surface_serializes_without_generic_section_bag() {
+        let surface = RecordSurfaceView {
+            metadata: RecordSurfaceMetadataView {
+                record_key: Some("actions:testAction1".to_string()),
+                title: "Test Action 1".to_string(),
+                kind: "rule".to_string(),
+                kind_label: "Rule".to_string(),
+                level: None,
+                rarity: None,
+                traits: Vec::new(),
+                source: None,
+            },
+            profile: RecordSurfaceProfileView::RecordDetail,
+            presentation: RecordSurfacePresentationView::Unavailable {
+                unavailable: SurfaceUnavailableView {
+                    reason: SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
+                    requested_kind: "rule".to_string(),
+                    message: "Typed record presentation is unavailable for this record family."
+                        .to_string(),
+                },
+            },
+            encounter: None,
+        };
+
+        let serialized = serde_json::to_value(surface).expect("record surface should serialize");
+        assert_eq!(serialized["profile"], "record_detail");
+        assert_eq!(
+            serialized["presentation"]["presentation_type"],
+            "unavailable"
+        );
+        assert!(serialized.get("encounter").is_none());
+        assert!(serialized.get(&["sec", "tions"].concat()).is_none());
+        assert!(serialized.get(&["section", "order"].join("_")).is_none());
     }
 
     #[test]

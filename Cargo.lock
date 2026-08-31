@@ -91,7 +91,6 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 name = "atlas-app-model"
 version = "0.1.0"
 dependencies = [
- "atlas-record",
  "serde",
  "serde_json",
  "ts-rs",
@@ -107,6 +106,7 @@ dependencies = [
  "atlas-record",
  "atlas-runtime",
  "atlas-search",
+ "serde",
  "serde_json",
  "thiserror",
  "time",

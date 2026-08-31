@@ -19,3 +19,4 @@ time.workspace = true
 
 [dev-dependencies]
 atlas-search = { workspace = true, features = ["test-support"] }
+serde.workspace = true

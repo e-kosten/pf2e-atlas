@@ -11,8 +11,11 @@ mod projection;
 mod records;
 mod retrieval;
 mod service;
+mod surface;
 mod windows;
 
+#[cfg(test)]
+mod e3_sample_export;
 #[cfg(test)]
 mod test_support;
 

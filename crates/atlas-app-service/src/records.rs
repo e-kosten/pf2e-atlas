@@ -62,14 +62,17 @@ impl AtlasAppService {
                         format!("record `{record_key}` was not found"),
                     )
                 })?;
-            record_detail(&record.record)
+            record_detail(&record)
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use atlas_app_model::AppErrorCode;
+    use atlas_app_model::{
+        AppErrorCode, RecordSurfacePresentationView, RecordSurfaceProfileView,
+        SurfaceUnavailableReasonView,
+    };
 
     use crate::test_support::fixture_worker;
 
@@ -81,10 +84,21 @@ mod tests {
         let detail = worker
             .record_detail("actions:testAction1")
             .expect("fixture record should load");
-        assert_eq!(detail.record_key, "actions:testAction1");
-        assert_eq!(detail.title, "Test Action 1");
-        assert_eq!(detail.kind, "rule");
-        assert_eq!(detail.presentation.title, "Test Action 1");
+        assert_eq!(
+            detail.surface.metadata.record_key.as_deref(),
+            Some("actions:testAction1")
+        );
+        assert_eq!(detail.surface.metadata.title, "Test Action 1");
+        assert_eq!(detail.surface.metadata.kind, "rule");
+        assert_eq!(
+            detail.surface.profile,
+            RecordSurfaceProfileView::RecordDetail
+        );
+        assert!(matches!(
+            detail.surface.presentation,
+            RecordSurfacePresentationView::Unavailable { unavailable }
+                if unavailable.reason == SurfaceUnavailableReasonView::RecordFamilyNotMigrated
+        ));
 
         let invalid = worker
             .record_detail("not a key")

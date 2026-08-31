@@ -152,7 +152,7 @@ fn render_result_window_page(
                     .records
                     .iter()
                     .map(|record| ResultWindowRow {
-                        record: record_summary(&record.record),
+                        record: record_summary(record),
                         match_summary: None,
                     })
                     .collect(),
@@ -178,7 +178,7 @@ fn render_result_window_page(
                     .records
                     .iter()
                     .map(|record| ResultWindowRow {
-                        record: record_summary(&record.record.record),
+                        record: record_summary(&record.record),
                         match_summary: Some(match_summary(&record.match_info)),
                     })
                     .collect(),
@@ -340,8 +340,25 @@ mod tests {
         assert_eq!(first_page.page.number, 1);
         assert_eq!(first_page.page.count, 2);
         assert_eq!(first_page.page.total, 3);
-        assert_eq!(first_page.rows[0].record.record_key, "actions:testAction1");
-        assert_eq!(first_page.rows[0].record.pack.as_deref(), Some("Actions"));
+        assert_eq!(
+            first_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction1")
+        );
+        assert_eq!(
+            first_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .source
+                .as_ref()
+                .map(|source| source.pack_label.as_str()),
+            Some("Actions")
+        );
 
         let second_page = worker
             .read_result_window_page(
@@ -354,7 +371,15 @@ mod tests {
 
         assert_eq!(second_page.page.number, 2);
         assert_eq!(second_page.page.count, 1);
-        assert_eq!(second_page.rows[0].record.record_key, "actions:testAction3");
+        assert_eq!(
+            second_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction3")
+        );
     }
 
     #[test]
@@ -413,8 +438,24 @@ mod tests {
 
         assert_eq!(first_page.window_id, first_window_id);
         assert_eq!(second_page.window_id, second_window_id);
-        assert_eq!(first_page.rows[0].record.record_key, "actions:testAction1");
-        assert_eq!(second_page.rows[0].record.record_key, "actions:testAction2");
+        assert_eq!(
+            first_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction1")
+        );
+        assert_eq!(
+            second_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction2")
+        );
     }
 
     fn stored_window(id: &str) -> StoredResultWindow {
