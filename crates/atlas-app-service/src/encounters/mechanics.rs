@@ -5,17 +5,18 @@ use atlas_app_model::{
     EncounterRuntimeActionBudgetView, EncounterRuntimeActionCostKindView,
     EncounterRuntimeActionCostView, EncounterRuntimeActivityKindView,
     EncounterRuntimeActivityModeView, EncounterRuntimeActivityUsageView,
-    EncounterRuntimeActivityView, EncounterRuntimeAwarenessView, EncounterRuntimeConditionView,
-    EncounterRuntimeDefensesView, EncounterRuntimeFrequencyView, EncounterRuntimeMovementView,
-    EncounterRuntimeResourceView, EncounterRuntimeSavesView, EncounterRuntimeSkillKindView,
-    EncounterRuntimeSkillView, EncounterRuntimeSpellSlotView, EncounterRuntimeSpellcastingView,
-    EncounterRuntimeUnappliedFactView, EncounterRuntimeUsesView, EncounterRuntimeView,
-    EncounterRuntimeVitalsView, RuntimeAbilityKindView, RuntimeAdjustmentView,
-    RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeDamageEffectKindView, RuntimeDistanceView, RuntimeEffectNoteView,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeFormulaView, RuntimeModifierView,
-    RuntimeNumberView, RuntimeRollSurfaceView, RuntimeRollView, RuntimeRuleView,
-    RuntimeSaveKindView, StatModifierTypeView,
+    EncounterRuntimeActivityView, EncounterRuntimeAutomationLimitationCodeView,
+    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
+    EncounterRuntimeAwarenessView, EncounterRuntimeConditionView, EncounterRuntimeDefensesView,
+    EncounterRuntimeFrequencyView, EncounterRuntimeMovementView, EncounterRuntimeResourceView,
+    EncounterRuntimeSavesView, EncounterRuntimeSkillKindView, EncounterRuntimeSkillView,
+    EncounterRuntimeSpellSlotView, EncounterRuntimeSpellcastingView, EncounterRuntimeUsesView,
+    EncounterRuntimeView, EncounterRuntimeVitalsView, RuntimeAbilityKindView,
+    RuntimeAdjustmentView, RuntimeCanonicalTargetView, RuntimeCapabilityView,
+    RuntimeCountSegmentView, RuntimeCountView, RuntimeDamageEffectKindView, RuntimeDistanceView,
+    RuntimeEffectNoteView, RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeFormulaView,
+    RuntimeModifierView, RuntimeNumberView, RuntimeRollSurfaceView, RuntimeRollView,
+    RuntimeRuleView, RuntimeSaveKindView, StatModifierTypeView,
 };
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
 #[cfg(test)]
@@ -67,6 +68,39 @@ struct RuntimeNote {
     provenance: RuntimeFactProvenanceView,
     label: String,
     reason: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EncounterProjectionDiagnosticCode {
+    DuplicateRuntimeFact,
+    UnavailableCanonicalFact,
+    UnmappedCanonicalFact,
+    UnmatchedRuntimeModifier,
+    UnsupportedCanonicalFact,
+}
+
+#[derive(Debug, Clone)]
+struct EncounterProjectionDiagnostic {
+    code: EncounterProjectionDiagnosticCode,
+    message: String,
+    canonical_target: Option<RuntimeCanonicalTargetView>,
+}
+
+struct EncounterRuntimeProjection {
+    runtime: EncounterRuntimeView,
+    diagnostics: Vec<EncounterProjectionDiagnostic>,
+}
+
+fn into_public_runtime(projection: EncounterRuntimeProjection) -> EncounterRuntimeView {
+    for diagnostic in projection.diagnostics {
+        let EncounterProjectionDiagnostic {
+            code,
+            message,
+            canonical_target,
+        } = diagnostic;
+        let _internal_only = (code, message, canonical_target);
+    }
+    projection.runtime
 }
 
 fn fact_provenance(
@@ -239,13 +273,15 @@ fn runtime_condition_view(
 fn set_named_fact(
     slot: &mut Option<RuntimeNumberView>,
     fact: RuntimeNumberView,
-    unapplied: &mut Vec<EncounterRuntimeUnappliedFactView>,
+    diagnostics: &mut Vec<EncounterProjectionDiagnostic>,
 ) {
     if slot.is_some() {
-        unapplied.push(EncounterRuntimeUnappliedFactView {
-            provenance: runtime_rule_provenance(RuntimeRuleView::UnsupportedFact),
-            label: format!("Duplicate {} fact", fact.label),
-            reason: "A zero-or-one runtime field received more than one canonical fact; the duplicate was rejected.".to_string(),
+        diagnostics.push(EncounterProjectionDiagnostic {
+            code: EncounterProjectionDiagnosticCode::DuplicateRuntimeFact,
+            message: format!(
+                "Duplicate {} fact rejected from a zero-or-one runtime field",
+                fact.label
+            ),
             canonical_target: fact.provenance.canonical_target.clone(),
         });
     } else {
@@ -300,12 +336,13 @@ fn runtime_count_from_number(fact: RuntimeNumberView) -> RuntimeCountView {
     }
 }
 
-fn unrouted_fact(fact: RuntimeNumberView) -> EncounterRuntimeUnappliedFactView {
-    EncounterRuntimeUnappliedFactView {
-        provenance: runtime_rule_provenance(RuntimeRuleView::UnsupportedFact),
-        label: format!("{} was not routed", fact.label),
-        reason: "The typed encounter runtime has no supported destination for this canonical fact."
-            .to_string(),
+fn unrouted_fact(fact: RuntimeNumberView) -> EncounterProjectionDiagnostic {
+    EncounterProjectionDiagnostic {
+        code: EncounterProjectionDiagnosticCode::UnmappedCanonicalFact,
+        message: format!(
+            "{} has no supported destination in the typed encounter runtime",
+            fact.label
+        ),
         canonical_target: fact.provenance.canonical_target,
     }
 }
@@ -321,13 +358,14 @@ pub(super) fn participant_encounter_runtime(
         project_creature_mechanics(creature),
         creature.identity.name.clone(),
     );
-    Some(apply_participant_effects(
+    Some(into_public_runtime(apply_participant_effects(
         participant,
         mechanics.view,
-        mechanics.unapplied_facts,
+        mechanics.diagnostics,
+        mechanics.automation_limitations,
         mechanics.variant_damage_blocked_activity_ids,
         mechanics.activity_runtime,
-    ))
+    )))
 }
 
 pub(super) fn manual_encounter_runtime(participant: &EncounterParticipant) -> EncounterRuntimeView {
@@ -355,16 +393,14 @@ pub(super) fn manual_encounter_runtime(participant: &EncounterParticipant) -> En
             .iter()
             .map(runtime_condition_view)
             .collect(),
-        unapplied_facts: participant_runtime_notes(participant)
-            .into_iter()
-            .map(unapplied_runtime_note_view)
-            .collect(),
+        automation_limitations: participant_automation_limitations(participant),
     }
 }
 
 struct ParticipantMechanics {
     view: MechanicsView,
-    unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
+    diagnostics: Vec<EncounterProjectionDiagnostic>,
+    automation_limitations: Vec<EncounterRuntimeAutomationLimitationView>,
     variant_damage_blocked_activity_ids: BTreeSet<String>,
     activity_runtime: BTreeMap<String, RuntimeActivityMetadata>,
 }
@@ -406,21 +442,22 @@ fn canonical_participant_mechanics(
             }
         }
     }
-    let mut unapplied_facts = projection
+    let mut diagnostics = projection
         .unsupported
         .into_iter()
-        .map(canonical_unsupported_effect)
+        .map(canonical_unsupported_diagnostic)
         .collect::<Vec<_>>();
+    let mut automation_limitations = Vec::new();
     let mut activities = Vec::new();
     let mut variant_damage_blocked_activity_ids = BTreeSet::new();
     let mut activity_runtime = BTreeMap::new();
     for activity in projection.activities {
-        unapplied_facts.extend(
+        diagnostics.extend(
             activity
                 .unsupported
                 .iter()
                 .cloned()
-                .map(canonical_unsupported_effect),
+                .map(canonical_unsupported_diagnostic),
         );
         let disposition = canonical_activity(activity);
         if disposition.variant_damage_blocked {
@@ -431,7 +468,8 @@ fn canonical_participant_mechanics(
             disposition.runtime_metadata,
         );
         values.extend(disposition.values);
-        unapplied_facts.extend(disposition.unapplied_facts);
+        diagnostics.extend(disposition.diagnostics);
+        automation_limitations.extend(disposition.automation_limitations);
         activities.push(disposition.activity);
     }
 
@@ -445,7 +483,8 @@ fn canonical_participant_mechanics(
             speeds,
             activities,
         },
-        unapplied_facts,
+        diagnostics,
+        automation_limitations,
         variant_damage_blocked_activity_ids,
         activity_runtime,
     }
@@ -454,7 +493,8 @@ fn canonical_participant_mechanics(
 struct CanonicalActivityDisposition {
     activity: MechanicActivity,
     values: Vec<MechanicValue>,
-    unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
+    diagnostics: Vec<EncounterProjectionDiagnostic>,
+    automation_limitations: Vec<EncounterRuntimeAutomationLimitationView>,
     variant_damage_blocked: bool,
     runtime_metadata: RuntimeActivityMetadata,
 }
@@ -487,13 +527,18 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityD
         .iter()
         .filter_map(canonical_activity_value)
         .collect();
-    let mut unapplied_facts = activity
+    let mut diagnostics = activity
         .facts
         .iter()
-        .filter_map(canonical_activity_unapplied_effect)
+        .filter_map(canonical_activity_diagnostic)
         .collect::<Vec<_>>();
-    let (runtime_metadata, metadata_unapplied) = canonical_activity_runtime_metadata(&activity);
-    unapplied_facts.extend(metadata_unapplied);
+    let automation_limitations = activity
+        .facts
+        .iter()
+        .filter_map(canonical_activity_automation_limitation)
+        .collect();
+    let (runtime_metadata, metadata_diagnostics) = canonical_activity_runtime_metadata(&activity);
+    diagnostics.extend(metadata_diagnostics);
     CanonicalActivityDisposition {
         activity: MechanicActivity {
             activity_id: activity.occurrence_id.as_str().to_string(),
@@ -507,7 +552,8 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityD
             modes: Vec::new(),
         },
         values,
-        unapplied_facts,
+        diagnostics,
+        automation_limitations,
         variant_damage_blocked,
         runtime_metadata,
     }
@@ -515,12 +561,9 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityD
 
 fn canonical_activity_runtime_metadata(
     activity: &CanonicalMechanicActivity,
-) -> (
-    RuntimeActivityMetadata,
-    Vec<EncounterRuntimeUnappliedFactView>,
-) {
+) -> (RuntimeActivityMetadata, Vec<EncounterProjectionDiagnostic>) {
     let mut metadata = RuntimeActivityMetadata::default();
-    let mut unapplied = Vec::new();
+    let mut diagnostics = Vec::new();
     let action_cost_count = activity
         .facts
         .iter()
@@ -565,32 +608,28 @@ fn canonical_activity_runtime_metadata(
                 });
             }
             (MechanicTarget::ActivityActionCost { .. }, _) if action_cost_count > 1 => {
-                unapplied.push(duplicate_activity_metadata_fact(fact, action_cost_count));
+                diagnostics.push(duplicate_activity_metadata_fact(fact, action_cost_count));
             }
             (MechanicTarget::ActivityFrequency { .. }, _) if frequency_count > 1 => {
-                unapplied.push(duplicate_activity_metadata_fact(fact, frequency_count));
+                diagnostics.push(duplicate_activity_metadata_fact(fact, frequency_count));
             }
             (MechanicTarget::ActivityUses { .. }, _) if uses_count > 1 => {
-                unapplied.push(duplicate_activity_metadata_fact(fact, uses_count));
+                diagnostics.push(duplicate_activity_metadata_fact(fact, uses_count));
             }
             _ => {}
         }
     }
-    (metadata, unapplied)
+    (metadata, diagnostics)
 }
 
 fn duplicate_activity_metadata_fact(
     fact: &MechanicFact,
     count: usize,
-) -> EncounterRuntimeUnappliedFactView {
-    EncounterRuntimeUnappliedFactView {
-        provenance: canonical_provenance(&fact.target, None),
-        label: format!(
-            "{} retained without exact encounter field",
-            fact.target.id()
-        ),
-        reason: format!(
-            "{}: {count} canonical facts target the same zero-or-one encounter activity field; all were left unapplied",
+) -> EncounterProjectionDiagnostic {
+    EncounterProjectionDiagnostic {
+        code: EncounterProjectionDiagnosticCode::DuplicateRuntimeFact,
+        message: format!(
+            "{}: {count} canonical facts target the same zero-or-one encounter activity field; all were rejected",
             fact.label
         ),
         canonical_target: canonical_target_view(&fact.target),
@@ -640,7 +679,7 @@ fn canonical_activity_roll(fact: &MechanicFact) -> Option<ActivityRoll> {
                 CreatureRollKind::Attack => ActivityRollSurface::AttackRoll,
                 CreatureRollKind::DifficultyClass => ActivityRollSurface::Dc,
                 // The encounter DTO has no generic check surface. The complete typed fact is
-                // retained as an explicit unapplied note by `canonical_activity_unapplied_effect`.
+                // retained as an internal diagnostic by `canonical_activity_diagnostic`.
                 CreatureRollKind::Check => return None,
             };
             Some(ActivityRoll {
@@ -675,9 +714,7 @@ fn canonical_activity_value(fact: &MechanicFact) -> Option<MechanicValue> {
     })
 }
 
-fn canonical_activity_unapplied_effect(
-    fact: &MechanicFact,
-) -> Option<EncounterRuntimeUnappliedFactView> {
+fn canonical_activity_diagnostic(fact: &MechanicFact) -> Option<EncounterProjectionDiagnostic> {
     let disposition = match (&fact.target, &fact.value) {
         (
             MechanicTarget::ActivityRoll { .. },
@@ -741,14 +778,37 @@ fn canonical_activity_unapplied_effect(
         }
         _ => return None,
     };
-    Some(EncounterRuntimeUnappliedFactView {
-        provenance: canonical_provenance(&fact.target, None),
-        label: format!(
-            "{} retained without exact encounter field",
-            fact.target.id()
-        ),
-        reason: format!("{}: {disposition}", fact.label),
+    Some(EncounterProjectionDiagnostic {
+        code: EncounterProjectionDiagnosticCode::UnavailableCanonicalFact,
+        message: format!("{}: {disposition}", fact.label),
         canonical_target: canonical_target_view(&fact.target),
+    })
+}
+
+fn canonical_activity_automation_limitation(
+    fact: &MechanicFact,
+) -> Option<EncounterRuntimeAutomationLimitationView> {
+    let (
+        MechanicTarget::ActivityRoll { occurrence_id, .. },
+        MechanicBaseValue::Roll(CreatureRoll {
+            kind: CreatureRollKind::Check,
+            value,
+            ..
+        }),
+    ) = (&fact.target, &fact.value)
+    else {
+        return None;
+    };
+    fact_integer(value)?;
+    Some(EncounterRuntimeAutomationLimitationView {
+        code: EncounterRuntimeAutomationLimitationCodeView::ActivityCheckNotAutomated,
+        target: EncounterRuntimeAutomationLimitationTargetView::Activity {
+            activity_id: occurrence_id.as_str().to_string(),
+        },
+        message: format!(
+            "{} is available from the source record, but encounter check automation is not available.",
+            fact.label
+        ),
     })
 }
 
@@ -976,22 +1036,18 @@ fn fact_activity_ability(value: &FactValue<ActivityRollAbility>) -> Option<Activ
     value.as_value().copied()
 }
 
-fn canonical_unsupported_effect(
+fn canonical_unsupported_diagnostic(
     unsupported: UnsupportedMechanic,
-) -> EncounterRuntimeUnappliedFactView {
+) -> EncounterProjectionDiagnostic {
     let target = unsupported
         .target
         .as_ref()
         .map(MechanicTarget::id)
         .unwrap_or_else(|| "unmodeled mechanic".to_string());
-    EncounterRuntimeUnappliedFactView {
-        provenance: fact_provenance(
-            RuntimeFactSourceView::CanonicalRecord,
-            unsupported.target.as_ref().and_then(canonical_target_view),
-        ),
-        label: format!("{target} retained without automation"),
-        reason: format!(
-            "{}: {}",
+    EncounterProjectionDiagnostic {
+        code: EncounterProjectionDiagnosticCode::UnsupportedCanonicalFact,
+        message: format!(
+            "{target}: {}: {}",
             unsupported.source_path,
             unsupported_value(&unsupported.value)
         ),
@@ -1034,15 +1090,15 @@ pub(super) fn canonical_creature_level(retrieved: &RetrievedRecord) -> Option<i6
 fn apply_participant_effects(
     participant: &EncounterParticipant,
     mechanics: MechanicsView,
-    mut unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
+    mut diagnostics: Vec<EncounterProjectionDiagnostic>,
+    mut automation_limitations: Vec<EncounterRuntimeAutomationLimitationView>,
     variant_damage_blocked_activity_ids: BTreeSet<String>,
     mut activity_runtime: BTreeMap<String, RuntimeActivityMetadata>,
-) -> EncounterRuntimeView {
+) -> EncounterRuntimeProjection {
     let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
-    unapplied_facts.extend(variant_unapplied_facts(participant.participant_variant));
     for (condition, rule) in participant_condition_rules(participant) {
         modifiers.extend(condition_modifiers(condition, rule, &mechanics));
-        unapplied_facts.extend(condition_unapplied_facts(condition, rule));
+        automation_limitations.extend(condition_automation_limitations(condition, rule));
     }
 
     let mut by_target = BTreeMap::<MechanicTarget, Vec<CandidateModifier>>::new();
@@ -1106,42 +1162,36 @@ fn apply_participant_effects(
         let target = mechanic.target.clone();
         let fact = runtime_number_view(mechanic, by_target.remove(&target).unwrap_or_default());
         match target {
-            MechanicTarget::MaxHp => {
-                set_named_fact(&mut vitals.maximum_hp, fact, &mut unapplied_facts)
-            }
-            MechanicTarget::ArmorClass => {
-                set_named_fact(&mut armor_class, fact, &mut unapplied_facts)
-            }
-            MechanicTarget::Perception => {
-                set_named_fact(&mut perception, fact, &mut unapplied_facts)
-            }
+            MechanicTarget::MaxHp => set_named_fact(&mut vitals.maximum_hp, fact, &mut diagnostics),
+            MechanicTarget::ArmorClass => set_named_fact(&mut armor_class, fact, &mut diagnostics),
+            MechanicTarget::Perception => set_named_fact(&mut perception, fact, &mut diagnostics),
             MechanicTarget::Save {
                 save: SaveKind::Fortitude,
-            } => set_named_fact(&mut saves.fortitude, fact, &mut unapplied_facts),
+            } => set_named_fact(&mut saves.fortitude, fact, &mut diagnostics),
             MechanicTarget::Save {
                 save: SaveKind::Reflex,
-            } => set_named_fact(&mut saves.reflex, fact, &mut unapplied_facts),
+            } => set_named_fact(&mut saves.reflex, fact, &mut diagnostics),
             MechanicTarget::Save {
                 save: SaveKind::Will,
-            } => set_named_fact(&mut saves.will, fact, &mut unapplied_facts),
+            } => set_named_fact(&mut saves.will, fact, &mut diagnostics),
             MechanicTarget::AbilityModifier { ability } => match ability {
                 AbilityKind::Strength => {
-                    set_named_fact(&mut abilities.strength, fact, &mut unapplied_facts)
+                    set_named_fact(&mut abilities.strength, fact, &mut diagnostics)
                 }
                 AbilityKind::Dexterity => {
-                    set_named_fact(&mut abilities.dexterity, fact, &mut unapplied_facts)
+                    set_named_fact(&mut abilities.dexterity, fact, &mut diagnostics)
                 }
                 AbilityKind::Constitution => {
-                    set_named_fact(&mut abilities.constitution, fact, &mut unapplied_facts)
+                    set_named_fact(&mut abilities.constitution, fact, &mut diagnostics)
                 }
                 AbilityKind::Intelligence => {
-                    set_named_fact(&mut abilities.intelligence, fact, &mut unapplied_facts)
+                    set_named_fact(&mut abilities.intelligence, fact, &mut diagnostics)
                 }
                 AbilityKind::Wisdom => {
-                    set_named_fact(&mut abilities.wisdom, fact, &mut unapplied_facts)
+                    set_named_fact(&mut abilities.wisdom, fact, &mut diagnostics)
                 }
                 AbilityKind::Charisma => {
-                    set_named_fact(&mut abilities.charisma, fact, &mut unapplied_facts)
+                    set_named_fact(&mut abilities.charisma, fact, &mut diagnostics)
                 }
             },
             MechanicTarget::CreatureSkill { skill_id, kind } => {
@@ -1210,60 +1260,63 @@ fn apply_participant_effects(
             | MechanicTarget::ActivityRoll { .. }
             | MechanicTarget::ActivityDamage { .. }
             | MechanicTarget::Movement { .. }
-            | MechanicTarget::ActorRitualDc => unapplied_facts.push(unrouted_fact(fact)),
+            | MechanicTarget::ActorRitualDc => diagnostics.push(unrouted_fact(fact)),
         }
     }
-    unapplied_facts.extend(
+    diagnostics.extend(
         by_target
             .into_values()
             .flatten()
             .map(unmatched_modifier_effect),
     );
 
-    EncounterRuntimeView {
-        adjusted_level,
-        vitals: Some(vitals),
-        defenses: armor_class.map(|armor_class| EncounterRuntimeDefensesView { armor_class }),
-        saves: (saves.fortitude.is_some() || saves.reflex.is_some() || saves.will.is_some())
-            .then_some(saves),
-        awareness: perception.map(|perception| EncounterRuntimeAwarenessView { perception }),
-        abilities: (abilities.strength.is_some()
-            || abilities.dexterity.is_some()
-            || abilities.constitution.is_some()
-            || abilities.intelligence.is_some()
-            || abilities.wisdom.is_some()
-            || abilities.charisma.is_some())
-        .then_some(abilities),
-        skills,
-        movement: Some(EncounterRuntimeMovementView {
-            speeds: mechanics
-                .speeds
-                .into_iter()
-                .map(|speed| speed_view(speed, participant))
-                .collect(),
-        })
-        .filter(|movement| !movement.speeds.is_empty()),
-        resources,
-        spellcasting,
-        action_budget: Some(action_budget_view(participant)),
-        activities: mechanics
-            .activities
-            .into_iter()
-            .map(|activity| {
-                let variant_damage_blocked =
-                    variant_damage_blocked_activity_ids.contains(&activity.activity_id);
-                let metadata = activity_runtime
-                    .remove(&activity.activity_id)
-                    .unwrap_or_default();
-                activity_view(activity, participant, variant_damage_blocked, metadata)
+    EncounterRuntimeProjection {
+        runtime: EncounterRuntimeView {
+            adjusted_level,
+            vitals: Some(vitals),
+            defenses: armor_class.map(|armor_class| EncounterRuntimeDefensesView { armor_class }),
+            saves: (saves.fortitude.is_some() || saves.reflex.is_some() || saves.will.is_some())
+                .then_some(saves),
+            awareness: perception.map(|perception| EncounterRuntimeAwarenessView { perception }),
+            abilities: (abilities.strength.is_some()
+                || abilities.dexterity.is_some()
+                || abilities.constitution.is_some()
+                || abilities.intelligence.is_some()
+                || abilities.wisdom.is_some()
+                || abilities.charisma.is_some())
+            .then_some(abilities),
+            skills,
+            movement: Some(EncounterRuntimeMovementView {
+                speeds: mechanics
+                    .speeds
+                    .into_iter()
+                    .map(|speed| speed_view(speed, participant))
+                    .collect(),
             })
-            .collect(),
-        conditions: participant
-            .conditions
-            .iter()
-            .map(runtime_condition_view)
-            .collect(),
-        unapplied_facts,
+            .filter(|movement| !movement.speeds.is_empty()),
+            resources,
+            spellcasting,
+            action_budget: Some(action_budget_view(participant)),
+            activities: mechanics
+                .activities
+                .into_iter()
+                .map(|activity| {
+                    let variant_damage_blocked =
+                        variant_damage_blocked_activity_ids.contains(&activity.activity_id);
+                    let metadata = activity_runtime
+                        .remove(&activity.activity_id)
+                        .unwrap_or_default();
+                    activity_view(activity, participant, variant_damage_blocked, metadata)
+                })
+                .collect(),
+            conditions: participant
+                .conditions
+                .iter()
+                .map(runtime_condition_view)
+                .collect(),
+            automation_limitations,
+        },
+        diagnostics,
     }
 }
 
@@ -2030,12 +2083,12 @@ fn runtime_number_view(
     }
 }
 
-fn unmatched_modifier_effect(modifier: CandidateModifier) -> EncounterRuntimeUnappliedFactView {
-    EncounterRuntimeUnappliedFactView {
-        provenance: modifier.provenance,
-        label: format!("{} was not applied", modifier.label),
-        reason: format!(
-            "No supported base value was available for target {}.",
+fn unmatched_modifier_effect(modifier: CandidateModifier) -> EncounterProjectionDiagnostic {
+    EncounterProjectionDiagnostic {
+        code: EncounterProjectionDiagnosticCode::UnmatchedRuntimeModifier,
+        message: format!(
+            "{} was not applied because no supported base value was available for target {}",
+            modifier.label,
             modifier.target.id()
         ),
         canonical_target: canonical_target_view(&modifier.target),
@@ -2117,22 +2170,6 @@ fn variant_modifiers(
         });
     }
     modifiers
-}
-
-fn variant_unapplied_facts(variant: ParticipantVariant) -> Vec<EncounterRuntimeUnappliedFactView> {
-    match variant {
-        ParticipantVariant::Normal => Vec::new(),
-        ParticipantVariant::Elite | ParticipantVariant::Weak => {
-            let source = variant_source(variant).to_string();
-            vec![EncounterRuntimeUnappliedFactView {
-                provenance: variant_provenance(variant),
-                label: format!("{source} ambiguous offensive damage adjustments"),
-                reason: "Ambiguous, prose-only, or unsupported offensive damage remains unapplied."
-                    .to_string(),
-                canonical_target: None,
-            }]
-        }
-    }
 }
 
 fn adjusted_level(level: Option<i64>, variant: ParticipantVariant) -> Option<i64> {
@@ -2341,63 +2378,65 @@ fn speed_notes(participant: &EncounterParticipant) -> Vec<RuntimeNote> {
     notes
 }
 
-fn condition_unapplied_facts(
+fn participant_automation_limitations(
+    participant: &EncounterParticipant,
+) -> Vec<EncounterRuntimeAutomationLimitationView> {
+    participant_condition_rules(participant)
+        .flat_map(|(condition, rule)| condition_automation_limitations(condition, rule))
+        .collect()
+}
+
+fn condition_automation_limitations(
     condition: &EncounterParticipantCondition,
     rule: ConditionRule,
-) -> Vec<EncounterRuntimeUnappliedFactView> {
-    let source = condition_source(condition);
+) -> Vec<EncounterRuntimeAutomationLimitationView> {
     match rule {
-        ConditionRule::Fatigued => vec![unapplied_runtime_note_view(
-            fatigued_exploration_note(condition),
+        ConditionRule::Fatigued => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::ExplorationActivityRestrictionNotAutomated,
+            "Travel exploration activity restrictions require manual adjudication.",
         )],
-        ConditionRule::Clumsy => vec![EncounterRuntimeUnappliedFactView {
-            provenance: condition_provenance(condition),
-            label: format!("{source} unmodeled Dexterity attack penalties"),
-            reason: "Only structured activity attack rolls are adjusted.".to_string(),
-            canonical_target: None,
-        }],
-        ConditionRule::Enfeebled => vec![EncounterRuntimeUnappliedFactView {
-            provenance: condition_provenance(condition),
-            label: format!("{source} untyped Strength-based damage penalties"),
-            reason: "Only structured Strength-based strike damage is adjusted.".to_string(),
-            canonical_target: None,
-        }],
-        ConditionRule::Stupefied => vec![EncounterRuntimeUnappliedFactView {
-            provenance: condition_provenance(condition),
-            label: format!("{source} spell disruption flat check"),
-            reason: "Flat-check spell disruption is not automated yet.".to_string(),
-            canonical_target: None,
-        }],
-        ConditionRule::Grabbed => vec![EncounterRuntimeUnappliedFactView {
-            provenance: condition_provenance(condition),
-            label: format!("{source} manipulate-action flat check"),
-            reason: "Manipulate actions require the Grabbed flat check; that contextual roll and action loss are not automated."
-                .to_string(),
-            canonical_target: None,
-        }],
-        ConditionRule::Restrained => vec![EncounterRuntimeUnappliedFactView {
-            provenance: condition_provenance(condition),
-            label: format!("{source} attack and manipulate restrictions"),
-            reason: "Attack and manipulate actions remain unavailable except for the contextual actions that can remove the restraint; those exceptions are not automated."
-                .to_string(),
-            canonical_target: None,
-        }],
-        ConditionRule::Stunned => stunned_contextual_disposition(condition)
-            .map(|(label, reason)| EncounterRuntimeUnappliedFactView {
-                provenance: condition_provenance(condition),
-                label,
-                reason,
-                canonical_target: None,
+        ConditionRule::Clumsy => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::ConditionAttackAdjustmentPartial,
+            "Only structured activity attack rolls receive this Dexterity-based penalty.",
+        )],
+        ConditionRule::Enfeebled => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::ConditionDamageAdjustmentPartial,
+            "Only structured Strength-based strike damage receives this penalty.",
+        )],
+        ConditionRule::Stupefied => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::SpellDisruptionCheckNotAutomated,
+            "Spell disruption flat checks require manual resolution.",
+        )],
+        ConditionRule::Grabbed => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::ManipulateActionCheckNotAutomated,
+            "Manipulate-action flat checks and resulting action loss require manual resolution.",
+        )],
+        ConditionRule::Restrained => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::RestrictedActionExceptionsNotAutomated,
+            "Exceptions that allow attacks or manipulate actions while restrained require manual adjudication.",
+        )],
+        ConditionRule::Stunned => (positive_condition_value(condition).is_some()
+            && condition.duration_rounds.is_some())
+            .then(|| {
+                condition_limitation(
+                    condition,
+                    EncounterRuntimeAutomationLimitationCodeView::StunnedTimingRequiresAdjudication,
+                    "The numeric action loss is applied, while duration timing and lifecycle require manual adjudication.",
+                )
             })
             .into_iter()
             .collect(),
-        ConditionRule::Prone => vec![EncounterRuntimeUnappliedFactView {
-            provenance: condition_provenance(condition),
-            label: format!("{source} contextual limits"),
-            reason: "Prone movement, cover, and falling consequences are tracked as notes rather than numeric adjustments."
-                .to_string(),
-            canonical_target: None,
-        }],
+        ConditionRule::Prone => vec![condition_limitation(
+            condition,
+            EncounterRuntimeAutomationLimitationCodeView::ProneContextRequiresAdjudication,
+            "Prone movement choices, cover, and falling consequences require manual adjudication.",
+        )],
         ConditionRule::Frightened
         | ConditionRule::Sickened
         | ConditionRule::OffGuard
@@ -2408,24 +2447,17 @@ fn condition_unapplied_facts(
     }
 }
 
-fn participant_runtime_notes(participant: &EncounterParticipant) -> Vec<RuntimeNote> {
-    let mut notes = Vec::new();
-    notes.extend(action_projection(participant).notes);
-    notes.extend(speed_notes(participant));
-    notes.extend(
-        participant_condition_rules(participant)
-            .filter(|(_, rule)| *rule == ConditionRule::Fatigued)
-            .map(|(condition, _)| fatigued_exploration_note(condition)),
-    );
-    notes
-}
-
-fn fatigued_exploration_note(condition: &EncounterParticipantCondition) -> RuntimeNote {
-    RuntimeNote {
-        provenance: condition_provenance(condition),
-        label: "Fatigued exploration activity restriction".to_string(),
-        reason: "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
-            .to_string(),
+fn condition_limitation(
+    condition: &EncounterParticipantCondition,
+    code: EncounterRuntimeAutomationLimitationCodeView,
+    message: &str,
+) -> EncounterRuntimeAutomationLimitationView {
+    EncounterRuntimeAutomationLimitationView {
+        code,
+        target: EncounterRuntimeAutomationLimitationTargetView::Condition {
+            condition_id: condition.condition_id,
+        },
+        message: message.to_string(),
     }
 }
 
@@ -2495,15 +2527,6 @@ fn runtime_note_view(note: RuntimeNote) -> RuntimeEffectNoteView {
     }
 }
 
-fn unapplied_runtime_note_view(note: RuntimeNote) -> EncounterRuntimeUnappliedFactView {
-    EncounterRuntimeUnappliedFactView {
-        provenance: note.provenance,
-        label: note.label,
-        reason: note.reason,
-        canonical_target: None,
-    }
-}
-
 fn ability_targets(mechanics: &MechanicsView, ability: AbilityKind) -> Vec<MechanicTarget> {
     mechanics
         .values
@@ -2539,29 +2562,16 @@ fn positive_condition_value(condition: &EncounterParticipantCondition) -> Option
     condition.value.filter(|value| *value > 0)
 }
 
-fn optional_i64(value: Option<i64>) -> String {
-    value.map_or_else(|| "missing".to_string(), |value| format!("value({value})"))
-}
-
 fn stunned_contextual_disposition(
     condition: &EncounterParticipantCondition,
 ) -> Option<(String, String)> {
-    let numeric_value = positive_condition_value(condition);
-    if numeric_value.is_some() && condition.duration_rounds.is_none() {
+    if positive_condition_value(condition).is_none() || condition.duration_rounds.is_none() {
         return None;
     }
-    let action_disposition = if numeric_value.is_some() {
-        "the positive numeric value is applied to this action-regain step"
-    } else {
-        "no numeric action loss is applied"
-    };
     Some((
-        "Stunned duration/value disposition".to_string(),
-        format!(
-            "Stunned value={}; duration_rounds={}; {action_disposition}; duration timing and lifecycle remain contextual.",
-            optional_i64(condition.value),
-            optional_i64(condition.duration_rounds)
-        ),
+        "Stunned duration timing".to_string(),
+        "The numeric action loss is applied, while duration timing and lifecycle remain contextual."
+            .to_string(),
     ))
 }
 
@@ -2638,7 +2648,6 @@ mod tests {
             RuntimeFactSourceView::RuntimeRule { rule } => match rule {
                 RuntimeRuleView::ActionBudget => "Action budget",
                 RuntimeRuleView::Movement => "Movement",
-                RuntimeRuleView::UnsupportedFact => "Unsupported fact",
             },
         }
     }
@@ -2648,13 +2657,14 @@ mod tests {
         record: &AtlasRecord,
     ) -> Option<EncounterRuntimeView> {
         let mechanics = build_mechanics_view(record)?;
-        Some(apply_participant_effects(
+        Some(into_public_runtime(apply_participant_effects(
             participant,
             mechanics,
             Vec::new(),
+            Vec::new(),
             BTreeSet::new(),
             BTreeMap::new(),
-        ))
+        )))
     }
 
     fn project_canonical(participant: &EncounterParticipant) -> EncounterRuntimeView {
@@ -2665,12 +2675,23 @@ mod tests {
         participant: &EncounterParticipant,
         projection: CanonicalMechanicsProjection,
     ) -> EncounterRuntimeView {
+        into_public_runtime(project_canonical_projection_with_diagnostics(
+            participant,
+            projection,
+        ))
+    }
+
+    fn project_canonical_projection_with_diagnostics(
+        participant: &EncounterParticipant,
+        projection: CanonicalMechanicsProjection,
+    ) -> EncounterRuntimeProjection {
         let mechanics =
             canonical_participant_mechanics(projection, "Canonical Creature".to_string());
         apply_participant_effects(
             participant,
             mechanics.view,
-            mechanics.unapplied_facts,
+            mechanics.diagnostics,
+            mechanics.automation_limitations,
             mechanics.variant_damage_blocked_activity_ids,
             mechanics.activity_runtime,
         )
@@ -2744,7 +2765,7 @@ mod tests {
     }
 
     fn assert_unsupported_damage_formula_disposition(
-        projection: &EncounterRuntimeView,
+        projection: &EncounterRuntimeProjection,
         expected_formula: &str,
     ) {
         let target = MechanicTarget::ActivityDamage {
@@ -2752,22 +2773,20 @@ mod tests {
                 .expect("occurrence id should be valid"),
             damage_id: "unsupported-first".to_string(),
         };
-        let expected_label = format!("{} retained without exact encounter field", target.id());
         let expected_reason = format!(
             "unsupported-first: damage formula cannot populate a structured encounter damage expression; target={}; id=\"unsupported-first\"; formula={expected_formula}",
             target.id()
         );
         let matching = projection
-            .unapplied_facts
+            .diagnostics
             .iter()
-            .filter(|effect| effect.label == expected_label)
+            .filter(|diagnostic| {
+                diagnostic.code == EncounterProjectionDiagnosticCode::UnavailableCanonicalFact
+                    && diagnostic.canonical_target == canonical_target_view(&target)
+            })
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1);
-        assert_eq!(
-            provenance_source(&matching[0].provenance),
-            "Canonical source"
-        );
-        assert_eq!(matching[0].reason, expected_reason);
+        assert_eq!(matching[0].message, expected_reason);
     }
 
     fn canonical_projection() -> CanonicalMechanicsProjection {
@@ -3095,13 +3114,14 @@ mod tests {
             .expect("max hp should exist");
         hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(5)));
         let mechanics = canonical_participant_mechanics(projection, "Fragile".to_string());
-        let block = apply_participant_effects(
+        let block = into_public_runtime(apply_participant_effects(
             &participant(ParticipantVariant::Weak, Vec::new()),
             mechanics.view,
-            mechanics.unapplied_facts,
+            mechanics.diagnostics,
+            mechanics.automation_limitations,
             mechanics.variant_damage_blocked_activity_ids,
             mechanics.activity_runtime,
-        );
+        ));
 
         assert_stat(
             &block,
@@ -3331,15 +3351,21 @@ mod tests {
         assert!(resource.maximum.modifiers.is_empty());
         assert!(resource.maximum.suppressed_modifiers.is_empty());
 
-        let note = projection
-            .unapplied_facts
+        let limitation = projection
+            .automation_limitations
             .iter()
-            .find(|effect| effect.label == "Fatigued exploration activity restriction")
+            .find(|limitation| {
+                limitation.code
+                    == EncounterRuntimeAutomationLimitationCodeView::ExplorationActivityRestrictionNotAutomated
+            })
             .expect("travel restriction should remain explicit");
-        assert_eq!(provenance_source(&note.provenance), "Fatigued 9");
         assert_eq!(
-            note.reason,
-            "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
+            limitation.target,
+            EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 1 }
+        );
+        assert_eq!(
+            limitation.message,
+            "Travel exploration activity restrictions require manual adjudication."
         );
     }
 
@@ -3395,8 +3421,10 @@ mod tests {
     #[test]
     fn fatigued_requires_the_canonical_key_and_preserves_note_order() {
         let mut first = condition("Fatigued", None);
+        first.condition_id = 1;
         first.name = "First fatigue".to_string();
         let mut second = condition("Fatigued", None);
+        second.condition_id = 2;
         second.name = "Second fatigue".to_string();
         let annotation = unmodeled_condition("Fatigued", None);
 
@@ -3410,12 +3438,18 @@ mod tests {
         .expect("stat block");
         assert_eq!(
             ordered
-                .unapplied_facts
+                .automation_limitations
                 .iter()
-                .filter(|effect| effect.label == "Fatigued exploration activity restriction")
-                .map(|effect| provenance_source(&effect.provenance))
+                .filter(|limitation| {
+                    limitation.code
+                        == EncounterRuntimeAutomationLimitationCodeView::ExplorationActivityRestrictionNotAutomated
+                })
+                .map(|limitation| limitation.target.clone())
                 .collect::<Vec<_>>(),
-            vec!["First fatigue", "Second fatigue"]
+            vec![
+                EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 1 },
+                EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 2 },
+            ]
         );
         assert_eq!(
             value(&ordered, RuntimeNumberField::ArmorClass).adjusted_value,
@@ -3432,12 +3466,18 @@ mod tests {
         .expect("stat block");
         assert_eq!(
             reversed
-                .unapplied_facts
+                .automation_limitations
                 .iter()
-                .filter(|effect| effect.label == "Fatigued exploration activity restriction")
-                .map(|effect| provenance_source(&effect.provenance))
+                .filter(|limitation| {
+                    limitation.code
+                        == EncounterRuntimeAutomationLimitationCodeView::ExplorationActivityRestrictionNotAutomated
+                })
+                .map(|limitation| limitation.target.clone())
                 .collect::<Vec<_>>(),
-            vec!["Second fatigue", "First fatigue"]
+            vec![
+                EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 2 },
+                EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 1 },
+            ]
         );
 
         first.condition_key = None;
@@ -3448,12 +3488,17 @@ mod tests {
         .expect("stat block");
         assert_eq!(
             key_mutation
-                .unapplied_facts
+                .automation_limitations
                 .iter()
-                .filter(|effect| effect.label == "Fatigued exploration activity restriction")
-                .map(|effect| provenance_source(&effect.provenance))
+                .filter(|limitation| {
+                    limitation.code
+                        == EncounterRuntimeAutomationLimitationCodeView::ExplorationActivityRestrictionNotAutomated
+                })
+                .map(|limitation| limitation.target.clone())
                 .collect::<Vec<_>>(),
-            vec!["Second fatigue"]
+            vec![EncounterRuntimeAutomationLimitationTargetView::Condition {
+                condition_id: 2,
+            }]
         );
 
         let annotation_only = project_legacy(
@@ -3465,7 +3510,7 @@ mod tests {
             value(&annotation_only, RuntimeNumberField::ArmorClass).adjusted_value,
             22
         );
-        assert!(annotation_only.unapplied_facts.is_empty());
+        assert!(annotation_only.automation_limitations.is_empty());
     }
 
     #[test]
@@ -3477,56 +3522,60 @@ mod tests {
         let budget = projection.action_budget.as_ref().expect("action budget");
         assert_eq!(budget.actions.adjusted_value, 3);
         assert!(budget.actions.adjustments.is_empty());
-        assert_eq!(projection.unapplied_facts.len(), 1);
+        assert_eq!(projection.automation_limitations.len(), 1);
         assert_eq!(
-            projection.unapplied_facts[0].label,
-            "Fatigued exploration activity restriction"
+            projection.automation_limitations[0].code,
+            EncounterRuntimeAutomationLimitationCodeView::ExplorationActivityRestrictionNotAutomated
         );
         assert_eq!(
-            projection.unapplied_facts[0].reason,
-            "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
+            projection.automation_limitations[0].target,
+            EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 1 }
         );
     }
 
     #[test]
-    fn canonical_activity_targets_keep_roll_damage_and_unapplied_context() {
-        let projection = project_canonical(&participant(
-            ParticipantVariant::Elite,
-            vec![condition("Enfeebled", Some(2))],
-        ));
-
-        assert_roll(
-            &projection,
-            "strike-claw",
-            "attack",
-            12,
-            12,
-            "Elite adjustment",
+    fn canonical_activity_targets_keep_roll_damage_and_internal_diagnostics() {
+        let projection = project_canonical_projection_with_diagnostics(
+            &participant(
+                ParticipantVariant::Elite,
+                vec![condition("Enfeebled", Some(2))],
+            ),
+            canonical_projection(),
         );
+        let runtime = &projection.runtime;
+
+        assert_roll(runtime, "strike-claw", "attack", 12, 12, "Elite adjustment");
         assert!(
-            roll(&projection, "strike-claw", "attack")
+            roll(runtime, "strike-claw", "attack")
                 .modifiers
                 .iter()
                 .any(|modifier| modifier.label == "Enfeebled 2")
         );
-        let strike_damage = damage(&projection, "strike-claw", "main");
+        let strike_damage = damage(runtime, "strike-claw", "main");
         assert_eq!(strike_damage.adjusted_formula, None);
         assert_eq!(strike_damage.modifiers.len(), 2);
-        assert_no_damage_modifier(&projection, "action-breath", "fire");
-        assert!(projection.unapplied_facts.iter().any(|effect| {
-            effect.reason.contains("activities.strike-claw.unsupported")
-                && effect.reason.contains("unmodeled-rule")
+        assert_no_damage_modifier(runtime, "action-breath", "fire");
+        assert!(projection.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == EncounterProjectionDiagnosticCode::UnsupportedCanonicalFact
+                && diagnostic
+                    .message
+                    .contains("activities.strike-claw.unsupported")
+                && diagnostic.message.contains("unmodeled-rule")
         }));
     }
 
     #[test]
-    fn canonical_activity_facts_have_exact_existing_surface_or_unapplied_dispositions() {
-        let projection = project_canonical(&participant(ParticipantVariant::Normal, Vec::new()));
+    fn canonical_activity_facts_have_exact_public_or_internal_dispositions() {
+        let projection = project_canonical_projection_with_diagnostics(
+            &participant(ParticipantVariant::Normal, Vec::new()),
+            canonical_projection(),
+        );
+        let runtime = &projection.runtime;
         let action_id = atlas_record::CreatureOccurrenceId::new("action-breath")
             .expect("occurrence id should be valid");
         let spellcasting_id = atlas_record::CreatureOccurrenceId::new("spellcasting-arcane")
             .expect("occurrence id should be valid");
-        let action = projection
+        let action = runtime
             .activities
             .iter()
             .find(|activity| activity.activity_id == action_id.as_str())
@@ -3556,23 +3605,20 @@ mod tests {
             "a check must not be mislabeled as the existing attack or DC surface"
         );
 
-        let expected_unapplied = [(
-            MechanicTarget::ActivityRoll {
-                occurrence_id: action_id,
-                roll_id: "recall".to_string(),
-            },
-            "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)",
-        )];
-        for (target, reason) in expected_unapplied {
-            let label = format!("{} retained without exact encounter field", target.id());
-            assert!(projection.unapplied_facts.iter().any(|effect| {
-                provenance_source(&effect.provenance) == "Canonical source"
-                    && effect.label == label
-                    && effect.reason == reason
-            }));
-        }
+        assert!(projection.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == EncounterProjectionDiagnosticCode::UnavailableCanonicalFact
+                && diagnostic.message == "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)"
+        }));
+        assert!(runtime.automation_limitations.iter().any(|limitation| {
+            limitation.code
+                == EncounterRuntimeAutomationLimitationCodeView::ActivityCheckNotAutomated
+                && limitation.target
+                    == EncounterRuntimeAutomationLimitationTargetView::Activity {
+                        activity_id: action_id.as_str().to_string(),
+                    }
+        }));
 
-        let slot_values = projection
+        let slot_values = runtime
             .spellcasting
             .iter()
             .flat_map(|entry| &entry.slots)
@@ -3593,13 +3639,10 @@ mod tests {
             entry_occurrence_id: spellcasting_id,
             rank: 4,
         };
-        assert!(projection.unapplied_facts.iter().any(|effect| {
-            effect.label
-                == format!(
-                    "{} retained without exact encounter field",
-                    missing_slot.id()
-                )
-                && effect.reason
+        assert!(projection.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == EncounterProjectionDiagnosticCode::UnavailableCanonicalFact
+                && diagnostic.canonical_target == canonical_target_view(&missing_slot)
+                && diagnostic.message
                     == "Rank 4 slots: spell-slot maximum cannot populate a numeric encounter value; value=missing"
         }));
     }
@@ -3628,31 +3671,30 @@ mod tests {
         }));
         action.facts.insert(2, duplicate_uses);
 
-        let projection = project_canonical_projection(
+        let projection = project_canonical_projection_with_diagnostics(
             &participant(ParticipantVariant::Normal, Vec::new()),
             canonical,
         );
         let action = projection
+            .runtime
             .activities
             .iter()
             .find(|activity| activity.activity_id == action_id.as_str())
             .expect("action should project");
         assert!(action.uses.is_none(), "duplicate uses must fail closed");
         let reasons = projection
-            .unapplied_facts
+            .diagnostics
             .iter()
-            .filter(|effect| {
-                effect
-                    .reason
-                    .contains("canonical facts target the same zero-or-one")
+            .filter(|diagnostic| {
+                diagnostic.code == EncounterProjectionDiagnosticCode::DuplicateRuntimeFact
             })
-            .map(|effect| effect.reason.as_str())
+            .map(|diagnostic| diagnostic.message.as_str())
             .collect::<Vec<_>>();
         assert_eq!(
             reasons,
             vec![
-                "Uses: 2 canonical facts target the same zero-or-one encounter activity field; all were left unapplied",
-                "Secondary uses: 2 canonical facts target the same zero-or-one encounter activity field; all were left unapplied",
+                "Uses: 2 canonical facts target the same zero-or-one encounter activity field; all were rejected",
+                "Secondary uses: 2 canonical facts target the same zero-or-one encounter activity field; all were rejected",
             ]
         );
     }
@@ -3681,10 +3723,12 @@ mod tests {
             ability: FactValue::Value(ActivityRollAbility::Wisdom),
         });
         assert!(
-            project_canonical_projection(&normal, check)
-                .unapplied_facts
+            project_canonical_projection_with_diagnostics(&normal, check)
+                .diagnostics
                 .iter()
-                .any(|effect| effect.reason.contains("value=null; ability=value(wisdom)"))
+                .any(|diagnostic| diagnostic
+                    .message
+                    .contains("value=null; ability=value(wisdom)"))
         );
 
         let mut action_cost_projection = canonical_projection();
@@ -3715,10 +3759,10 @@ mod tests {
         )
         .value = MechanicBaseValue::Uses(FactValue::Null);
         assert!(
-            project_canonical_projection(&normal, uses_projection)
-                .unapplied_facts
+            project_canonical_projection_with_diagnostics(&normal, uses_projection)
+                .diagnostics
                 .iter()
-                .any(|effect| effect.reason.ends_with("value=null"))
+                .any(|diagnostic| diagnostic.message.ends_with("value=null"))
         );
 
         let mut frequency_projection = canonical_projection();
@@ -3868,9 +3912,10 @@ mod tests {
         assert_no_damage_modifier(&elite_strike, "strike-claw", "secondary");
         assert!(
             elite_strike
-                .unapplied_facts
+                .automation_limitations
                 .iter()
-                .any(|effect| { effect.label == "Elite ambiguous offensive damage adjustments" })
+                .all(|limitation| limitation.target
+                    != EncounterRuntimeAutomationLimitationTargetView::Participant)
         );
 
         let mut limited_spell_projection = canonical_projection();
@@ -3943,11 +3988,12 @@ mod tests {
             [(FactValue::Missing, "missing"), (FactValue::Null, "null")]
         {
             let projection = canonical_strike_with_unsupported_first_formula(formula);
-            let projected = project_canonical_projection(
+            let projected = project_canonical_projection_with_diagnostics(
                 &participant(ParticipantVariant::Elite, Vec::new()),
                 projection,
             );
             let strike = projected
+                .runtime
                 .activities
                 .iter()
                 .find(|activity| activity.activity_id == "strike-claw")
@@ -3960,8 +4006,8 @@ mod tests {
                     .collect::<Vec<_>>(),
                 vec!["main", "secondary"]
             );
-            assert_no_damage_modifier(&projected, "strike-claw", "main");
-            assert_no_damage_modifier(&projected, "strike-claw", "secondary");
+            assert_no_damage_modifier(&projected.runtime, "strike-claw", "main");
+            assert_no_damage_modifier(&projected.runtime, "strike-claw", "secondary");
             assert_unsupported_damage_formula_disposition(&projected, expected_formula);
         }
 
@@ -3990,12 +4036,12 @@ mod tests {
             .expect("main damage should exist");
         strike.facts.swap(unsupported_index, main_index);
 
-        let projected = project_canonical_projection(
+        let projected = project_canonical_projection_with_diagnostics(
             &participant(ParticipantVariant::Elite, Vec::new()),
             reordered,
         );
-        assert_damage_modifier(&projected, "strike-claw", "main", 2);
-        assert_no_damage_modifier(&projected, "strike-claw", "secondary");
+        assert_damage_modifier(&projected.runtime, "strike-claw", "main", 2);
+        assert_no_damage_modifier(&projected.runtime, "strike-claw", "secondary");
         assert_unsupported_damage_formula_disposition(&projected, "missing");
     }
 
@@ -4077,11 +4123,13 @@ mod tests {
             provenance_source(&modifier.provenance) == "Prone"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
         }));
-        assert!(projection.unapplied_facts.iter().any(|effect| {
-            effect
-                .reason
-                .contains("check roll has no encounter roll surface")
-                && effect.reason.contains("Recall Knowledge")
+        assert!(projection.automation_limitations.iter().any(|limitation| {
+            limitation.code
+                == EncounterRuntimeAutomationLimitationCodeView::ActivityCheckNotAutomated
+                && limitation.target
+                    == EncounterRuntimeAutomationLimitationTargetView::Activity {
+                        activity_id: "action-breath".to_string(),
+                    }
         }));
         let action_notes = &projection
             .action_budget
@@ -4243,7 +4291,7 @@ mod tests {
     }
 
     #[test]
-    fn targeted_conditions_project_supported_stats_and_report_unapplied_facts() {
+    fn targeted_conditions_project_supported_stats_and_typed_automation_limits() {
         let conditions = vec![
             condition("Clumsy", None),
             condition("Enfeebled", Some(2)),
@@ -4263,7 +4311,85 @@ mod tests {
             value(&projection, RuntimeNumberField::Will).adjusted_value,
             11
         );
-        assert_eq!(projection.unapplied_facts.len(), 3);
+        assert_eq!(projection.automation_limitations.len(), 3);
+        assert_eq!(
+            projection
+                .automation_limitations
+                .iter()
+                .map(|limitation| limitation.code)
+                .collect::<Vec<_>>(),
+            vec![
+                EncounterRuntimeAutomationLimitationCodeView::ConditionAttackAdjustmentPartial,
+                EncounterRuntimeAutomationLimitationCodeView::ConditionDamageAdjustmentPartial,
+                EncounterRuntimeAutomationLimitationCodeView::SpellDisruptionCheckNotAutomated,
+            ]
+        );
+        assert!(projection.automation_limitations.iter().all(|limitation| {
+            limitation.target
+                == EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id: 1 }
+        }));
+    }
+
+    #[test]
+    fn public_runtime_serialization_excludes_internal_projection_diagnostics() {
+        let projection = project_canonical_projection_with_diagnostics(
+            &participant(
+                ParticipantVariant::Normal,
+                vec![condition("Clumsy", Some(1))],
+            ),
+            canonical_projection(),
+        );
+        assert!(projection.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == EncounterProjectionDiagnosticCode::UnsupportedCanonicalFact
+                && diagnostic
+                    .message
+                    .contains("activities.strike-claw.unsupported")
+        }));
+        assert!(projection.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == EncounterProjectionDiagnosticCode::UnavailableCanonicalFact
+                && diagnostic.message.contains("value=missing")
+        }));
+
+        let json = serde_json::to_value(&projection.runtime)
+            .expect("public runtime should serialize to JSON");
+        let object = json.as_object().expect("runtime should be an object");
+        assert!(!object.contains_key("unapplied_facts"));
+        let limitations = object["automation_limitations"]
+            .as_array()
+            .expect("automation limitations should be an array");
+        assert!(!limitations.is_empty());
+        assert!(limitations.iter().all(|limitation| {
+            limitation.as_object().is_some_and(|value| {
+                value.keys().cloned().collect::<BTreeSet<_>>()
+                    == BTreeSet::from([
+                        "code".to_string(),
+                        "message".to_string(),
+                        "target".to_string(),
+                    ])
+            })
+        }));
+        let serialized = serde_json::to_string(&json).expect("runtime JSON should encode");
+        for internal_detail in [
+            "activities.strike-claw.unsupported",
+            "unmodeled-rule",
+            "value=missing",
+            "source_path",
+        ] {
+            assert!(
+                !serialized.contains(internal_detail),
+                "internal projection detail leaked: {internal_detail}"
+            );
+        }
+        assert!(
+            projection
+                .runtime
+                .automation_limitations
+                .iter()
+                .all(|limitation| !matches!(
+                    limitation.target,
+                    EncounterRuntimeAutomationLimitationTargetView::Spellcasting { .. }
+                ))
+        );
     }
 
     #[test]
@@ -4553,7 +4679,7 @@ mod tests {
     }
 
     #[test]
-    fn duration_form_stunned_is_retained_without_value_coercion() {
+    fn duration_form_stunned_fails_closed_without_public_diagnostic_noise() {
         let duration_only = project_legacy(
             &participant(
                 ParticipantVariant::Normal,
@@ -4566,17 +4692,13 @@ mod tests {
         assert_eq!(budget.actions.adjusted_value, 3);
         assert!(budget.actions.adjustments.is_empty());
         assert!(budget.can_act.available);
-        let expected_duration_reason = "Stunned value=missing; duration_rounds=value(2); no numeric action loss is applied; duration timing and lifecycle remain contextual.";
-        assert!(budget.notes.iter().any(|note| {
-            provenance_source(&note.provenance) == "Stunned"
-                && note.label == "Stunned duration/value disposition"
-                && note.reason == expected_duration_reason
-        }));
-        assert!(duration_only.unapplied_facts.iter().any(|effect| {
-            provenance_source(&effect.provenance) == "Stunned"
-                && effect.label == "Stunned duration/value disposition"
-                && effect.reason == expected_duration_reason
-        }));
+        assert!(
+            budget
+                .notes
+                .iter()
+                .all(|note| note.label != "Stunned duration timing")
+        );
+        assert!(duration_only.automation_limitations.is_empty());
 
         let numeric = project_legacy(
             &participant(
@@ -4595,12 +4717,7 @@ mod tests {
                 .adjusted_value,
             2
         );
-        assert!(
-            numeric
-                .unapplied_facts
-                .iter()
-                .all(|effect| { effect.label != "Stunned duration/value disposition" })
-        );
+        assert!(numeric.automation_limitations.is_empty());
 
         let mut duration_mutation = condition_with_duration("Stunned", None, Some(2));
         duration_mutation.duration_rounds = Some(4);
@@ -4618,15 +4735,7 @@ mod tests {
                 .adjusted_value,
             3
         );
-        assert!(mutated.unapplied_facts.iter().any(|effect| {
-            effect.reason == "Stunned value=missing; duration_rounds=value(4); no numeric action loss is applied; duration timing and lifecycle remain contextual."
-        }));
-        assert!(
-            mutated
-                .unapplied_facts
-                .iter()
-                .all(|effect| effect.reason != expected_duration_reason)
-        );
+        assert!(mutated.automation_limitations.is_empty());
 
         let invalid_numeric = project_legacy(
             &participant(
@@ -4645,9 +4754,7 @@ mod tests {
                 .adjusted_value,
             3
         );
-        assert!(invalid_numeric.unapplied_facts.iter().any(|effect| {
-            effect.reason == "Stunned value=value(0); duration_rounds=missing; no numeric action loss is applied; duration timing and lifecycle remain contextual."
-        }));
+        assert!(invalid_numeric.automation_limitations.is_empty());
 
         let value_and_duration = project_legacy(
             &participant(
@@ -4666,9 +4773,26 @@ mod tests {
                 .adjusted_value,
             1
         );
-        assert!(value_and_duration.unapplied_facts.iter().any(|effect| {
-            effect.reason == "Stunned value=value(2); duration_rounds=value(3); the positive numeric value is applied to this action-regain step; duration timing and lifecycle remain contextual."
+        let budget = value_and_duration
+            .action_budget
+            .as_ref()
+            .expect("action budget");
+        assert!(budget.notes.iter().any(|note| {
+            note.label == "Stunned duration timing"
+                && note.reason
+                    == "The numeric action loss is applied, while duration timing and lifecycle remain contextual."
         }));
+        assert!(value_and_duration
+            .automation_limitations
+            .iter()
+            .any(|limitation| {
+                limitation.code
+                    == EncounterRuntimeAutomationLimitationCodeView::StunnedTimingRequiresAdjudication
+                    && limitation.target
+                        == EncounterRuntimeAutomationLimitationTargetView::Condition {
+                            condition_id: 1,
+                        }
+            }));
     }
 
     #[test]
@@ -4694,15 +4818,20 @@ mod tests {
                     && modifier.modifier_type == StatModifierTypeView::Circumstance
                     && modifier.value == -2
             }));
-            assert!(projection.unapplied_facts.iter().any(|effect| {
-                provenance_source(&effect.provenance) == "Restrained"
-                    && effect.label == "Restrained attack and manipulate restrictions"
+            assert!(projection.automation_limitations.iter().any(|limitation| {
+                limitation.code
+                    == EncounterRuntimeAutomationLimitationCodeView::RestrictedActionExceptionsNotAutomated
+                    && limitation.target
+                        == EncounterRuntimeAutomationLimitationTargetView::Condition {
+                            condition_id: 1,
+                        }
             }));
             assert!(
                 projection
-                    .unapplied_facts
+                    .automation_limitations
                     .iter()
-                    .all(|effect| provenance_source(&effect.provenance) != "Grabbed")
+                    .all(|limitation| limitation.code
+                        != EncounterRuntimeAutomationLimitationCodeView::ManipulateActionCheckNotAutomated)
             );
             let budget = projection.action_budget.as_ref().expect("action budget");
             assert!(budget.notes.iter().any(|note| {
@@ -4734,10 +4863,19 @@ mod tests {
                 .iter()
                 .any(|modifier| provenance_source(&modifier.provenance) == "Grabbed")
         );
-        assert!(grabbed_only.unapplied_facts.iter().any(|effect| {
-            provenance_source(&effect.provenance) == "Grabbed"
-                && effect.label == "Grabbed manipulate-action flat check"
-        }));
+        assert!(
+            grabbed_only
+                .automation_limitations
+                .iter()
+                .any(|limitation| {
+                    limitation.code
+                == EncounterRuntimeAutomationLimitationCodeView::ManipulateActionCheckNotAutomated
+                && limitation.target
+                    == EncounterRuntimeAutomationLimitationTargetView::Condition {
+                        condition_id: 1,
+                    }
+                })
+        );
     }
 
     #[test]
@@ -4821,13 +4959,13 @@ mod tests {
                     })
             );
             match condition_name {
-                "Grabbed" => assert!(restricted.unapplied_facts.iter().any(|effect| {
-                    provenance_source(&effect.provenance) == "Grabbed"
-                        && effect.label == "Grabbed manipulate-action flat check"
+                "Grabbed" => assert!(restricted.automation_limitations.iter().any(|limitation| {
+                    limitation.code
+                        == EncounterRuntimeAutomationLimitationCodeView::ManipulateActionCheckNotAutomated
                 })),
-                "Restrained" => assert!(restricted.unapplied_facts.iter().any(|effect| {
-                    provenance_source(&effect.provenance) == "Restrained"
-                        && effect.label == "Restrained attack and manipulate restrictions"
+                "Restrained" => assert!(restricted.automation_limitations.iter().any(|limitation| {
+                    limitation.code
+                        == EncounterRuntimeAutomationLimitationCodeView::RestrictedActionExceptionsNotAutomated
                 })),
                 _ => {}
             }
@@ -4859,9 +4997,10 @@ mod tests {
         );
         assert!(
             prone
-                .unapplied_facts
+                .automation_limitations
                 .iter()
-                .any(|effect| effect.label == "Prone contextual limits")
+                .any(|limitation| limitation.code
+                    == EncounterRuntimeAutomationLimitationCodeView::ProneContextRequiresAdjudication)
         );
 
         let zero_speed = project_legacy(
@@ -5065,8 +5204,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "exports checksum-bound E2R early-direction samples"]
-    fn export_typed_encounter_runtime_early_samples() {
+    #[ignore = "exports checksum-bound E2R refined samples"]
+    fn export_typed_encounter_runtime_refined_samples() {
         let sample_root = required_path_env("E2R_SAMPLE_ROOT");
         assert!(
             !sample_root.exists(),
@@ -5087,6 +5226,10 @@ mod tests {
         assert_eq!(
             git_value(Path::new("."), &["rev-parse", "HEAD^{tree}"]),
             candidate_tree
+        );
+        assert_eq!(
+            git_value(Path::new("."), &["rev-parse", "HEAD^"]),
+            "a34d700efb1afa44a6a0fa1c031f726fb968d085"
         );
 
         let source_root = required_path_env("E2R_SAMPLE_SOURCE_ROOT");
@@ -5110,6 +5253,11 @@ mod tests {
             file_sha256(&giant_rat_source),
             "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f"
         );
+        let sample_index = required_path_env("E2R_SAMPLE_INDEX");
+        assert_eq!(
+            file_sha256(&sample_index),
+            required_env("E2R_SAMPLE_INDEX_SHA256")
+        );
 
         let local_state = std::env::temp_dir().join(format!(
             "atlas-e2r-sample-state-{}-{}.sqlite",
@@ -5123,7 +5271,7 @@ mod tests {
                 overrides: AtlasPathOverrides {
                     source_root: Some(source_root.clone()),
                     embedding_cache_root: None,
-                    index_path: Some(required_path_env("E2R_SAMPLE_INDEX")),
+                    index_path: Some(sample_index.clone()),
                 },
             },
             local_state.clone(),
@@ -5133,7 +5281,7 @@ mod tests {
             .create_encounter(CreateEncounterRequest {
                 name: "E2R Typed Runtime Evidence".to_string(),
                 description: Some(
-                    "Candidate-authentic API serialization for early direction inspection"
+                    "Candidate-authentic API serialization for refined contract inspection"
                         .to_string(),
                 ),
                 note: None,
@@ -5351,6 +5499,9 @@ mod tests {
             "EncounterParticipantView.ts",
             "EncounterRuntimeView.ts",
             "EncounterRuntimeActivityView.ts",
+            "EncounterRuntimeAutomationLimitationCodeView.ts",
+            "EncounterRuntimeAutomationLimitationTargetView.ts",
+            "EncounterRuntimeAutomationLimitationView.ts",
             "EncounterRuntimeActionCostView.ts",
             "EncounterRuntimeFrequencyView.ts",
             "EncounterRuntimeUsesView.ts",
@@ -5374,20 +5525,86 @@ mod tests {
         fs::write(
             sample_root.join("presentation.md"),
             format!(
-                "# E2R early-direction samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis package is an **early direction sample only**. It is not an independent review, final sample approval, E2R acceptance, or authorization for E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect candidate DTO direction and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n"
+                "# E2R refined candidate samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis package is **refined candidate evidence pending independent E2R technical review**. It is not final sample approval, E2R acceptance, or authorization for E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect the refined candidate contract and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n\nPublic `automation_limitations` use stable codes and typed placement targets. Human messages are display-only. Projection diagnostics and unsafe missing fact details are intentionally absent from public JSON and TypeScript.\n"
             ),
         )
         .expect("presentation should write");
         fs::write(
             sample_root.join("candidate-report.md"),
             format!(
-                "# Candidate report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `e5b8f681922cf52f9ca75eba647fad5552153a3e`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_early_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n\nThis is the first representative implementation and stops before polish, independent review, final sample approval, or acceptance.\n",
+                "# Refined candidate report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `a34d700efb1afa44a6a0fa1c031f726fb968d085`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_refined_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Approval: `e2r-early-direction-approval.json` SHA-256 `b03d5a78fc964026cd9141954b353d89942ca03a1db6062f9a84043d23180df6`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n\nThis is the bounded same-direction refinement and stops before independent E2R technical review, final sample approval, acceptance, or E3.\n",
                 required_env("E2R_SAMPLE_SOURCE_SIGNATURE"),
-                required_path_env("E2R_SAMPLE_INDEX").display(),
+                sample_index.display(),
                 required_env("E2R_SAMPLE_VALIDATION")
             ),
         )
         .expect("candidate report should write");
+
+        let early_root = required_path_env("E2R_EARLY_SAMPLE_ROOT");
+        for (relative, expected) in [
+            (
+                "sample-manifest.json",
+                "2125c4b065e38084c47134026f367e9cdee1b8b39679b6c24034ae822c25079e",
+            ),
+            (
+                "checksums.sha256",
+                "3a248a49dcc5300f5e03c9bdb56c0bed7e7a2951ad81c3981952c59bfb317b35",
+            ),
+            (
+                "presentation.md",
+                "1832ec8a7f57d30cd40f18e27f6655e487ea39a872ab08c7496665e4b9ef2a3f",
+            ),
+            (
+                "candidate-report.md",
+                "08e8c4fd4e5987eff2ad569f5de21d608fcbde75cfcb631e65bcc454a906df80",
+            ),
+        ] {
+            assert_eq!(file_sha256(&early_root.join(relative)), expected);
+        }
+        let metadata_names = [
+            "candidate-report.md",
+            "checksums.sha256",
+            "early-to-refined-delta-ledger.md",
+            "presentation.md",
+            "sample-manifest.json",
+        ];
+        let mut compared_outputs = BTreeSet::new();
+        for root in [&early_root, &sample_root] {
+            for relative in relative_files(root) {
+                if !metadata_names.contains(&relative.to_string_lossy().as_ref()) {
+                    compared_outputs.insert(relative);
+                }
+            }
+        }
+        let mut delta_rows = Vec::new();
+        for relative in compared_outputs {
+            let early_path = early_root.join(&relative);
+            let refined_path = sample_root.join(&relative);
+            let early_hash = early_path.exists().then(|| file_sha256(&early_path));
+            let refined_hash = refined_path.exists().then(|| file_sha256(&refined_path));
+            let disposition = match (&early_hash, &refined_hash) {
+                (Some(early), Some(refined)) if early == refined => "unchanged",
+                (Some(_), Some(_)) => "changed",
+                (Some(_), None) => "removed",
+                (None, Some(_)) => "added",
+                (None, None) => unreachable!("union member must exist in at least one root"),
+            };
+            delta_rows.push(format!(
+                "| `{}` | `{}` | `{}` | {disposition} |",
+                relative.display(),
+                early_hash.as_deref().unwrap_or("—"),
+                refined_hash.as_deref().unwrap_or("—")
+            ));
+        }
+        fs::write(
+            sample_root.join("early-to-refined-delta-ledger.md"),
+            format!(
+                "# E2R early-to-refined delta ledger\n\n## Bound inputs\n\n- Approved early candidate: `a34d700efb1afa44a6a0fa1c031f726fb968d085` (tree `3712e9f7034790db028983e84bca7d7ab9b97399`).\n- Approved early root: `{}`.\n- Early manifest/checksums/presentation/report SHA-256: `2125c4b065e38084c47134026f367e9cdee1b8b39679b6c24034ae822c25079e` / `3a248a49dcc5300f5e03c9bdb56c0bed7e7a2951ad81c3981952c59bfb317b35` / `1832ec8a7f57d30cd40f18e27f6655e487ea39a872ab08c7496665e4b9ef2a3f` / `08e8c4fd4e5987eff2ad569f5de21d608fcbde75cfcb631e65bcc454a906df80`.\n- Refined candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `a34d700efb1afa44a6a0fa1c031f726fb968d085`.\n\n## Complete public-shape delta\n\n1. `unapplied_facts` and `EncounterRuntimeUnappliedFactView` are removed from Rust DTOs, API JSON, checked-in bindings, and the web TypeScript aggregate. There is no alias, fallback, or dual representation.\n2. `automation_limitations` is the sole public incomplete-automation collection. Each member has an enum-backed stable `code`, a tagged typed `target` (`participant`, `condition`, `activity`, or `spellcasting`), and a display-only `message`. No limitation carries raw source paths, canonical-target encodings, or projection provenance.\n3. Valid canonical activity checks without an encounter check surface become `activity_check_not_automated` limitations targeted to their activity. Condition gaps use condition-targeted stable codes. Messages are not behavior keys.\n4. Malformed, duplicate, unsupported, unmapped, raw JSON-path, publication, null, and source-noise facts remain internal projection diagnostics and are absent from public runtime JSON and TypeScript.\n5. Critical missing or unsafe activity metadata, damage, slot, or base facts fail closed or leave the typed value unavailable; they do not become public manual-rule notes or limitations. `RuntimeRuleView.unsupported_fact` is removed.\n6. Existing named runtime values, base/final mechanics, applied/suppressed adjustments, ordering, typed provenance, participant state, and real-record identities are otherwise unchanged.\n\n## Every candidate-produced output\n\nThe table is the no-omission union of candidate-produced outputs in the bound early and refined roots. Metadata files are excluded because this ledger, report, manifest, presentation, and checksum seal necessarily describe different candidates.\n\n| Output | Early SHA-256 | Refined SHA-256 | Delta |\n|---|---|---|---|\n{}\n",
+                early_root.display(),
+                delta_rows.join("\n")
+            ),
+        )
+        .expect("delta ledger should write");
 
         let payload_files = relative_files(&sample_root);
         let payload_hashes = payload_files
@@ -5400,10 +5617,11 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let manifest = serde_json::json!({
-            "schema": "e2r-typed-encounter-runtime-early-samples/v1",
-            "status": "early_direction_only_non_authorizing",
-            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "e5b8f681922cf52f9ca75eba647fad5552153a3e" },
-            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_early_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
+            "schema": "e2r-typed-encounter-runtime-refined-samples/v1",
+            "status": "refined_candidate_pending_independent_technical_review",
+            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "a34d700efb1afa44a6a0fa1c031f726fb968d085" },
+            "approval": { "path": "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/source-faithful-records/20260824T210853Z-c7b74cbdc7c4-pathfinder-2e-foundry-mcp-17/approvals/e2r-early-direction-approval.json", "sha256": "b03d5a78fc964026cd9141954b353d89942ca03a1db6062f9a84043d23180df6" },
+            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_refined_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
             "source": {
                 "root": source_root,
                 "commit": source_commit,
@@ -5419,7 +5637,7 @@ mod tests {
                 "concept_mock": ["encounter-runtime-fatigued.json", "encounter-runtime-condition-stacking.json", "encounter-runtime-action-budget.json", "encounter-runtime-movement.json", "encounter-runtime-resources-spellcasting-activities.json", "encounter-runtime-manual-pc.json", "encounter-runtime-unresolved.json"],
                 "mixed_exact_api": ["api-encounter-detail.json"]
             },
-            "artifact": { "path": required_path_env("E2R_SAMPLE_INDEX"), "trusted_sha256": required_env("E2R_SAMPLE_INDEX_SHA256") },
+            "artifact": { "path": sample_index, "trusted_sha256": required_env("E2R_SAMPLE_INDEX_SHA256") },
             "files": payload_hashes,
             "checksums": "checksums.sha256 (self-excluded)"
         });

@@ -8,17 +8,19 @@ use atlas_app_model::{
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
     EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterParticipantView, EncounterRuntimeConditionView, EncounterRuntimeView,
-    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
-    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
-    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    EncounterParticipantView, EncounterRuntimeAutomationLimitationCodeView,
+    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
+    EncounterRuntimeConditionView, EncounterRuntimeView, EncounterRuntimeVitalsView,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
+    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
+    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    ResultWindowModeSummary, ResultWindowPage, RuntimeFactProvenanceView, RuntimeFactSourceView,
+    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
     UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::AppServiceError;
@@ -598,7 +600,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions",
         Some(json!({
             "participant_key": "ignored",
-            "name": "Frightened",
+            "name": "Clumsy",
             "value": 1,
             "duration_rounds": 2
         })),
@@ -607,7 +609,20 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         body["participants"][0]["encounter_runtime"]["conditions"][0]["name"],
-        "Frightened"
+        "Clumsy"
+    );
+    assert_eq!(
+        body["participants"][0]["encounter_runtime"]["automation_limitations"][0]["code"],
+        "condition_attack_adjustment_partial"
+    );
+    assert_eq!(
+        body["participants"][0]["encounter_runtime"]["automation_limitations"][0]["target"],
+        json!({"target_type": "condition", "condition_id": 7})
+    );
+    assert!(
+        body["participants"][0]["encounter_runtime"]
+            .get("unapplied_facts")
+            .is_none()
     );
 
     let (status, body) = route_json(
@@ -615,7 +630,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions/7",
         Some(json!({
             "condition_id": 999,
-            "name": "Frightened",
+            "name": "Clumsy",
             "value": 2,
             "duration_rounds": 1
         })),
@@ -636,7 +651,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/wrong_participant/conditions/7",
         Some(json!({
             "condition_id": 999,
-            "name": "Frightened",
+            "name": "Clumsy",
             "value": 3
         })),
     )
@@ -981,7 +996,7 @@ impl AtlasWebService for MockService {
         Ok(encounter_detail(
             encounter_ref,
             None,
-            request.name.as_deref() == Some("Frightened"),
+            request.name.as_deref() == Some("Clumsy"),
         ))
     }
 
@@ -1002,6 +1017,14 @@ impl AtlasWebService for MockService {
         }
         let mut detail = encounter_detail(encounter_ref, None, true);
         detail.participants[0].encounter_runtime.conditions[0].condition_id = request.condition_id;
+        if let EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id } =
+            &mut detail.participants[0]
+                .encounter_runtime
+                .automation_limitations[0]
+                .target
+        {
+            *condition_id = request.condition_id;
+        }
         detail.participants[0].encounter_runtime.conditions[0].value = request.value;
         Ok(detail)
     }
@@ -1231,7 +1254,7 @@ fn test_runtime(
             .then(|| EncounterRuntimeConditionView {
                 condition_id: 7,
                 condition_key: None,
-                name: "Frightened".to_string(),
+                name: "Clumsy".to_string(),
                 value: Some(1),
                 source_participant_key: None,
                 duration_rounds: Some(2),
@@ -1241,15 +1264,27 @@ fn test_runtime(
                 provenance: RuntimeFactProvenanceView {
                     source: RuntimeFactSourceView::Condition {
                         condition_id: 7,
-                        condition_ref: "frightened".to_string(),
-                        label: "Frightened 1".to_string(),
+                        condition_ref: "clumsy".to_string(),
+                        label: "Clumsy 1".to_string(),
                     },
                     canonical_target: None,
                 },
             })
             .into_iter()
             .collect(),
-        unapplied_facts: Vec::new(),
+        automation_limitations: include_condition
+            .then(|| EncounterRuntimeAutomationLimitationView {
+                code:
+                    EncounterRuntimeAutomationLimitationCodeView::ConditionAttackAdjustmentPartial,
+                target: EncounterRuntimeAutomationLimitationTargetView::Condition {
+                    condition_id: 7,
+                },
+                message:
+                    "Only structured activity attack rolls receive this Dexterity-based penalty."
+                        .to_string(),
+            })
+            .into_iter()
+            .collect(),
     }
 }
 

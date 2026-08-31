@@ -2,6 +2,7 @@
 import type { EncounterRuntimeAbilitiesView } from "./EncounterRuntimeAbilitiesView";
 import type { EncounterRuntimeActionBudgetView } from "./EncounterRuntimeActionBudgetView";
 import type { EncounterRuntimeActivityView } from "./EncounterRuntimeActivityView";
+import type { EncounterRuntimeAutomationLimitationView } from "./EncounterRuntimeAutomationLimitationView";
 import type { EncounterRuntimeAwarenessView } from "./EncounterRuntimeAwarenessView";
 import type { EncounterRuntimeConditionView } from "./EncounterRuntimeConditionView";
 import type { EncounterRuntimeDefensesView } from "./EncounterRuntimeDefensesView";
@@ -10,8 +11,7 @@ import type { EncounterRuntimeResourceView } from "./EncounterRuntimeResourceVie
 import type { EncounterRuntimeSavesView } from "./EncounterRuntimeSavesView";
 import type { EncounterRuntimeSkillView } from "./EncounterRuntimeSkillView";
 import type { EncounterRuntimeSpellcastingView } from "./EncounterRuntimeSpellcastingView";
-import type { EncounterRuntimeUnappliedFactView } from "./EncounterRuntimeUnappliedFactView";
 import type { EncounterRuntimeVitalsView } from "./EncounterRuntimeVitalsView";
 import type { RuntimeNumberView } from "./RuntimeNumberView";
 
-export type EncounterRuntimeView = { adjusted_level?: RuntimeNumberView, vitals?: EncounterRuntimeVitalsView, defenses?: EncounterRuntimeDefensesView, saves?: EncounterRuntimeSavesView, awareness?: EncounterRuntimeAwarenessView, abilities?: EncounterRuntimeAbilitiesView, skills: Array<EncounterRuntimeSkillView>, movement?: EncounterRuntimeMovementView, resources: Array<EncounterRuntimeResourceView>, spellcasting: Array<EncounterRuntimeSpellcastingView>, activities: Array<EncounterRuntimeActivityView>, action_budget?: EncounterRuntimeActionBudgetView, conditions: Array<EncounterRuntimeConditionView>, unapplied_facts: Array<EncounterRuntimeUnappliedFactView>, };
+export type EncounterRuntimeView = { adjusted_level?: RuntimeNumberView, vitals?: EncounterRuntimeVitalsView, defenses?: EncounterRuntimeDefensesView, saves?: EncounterRuntimeSavesView, awareness?: EncounterRuntimeAwarenessView, abilities?: EncounterRuntimeAbilitiesView, skills: Array<EncounterRuntimeSkillView>, movement?: EncounterRuntimeMovementView, resources: Array<EncounterRuntimeResourceView>, spellcasting: Array<EncounterRuntimeSpellcastingView>, activities: Array<EncounterRuntimeActivityView>, action_budget?: EncounterRuntimeActionBudgetView, conditions: Array<EncounterRuntimeConditionView>, automation_limitations: Array<EncounterRuntimeAutomationLimitationView>, };
