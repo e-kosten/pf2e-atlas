@@ -109,6 +109,7 @@ mod tests {
             "activities?: Array<CreatureSurfaceActivityView>",
             "content?: Array<CreatureSurfaceContentView>",
             "relationships?: Array<CreatureSurfaceRelationshipView>",
+            "unavailable_domains?: CreatureSurfaceUnavailableDomainsView",
         ] {
             assert!(
                 creature.contains(named_domain),
@@ -116,6 +117,34 @@ mod tests {
             );
         }
         assert!(!creature.contains(&["sec", "tions"].concat()));
+
+        let unavailable = actual
+            .get("CreatureSurfaceUnavailableDomainsView.ts")
+            .expect("typed unavailable-domain binding should exist");
+        for domain in [
+            "vitals?",
+            "defenses?",
+            "saves?",
+            "awareness?",
+            "abilities?",
+            "skills?",
+            "movement?",
+            "resources?",
+            "spellcasting?",
+            "activities?",
+            "relationships?",
+        ] {
+            assert!(
+                unavailable.contains(domain),
+                "missing typed domain `{domain}`"
+            );
+        }
+        let cause = actual
+            .get("CreatureSurfaceUnavailableCauseView.ts")
+            .expect("typed unavailable cause binding should exist");
+        assert!(cause.contains("state: CreatureSurfaceUnavailableStateView"));
+        assert!(cause.contains("field: CreatureSurfaceUnavailableFieldView"));
+        assert!(!cause.contains("source_path"));
 
         for (binding, optional_collections) in [
             (
@@ -259,6 +288,7 @@ mod tests {
                     }]),
                     content: Some(Vec::new()),
                     relationships: Some(Vec::new()),
+                    unavailable_domains: None,
                     provenance: None,
                 }),
             },
@@ -288,6 +318,44 @@ mod tests {
         assert_eq!(body["activities"].as_array().map(Vec::len), Some(1));
         assert!(body["activities"][0].get("rolls").is_none());
         assert_no_empty_containers(&serialized);
+    }
+
+    #[test]
+    fn typed_domain_failure_is_distinct_from_known_empty_omission() {
+        let unavailable = CreatureSurfaceUnavailableDomainsView {
+            vitals: None,
+            defenses: None,
+            saves: None,
+            awareness: Some(CreatureSurfaceDomainUnavailableView {
+                causes: vec![CreatureSurfaceUnavailableCauseView {
+                    state: CreatureSurfaceUnavailableStateView::Null,
+                    field: CreatureSurfaceUnavailableFieldView::Senses,
+                    component_id: None,
+                    provenance: CreatureSurfaceFactProvenanceView {
+                        owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                        field: CreatureSurfaceSourceFieldView::Perception,
+                    },
+                    message: "Display-only context.".to_string(),
+                }],
+            }),
+            abilities: None,
+            skills: None,
+            movement: None,
+            resources: None,
+            spellcasting: None,
+            activities: None,
+            relationships: None,
+        };
+
+        let serialized = serde_json::to_value(unavailable).expect("failure should serialize");
+        assert_eq!(serialized["awareness"]["causes"][0]["state"], "null");
+        assert_eq!(serialized["awareness"]["causes"][0]["field"], "senses");
+        assert!(serialized.get("movement").is_none());
+        assert!(
+            serialized["awareness"]["causes"][0]
+                .get("source_path")
+                .is_none()
+        );
     }
 
     #[test]
