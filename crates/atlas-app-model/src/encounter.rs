@@ -198,7 +198,7 @@ pub struct EncounterParticipantView {
     #[ts(optional)]
     pub note: Option<String>,
     pub note_hint: Option<String>,
-    pub surface: RecordSurfaceView,
+    pub record_view: RecordSurfaceView,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

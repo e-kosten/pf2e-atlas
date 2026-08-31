@@ -61,7 +61,7 @@ export function EncounterInspectorPane({
       <section className="encounter-pane detail-empty">Select a participant.</section>
     );
   }
-  const surface = participant.surface;
+  const surface = participant.record_view;
   return (
     <section className="encounter-pane encounter-record-pane">
       {surface ? (
@@ -149,7 +149,7 @@ function EncounterParticipantSurface({
     });
     onUpdate(request);
   };
-  const surface = activeCurrent.surface ?? participant.surface;
+  const surface = activeCurrent.record_view ?? participant.record_view;
   if (!surface) {
     return null;
   }

@@ -19,7 +19,7 @@ use super::projection::{participant_side_view, participant_variant_view};
 
 fn runtime(participant: &EncounterParticipantView) -> &EncounterRuntimeView {
     participant
-        .surface
+        .record_view
         .encounter
         .as_ref()
         .expect("encounter participant should carry the typed runtime bag")
@@ -504,7 +504,7 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
             atlas_app_model::EncounterParticipantSideView::Enemy
         );
         assert!(matches!(
-            participant.surface.presentation,
+            participant.record_view.presentation,
             RecordSurfacePresentationView::Creature { .. }
         ));
         assert!(runtime(participant).defenses.is_some());
@@ -543,7 +543,7 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
     );
     assert_eq!(hazard_vitals.current_hp, Some(30));
     assert!(matches!(
-        hazard.surface.presentation,
+        hazard.record_view.presentation,
         RecordSurfacePresentationView::Unavailable { .. }
     ));
     assert!(runtime(hazard).defenses.is_none());
@@ -827,7 +827,7 @@ fn unresolved_record_backed_participant_preserves_stored_state() {
         EncounterParticipantStatusView::Unresolved
     );
     assert!(matches!(
-        participant.surface.presentation,
+        participant.record_view.presentation,
         RecordSurfacePresentationView::Unavailable { .. }
     ));
     assert!(runtime(participant).defenses.is_none());

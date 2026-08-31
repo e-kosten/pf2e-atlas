@@ -538,16 +538,18 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["encounter"]["encounter_key"], "ambush");
     assert_eq!(body["participants"][0]["participant_key"], "participant_a");
+    assert!(body["participants"][0].get("record_view").is_some());
+    assert!(body["participants"][0].get("surface").is_none());
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["level"]["base_value"],
+        body["participants"][0]["record_view"]["encounter"]["level"]["base_value"],
         5
     );
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["level"]["adjusted_value"],
+        body["participants"][0]["record_view"]["encounter"]["level"]["adjusted_value"],
         6
     );
     assert!(
-        body["participants"][0]["surface"]["encounter"]
+        body["participants"][0]["record_view"]["encounter"]
             .get("adjusted_level")
             .is_none()
     );
@@ -560,12 +562,12 @@ async fn encounter_routes_use_real_router_wiring() {
         "automation_limitations",
     ] {
         assert!(
-            body["participants"][0]["surface"]["encounter"]
+            body["participants"][0]["record_view"]["encounter"]
                 .get(known_empty_collection)
                 .is_none()
         );
     }
-    assert_no_empty_containers(&body["participants"][0]["surface"]);
+    assert_no_empty_containers(&body["participants"][0]["record_view"]);
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -673,23 +675,23 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["conditions"][0]["name"],
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["name"],
         "Clumsy"
     );
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["automation_limitations"][0]["code"],
+        body["participants"][0]["record_view"]["encounter"]["automation_limitations"][0]["code"],
         "condition_attack_adjustment_partial"
     );
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["automation_limitations"][0]["target"],
+        body["participants"][0]["record_view"]["encounter"]["automation_limitations"][0]["target"],
         json!({"target_type": "condition", "condition_id": 7})
     );
     assert!(
-        body["participants"][0]["surface"]["encounter"]
+        body["participants"][0]["record_view"]["encounter"]
             .get("unapplied_facts")
             .is_none()
     );
-    assert_no_empty_containers(&body["participants"][0]["surface"]);
+    assert_no_empty_containers(&body["participants"][0]["record_view"]);
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -704,11 +706,11 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["conditions"][0]["condition_id"],
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["condition_id"],
         7
     );
     assert_eq!(
-        body["participants"][0]["surface"]["encounter"]["conditions"][0]["value"],
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["value"],
         2
     );
 
@@ -742,11 +744,11 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body["participants"][0]["surface"]["encounter"]
+        body["participants"][0]["record_view"]["encounter"]
             .get("conditions")
             .is_none()
     );
-    assert_no_empty_containers(&body["participants"][0]["surface"]);
+    assert_no_empty_containers(&body["participants"][0]["record_view"]);
 
     let (status, body) = route_json(
         Method::DELETE,
@@ -1014,7 +1016,7 @@ impl AtlasWebService for MockService {
             hidden: request.hidden,
             note: request.note.clone(),
             note_hint: request.note,
-            surface: unavailable_surface(
+            record_view: unavailable_surface(
                 Some("actors:testCreature"),
                 &display_name,
                 RecordSurfaceProfileView::EncounterParticipant,
@@ -1342,7 +1344,7 @@ fn encounter_participant(
         hidden: false,
         note: Some("wounded".to_string()),
         note_hint: Some("wounded".to_string()),
-        surface: unavailable_surface(
+        record_view: unavailable_surface(
             Some("actors:testCreature"),
             display_name,
             RecordSurfaceProfileView::EncounterParticipant,
@@ -1498,7 +1500,7 @@ fn unavailable_surface(
 
 fn runtime_mut(participant: &mut EncounterParticipantView) -> &mut EncounterRuntimeView {
     participant
-        .surface
+        .record_view
         .encounter
         .as_mut()
         .expect("fixture participant should expose encounter runtime")

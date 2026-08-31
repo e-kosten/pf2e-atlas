@@ -53,6 +53,18 @@ const AUTHENTIC_EXPORT_MANIFEST_SHA256: &str =
     "06c8b5f9fad9bf09a928cf70e52a790eadecf54cf6d5ddda82f8bea09f1133b4";
 const AUTHENTIC_EXPORT_CHECKSUMS_SHA256: &str =
     "765090c569cf95ce7f945db6f3c7e8293967b8a691b9c210de81b9d4e76fe545";
+const RECORD_VIEW_RENAME_BASE: &str = "80962b4d43d2922e49728352c95a89427bc58a6e";
+const RECORD_VIEW_RENAME_BASE_TREE: &str = "4b1c494a04cc4ec975f6494f221b76859d481b06";
+const RECORD_VIEW_RENAME_SOURCE_MANIFEST_SHA256: &str =
+    "dd21992020cb508c1ca0786bb6a3900ae888fe0296819cfd83f1cc19614d0320";
+const RECORD_VIEW_RENAME_SOURCE_CHECKSUMS_SHA256: &str =
+    "0f96763d296210d9589a83b91b76cc4ef1614e91e3c9d007480f61572344d61d";
+const RECORD_VIEW_RENAME_APPROVAL_SHA256: &str =
+    "4d64932b40bfdeff356c6a49cb215c29da6e46cdd0695fe8ecabf9470afaf719";
+const RECORD_VIEW_RENAME_APPROVAL_SIDECAR_SHA256: &str =
+    "673a8ec5835910d71a4d9d46b727eef2a8dcbd86fcc983fe08ef4324d24b6bf5";
+const RECORD_VIEW_RENAME_REVIEW_SHA256: &str =
+    "b3c38ad29e8337ed9dd763ffd98b459912554e0e6b6fb8e04ae7c6eb9a88444d";
 
 #[test]
 #[ignore = "exports checksum-bound E3 final-candidate samples"]
@@ -228,7 +240,7 @@ fn export_e3_record_surface_final_samples() {
         .find(|participant| participant.record_key.as_deref() == Some(NIGHT_HAG_KEY))
         .expect("Night Hag participant should be present");
     let night_hag_vitals = night_hag_participant
-        .surface
+        .record_view
         .encounter
         .as_ref()
         .and_then(|runtime| runtime.vitals.as_ref())
@@ -268,7 +280,7 @@ fn export_e3_record_surface_final_samples() {
         .expect("encounter API detail should project");
     assert_eq!(api_encounter.participants.len(), 2);
     for participant in &api_encounter.participants {
-        assert_encounter_surface(&participant.surface);
+        assert_encounter_surface(&participant.record_view);
     }
     let adjusted_night_hag = api_encounter
         .participants
@@ -280,7 +292,7 @@ fn export_e3_record_surface_final_samples() {
         EncounterParticipantVariantView::Elite
     );
     let level = adjusted_night_hag
-        .surface
+        .record_view
         .encounter
         .as_ref()
         .and_then(|runtime| runtime.level.as_ref())
@@ -731,6 +743,299 @@ fn rebind_e3_record_surface_final_samples() {
     }
 }
 
+#[test]
+#[ignore = "deterministically rebinds authenticated E3 evidence for the record_view rename"]
+fn rebind_e3_record_view_final_samples() {
+    let source_root = required_path_env("E3_RENAME_SOURCE_ROOT");
+    assert_eq!(
+        file_sha256(&source_root.join("manifest.json")),
+        RECORD_VIEW_RENAME_SOURCE_MANIFEST_SHA256
+    );
+    assert_eq!(
+        file_sha256(&source_root.join("checksums.sha256")),
+        RECORD_VIEW_RENAME_SOURCE_CHECKSUMS_SHA256
+    );
+    verify_checksums(&source_root);
+
+    let sample_root = required_path_env("E3_SAMPLE_ROOT");
+    assert!(
+        !sample_root.exists(),
+        "sample root must be fresh and no-clobber: {}",
+        sample_root.display()
+    );
+    fs::create_dir_all(sample_root.parent().expect("sample root parent"))
+        .expect("sample parent should be creatable");
+    fs::create_dir(&sample_root).expect("sample root should be creatable");
+
+    let candidate = required_env("E3_SAMPLE_CANDIDATE");
+    let candidate_tree = required_env("E3_SAMPLE_TREE");
+    assert_eq!(git_value(Path::new("."), &["rev-parse", "HEAD"]), candidate);
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^{tree}"]),
+        candidate_tree
+    );
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^"]),
+        RECORD_VIEW_RENAME_BASE
+    );
+
+    let approval = required_path_env("E3_FINAL_DIRECTION_APPROVAL");
+    assert_bound_file(&approval, RECORD_VIEW_RENAME_APPROVAL_SHA256);
+    let approval_sidecar = PathBuf::from(format!("{}.sha256", approval.display()));
+    assert_bound_file(
+        &approval_sidecar,
+        RECORD_VIEW_RENAME_APPROVAL_SIDECAR_SHA256,
+    );
+    let review = required_path_env("E3_PRE_RENAME_REVIEW");
+    assert_bound_file(&review, RECORD_VIEW_RENAME_REVIEW_SHA256);
+
+    let transformed = BTreeSet::from([
+        PathBuf::from("api-encounter-detail.json"),
+        PathBuf::from("encounter-participant-adjusted.json"),
+        PathBuf::from("encounter-participant-normal.json"),
+    ]);
+    let skipped = BTreeSet::from([
+        PathBuf::from("manifest.json"),
+        PathBuf::from("checksums.sha256"),
+        PathBuf::from("WALKTHROUGH.md"),
+        PathBuf::from("presentation.md"),
+        PathBuf::from("report.md"),
+        PathBuf::from("reviewed-to-correction-delta-ledger.md"),
+        PathBuf::from("generated/EncounterParticipantView.ts"),
+    ]);
+    for relative in relative_files(&source_root) {
+        if skipped.contains(&relative) || transformed.contains(&relative) {
+            continue;
+        }
+        let destination = sample_root.join(&relative);
+        fs::create_dir_all(destination.parent().expect("copied file parent"))
+            .expect("copied file parent should be creatable");
+        fs::copy(source_root.join(&relative), &destination)
+            .unwrap_or_else(|error| panic!("{} should copy: {error}", relative.display()));
+    }
+
+    replace_exact_text(
+        &source_root.join("encounter-participant-normal.json"),
+        &sample_root.join("encounter-participant-normal.json"),
+        "\n  \"surface\": {",
+        "\n  \"record_view\": {",
+        1,
+    );
+    replace_exact_text(
+        &source_root.join("encounter-participant-adjusted.json"),
+        &sample_root.join("encounter-participant-adjusted.json"),
+        "\n  \"surface\": {",
+        "\n  \"record_view\": {",
+        1,
+    );
+    replace_exact_text(
+        &source_root.join("api-encounter-detail.json"),
+        &sample_root.join("api-encounter-detail.json"),
+        "\n      \"surface\": {",
+        "\n      \"record_view\": {",
+        2,
+    );
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("repository root should resolve");
+    let binding_relative = Path::new("generated/EncounterParticipantView.ts");
+    fs::create_dir_all(
+        sample_root
+            .join(binding_relative)
+            .parent()
+            .expect("binding parent"),
+    )
+    .expect("binding parent should be creatable");
+    fs::copy(
+        repo_root.join("crates/atlas-app-model/bindings/EncounterParticipantView.ts"),
+        sample_root.join(binding_relative),
+    )
+    .expect("current participant binding should copy");
+
+    for relative in [
+        "encounter-participant-normal.json",
+        "encounter-participant-adjusted.json",
+    ] {
+        let value: Value = serde_json::from_slice(
+            &fs::read(sample_root.join(relative)).expect("participant sample should read"),
+        )
+        .expect("participant sample should parse");
+        assert!(value.get("record_view").is_some());
+        assert!(value.get("surface").is_none());
+    }
+    let api_encounter: Value = serde_json::from_slice(
+        &fs::read(sample_root.join("api-encounter-detail.json"))
+            .expect("encounter API sample should read"),
+    )
+    .expect("encounter API sample should parse");
+    let participants = api_encounter["participants"]
+        .as_array()
+        .expect("encounter API should contain participants");
+    assert_eq!(participants.len(), 2);
+    assert!(
+        participants
+            .iter()
+            .all(|value| value.get("record_view").is_some())
+    );
+    assert!(
+        participants
+            .iter()
+            .all(|value| value.get("surface").is_none())
+    );
+    let concept_mock: Value = serde_json::from_slice(
+        &fs::read(sample_root.join("concept-mock.json")).expect("concept mock should read"),
+    )
+    .expect("concept mock should parse");
+    assert!(concept_mock.get("surface").is_some());
+    assert!(concept_mock.get("record_view").is_none());
+    let record_api: Value = serde_json::from_slice(
+        &fs::read(sample_root.join("api-record-detail.json"))
+            .expect("record API sample should read"),
+    )
+    .expect("record API sample should parse");
+    assert!(record_api.get("surface").is_some());
+    assert!(record_api.get("record_view").is_none());
+    let participant_binding = fs::read_to_string(sample_root.join(binding_relative))
+        .expect("participant binding should read");
+    assert!(participant_binding.contains("record_view: RecordSurfaceView"));
+    assert!(!participant_binding.contains("surface: RecordSurfaceView"));
+
+    fs::write(
+        sample_root.join("WALKTHROUGH.md"),
+        format!(
+            "# E3 final-direction record-view rename walkthrough\n\nThis is candidate-authentic evidence for `{candidate}` / tree `{candidate_tree}`, a direct child of `{RECORD_VIEW_RENAME_BASE}`. It awaits lightweight independent static rename review and is not E3 acceptance or final sample approval.\n\n## Start here\n\n1. `concept-mock.json` remains the labeled non-authentic concept mock under its approved sample-envelope key `surface`; that envelope is not `EncounterParticipantView`.\n2. `record-detail-night-hag.json` and `record-detail-sparse-creature.json` remain byte-identical authentic static surfaces for Night Hag and Giant Rat.\n3. `encounter-participant-adjusted.json` and `encounter-participant-normal.json` show the public participant field `record_view`; the superseded participant field `surface` is absent.\n4. `api-encounter-detail.json` shows the same rename in the exact transport envelope, while `api-record-detail.json` correctly retains the distinct `RecordDetailView.surface` contract.\n5. `generated/EncounterParticipantView.ts` is the refreshed binding. All other generated bindings are byte-identical to the reviewed source package.\n6. `reviewed-to-correction-delta-ledger.md` accounts for every prior and refreshed output.\n\nThe nested `RecordSurfaceView.presentation` and optional `RecordSurfaceView.encounter` values are unchanged. There is no alias, shim, dual field, fallback, mechanics change, or F1/F2 feature work.\n"
+        ),
+    )
+    .expect("walkthrough should write");
+    fs::write(
+        sample_root.join("presentation.md"),
+        "# Presentation index\n\n- Concept mock: `concept-mock.json`\n- Dense real record: `record-detail-night-hag.json`\n- Sparse real record: `record-detail-sparse-creature.json`\n- Context-adjusted participant: `encounter-participant-adjusted.json`\n- Normal participant: `encounter-participant-normal.json`\n- Exact API envelopes: `api-record-detail.json`, `api-encounter-detail.json`\n- Renamed generated contract: `generated/EncounterParticipantView.ts`\n- Complete prior-to-rename delta: `reviewed-to-correction-delta-ledger.md`\n\nOnly participant envelopes rename `surface` to `record_view`; record-detail and concept-mock envelopes retain their separately owned `surface` keys.\n",
+    )
+    .expect("presentation index should write");
+    fs::write(
+        sample_root.join("report.md"),
+        format!(
+            "# E3 final-direction record-view rename candidate report\n\nCandidate `{candidate}` / tree `{candidate_tree}` is a direct child of technically passed pre-rename candidate `{RECORD_VIEW_RENAME_BASE}` / tree `{RECORD_VIEW_RENAME_BASE_TREE}`. The only public-contract change is `EncounterParticipantView.surface` -> `EncounterParticipantView.record_view`. Nested presentation and optional encounter-runtime semantics are unchanged. `RecordDetailView.surface`, `RecordSummaryView.surface`, the concept-mock sample envelope `surface`, and runtime roll-surface fields are separate contracts and remain unchanged.\n\nThe package is bound to final-direction approval `{RECORD_VIEW_RENAME_APPROVAL_SHA256}` and pre-rename technical/evidence PASS `{RECORD_VIEW_RENAME_REVIEW_SHA256}`. Proportionate rename validation covers exact diff and residue, Rust/transport serialization, generated binding freshness, focused Rust/frontend tests, and clean status. No exporter, index build, source query, broad workspace validation, mechanics work, compatibility layer, F1/F2 feature work, push, merge, PR, or deploy occurred.\n\nThe mock plus exactly two authentic records retain source identity `{SOURCE_SIGNATURE}`. Substantive bytes are copied from the checksum-closed pre-rename package; only three participant-bearing JSON files receive the exact key substitution, the participant TypeScript binding is regenerated, and evidence documents are refreshed.\n"
+        ),
+    )
+    .expect("candidate report should write");
+
+    write_record_view_rename_delta_ledger(&sample_root, &source_root, &candidate, &candidate_tree);
+
+    let mut manifest: Value = serde_json::from_slice(
+        &fs::read(source_root.join("manifest.json")).expect("source manifest should read"),
+    )
+    .expect("source manifest should parse");
+    manifest["candidate"] = json!({
+        "commit": candidate,
+        "tree": candidate_tree,
+        "parent": RECORD_VIEW_RENAME_BASE
+    });
+    manifest["final_direction_correction_approval"] = json!({
+        "path": approval,
+        "sha256": RECORD_VIEW_RENAME_APPROVAL_SHA256,
+        "sidecar_file_sha256": RECORD_VIEW_RENAME_APPROVAL_SIDECAR_SHA256,
+        "mode": "0444"
+    });
+    manifest["pre_rename_technical_and_evidence_review"] = json!({
+        "path": review,
+        "sha256": RECORD_VIEW_RENAME_REVIEW_SHA256,
+        "mode": "0444",
+        "verdict": "PASS"
+    });
+    manifest["prior_candidate_evidence"] = json!({
+        "root": source_root,
+        "candidate": RECORD_VIEW_RENAME_BASE,
+        "tree": RECORD_VIEW_RENAME_BASE_TREE,
+        "manifest_sha256": RECORD_VIEW_RENAME_SOURCE_MANIFEST_SHA256,
+        "checksums_sha256": RECORD_VIEW_RENAME_SOURCE_CHECKSUMS_SHA256,
+        "checksum_closure": "pass"
+    });
+    manifest["public_contract_delta"] = json!({
+        "type": "EncounterParticipantView",
+        "removed_field": "surface",
+        "added_field": "record_view",
+        "nested_presentation_semantics_unchanged": true,
+        "optional_encounter_semantics_unchanged": true,
+        "compatibility_alias": false,
+        "shim": false,
+        "dual_field": false,
+        "mechanics_change": false
+    });
+    manifest["validation"] = json!({
+        "exact_diff_and_production_residue": "pass",
+        "affected_rust_serialization": "pass",
+        "affected_web_transport": "pass",
+        "generated_binding_freshness": "pass",
+        "focused_rust_compile_and_tests": "pass",
+        "focused_frontend_format_lint_styles_tests": "pass",
+        "frontend_typecheck": "unchanged adjudicated downstream boundary; no new rename diagnostics",
+        "broad_workspace_validation": "not rerun; proportionate rename scope",
+        "clean_status": "pass"
+    });
+    manifest["producer"] = json!({
+        "command": "cargo test -p atlas-app-service e3_sample_export::rebind_e3_record_view_final_samples -- --ignored --exact",
+        "test_path": "crates/atlas-app-service/src/e3_sample_export.rs",
+        "method": "authenticated deterministic copy plus exact participant-key substitution; no exporter hydration, index build, or source query",
+        "source_package": {
+            "root": source_root,
+            "candidate": RECORD_VIEW_RENAME_BASE,
+            "tree": RECORD_VIEW_RENAME_BASE_TREE,
+            "manifest_sha256": RECORD_VIEW_RENAME_SOURCE_MANIFEST_SHA256,
+            "checksums_sha256": RECORD_VIEW_RENAME_SOURCE_CHECKSUMS_SHA256,
+            "checksum_closure": "pass"
+        }
+    });
+    manifest["status"] =
+        json!("record_view_rename_candidate_awaiting_lightweight_static_review_not_accepted");
+    manifest
+        .as_object_mut()
+        .expect("manifest should be an object")
+        .remove("failed_review");
+    manifest
+        .as_object_mut()
+        .expect("manifest should be an object")
+        .remove("outputs");
+    let output_hashes = relative_files(&sample_root)
+        .into_iter()
+        .map(|relative| {
+            json!({
+                "path": relative.to_string_lossy(),
+                "sha256": file_sha256(&sample_root.join(&relative)),
+            })
+        })
+        .collect::<Vec<_>>();
+    manifest["outputs"] = Value::Array(output_hashes);
+    write_json(&sample_root.join("manifest.json"), &manifest);
+
+    let mut checksum_lines = relative_files(&sample_root)
+        .into_iter()
+        .map(|relative| {
+            format!(
+                "{}  {}",
+                file_sha256(&sample_root.join(&relative)),
+                relative.to_string_lossy()
+            )
+        })
+        .collect::<Vec<_>>();
+    checksum_lines.sort();
+    fs::write(
+        sample_root.join("checksums.sha256"),
+        format!("{}\n", checksum_lines.join("\n")),
+    )
+    .expect("checksums should write");
+    for relative in relative_files_including_checksums(&sample_root) {
+        let path = sample_root.join(relative);
+        let mut permissions = fs::metadata(&path)
+            .expect("sample metadata should read")
+            .permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(path, permissions).expect("sample file should seal read-only");
+    }
+}
+
 fn assert_compact_surface(surface: &RecordSurfaceView) {
     assert_eq!(surface.profile, RecordSurfaceProfileView::SearchCompact);
     assert!(surface.encounter.is_none());
@@ -872,6 +1177,97 @@ fn assert_no_empty_public_containers(value: &Value) {
         }
         _ => {}
     }
+}
+
+fn replace_exact_text(source: &Path, destination: &Path, from: &str, to: &str, count: usize) {
+    let input = fs::read_to_string(source)
+        .unwrap_or_else(|error| panic!("{} should read: {error}", source.display()));
+    assert_eq!(
+        input.match_indices(from).count(),
+        count,
+        "{} should contain exactly {count} target keys",
+        source.display()
+    );
+    assert_eq!(
+        input.match_indices(to).count(),
+        0,
+        "{} must not already contain the replacement key",
+        source.display()
+    );
+    let output = input.replace(from, to);
+    assert_eq!(output.match_indices(from).count(), 0);
+    assert_eq!(output.match_indices(to).count(), count);
+    fs::write(destination, output)
+        .unwrap_or_else(|error| panic!("{} should write: {error}", destination.display()));
+}
+
+fn write_record_view_rename_delta_ledger(
+    final_root: &Path,
+    source_root: &Path,
+    candidate: &str,
+    candidate_tree: &str,
+) {
+    let source_manifest: Value = serde_json::from_slice(
+        &fs::read(source_root.join("manifest.json")).expect("source manifest should read"),
+    )
+    .expect("source manifest should parse");
+    let source_outputs = source_manifest["outputs"]
+        .as_array()
+        .expect("source manifest outputs should be an array")
+        .iter()
+        .filter(|value| value["path"] != "reviewed-to-correction-delta-ledger.md")
+        .map(|value| {
+            (
+                value["path"]
+                    .as_str()
+                    .expect("source output path should be a string")
+                    .to_string(),
+                value["sha256"]
+                    .as_str()
+                    .expect("source output hash should be a string")
+                    .to_string(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let final_outputs = relative_files(final_root)
+        .into_iter()
+        .filter(|path| path != Path::new("reviewed-to-correction-delta-ledger.md"))
+        .map(|path| {
+            (
+                path.to_string_lossy().to_string(),
+                file_sha256(&final_root.join(path)),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let paths = source_outputs
+        .keys()
+        .chain(final_outputs.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let rows = paths
+        .into_iter()
+        .map(|path| {
+            let source = source_outputs.get(&path).map_or("—", String::as_str);
+            let final_hash = final_outputs.get(&path).map_or("—", String::as_str);
+            let delta = match (source_outputs.get(&path), final_outputs.get(&path)) {
+                (Some(left), Some(right)) if left == right => "byte-identical",
+                (Some(_), Some(_)) => "changed",
+                (None, Some(_)) => "added",
+                (Some(_), None) => "removed",
+                (None, None) => unreachable!("union path must occur in at least one output set"),
+            };
+            format!("| `{path}` | `{source}` | `{final_hash}` | {delta} |")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(
+        final_root.join("reviewed-to-correction-delta-ledger.md"),
+        format!(
+            "# E3 final-direction record-view rename delta ledger\n\n## Bound identities\n\n- Technically passed pre-rename package root: `{}`.\n- Pre-rename manifest/checksums SHA-256: `{RECORD_VIEW_RENAME_SOURCE_MANIFEST_SHA256}` / `{RECORD_VIEW_RENAME_SOURCE_CHECKSUMS_SHA256}`.\n- Pre-rename candidate/tree: `{RECORD_VIEW_RENAME_BASE}` / `{RECORD_VIEW_RENAME_BASE_TREE}`.\n- Pre-rename technical/evidence PASS SHA-256: `{RECORD_VIEW_RENAME_REVIEW_SHA256}`.\n- Final-direction approval/sidecar SHA-256: `{RECORD_VIEW_RENAME_APPROVAL_SHA256}` / `{RECORD_VIEW_RENAME_APPROVAL_SIDECAR_SHA256}`.\n- Rename candidate/tree: `{candidate}` / `{candidate_tree}`, direct child of `{RECORD_VIEW_RENAME_BASE}`.\n\n## Complete output delta\n\nThis table is the no-omission union of every source-package output and every rename-candidate output present before this ledger is written. `manifest.json`, `checksums.sha256`, and this recursively self-describing ledger are excluded only from the table; all three are bound by the fresh checksum closure.\n\n| Output | Pre-rename SHA-256 | Rename-candidate SHA-256 | Delta |\n|---|---|---|---|\n{rows}\n\n## Exact contract delta\n\n1. The required public `EncounterParticipantView.surface` field is directly replaced by `EncounterParticipantView.record_view` in Rust, API JSON, generated TypeScript, and existing consumers.\n2. The nested `RecordSurfaceView.presentation` and optional `RecordSurfaceView.encounter` bytes and semantics are unchanged.\n3. `RecordDetailView.surface`, `RecordSummaryView.surface`, the concept-mock envelope `surface`, and runtime roll-surface fields are distinct contracts and remain unchanged.\n4. Only `encounter-participant-normal.json`, `encounter-participant-adjusted.json`, and `api-encounter-detail.json` receive the exact participant-envelope key substitution. The two static real-record payloads, concept mock, record-detail API, all other JSON, and all generated bindings except `EncounterParticipantView.ts` remain byte-identical.\n5. There is no alias, shim, dual field, fallback, semantic or mechanics change, unrelated contract change, or F1/F2 feature work.\n6. No exporter hydration, artifact build, index query, or source query was run; this package uses authenticated deterministic copy plus exact key substitution.\n",
+            source_root.display()
+        ),
+    )
+    .expect("record-view rename delta ledger should write");
 }
 
 fn write_delta_ledger(
