@@ -15,9 +15,12 @@ export type { CreatureSurfaceActionCostView } from "../../../../crates/atlas-app
 export type { CreatureSurfaceActivityTypeView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceActivityTypeView";
 export type { CreatureSurfaceActivityView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceActivityView";
 export type { CreatureSurfaceAwarenessView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceAwarenessView";
-export type { CreatureSurfaceContentOwnerView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentOwnerView";
+export type { CreatureSurfaceContentBlockView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentBlockView";
+export type { CreatureSurfaceContentInlineView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentInlineView";
+export type { CreatureSurfaceContentListItemView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentListItemView";
 export type { CreatureSurfaceContentProvenanceView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentProvenanceView";
 export type { CreatureSurfaceContentRoleView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentRoleView";
+export type { CreatureSurfaceContentTableRowView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentTableRowView";
 export type { CreatureSurfaceContentView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceContentView";
 export type { CreatureSurfaceDamageView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceDamageView";
 export type { CreatureSurfaceDefensesView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceDefensesView";
@@ -97,6 +100,7 @@ export type { EncounterRuntimeSavesView } from "../../../../crates/atlas-app-mod
 export type { EncounterRuntimeSkillKindView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSkillKindView";
 export type { EncounterRuntimeSkillView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSkillView";
 export type { EncounterRuntimeSpellSlotView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSpellSlotView";
+export type { EncounterRuntimeSpellView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSpellView";
 export type { EncounterRuntimeSpellcastingView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeSpellcastingView";
 export type { EncounterRuntimeUsesView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeUsesView";
 export type { EncounterRuntimeView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeView";

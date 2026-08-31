@@ -353,10 +353,14 @@ fn spellcasting_entry<'a>(
     let index = entries.len();
     entries.push(EncounterRuntimeSpellcastingView {
         entry_id: entry_id.to_string(),
+        authored_order: 0,
         label: label.to_string(),
+        preparation: None,
+        tradition: None,
         attack: None,
         dc: None,
         slots: Vec::new(),
+        spells: Vec::new(),
     });
     &mut entries[index]
 }
@@ -439,6 +443,7 @@ pub(super) fn manual_encounter_runtime(participant: &EncounterParticipant) -> En
         movement: None,
         resources: Vec::new(),
         spellcasting: Vec::new(),
+        standalone_spells: Vec::new(),
         action_budget: Some(action_budget_view(participant)),
         activities: Vec::new(),
         conditions: participant
@@ -1477,6 +1482,7 @@ fn apply_participant_effects(
             .filter(|movement| !movement.speeds.is_empty()),
             resources,
             spellcasting,
+            standalone_spells: Vec::new(),
             action_budget: Some(action_budget_view(participant)),
             activities: mechanics
                 .activities
@@ -1842,6 +1848,7 @@ fn activity_view(
             .collect(),
         damage,
         modes,
+        content: None,
         provenance: fact_provenance(RuntimeFactSourceView::CanonicalRecord, None),
     }
 }

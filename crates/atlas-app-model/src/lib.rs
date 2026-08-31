@@ -86,6 +86,34 @@ mod tests {
             !encounter_runtime.contains("adjusted_level"),
             "generated encounter runtime must not retain the superseded outer field"
         );
+        assert!(encounter_runtime.contains("standalone_spells?: Array<EncounterRuntimeSpellView>"));
+        let runtime_activity = actual
+            .get("EncounterRuntimeActivityView.ts")
+            .expect("runtime activity binding should exist");
+        assert!(runtime_activity.contains("content?: Array<CreatureSurfaceContentView>"));
+        let runtime_spellcasting = actual
+            .get("EncounterRuntimeSpellcastingView.ts")
+            .expect("runtime spellcasting binding should exist");
+        for field in [
+            "authored_order: number",
+            "preparation?: string",
+            "tradition?: string",
+            "spells?: Array<EncounterRuntimeSpellView>",
+        ] {
+            assert!(runtime_spellcasting.contains(field), "missing `{field}`");
+        }
+        let runtime_spell = actual
+            .get("EncounterRuntimeSpellView.ts")
+            .expect("runtime spell binding should exist");
+        for field in [
+            "occurrence_id: string",
+            "authored_order: number",
+            "target_record_key?: string",
+            "content?: Array<CreatureSurfaceContentView>",
+            "activity?: EncounterRuntimeActivityView",
+        ] {
+            assert!(runtime_spell.contains(field), "missing `{field}`");
+        }
         let surface = actual
             .get("RecordSurfaceView.ts")
             .expect("RecordSurfaceView binding should exist");
@@ -125,6 +153,17 @@ mod tests {
             );
         }
         assert!(!creature.contains(&["sec", "tions"].concat()));
+        let activity = actual
+            .get("CreatureSurfaceActivityView.ts")
+            .expect("activity binding should exist");
+        assert!(activity.contains("content?: Array<CreatureSurfaceContentView>"));
+        let content = actual
+            .get("CreatureSurfaceContentView.ts")
+            .expect("content binding should exist");
+        assert!(content.contains("blocks: Array<CreatureSurfaceContentBlockView>"));
+        assert!(!content.contains("owner:"));
+        assert!(!content.contains("text:"));
+        assert!(!actual.contains_key(&["CreatureSurfaceContent", "OwnerView.ts"].concat()));
 
         let unavailable = actual
             .get("CreatureSurfaceUnavailableDomainsView.ts")
@@ -174,6 +213,7 @@ mod tests {
                     "skills?",
                     "resources?",
                     "spellcasting?",
+                    "standalone_spells?",
                     "activities?",
                     "conditions?",
                     "automation_limitations?",
@@ -293,6 +333,7 @@ mod tests {
                         action_cost: Some(CreatureSurfaceActionCostView::Actions { count: 1 }),
                         rolls: Vec::new(),
                         damage: Vec::new(),
+                        content: None,
                     }]),
                     content: Some(Vec::new()),
                     relationships: Some(Vec::new()),
@@ -367,6 +408,62 @@ mod tests {
     }
 
     #[test]
+    fn activity_content_serializes_as_typed_blocks_without_owner_or_flattened_text() {
+        let content = CreatureSurfaceContentView {
+            content_key: "item:plague:description".to_string(),
+            role: CreatureSurfaceContentRoleView::EmbeddedCapability,
+            authored_order: 4,
+            label: Some("Abyssal Plague".to_string()),
+            blocks: vec![
+                CreatureSurfaceContentBlockView::Paragraph {
+                    spans: vec![
+                        CreatureSurfaceContentInlineView::Strong {
+                            spans: vec![CreatureSurfaceContentInlineView::Text {
+                                text: "Saving Throw".to_string(),
+                            }],
+                        },
+                        CreatureSurfaceContentInlineView::Text {
+                            text: " Fortitude DC 28".to_string(),
+                        },
+                    ],
+                },
+                CreatureSurfaceContentBlockView::Divider,
+            ],
+            content_hash: "abc123".to_string(),
+            visibility: "public".to_string(),
+            provenance: CreatureSurfaceContentProvenanceView {
+                source_record_key: "bestiary:night-hag".to_string(),
+                relative_source_path: "items[plague].system.description.value".to_string(),
+                field_family: "embedded_item_description".to_string(),
+                nested_source_id: Some("plague".to_string()),
+            },
+        };
+        let activity = CreatureSurfaceActivityView {
+            occurrence_id: "occurrence:plague".to_string(),
+            authored_order: 4,
+            activity_type: CreatureSurfaceActivityTypeView::Action,
+            label: "Abyssal Plague".to_string(),
+            traits: Vec::new(),
+            action_cost: None,
+            rolls: Vec::new(),
+            damage: Vec::new(),
+            content: Some(vec![content]),
+        };
+
+        let serialized = serde_json::to_value(activity).expect("activity should serialize");
+        assert_eq!(
+            serialized["content"][0]["blocks"][1]["block_type"],
+            "divider"
+        );
+        assert_eq!(
+            serialized["content"][0]["blocks"][0]["spans"][0]["span_type"],
+            "strong"
+        );
+        assert!(serialized["content"][0].get("owner").is_none());
+        assert!(serialized["content"][0].get("text").is_none());
+    }
+
+    #[test]
     fn targeted_automation_limitation_remains_explicit_when_empty_runtime_arrays_are_omitted() {
         let runtime = EncounterRuntimeView {
             level: None,
@@ -379,6 +476,7 @@ mod tests {
             movement: None,
             resources: Vec::new(),
             spellcasting: Vec::new(),
+            standalone_spells: Vec::new(),
             activities: Vec::new(),
             action_budget: None,
             conditions: Vec::new(),
@@ -425,6 +523,7 @@ mod tests {
             movement: None,
             resources: Vec::new(),
             spellcasting: Vec::new(),
+            standalone_spells: Vec::new(),
             activities: Vec::new(),
             action_budget: None,
             conditions: Vec::new(),
@@ -503,6 +602,7 @@ mod tests {
                 movement: None,
                 resources: Vec::new(),
                 spellcasting: Vec::new(),
+                standalone_spells: Vec::new(),
                 activities: Vec::new(),
                 action_budget: None,
                 conditions: Vec::new(),
