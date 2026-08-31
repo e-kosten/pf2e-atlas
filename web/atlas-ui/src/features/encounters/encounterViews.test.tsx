@@ -511,7 +511,7 @@ describe("encounter views", () => {
   it("consumes temporary HP before current HP in the surfaced participant view", async () => {
     apiMocks.getEncounter.mockResolvedValue(
       encounterDetailFixture("participant_a", {
-        surface: recordSurfaceFixture(),
+        record_view: recordSurfaceFixture(),
       }),
     );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -824,7 +824,7 @@ function encounterDetailFixture(
         current_hp: 10n,
         temporary_hp: 5n,
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
-        surface: recordSurfaceFixture({
+        record_view: recordSurfaceFixture({
           actions: 2n,
           actionBase: 3n,
           actionAdjustment: -1n,
@@ -939,7 +939,7 @@ function encounterDetailFixture(
           activities: [],
           unapplied_effects: [],
         },
-        surface: recordSurfaceFixture({
+        record_view: recordSurfaceFixture({
           kind: "pc",
           kindLabel: "PC",
           levelLabel: undefined,

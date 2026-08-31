@@ -6021,7 +6021,7 @@ mod tests {
         write_sample_json!(
             &sample_root.join("encounter-runtime-night-hag-normal.json"),
             night_hag_normal
-                .surface
+                .record_view
                 .encounter
                 .as_ref()
                 .expect("record-backed participant should expose encounter runtime"),
@@ -6029,7 +6029,7 @@ mod tests {
         write_sample_json!(
             &sample_root.join("encounter-runtime-night-hag-elite.json"),
             night_hag_elite
-                .surface
+                .record_view
                 .encounter
                 .as_ref()
                 .expect("record-backed participant should expose encounter runtime"),
@@ -6037,7 +6037,7 @@ mod tests {
         write_sample_json!(
             &sample_root.join("encounter-runtime-night-hag-weak.json"),
             night_hag_weak
-                .surface
+                .record_view
                 .encounter
                 .as_ref()
                 .expect("record-backed participant should expose encounter runtime"),
@@ -6045,7 +6045,7 @@ mod tests {
         write_sample_json!(
             &sample_root.join("encounter-runtime-giant-rat-normal.json"),
             giant_rat
-                .surface
+                .record_view
                 .encounter
                 .as_ref()
                 .expect("record-backed participant should expose encounter runtime"),

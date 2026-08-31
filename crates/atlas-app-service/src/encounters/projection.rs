@@ -119,7 +119,7 @@ pub(super) fn participant_view(
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
-        surface,
+        record_view: surface,
     }
 }
 

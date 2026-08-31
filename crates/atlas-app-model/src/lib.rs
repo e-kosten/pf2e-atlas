@@ -93,6 +93,14 @@ mod tests {
         assert!(surface.contains("encounter?: EncounterRuntimeView"));
         assert!(!surface.contains(&["sec", "tions"].concat()));
         assert!(!surface.contains(&["section", "order"].join("_")));
+        let encounter_participant = actual
+            .get("EncounterParticipantView.ts")
+            .expect("EncounterParticipantView binding should exist");
+        assert!(encounter_participant.contains("record_view: RecordSurfaceView"));
+        assert!(
+            !encounter_participant.contains("surface: RecordSurfaceView"),
+            "generated participant binding must not retain the superseded public field"
+        );
 
         let creature = actual
             .get("CreatureSurfaceView.ts")
@@ -451,6 +459,90 @@ mod tests {
         ] {
             assert!(object.get(empty_collection).is_none());
         }
+    }
+
+    #[test]
+    fn encounter_participant_serializes_record_view_without_surface_alias() {
+        let record_view = RecordSurfaceView {
+            metadata: RecordSurfaceMetadataView {
+                record_key: Some("actors:test-creature".to_string()),
+                title: "Test Creature".to_string(),
+                kind: "creature".to_string(),
+                kind_label: "Creature".to_string(),
+                level: Some(5),
+                rarity: None,
+                traits: Vec::new(),
+                source: None,
+            },
+            profile: RecordSurfaceProfileView::EncounterParticipant,
+            presentation: RecordSurfacePresentationView::Unavailable {
+                unavailable: SurfaceUnavailableView {
+                    reason: SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
+                    requested_kind: "creature".to_string(),
+                    message: "Fixture presentation unavailable.".to_string(),
+                },
+            },
+            encounter: Some(EncounterRuntimeView {
+                level: Some(RuntimeNumberView {
+                    label: "Level".to_string(),
+                    base_value: 5,
+                    adjusted_value: 6,
+                    modifiers: Vec::new(),
+                    suppressed_modifiers: Vec::new(),
+                    provenance: RuntimeFactProvenanceView {
+                        source: RuntimeFactSourceView::CanonicalRecord,
+                        canonical_target: Some(RuntimeCanonicalTargetView::Level),
+                    },
+                }),
+                vitals: None,
+                defenses: None,
+                saves: None,
+                awareness: None,
+                abilities: None,
+                skills: Vec::new(),
+                movement: None,
+                resources: Vec::new(),
+                spellcasting: Vec::new(),
+                activities: Vec::new(),
+                action_budget: None,
+                conditions: Vec::new(),
+                automation_limitations: Vec::new(),
+            }),
+        };
+        let expected_record_view =
+            serde_json::to_value(&record_view).expect("record view should serialize");
+        let participant = EncounterParticipantView {
+            participant_key: "participant-1".to_string(),
+            record_key: Some("actors:test-creature".to_string()),
+            participant_kind: EncounterParticipantKindView::Creature,
+            participant_variant: EncounterParticipantVariantView::Normal,
+            status: EncounterParticipantStatusView::Active,
+            position: 1,
+            display_name: "Test Creature".to_string(),
+            side: EncounterParticipantSideView::Enemy,
+            initiative: Some(18),
+            initiative_order: 1,
+            defeated: false,
+            hidden: false,
+            note: None,
+            note_hint: None,
+            record_view,
+        };
+
+        let serialized = serde_json::to_value(participant).expect("participant should serialize");
+        let object = serialized
+            .as_object()
+            .expect("participant should serialize as an object");
+        assert_eq!(object.get("record_view"), Some(&expected_record_view));
+        assert!(object.get("surface").is_none());
+        assert_eq!(
+            serialized["record_view"]["presentation"]["presentation_type"],
+            "unavailable"
+        );
+        assert_eq!(
+            serialized["record_view"]["encounter"]["level"]["adjusted_value"],
+            6
+        );
     }
 
     fn surface_fact_provenance() -> CreatureSurfaceFactProvenanceView {

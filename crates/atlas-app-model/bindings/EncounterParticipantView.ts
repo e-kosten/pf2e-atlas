@@ -5,4 +5,4 @@ import type { EncounterParticipantStatusView } from "./EncounterParticipantStatu
 import type { EncounterParticipantVariantView } from "./EncounterParticipantVariantView";
 import type { RecordSurfaceView } from "./RecordSurfaceView";
 
-export type EncounterParticipantView = { participant_key: string, record_key?: string, participant_kind: EncounterParticipantKindView, participant_variant: EncounterParticipantVariantView, status: EncounterParticipantStatusView, position: bigint, display_name: string, side: EncounterParticipantSideView, initiative?: bigint, initiative_order: bigint, defeated: boolean, hidden: boolean, note?: string, note_hint: string | null, surface: RecordSurfaceView, };
+export type EncounterParticipantView = { participant_key: string, record_key?: string, participant_kind: EncounterParticipantKindView, participant_variant: EncounterParticipantVariantView, status: EncounterParticipantStatusView, position: bigint, display_name: string, side: EncounterParticipantSideView, initiative?: bigint, initiative_order: bigint, defeated: boolean, hidden: boolean, note?: string, note_hint: string | null, record_view: RecordSurfaceView, };
