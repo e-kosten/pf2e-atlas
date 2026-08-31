@@ -17,9 +17,9 @@ use serde_json::{Value, json};
 use crate::service::{AtlasAppService, RetrievalBackend};
 use crate::surface::record_surface;
 
-const BASE: &str = "9c22379e0703eca09d58f702ad826c8b7f4521d1";
+const BASE: &str = "0a3b318a94686360ef34c7c11e42454506213d0d";
 const TECHNICAL_REVIEW_SHA256: &str =
-    "2b5415d5264ae23ae05f34ca2e285c91e4ac59793a0274f16eb12b08de6dd542";
+    "881aa1cee78f7c1f6c6bb53dc5e0f3f7d174502e07dab1b40a8fcdb6d7cc9642";
 const APPROVAL_SHA256: &str = "0ca28ff6906d04cd993030b5d22b060cb91516c56661e0593eaffc2371de2de6";
 const CLI_APPROVAL_SHA256: &str =
     "5dfef04af82b341ce42d8b928af81c45b61152005ba38cbf6f56b02cdabe4ece";
@@ -36,9 +36,9 @@ const PLANNING_REVIEW_JSON_SHA256: &str =
 const PLANNING_REVIEW_CHECKSUMS_SHA256: &str =
     "a303010e277623b638f338b949ab9f9ab263bb34d6d61c6c95039500370d8e7b";
 const REVIEWED_MANIFEST_SHA256: &str =
-    "5b00bad680609a8abf33dfb3e76deb845dbe1928c7d8b3060e7e9e8bf2eb413c";
+    "06c8b5f9fad9bf09a928cf70e52a790eadecf54cf6d5ddda82f8bea09f1133b4";
 const REVIEWED_CHECKSUMS_SHA256: &str =
-    "61ee3da40daff620db3f7979834a237d39728e8374db63112c4608ff70b99105";
+    "765090c569cf95ce7f945db6f3c7e8293967b8a691b9c210de81b9d4e76fe545";
 const NIGHT_HAG_KEY: &str = "pathfinder-bestiary:WQy7HBUcgDLsfVJd";
 const GIANT_RAT_KEY: &str = "pathfinder-monster-core:iIJPJcDT8wlJ8z5M";
 const NIGHT_HAG_SOURCE_SHA256: &str =
@@ -47,12 +47,12 @@ const GIANT_RAT_SOURCE_SHA256: &str =
     "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f";
 const SOURCE_SIGNATURE: &str =
     "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a";
-const AUTHENTIC_EXPORT_CANDIDATE: &str = "deddeebdcce46f2c8b6bfc1f232431aeae0b2d62";
-const AUTHENTIC_EXPORT_TREE: &str = "48b1ff1140e99fae1e4f651a205763830fd8b0ca";
+const AUTHENTIC_EXPORT_CANDIDATE: &str = "0a3b318a94686360ef34c7c11e42454506213d0d";
+const AUTHENTIC_EXPORT_TREE: &str = "10ec526c943ef988b427b40b80540895fe9d26b9";
 const AUTHENTIC_EXPORT_MANIFEST_SHA256: &str =
-    "769c1acff81839252f1f89685c12ae97a052372653d045d0b162e03c2bb8e3fc";
+    "06c8b5f9fad9bf09a928cf70e52a790eadecf54cf6d5ddda82f8bea09f1133b4";
 const AUTHENTIC_EXPORT_CHECKSUMS_SHA256: &str =
-    "1325ca0d9d9a5cbddb7bc0b09487a916bb6493673bf9beec749e5b9247c0b729";
+    "765090c569cf95ce7f945db6f3c7e8293967b8a691b9c210de81b9d4e76fe545";
 
 #[test]
 #[ignore = "exports checksum-bound E3 final-candidate samples"]
@@ -394,19 +394,19 @@ fn export_e3_record_surface_final_samples() {
     fs::write(
         sample_root.join("WALKTHROUGH.md"),
         format!(
-            "# E3 F-001 correction walkthrough\n\nThis package is **candidate evidence awaiting independent exact-commit rereview** for correction `{candidate}` (`{candidate_tree}`), not E3 acceptance or final user approval. It is bound to failed technical review `{TECHNICAL_REVIEW_SHA256}`, reviewed candidate `{BASE}`, conditioned early-direction approval `{APPROVAL_SHA256}`, and the passed CLI ownership amendment `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`.\n\n## Start here\n\n1. `concept-mock.json` is clearly labeled mock/non-authentic and exposes its illustrative record under `surface`. `surface-unavailable-non-creature.json` separately demonstrates whole-record typed unavailability.\n2. `search-compact-night-hag.json` and `record-detail-night-hag.json` show the dense authentic PF2e record.\n3. `search-compact-sparse-creature.json` and `record-detail-sparse-creature.json` show the sparse authentic PF2e record (Giant Rat).\n4. `encounter-participant-normal.json` and `encounter-participant-adjusted.json` show the exact accepted runtime bag attached without duplicating canonical mechanics.\n5. `api-record-detail.json` and `api-encounter-detail.json` are exact app-service response DTO serializations. Only genuinely known-empty arrays are omitted. Selected static domains with missing, null, unsupported, ambiguous, failed, or unsafe canonical data expose named typed `unavailable_domains` causes; unsafe ordinary values are not presented as valid.\n6. `generated/` contains the exact candidate TypeScript contracts relevant to these JSON responses, including the typed domain-failure contract.\n7. `reviewed-to-correction-delta-ledger.md` accounts for every reviewed-9c and correction payload output while excluding only recursively self-describing manifest/checksum/ledger metadata.\n\nThe semantic shape has no generic section/value registry, compatibility alias, string-key semantic lookup, empty arrays, or empty objects. Failure messages are display-only; consumers use typed state, field, domain, component identity, and provenance. The CLI consumer remains output-identical.\n"
+            "# E3 cumulative-cause correction walkthrough\n\nThis package is **candidate evidence awaiting independent exact-commit rereview** for correction `{candidate}` (`{candidate_tree}`), not E3 acceptance or final user approval. It is bound to failed exact-commit rereview `{TECHNICAL_REVIEW_SHA256}`, reviewed candidate `{BASE}`, conditioned early-direction approval `{APPROVAL_SHA256}`, and the passed CLI ownership amendment `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`.\n\n## Start here\n\n1. `concept-mock.json` is clearly labeled mock/non-authentic and exposes its illustrative record under `surface`. `surface-unavailable-non-creature.json` separately demonstrates whole-record typed unavailability.\n2. `search-compact-night-hag.json` and `record-detail-night-hag.json` show the dense authentic PF2e record.\n3. `search-compact-sparse-creature.json` and `record-detail-sparse-creature.json` show the sparse authentic PF2e record (Giant Rat).\n4. `encounter-participant-normal.json` and `encounter-participant-adjusted.json` show the exact accepted runtime bag attached without duplicating canonical mechanics.\n5. `api-record-detail.json` and `api-encounter-detail.json` are exact app-service response DTO serializations. Only genuinely known-empty arrays are omitted. Selected static domains with missing, null, unsupported, ambiguous, failed, or unsafe canonical data expose all independent named typed `unavailable_domains` causes; unsafe ordinary values are not presented as valid.\n6. `generated/` contains the exact candidate TypeScript contracts relevant to these JSON responses, including the typed domain-failure contract.\n7. `reviewed-to-correction-delta-ledger.md` accounts for every reviewed-0a3b and cumulative-cause correction payload output while excluding only recursively self-describing manifest/checksum/ledger metadata.\n\nThe semantic shape has no generic section/value registry, compatibility alias, string-key semantic lookup, empty arrays, or empty objects. Failure messages are display-only; consumers use typed state, field, domain, component identity, and provenance. The CLI consumer remains output-identical.\n"
         ),
     )
     .expect("walkthrough should write");
     fs::write(
         sample_root.join("presentation.md"),
-        "# Presentation index\n\n- Concept direction: `concept-mock.json`\n- Dense real record: `record-detail-night-hag.json`\n- Sparse real record: `record-detail-sparse-creature.json`\n- Context adjustment: `encounter-participant-adjusted.json`\n- Exact API envelopes: `api-record-detail.json`, `api-encounter-detail.json`\n- Generated contract: `generated/RecordSurfaceView.ts` and typed unavailable-domain bindings\n- Complete 9c-to-correction payload delta: `reviewed-to-correction-delta-ledger.md`\n\nAll concept material is mock/non-authorizing; only Night Hag and Giant Rat are authentic Foundry records. This is rereview evidence, not E3 acceptance or final user approval.\n",
+        "# Presentation index\n\n- Concept direction: `concept-mock.json`\n- Dense real record: `record-detail-night-hag.json`\n- Sparse real record: `record-detail-sparse-creature.json`\n- Context adjustment: `encounter-participant-adjusted.json`\n- Exact API envelopes: `api-record-detail.json`, `api-encounter-detail.json`\n- Generated contract: `generated/RecordSurfaceView.ts` and typed unavailable-domain bindings\n- Complete 0a3b-to-cumulative-cause payload delta: `reviewed-to-correction-delta-ledger.md`\n\nAll concept material is mock/non-authorizing; only Night Hag and Giant Rat are authentic Foundry records. This is rereview evidence, not E3 acceptance or final user approval.\n",
     )
     .expect("presentation index should write");
     fs::write(
         sample_root.join("report.md"),
         format!(
-            "# E3 F-001 correction candidate report\n\nCandidate `{candidate}` / tree `{candidate_tree}` is a direct child of failed reviewed candidate `{BASE}`. It changes only F-001: selected static creature domains now distinguish genuinely known-empty arrays from missing, null, unsupported, ambiguous, failed, or unsafe canonical projection through named typed `unavailable_domains` causes. Unsafe ordinary values remain absent, but typed state, affected field, optional component identity, and canonical-field provenance remain public; cause messages are display-only. This is not a runtime automation limitation or a generic failure bag. No mechanics, generic registry, shim, fallback, alias, string-key semantic lookup, or CLI behavior changed.\n\nFocused model/app-service/web tests, generated-binding freshness, full `just verify`, residue/path checks, and the documented downstream frontend boundary check were run before this package. A fresh independent exact-commit rereview, final user sample approval, E3 acceptance, F1, and F2 remain pending.\n\nThe package contains one explicitly non-authentic concept mock plus exactly two authentic PF2e records: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`). Source identity is `{SOURCE_SIGNATURE}` at commit `{source_commit}` / tree `{source_tree}`. The complete 9c-to-correction payload delta is in `reviewed-to-correction-delta-ledger.md`.\n"
+            "# E3 cumulative-cause correction candidate report\n\nCandidate `{candidate}` / tree `{candidate_tree}` is a direct child of failed reviewed candidate `{BASE}`. It changes only remaining F-001: movement collects speed and mode failures independently before suppressing an unsafe component, and awareness collects language payload/failure independently of perception. Complete typed cause tuples remain deterministic under reversed input order. Known-empty omission, wire shape, mechanics, CLI behavior, and frontend source are unchanged. No generic registry, shim, fallback, alias, or string-key semantic lookup was added.\n\nFocused model/app-service/web tests, generated-binding freshness, full `just verify`, residue/path checks, and the documented downstream frontend boundary check were run before this package. A fresh independent exact-commit rereview, final user sample approval, E3 acceptance, F1, and F2 remain pending.\n\nThe package contains one explicitly non-authentic concept mock plus exactly two authentic PF2e records: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`). Source identity is `{SOURCE_SIGNATURE}` at commit `{source_commit}` / tree `{source_tree}`. The complete 0a3b-to-cumulative-cause delta is in `reviewed-to-correction-delta-ledger.md`.\n"
         ),
     )
     .expect("candidate report should write");
@@ -585,6 +585,7 @@ fn rebind_e3_record_surface_final_samples() {
         PathBuf::from("manifest.json"),
         PathBuf::from("checksums.sha256"),
         PathBuf::from("WALKTHROUGH.md"),
+        PathBuf::from("presentation.md"),
         PathBuf::from("report.md"),
         PathBuf::from("reviewed-to-correction-delta-ledger.md"),
         PathBuf::from("generated/CreatureSurfaceUnavailableCauseView.ts"),
@@ -618,15 +619,22 @@ fn rebind_e3_record_surface_final_samples() {
     )
     .expect("current generated failure binding should copy");
 
-    for relative in ["WALKTHROUGH.md", "report.md"] {
+    for relative in ["WALKTHROUGH.md", "presentation.md", "report.md"] {
         let rebound = fs::read_to_string(source_root.join(relative))
             .expect("authenticated narrative should read")
             .replace(AUTHENTIC_EXPORT_CANDIDATE, &candidate)
-            .replace(AUTHENTIC_EXPORT_TREE, &candidate_tree);
+            .replace(AUTHENTIC_EXPORT_TREE, &candidate_tree)
+            .replace(
+                "2b5415d5264ae23ae05f34ca2e285c91e4ac59793a0274f16eb12b08de6dd542",
+                TECHNICAL_REVIEW_SHA256,
+            )
+            .replace("9c22379e0703eca09d58f702ad826c8b7f4521d1", BASE)
+            .replace("reviewed-9c", "reviewed-0a3b")
+            .replace("9c-to-correction", "0a3b-to-cumulative-cause-correction");
         fs::write(
             sample_root.join(relative),
             format!(
-                "{rebound}\n\n## Deterministic rebind provenance\n\nThe authentic JSON payloads were copied byte-for-byte from candidate `{AUTHENTIC_EXPORT_CANDIDATE}` / tree `{AUTHENTIC_EXPORT_TREE}` after its single retained-artifact export. The new direct-child candidate changes only this generated TypeScript comment layout and evidence machinery; the current generated binding replaced its predecessor. No artifact build, source query, hydration, or payload fabrication occurred during rebinding.\n"
+                "{rebound}\n\n## Deterministic rebind provenance\n\nThe mock and authentic JSON payloads were copied byte-for-byte from reviewed candidate `{AUTHENTIC_EXPORT_CANDIDATE}` / tree `{AUTHENTIC_EXPORT_TREE}`. Its checksum-bound provenance chain reaches the single retained-artifact export. The new direct-child candidate changes only sibling failure-cause collection, exact mutation assertions, and evidence machinery. Night Hag and Giant Rat have available perception and supported movement modes/speeds, so their ordinary payload bytes are unaffected by this correction. No artifact build, source query, hydration, or payload fabrication occurred during rebinding.\n"
             ),
         )
         .expect("rebound narrative should write");
@@ -644,15 +652,34 @@ fn rebind_e3_record_surface_final_samples() {
     verify_checksums(&reviewed_root);
     write_delta_ledger(&sample_root, &reviewed_root, &candidate, &candidate_tree);
 
+    let technical_review = required_path_env("E3_TECHNICAL_REVIEW");
+    assert_bound_file(&technical_review, TECHNICAL_REVIEW_SHA256);
+
     let mut manifest: Value = serde_json::from_slice(
         &fs::read(source_root.join("manifest.json")).expect("authentic manifest should read"),
     )
     .expect("authentic manifest should parse");
     manifest["candidate"] = json!({ "commit": candidate, "tree": candidate_tree, "parent": BASE });
+    manifest["failed_review"] = json!({
+        "path": technical_review,
+        "sha256": TECHNICAL_REVIEW_SHA256,
+        "mode": "0444",
+        "finding": "F-001 cumulative sibling causes"
+    });
+    manifest
+        .as_object_mut()
+        .expect("manifest should be an object")
+        .remove("reviewed_9c_evidence");
+    manifest["reviewed_prior_evidence"] = json!({
+        "root": reviewed_root,
+        "manifest_sha256": REVIEWED_MANIFEST_SHA256,
+        "checksums_sha256": REVIEWED_CHECKSUMS_SHA256,
+        "checksum_closure": "pass"
+    });
     manifest["producer"] = json!({
         "command": "cargo test -p atlas-app-service e3_sample_export::rebind_e3_record_surface_final_samples -- --ignored --exact",
         "test_path": "crates/atlas-app-service/src/e3_sample_export.rs",
-        "method": "verified deterministic copy and generated-binding replacement; no artifact/source query",
+        "method": "verified deterministic copy/rebind; ordinary payload bytes unaffected; no artifact/source query",
         "authentic_export_source": {
             "root": source_root,
             "candidate": AUTHENTIC_EXPORT_CANDIDATE,
@@ -906,7 +933,7 @@ fn write_delta_ledger(
     fs::write(
         final_root.join("reviewed-to-correction-delta-ledger.md"),
         format!(
-            "# E3 9c-to-F-001-correction delta ledger\n\n## Bound identities\n\n- Failed reviewed package root: `{}`.\n- Reviewed manifest/checksums SHA-256: `{REVIEWED_MANIFEST_SHA256}` / `{REVIEWED_CHECKSUMS_SHA256}`.\n- Failed technical review SHA-256: `{TECHNICAL_REVIEW_SHA256}`.\n- Correction candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `{BASE}`.\n- Conditioned early-direction approval SHA-256: `{APPROVAL_SHA256}`.\n- CLI ownership amendment plan/task-map SHA-256: `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`; independent planning review verdict SHA-256 `{PLANNING_REVIEW_VERDICT_SHA256}`.\n\n## Complete payload output ledger\n\nThis table is the no-omission union of every reviewed-9c payload output and every correction payload output present before this ledger is written. `manifest.json`, `checksums.sha256`, and this recursively self-describing ledger are excluded only from the table; all three are hash-bound by the correction checksum closure.\n\n| Output | Reviewed 9c SHA-256 | F-001 correction SHA-256 | Delta |\n|---|---|---|---|\n{rows}\n\n## Contract delta\n\n1. Genuinely known-empty true-many collections remain omitted and populated collections remain ordered arrays.\n2. Selected static creature domains now expose named typed `unavailable_domains` causes for missing, null, unsupported, ambiguous, failed, or unsafe canonical roots and required nested values. Unsafe ordinary values remain absent, but cannot masquerade as known-empty omission.\n3. Each cause exposes typed state, affected field, optional component identity, and canonical-field provenance. Its message is display-only and never behavior-parsed; raw source paths and generic keys are absent.\n4. Whole-record unavailable presentations and encounter runtime automation limitations retain their separate meanings. CLI output and mechanics are unchanged.\n5. No generic registry, compatibility alias, shim, dual model, fallback, section ordering, or string-key semantic lookup was introduced.\n",
+            "# E3 0a3b-to-cumulative-cause correction delta ledger\n\n## Bound identities\n\n- Failed reviewed package root: `{}`.\n- Reviewed manifest/checksums SHA-256: `{REVIEWED_MANIFEST_SHA256}` / `{REVIEWED_CHECKSUMS_SHA256}`.\n- Failed exact-commit rereview SHA-256: `{TECHNICAL_REVIEW_SHA256}`.\n- Cumulative-cause correction candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `{BASE}`.\n- Conditioned early-direction approval SHA-256: `{APPROVAL_SHA256}`.\n- CLI ownership amendment plan/task-map SHA-256: `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`; independent planning review verdict SHA-256 `{PLANNING_REVIEW_VERDICT_SHA256}`.\n\n## Complete payload output ledger\n\nThis table is the no-omission union of every reviewed-0a3b payload output and every cumulative-cause correction payload output present before this ledger is written. `manifest.json`, `checksums.sha256`, and this recursively self-describing ledger are excluded only from the table; all three are hash-bound by the correction checksum closure.\n\n| Output | Reviewed 0a3b SHA-256 | Cumulative-cause correction SHA-256 | Delta |\n|---|---|---|---|\n{rows}\n\n## Contract delta\n\n1. Movement now inspects speed independently of mode, retaining simultaneous typed `movement_speed` Missing/Null and `movement_mode` Unsupported causes before suppressing an unsafe component.\n2. Awareness now inspects languages independently of perception, preserving populated language payloads and independent Missing/Null causes when perception is unavailable.\n3. Complete typed cause tuples include state, affected field, optional component identity, canonical owner, and canonical source-field provenance; their deterministic order is proven across reversed input order.\n4. Genuinely known-empty omission, ordinary payload shape, whole-record unavailability, runtime automation limitations, CLI output, and mechanics are unchanged.\n5. No generic registry, compatibility alias, shim, dual model, fallback, section ordering, or string-key semantic lookup was introduced.\n",
             reviewed_root.display()
         ),
     )
