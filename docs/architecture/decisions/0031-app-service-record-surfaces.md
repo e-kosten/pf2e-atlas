@@ -16,7 +16,7 @@ The frontend needs a final app-facing presentation contract that is already comp
 
 ## Decision
 
-`atlas-app-service` owns final app presentation composition through `RecordSurfaceView`-style DTOs exported by `atlas-app-model`.
+`atlas-app-service` owns final app presentation composition through generated DTOs exported by `atlas-app-model`. Encounter composition first lands as one `EncounterRuntimeView`: common participant metadata plus named optional runtime domains and typed repeated collections. The former `StatBlockView.values[]` and generic record-section bridge are removed directly.
 
 `atlas-record` continues to own normalized source facts, rich content, presentation-neutral mechanics/activity projections, and reference policy. `atlas-app-service` composes those facts with app context:
 
@@ -28,15 +28,15 @@ The frontend needs a final app-facing presentation contract that is already comp
 
 `RecordPresentationDocument` remains transitional evidence during the creature migration, not a permanent second creature record. After the source-faithful surface passes the independent automated and Checkpoint E human visual gates, G1 removes the creature fallback and duplicate sparse mechanics path. Non-creature kinds remain behind explicit kind boundaries until their separately approved family cutovers.
 
-The final profile vocabulary is `search_compact`, `record_detail`, and `encounter_participant`. Canonical entities own intrinsic facts, occurrences own context/order/overrides, runtime instances own mutable local state, and profiles own only selection, order, density, disclosure, and interaction slots.
+The final profile vocabulary remains `search_compact`, `record_detail`, and `encounter_participant`, but profile shape is not a generic section/value registry. Canonical entities own intrinsic facts, occurrences own context/order/overrides, runtime instances own mutable local state, and profiles own only selection, order, density, disclosure, and interaction slots. Zero-or-one semantic areas use named optional typed fields; arrays are reserved for genuinely repeated entities.
 
 Atlas currently has no authentication boundary, but pinned-base app surfaces inherit default-visible/public-only retrieval and are not GM-complete. Checkpoint A's target app surfaces do not suppress useful authored information solely because of typed visibility or absent authorization. Visibility/role/provenance remain typed metadata and make no current privacy/security claim; target exclusions require non-auth product rationale and audit evidence.
 
 ## Consequences
 
-Creature presentation can use the same section/value vocabulary across search, record detail, and encounter participant views while each profile controls density, ordering, and collapsed state.
+Creature presentation can share the same canonical facts across search, record detail, and encounter participant views while each profile controls density, ordering, and disclosure through its typed contract.
 
-Search rows use compact surfaces without encounter mutation controls or variant selectors. Future table-compatible search views should use stable surface fact keys and filter/discovery fields rather than scraping displayed text.
+Search rows use compact typed surfaces without encounter mutation controls or variant selectors. Future table-compatible search views should use named contract fields and filter/discovery fields rather than scraping displayed text.
 
 Encounter participant views attach runtime controls to semantic sections such as vitals and conditions. Adjusted values render final values inline, with modifier explanations available through tooltip or popover details.
 

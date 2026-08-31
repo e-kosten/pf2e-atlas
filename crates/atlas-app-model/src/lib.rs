@@ -1,33 +1,28 @@
 #![deny(unsafe_code)]
 
 mod encounter;
+mod encounter_runtime;
 mod error;
 mod filter;
 mod list;
 mod readiness;
 mod record;
 mod result_window;
-mod surface;
 
 pub use encounter::{
-    ActionBudgetView, ActivityRollSurfaceView, ActivityRollView,
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DamageEffectKindView,
-    DamageExpressionView, DeleteEncounterView, EncounterConditionApplicabilityView,
-    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
-    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
+    AddEncounterRecordParticipantRequest, CreateEncounterRequest, DeleteEncounterView,
+    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
+    EncounterConditionCatalogView, EncounterConditionCategoryView,
+    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
     EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView, MechanicActivityModeView,
-    MechanicActivityUsageView, MechanicActivityView, MovementSpeedView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeEffectNoteView, SetEncounterTurnRequest, StatBlockView, StatModifierTypeView,
-    StatModifierView, StatValueView, UnappliedEffectView,
+    EncounterSummaryView, EncounterUpdateView, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
+pub use encounter_runtime::*;
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     BasicSearchFilter, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterClause,
@@ -55,12 +50,6 @@ pub use result_window::{
     OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
     SearchPageRequest, SearchPageView,
-};
-pub use surface::{
-    RecordSurfaceHeaderView, RecordSurfaceProfileView, RecordSurfaceSectionKindView,
-    RecordSurfaceSectionView, RecordSurfaceView, SurfaceActivityView, SurfaceAdjustmentView,
-    SurfaceBadgeView, SurfaceNoteView, SurfaceScalarView, SurfaceValueDisplayView,
-    SurfaceValueGroupView, SurfaceValueView,
 };
 
 #[cfg(test)]
@@ -100,10 +89,8 @@ mod tests {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
         AppError::export_all_to(path).expect("AppError bindings should export");
         AppReadinessView::export_all_to(path).expect("AppReadinessView bindings should export");
-        ActionBudgetView::export_all_to(path).expect("ActionBudgetView bindings should export");
-        ActivityRollSurfaceView::export_all_to(path)
-            .expect("ActivityRollSurfaceView bindings should export");
-        ActivityRollView::export_all_to(path).expect("ActivityRollView bindings should export");
+        EncounterRuntimeView::export_all_to(path)
+            .expect("EncounterRuntimeView bindings should export");
         BasicSearchFilter::export_all_to(path).expect("BasicSearchFilter bindings should export");
         DiscoverFilterEditorRequest::export_all_to(path)
             .expect("DiscoverFilterEditorRequest bindings should export");
@@ -125,10 +112,6 @@ mod tests {
             .expect("AddEncounterRecordParticipantRequest bindings should export");
         CreateEncounterRequest::export_all_to(path)
             .expect("CreateEncounterRequest bindings should export");
-        DamageEffectKindView::export_all_to(path)
-            .expect("DamageEffectKindView bindings should export");
-        DamageExpressionView::export_all_to(path)
-            .expect("DamageExpressionView bindings should export");
         DeleteEncounterView::export_all_to(path)
             .expect("DeleteEncounterView bindings should export");
         EncounterCreateView::export_all_to(path)
@@ -146,37 +129,10 @@ mod tests {
         EncounterDetailView::export_all_to(path)
             .expect("EncounterDetailView bindings should export");
         EncounterIndexView::export_all_to(path).expect("EncounterIndexView bindings should export");
-        EncounterParticipantConditionView::export_all_to(path)
-            .expect("EncounterParticipantConditionView bindings should export");
         EncounterParticipantVariantView::export_all_to(path)
             .expect("EncounterParticipantVariantView bindings should export");
         EncounterUpdateView::export_all_to(path)
             .expect("EncounterUpdateView bindings should export");
-        MechanicActivityKindView::export_all_to(path)
-            .expect("MechanicActivityKindView bindings should export");
-        MechanicActivityUsageView::export_all_to(path)
-            .expect("MechanicActivityUsageView bindings should export");
-        MechanicActivityModeView::export_all_to(path)
-            .expect("MechanicActivityModeView bindings should export");
-        MechanicActivityView::export_all_to(path)
-            .expect("MechanicActivityView bindings should export");
-        MovementSpeedView::export_all_to(path).expect("MovementSpeedView bindings should export");
-        RuntimeAdjustmentView::export_all_to(path)
-            .expect("RuntimeAdjustmentView bindings should export");
-        RuntimeCapabilityView::export_all_to(path)
-            .expect("RuntimeCapabilityView bindings should export");
-        RuntimeCountSegmentView::export_all_to(path)
-            .expect("RuntimeCountSegmentView bindings should export");
-        RuntimeCountView::export_all_to(path).expect("RuntimeCountView bindings should export");
-        RuntimeEffectNoteView::export_all_to(path)
-            .expect("RuntimeEffectNoteView bindings should export");
-        StatBlockView::export_all_to(path).expect("StatBlockView bindings should export");
-        StatModifierView::export_all_to(path).expect("StatModifierView bindings should export");
-        StatModifierTypeView::export_all_to(path)
-            .expect("StatModifierTypeView bindings should export");
-        StatValueView::export_all_to(path).expect("StatValueView bindings should export");
-        UnappliedEffectView::export_all_to(path)
-            .expect("UnappliedEffectView bindings should export");
         ReorderEncounterParticipantRequest::export_all_to(path)
             .expect("ReorderEncounterParticipantRequest bindings should export");
         SetEncounterTurnRequest::export_all_to(path)
@@ -192,31 +148,10 @@ mod tests {
         ReadResultWindowPageRequest::export_all_to(path)
             .expect("ReadResultWindowPageRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
-        RecordSurfaceHeaderView::export_all_to(path)
-            .expect("RecordSurfaceHeaderView bindings should export");
-        RecordSurfaceProfileView::export_all_to(path)
-            .expect("RecordSurfaceProfileView bindings should export");
-        RecordSurfaceSectionKindView::export_all_to(path)
-            .expect("RecordSurfaceSectionKindView bindings should export");
-        RecordSurfaceSectionView::export_all_to(path)
-            .expect("RecordSurfaceSectionView bindings should export");
-        RecordSurfaceView::export_all_to(path).expect("RecordSurfaceView bindings should export");
         RecordResolutionAmbiguousView::export_all_to(path)
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
         ResultWindowPage::export_all_to(path).expect("ResultWindowPage bindings should export");
-        SurfaceActivityView::export_all_to(path)
-            .expect("SurfaceActivityView bindings should export");
-        SurfaceAdjustmentView::export_all_to(path)
-            .expect("SurfaceAdjustmentView bindings should export");
-        SurfaceBadgeView::export_all_to(path).expect("SurfaceBadgeView bindings should export");
-        SurfaceNoteView::export_all_to(path).expect("SurfaceNoteView bindings should export");
-        SurfaceScalarView::export_all_to(path).expect("SurfaceScalarView bindings should export");
-        SurfaceValueDisplayView::export_all_to(path)
-            .expect("SurfaceValueDisplayView bindings should export");
-        SurfaceValueGroupView::export_all_to(path)
-            .expect("SurfaceValueGroupView bindings should export");
-        SurfaceValueView::export_all_to(path).expect("SurfaceValueView bindings should export");
         AddSavedListItemRequest::export_all_to(path)
             .expect("AddSavedListItemRequest bindings should export");
         BatchAddSavedListItemsRequest::export_all_to(path)

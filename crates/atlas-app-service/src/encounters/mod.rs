@@ -6,5 +6,3 @@ mod projection;
 mod tests;
 mod turns;
 mod workflow;
-
-pub(crate) use mechanics::record_stat_block;

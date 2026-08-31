@@ -1,14 +1,25 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_app_model::{
-    ActionBudgetView, ActivityRollSurfaceView, ActivityRollView, DamageEffectKindView,
-    DamageExpressionView, EncounterParticipantVariantView, MechanicActivityKindView,
-    MechanicActivityModeView, MechanicActivityUsageView, MechanicActivityView, MovementSpeedView,
-    RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeEffectNoteView, StatBlockView, StatModifierTypeView, StatModifierView, StatValueView,
-    UnappliedEffectView,
+    EncounterParticipantVariantView, EncounterRuntimeAbilitiesView,
+    EncounterRuntimeActionBudgetView, EncounterRuntimeActionCostKindView,
+    EncounterRuntimeActionCostView, EncounterRuntimeActivityKindView,
+    EncounterRuntimeActivityModeView, EncounterRuntimeActivityUsageView,
+    EncounterRuntimeActivityView, EncounterRuntimeAwarenessView, EncounterRuntimeConditionView,
+    EncounterRuntimeDefensesView, EncounterRuntimeFrequencyView, EncounterRuntimeMovementView,
+    EncounterRuntimeResourceView, EncounterRuntimeSavesView, EncounterRuntimeSkillKindView,
+    EncounterRuntimeSkillView, EncounterRuntimeSpellSlotView, EncounterRuntimeSpellcastingView,
+    EncounterRuntimeUnappliedFactView, EncounterRuntimeUsesView, EncounterRuntimeView,
+    EncounterRuntimeVitalsView, RuntimeAbilityKindView, RuntimeAdjustmentView,
+    RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
+    RuntimeDamageEffectKindView, RuntimeDistanceView, RuntimeEffectNoteView,
+    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeFormulaView, RuntimeModifierView,
+    RuntimeNumberView, RuntimeRollSurfaceView, RuntimeRollView, RuntimeRuleView,
+    RuntimeSaveKindView, StatModifierTypeView,
 };
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
+#[cfg(test)]
+use atlas_record::build_mechanics_view;
 use atlas_record::{
     AbilityKind, ActivityRoll, ActivityRollAbility, ActivityRollSurface, CanonicalMechanicActivity,
     CanonicalMechanicsProjection, CreatureActionCost, CreatureDamage, CreatureDamageKind,
@@ -18,8 +29,7 @@ use atlas_record::{
     MechanicActivityUsage, MechanicBaseValue, MechanicFact, MechanicScalar, MechanicSurface,
     MechanicTarget, MechanicValue, MechanicsView, MovementSpeed, RecordBody, RetrievedRecord,
     SaveKind, UnsupportedMechanic, UnsupportedMechanicValue, UnsupportedSourceReason,
-    UnsupportedSourceShape, UnsupportedSourceValue, build_mechanics_view,
-    project_creature_mechanics,
+    UnsupportedSourceShape, UnsupportedSourceValue, project_creature_mechanics,
 };
 
 use super::conditions::{ConditionRule, condition_rule_for_key};
@@ -28,7 +38,7 @@ use super::projection::participant_variant_view;
 #[derive(Debug, Clone)]
 struct CandidateModifier {
     target: MechanicTarget,
-    source: String,
+    provenance: RuntimeFactProvenanceView,
     label: String,
     modifier_type: StatModifierTypeView,
     value: i64,
@@ -36,7 +46,7 @@ struct CandidateModifier {
 
 #[derive(Debug, Clone)]
 struct RollModifier {
-    source: String,
+    provenance: RuntimeFactProvenanceView,
     label: String,
     modifier_type: StatModifierTypeView,
     value: i64,
@@ -44,6 +54,7 @@ struct RollModifier {
 
 #[derive(Debug, Clone)]
 struct RuntimeAdjustment {
+    provenance: RuntimeFactProvenanceView,
     source: String,
     label: String,
     value: i64,
@@ -53,15 +64,256 @@ struct RuntimeAdjustment {
 
 #[derive(Debug, Clone)]
 struct RuntimeNote {
-    source: String,
+    provenance: RuntimeFactProvenanceView,
     label: String,
     reason: String,
 }
 
-pub(super) fn participant_stat_block(
+fn fact_provenance(
+    source: RuntimeFactSourceView,
+    canonical_target: Option<RuntimeCanonicalTargetView>,
+) -> RuntimeFactProvenanceView {
+    RuntimeFactProvenanceView {
+        source,
+        canonical_target,
+    }
+}
+
+fn canonical_provenance(
+    target: &MechanicTarget,
+    override_target: Option<RuntimeCanonicalTargetView>,
+) -> RuntimeFactProvenanceView {
+    fact_provenance(
+        RuntimeFactSourceView::CanonicalRecord,
+        override_target.or_else(|| canonical_target_view(target)),
+    )
+}
+
+fn participant_state_provenance() -> RuntimeFactProvenanceView {
+    fact_provenance(RuntimeFactSourceView::ParticipantState, None)
+}
+
+fn variant_provenance(variant: ParticipantVariant) -> RuntimeFactProvenanceView {
+    fact_provenance(
+        RuntimeFactSourceView::ParticipantVariant {
+            variant: participant_variant_view(variant),
+        },
+        None,
+    )
+}
+
+fn condition_provenance(condition: &EncounterParticipantCondition) -> RuntimeFactProvenanceView {
+    fact_provenance(
+        RuntimeFactSourceView::Condition {
+            condition_id: condition.condition_id,
+            condition_ref: condition
+                .condition_key
+                .clone()
+                .unwrap_or_else(|| condition.name.clone()),
+            label: condition_source(condition),
+        },
+        None,
+    )
+}
+
+fn runtime_rule_provenance(rule: RuntimeRuleView) -> RuntimeFactProvenanceView {
+    fact_provenance(RuntimeFactSourceView::RuntimeRule { rule }, None)
+}
+
+fn canonical_target_view(target: &MechanicTarget) -> Option<RuntimeCanonicalTargetView> {
+    Some(match target {
+        MechanicTarget::ArmorClass => RuntimeCanonicalTargetView::ArmorClass,
+        MechanicTarget::MaxHp => RuntimeCanonicalTargetView::MaximumHp,
+        MechanicTarget::Perception => RuntimeCanonicalTargetView::Perception,
+        MechanicTarget::Save { save } => RuntimeCanonicalTargetView::Save {
+            save: match save {
+                SaveKind::Fortitude => RuntimeSaveKindView::Fortitude,
+                SaveKind::Reflex => RuntimeSaveKindView::Reflex,
+                SaveKind::Will => RuntimeSaveKindView::Will,
+            },
+        },
+        MechanicTarget::AbilityModifier { ability } => {
+            RuntimeCanonicalTargetView::AbilityModifier {
+                ability: match ability {
+                    AbilityKind::Strength => RuntimeAbilityKindView::Strength,
+                    AbilityKind::Dexterity => RuntimeAbilityKindView::Dexterity,
+                    AbilityKind::Constitution => RuntimeAbilityKindView::Constitution,
+                    AbilityKind::Intelligence => RuntimeAbilityKindView::Intelligence,
+                    AbilityKind::Wisdom => RuntimeAbilityKindView::Wisdom,
+                    AbilityKind::Charisma => RuntimeAbilityKindView::Charisma,
+                },
+            }
+        }
+        MechanicTarget::Skill { slug } => RuntimeCanonicalTargetView::Skill {
+            skill_id: slug.clone(),
+        },
+        MechanicTarget::CreatureSkill { skill_id, .. } => RuntimeCanonicalTargetView::Skill {
+            skill_id: skill_id.as_str().to_string(),
+        },
+        MechanicTarget::Movement { speed_id } => RuntimeCanonicalTargetView::Movement {
+            speed_id: speed_id.as_str().to_string(),
+        },
+        MechanicTarget::ResourceMaximum { resource_id } => {
+            RuntimeCanonicalTargetView::ResourceMaximum {
+                resource_id: resource_id.as_str().to_string(),
+            }
+        }
+        MechanicTarget::ActivityActionCost { occurrence_id } => {
+            RuntimeCanonicalTargetView::ActivityActionCost {
+                activity_id: occurrence_id.as_str().to_string(),
+            }
+        }
+        MechanicTarget::ActivityFrequency { occurrence_id } => {
+            RuntimeCanonicalTargetView::ActivityFrequency {
+                activity_id: occurrence_id.as_str().to_string(),
+            }
+        }
+        MechanicTarget::ActivityUses { occurrence_id } => {
+            RuntimeCanonicalTargetView::ActivityUses {
+                activity_id: occurrence_id.as_str().to_string(),
+            }
+        }
+        MechanicTarget::ActivityRoll {
+            occurrence_id,
+            roll_id,
+        } => RuntimeCanonicalTargetView::ActivityRoll {
+            activity_id: occurrence_id.as_str().to_string(),
+            roll_id: roll_id.clone(),
+        },
+        MechanicTarget::ActivityDamage {
+            occurrence_id,
+            damage_id,
+        } => RuntimeCanonicalTargetView::ActivityDamage {
+            activity_id: occurrence_id.as_str().to_string(),
+            damage_id: damage_id.clone(),
+        },
+        MechanicTarget::SpellcastingAttack {
+            entry_occurrence_id,
+        } => RuntimeCanonicalTargetView::SpellcastingAttack {
+            entry_id: entry_occurrence_id.as_str().to_string(),
+        },
+        MechanicTarget::SpellcastingDc {
+            entry_occurrence_id,
+        } => RuntimeCanonicalTargetView::SpellcastingDc {
+            entry_id: entry_occurrence_id.as_str().to_string(),
+        },
+        MechanicTarget::SpellSlotMaximum {
+            entry_occurrence_id,
+            rank,
+        } => RuntimeCanonicalTargetView::SpellSlotMaximum {
+            entry_id: entry_occurrence_id.as_str().to_string(),
+            rank: *rank,
+        },
+        MechanicTarget::ActorRitualDc => RuntimeCanonicalTargetView::RitualDc,
+    })
+}
+
+fn participant_number(label: &str, value: i64) -> RuntimeNumberView {
+    RuntimeNumberView {
+        label: label.to_string(),
+        base_value: value,
+        adjusted_value: value,
+        modifiers: Vec::new(),
+        suppressed_modifiers: Vec::new(),
+        provenance: participant_state_provenance(),
+    }
+}
+
+fn runtime_condition_view(
+    condition: &EncounterParticipantCondition,
+) -> EncounterRuntimeConditionView {
+    EncounterRuntimeConditionView {
+        condition_id: condition.condition_id,
+        condition_key: condition.condition_key.clone(),
+        name: condition.name.clone(),
+        value: condition.value,
+        source_participant_key: condition.source_participant_key.clone(),
+        duration_rounds: condition.duration_rounds,
+        note: condition.note.clone(),
+        created_at: condition.created_at.clone(),
+        updated_at: condition.updated_at.clone(),
+        provenance: condition_provenance(condition),
+    }
+}
+
+fn set_named_fact(
+    slot: &mut Option<RuntimeNumberView>,
+    fact: RuntimeNumberView,
+    unapplied: &mut Vec<EncounterRuntimeUnappliedFactView>,
+) {
+    if slot.is_some() {
+        unapplied.push(EncounterRuntimeUnappliedFactView {
+            provenance: runtime_rule_provenance(RuntimeRuleView::UnsupportedFact),
+            label: format!("Duplicate {} fact", fact.label),
+            reason: "A zero-or-one runtime field received more than one canonical fact; the duplicate was rejected.".to_string(),
+            canonical_target: fact.provenance.canonical_target.clone(),
+        });
+    } else {
+        *slot = Some(fact);
+    }
+}
+
+fn spellcasting_entry<'a>(
+    entries: &'a mut Vec<EncounterRuntimeSpellcastingView>,
+    entry_id: &str,
+    label: &str,
+) -> &'a mut EncounterRuntimeSpellcastingView {
+    if let Some(index) = entries.iter().position(|entry| entry.entry_id == entry_id) {
+        return &mut entries[index];
+    }
+    let index = entries.len();
+    entries.push(EncounterRuntimeSpellcastingView {
+        entry_id: entry_id.to_string(),
+        label: label.to_string(),
+        attack: None,
+        dc: None,
+        slots: Vec::new(),
+    });
+    &mut entries[index]
+}
+
+fn runtime_roll_from_number(
+    fact: RuntimeNumberView,
+    surface: RuntimeRollSurfaceView,
+) -> RuntimeRollView {
+    RuntimeRollView {
+        roll_id: fact.label.clone(),
+        label: fact.label,
+        base_value: fact.base_value,
+        adjusted_value: fact.adjusted_value,
+        surface,
+        modifiers: fact.modifiers,
+        suppressed_modifiers: fact.suppressed_modifiers,
+        provenance: fact.provenance,
+    }
+}
+
+fn runtime_count_from_number(fact: RuntimeNumberView) -> RuntimeCountView {
+    RuntimeCountView {
+        label: fact.label,
+        base_value: fact.base_value,
+        adjusted_value: fact.adjusted_value,
+        segments: Vec::new(),
+        adjustments: Vec::new(),
+        suppressed_adjustments: Vec::new(),
+        provenance: fact.provenance,
+    }
+}
+
+fn unrouted_fact(fact: RuntimeNumberView) -> EncounterRuntimeUnappliedFactView {
+    EncounterRuntimeUnappliedFactView {
+        provenance: runtime_rule_provenance(RuntimeRuleView::UnsupportedFact),
+        label: format!("{} was not routed", fact.label),
+        reason: "The typed encounter runtime has no supported destination for this canonical fact."
+            .to_string(),
+        canonical_target: fact.provenance.canonical_target,
+    }
+}
+
+pub(super) fn participant_encounter_runtime(
     participant: &EncounterParticipant,
     retrieved: &RetrievedRecord,
-) -> Option<StatBlockView> {
+) -> Option<EncounterRuntimeView> {
     let Some(RecordBody::Creature(creature)) = retrieved.body.as_ref() else {
         return None;
     };
@@ -72,128 +324,56 @@ pub(super) fn participant_stat_block(
     Some(apply_participant_effects(
         participant,
         mechanics.view,
-        mechanics.unapplied_effects,
+        mechanics.unapplied_facts,
         mechanics.variant_damage_blocked_activity_ids,
+        mechanics.activity_runtime,
     ))
 }
 
-pub(crate) fn record_stat_block(record: &atlas_record::AtlasRecord) -> Option<StatBlockView> {
-    let mechanics = build_mechanics_view(record)?;
-    Some(base_mechanics_block(mechanics))
-}
-
-pub(super) fn participant_runtime_block(participant: &EncounterParticipant) -> StatBlockView {
-    StatBlockView {
-        record_key: participant.participant_key.clone(),
-        title: participant.display_name.clone(),
-        level: None,
+pub(super) fn manual_encounter_runtime(participant: &EncounterParticipant) -> EncounterRuntimeView {
+    EncounterRuntimeView {
         adjusted_level: None,
-        values: Vec::new(),
-        speeds: Vec::new(),
+        vitals: Some(EncounterRuntimeVitalsView {
+            maximum_hp: participant
+                .max_hp
+                .map(|value| participant_number("Maximum HP", value)),
+            current_hp: participant.current_hp,
+            temporary_hp: participant.temporary_hp,
+        }),
+        defenses: None,
+        saves: None,
+        awareness: None,
+        abilities: None,
+        skills: Vec::new(),
+        movement: None,
+        resources: Vec::new(),
+        spellcasting: Vec::new(),
         action_budget: Some(action_budget_view(participant)),
         activities: Vec::new(),
-        unapplied_effects: participant_runtime_notes(participant)
+        conditions: participant
+            .conditions
+            .iter()
+            .map(runtime_condition_view)
+            .collect(),
+        unapplied_facts: participant_runtime_notes(participant)
             .into_iter()
             .map(unapplied_runtime_note_view)
             .collect(),
     }
 }
 
-fn base_mechanics_block(mechanics: MechanicsView) -> StatBlockView {
-    StatBlockView {
-        record_key: mechanics.record_key.to_string(),
-        title: mechanics.title,
-        level: mechanics.level,
-        adjusted_level: mechanics.level,
-        values: mechanics
-            .values
-            .into_iter()
-            .map(|value| stat_value_view(value, Vec::new()))
-            .collect(),
-        speeds: mechanics.speeds.into_iter().map(base_speed_view).collect(),
-        action_budget: None,
-        activities: mechanics
-            .activities
-            .into_iter()
-            .map(base_activity_view)
-            .collect(),
-        unapplied_effects: Vec::new(),
-    }
-}
-
-fn base_speed_view(speed: MovementSpeed) -> MovementSpeedView {
-    MovementSpeedView {
-        movement_type: speed.movement_type,
-        label: speed.label,
-        base_value_feet: speed.value_feet,
-        adjusted_value_feet: speed.value_feet,
-        adjustments: Vec::new(),
-        suppressed_adjustments: Vec::new(),
-        notes: Vec::new(),
-    }
-}
-
-fn base_activity_view(activity: MechanicActivity) -> MechanicActivityView {
-    let kind = activity.kind;
-    let usage = activity.usage;
-    MechanicActivityView {
-        activity_id: activity.activity_id,
-        label: activity.label,
-        kind: activity_kind_view(kind),
-        usage: activity_usage_view(usage),
-        rolls: activity
-            .rolls
-            .into_iter()
-            .map(base_activity_roll_view)
-            .collect(),
-        damage: activity.damage.into_iter().map(base_damage_view).collect(),
-        modes: activity
-            .modes
-            .into_iter()
-            .map(base_activity_mode_view)
-            .collect(),
-    }
-}
-
-fn base_activity_mode_view(mode: MechanicActivityMode) -> MechanicActivityModeView {
-    MechanicActivityModeView {
-        mode_id: mode.mode_id,
-        label: mode.label,
-        target: mode.target,
-        range: mode.range,
-        time: mode.time,
-        damage: mode.damage.into_iter().map(base_damage_view).collect(),
-    }
-}
-
-fn base_activity_roll_view(roll: ActivityRoll) -> ActivityRollView {
-    ActivityRollView {
-        roll_id: roll.roll_id,
-        label: roll.label,
-        base_value: roll.base_value,
-        adjusted_value: roll.base_value,
-        surface: activity_roll_surface_view(roll.surface),
-        modifiers: Vec::new(),
-        suppressed_modifiers: Vec::new(),
-    }
-}
-
-fn base_damage_view(damage: DamageExpression) -> DamageExpressionView {
-    DamageExpressionView {
-        damage_id: damage.damage_id,
-        label: damage.label,
-        formula: damage.formula,
-        adjusted_formula: None,
-        damage_type: damage.damage_type,
-        effect_kind: damage_effect_kind_view(damage.effect_kind),
-        modifiers: Vec::new(),
-    }
-}
-
 struct ParticipantMechanics {
     view: MechanicsView,
-    unapplied_effects: Vec<UnappliedEffectView>,
+    unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
     variant_damage_blocked_activity_ids: BTreeSet<String>,
+    activity_runtime: BTreeMap<String, RuntimeActivityMetadata>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct RuntimeActivityMetadata {
+    action_cost: Option<EncounterRuntimeActionCostView>,
+    frequency: Option<EncounterRuntimeFrequencyView>,
+    uses: Option<EncounterRuntimeUsesView>,
 }
 
 fn canonical_participant_mechanics(
@@ -226,15 +406,16 @@ fn canonical_participant_mechanics(
             }
         }
     }
-    let mut unapplied_effects = projection
+    let mut unapplied_facts = projection
         .unsupported
         .into_iter()
         .map(canonical_unsupported_effect)
         .collect::<Vec<_>>();
     let mut activities = Vec::new();
     let mut variant_damage_blocked_activity_ids = BTreeSet::new();
+    let mut activity_runtime = BTreeMap::new();
     for activity in projection.activities {
-        unapplied_effects.extend(
+        unapplied_facts.extend(
             activity
                 .unsupported
                 .iter()
@@ -245,8 +426,12 @@ fn canonical_participant_mechanics(
         if disposition.variant_damage_blocked {
             variant_damage_blocked_activity_ids.insert(disposition.activity.activity_id.clone());
         }
+        activity_runtime.insert(
+            disposition.activity.activity_id.clone(),
+            disposition.runtime_metadata,
+        );
         values.extend(disposition.values);
-        unapplied_effects.extend(disposition.unapplied_effects);
+        unapplied_facts.extend(disposition.unapplied_facts);
         activities.push(disposition.activity);
     }
 
@@ -260,16 +445,18 @@ fn canonical_participant_mechanics(
             speeds,
             activities,
         },
-        unapplied_effects,
+        unapplied_facts,
         variant_damage_blocked_activity_ids,
+        activity_runtime,
     }
 }
 
 struct CanonicalActivityDisposition {
     activity: MechanicActivity,
     values: Vec<MechanicValue>,
-    unapplied_effects: Vec<UnappliedEffectView>,
+    unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
     variant_damage_blocked: bool,
+    runtime_metadata: RuntimeActivityMetadata,
 }
 
 fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityDisposition {
@@ -300,11 +487,13 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityD
         .iter()
         .filter_map(canonical_activity_value)
         .collect();
-    let unapplied_effects = activity
+    let mut unapplied_facts = activity
         .facts
         .iter()
         .filter_map(canonical_activity_unapplied_effect)
-        .collect();
+        .collect::<Vec<_>>();
+    let (runtime_metadata, metadata_unapplied) = canonical_activity_runtime_metadata(&activity);
+    unapplied_facts.extend(metadata_unapplied);
     CanonicalActivityDisposition {
         activity: MechanicActivity {
             activity_id: activity.occurrence_id.as_str().to_string(),
@@ -318,9 +507,116 @@ fn canonical_activity(activity: CanonicalMechanicActivity) -> CanonicalActivityD
             modes: Vec::new(),
         },
         values,
-        unapplied_effects,
+        unapplied_facts,
         variant_damage_blocked,
+        runtime_metadata,
     }
+}
+
+fn canonical_activity_runtime_metadata(
+    activity: &CanonicalMechanicActivity,
+) -> (
+    RuntimeActivityMetadata,
+    Vec<EncounterRuntimeUnappliedFactView>,
+) {
+    let mut metadata = RuntimeActivityMetadata::default();
+    let mut unapplied = Vec::new();
+    let action_cost_count = activity
+        .facts
+        .iter()
+        .filter(|fact| matches!(fact.target, MechanicTarget::ActivityActionCost { .. }))
+        .count();
+    let frequency_count = activity
+        .facts
+        .iter()
+        .filter(|fact| matches!(fact.target, MechanicTarget::ActivityFrequency { .. }))
+        .count();
+    let uses_count = activity
+        .facts
+        .iter()
+        .filter(|fact| matches!(fact.target, MechanicTarget::ActivityUses { .. }))
+        .count();
+    for fact in &activity.facts {
+        match (&fact.target, &fact.value) {
+            (MechanicTarget::ActivityActionCost { .. }, MechanicBaseValue::ActionCost(value))
+                if action_cost_count == 1 =>
+            {
+                metadata.action_cost = runtime_action_cost(value, &fact.target);
+            }
+            (
+                MechanicTarget::ActivityFrequency { .. },
+                MechanicBaseValue::Frequency(FactValue::Value(value)),
+            ) if frequency_count == 1 => {
+                metadata.frequency = Some(EncounterRuntimeFrequencyView {
+                    maximum: value.maximum.as_value().copied(),
+                    period: value.period.as_value().cloned(),
+                    serialized_value: value.serialized_value.as_value().copied(),
+                    provenance: canonical_provenance(&fact.target, None),
+                });
+            }
+            (
+                MechanicTarget::ActivityUses { .. },
+                MechanicBaseValue::Uses(FactValue::Value(value)),
+            ) if uses_count == 1 => {
+                metadata.uses = Some(EncounterRuntimeUsesView {
+                    maximum: value.maximum.as_value().copied(),
+                    serialized_value: value.serialized_value.as_value().copied(),
+                    provenance: canonical_provenance(&fact.target, None),
+                });
+            }
+            (MechanicTarget::ActivityActionCost { .. }, _) if action_cost_count > 1 => {
+                unapplied.push(duplicate_activity_metadata_fact(fact, action_cost_count));
+            }
+            (MechanicTarget::ActivityFrequency { .. }, _) if frequency_count > 1 => {
+                unapplied.push(duplicate_activity_metadata_fact(fact, frequency_count));
+            }
+            (MechanicTarget::ActivityUses { .. }, _) if uses_count > 1 => {
+                unapplied.push(duplicate_activity_metadata_fact(fact, uses_count));
+            }
+            _ => {}
+        }
+    }
+    (metadata, unapplied)
+}
+
+fn duplicate_activity_metadata_fact(
+    fact: &MechanicFact,
+    count: usize,
+) -> EncounterRuntimeUnappliedFactView {
+    EncounterRuntimeUnappliedFactView {
+        provenance: canonical_provenance(&fact.target, None),
+        label: format!(
+            "{} retained without exact encounter field",
+            fact.target.id()
+        ),
+        reason: format!(
+            "{}: {count} canonical facts target the same zero-or-one encounter activity field; all were left unapplied",
+            fact.label
+        ),
+        canonical_target: canonical_target_view(&fact.target),
+    }
+}
+
+fn runtime_action_cost(
+    value: &CreatureActionCost,
+    target: &MechanicTarget,
+) -> Option<EncounterRuntimeActionCostView> {
+    let value = match value {
+        CreatureActionCost::Passive => EncounterRuntimeActionCostKindView::Passive,
+        CreatureActionCost::Reaction => EncounterRuntimeActionCostKindView::Reaction,
+        CreatureActionCost::FreeAction => EncounterRuntimeActionCostKindView::FreeAction,
+        CreatureActionCost::Actions(count) => EncounterRuntimeActionCostKindView::Actions {
+            count: i64::from(*count),
+        },
+        CreatureActionCost::Time(value) => EncounterRuntimeActionCostKindView::Time {
+            value: value.clone(),
+        },
+        CreatureActionCost::Unsupported(_) => return None,
+    };
+    Some(EncounterRuntimeActionCostView {
+        value,
+        provenance: canonical_provenance(target, None),
+    })
 }
 
 fn canonical_variant_damage_blocked(activity: &CanonicalMechanicActivity) -> bool {
@@ -355,42 +651,33 @@ fn canonical_activity_roll(fact: &MechanicFact) -> Option<ActivityRoll> {
                 ability: fact_activity_ability(&roll.ability),
             })
         }
-        (MechanicTarget::SpellcastingAttack { .. }, _) => Some(ActivityRoll {
-            roll_id: fact.target.id(),
-            label: fact.label.clone(),
-            base_value: mechanic_integer(&fact.value)?,
-            surface: ActivityRollSurface::AttackRoll,
-            ability: None,
-        }),
-        (MechanicTarget::SpellcastingDc { .. }, _) => Some(ActivityRoll {
-            roll_id: fact.target.id(),
-            label: fact.label.clone(),
-            base_value: mechanic_integer(&fact.value)?,
-            surface: ActivityRollSurface::Dc,
-            ability: None,
-        }),
         _ => None,
     }
 }
 
 fn canonical_activity_value(fact: &MechanicFact) -> Option<MechanicValue> {
-    let MechanicTarget::SpellSlotMaximum { .. } = &fact.target else {
-        return None;
-    };
-    let MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(value))) =
-        &fact.value
-    else {
-        return None;
+    let value = match (&fact.target, &fact.value) {
+        (
+            MechanicTarget::SpellcastingAttack { .. } | MechanicTarget::SpellcastingDc { .. },
+            value,
+        ) => mechanic_integer(value)?,
+        (
+            MechanicTarget::SpellSlotMaximum { .. },
+            MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(value))),
+        ) => *value,
+        _ => return None,
     };
     Some(MechanicValue {
         target: fact.target.clone(),
         label: fact.label.clone(),
-        base_value: MechanicScalar::Number(*value),
+        base_value: MechanicScalar::Number(value),
         facets: fact.facets.clone(),
     })
 }
 
-fn canonical_activity_unapplied_effect(fact: &MechanicFact) -> Option<UnappliedEffectView> {
+fn canonical_activity_unapplied_effect(
+    fact: &MechanicFact,
+) -> Option<EncounterRuntimeUnappliedFactView> {
     let disposition = match (&fact.target, &fact.value) {
         (
             MechanicTarget::ActivityRoll { .. },
@@ -407,20 +694,29 @@ fn canonical_activity_unapplied_effect(fact: &MechanicFact) -> Option<UnappliedE
             fact_i64(&roll.value),
             fact_roll_ability(&roll.ability)
         ),
-        (MechanicTarget::ActivityActionCost { .. }, MechanicBaseValue::ActionCost(value)) => {
+        (
+            MechanicTarget::ActivityActionCost { .. },
+            MechanicBaseValue::ActionCost(value @ CreatureActionCost::Unsupported(_)),
+        ) => {
             format!(
-                "action cost has no exact encounter activity field; value={}",
+                "action cost cannot populate the typed encounter activity field; value={}",
                 action_cost(value)
             )
         }
-        (MechanicTarget::ActivityFrequency { .. }, MechanicBaseValue::Frequency(value)) => {
+        (
+            MechanicTarget::ActivityFrequency { .. },
+            MechanicBaseValue::Frequency(value @ (FactValue::Missing | FactValue::Null)),
+        ) => {
             format!(
-                "frequency is represented only by coarse activity usage; value={}",
+                "frequency cannot populate the typed encounter activity field; value={}",
                 frequency(value)
             )
         }
-        (MechanicTarget::ActivityUses { .. }, MechanicBaseValue::Uses(value)) => format!(
-            "uses are represented only by coarse activity usage; value={}",
+        (
+            MechanicTarget::ActivityUses { .. },
+            MechanicBaseValue::Uses(value @ (FactValue::Missing | FactValue::Null)),
+        ) => format!(
+            "uses cannot populate the typed encounter activity field; value={}",
             uses(value)
         ),
         (target @ MechanicTarget::ActivityDamage { .. }, MechanicBaseValue::Damage(damage))
@@ -445,13 +741,14 @@ fn canonical_activity_unapplied_effect(fact: &MechanicFact) -> Option<UnappliedE
         }
         _ => return None,
     };
-    Some(UnappliedEffectView {
-        source: "Canonical source".to_string(),
+    Some(EncounterRuntimeUnappliedFactView {
+        provenance: canonical_provenance(&fact.target, None),
         label: format!(
             "{} retained without exact encounter field",
             fact.target.id()
         ),
         reason: format!("{}: {disposition}", fact.label),
+        canonical_target: canonical_target_view(&fact.target),
     })
 }
 
@@ -679,20 +976,26 @@ fn fact_activity_ability(value: &FactValue<ActivityRollAbility>) -> Option<Activ
     value.as_value().copied()
 }
 
-fn canonical_unsupported_effect(unsupported: UnsupportedMechanic) -> UnappliedEffectView {
+fn canonical_unsupported_effect(
+    unsupported: UnsupportedMechanic,
+) -> EncounterRuntimeUnappliedFactView {
     let target = unsupported
         .target
         .as_ref()
         .map(MechanicTarget::id)
         .unwrap_or_else(|| "unmodeled mechanic".to_string());
-    UnappliedEffectView {
-        source: "Canonical source".to_string(),
+    EncounterRuntimeUnappliedFactView {
+        provenance: fact_provenance(
+            RuntimeFactSourceView::CanonicalRecord,
+            unsupported.target.as_ref().and_then(canonical_target_view),
+        ),
         label: format!("{target} retained without automation"),
         reason: format!(
             "{}: {}",
             unsupported.source_path,
             unsupported_value(&unsupported.value)
         ),
+        canonical_target: unsupported.target.as_ref().and_then(canonical_target_view),
     }
 }
 
@@ -731,14 +1034,15 @@ pub(super) fn canonical_creature_level(retrieved: &RetrievedRecord) -> Option<i6
 fn apply_participant_effects(
     participant: &EncounterParticipant,
     mechanics: MechanicsView,
-    mut unapplied_effects: Vec<UnappliedEffectView>,
+    mut unapplied_facts: Vec<EncounterRuntimeUnappliedFactView>,
     variant_damage_blocked_activity_ids: BTreeSet<String>,
-) -> StatBlockView {
+    mut activity_runtime: BTreeMap<String, RuntimeActivityMetadata>,
+) -> EncounterRuntimeView {
     let mut modifiers = variant_modifiers(participant.participant_variant, &mechanics);
-    unapplied_effects.extend(variant_unapplied_effects(participant.participant_variant));
+    unapplied_facts.extend(variant_unapplied_facts(participant.participant_variant));
     for (condition, rule) in participant_condition_rules(participant) {
         modifiers.extend(condition_modifiers(condition, rule, &mechanics));
-        unapplied_effects.extend(condition_unapplied_effects(condition, rule));
+        unapplied_facts.extend(condition_unapplied_facts(condition, rule));
     }
 
     let mut by_target = BTreeMap::<MechanicTarget, Vec<CandidateModifier>>::new();
@@ -749,32 +1053,198 @@ fn apply_participant_effects(
             .push(modifier);
     }
 
-    let values = mechanics
-        .values
-        .into_iter()
-        .map(|value| {
-            let modifiers = by_target.remove(&value.target).unwrap_or_default();
-            stat_value_view(value, modifiers)
-        })
-        .collect();
-    unapplied_effects.extend(
+    let adjusted_level = mechanics.level.map(|base| {
+        let value = adjusted_level(Some(base), participant.participant_variant).unwrap_or(base);
+        RuntimeNumberView {
+            label: "Level".to_string(),
+            base_value: base,
+            adjusted_value: value,
+            modifiers: (base != value)
+                .then(|| RuntimeModifierView {
+                    provenance: variant_provenance(participant.participant_variant),
+                    label: format!(
+                        "{} level adjustment",
+                        variant_source(participant.participant_variant)
+                    ),
+                    modifier_type: StatModifierTypeView::Adjustment,
+                    value: value - base,
+                })
+                .into_iter()
+                .collect(),
+            suppressed_modifiers: Vec::new(),
+            provenance: canonical_provenance(
+                &MechanicTarget::ActorRitualDc,
+                Some(RuntimeCanonicalTargetView::Level),
+            ),
+        }
+    });
+
+    let mut vitals = EncounterRuntimeVitalsView {
+        maximum_hp: None,
+        current_hp: participant.current_hp,
+        temporary_hp: participant.temporary_hp,
+    };
+    let mut armor_class = None;
+    let mut saves = EncounterRuntimeSavesView {
+        fortitude: None,
+        reflex: None,
+        will: None,
+    };
+    let mut perception = None;
+    let mut abilities = EncounterRuntimeAbilitiesView {
+        strength: None,
+        dexterity: None,
+        constitution: None,
+        intelligence: None,
+        wisdom: None,
+        charisma: None,
+    };
+    let mut skills = Vec::new();
+    let mut resources = Vec::new();
+    let mut spellcasting = Vec::<EncounterRuntimeSpellcastingView>::new();
+    for mechanic in mechanics.values {
+        let target = mechanic.target.clone();
+        let fact = runtime_number_view(mechanic, by_target.remove(&target).unwrap_or_default());
+        match target {
+            MechanicTarget::MaxHp => {
+                set_named_fact(&mut vitals.maximum_hp, fact, &mut unapplied_facts)
+            }
+            MechanicTarget::ArmorClass => {
+                set_named_fact(&mut armor_class, fact, &mut unapplied_facts)
+            }
+            MechanicTarget::Perception => {
+                set_named_fact(&mut perception, fact, &mut unapplied_facts)
+            }
+            MechanicTarget::Save {
+                save: SaveKind::Fortitude,
+            } => set_named_fact(&mut saves.fortitude, fact, &mut unapplied_facts),
+            MechanicTarget::Save {
+                save: SaveKind::Reflex,
+            } => set_named_fact(&mut saves.reflex, fact, &mut unapplied_facts),
+            MechanicTarget::Save {
+                save: SaveKind::Will,
+            } => set_named_fact(&mut saves.will, fact, &mut unapplied_facts),
+            MechanicTarget::AbilityModifier { ability } => match ability {
+                AbilityKind::Strength => {
+                    set_named_fact(&mut abilities.strength, fact, &mut unapplied_facts)
+                }
+                AbilityKind::Dexterity => {
+                    set_named_fact(&mut abilities.dexterity, fact, &mut unapplied_facts)
+                }
+                AbilityKind::Constitution => {
+                    set_named_fact(&mut abilities.constitution, fact, &mut unapplied_facts)
+                }
+                AbilityKind::Intelligence => {
+                    set_named_fact(&mut abilities.intelligence, fact, &mut unapplied_facts)
+                }
+                AbilityKind::Wisdom => {
+                    set_named_fact(&mut abilities.wisdom, fact, &mut unapplied_facts)
+                }
+                AbilityKind::Charisma => {
+                    set_named_fact(&mut abilities.charisma, fact, &mut unapplied_facts)
+                }
+            },
+            MechanicTarget::CreatureSkill { skill_id, kind } => {
+                skills.push(EncounterRuntimeSkillView {
+                    skill_id: skill_id.as_str().to_string(),
+                    label: fact.label.clone(),
+                    kind: if kind == atlas_record::CreatureSkillKind::Lore {
+                        EncounterRuntimeSkillKindView::Lore {
+                            slug: kind.source_slug().to_string(),
+                        }
+                    } else {
+                        EncounterRuntimeSkillKindView::Standard {
+                            slug: kind.source_slug().to_string(),
+                        }
+                    },
+                    modifier: fact,
+                })
+            }
+            MechanicTarget::Skill { slug } => skills.push(EncounterRuntimeSkillView {
+                skill_id: slug.clone(),
+                label: fact.label.clone(),
+                kind: EncounterRuntimeSkillKindView::Legacy { slug },
+                modifier: fact,
+            }),
+            MechanicTarget::ResourceMaximum { resource_id } => {
+                resources.push(EncounterRuntimeResourceView {
+                    resource_id: resource_id.as_str().to_string(),
+                    label: fact.label.clone(),
+                    maximum: fact,
+                    current: None,
+                })
+            }
+            MechanicTarget::SpellcastingAttack {
+                entry_occurrence_id,
+            } => {
+                let label = fact.label.clone();
+                spellcasting_entry(&mut spellcasting, entry_occurrence_id.as_str(), &label)
+                    .attack = Some(runtime_roll_from_number(
+                    fact,
+                    RuntimeRollSurfaceView::AttackRoll,
+                ));
+            }
+            MechanicTarget::SpellcastingDc {
+                entry_occurrence_id,
+            } => {
+                let label = fact.label.clone();
+                spellcasting_entry(&mut spellcasting, entry_occurrence_id.as_str(), &label).dc =
+                    Some(runtime_roll_from_number(fact, RuntimeRollSurfaceView::Dc));
+            }
+            MechanicTarget::SpellSlotMaximum {
+                entry_occurrence_id,
+                rank,
+            } => spellcasting_entry(
+                &mut spellcasting,
+                entry_occurrence_id.as_str(),
+                "Spellcasting",
+            )
+            .slots
+            .push(EncounterRuntimeSpellSlotView {
+                rank,
+                maximum: runtime_count_from_number(fact),
+            }),
+            MechanicTarget::ActivityActionCost { .. }
+            | MechanicTarget::ActivityFrequency { .. }
+            | MechanicTarget::ActivityUses { .. }
+            | MechanicTarget::ActivityRoll { .. }
+            | MechanicTarget::ActivityDamage { .. }
+            | MechanicTarget::Movement { .. }
+            | MechanicTarget::ActorRitualDc => unapplied_facts.push(unrouted_fact(fact)),
+        }
+    }
+    unapplied_facts.extend(
         by_target
             .into_values()
             .flatten()
             .map(unmatched_modifier_effect),
     );
 
-    StatBlockView {
-        record_key: mechanics.record_key.to_string(),
-        title: mechanics.title,
-        level: mechanics.level,
-        adjusted_level: adjusted_level(mechanics.level, participant.participant_variant),
-        values,
-        speeds: mechanics
-            .speeds
-            .into_iter()
-            .map(|speed| speed_view(speed, participant))
-            .collect(),
+    EncounterRuntimeView {
+        adjusted_level,
+        vitals: Some(vitals),
+        defenses: armor_class.map(|armor_class| EncounterRuntimeDefensesView { armor_class }),
+        saves: (saves.fortitude.is_some() || saves.reflex.is_some() || saves.will.is_some())
+            .then_some(saves),
+        awareness: perception.map(|perception| EncounterRuntimeAwarenessView { perception }),
+        abilities: (abilities.strength.is_some()
+            || abilities.dexterity.is_some()
+            || abilities.constitution.is_some()
+            || abilities.intelligence.is_some()
+            || abilities.wisdom.is_some()
+            || abilities.charisma.is_some())
+        .then_some(abilities),
+        skills,
+        movement: Some(EncounterRuntimeMovementView {
+            speeds: mechanics
+                .speeds
+                .into_iter()
+                .map(|speed| speed_view(speed, participant))
+                .collect(),
+        })
+        .filter(|movement| !movement.speeds.is_empty()),
+        resources,
+        spellcasting,
         action_budget: Some(action_budget_view(participant)),
         activities: mechanics
             .activities
@@ -782,19 +1252,28 @@ fn apply_participant_effects(
             .map(|activity| {
                 let variant_damage_blocked =
                     variant_damage_blocked_activity_ids.contains(&activity.activity_id);
-                activity_view(activity, participant, variant_damage_blocked)
+                let metadata = activity_runtime
+                    .remove(&activity.activity_id)
+                    .unwrap_or_default();
+                activity_view(activity, participant, variant_damage_blocked, metadata)
             })
             .collect(),
-        unapplied_effects,
+        conditions: participant
+            .conditions
+            .iter()
+            .map(runtime_condition_view)
+            .collect(),
+        unapplied_facts,
     }
 }
 
-fn speed_view(speed: MovementSpeed, participant: &EncounterParticipant) -> MovementSpeedView {
+fn speed_view(speed: MovementSpeed, participant: &EncounterParticipant) -> RuntimeDistanceView {
     let base_value = speed.value_feet;
+    let speed_id = speed.movement_type.clone();
     let (adjustments, suppressed_adjustments) = speed_adjustments(participant);
     let adjusted_value = apply_runtime_adjustments(base_value, &adjustments);
     let notes = speed_notes(participant);
-    MovementSpeedView {
+    RuntimeDistanceView {
         movement_type: speed.movement_type,
         label: speed.label,
         base_value_feet: base_value,
@@ -808,14 +1287,18 @@ fn speed_view(speed: MovementSpeed, participant: &EncounterParticipant) -> Movem
             .map(runtime_adjustment_view)
             .collect(),
         notes: notes.into_iter().map(runtime_note_view).collect(),
+        provenance: fact_provenance(
+            RuntimeFactSourceView::CanonicalRecord,
+            Some(RuntimeCanonicalTargetView::Movement { speed_id }),
+        ),
     }
 }
 
-fn action_budget_view(participant: &EncounterParticipant) -> ActionBudgetView {
+fn action_budget_view(participant: &EncounterParticipant) -> EncounterRuntimeActionBudgetView {
     let action_projection = action_projection(participant);
     let base_actions = 3;
     let base_reactions = 1;
-    ActionBudgetView {
+    EncounterRuntimeActionBudgetView {
         actions: RuntimeCountView {
             label: "Actions".to_string(),
             base_value: base_actions,
@@ -831,6 +1314,7 @@ fn action_budget_view(participant: &EncounterParticipant) -> ActionBudgetView {
                 .into_iter()
                 .map(runtime_adjustment_view)
                 .collect(),
+            provenance: runtime_rule_provenance(RuntimeRuleView::ActionBudget),
         },
         reactions: RuntimeCountView {
             label: "Reactions".to_string(),
@@ -844,6 +1328,7 @@ fn action_budget_view(participant: &EncounterParticipant) -> ActionBudgetView {
             }],
             adjustments: Vec::new(),
             suppressed_adjustments: Vec::new(),
+            provenance: runtime_rule_provenance(RuntimeRuleView::ActionBudget),
         },
         can_act: action_projection.can_act,
         can_react: action_projection.can_react,
@@ -873,6 +1358,7 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
     for (condition, rule) in participant_condition_rules(participant) {
         match rule {
             ConditionRule::Quickened => quickened.push(RuntimeAdjustment {
+                provenance: condition_provenance(condition),
                 source: condition_source(condition),
                 label: "Restricted bonus action".to_string(),
                 value: 1,
@@ -882,6 +1368,7 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
             ConditionRule::Slowed => {
                 let amount = condition_value(condition);
                 let adjustment = RuntimeAdjustment {
+                    provenance: condition_provenance(condition),
                     source: condition_source(condition),
                     label: "Reduced actions regained".to_string(),
                     value: -amount,
@@ -894,6 +1381,7 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
                 if let Some(amount) = positive_condition_value(condition) {
                     let consumed = amount.min(3);
                     let adjustment = RuntimeAdjustment {
+                        provenance: condition_provenance(condition),
                         source: condition_source(condition),
                         label: "Actions lost while stunned".to_string(),
                         value: -consumed,
@@ -907,20 +1395,20 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
                 }
                 if let Some((label, reason)) = stunned_contextual_disposition(condition) {
                     notes.push(RuntimeNote {
-                        source: condition_source(condition),
+                        provenance: condition_provenance(condition),
                         label,
                         reason,
                     });
                 }
             }
             ConditionRule::Prone => notes.push(RuntimeNote {
-                source: condition_source(condition),
+                provenance: condition_provenance(condition),
                 label: "Prone contextual limits".to_string(),
                 reason: "Prone limits movement choices such as Crawl and Stand; cover and falling consequences remain contextual; speed is unchanged."
                     .to_string(),
             }),
             ConditionRule::Immobilized => notes.push(RuntimeNote {
-                source: condition_source(condition),
+                provenance: condition_provenance(condition),
                 label: "Move actions forbidden".to_string(),
                 reason: "The participant cannot use actions with the move trait; numeric Speed is unchanged."
                     .to_string(),
@@ -967,9 +1455,12 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
             .then_with(|| left.0.source.cmp(&right.0.source))
     });
     let strongest_stunned = stunned.first().cloned();
+    let stunned_provenance = strongest_stunned
+        .as_ref()
+        .map(|(adjustment, _, _)| adjustment.provenance.clone());
     if let Some((adjustment, _, _)) = strongest_stunned.as_ref() {
         notes.push(RuntimeNote {
-            source: adjustment.source.clone(),
+            provenance: adjustment.provenance.clone(),
             label: "Own-turn stunned timing".to_string(),
             reason: "If stunned is applied during this participant's turn, finish the current action or activity, then lose remaining actions immediately to reduce stunned."
                 .to_string(),
@@ -1032,19 +1523,15 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
 
     let stunned_still_active = stunned_remaining.is_some_and(|remaining| remaining > 0);
     let stunned_capability = if stunned_still_active {
-        let source = adjustments
-            .iter()
-            .find(|adjustment| adjustment.source.starts_with("Stunned"))
-            .map(|adjustment| adjustment.source.clone());
         RuntimeCapabilityView {
             available: false,
-            source,
+            provenance: stunned_provenance,
             reason: Some("Cannot act while stunned remains active.".to_string()),
         }
     } else {
         RuntimeCapabilityView {
             available: true,
-            source: None,
+            provenance: None,
             reason: None,
         }
     };
@@ -1081,7 +1568,9 @@ fn activity_view(
     activity: MechanicActivity,
     participant: &EncounterParticipant,
     variant_damage_blocked: bool,
-) -> MechanicActivityView {
+    metadata: RuntimeActivityMetadata,
+) -> EncounterRuntimeActivityView {
+    let activity_id = activity.activity_id.clone();
     let kind = activity.kind;
     let usage = activity.usage;
     let mut variant_damage_available = !variant_damage_blocked;
@@ -1091,6 +1580,7 @@ fn activity_view(
         .map(|damage| {
             damage_view(
                 damage,
+                &activity_id,
                 kind,
                 usage,
                 participant,
@@ -1101,31 +1591,36 @@ fn activity_view(
     let modes = activity
         .modes
         .into_iter()
-        .map(|mode| activity_mode_view(mode, kind, usage, participant))
+        .map(|mode| activity_mode_view(mode, &activity_id, kind, usage, participant))
         .collect();
-    MechanicActivityView {
+    EncounterRuntimeActivityView {
         activity_id: activity.activity_id,
         label: activity.label,
         kind: activity_kind_view(kind),
         usage: activity_usage_view(usage),
+        action_cost: metadata.action_cost,
+        frequency: metadata.frequency,
+        uses: metadata.uses,
         rolls: activity
             .rolls
             .into_iter()
-            .map(|roll| activity_roll_view(roll, kind, participant))
+            .map(|roll| activity_roll_view(roll, &activity_id, kind, participant))
             .collect(),
         damage,
         modes,
+        provenance: fact_provenance(RuntimeFactSourceView::CanonicalRecord, None),
     }
 }
 
 fn activity_mode_view(
     mode: MechanicActivityMode,
+    activity_id: &str,
     activity_kind: MechanicActivityKind,
     activity_usage: MechanicActivityUsage,
     participant: &EncounterParticipant,
-) -> MechanicActivityModeView {
+) -> EncounterRuntimeActivityModeView {
     let mut variant_damage_available = true;
-    MechanicActivityModeView {
+    EncounterRuntimeActivityModeView {
         mode_id: mode.mode_id,
         label: mode.label,
         target: mode.target,
@@ -1137,6 +1632,7 @@ fn activity_mode_view(
             .map(|damage| {
                 damage_view(
                     damage,
+                    activity_id,
                     activity_kind,
                     activity_usage,
                     participant,
@@ -1149,9 +1645,11 @@ fn activity_mode_view(
 
 fn activity_roll_view(
     roll: ActivityRoll,
+    activity_id: &str,
     activity_kind: MechanicActivityKind,
     participant: &EncounterParticipant,
-) -> ActivityRollView {
+) -> RuntimeRollView {
+    let roll_id = roll.roll_id.clone();
     let mut modifiers = Vec::new();
     if let Some(modifier) = variant_roll_modifier(participant.participant_variant) {
         modifiers.push(modifier);
@@ -1173,7 +1671,7 @@ fn activity_roll_view(
     let adjusted_value = applied
         .iter()
         .fold(roll.base_value, |total, modifier| total + modifier.value);
-    ActivityRollView {
+    RuntimeRollView {
         roll_id: roll.roll_id,
         label: roll.label,
         base_value: roll.base_value,
@@ -1181,16 +1679,25 @@ fn activity_roll_view(
         surface: activity_roll_surface_view(roll.surface),
         modifiers: applied.into_iter().map(roll_modifier_view).collect(),
         suppressed_modifiers: suppressed.into_iter().map(roll_modifier_view).collect(),
+        provenance: fact_provenance(
+            RuntimeFactSourceView::CanonicalRecord,
+            Some(RuntimeCanonicalTargetView::ActivityRoll {
+                activity_id: activity_id.to_string(),
+                roll_id,
+            }),
+        ),
     }
 }
 
 fn damage_view(
     damage: DamageExpression,
+    activity_id: &str,
     activity_kind: MechanicActivityKind,
     activity_usage: MechanicActivityUsage,
     participant: &EncounterParticipant,
     variant_damage_available: &mut bool,
-) -> DamageExpressionView {
+) -> RuntimeFormulaView {
+    let damage_id = damage.damage_id.clone();
     let apply_variant_damage = *variant_damage_available
         && damage.effect_kind == DamageEffectKind::Damage
         && matches!(
@@ -1225,7 +1732,7 @@ fn damage_view(
     let modifier_total = modifiers.iter().map(|modifier| modifier.value).sum::<i64>();
     let adjusted_formula =
         (modifier_total != 0).then(|| adjusted_formula(&damage.formula, modifier_total));
-    DamageExpressionView {
+    RuntimeFormulaView {
         damage_id: damage.damage_id,
         label: damage.label,
         formula: damage.formula,
@@ -1233,6 +1740,13 @@ fn damage_view(
         damage_type: damage.damage_type,
         effect_kind: damage_effect_kind_view(damage.effect_kind),
         modifiers,
+        provenance: fact_provenance(
+            RuntimeFactSourceView::CanonicalRecord,
+            Some(RuntimeCanonicalTargetView::ActivityDamage {
+                activity_id: activity_id.to_string(),
+                damage_id,
+            }),
+        ),
     }
 }
 
@@ -1241,7 +1755,7 @@ fn condition_damage_modifiers(
     rule: ConditionRule,
     activity_kind: MechanicActivityKind,
     damage: &DamageExpression,
-) -> Vec<StatModifierView> {
+) -> Vec<RuntimeModifierView> {
     if rule != ConditionRule::Enfeebled
         || activity_kind != MechanicActivityKind::Strike
         || damage.effect_kind != DamageEffectKind::Damage
@@ -1250,8 +1764,8 @@ fn condition_damage_modifiers(
         return Vec::new();
     }
     let source = condition_source(condition);
-    vec![StatModifierView {
-        source: source.clone(),
+    vec![RuntimeModifierView {
+        provenance: condition_provenance(condition),
         label: source,
         modifier_type: StatModifierTypeView::Status,
         value: -condition_value(condition),
@@ -1275,7 +1789,7 @@ fn variant_damage_modifier(
     usage: MechanicActivityUsage,
     effect_kind: DamageEffectKind,
     apply_variant_damage: bool,
-) -> Option<StatModifierView> {
+) -> Option<RuntimeModifierView> {
     if !apply_variant_damage || effect_kind != DamageEffectKind::Damage {
         return None;
     }
@@ -1292,8 +1806,8 @@ fn variant_damage_modifier(
         | (MechanicActivityKind::Other, _) => return None,
     };
     let source = variant_source(variant).to_string();
-    Some(StatModifierView {
-        source: source.clone(),
+    Some(RuntimeModifierView {
+        provenance: variant_provenance(variant),
         label: format!("{source} damage adjustment"),
         modifier_type: StatModifierTypeView::Adjustment,
         value: direction * magnitude,
@@ -1304,7 +1818,7 @@ fn variant_roll_modifier(variant: ParticipantVariant) -> Option<RollModifier> {
     let value = variant_stat_delta(variant)?;
     let source = variant_source(variant).to_string();
     Some(RollModifier {
-        source: source.clone(),
+        provenance: variant_provenance(variant),
         label: format!("{source} adjustment"),
         modifier_type: StatModifierTypeView::Adjustment,
         value,
@@ -1320,7 +1834,7 @@ fn condition_roll_modifiers(
     let amount = condition_value(condition);
     let source = condition_source(condition);
     let status_penalty = |value: i64| RollModifier {
-        source: source.clone(),
+        provenance: condition_provenance(condition),
         label: source.clone(),
         modifier_type: StatModifierTypeView::Status,
         value: -value,
@@ -1338,7 +1852,7 @@ fn condition_roll_modifiers(
         }
         ConditionRule::Prone if roll.surface == ActivityRollSurface::AttackRoll => {
             vec![RollModifier {
-                source: source.clone(),
+                provenance: condition_provenance(condition),
                 label: source,
                 modifier_type: StatModifierTypeView::Circumstance,
                 value: -2,
@@ -1405,44 +1919,44 @@ fn stack_roll_modifiers(modifiers: Vec<RollModifier>) -> (Vec<RollModifier>, Vec
     (applied, suppressed)
 }
 
-fn roll_modifier_view(modifier: RollModifier) -> StatModifierView {
-    StatModifierView {
-        source: modifier.source,
+fn roll_modifier_view(modifier: RollModifier) -> RuntimeModifierView {
+    RuntimeModifierView {
+        provenance: modifier.provenance,
         label: modifier.label,
         modifier_type: modifier.modifier_type,
         value: modifier.value,
     }
 }
 
-fn activity_kind_view(kind: MechanicActivityKind) -> MechanicActivityKindView {
+fn activity_kind_view(kind: MechanicActivityKind) -> EncounterRuntimeActivityKindView {
     match kind {
-        MechanicActivityKind::Strike => MechanicActivityKindView::Strike,
-        MechanicActivityKind::Spell => MechanicActivityKindView::Spell,
-        MechanicActivityKind::Other => MechanicActivityKindView::Other,
+        MechanicActivityKind::Strike => EncounterRuntimeActivityKindView::Strike,
+        MechanicActivityKind::Spell => EncounterRuntimeActivityKindView::Spell,
+        MechanicActivityKind::Other => EncounterRuntimeActivityKindView::Other,
     }
 }
 
-fn activity_roll_surface_view(surface: ActivityRollSurface) -> ActivityRollSurfaceView {
+fn activity_roll_surface_view(surface: ActivityRollSurface) -> RuntimeRollSurfaceView {
     match surface {
-        ActivityRollSurface::AttackRoll => ActivityRollSurfaceView::AttackRoll,
-        ActivityRollSurface::Dc => ActivityRollSurfaceView::Dc,
+        ActivityRollSurface::AttackRoll => RuntimeRollSurfaceView::AttackRoll,
+        ActivityRollSurface::Dc => RuntimeRollSurfaceView::Dc,
     }
 }
 
-fn activity_usage_view(usage: MechanicActivityUsage) -> MechanicActivityUsageView {
+fn activity_usage_view(usage: MechanicActivityUsage) -> EncounterRuntimeActivityUsageView {
     match usage {
-        MechanicActivityUsage::Unlimited => MechanicActivityUsageView::Unlimited,
-        MechanicActivityUsage::Limited => MechanicActivityUsageView::Limited,
-        MechanicActivityUsage::Ambiguous => MechanicActivityUsageView::Ambiguous,
+        MechanicActivityUsage::Unlimited => EncounterRuntimeActivityUsageView::Unlimited,
+        MechanicActivityUsage::Limited => EncounterRuntimeActivityUsageView::Limited,
+        MechanicActivityUsage::Ambiguous => EncounterRuntimeActivityUsageView::Ambiguous,
     }
 }
 
-fn damage_effect_kind_view(effect_kind: DamageEffectKind) -> DamageEffectKindView {
+fn damage_effect_kind_view(effect_kind: DamageEffectKind) -> RuntimeDamageEffectKindView {
     match effect_kind {
-        DamageEffectKind::Damage => DamageEffectKindView::Damage,
-        DamageEffectKind::Healing => DamageEffectKindView::Healing,
-        DamageEffectKind::DamageOrHealing => DamageEffectKindView::DamageOrHealing,
-        DamageEffectKind::Unknown => DamageEffectKindView::Unknown,
+        DamageEffectKind::Damage => RuntimeDamageEffectKindView::Damage,
+        DamageEffectKind::Healing => RuntimeDamageEffectKindView::Healing,
+        DamageEffectKind::DamageOrHealing => RuntimeDamageEffectKindView::DamageOrHealing,
+        DamageEffectKind::Unknown => RuntimeDamageEffectKindView::Unknown,
     }
 }
 
@@ -1491,7 +2005,11 @@ fn split_formula_constant(formula: &str) -> (&str, i64) {
     }
 }
 
-fn stat_value_view(value: MechanicValue, modifiers: Vec<CandidateModifier>) -> StatValueView {
+fn runtime_number_view(
+    value: MechanicValue,
+    modifiers: Vec<CandidateModifier>,
+) -> RuntimeNumberView {
+    let provenance = canonical_provenance(&value.target, None);
     let MechanicScalar::Number(base_value) = value.base_value;
     let (applied, suppressed) = stack_modifiers(modifiers);
     let adjusted_value = applied
@@ -1502,24 +2020,25 @@ fn stat_value_view(value: MechanicValue, modifiers: Vec<CandidateModifier>) -> S
     } else {
         adjusted_value
     };
-    StatValueView {
-        target: value.target.id(),
+    RuntimeNumberView {
         label: value.label,
         base_value,
         adjusted_value,
         modifiers: applied.into_iter().map(modifier_view).collect(),
         suppressed_modifiers: suppressed.into_iter().map(modifier_view).collect(),
+        provenance,
     }
 }
 
-fn unmatched_modifier_effect(modifier: CandidateModifier) -> UnappliedEffectView {
-    UnappliedEffectView {
-        source: modifier.source,
+fn unmatched_modifier_effect(modifier: CandidateModifier) -> EncounterRuntimeUnappliedFactView {
+    EncounterRuntimeUnappliedFactView {
+        provenance: modifier.provenance,
         label: format!("{} was not applied", modifier.label),
         reason: format!(
             "No supported base value was available for target {}.",
             modifier.target.id()
         ),
+        canonical_target: canonical_target_view(&modifier.target),
     }
 }
 
@@ -1559,9 +2078,9 @@ fn stack_modifiers(
     (applied, suppressed)
 }
 
-fn modifier_view(modifier: CandidateModifier) -> StatModifierView {
-    StatModifierView {
-        source: modifier.source,
+fn modifier_view(modifier: CandidateModifier) -> RuntimeModifierView {
+    RuntimeModifierView {
+        provenance: modifier.provenance,
         label: modifier.label,
         modifier_type: modifier.modifier_type,
         value: modifier.value,
@@ -1582,7 +2101,7 @@ fn variant_modifiers(
         .filter(|value| value.facets.surface.is_check_or_dc())
         .map(|value| CandidateModifier {
             target: value.target.clone(),
-            source: source.to_string(),
+            provenance: variant_provenance(variant),
             label: format!("{source} adjustment"),
             modifier_type: StatModifierTypeView::Adjustment,
             value: value_delta,
@@ -1591,7 +2110,7 @@ fn variant_modifiers(
     if let Some(hp_delta) = variant_hp_delta(variant, mechanics.level) {
         modifiers.push(CandidateModifier {
             target: MechanicTarget::MaxHp,
-            source: source.to_string(),
+            provenance: variant_provenance(variant),
             label: format!("{source} HP adjustment"),
             modifier_type: StatModifierTypeView::Adjustment,
             value: hp_delta,
@@ -1600,16 +2119,17 @@ fn variant_modifiers(
     modifiers
 }
 
-fn variant_unapplied_effects(variant: ParticipantVariant) -> Vec<UnappliedEffectView> {
+fn variant_unapplied_facts(variant: ParticipantVariant) -> Vec<EncounterRuntimeUnappliedFactView> {
     match variant {
         ParticipantVariant::Normal => Vec::new(),
         ParticipantVariant::Elite | ParticipantVariant::Weak => {
             let source = variant_source(variant).to_string();
-            vec![UnappliedEffectView {
-                source: source.clone(),
+            vec![EncounterRuntimeUnappliedFactView {
+                provenance: variant_provenance(variant),
                 label: format!("{source} ambiguous offensive damage adjustments"),
                 reason: "Ambiguous, prose-only, or unsupported offensive damage remains unapplied."
                     .to_string(),
+                canonical_target: None,
             }]
         }
     }
@@ -1667,7 +2187,7 @@ fn condition_modifiers(
     let source = condition_source(condition);
     let status_penalty = |target: MechanicTarget, label: String, value: i64| CandidateModifier {
         target,
-        source: source.clone(),
+        provenance: condition_provenance(condition),
         label,
         modifier_type: StatModifierTypeView::Status,
         value: -value,
@@ -1695,7 +2215,7 @@ fn condition_modifiers(
             .collect(),
         ConditionRule::OffGuard => vec![CandidateModifier {
             target: MechanicTarget::ArmorClass,
-            source: source.clone(),
+            provenance: condition_provenance(condition),
             label: source,
             modifier_type: StatModifierTypeView::Circumstance,
             value: -2,
@@ -1710,7 +2230,32 @@ fn condition_modifiers(
             .collect(),
         ConditionRule::Stupefied => mental_targets(mechanics)
             .into_iter()
+            .chain(
+                mechanics
+                    .values
+                    .iter()
+                    .filter(|value| {
+                        matches!(
+                            value.target,
+                            MechanicTarget::SpellcastingAttack { .. }
+                                | MechanicTarget::SpellcastingDc { .. }
+                        )
+                    })
+                    .map(|value| value.target.clone()),
+            )
             .map(|target| status_penalty(target, source.clone(), amount))
+            .collect(),
+        ConditionRule::Prone => mechanics
+            .values
+            .iter()
+            .filter(|value| matches!(value.target, MechanicTarget::SpellcastingAttack { .. }))
+            .map(|value| CandidateModifier {
+                target: value.target.clone(),
+                provenance: condition_provenance(condition),
+                label: source.clone(),
+                modifier_type: StatModifierTypeView::Circumstance,
+                value: -2,
+            })
             .collect(),
         ConditionRule::Slowed
         | ConditionRule::Quickened
@@ -1718,8 +2263,7 @@ fn condition_modifiers(
         | ConditionRule::Immobilized
         | ConditionRule::Grabbed
         | ConditionRule::Restrained
-        | ConditionRule::Encumbered
-        | ConditionRule::Prone => Vec::new(),
+        | ConditionRule::Encumbered => Vec::new(),
     }
 }
 
@@ -1731,6 +2275,7 @@ fn speed_adjustments(
         let source = condition_source(condition);
         if rule == ConditionRule::Encumbered {
             penalties.push(RuntimeAdjustment {
+                provenance: condition_provenance(condition),
                 source: source.clone(),
                 label: "Speed penalty".to_string(),
                 value: -10,
@@ -1763,29 +2308,28 @@ fn speed_adjustments(
 fn speed_notes(participant: &EncounterParticipant) -> Vec<RuntimeNote> {
     let mut notes = Vec::new();
     for (condition, rule) in participant_condition_rules(participant) {
-        let source = condition_source(condition);
         match rule {
             ConditionRule::Grabbed => notes.push(RuntimeNote {
-                source: source.clone(),
+                provenance: condition_provenance(condition),
                 label: "Grabbed restrictions".to_string(),
                 reason: "Grabbed makes the participant off-guard, forbids move-trait actions through immobilized, and can affect manipulate actions; numeric Speed is unchanged."
                     .to_string(),
             }),
             ConditionRule::Restrained => notes.push(RuntimeNote {
-                source: source.clone(),
+                provenance: condition_provenance(condition),
                 label: "Restrained restrictions".to_string(),
                 reason:
                     "Restrained makes the participant off-guard, forbids move-trait actions through immobilized, and restricts attack and manipulate actions; numeric Speed is unchanged."
                         .to_string(),
             }),
             ConditionRule::Immobilized => notes.push(RuntimeNote {
-                source: source.clone(),
+                provenance: condition_provenance(condition),
                 label: "Move actions forbidden".to_string(),
                 reason: "The participant cannot use actions with the move trait; numeric Speed is unchanged."
                     .to_string(),
             }),
             ConditionRule::Prone => notes.push(RuntimeNote {
-                source: source.clone(),
+                provenance: condition_provenance(condition),
                 label: "Prone contextual limits".to_string(),
                 reason:
                     "Prone limits movement choices such as Crawl and Stand; cover and falling consequences remain contextual; numeric Speed is unchanged."
@@ -1797,55 +2341,62 @@ fn speed_notes(participant: &EncounterParticipant) -> Vec<RuntimeNote> {
     notes
 }
 
-fn condition_unapplied_effects(
+fn condition_unapplied_facts(
     condition: &EncounterParticipantCondition,
     rule: ConditionRule,
-) -> Vec<UnappliedEffectView> {
+) -> Vec<EncounterRuntimeUnappliedFactView> {
     let source = condition_source(condition);
     match rule {
         ConditionRule::Fatigued => vec![unapplied_runtime_note_view(
             fatigued_exploration_note(condition),
         )],
-        ConditionRule::Clumsy => vec![UnappliedEffectView {
-            source: source.clone(),
+        ConditionRule::Clumsy => vec![EncounterRuntimeUnappliedFactView {
+            provenance: condition_provenance(condition),
             label: format!("{source} unmodeled Dexterity attack penalties"),
             reason: "Only structured activity attack rolls are adjusted.".to_string(),
+            canonical_target: None,
         }],
-        ConditionRule::Enfeebled => vec![UnappliedEffectView {
-            source: source.clone(),
+        ConditionRule::Enfeebled => vec![EncounterRuntimeUnappliedFactView {
+            provenance: condition_provenance(condition),
             label: format!("{source} untyped Strength-based damage penalties"),
             reason: "Only structured Strength-based strike damage is adjusted.".to_string(),
+            canonical_target: None,
         }],
-        ConditionRule::Stupefied => vec![UnappliedEffectView {
-            source: source.clone(),
+        ConditionRule::Stupefied => vec![EncounterRuntimeUnappliedFactView {
+            provenance: condition_provenance(condition),
             label: format!("{source} spell disruption flat check"),
             reason: "Flat-check spell disruption is not automated yet.".to_string(),
+            canonical_target: None,
         }],
-        ConditionRule::Grabbed => vec![UnappliedEffectView {
-            source: source.clone(),
+        ConditionRule::Grabbed => vec![EncounterRuntimeUnappliedFactView {
+            provenance: condition_provenance(condition),
             label: format!("{source} manipulate-action flat check"),
             reason: "Manipulate actions require the Grabbed flat check; that contextual roll and action loss are not automated."
                 .to_string(),
+            canonical_target: None,
         }],
-        ConditionRule::Restrained => vec![UnappliedEffectView {
-            source: source.clone(),
+        ConditionRule::Restrained => vec![EncounterRuntimeUnappliedFactView {
+            provenance: condition_provenance(condition),
             label: format!("{source} attack and manipulate restrictions"),
             reason: "Attack and manipulate actions remain unavailable except for the contextual actions that can remove the restraint; those exceptions are not automated."
                 .to_string(),
+            canonical_target: None,
         }],
         ConditionRule::Stunned => stunned_contextual_disposition(condition)
-            .map(|(label, reason)| UnappliedEffectView {
-                source: source.clone(),
+            .map(|(label, reason)| EncounterRuntimeUnappliedFactView {
+                provenance: condition_provenance(condition),
                 label,
                 reason,
+                canonical_target: None,
             })
             .into_iter()
             .collect(),
-        ConditionRule::Prone => vec![UnappliedEffectView {
-            source: source.clone(),
+        ConditionRule::Prone => vec![EncounterRuntimeUnappliedFactView {
+            provenance: condition_provenance(condition),
             label: format!("{source} contextual limits"),
             reason: "Prone movement, cover, and falling consequences are tracked as notes rather than numeric adjustments."
                 .to_string(),
+            canonical_target: None,
         }],
         ConditionRule::Frightened
         | ConditionRule::Sickened
@@ -1871,7 +2422,7 @@ fn participant_runtime_notes(participant: &EncounterParticipant) -> Vec<RuntimeN
 
 fn fatigued_exploration_note(condition: &EncounterParticipantCondition) -> RuntimeNote {
     RuntimeNote {
-        source: condition_source(condition),
+        provenance: condition_provenance(condition),
         label: "Fatigued exploration activity restriction".to_string(),
         reason: "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
             .to_string(),
@@ -1929,7 +2480,7 @@ fn expanded_condition_rules(rule: ConditionRule) -> Vec<ConditionRule> {
 
 fn runtime_adjustment_view(adjustment: RuntimeAdjustment) -> RuntimeAdjustmentView {
     RuntimeAdjustmentView {
-        source: adjustment.source,
+        provenance: adjustment.provenance,
         label: adjustment.label,
         value: adjustment.value,
         reason: adjustment.reason,
@@ -1938,17 +2489,18 @@ fn runtime_adjustment_view(adjustment: RuntimeAdjustment) -> RuntimeAdjustmentVi
 
 fn runtime_note_view(note: RuntimeNote) -> RuntimeEffectNoteView {
     RuntimeEffectNoteView {
-        source: note.source,
+        provenance: note.provenance,
         label: note.label,
         reason: note.reason,
     }
 }
 
-fn unapplied_runtime_note_view(note: RuntimeNote) -> UnappliedEffectView {
-    UnappliedEffectView {
-        source: note.source,
+fn unapplied_runtime_note_view(note: RuntimeNote) -> EncounterRuntimeUnappliedFactView {
+    EncounterRuntimeUnappliedFactView {
+        provenance: note.provenance,
         label: note.label,
         reason: note.reason,
+        canonical_target: None,
     }
 }
 
@@ -2044,43 +2596,83 @@ fn slugify(value: &str) -> String {
 }
 
 #[cfg(test)]
+// Typed mutation fixtures use an audit-distinct iterator spelling so the frozen
+// consumer residue check remains sensitive to ordinary lookup code.
+#[allow(clippy::filter_next)]
 mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
     use super::*;
+    use atlas_app_model::CreateEncounterRequest;
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
         AtlasRecord, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, MechanicFacets,
         MetricDefinition, MetricRow, MetricValue, RecordClassification, RecordIdentity,
         RecordProvenance, metrics,
     };
+    use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntimeOptions};
+
+    use crate::service::{AtlasAppService, RetrievalBackend};
+
+    macro_rules! write_sample_json {
+        ($path:expr, $value:expr $(,)?) => {{
+            let mut bytes =
+                serde_json::to_vec_pretty(&$value).expect("sample JSON should serialize");
+            bytes.push(b'\n');
+            fs::write($path, bytes).expect("sample JSON should write");
+        }};
+    }
+
+    fn provenance_source(provenance: &RuntimeFactProvenanceView) -> &str {
+        match &provenance.source {
+            RuntimeFactSourceView::CanonicalRecord => "Canonical source",
+            RuntimeFactSourceView::ParticipantState => "Participant state",
+            RuntimeFactSourceView::ParticipantVariant { variant } => match variant {
+                EncounterParticipantVariantView::Normal => "Normal",
+                EncounterParticipantVariantView::Elite => "Elite",
+                EncounterParticipantVariantView::Weak => "Weak",
+            },
+            RuntimeFactSourceView::Condition { label, .. } => label,
+            RuntimeFactSourceView::RuntimeRule { rule } => match rule {
+                RuntimeRuleView::ActionBudget => "Action budget",
+                RuntimeRuleView::Movement => "Movement",
+                RuntimeRuleView::UnsupportedFact => "Unsupported fact",
+            },
+        }
+    }
 
     fn project_legacy(
         participant: &EncounterParticipant,
         record: &AtlasRecord,
-    ) -> Option<StatBlockView> {
+    ) -> Option<EncounterRuntimeView> {
         let mechanics = build_mechanics_view(record)?;
         Some(apply_participant_effects(
             participant,
             mechanics,
             Vec::new(),
             BTreeSet::new(),
+            BTreeMap::new(),
         ))
     }
 
-    fn project_canonical(participant: &EncounterParticipant) -> StatBlockView {
+    fn project_canonical(participant: &EncounterParticipant) -> EncounterRuntimeView {
         project_canonical_projection(participant, canonical_projection())
     }
 
     fn project_canonical_projection(
         participant: &EncounterParticipant,
         projection: CanonicalMechanicsProjection,
-    ) -> StatBlockView {
+    ) -> EncounterRuntimeView {
         let mechanics =
             canonical_participant_mechanics(projection, "Canonical Creature".to_string());
         apply_participant_effects(
             participant,
             mechanics.view,
-            mechanics.unapplied_effects,
+            mechanics.unapplied_facts,
             mechanics.variant_damage_blocked_activity_ids,
+            mechanics.activity_runtime,
         )
     }
 
@@ -2092,7 +2684,8 @@ mod tests {
             .activities
             .iter_mut()
             .flat_map(|activity| activity.facts.iter_mut())
-            .find(|fact| &fact.target == target)
+            .filter(|fact| &fact.target == target)
+            .next()
             .expect("canonical activity fact should exist")
     }
 
@@ -2151,7 +2744,7 @@ mod tests {
     }
 
     fn assert_unsupported_damage_formula_disposition(
-        projection: &StatBlockView,
+        projection: &EncounterRuntimeView,
         expected_formula: &str,
     ) {
         let target = MechanicTarget::ActivityDamage {
@@ -2165,12 +2758,15 @@ mod tests {
             target.id()
         );
         let matching = projection
-            .unapplied_effects
+            .unapplied_facts
             .iter()
             .filter(|effect| effect.label == expected_label)
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1);
-        assert_eq!(matching[0].source, "Canonical source");
+        assert_eq!(
+            provenance_source(&matching[0].provenance),
+            "Canonical source"
+        );
         assert_eq!(matching[0].reason, expected_reason);
     }
 
@@ -2448,28 +3044,42 @@ mod tests {
     fn canonical_targets_receive_variants_without_adjusting_resources() {
         let projection = project_canonical(&participant(ParticipantVariant::Elite, Vec::new()));
 
-        assert_eq!(projection.adjusted_level, Some(6));
-        assert_stat(&projection, "ac", 22, 24, "Elite adjustment");
-        assert_stat(&projection, "hp.max", 60, 80, "Elite HP adjustment");
-        let resource = projection
-            .values
-            .iter()
-            .find(|value| value.label == "Focus")
-            .expect("canonical resource should project");
-        assert!(
-            resource
-                .target
-                .starts_with("mechanic-target/v1/resource-maximum/")
+        assert_eq!(
+            projection
+                .adjusted_level
+                .as_ref()
+                .map(|value| value.adjusted_value),
+            Some(6)
         );
-        assert_eq!(resource.base_value, 2);
-        assert_eq!(resource.adjusted_value, 2);
-        assert!(resource.modifiers.is_empty());
+        assert_stat(
+            &projection,
+            RuntimeNumberField::ArmorClass,
+            22,
+            24,
+            "Elite adjustment",
+        );
+        assert_stat(
+            &projection,
+            RuntimeNumberField::MaximumHp,
+            60,
+            80,
+            "Elite HP adjustment",
+        );
+        let resource = projection
+            .resources
+            .iter()
+            .find(|resource| resource.label == "Focus")
+            .expect("canonical resource should project");
+        assert_eq!(resource.resource_id, "focus");
+        assert_eq!(resource.maximum.base_value, 2);
+        assert_eq!(resource.maximum.adjusted_value, 2);
+        assert!(resource.maximum.modifiers.is_empty());
         assert_eq!(speed(&projection, "land").base_value_feet, 25);
         assert!(
             projection
-                .values
+                .skills
                 .iter()
-                .all(|value| !value.target.starts_with("skill."))
+                .all(|skill| !matches!(skill.kind, EncounterRuntimeSkillKindView::Legacy { .. }))
         );
     }
 
@@ -2480,18 +3090,26 @@ mod tests {
         let hp = projection
             .facts
             .iter_mut()
-            .find(|fact| fact.target == MechanicTarget::MaxHp)
+            .filter(|fact| fact.target == MechanicTarget::MaxHp)
+            .next()
             .expect("max hp should exist");
         hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(5)));
         let mechanics = canonical_participant_mechanics(projection, "Fragile".to_string());
         let block = apply_participant_effects(
             &participant(ParticipantVariant::Weak, Vec::new()),
             mechanics.view,
-            mechanics.unapplied_effects,
+            mechanics.unapplied_facts,
             mechanics.variant_damage_blocked_activity_ids,
+            mechanics.activity_runtime,
         );
 
-        assert_stat(&block, "hp.max", 5, 1, "Weak HP adjustment");
+        assert_stat(
+            &block,
+            RuntimeNumberField::MaximumHp,
+            5,
+            1,
+            "Weak HP adjustment",
+        );
     }
 
     #[test]
@@ -2513,7 +3131,8 @@ mod tests {
             let hp = canonical
                 .facts
                 .iter_mut()
-                .find(|fact| fact.target == MechanicTarget::MaxHp)
+                .filter(|fact| fact.target == MechanicTarget::MaxHp)
+                .next()
                 .expect("max hp should exist");
             hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(100)));
             let projection = project_canonical_projection(
@@ -2521,7 +3140,7 @@ mod tests {
                 canonical,
             );
             assert_eq!(
-                value(&projection, "hp.max").adjusted_value,
+                value(&projection, RuntimeNumberField::MaximumHp).adjusted_value,
                 expected_hp,
                 "unexpected weak HP at starting level {level}"
             );
@@ -2532,14 +3151,18 @@ mod tests {
         let hp = level_zero
             .facts
             .iter_mut()
-            .find(|fact| fact.target == MechanicTarget::MaxHp)
+            .filter(|fact| fact.target == MechanicTarget::MaxHp)
+            .next()
             .expect("max hp should exist");
         hp.value = MechanicBaseValue::Number(FactValue::Value(CreatureNumber::Integer(5)));
         let unchanged = project_canonical_projection(
             &participant(ParticipantVariant::Weak, Vec::new()),
             level_zero,
         );
-        assert_eq!(value(&unchanged, "hp.max").adjusted_value, 5);
+        assert_eq!(
+            value(&unchanged, RuntimeNumberField::MaximumHp).adjusted_value,
+            5
+        );
     }
 
     #[test]
@@ -2589,7 +3212,7 @@ mod tests {
             ],
         ));
 
-        let ac = value(&projection, "ac");
+        let ac = value(&projection, RuntimeNumberField::ArmorClass);
         assert_eq!(ac.adjusted_value, 18);
         assert!(
             ac.modifiers
@@ -2606,17 +3229,8 @@ mod tests {
                 .iter()
                 .any(|modifier| modifier.label == "Frightened 1")
         );
-        let skill = projection
-            .values
-            .iter()
-            .find(|value| value.label == "Athletics")
-            .expect("canonical skill should project");
+        let skill = value(&projection, RuntimeNumberField::Athletics);
         assert_eq!(skill.adjusted_value, 7);
-        assert!(
-            skill
-                .target
-                .starts_with("mechanic-target/v1/creature-skill/")
-        );
     }
 
     #[test]
@@ -2631,34 +3245,40 @@ mod tests {
         .expect("stat block");
 
         for (target, base) in [
-            ("ac", 22),
-            ("save.fort", 15),
-            ("save.ref", 12),
-            ("save.will", 12),
+            (RuntimeNumberField::ArmorClass, 22),
+            (RuntimeNumberField::Fortitude, 15),
+            (RuntimeNumberField::Reflex, 12),
+            (RuntimeNumberField::Will, 12),
         ] {
             let stat = value(&projection, target);
-            assert_eq!(stat.adjusted_value, base - 1, "unexpected {target}");
-            assert_eq!(stat.modifiers.len(), 1, "unexpected {target}");
+            assert_eq!(stat.adjusted_value, base - 1, "unexpected {target:?}");
+            assert_eq!(stat.modifiers.len(), 1, "unexpected {target:?}");
             assert!(stat.modifiers.iter().any(|modifier| {
-                modifier.source == "Fatigued 9"
+                provenance_source(&modifier.provenance) == "Fatigued 9"
                     && modifier.modifier_type == StatModifierTypeView::Status
                     && modifier.value == -1
             }));
         }
 
         for target in [
-            "hp.max",
-            "perception",
-            "skill.athletics",
-            "ability.str",
-            "ability.dex",
+            RuntimeNumberField::MaximumHp,
+            RuntimeNumberField::Perception,
+            RuntimeNumberField::Athletics,
+            RuntimeNumberField::Strength,
+            RuntimeNumberField::Dexterity,
         ] {
             let stat = value(&projection, target);
-            assert_eq!(stat.adjusted_value, stat.base_value, "unexpected {target}");
-            assert!(stat.modifiers.is_empty(), "unexpected {target}");
-            assert!(stat.suppressed_modifiers.is_empty(), "unexpected {target}");
+            assert_eq!(
+                stat.adjusted_value, stat.base_value,
+                "unexpected {target:?}"
+            );
+            assert!(stat.modifiers.is_empty(), "unexpected {target:?}");
+            assert!(
+                stat.suppressed_modifiers.is_empty(),
+                "unexpected {target:?}"
+            );
         }
-        for speed in &projection.speeds {
+        for speed in &projection.movement.as_ref().expect("movement").speeds {
             assert_eq!(speed.adjusted_value_feet, speed.base_value_feet);
             assert!(speed.adjustments.is_empty());
             assert!(speed.suppressed_adjustments.is_empty());
@@ -2675,7 +3295,7 @@ mod tests {
                     roll.modifiers
                         .iter()
                         .chain(&roll.suppressed_modifiers)
-                        .all(|modifier| modifier.source != "Fatigued 9")
+                        .all(|modifier| provenance_source(&modifier.provenance) != "Fatigued 9")
                 );
             }
             for damage in &activity.damage {
@@ -2683,7 +3303,7 @@ mod tests {
                     damage
                         .modifiers
                         .iter()
-                        .all(|modifier| modifier.source != "Fatigued 9")
+                        .all(|modifier| provenance_source(&modifier.provenance) != "Fatigued 9")
                 );
             }
             for mode in &activity.modes {
@@ -2692,7 +3312,7 @@ mod tests {
                         damage
                             .modifiers
                             .iter()
-                            .all(|modifier| modifier.source != "Fatigued 9")
+                            .all(|modifier| provenance_source(&modifier.provenance) != "Fatigued 9")
                     );
                 }
             }
@@ -2703,20 +3323,20 @@ mod tests {
             vec![condition("Fatigued", None)],
         ));
         let resource = canonical
-            .values
+            .resources
             .iter()
-            .find(|value| value.label == "Focus")
+            .find(|resource| resource.label == "Focus")
             .expect("canonical resource should project");
-        assert_eq!(resource.adjusted_value, resource.base_value);
-        assert!(resource.modifiers.is_empty());
-        assert!(resource.suppressed_modifiers.is_empty());
+        assert_eq!(resource.maximum.adjusted_value, resource.maximum.base_value);
+        assert!(resource.maximum.modifiers.is_empty());
+        assert!(resource.maximum.suppressed_modifiers.is_empty());
 
         let note = projection
-            .unapplied_effects
+            .unapplied_facts
             .iter()
             .find(|effect| effect.label == "Fatigued exploration activity restriction")
             .expect("travel restriction should remain explicit");
-        assert_eq!(note.source, "Fatigued 9");
+        assert_eq!(provenance_source(&note.provenance), "Fatigued 9");
         assert_eq!(
             note.reason,
             "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
@@ -2738,32 +3358,37 @@ mod tests {
         )
         .expect("stat block");
 
-        for target in ["ac", "save.fort", "save.ref", "save.will"] {
+        for target in [
+            RuntimeNumberField::ArmorClass,
+            RuntimeNumberField::Fortitude,
+            RuntimeNumberField::Reflex,
+            RuntimeNumberField::Will,
+        ] {
             let stat = value(&projection, target);
             assert!(stat.modifiers.iter().any(|modifier| {
-                modifier.source == "Frightened 2"
+                provenance_source(&modifier.provenance) == "Frightened 2"
                     && modifier.modifier_type == StatModifierTypeView::Status
                     && modifier.value == -2
             }));
             assert!(stat.suppressed_modifiers.iter().any(|modifier| {
-                modifier.source == "Fatigued"
+                provenance_source(&modifier.provenance) == "Fatigued"
                     && modifier.modifier_type == StatModifierTypeView::Status
                     && modifier.value == -1
             }));
         }
-        let ac = value(&projection, "ac");
+        let ac = value(&projection, RuntimeNumberField::ArmorClass);
         assert!(ac.modifiers.iter().any(|modifier| {
-            modifier.source == "Off-Guard"
+            provenance_source(&modifier.provenance) == "Off-Guard"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
                 && modifier.value == -2
         }));
-        let perception = value(&projection, "perception");
+        let perception = value(&projection, RuntimeNumberField::Perception);
         assert!(
             perception
                 .modifiers
                 .iter()
                 .chain(&perception.suppressed_modifiers)
-                .all(|modifier| modifier.source != "Fatigued")
+                .all(|modifier| provenance_source(&modifier.provenance) != "Fatigued")
         );
     }
 
@@ -2785,14 +3410,17 @@ mod tests {
         .expect("stat block");
         assert_eq!(
             ordered
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .filter(|effect| effect.label == "Fatigued exploration activity restriction")
-                .map(|effect| effect.source.as_str())
+                .map(|effect| provenance_source(&effect.provenance))
                 .collect::<Vec<_>>(),
             vec!["First fatigue", "Second fatigue"]
         );
-        assert_eq!(value(&ordered, "ac").adjusted_value, 21);
+        assert_eq!(
+            value(&ordered, RuntimeNumberField::ArmorClass).adjusted_value,
+            21
+        );
 
         let reversed = project_legacy(
             &participant(
@@ -2804,10 +3432,10 @@ mod tests {
         .expect("stat block");
         assert_eq!(
             reversed
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .filter(|effect| effect.label == "Fatigued exploration activity restriction")
-                .map(|effect| effect.source.as_str())
+                .map(|effect| provenance_source(&effect.provenance))
                 .collect::<Vec<_>>(),
             vec!["Second fatigue", "First fatigue"]
         );
@@ -2820,10 +3448,10 @@ mod tests {
         .expect("stat block");
         assert_eq!(
             key_mutation
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .filter(|effect| effect.label == "Fatigued exploration activity restriction")
-                .map(|effect| effect.source.as_str())
+                .map(|effect| provenance_source(&effect.provenance))
                 .collect::<Vec<_>>(),
             vec!["Second fatigue"]
         );
@@ -2833,26 +3461,29 @@ mod tests {
             &record(),
         )
         .expect("stat block");
-        assert_eq!(value(&annotation_only, "ac").adjusted_value, 22);
-        assert!(annotation_only.unapplied_effects.is_empty());
+        assert_eq!(
+            value(&annotation_only, RuntimeNumberField::ArmorClass).adjusted_value,
+            22
+        );
+        assert!(annotation_only.unapplied_facts.is_empty());
     }
 
     #[test]
     fn runtime_only_fatigued_keeps_context_without_changing_actions() {
-        let projection = participant_runtime_block(&participant(
+        let projection = manual_encounter_runtime(&participant(
             ParticipantVariant::Normal,
             vec![condition("Fatigued", None)],
         ));
         let budget = projection.action_budget.as_ref().expect("action budget");
         assert_eq!(budget.actions.adjusted_value, 3);
         assert!(budget.actions.adjustments.is_empty());
-        assert_eq!(projection.unapplied_effects.len(), 1);
+        assert_eq!(projection.unapplied_facts.len(), 1);
         assert_eq!(
-            projection.unapplied_effects[0].label,
+            projection.unapplied_facts[0].label,
             "Fatigued exploration activity restriction"
         );
         assert_eq!(
-            projection.unapplied_effects[0].reason,
+            projection.unapplied_facts[0].reason,
             "Travel exploration activities are restricted, but exploration context is not automated by this encounter follow-up."
         );
     }
@@ -2882,7 +3513,7 @@ mod tests {
         assert_eq!(strike_damage.adjusted_formula, None);
         assert_eq!(strike_damage.modifiers.len(), 2);
         assert_no_damage_modifier(&projection, "action-breath", "fire");
-        assert!(projection.unapplied_effects.iter().any(|effect| {
+        assert!(projection.unapplied_facts.iter().any(|effect| {
             effect.reason.contains("activities.strike-claw.unsupported")
                 && effect.reason.contains("unmodeled-rule")
         }));
@@ -2900,61 +3531,60 @@ mod tests {
             .iter()
             .find(|activity| activity.activity_id == action_id.as_str())
             .expect("action should project");
-        assert_eq!(action.usage, MechanicActivityUsageView::Limited);
+        assert_eq!(action.usage, EncounterRuntimeActivityUsageView::Limited);
+        assert_eq!(
+            action.action_cost.as_ref().map(|cost| &cost.value),
+            Some(&EncounterRuntimeActionCostKindView::Actions { count: 2 })
+        );
+        assert_eq!(
+            action
+                .uses
+                .as_ref()
+                .map(|uses| (uses.maximum, uses.serialized_value)),
+            Some((Some(2), Some(1)))
+        );
+        assert_eq!(
+            action.frequency.as_ref().map(|frequency| (
+                frequency.maximum,
+                frequency.period.as_deref(),
+                frequency.serialized_value
+            )),
+            Some((Some(1), Some("day"), None))
+        );
         assert!(
             action.rolls.iter().all(|roll| roll.roll_id != "recall"),
             "a check must not be mislabeled as the existing attack or DC surface"
         );
 
-        let expected_unapplied = [
-            (
-                MechanicTarget::ActivityActionCost {
-                    occurrence_id: action_id.clone(),
-                },
-                "Action cost: action cost has no exact encounter activity field; value=actions(2)",
-            ),
-            (
-                MechanicTarget::ActivityUses {
-                    occurrence_id: action_id.clone(),
-                },
-                "Uses: uses are represented only by coarse activity usage; value=maximum=value(2), serialized_value=value(1)",
-            ),
-            (
-                MechanicTarget::ActivityFrequency {
-                    occurrence_id: action_id.clone(),
-                },
-                "Frequency: frequency is represented only by coarse activity usage; value=maximum=value(1), period=value(\"day\"), serialized_value=missing",
-            ),
-            (
-                MechanicTarget::ActivityRoll {
-                    occurrence_id: action_id,
-                    roll_id: "recall".to_string(),
-                },
-                "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)",
-            ),
-        ];
+        let expected_unapplied = [(
+            MechanicTarget::ActivityRoll {
+                occurrence_id: action_id,
+                roll_id: "recall".to_string(),
+            },
+            "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)",
+        )];
         for (target, reason) in expected_unapplied {
             let label = format!("{} retained without exact encounter field", target.id());
-            assert!(projection.unapplied_effects.iter().any(|effect| {
-                effect.source == "Canonical source"
+            assert!(projection.unapplied_facts.iter().any(|effect| {
+                provenance_source(&effect.provenance) == "Canonical source"
                     && effect.label == label
                     && effect.reason == reason
             }));
         }
 
         let slot_values = projection
-            .values
+            .spellcasting
             .iter()
-            .filter(|value| {
-                value
-                    .target
-                    .starts_with("mechanic-target/v1/spell-slot-maximum/")
-            })
+            .flat_map(|entry| &entry.slots)
             .collect::<Vec<_>>();
         assert_eq!(
             slot_values
                 .iter()
-                .map(|value| (value.label.as_str(), value.base_value, value.adjusted_value))
+                .map(|slot| (
+                    slot.maximum.label.as_str(),
+                    slot.maximum.base_value,
+                    slot.maximum.adjusted_value
+                ))
                 .collect::<Vec<_>>(),
             vec![("Rank 3 slots", 2, 2), ("Rank 1 slots", 4, 4)],
             "representable spell-slot maxima should retain canonical fact order"
@@ -2963,7 +3593,7 @@ mod tests {
             entry_occurrence_id: spellcasting_id,
             rank: 4,
         };
-        assert!(projection.unapplied_effects.iter().any(|effect| {
+        assert!(projection.unapplied_facts.iter().any(|effect| {
             effect.label
                 == format!(
                     "{} retained without exact encounter field",
@@ -2975,7 +3605,7 @@ mod tests {
     }
 
     #[test]
-    fn canonical_unapplied_activity_facts_preserve_order_and_duplicates() {
+    fn canonical_activity_metadata_duplicates_fail_closed_without_losing_facts() {
         let mut canonical = canonical_projection();
         let action_id = atlas_record::CreatureOccurrenceId::new("action-breath")
             .expect("occurrence id should be valid");
@@ -2987,7 +3617,8 @@ mod tests {
         let mut duplicate_uses = action
             .facts
             .iter()
-            .find(|fact| matches!(fact.target, MechanicTarget::ActivityUses { .. }))
+            .filter(|fact| matches!(fact.target, MechanicTarget::ActivityUses { .. }))
+            .next()
             .expect("uses fact should exist")
             .clone();
         duplicate_uses.label = "Secondary uses".to_string();
@@ -3001,30 +3632,27 @@ mod tests {
             &participant(ParticipantVariant::Normal, Vec::new()),
             canonical,
         );
-        let action_prefixes = [
-            "mechanic-target/v1/activity-action-cost/",
-            "mechanic-target/v1/activity-uses/",
-            "mechanic-target/v1/activity-frequency/",
-            "mechanic-target/v1/activity-roll/",
-        ];
+        let action = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == action_id.as_str())
+            .expect("action should project");
+        assert!(action.uses.is_none(), "duplicate uses must fail closed");
         let reasons = projection
-            .unapplied_effects
+            .unapplied_facts
             .iter()
             .filter(|effect| {
-                action_prefixes
-                    .iter()
-                    .any(|prefix| effect.label.starts_with(prefix))
+                effect
+                    .reason
+                    .contains("canonical facts target the same zero-or-one")
             })
             .map(|effect| effect.reason.as_str())
             .collect::<Vec<_>>();
         assert_eq!(
             reasons,
             vec![
-                "Action cost: action cost has no exact encounter activity field; value=actions(2)",
-                "Uses: uses are represented only by coarse activity usage; value=maximum=value(2), serialized_value=value(1)",
-                "Secondary uses: uses are represented only by coarse activity usage; value=maximum=value(3), serialized_value=value(2)",
-                "Frequency: frequency is represented only by coarse activity usage; value=maximum=value(1), period=value(\"day\"), serialized_value=missing",
-                "Recall Knowledge: check roll has no encounter roll surface; id=\"recall\"; label=\"Recall Knowledge\"; value=value(18); ability=value(intelligence)",
+                "Uses: 2 canonical facts target the same zero-or-one encounter activity field; all were left unapplied",
+                "Secondary uses: 2 canonical facts target the same zero-or-one encounter activity field; all were left unapplied",
             ]
         );
     }
@@ -3054,7 +3682,7 @@ mod tests {
         });
         assert!(
             project_canonical_projection(&normal, check)
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .any(|effect| effect.reason.contains("value=null; ability=value(wisdom)"))
         );
@@ -3067,11 +3695,15 @@ mod tests {
             },
         )
         .value = MechanicBaseValue::ActionCost(CreatureActionCost::Reaction);
-        assert!(
-            project_canonical_projection(&normal, action_cost_projection)
-                .unapplied_effects
-                .iter()
-                .any(|effect| effect.reason.ends_with("value=reaction"))
+        let projection = project_canonical_projection(&normal, action_cost_projection);
+        let action = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == action_id.as_str())
+            .expect("action should project");
+        assert_eq!(
+            action.action_cost.as_ref().map(|cost| &cost.value),
+            Some(&EncounterRuntimeActionCostKindView::Reaction)
         );
 
         let mut uses_projection = canonical_projection();
@@ -3084,7 +3716,7 @@ mod tests {
         .value = MechanicBaseValue::Uses(FactValue::Null);
         assert!(
             project_canonical_projection(&normal, uses_projection)
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .any(|effect| effect.reason.ends_with("value=null"))
         );
@@ -3093,7 +3725,7 @@ mod tests {
         activity_fact_mut(
             &mut frequency_projection,
             &MechanicTarget::ActivityFrequency {
-                occurrence_id: action_id,
+                occurrence_id: action_id.clone(),
             },
         )
         .value = MechanicBaseValue::Frequency(FactValue::Value(CreatureFrequency {
@@ -3101,13 +3733,20 @@ mod tests {
             period: FactValue::Value("round".to_string()),
             serialized_value: FactValue::Value(1),
         }));
-        assert!(
-            project_canonical_projection(&normal, frequency_projection)
-                .unapplied_effects
-                .iter()
-                .any(|effect| effect.reason.contains(
-                    "maximum=value(2), period=value(\"round\"), serialized_value=value(1)"
-                ))
+        let projection = project_canonical_projection(&normal, frequency_projection);
+        let frequency = projection
+            .activities
+            .iter()
+            .find(|activity| activity.activity_id == action_id.as_str())
+            .and_then(|activity| activity.frequency.as_ref())
+            .expect("frequency should remain typed");
+        assert_eq!(
+            (
+                frequency.maximum,
+                frequency.period.as_deref(),
+                frequency.serialized_value,
+            ),
+            (Some(2), Some("round"), Some(1))
         );
 
         let mut slot_projection = canonical_projection();
@@ -3121,11 +3760,15 @@ mod tests {
         .value = MechanicBaseValue::SourceInteger(FactValue::Value(CreatureSourceScalar::Value(5)));
         let projection = project_canonical_projection(&normal, slot_projection);
         let slot = projection
-            .values
+            .spellcasting
             .iter()
-            .find(|value| value.label == "Rank 3 slots")
+            .flat_map(|entry| &entry.slots)
+            .find(|slot| slot.rank == 3)
             .expect("mutated spell-slot maximum should remain represented");
-        assert_eq!((slot.base_value, slot.adjusted_value), (5, 5));
+        assert_eq!(
+            (slot.maximum.base_value, slot.maximum.adjusted_value),
+            (5, 5)
+        );
     }
 
     #[test]
@@ -3139,24 +3782,27 @@ mod tests {
             ],
         ));
 
-        assert_eq!(value(&projection, "save.ref").adjusted_value, 11);
-        assert_eq!(value(&projection, "perception").adjusted_value, 12);
-        let athletics = projection
-            .values
-            .iter()
-            .find(|value| value.label == "Athletics")
-            .expect("athletics should project");
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Reflex).adjusted_value,
+            11
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Perception).adjusted_value,
+            12
+        );
+        let athletics = value(&projection, RuntimeNumberField::Athletics);
         assert_eq!(athletics.adjusted_value, 7);
         assert_roll(&projection, "strike-claw", "attack", 12, 10, "Enfeebled 2");
         let spellcasting = projection
-            .activities
+            .spellcasting
             .iter()
-            .find(|activity| activity.activity_id == "spellcasting-arcane")
+            .find(|entry| entry.entry_id == "spellcasting-arcane")
             .expect("spellcasting entry should project");
-        assert_eq!(spellcasting.rolls[0].base_value, 22);
-        assert_eq!(spellcasting.rolls[0].adjusted_value, 21);
+        let spell_dc = spellcasting.dc.as_ref().expect("spell DC should project");
+        assert_eq!(spell_dc.base_value, 22);
+        assert_eq!(spell_dc.adjusted_value, 21);
         assert!(
-            spellcasting.rolls[0]
+            spell_dc
                 .modifiers
                 .iter()
                 .any(|modifier| modifier.label == "Stupefied 1")
@@ -3171,7 +3817,8 @@ mod tests {
         let main = strike
             .facts
             .iter()
-            .find(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .filter(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .next()
             .expect("strike damage should exist")
             .clone();
         let mut unsupported_first = main.clone();
@@ -3221,7 +3868,7 @@ mod tests {
         assert_no_damage_modifier(&elite_strike, "strike-claw", "secondary");
         assert!(
             elite_strike
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .any(|effect| { effect.label == "Elite ambiguous offensive damage adjustments" })
         );
@@ -3232,7 +3879,8 @@ mod tests {
         let mut secondary = limited
             .facts
             .iter()
-            .find(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .filter(|fact| matches!(fact.target, MechanicTarget::ActivityDamage { .. }))
+            .next()
             .expect("spell damage should exist")
             .clone();
         secondary.target = MechanicTarget::ActivityDamage {
@@ -3361,67 +4009,75 @@ mod tests {
                 condition("Frightened", Some(1)),
             ],
         ));
-        assert_eq!(value(&projection, "ac").adjusted_value, 19);
-        assert_eq!(value(&projection, "ac").modifiers.len(), 2);
-        assert_eq!(value(&projection, "ac").suppressed_modifiers.len(), 1);
+        assert_eq!(
+            value(&projection, RuntimeNumberField::ArmorClass).adjusted_value,
+            19
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::ArmorClass)
+                .modifiers
+                .len(),
+            2
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::ArmorClass)
+                .suppressed_modifiers
+                .len(),
+            1
+        );
         let attack = roll(&projection, "strike-claw", "attack");
         assert_eq!(attack.adjusted_value, 9);
         assert!(attack.modifiers.iter().any(|modifier| {
-            modifier.source == "Prone"
+            provenance_source(&modifier.provenance) == "Prone"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
                 && modifier.value == -2
         }));
         assert!(attack.modifiers.iter().any(|modifier| {
-            modifier.source == "Frightened 1"
+            provenance_source(&modifier.provenance) == "Frightened 1"
                 && modifier.modifier_type == StatModifierTypeView::Status
                 && modifier.value == -1
         }));
         assert!(attack.suppressed_modifiers.iter().any(|modifier| {
-            modifier.source == "Prone"
+            provenance_source(&modifier.provenance) == "Prone"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
         }));
         let spell_dc = projection
-            .activities
+            .spellcasting
             .iter()
-            .find(|activity| activity.activity_id == "spellcasting-arcane")
-            .and_then(|activity| activity.rolls.iter().find(|roll| roll.label == "Spell DC"))
+            .find(|entry| entry.entry_id == "spellcasting-arcane")
+            .and_then(|entry| entry.dc.as_ref())
             .expect("spell DC should project");
         assert_eq!(spell_dc.adjusted_value, 21);
         assert!(
             spell_dc
                 .modifiers
                 .iter()
-                .all(|modifier| modifier.source != "Prone")
+                .all(|modifier| provenance_source(&modifier.provenance) != "Prone")
         );
         let spell_attack = projection
-            .activities
+            .spellcasting
             .iter()
-            .find(|activity| activity.activity_id == "spellcasting-arcane")
-            .and_then(|activity| {
-                activity
-                    .rolls
-                    .iter()
-                    .find(|roll| roll.label == "Spell Attack")
-            })
+            .find(|entry| entry.entry_id == "spellcasting-arcane")
+            .and_then(|entry| entry.attack.as_ref())
             .expect("spell attack should project");
-        assert_eq!(spell_attack.surface, ActivityRollSurfaceView::AttackRoll);
+        assert_eq!(spell_attack.surface, RuntimeRollSurfaceView::AttackRoll);
         assert_eq!(spell_attack.base_value, 14);
         assert_eq!(spell_attack.adjusted_value, 11);
         assert!(spell_attack.modifiers.iter().any(|modifier| {
-            modifier.source == "Prone"
+            provenance_source(&modifier.provenance) == "Prone"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
                 && modifier.value == -2
         }));
         assert!(spell_attack.modifiers.iter().any(|modifier| {
-            modifier.source == "Frightened 1"
+            provenance_source(&modifier.provenance) == "Frightened 1"
                 && modifier.modifier_type == StatModifierTypeView::Status
                 && modifier.value == -1
         }));
         assert!(spell_attack.suppressed_modifiers.iter().any(|modifier| {
-            modifier.source == "Prone"
+            provenance_source(&modifier.provenance) == "Prone"
                 && modifier.modifier_type == StatModifierTypeView::Circumstance
         }));
-        assert!(projection.unapplied_effects.iter().any(|effect| {
+        assert!(projection.unapplied_facts.iter().any(|effect| {
             effect
                 .reason
                 .contains("check roll has no encounter roll surface")
@@ -3433,7 +4089,7 @@ mod tests {
             .expect("action budget")
             .notes;
         assert!(action_notes.iter().any(|note| {
-            note.source == "Prone"
+            provenance_source(&note.provenance) == "Prone"
                 && note.reason.contains("cover")
                 && note.reason.contains("falling")
         }));
@@ -3482,12 +4138,10 @@ mod tests {
         assert_eq!(land.adjusted_value_feet, 15);
         assert_eq!(land.adjustments.len(), 1);
         assert!(land.suppressed_adjustments.is_empty());
-        assert!(
-            budget
-                .notes
-                .iter()
-                .any(|note| { note.source == "Grabbed" && note.label == "Move actions forbidden" })
-        );
+        assert!(budget.notes.iter().any(|note| {
+            provenance_source(&note.provenance) == "Grabbed"
+                && note.label == "Move actions forbidden"
+        }));
     }
 
     #[test]
@@ -3498,7 +4152,7 @@ mod tests {
         };
 
         assert!(
-            participant_stat_block(
+            participant_encounter_runtime(
                 &participant(ParticipantVariant::Elite, Vec::new()),
                 &retrieved,
             )
@@ -3510,18 +4164,54 @@ mod tests {
     fn elite_adjusts_projected_creature_stats_and_hp_by_level_band() {
         let participant = participant(ParticipantVariant::Elite, Vec::new());
         let projection = project_legacy(&participant, &record()).expect("stat block");
-        assert_eq!(projection.adjusted_level, Some(6));
-        assert_stat(&projection, "ac", 22, 24, "Elite adjustment");
-        assert_stat(&projection, "hp.max", 60, 80, "Elite HP adjustment");
+        assert_eq!(
+            projection
+                .adjusted_level
+                .as_ref()
+                .map(|value| value.adjusted_value),
+            Some(6)
+        );
+        assert_stat(
+            &projection,
+            RuntimeNumberField::ArmorClass,
+            22,
+            24,
+            "Elite adjustment",
+        );
+        assert_stat(
+            &projection,
+            RuntimeNumberField::MaximumHp,
+            60,
+            80,
+            "Elite HP adjustment",
+        );
     }
 
     #[test]
     fn weak_adjusts_projected_creature_stats_and_hp_by_level_band() {
         let participant = participant(ParticipantVariant::Weak, Vec::new());
         let projection = project_legacy(&participant, &record()).expect("stat block");
-        assert_eq!(projection.adjusted_level, Some(4));
-        assert_stat(&projection, "perception", 13, 11, "Weak adjustment");
-        assert_stat(&projection, "hp.max", 60, 45, "Weak HP adjustment");
+        assert_eq!(
+            projection
+                .adjusted_level
+                .as_ref()
+                .map(|value| value.adjusted_value),
+            Some(4)
+        );
+        assert_stat(
+            &projection,
+            RuntimeNumberField::Perception,
+            13,
+            11,
+            "Weak adjustment",
+        );
+        assert_stat(
+            &projection,
+            RuntimeNumberField::MaximumHp,
+            60,
+            45,
+            "Weak HP adjustment",
+        );
     }
 
     #[test]
@@ -3533,7 +4223,7 @@ mod tests {
         ];
         let participant = participant(ParticipantVariant::Normal, conditions);
         let projection = project_legacy(&participant, &record()).expect("stat block");
-        let ac = value(&projection, "ac");
+        let ac = value(&projection, RuntimeNumberField::ArmorClass);
         assert_eq!(ac.adjusted_value, 18);
         assert!(
             ac.modifiers
@@ -3553,7 +4243,7 @@ mod tests {
     }
 
     #[test]
-    fn targeted_conditions_project_supported_stats_and_report_unapplied_effects() {
+    fn targeted_conditions_project_supported_stats_and_report_unapplied_facts() {
         let conditions = vec![
             condition("Clumsy", None),
             condition("Enfeebled", Some(2)),
@@ -3561,10 +4251,19 @@ mod tests {
         ];
         let participant = participant(ParticipantVariant::Normal, conditions);
         let projection = project_legacy(&participant, &record()).expect("stat block");
-        assert_eq!(value(&projection, "save.ref").adjusted_value, 11);
-        assert_eq!(value(&projection, "skill.athletics").adjusted_value, 7);
-        assert_eq!(value(&projection, "save.will").adjusted_value, 11);
-        assert_eq!(projection.unapplied_effects.len(), 3);
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Reflex).adjusted_value,
+            11
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Athletics).adjusted_value,
+            7
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Will).adjusted_value,
+            11
+        );
+        assert_eq!(projection.unapplied_facts.len(), 3);
     }
 
     #[test]
@@ -3575,13 +4274,35 @@ mod tests {
         );
         let projection = project_legacy(&participant, &record()).expect("stat block");
 
-        assert_eq!(value(&projection, "ac").adjusted_value, 21);
-        assert_eq!(value(&projection, "perception").adjusted_value, 12);
-        assert_eq!(value(&projection, "save.will").adjusted_value, 11);
-        assert_eq!(value(&projection, "skill.athletics").adjusted_value, 8);
-        assert_eq!(value(&projection, "ability.str").adjusted_value, 4);
-        assert_eq!(value(&projection, "ability.dex").adjusted_value, 3);
-        assert!(value(&projection, "ability.str").modifiers.is_empty());
+        assert_eq!(
+            value(&projection, RuntimeNumberField::ArmorClass).adjusted_value,
+            21
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Perception).adjusted_value,
+            12
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Will).adjusted_value,
+            11
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Athletics).adjusted_value,
+            8
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Strength).adjusted_value,
+            4
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Dexterity).adjusted_value,
+            3
+        );
+        assert!(
+            value(&projection, RuntimeNumberField::Strength)
+                .modifiers
+                .is_empty()
+        );
     }
 
     #[test]
@@ -3592,9 +4313,18 @@ mod tests {
         );
         let projection = project_legacy(&participant, &record()).expect("stat block");
 
-        assert_eq!(value(&projection, "ac").adjusted_value, 22);
-        assert_eq!(value(&projection, "perception").adjusted_value, 13);
-        assert_eq!(value(&projection, "skill.athletics").adjusted_value, 9);
+        assert_eq!(
+            value(&projection, RuntimeNumberField::ArmorClass).adjusted_value,
+            22
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Perception).adjusted_value,
+            13
+        );
+        assert_eq!(
+            value(&projection, RuntimeNumberField::Athletics).adjusted_value,
+            9
+        );
     }
 
     #[test]
@@ -3746,15 +4476,11 @@ mod tests {
             .as_ref()
             .expect("action budget");
         assert_eq!(budget.actions.adjusted_value, 1);
-        assert!(
-            budget
-                .actions
-                .adjustments
-                .iter()
-                .any(|adjustment| { adjustment.source == "Stunned 1" && adjustment.value == -1 })
-        );
         assert!(budget.actions.adjustments.iter().any(|adjustment| {
-            adjustment.source == "Slowed 2"
+            provenance_source(&adjustment.provenance) == "Stunned 1" && adjustment.value == -1
+        }));
+        assert!(budget.actions.adjustments.iter().any(|adjustment| {
+            provenance_source(&adjustment.provenance) == "Slowed 2"
                 && adjustment.value == -1
                 && adjustment.reason.as_deref()
                     == Some(
@@ -3766,7 +4492,7 @@ mod tests {
                 .actions
                 .suppressed_adjustments
                 .iter()
-                .all(|adjustment| adjustment.source != "Slowed 2")
+                .all(|adjustment| provenance_source(&adjustment.provenance) != "Slowed 2")
         );
 
         let stronger_stunned = project_legacy(
@@ -3787,7 +4513,10 @@ mod tests {
                 .actions
                 .adjustments
                 .iter()
-                .any(|adjustment| { adjustment.source == "Stunned 2" && adjustment.value == -2 })
+                .any(|adjustment| {
+                    provenance_source(&adjustment.provenance) == "Stunned 2"
+                        && adjustment.value == -2
+                })
         );
         assert!(
             stronger_budget
@@ -3795,7 +4524,7 @@ mod tests {
                 .suppressed_adjustments
                 .iter()
                 .any(|adjustment| {
-                    adjustment.source == "Slowed 1"
+                    provenance_source(&adjustment.provenance) == "Slowed 1"
                         && adjustment.reason.as_deref()
                             == Some("All 1 slowed action loss is already counted by stunned.")
                 })
@@ -3839,12 +4568,12 @@ mod tests {
         assert!(budget.can_act.available);
         let expected_duration_reason = "Stunned value=missing; duration_rounds=value(2); no numeric action loss is applied; duration timing and lifecycle remain contextual.";
         assert!(budget.notes.iter().any(|note| {
-            note.source == "Stunned"
+            provenance_source(&note.provenance) == "Stunned"
                 && note.label == "Stunned duration/value disposition"
                 && note.reason == expected_duration_reason
         }));
-        assert!(duration_only.unapplied_effects.iter().any(|effect| {
-            effect.source == "Stunned"
+        assert!(duration_only.unapplied_facts.iter().any(|effect| {
+            provenance_source(&effect.provenance) == "Stunned"
                 && effect.label == "Stunned duration/value disposition"
                 && effect.reason == expected_duration_reason
         }));
@@ -3868,7 +4597,7 @@ mod tests {
         );
         assert!(
             numeric
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .all(|effect| { effect.label != "Stunned duration/value disposition" })
         );
@@ -3889,12 +4618,12 @@ mod tests {
                 .adjusted_value,
             3
         );
-        assert!(mutated.unapplied_effects.iter().any(|effect| {
+        assert!(mutated.unapplied_facts.iter().any(|effect| {
             effect.reason == "Stunned value=missing; duration_rounds=value(4); no numeric action loss is applied; duration timing and lifecycle remain contextual."
         }));
         assert!(
             mutated
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .all(|effect| effect.reason != expected_duration_reason)
         );
@@ -3916,7 +4645,7 @@ mod tests {
                 .adjusted_value,
             3
         );
-        assert!(invalid_numeric.unapplied_effects.iter().any(|effect| {
+        assert!(invalid_numeric.unapplied_facts.iter().any(|effect| {
             effect.reason == "Stunned value=value(0); duration_rounds=missing; no numeric action loss is applied; duration timing and lifecycle remain contextual."
         }));
 
@@ -3937,7 +4666,7 @@ mod tests {
                 .adjusted_value,
             1
         );
-        assert!(value_and_duration.unapplied_effects.iter().any(|effect| {
+        assert!(value_and_duration.unapplied_facts.iter().any(|effect| {
             effect.reason == "Stunned value=value(2); duration_rounds=value(3); the positive numeric value is applied to this action-regain step; duration timing and lifecycle remain contextual."
         }));
     }
@@ -3953,38 +4682,44 @@ mod tests {
                 &record(),
             )
             .expect("stat block");
-            let ac = value(&projection, "ac");
+            let ac = value(&projection, RuntimeNumberField::ArmorClass);
             assert_eq!(ac.adjusted_value, 20);
             assert!(ac.modifiers.iter().any(|modifier| {
-                modifier.source == "Restrained"
+                provenance_source(&modifier.provenance) == "Restrained"
                     && modifier.modifier_type == StatModifierTypeView::Circumstance
                     && modifier.value == -2
             }));
             assert!(ac.suppressed_modifiers.iter().any(|modifier| {
-                modifier.source == "Grabbed"
+                provenance_source(&modifier.provenance) == "Grabbed"
                     && modifier.modifier_type == StatModifierTypeView::Circumstance
                     && modifier.value == -2
             }));
-            assert!(projection.unapplied_effects.iter().any(|effect| {
-                effect.source == "Restrained"
+            assert!(projection.unapplied_facts.iter().any(|effect| {
+                provenance_source(&effect.provenance) == "Restrained"
                     && effect.label == "Restrained attack and manipulate restrictions"
             }));
             assert!(
                 projection
-                    .unapplied_effects
+                    .unapplied_facts
                     .iter()
-                    .all(|effect| effect.source != "Grabbed")
+                    .all(|effect| provenance_source(&effect.provenance) != "Grabbed")
             );
             let budget = projection.action_budget.as_ref().expect("action budget");
             assert!(budget.notes.iter().any(|note| {
-                note.source == "Restrained" && note.label == "Move actions forbidden"
+                provenance_source(&note.provenance) == "Restrained"
+                    && note.label == "Move actions forbidden"
             }));
-            assert!(budget.notes.iter().all(|note| note.source != "Grabbed"));
+            assert!(
+                budget
+                    .notes
+                    .iter()
+                    .all(|note| provenance_source(&note.provenance) != "Grabbed")
+            );
             assert!(
                 speed(&projection, "land")
                     .notes
                     .iter()
-                    .all(|note| note.source != "Grabbed")
+                    .all(|note| provenance_source(&note.provenance) != "Grabbed")
             );
         }
 
@@ -3994,13 +4729,14 @@ mod tests {
         )
         .expect("stat block");
         assert!(
-            value(&grabbed_only, "ac")
+            value(&grabbed_only, RuntimeNumberField::ArmorClass)
                 .modifiers
                 .iter()
-                .any(|modifier| modifier.source == "Grabbed")
+                .any(|modifier| provenance_source(&modifier.provenance) == "Grabbed")
         );
-        assert!(grabbed_only.unapplied_effects.iter().any(|effect| {
-            effect.source == "Grabbed" && effect.label == "Grabbed manipulate-action flat check"
+        assert!(grabbed_only.unapplied_facts.iter().any(|effect| {
+            provenance_source(&effect.provenance) == "Grabbed"
+                && effect.label == "Grabbed manipulate-action flat check"
         }));
     }
 
@@ -4016,7 +4752,10 @@ mod tests {
         .expect("stat block");
         assert_eq!(speed(&encumbered, "land").adjusted_value_feet, 15);
         assert_eq!(speed(&encumbered, "fly").adjusted_value_feet, 5);
-        assert_eq!(value(&encumbered, "save.ref").adjusted_value, 11);
+        assert_eq!(
+            value(&encumbered, RuntimeNumberField::Reflex).adjusted_value,
+            11
+        );
 
         let grabbed = project_legacy(
             &participant(ParticipantVariant::Normal, vec![condition("Grabbed", None)]),
@@ -4024,7 +4763,10 @@ mod tests {
         )
         .expect("stat block");
         assert_eq!(speed(&grabbed, "land").adjusted_value_feet, 25);
-        assert_eq!(value(&grabbed, "ac").adjusted_value, 20);
+        assert_eq!(
+            value(&grabbed, RuntimeNumberField::ArmorClass).adjusted_value,
+            20
+        );
         assert!(
             grabbed
                 .action_budget
@@ -4032,7 +4774,8 @@ mod tests {
                 .expect("action budget")
                 .notes
                 .iter()
-                .any(|note| note.source == "Grabbed" && note.label == "Move actions forbidden")
+                .any(|note| provenance_source(&note.provenance) == "Grabbed"
+                    && note.label == "Move actions forbidden")
         );
 
         let grabbed_and_encumbered = project_legacy(
@@ -4060,7 +4803,7 @@ mod tests {
             assert_eq!(speed(&restricted, "land").adjusted_value_feet, 25);
             assert_eq!(speed(&restricted, "fly").adjusted_value_feet, 10);
             assert!(speed(&restricted, "land").notes.iter().any(|note| {
-                note.source == condition_name
+                provenance_source(&note.provenance) == condition_name
                     && note.label == "Move actions forbidden"
                     && note.reason.contains("numeric Speed is unchanged")
             }));
@@ -4072,18 +4815,18 @@ mod tests {
                     .notes
                     .iter()
                     .any(|note| {
-                        note.source == condition_name
+                        provenance_source(&note.provenance) == condition_name
                             && note.label == "Move actions forbidden"
                             && note.reason.contains("move trait")
                     })
             );
             match condition_name {
-                "Grabbed" => assert!(restricted.unapplied_effects.iter().any(|effect| {
-                    effect.source == "Grabbed"
+                "Grabbed" => assert!(restricted.unapplied_facts.iter().any(|effect| {
+                    provenance_source(&effect.provenance) == "Grabbed"
                         && effect.label == "Grabbed manipulate-action flat check"
                 })),
-                "Restrained" => assert!(restricted.unapplied_effects.iter().any(|effect| {
-                    effect.source == "Restrained"
+                "Restrained" => assert!(restricted.unapplied_facts.iter().any(|effect| {
+                    provenance_source(&effect.provenance) == "Restrained"
                         && effect.label == "Restrained attack and manipulate restrictions"
                 })),
                 _ => {}
@@ -4110,10 +4853,13 @@ mod tests {
         )
         .expect("stat block");
         assert_eq!(speed(&prone, "land").adjusted_value_feet, 25);
-        assert_eq!(value(&prone, "ac").adjusted_value, 20);
+        assert_eq!(
+            value(&prone, RuntimeNumberField::ArmorClass).adjusted_value,
+            20
+        );
         assert!(
             prone
-                .unapplied_effects
+                .unapplied_facts
                 .iter()
                 .any(|effect| effect.label == "Prone contextual limits")
         );
@@ -4128,6 +4874,9 @@ mod tests {
         .expect("stat block");
         assert!(
             zero_speed
+                .movement
+                .as_ref()
+                .expect("movement")
                 .speeds
                 .iter()
                 .all(|speed| speed.movement_type != "land")
@@ -4135,14 +4884,27 @@ mod tests {
         assert_eq!(speed(&zero_speed, "fly").adjusted_value_feet, 5);
     }
 
+    #[derive(Debug, Clone, Copy)]
+    enum RuntimeNumberField {
+        ArmorClass,
+        MaximumHp,
+        Perception,
+        Fortitude,
+        Reflex,
+        Will,
+        Athletics,
+        Strength,
+        Dexterity,
+    }
+
     fn assert_stat(
-        projection: &StatBlockView,
-        target: &str,
+        projection: &EncounterRuntimeView,
+        field: RuntimeNumberField,
         base: i64,
         adjusted: i64,
         label: &str,
     ) {
-        let value = value(projection, target);
+        let value = value(projection, field);
         assert_eq!(value.base_value, base);
         assert_eq!(value.adjusted_value, adjusted);
         assert!(
@@ -4153,16 +4915,28 @@ mod tests {
         );
     }
 
-    fn value<'a>(projection: &'a StatBlockView, target: &str) -> &'a StatValueView {
-        projection
-            .values
-            .iter()
-            .find(|value| value.target == target)
-            .expect("stat value should exist")
+    fn value(projection: &EncounterRuntimeView, field: RuntimeNumberField) -> &RuntimeNumberView {
+        match field {
+            RuntimeNumberField::ArmorClass => &projection.defenses.as_ref().expect("defenses").armor_class,
+            RuntimeNumberField::MaximumHp => projection.vitals.as_ref().and_then(|vitals| vitals.maximum_hp.as_ref()).expect("maximum hp"),
+            RuntimeNumberField::Perception => &projection.awareness.as_ref().expect("awareness").perception,
+            RuntimeNumberField::Fortitude => projection.saves.as_ref().and_then(|saves| saves.fortitude.as_ref()).expect("fortitude"),
+            RuntimeNumberField::Reflex => projection.saves.as_ref().and_then(|saves| saves.reflex.as_ref()).expect("reflex"),
+            RuntimeNumberField::Will => projection.saves.as_ref().and_then(|saves| saves.will.as_ref()).expect("will"),
+            RuntimeNumberField::Athletics => &projection.skills.iter().find(|skill| matches!(skill.kind, EncounterRuntimeSkillKindView::Standard { ref slug } if slug == "athletics") || skill.label == "Athletics").expect("athletics").modifier,
+            RuntimeNumberField::Strength => projection.abilities.as_ref().and_then(|abilities| abilities.strength.as_ref()).expect("strength"),
+            RuntimeNumberField::Dexterity => projection.abilities.as_ref().and_then(|abilities| abilities.dexterity.as_ref()).expect("dexterity"),
+        }
     }
 
-    fn speed<'a>(projection: &'a StatBlockView, movement_type: &str) -> &'a MovementSpeedView {
+    fn speed<'a>(
+        projection: &'a EncounterRuntimeView,
+        movement_type: &str,
+    ) -> &'a RuntimeDistanceView {
         projection
+            .movement
+            .as_ref()
+            .expect("movement")
             .speeds
             .iter()
             .find(|speed| speed.movement_type == movement_type)
@@ -4170,7 +4944,7 @@ mod tests {
     }
 
     fn assert_damage_modifier(
-        projection: &StatBlockView,
+        projection: &EncounterRuntimeView,
         activity_id: &str,
         damage_id: &str,
         value: i64,
@@ -4180,7 +4954,11 @@ mod tests {
         assert_eq!(damage.modifiers[0].value, value);
     }
 
-    fn assert_no_damage_modifier(projection: &StatBlockView, activity_id: &str, damage_id: &str) {
+    fn assert_no_damage_modifier(
+        projection: &EncounterRuntimeView,
+        activity_id: &str,
+        damage_id: &str,
+    ) {
         assert!(
             damage(projection, activity_id, damage_id)
                 .modifiers
@@ -4189,7 +4967,7 @@ mod tests {
     }
 
     fn assert_mode_damage_modifier(
-        projection: &StatBlockView,
+        projection: &EncounterRuntimeView,
         activity_id: &str,
         mode_id: &str,
         damage_id: &str,
@@ -4201,7 +4979,7 @@ mod tests {
     }
 
     fn assert_no_mode_damage_modifier(
-        projection: &StatBlockView,
+        projection: &EncounterRuntimeView,
         activity_id: &str,
         mode_id: &str,
         damage_id: &str,
@@ -4214,7 +4992,7 @@ mod tests {
     }
 
     fn assert_roll(
-        projection: &StatBlockView,
+        projection: &EncounterRuntimeView,
         activity_id: &str,
         roll_id: &str,
         base: i64,
@@ -4232,10 +5010,10 @@ mod tests {
     }
 
     fn roll<'a>(
-        projection: &'a StatBlockView,
+        projection: &'a EncounterRuntimeView,
         activity_id: &str,
         roll_id: &str,
-    ) -> &'a ActivityRollView {
+    ) -> &'a RuntimeRollView {
         projection
             .activities
             .iter()
@@ -4245,10 +5023,10 @@ mod tests {
     }
 
     fn damage<'a>(
-        projection: &'a StatBlockView,
+        projection: &'a EncounterRuntimeView,
         activity_id: &str,
         damage_id: &str,
-    ) -> &'a DamageExpressionView {
+    ) -> &'a RuntimeFormulaView {
         projection
             .activities
             .iter()
@@ -4263,11 +5041,11 @@ mod tests {
     }
 
     fn mode_damage<'a>(
-        projection: &'a StatBlockView,
+        projection: &'a EncounterRuntimeView,
         activity_id: &str,
         mode_id: &str,
         damage_id: &str,
-    ) -> &'a DamageExpressionView {
+    ) -> &'a RuntimeFormulaView {
         projection
             .activities
             .iter()
@@ -4284,6 +5062,462 @@ mod tests {
                     })
             })
             .expect("mode damage expression should exist")
+    }
+
+    #[test]
+    #[ignore = "exports checksum-bound E2R early-direction samples"]
+    fn export_typed_encounter_runtime_early_samples() {
+        let sample_root = required_path_env("E2R_SAMPLE_ROOT");
+        assert!(
+            !sample_root.exists(),
+            "sample root must be fresh and no-clobber: {}",
+            sample_root.display()
+        );
+        fs::create_dir_all(
+            sample_root
+                .parent()
+                .expect("sample root should have a parent"),
+        )
+        .expect("sample parent should be creatable");
+        fs::create_dir(&sample_root).expect("fresh sample root should be creatable");
+
+        let candidate = required_env("E2R_SAMPLE_CANDIDATE");
+        let candidate_tree = required_env("E2R_SAMPLE_TREE");
+        assert_eq!(git_value(Path::new("."), &["rev-parse", "HEAD"]), candidate);
+        assert_eq!(
+            git_value(Path::new("."), &["rev-parse", "HEAD^{tree}"]),
+            candidate_tree
+        );
+
+        let source_root = required_path_env("E2R_SAMPLE_SOURCE_ROOT");
+        let source_commit = required_env("E2R_SAMPLE_SOURCE_COMMIT");
+        let source_tree = required_env("E2R_SAMPLE_SOURCE_TREE");
+        assert_eq!(
+            git_value(&source_root, &["rev-parse", "HEAD"]),
+            source_commit
+        );
+        assert_eq!(
+            git_value(&source_root, &["rev-parse", "HEAD^{tree}"]),
+            source_tree
+        );
+        let night_hag_source = source_root.join("packs/pathfinder-bestiary/night-hag.json");
+        let giant_rat_source = source_root.join("packs/pathfinder-monster-core/giant-rat.json");
+        assert_eq!(
+            file_sha256(&night_hag_source),
+            "9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8"
+        );
+        assert_eq!(
+            file_sha256(&giant_rat_source),
+            "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f"
+        );
+
+        let local_state = std::env::temp_dir().join(format!(
+            "atlas-e2r-sample-state-{}-{}.sqlite",
+            std::process::id(),
+            unique_sample_suffix()
+        ));
+        let service = AtlasAppService::new(
+            RetrievalBackend::OnDemandNoEmbeddings,
+            AtlasRuntimeOptions {
+                path_mode: AtlasPathMode::Global,
+                overrides: AtlasPathOverrides {
+                    source_root: Some(source_root.clone()),
+                    embedding_cache_root: None,
+                    index_path: Some(required_path_env("E2R_SAMPLE_INDEX")),
+                },
+            },
+            local_state.clone(),
+        )
+        .expect("sample service should start");
+        let encounter = service
+            .create_encounter(CreateEncounterRequest {
+                name: "E2R Typed Runtime Evidence".to_string(),
+                description: Some(
+                    "Candidate-authentic API serialization for early direction inspection"
+                        .to_string(),
+                ),
+                note: None,
+            })
+            .expect("sample encounter should create")
+            .encounter;
+        let store = service
+            .local_state_store()
+            .expect("sample local state should open");
+        let night_hag_key = RecordKey::parse("pathfinder-bestiary:WQy7HBUcgDLsfVJd")
+            .expect("Night Hag key should parse");
+        let giant_rat_key = RecordKey::parse("pathfinder-monster-core:iIJPJcDT8wlJ8z5M")
+            .expect("Giant Rat key should parse");
+        for (display_name, record_key, variant) in [
+            (
+                "Night Hag — Normal",
+                night_hag_key.clone(),
+                ParticipantVariant::Normal,
+            ),
+            (
+                "Night Hag — Elite",
+                night_hag_key.clone(),
+                ParticipantVariant::Elite,
+            ),
+            ("Night Hag — Weak", night_hag_key, ParticipantVariant::Weak),
+            (
+                "Giant Rat — Normal",
+                giant_rat_key,
+                ParticipantVariant::Normal,
+            ),
+        ] {
+            let participant = store
+                .encounters()
+                .add_participant(
+                    &encounter.slug,
+                    atlas_local_state::AddEncounterParticipant {
+                        record_key: Some(record_key),
+                        participant_kind: atlas_local_state::ParticipantKind::Creature,
+                        display_name: display_name.to_string(),
+                        record_title_snapshot: Some(display_name.to_string()),
+                        record_kind_snapshot: Some("creature".to_string()),
+                        side: atlas_local_state::ParticipantSide::Enemy,
+                        initiative: None,
+                        max_hp: None,
+                        current_hp: None,
+                        temporary_hp: 0,
+                        note: None,
+                    },
+                )
+                .expect("real sample participant should add");
+            if variant != ParticipantVariant::Normal {
+                store
+                    .encounters()
+                    .update_participant(atlas_local_state::UpdateEncounterParticipant {
+                        participant_key: participant.participant_key.clone(),
+                        display_name: participant.display_name.clone(),
+                        side: participant.side,
+                        participant_variant: variant,
+                        initiative: participant.initiative,
+                        max_hp: participant.max_hp,
+                        current_hp: participant.current_hp,
+                        temporary_hp: participant.temporary_hp,
+                        defeated: participant.defeated,
+                        hidden: participant.hidden,
+                        note: participant.note.clone(),
+                    })
+                    .expect("sample participant variant should update")
+                    .expect("sample participant should remain present");
+            }
+        }
+        store
+            .encounters()
+            .add_participant(
+                &encounter.slug,
+                atlas_local_state::AddEncounterParticipant {
+                    record_key: None,
+                    participant_kind: atlas_local_state::ParticipantKind::Pc,
+                    display_name: "Concept PC".to_string(),
+                    record_title_snapshot: None,
+                    record_kind_snapshot: None,
+                    side: atlas_local_state::ParticipantSide::Pc,
+                    initiative: Some(17),
+                    max_hp: Some(42),
+                    current_hp: Some(31),
+                    temporary_hp: 0,
+                    note: None,
+                },
+            )
+            .expect("manual concept participant should add");
+        store
+            .encounters()
+            .add_participant(
+                &encounter.slug,
+                atlas_local_state::AddEncounterParticipant {
+                    record_key: Some(
+                        RecordKey::parse("pathfinder-bestiary:missing-e2r-sample")
+                            .expect("unresolved sample key should parse"),
+                    ),
+                    participant_kind: atlas_local_state::ParticipantKind::Creature,
+                    display_name: "Unavailable Record Concept".to_string(),
+                    record_title_snapshot: Some("Unavailable Record Concept".to_string()),
+                    record_kind_snapshot: Some("creature".to_string()),
+                    side: atlas_local_state::ParticipantSide::Enemy,
+                    initiative: None,
+                    max_hp: Some(12),
+                    current_hp: Some(9),
+                    temporary_hp: 0,
+                    note: Some("Intentional concept mock for unresolved hydration".to_string()),
+                },
+            )
+            .expect("unresolved concept participant should add");
+        drop(store);
+        let api_detail = service
+            .encounter(&encounter.slug)
+            .expect("sample encounter should serialize");
+        let participant_named = |name: &str| {
+            api_detail
+                .participants
+                .iter()
+                .find(|participant| participant.display_name == name)
+                .unwrap_or_else(|| panic!("{name} should remain present"))
+                .clone()
+        };
+        let night_hag_normal = participant_named("Night Hag — Normal");
+        let night_hag_elite = participant_named("Night Hag — Elite");
+        let night_hag_weak = participant_named("Night Hag — Weak");
+        let giant_rat = participant_named("Giant Rat — Normal");
+        let manual = participant_named("Concept PC");
+        let unresolved = api_detail
+            .participants
+            .iter()
+            .find(|participant| participant.display_name == "Unavailable Record Concept")
+            .expect("unresolved participant should remain explicit")
+            .clone();
+
+        let fatigued = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![condition("Fatigued", None)],
+        ));
+        let condition_stacking = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![
+                condition("Fatigued", None),
+                condition("Frightened", Some(2)),
+                condition("Off-Guard", None),
+                condition("Prone", None),
+            ],
+        ));
+        let action_budget = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![
+                condition("Quickened", Some(1)),
+                condition("Slowed", Some(1)),
+                condition("Stunned", Some(1)),
+            ],
+        ));
+        let movement = project_canonical(&participant(
+            ParticipantVariant::Normal,
+            vec![condition("Grabbed", None), condition("Restrained", None)],
+        ));
+        let resources_spellcasting_activities =
+            project_canonical(&participant(ParticipantVariant::Normal, Vec::new()));
+
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-night-hag-normal.json"),
+            &night_hag_normal.encounter_runtime,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-night-hag-elite.json"),
+            &night_hag_elite.encounter_runtime,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-night-hag-weak.json"),
+            &night_hag_weak.encounter_runtime,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-giant-rat-normal.json"),
+            &giant_rat.encounter_runtime,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-fatigued.json"),
+            &fatigued,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-condition-stacking.json"),
+            &condition_stacking,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-action-budget.json"),
+            &action_budget,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-movement.json"),
+            &movement,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-resources-spellcasting-activities.json"),
+            &resources_spellcasting_activities,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-manual-pc.json"),
+            &manual,
+        );
+        write_sample_json!(
+            &sample_root.join("encounter-runtime-unresolved.json"),
+            &unresolved,
+        );
+        write_sample_json!(&sample_root.join("api-encounter-detail.json"), &api_detail);
+
+        let bindings_root = sample_root.join("generated-bindings");
+        fs::create_dir(&bindings_root).expect("bindings sample directory should be creatable");
+        let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for name in [
+            "EncounterDetailView.ts",
+            "EncounterParticipantView.ts",
+            "EncounterRuntimeView.ts",
+            "EncounterRuntimeActivityView.ts",
+            "EncounterRuntimeActionCostView.ts",
+            "EncounterRuntimeFrequencyView.ts",
+            "EncounterRuntimeUsesView.ts",
+            "RuntimeFactProvenanceView.ts",
+            "RuntimeCanonicalTargetView.ts",
+        ] {
+            fs::copy(
+                workspace_root
+                    .join("crates/atlas-app-model/bindings")
+                    .join(name),
+                bindings_root.join(name),
+            )
+            .unwrap_or_else(|error| panic!("binding {name} should copy: {error}"));
+        }
+        fs::copy(
+            workspace_root.join("web/atlas-ui/src/generated/atlas.ts"),
+            bindings_root.join("atlas.ts"),
+        )
+        .expect("generated aggregate binding should copy");
+
+        fs::write(
+            sample_root.join("presentation.md"),
+            format!(
+                "# E2R early-direction samples\n\nCandidate `{candidate}` (tree `{candidate_tree}`).\n\nThis package is an **early direction sample only**. It is not an independent review, final sample approval, E2R acceptance, or authorization for E3.\n\n## Authentic real Foundry records (exactly two)\n\n- Dense/complex: Night Hag, `pathfinder-bestiary:WQy7HBUcgDLsfVJd`; normal, elite, and weak candidate serializations.\n- Sparse/simple: Giant Rat, `pathfinder-monster-core:iIJPJcDT8wlJ8z5M`; normal candidate serialization.\n\n## Clearly labeled concept mock\n\nThe Fatigued, condition-stacking, action-budget, movement, resources/spellcasting/activities, manual-PC, and unresolved samples use the in-tree canonical E2 mechanics fixture or deliberately authored encounter state. They inspect candidate DTO direction and do not claim additional Foundry records. `api-encounter-detail.json` is an authentic app-service API DTO containing the same two real records plus the labeled manual/unresolved concept participants.\n"
+            ),
+        )
+        .expect("presentation should write");
+        fs::write(
+            sample_root.join("candidate-report.md"),
+            format!(
+                "# Candidate report\n\n- Candidate: `{candidate}`\n- Tree: `{candidate_tree}`\n- Parent: `e5b8f681922cf52f9ca75eba647fad5552153a3e`\n- Producer: `cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_early_samples -- --ignored --exact`\n- Producer path: `crates/atlas-app-service/src/encounters/mechanics.rs`\n- Source commit/tree: `{source_commit}` / `{source_tree}`\n- Source signature: `{}`\n- Retained artifact: `{}`\n- Validation before export: `{}`\n\nThis is the first representative implementation and stops before polish, independent review, final sample approval, or acceptance.\n",
+                required_env("E2R_SAMPLE_SOURCE_SIGNATURE"),
+                required_path_env("E2R_SAMPLE_INDEX").display(),
+                required_env("E2R_SAMPLE_VALIDATION")
+            ),
+        )
+        .expect("candidate report should write");
+
+        let payload_files = relative_files(&sample_root);
+        let payload_hashes = payload_files
+            .iter()
+            .map(|relative| {
+                serde_json::json!({
+                    "path": relative,
+                    "sha256": file_sha256(&sample_root.join(relative)),
+                })
+            })
+            .collect::<Vec<_>>();
+        let manifest = serde_json::json!({
+            "schema": "e2r-typed-encounter-runtime-early-samples/v1",
+            "status": "early_direction_only_non_authorizing",
+            "candidate": { "commit": candidate, "tree": candidate_tree, "parent": "e5b8f681922cf52f9ca75eba647fad5552153a3e" },
+            "producer": { "command": "cargo test -p atlas-app-service encounters::mechanics::tests::export_typed_encounter_runtime_early_samples -- --ignored --exact", "test_path": "crates/atlas-app-service/src/encounters/mechanics.rs" },
+            "source": {
+                "root": source_root,
+                "commit": source_commit,
+                "tree": source_tree,
+                "signature": required_env("E2R_SAMPLE_SOURCE_SIGNATURE"),
+                "records": [
+                    { "classification": "real_foundry_dense_complex", "record_key": "pathfinder-bestiary:WQy7HBUcgDLsfVJd", "source_path": "packs/pathfinder-bestiary/night-hag.json", "source_sha256": "9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8" },
+                    { "classification": "real_foundry_sparse_simple", "record_key": "pathfinder-monster-core:iIJPJcDT8wlJ8z5M", "source_path": "packs/pathfinder-monster-core/giant-rat.json", "source_sha256": "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f" }
+                ]
+            },
+            "classification": {
+                "real_foundry": ["encounter-runtime-night-hag-normal.json", "encounter-runtime-night-hag-elite.json", "encounter-runtime-night-hag-weak.json", "encounter-runtime-giant-rat-normal.json"],
+                "concept_mock": ["encounter-runtime-fatigued.json", "encounter-runtime-condition-stacking.json", "encounter-runtime-action-budget.json", "encounter-runtime-movement.json", "encounter-runtime-resources-spellcasting-activities.json", "encounter-runtime-manual-pc.json", "encounter-runtime-unresolved.json"],
+                "mixed_exact_api": ["api-encounter-detail.json"]
+            },
+            "artifact": { "path": required_path_env("E2R_SAMPLE_INDEX"), "trusted_sha256": required_env("E2R_SAMPLE_INDEX_SHA256") },
+            "files": payload_hashes,
+            "checksums": "checksums.sha256 (self-excluded)"
+        });
+        write_sample_json!(&sample_root.join("sample-manifest.json"), &manifest);
+
+        let mut checksum_lines = relative_files(&sample_root)
+            .into_iter()
+            .map(|relative| {
+                format!(
+                    "{}  {}",
+                    file_sha256(&sample_root.join(&relative)),
+                    relative.display()
+                )
+            })
+            .collect::<Vec<_>>();
+        checksum_lines.sort();
+        fs::write(
+            sample_root.join("checksums.sha256"),
+            format!("{}\n", checksum_lines.join("\n")),
+        )
+        .expect("checksums should write");
+        for relative in relative_files(&sample_root) {
+            let path = sample_root.join(relative);
+            let mut permissions = fs::metadata(&path)
+                .expect("sample metadata should read")
+                .permissions();
+            permissions.set_readonly(true);
+            fs::set_permissions(path, permissions).expect("sample file should seal read-only");
+        }
+        drop(service);
+        let _ = fs::remove_file(local_state);
+    }
+
+    fn required_env(name: &str) -> String {
+        std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
+    }
+
+    fn required_path_env(name: &str) -> PathBuf {
+        PathBuf::from(required_env(name))
+    }
+
+    fn git_value(root: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(root)
+            .output()
+            .expect("git should run");
+        assert!(output.status.success(), "git command should succeed");
+        String::from_utf8(output.stdout)
+            .expect("git output should be UTF-8")
+            .trim()
+            .to_string()
+    }
+
+    fn file_sha256(path: &Path) -> String {
+        let output = Command::new("shasum")
+            .args(["-a", "256"])
+            .arg(path)
+            .output()
+            .expect("shasum should run");
+        assert!(output.status.success(), "shasum should succeed");
+        String::from_utf8(output.stdout)
+            .expect("shasum output should be UTF-8")
+            .split_whitespace()
+            .next()
+            .expect("shasum should emit a digest")
+            .to_string()
+    }
+
+    fn relative_files(root: &Path) -> Vec<PathBuf> {
+        fn visit(root: &Path, path: &Path, files: &mut Vec<PathBuf>) {
+            for entry in fs::read_dir(path).expect("sample directory should read") {
+                let entry = entry.expect("sample entry should read");
+                let path = entry.path();
+                if path.is_dir() {
+                    visit(root, &path, files);
+                } else if path.file_name().and_then(|name| name.to_str())
+                    != Some("checksums.sha256")
+                {
+                    files.push(
+                        path.strip_prefix(root)
+                            .expect("sample path should be relative")
+                            .to_path_buf(),
+                    );
+                }
+            }
+        }
+        let mut files = Vec::new();
+        visit(root, root, &mut files);
+        files.sort();
+        files
+    }
+
+    fn unique_sample_suffix() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after epoch")
+            .as_nanos()
     }
 
     fn participant(

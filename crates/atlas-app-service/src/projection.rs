@@ -1,13 +1,10 @@
 use atlas_app_model::{
-    RecordBadgeView, RecordDetailView, RecordSummaryView, RecordSurfaceProfileView,
-    ResultMatchSummary, SearchPageView,
+    RecordBadgeView, RecordDetailView, RecordSummaryView, ResultMatchSummary, SearchPageView,
 };
-use atlas_domain::RecordKind;
 use atlas_record::{AtlasRecord, build_record_presentation_document};
 use atlas_search::SearchPageInfo;
 
 use crate::AppServiceResult;
-use crate::surfaces::record_surface;
 
 pub(crate) fn search_page_view(page: SearchPageInfo) -> SearchPageView {
     SearchPageView {
@@ -56,20 +53,16 @@ pub(crate) fn record_summary(record: &AtlasRecord) -> RecordSummaryView {
         publication: record.publication.title.clone(),
         pack: Some(record.foundry.pack_label.clone()),
         preview: None,
-        surface: None,
     }
 }
 
 pub(crate) fn record_detail(record: &AtlasRecord) -> AppServiceResult<RecordDetailView> {
     let presentation = build_record_presentation_document(record);
-    let surface = (record.classification.kind == RecordKind::Creature)
-        .then(|| record_surface(record, RecordSurfaceProfileView::RecordDetail));
     Ok(RecordDetailView {
         record_key: record.identity.key.to_string(),
         title: record.identity.name.clone(),
         kind: record.classification.kind.as_str().to_string(),
         presentation,
-        surface,
     })
 }
 
