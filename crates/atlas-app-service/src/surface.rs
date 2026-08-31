@@ -591,6 +591,24 @@ fn awareness(
     creature: &CreatureRecord,
     unavailable: &mut SurfaceUnavailableDomains,
 ) -> Option<CreatureSurfaceAwarenessView> {
+    let languages = required_fact(
+        &creature.languages.value,
+        unavailable,
+        SurfaceDomain::Awareness,
+        CreatureSurfaceUnavailableFieldView::Languages,
+        CreatureSurfaceSourceFieldView::Languages,
+        None,
+    );
+    let language_values = languages.and_then(|value| {
+        required_fact(
+            &value.values,
+            unavailable,
+            SurfaceDomain::Awareness,
+            CreatureSurfaceUnavailableFieldView::Languages,
+            CreatureSurfaceSourceFieldView::Languages,
+            None,
+        )
+    });
     let perception = required_fact(
         &creature.perception.value,
         unavailable,
@@ -598,16 +616,18 @@ fn awareness(
         CreatureSurfaceUnavailableFieldView::Perception,
         CreatureSurfaceSourceFieldView::Perception,
         None,
-    )?;
-    let senses = required_fact(
-        &perception.senses,
-        unavailable,
-        SurfaceDomain::Awareness,
-        CreatureSurfaceUnavailableFieldView::Senses,
-        CreatureSurfaceSourceFieldView::Perception,
-        None,
     );
-    let mut senses = senses
+    let mut senses = perception
+        .and_then(|value| {
+            required_fact(
+                &value.senses,
+                unavailable,
+                SurfaceDomain::Awareness,
+                CreatureSurfaceUnavailableFieldView::Senses,
+                CreatureSurfaceSourceFieldView::Perception,
+                None,
+            )
+        })
         .map(|values| {
             values
                 .iter()
@@ -648,36 +668,20 @@ fn awareness(
         })
         .unwrap_or_else(Vec::new);
     senses.sort_by_key(|value| value.authored_order);
-    let languages = required_fact(
-        &creature.languages.value,
-        unavailable,
-        SurfaceDomain::Awareness,
-        CreatureSurfaceUnavailableFieldView::Languages,
-        CreatureSurfaceSourceFieldView::Languages,
-        None,
-    );
-    let language_values = languages.and_then(|value| {
-        required_fact(
-            &value.values,
-            unavailable,
-            SurfaceDomain::Awareness,
-            CreatureSurfaceUnavailableFieldView::Languages,
-            CreatureSurfaceSourceFieldView::Languages,
-            None,
-        )
-    });
     Some(CreatureSurfaceAwarenessView {
-        perception: required_fact(
-            &perception.modifier,
-            unavailable,
-            SurfaceDomain::Awareness,
-            CreatureSurfaceUnavailableFieldView::Perception,
-            CreatureSurfaceSourceFieldView::Perception,
-            None,
-        )
-        .copied(),
-        details: note(&perception.details),
-        has_vision: boolean(&perception.has_vision),
+        perception: perception.and_then(|value| {
+            required_fact(
+                &value.modifier,
+                unavailable,
+                SurfaceDomain::Awareness,
+                CreatureSurfaceUnavailableFieldView::Perception,
+                CreatureSurfaceSourceFieldView::Perception,
+                None,
+            )
+            .copied()
+        }),
+        details: perception.and_then(|value| note(&value.details)),
+        has_vision: perception.and_then(|value| boolean(&value.has_vision)),
         senses,
         languages: language_values
             .map(|values| {
@@ -785,6 +789,15 @@ fn movement(
         .iter()
         .filter_map(|value| {
             let component_id = value.id.as_str().to_string();
+            let speed_feet = required_fact(
+                &value.value,
+                unavailable,
+                SurfaceDomain::Movement,
+                CreatureSurfaceUnavailableFieldView::MovementSpeed,
+                CreatureSurfaceSourceFieldView::Movement,
+                Some(component_id.clone()),
+            )
+            .copied();
             let mode = match &value.mode {
                 CreatureMovementMode::Land => "land",
                 CreatureMovementMode::Burrow => "burrow",
@@ -807,15 +820,7 @@ fn movement(
                 authored_order: value.authored_order,
                 mode: mode.to_string(),
                 label: text(&value.label),
-                speed_feet: required_fact(
-                    &value.value,
-                    unavailable,
-                    SurfaceDomain::Movement,
-                    CreatureSurfaceUnavailableFieldView::MovementSpeed,
-                    CreatureSurfaceSourceFieldView::Movement,
-                    Some(component_id),
-                )
-                .copied(),
+                speed_feet,
                 details: note(&value.details),
             })
         })
@@ -1355,7 +1360,19 @@ mod tests {
     };
 
     use super::{creature_surface, non_empty};
-    use atlas_app_model::{CreatureSurfaceUnavailableStateView, RecordSurfaceProfileView};
+    use atlas_app_model::{
+        CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
+        CreatureSurfaceSourceFieldView, CreatureSurfaceUnavailableFieldView,
+        CreatureSurfaceUnavailableStateView, RecordSurfaceProfileView,
+    };
+
+    type CauseTuple = (
+        CreatureSurfaceUnavailableStateView,
+        CreatureSurfaceUnavailableFieldView,
+        Option<String>,
+        CreatureSurfaceFactOwnerView,
+        CreatureSurfaceSourceFieldView,
+    );
 
     #[test]
     fn collection_projection_distinguishes_populated_from_known_empty() {
@@ -1399,22 +1416,195 @@ mod tests {
             let unavailable = surface
                 .unavailable_domains
                 .expect("non-value roots must be public typed failures");
-            for domain in [
-                unavailable.vitals,
-                unavailable.defenses,
-                unavailable.saves,
-                unavailable.awareness,
-                unavailable.abilities,
-                unavailable.skills,
-                unavailable.movement,
-                unavailable.resources,
-                unavailable.spellcasting,
-                unavailable.activities,
-                unavailable.relationships,
-            ] {
-                let domain = domain.expect("every selected domain must report failure");
-                assert!(domain.causes.iter().all(|cause| cause.state == state));
-            }
+            assert_causes(
+                &unavailable.vitals,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Defenses,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                )],
+            );
+            assert_causes(
+                &unavailable.defenses,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Defenses,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                )],
+            );
+            assert_causes(
+                &unavailable.saves,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Defenses,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                )],
+            );
+            assert_causes(
+                &unavailable.awareness,
+                vec![
+                    cause(
+                        state,
+                        CreatureSurfaceUnavailableFieldView::Perception,
+                        None,
+                        CreatureSurfaceSourceFieldView::Perception,
+                    ),
+                    cause(
+                        state,
+                        CreatureSurfaceUnavailableFieldView::Languages,
+                        None,
+                        CreatureSurfaceSourceFieldView::Languages,
+                    ),
+                ],
+            );
+            assert_causes(
+                &unavailable.abilities,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::LegacyAbilities,
+                    None,
+                    CreatureSurfaceSourceFieldView::LegacyAbilities,
+                )],
+            );
+            assert_causes(
+                &unavailable.skills,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Skills,
+                    None,
+                    CreatureSurfaceSourceFieldView::Skills,
+                )],
+            );
+            assert_causes(
+                &unavailable.movement,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Movement,
+                    None,
+                    CreatureSurfaceSourceFieldView::Movement,
+                )],
+            );
+            assert_causes(
+                &unavailable.resources,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Resources,
+                    None,
+                    CreatureSurfaceSourceFieldView::Resources,
+                )],
+            );
+            assert_causes(
+                &unavailable.spellcasting,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::EmbeddedEntities,
+                    None,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                )],
+            );
+            assert_causes(
+                &unavailable.activities,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::EmbeddedEntities,
+                    None,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                )],
+            );
+            assert_causes(
+                &unavailable.relationships,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Relationships,
+                    None,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                )],
+            );
+        }
+    }
+
+    #[test]
+    fn unavailable_perception_still_projects_or_reports_independent_languages() {
+        let cases = [
+            (
+                CreatureSurfaceUnavailableStateView::Missing,
+                FactValue::Value(CreatureLanguages {
+                    values: FactValue::Value(vec![
+                        atlas_record::Language::new("common").expect("language"),
+                    ]),
+                    details: FactValue::Missing,
+                }),
+                vec![cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::Perception,
+                    None,
+                    CreatureSurfaceSourceFieldView::Perception,
+                )],
+                vec!["common".to_string()],
+            ),
+            (
+                CreatureSurfaceUnavailableStateView::Null,
+                FactValue::Missing,
+                vec![
+                    cause(
+                        CreatureSurfaceUnavailableStateView::Null,
+                        CreatureSurfaceUnavailableFieldView::Perception,
+                        None,
+                        CreatureSurfaceSourceFieldView::Perception,
+                    ),
+                    cause(
+                        CreatureSurfaceUnavailableStateView::Missing,
+                        CreatureSurfaceUnavailableFieldView::Languages,
+                        None,
+                        CreatureSurfaceSourceFieldView::Languages,
+                    ),
+                ],
+                Vec::new(),
+            ),
+            (
+                CreatureSurfaceUnavailableStateView::Missing,
+                FactValue::Null,
+                vec![
+                    cause(
+                        CreatureSurfaceUnavailableStateView::Missing,
+                        CreatureSurfaceUnavailableFieldView::Perception,
+                        None,
+                        CreatureSurfaceSourceFieldView::Perception,
+                    ),
+                    cause(
+                        CreatureSurfaceUnavailableStateView::Null,
+                        CreatureSurfaceUnavailableFieldView::Languages,
+                        None,
+                        CreatureSurfaceSourceFieldView::Languages,
+                    ),
+                ],
+                Vec::new(),
+            ),
+        ];
+
+        for (perception_state, languages, expected_causes, expected_languages) in cases {
+            let mut creature = known_empty_creature();
+            creature.perception.value = non_value(perception_state);
+            creature.languages.value = languages;
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            assert_eq!(
+                surface
+                    .awareness
+                    .as_ref()
+                    .expect("awareness should preserve independent language payload")
+                    .languages,
+                expected_languages
+            );
+            assert_causes(
+                &surface
+                    .unavailable_domains
+                    .expect("perception failure should remain typed")
+                    .awareness,
+                expected_causes,
+            );
         }
     }
 
@@ -1495,15 +1685,18 @@ mod tests {
         abilities.strength = FactValue::Null;
         creature.legacy_abilities.value = FactValue::Value(abilities);
 
-        let movement = |id: &str, order| atlas_record::CreatureSpeed {
+        let movement = |id: &str, order, value| atlas_record::CreatureSpeed {
             id: atlas_record::CreatureComponentId::new(id).expect("speed id"),
             authored_order: order,
             mode: atlas_record::CreatureMovementMode::Unsupported(unsupported_value()),
-            value: FactValue::Missing,
+            value,
             label: FactValue::Value(id.to_string()),
             details: FactValue::Missing,
         };
-        creature.movement.value = FactValue::Value(vec![movement("zeta", 1), movement("alpha", 0)]);
+        creature.movement.value = FactValue::Value(vec![
+            movement("zeta", 1, FactValue::Missing),
+            movement("alpha", 0, FactValue::Null),
+        ]);
         creature.resources.value = FactValue::Value(vec![atlas_record::CreatureResource {
             id: atlas_record::CreatureComponentId::new("focus").expect("resource id"),
             authored_order: 0,
@@ -1615,31 +1808,201 @@ mod tests {
                 .as_ref()
                 .is_some_and(|value| value.languages == ["common"])
         );
-        for domain in [
+        assert_causes(
             &unavailable.vitals,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Unsupported,
+                CreatureSurfaceUnavailableFieldView::HitPoints,
+                None,
+                CreatureSurfaceSourceFieldView::Defenses,
+            )],
+        );
+        assert_causes(
             &unavailable.defenses,
+            vec![
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::IwrAmount,
+                    Some("fire"),
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::IwrExceptions,
+                    Some("fire"),
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::IwrDoubleVs,
+                    Some("fire"),
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+            ],
+        );
+        assert_causes(
             &unavailable.saves,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Null,
+                CreatureSurfaceUnavailableFieldView::Saves,
+                Some("fortitude"),
+                CreatureSurfaceSourceFieldView::Defenses,
+            )],
+        );
+        assert_causes(
             &unavailable.awareness,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Unsupported,
+                CreatureSurfaceUnavailableFieldView::SenseAcuity,
+                Some("odd-sense"),
+                CreatureSurfaceSourceFieldView::Perception,
+            )],
+        );
+        assert_causes(
             &unavailable.abilities,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Null,
+                CreatureSurfaceUnavailableFieldView::LegacyAbilities,
+                Some("strength"),
+                CreatureSurfaceSourceFieldView::LegacyAbilities,
+            )],
+        );
+        assert_causes(
             &unavailable.skills,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Missing,
+                CreatureSurfaceUnavailableFieldView::SkillModifier,
+                Some("athletics"),
+                CreatureSurfaceSourceFieldView::Skills,
+            )],
+        );
+        assert_causes(
             &unavailable.movement,
+            vec![
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::MovementSpeed,
+                    Some("alpha"),
+                    CreatureSurfaceSourceFieldView::Movement,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Unsupported,
+                    CreatureSurfaceUnavailableFieldView::MovementMode,
+                    Some("alpha"),
+                    CreatureSurfaceSourceFieldView::Movement,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::MovementSpeed,
+                    Some("zeta"),
+                    CreatureSurfaceSourceFieldView::Movement,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Unsupported,
+                    CreatureSurfaceUnavailableFieldView::MovementMode,
+                    Some("zeta"),
+                    CreatureSurfaceSourceFieldView::Movement,
+                ),
+            ],
+        );
+        assert_causes(
             &unavailable.resources,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Unsupported,
+                CreatureSurfaceUnavailableFieldView::ResourceMaximum,
+                Some("focus"),
+                CreatureSurfaceSourceFieldView::Resources,
+            )],
+        );
+        assert_causes(
             &unavailable.spellcasting,
+            vec![
+                cause(
+                    CreatureSurfaceUnavailableStateView::Unsupported,
+                    CreatureSurfaceUnavailableFieldView::SpellPreparation,
+                    Some("entry"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::SpellTradition,
+                    Some("entry"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::SpellAttack,
+                    Some("entry"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::SpellDifficultyClass,
+                    Some("entry"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::SpellTraits,
+                    Some("spell"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::SpellRank,
+                    Some("spell"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+            ],
+        );
+        assert_causes(
             &unavailable.activities,
-        ] {
-            assert!(
-                domain
-                    .as_ref()
-                    .is_some_and(|value| !value.causes.is_empty())
-            );
-        }
+            vec![
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::ActivityTraits,
+                    Some("strike"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Unsupported,
+                    CreatureSurfaceUnavailableFieldView::ActivityActionCost,
+                    Some("strike"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::ActivityRoll,
+                    Some("strike/attack"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::DamageFormula,
+                    Some("strike/main"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::DamageType,
+                    Some("strike/main"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                ),
+            ],
+        );
 
         creature.movement.value.as_value().expect("movement");
         if let FactValue::Value(values) = &mut creature.movement.value {
             values.reverse();
         }
+        if let FactValue::Value(embedded) = &mut creature.embedded_entities.value {
+            embedded.occurrences.reverse();
+        }
         let reverse = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
-        assert_eq!(forward.unavailable_domains, reverse.unavailable_domains);
+        assert_eq!(
+            forward.unavailable_domains, reverse.unavailable_domains,
+            "complete typed cause tuples must be order independent"
+        );
     }
 
     fn known_empty_creature() -> atlas_record::CreatureRecord {
@@ -1798,5 +2161,49 @@ mod tests {
             capability,
             deltas: Vec::new(),
         }
+    }
+
+    fn cause(
+        state: CreatureSurfaceUnavailableStateView,
+        field: CreatureSurfaceUnavailableFieldView,
+        component_id: Option<&str>,
+        source_field: CreatureSurfaceSourceFieldView,
+    ) -> CauseTuple {
+        (
+            state,
+            field,
+            component_id.map(str::to_string),
+            CreatureSurfaceFactOwnerView::CanonicalCreature,
+            source_field,
+        )
+    }
+
+    fn assert_causes(
+        domain: &Option<CreatureSurfaceDomainUnavailableView>,
+        mut expected: Vec<CauseTuple>,
+    ) {
+        let actual = domain
+            .as_ref()
+            .expect("expected unavailable domain")
+            .causes
+            .iter()
+            .map(|cause| {
+                (
+                    cause.state,
+                    cause.field,
+                    cause.component_id.clone(),
+                    cause.provenance.owner,
+                    cause.provenance.field,
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut sorted_actual = actual.clone();
+        sorted_actual.sort();
+        assert_eq!(
+            actual, sorted_actual,
+            "typed causes must use canonical order"
+        );
+        expected.sort();
+        assert_eq!(actual, expected);
     }
 }
