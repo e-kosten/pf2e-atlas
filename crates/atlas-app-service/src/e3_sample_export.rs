@@ -17,7 +17,9 @@ use serde_json::{Value, json};
 use crate::service::{AtlasAppService, RetrievalBackend};
 use crate::surface::record_surface;
 
-const BASE: &str = "f49d5cfec6ad7d6cefba3894be935861db2e53b6";
+const BASE: &str = "9c22379e0703eca09d58f702ad826c8b7f4521d1";
+const TECHNICAL_REVIEW_SHA256: &str =
+    "2b5415d5264ae23ae05f34ca2e285c91e4ac59793a0274f16eb12b08de6dd542";
 const APPROVAL_SHA256: &str = "0ca28ff6906d04cd993030b5d22b060cb91516c56661e0593eaffc2371de2de6";
 const CLI_APPROVAL_SHA256: &str =
     "5dfef04af82b341ce42d8b928af81c45b61152005ba38cbf6f56b02cdabe4ece";
@@ -33,10 +35,10 @@ const PLANNING_REVIEW_JSON_SHA256: &str =
     "74190663fa8397d6f14686066e73e889e151b4d169f0a4063859880857f43e71";
 const PLANNING_REVIEW_CHECKSUMS_SHA256: &str =
     "a303010e277623b638f338b949ab9f9ab263bb34d6d61c6c95039500370d8e7b";
-const EARLY_MANIFEST_SHA256: &str =
-    "0bb45e7dbf436540cf13f6f2f14395ed3dfaf4a1eb950dd1b9d777f9334c3189";
-const EARLY_CHECKSUMS_SHA256: &str =
-    "bab7240e89de1bf8a114ba76faff9d0edcad7979ffa59299eb2b6517b42bcb47";
+const REVIEWED_MANIFEST_SHA256: &str =
+    "5b00bad680609a8abf33dfb3e76deb845dbe1928c7d8b3060e7e9e8bf2eb413c";
+const REVIEWED_CHECKSUMS_SHA256: &str =
+    "61ee3da40daff620db3f7979834a237d39728e8374db63112c4608ff70b99105";
 const NIGHT_HAG_KEY: &str = "pathfinder-bestiary:WQy7HBUcgDLsfVJd";
 const GIANT_RAT_KEY: &str = "pathfinder-monster-core:iIJPJcDT8wlJ8z5M";
 const NIGHT_HAG_SOURCE_SHA256: &str =
@@ -45,6 +47,12 @@ const GIANT_RAT_SOURCE_SHA256: &str =
     "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f";
 const SOURCE_SIGNATURE: &str =
     "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a";
+const AUTHENTIC_EXPORT_CANDIDATE: &str = "deddeebdcce46f2c8b6bfc1f232431aeae0b2d62";
+const AUTHENTIC_EXPORT_TREE: &str = "48b1ff1140e99fae1e4f651a205763830fd8b0ca";
+const AUTHENTIC_EXPORT_MANIFEST_SHA256: &str =
+    "769c1acff81839252f1f89685c12ae97a052372653d045d0b162e03c2bb8e3fc";
+const AUTHENTIC_EXPORT_CHECKSUMS_SHA256: &str =
+    "1325ca0d9d9a5cbddb7bc0b09487a916bb6493673bf9beec749e5b9247c0b729";
 
 #[test]
 #[ignore = "exports checksum-bound E3 final-candidate samples"]
@@ -94,16 +102,16 @@ fn export_e3_record_surface_final_samples() {
     let sample_index_sha256 = required_env("E3_SAMPLE_INDEX_SHA256");
     assert_eq!(file_sha256(&sample_index), sample_index_sha256);
 
-    let early_root = required_path_env("E3_EARLY_SAMPLE_ROOT");
+    let reviewed_root = required_path_env("E3_REVIEWED_SAMPLE_ROOT");
     assert_eq!(
-        file_sha256(&early_root.join("manifest.json")),
-        EARLY_MANIFEST_SHA256
+        file_sha256(&reviewed_root.join("manifest.json")),
+        REVIEWED_MANIFEST_SHA256
     );
     assert_eq!(
-        file_sha256(&early_root.join("checksums.sha256")),
-        EARLY_CHECKSUMS_SHA256
+        file_sha256(&reviewed_root.join("checksums.sha256")),
+        REVIEWED_CHECKSUMS_SHA256
     );
-    verify_checksums(&early_root);
+    verify_checksums(&reviewed_root);
 
     let retained_target = required_path_env("E3_RETAINED_TARGET");
     let retained_node_modules = required_path_env("E3_RETAINED_NODE_MODULES");
@@ -112,6 +120,7 @@ fn export_e3_record_surface_final_samples() {
     let amended_plan = required_path_env("E3_AMENDED_PLAN");
     let amended_task_map = required_path_env("E3_AMENDED_TASK_MAP");
     let planning_review_root = required_path_env("E3_PLANNING_REVIEW_ROOT");
+    let technical_review = required_path_env("E3_TECHNICAL_REVIEW");
     assert_bound_file(&cli_approval, CLI_APPROVAL_SHA256);
     assert_bound_file(
         &PathBuf::from(format!("{}.sha256", cli_approval.display())),
@@ -132,6 +141,7 @@ fn export_e3_record_surface_final_samples() {
         PLANNING_REVIEW_CHECKSUMS_SHA256,
     );
     verify_checksums(&planning_review_root);
+    assert_bound_file(&technical_review, TECHNICAL_REVIEW_SHA256);
 
     let local_state = std::env::temp_dir().join(format!(
         "atlas-e3-early-state-{}-{}.sqlite",
@@ -363,6 +373,14 @@ fn export_e3_record_surface_final_samples() {
         "CreatureSurfaceView.ts",
         "EncounterParticipantView.ts",
         "EncounterRuntimeView.ts",
+        "CreatureSurfaceUnavailableDomainsView.ts",
+        "CreatureSurfaceDomainUnavailableView.ts",
+        "CreatureSurfaceUnavailableCauseView.ts",
+        "CreatureSurfaceUnavailableStateView.ts",
+        "CreatureSurfaceUnavailableFieldView.ts",
+        "CreatureSurfaceFactProvenanceView.ts",
+        "CreatureSurfaceFactOwnerView.ts",
+        "CreatureSurfaceSourceFieldView.ts",
     ] {
         fs::copy(
             repo_root
@@ -376,19 +394,19 @@ fn export_e3_record_surface_final_samples() {
     fs::write(
         sample_root.join("WALKTHROUGH.md"),
         format!(
-            "# E3 final-candidate record-surface walkthrough\n\nThis package is **final-candidate evidence awaiting independent technical review** for candidate `{candidate}` (`{candidate_tree}`), not E3 acceptance or final user approval. It is bound to early-direction approval `{APPROVAL_SHA256}`, the authoritative corrected early package manifest `{EARLY_MANIFEST_SHA256}`, and the independently passed one-file CLI ownership amendment `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`.\n\n## Start here\n\n1. `concept-mock.json` is clearly labeled mock/non-authentic and exposes its illustrative record under the neutral `surface` envelope key. `surface-unavailable-non-creature.json` separately demonstrates the typed unmigrated-family boundary.\n2. `search-compact-night-hag.json` and `record-detail-night-hag.json` show the dense authentic PF2e record.\n3. `search-compact-sparse-creature.json` and `record-detail-sparse-creature.json` show the sparse authentic PF2e record (Giant Rat).\n4. `encounter-participant-normal.json` shows the real Giant Rat and `encounter-participant-adjusted.json` shows the real Night Hag elite adjustment under `surface.encounter`; canonical mechanics are omitted from each encounter-profile creature body.\n5. `api-record-detail.json` and `api-encounter-detail.json` are exact app-service response DTO serializations. Empty true-many collections are omitted; populated arrays remain arrays. Typed unavailable presentations and automation limitations remain explicit.\n6. `generated/` contains the exact candidate TypeScript contracts used by these JSON responses, with omittable collections represented as optional.\n7. `early-to-final-delta-ledger.md` accounts for every early and final payload output while excluding only recursively self-describing manifest/checksum/ledger metadata.\n\nThe semantic shape has no generic section/value registry, compatibility alias, string-key semantic lookup, empty arrays, or empty objects. Zero-or-one domains remain optional named objects; arrays remain only for populated repeated domain entities. The separately authorized `atlas-cli` consumer adaptation reads the new metadata location without serializing this surface or changing CLI output.\n"
+            "# E3 F-001 correction walkthrough\n\nThis package is **candidate evidence awaiting independent exact-commit rereview** for correction `{candidate}` (`{candidate_tree}`), not E3 acceptance or final user approval. It is bound to failed technical review `{TECHNICAL_REVIEW_SHA256}`, reviewed candidate `{BASE}`, conditioned early-direction approval `{APPROVAL_SHA256}`, and the passed CLI ownership amendment `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`.\n\n## Start here\n\n1. `concept-mock.json` is clearly labeled mock/non-authentic and exposes its illustrative record under `surface`. `surface-unavailable-non-creature.json` separately demonstrates whole-record typed unavailability.\n2. `search-compact-night-hag.json` and `record-detail-night-hag.json` show the dense authentic PF2e record.\n3. `search-compact-sparse-creature.json` and `record-detail-sparse-creature.json` show the sparse authentic PF2e record (Giant Rat).\n4. `encounter-participant-normal.json` and `encounter-participant-adjusted.json` show the exact accepted runtime bag attached without duplicating canonical mechanics.\n5. `api-record-detail.json` and `api-encounter-detail.json` are exact app-service response DTO serializations. Only genuinely known-empty arrays are omitted. Selected static domains with missing, null, unsupported, ambiguous, failed, or unsafe canonical data expose named typed `unavailable_domains` causes; unsafe ordinary values are not presented as valid.\n6. `generated/` contains the exact candidate TypeScript contracts relevant to these JSON responses, including the typed domain-failure contract.\n7. `reviewed-to-correction-delta-ledger.md` accounts for every reviewed-9c and correction payload output while excluding only recursively self-describing manifest/checksum/ledger metadata.\n\nThe semantic shape has no generic section/value registry, compatibility alias, string-key semantic lookup, empty arrays, or empty objects. Failure messages are display-only; consumers use typed state, field, domain, component identity, and provenance. The CLI consumer remains output-identical.\n"
         ),
     )
     .expect("walkthrough should write");
     fs::write(
         sample_root.join("presentation.md"),
-        "# Presentation index\n\n- Concept direction: `concept-mock.json`\n- Dense real record: `record-detail-night-hag.json`\n- Sparse real record: `record-detail-sparse-creature.json`\n- Context adjustment: `encounter-participant-adjusted.json`\n- Exact API envelopes: `api-record-detail.json`, `api-encounter-detail.json`\n- Generated contract: `generated/RecordSurfaceView.ts` and its referenced bindings\n- Complete payload delta: `early-to-final-delta-ledger.md`\n\nAll concept material is mock/non-authorizing; only Night Hag and Giant Rat are authentic Foundry records. This is review evidence, not E3 acceptance or final user approval.\n",
+        "# Presentation index\n\n- Concept direction: `concept-mock.json`\n- Dense real record: `record-detail-night-hag.json`\n- Sparse real record: `record-detail-sparse-creature.json`\n- Context adjustment: `encounter-participant-adjusted.json`\n- Exact API envelopes: `api-record-detail.json`, `api-encounter-detail.json`\n- Generated contract: `generated/RecordSurfaceView.ts` and typed unavailable-domain bindings\n- Complete 9c-to-correction payload delta: `reviewed-to-correction-delta-ledger.md`\n\nAll concept material is mock/non-authorizing; only Night Hag and Giant Rat are authentic Foundry records. This is rereview evidence, not E3 acceptance or final user approval.\n",
     )
     .expect("presentation index should write");
     fs::write(
         sample_root.join("report.md"),
         format!(
-            "# E3 refined candidate report\n\nCandidate `{candidate}` / tree `{candidate_tree}` is a direct child of early candidate `{BASE}`. The approved refinements directly rename only the concept wrapper to `surface` and omit genuinely known-empty public collections while retaining optional generated TypeScript. Populated collections, typed unavailable presentations, and targeted automation limitations remain explicit; no mechanics, generic registry, shim, fallback, alias, or string-key semantic lookup was added. The one-file CLI consumer correction authorized by plan `{AMENDED_PLAN_SHA256}` is mechanical and output-preserving: it reads `RecordSummaryView.surface.metadata`, leaves CLI models/tests/contracts/goldens unchanged, and never serializes `RecordSurfaceView` into CLI output.\n\nFocused model/app-service/web and CLI tests, generated-binding freshness, the full Rust `just verify` gate, residue/path checks, and the documented downstream frontend boundary check were run before this package. Independent E3 technical review, final user sample approval, E3 acceptance, F1, and F2 remain pending.\n\nThe package contains one explicitly non-authentic concept mock plus exactly two authentic PF2e records: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`). Source identity is `{SOURCE_SIGNATURE}` at commit `{source_commit}` / tree `{source_tree}`. The complete payload delta is in `early-to-final-delta-ledger.md`.\n"
+            "# E3 F-001 correction candidate report\n\nCandidate `{candidate}` / tree `{candidate_tree}` is a direct child of failed reviewed candidate `{BASE}`. It changes only F-001: selected static creature domains now distinguish genuinely known-empty arrays from missing, null, unsupported, ambiguous, failed, or unsafe canonical projection through named typed `unavailable_domains` causes. Unsafe ordinary values remain absent, but typed state, affected field, optional component identity, and canonical-field provenance remain public; cause messages are display-only. This is not a runtime automation limitation or a generic failure bag. No mechanics, generic registry, shim, fallback, alias, string-key semantic lookup, or CLI behavior changed.\n\nFocused model/app-service/web tests, generated-binding freshness, full `just verify`, residue/path checks, and the documented downstream frontend boundary check were run before this package. A fresh independent exact-commit rereview, final user sample approval, E3 acceptance, F1, and F2 remain pending.\n\nThe package contains one explicitly non-authentic concept mock plus exactly two authentic PF2e records: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`). Source identity is `{SOURCE_SIGNATURE}` at commit `{source_commit}` / tree `{source_tree}`. The complete 9c-to-correction payload delta is in `reviewed-to-correction-delta-ledger.md`.\n"
         ),
     )
     .expect("candidate report should write");
@@ -408,7 +426,7 @@ fn export_e3_record_surface_final_samples() {
         assert_no_empty_public_containers(&value);
     }
 
-    write_delta_ledger(&sample_root, &early_root, &candidate, &candidate_tree);
+    write_delta_ledger(&sample_root, &reviewed_root, &candidate, &candidate_tree);
 
     let output_hashes = relative_files(&sample_root)
         .into_iter()
@@ -420,8 +438,8 @@ fn export_e3_record_surface_final_samples() {
         })
         .collect::<Vec<_>>();
     let manifest = json!({
-        "schema": "atlas-e3-final-candidate-samples/v1",
-        "status": "final_candidate_awaiting_independent_review_not_accepted",
+        "schema": "atlas-e3-f001-correction-samples/v1",
+        "status": "correction_candidate_awaiting_exact_commit_rereview_not_accepted",
         "candidate": { "commit": candidate, "tree": candidate_tree, "parent": BASE },
         "approval": {
             "path": "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/source-faithful-records/20260824T210853Z-c7b74cbdc7c4-pathfinder-2e-foundry-mcp-17/approvals/e3-early-direction-approval.json",
@@ -444,10 +462,11 @@ fn export_e3_record_surface_final_samples() {
             "authorized_cli_paths": ["crates/atlas-cli/src/commands/lists.rs"],
             "cli_output_changed": false
         },
-        "early_evidence": {
-            "root": early_root,
-            "manifest_sha256": EARLY_MANIFEST_SHA256,
-            "checksums_sha256": EARLY_CHECKSUMS_SHA256,
+        "failed_review": { "path": technical_review, "sha256": TECHNICAL_REVIEW_SHA256, "mode": "0444", "finding": "F-001" },
+        "reviewed_9c_evidence": {
+            "root": reviewed_root,
+            "manifest_sha256": REVIEWED_MANIFEST_SHA256,
+            "checksums_sha256": REVIEWED_CHECKSUMS_SHA256,
             "checksum_closure": "pass"
         },
         "producer": {
@@ -481,6 +500,8 @@ fn export_e3_record_surface_final_samples() {
             "populated_true_many_arrays_retained": true,
             "empty_objects_forbidden": true,
             "unsupported_or_failed_projection_remains_explicit": true,
+            "static_failure_representation": "named_typed_unavailable_domains",
+            "failure_messages_behavior_parsed": false,
             "generated_typescript_collections_optional": true,
             "cli_surface_serialization": false,
             "cli_compatibility_path": false
@@ -525,6 +546,162 @@ fn export_e3_record_surface_final_samples() {
 
     drop(service);
     let _ = fs::remove_file(local_state);
+}
+
+#[test]
+#[ignore = "deterministically rebinds an authenticated E3 export after a generated-doc-only fix"]
+fn rebind_e3_record_surface_final_samples() {
+    let source_root = required_path_env("E3_REBIND_SOURCE_ROOT");
+    assert_eq!(
+        file_sha256(&source_root.join("manifest.json")),
+        AUTHENTIC_EXPORT_MANIFEST_SHA256
+    );
+    assert_eq!(
+        file_sha256(&source_root.join("checksums.sha256")),
+        AUTHENTIC_EXPORT_CHECKSUMS_SHA256
+    );
+    verify_checksums(&source_root);
+
+    let sample_root = required_path_env("E3_SAMPLE_ROOT");
+    assert!(
+        !sample_root.exists(),
+        "sample root must be fresh and no-clobber: {}",
+        sample_root.display()
+    );
+    fs::create_dir_all(sample_root.parent().expect("sample root parent"))
+        .expect("sample parent should be creatable");
+    fs::create_dir(&sample_root).expect("sample root should be creatable");
+
+    let candidate = required_env("E3_SAMPLE_CANDIDATE");
+    let candidate_tree = required_env("E3_SAMPLE_TREE");
+    assert_eq!(git_value(Path::new("."), &["rev-parse", "HEAD"]), candidate);
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^{tree}"]),
+        candidate_tree
+    );
+    assert_eq!(git_value(Path::new("."), &["rev-parse", "HEAD^"]), BASE);
+
+    let skipped = BTreeSet::from([
+        PathBuf::from("manifest.json"),
+        PathBuf::from("checksums.sha256"),
+        PathBuf::from("WALKTHROUGH.md"),
+        PathBuf::from("report.md"),
+        PathBuf::from("reviewed-to-correction-delta-ledger.md"),
+        PathBuf::from("generated/CreatureSurfaceUnavailableCauseView.ts"),
+    ]);
+    for relative in relative_files(&source_root) {
+        if skipped.contains(&relative) {
+            continue;
+        }
+        let destination = sample_root.join(&relative);
+        fs::create_dir_all(destination.parent().expect("copied file parent"))
+            .expect("copied file parent should be creatable");
+        fs::copy(source_root.join(&relative), &destination)
+            .unwrap_or_else(|error| panic!("{} should copy: {error}", relative.display()));
+    }
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("repository root should resolve");
+    let binding_relative = Path::new("generated/CreatureSurfaceUnavailableCauseView.ts");
+    fs::create_dir_all(
+        sample_root
+            .join(binding_relative)
+            .parent()
+            .expect("binding parent"),
+    )
+    .expect("binding parent should be creatable");
+    fs::copy(
+        repo_root.join("crates/atlas-app-model/bindings/CreatureSurfaceUnavailableCauseView.ts"),
+        sample_root.join(binding_relative),
+    )
+    .expect("current generated failure binding should copy");
+
+    for relative in ["WALKTHROUGH.md", "report.md"] {
+        let rebound = fs::read_to_string(source_root.join(relative))
+            .expect("authenticated narrative should read")
+            .replace(AUTHENTIC_EXPORT_CANDIDATE, &candidate)
+            .replace(AUTHENTIC_EXPORT_TREE, &candidate_tree);
+        fs::write(
+            sample_root.join(relative),
+            format!(
+                "{rebound}\n\n## Deterministic rebind provenance\n\nThe authentic JSON payloads were copied byte-for-byte from candidate `{AUTHENTIC_EXPORT_CANDIDATE}` / tree `{AUTHENTIC_EXPORT_TREE}` after its single retained-artifact export. The new direct-child candidate changes only this generated TypeScript comment layout and evidence machinery; the current generated binding replaced its predecessor. No artifact build, source query, hydration, or payload fabrication occurred during rebinding.\n"
+            ),
+        )
+        .expect("rebound narrative should write");
+    }
+
+    let reviewed_root = required_path_env("E3_REVIEWED_SAMPLE_ROOT");
+    assert_eq!(
+        file_sha256(&reviewed_root.join("manifest.json")),
+        REVIEWED_MANIFEST_SHA256
+    );
+    assert_eq!(
+        file_sha256(&reviewed_root.join("checksums.sha256")),
+        REVIEWED_CHECKSUMS_SHA256
+    );
+    verify_checksums(&reviewed_root);
+    write_delta_ledger(&sample_root, &reviewed_root, &candidate, &candidate_tree);
+
+    let mut manifest: Value = serde_json::from_slice(
+        &fs::read(source_root.join("manifest.json")).expect("authentic manifest should read"),
+    )
+    .expect("authentic manifest should parse");
+    manifest["candidate"] = json!({ "commit": candidate, "tree": candidate_tree, "parent": BASE });
+    manifest["producer"] = json!({
+        "command": "cargo test -p atlas-app-service e3_sample_export::rebind_e3_record_surface_final_samples -- --ignored --exact",
+        "test_path": "crates/atlas-app-service/src/e3_sample_export.rs",
+        "method": "verified deterministic copy and generated-binding replacement; no artifact/source query",
+        "authentic_export_source": {
+            "root": source_root,
+            "candidate": AUTHENTIC_EXPORT_CANDIDATE,
+            "tree": AUTHENTIC_EXPORT_TREE,
+            "manifest_sha256": AUTHENTIC_EXPORT_MANIFEST_SHA256,
+            "checksums_sha256": AUTHENTIC_EXPORT_CHECKSUMS_SHA256,
+            "checksum_closure": "pass"
+        }
+    });
+    manifest
+        .as_object_mut()
+        .expect("manifest should be an object")
+        .remove("outputs");
+    let output_hashes = relative_files(&sample_root)
+        .into_iter()
+        .map(|relative| {
+            json!({
+                "path": relative.to_string_lossy(),
+                "sha256": file_sha256(&sample_root.join(&relative)),
+            })
+        })
+        .collect::<Vec<_>>();
+    manifest["outputs"] = Value::Array(output_hashes);
+    write_json(&sample_root.join("manifest.json"), &manifest);
+
+    let mut checksum_lines = relative_files(&sample_root)
+        .into_iter()
+        .map(|relative| {
+            format!(
+                "{}  {}",
+                file_sha256(&sample_root.join(&relative)),
+                relative.to_string_lossy()
+            )
+        })
+        .collect::<Vec<_>>();
+    checksum_lines.sort();
+    fs::write(
+        sample_root.join("checksums.sha256"),
+        format!("{}\n", checksum_lines.join("\n")),
+    )
+    .expect("checksums should write");
+    for relative in relative_files_including_checksums(&sample_root) {
+        let path = sample_root.join(relative);
+        let mut permissions = fs::metadata(&path)
+            .expect("sample metadata should read")
+            .permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(path, permissions).expect("sample file should seal read-only");
+    }
 }
 
 fn assert_compact_surface(surface: &RecordSurfaceView) {
@@ -670,24 +847,29 @@ fn assert_no_empty_public_containers(value: &Value) {
     }
 }
 
-fn write_delta_ledger(final_root: &Path, early_root: &Path, candidate: &str, candidate_tree: &str) {
-    let early_manifest: Value = serde_json::from_slice(
-        &fs::read(early_root.join("manifest.json")).expect("early manifest should read"),
+fn write_delta_ledger(
+    final_root: &Path,
+    reviewed_root: &Path,
+    candidate: &str,
+    candidate_tree: &str,
+) {
+    let reviewed_manifest: Value = serde_json::from_slice(
+        &fs::read(reviewed_root.join("manifest.json")).expect("reviewed manifest should read"),
     )
-    .expect("early manifest should parse");
-    let early_outputs = early_manifest["outputs"]
+    .expect("reviewed manifest should parse");
+    let reviewed_outputs = reviewed_manifest["outputs"]
         .as_array()
-        .expect("early manifest outputs should be an array")
+        .expect("reviewed manifest outputs should be an array")
         .iter()
         .map(|output| {
             (
                 output["path"]
                     .as_str()
-                    .expect("early output path should be a string")
+                    .expect("reviewed output path should be a string")
                     .to_string(),
                 output["sha256"]
                     .as_str()
-                    .expect("early output hash should be a string")
+                    .expect("reviewed output hash should be a string")
                     .to_string(),
             )
         })
@@ -700,7 +882,7 @@ fn write_delta_ledger(final_root: &Path, early_root: &Path, candidate: &str, can
             (path, hash)
         })
         .collect::<BTreeMap<_, _>>();
-    let paths = early_outputs
+    let paths = reviewed_outputs
         .keys()
         .chain(final_outputs.keys())
         .cloned()
@@ -708,24 +890,24 @@ fn write_delta_ledger(final_root: &Path, early_root: &Path, candidate: &str, can
     let rows = paths
         .into_iter()
         .map(|path| {
-            let early = early_outputs.get(&path).map_or("—", String::as_str);
+            let reviewed = reviewed_outputs.get(&path).map_or("—", String::as_str);
             let final_hash = final_outputs.get(&path).map_or("—", String::as_str);
-            let delta = match (early_outputs.get(&path), final_outputs.get(&path)) {
+            let delta = match (reviewed_outputs.get(&path), final_outputs.get(&path)) {
                 (Some(left), Some(right)) if left == right => "unchanged",
                 (Some(_), Some(_)) => "changed",
                 (None, Some(_)) => "added",
                 (Some(_), None) => "removed",
                 (None, None) => unreachable!("union path must occur in at least one output set"),
             };
-            format!("| `{path}` | `{early}` | `{final_hash}` | {delta} |")
+            format!("| `{path}` | `{reviewed}` | `{final_hash}` | {delta} |")
         })
         .collect::<Vec<_>>()
         .join("\n");
     fs::write(
-        final_root.join("early-to-final-delta-ledger.md"),
+        final_root.join("reviewed-to-correction-delta-ledger.md"),
         format!(
-            "# E3 early-to-final delta ledger\n\n## Bound identities\n\n- Authoritative corrected early root: `{}`.\n- Early manifest/checksums SHA-256: `{EARLY_MANIFEST_SHA256}` / `{EARLY_CHECKSUMS_SHA256}`.\n- Refined candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `{BASE}`.\n- Conditioned early-direction approval SHA-256: `{APPROVAL_SHA256}`.\n- CLI ownership amendment plan/task-map SHA-256: `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`; independent planning review verdict SHA-256 `{PLANNING_REVIEW_VERDICT_SHA256}`.\n\n## Complete payload output ledger\n\nThis table is the no-omission union of every early payload output and every final payload output present before this ledger is written. `manifest.json`, `checksums.sha256`, and this recursively self-describing ledger are excluded only from the table; all three are hash-bound by the final checksum closure.\n\n| Output | Corrected early SHA-256 | Refined final SHA-256 | Delta |\n|---|---|---|---|\n{rows}\n\n## Contract delta\n\n1. The concept-only envelope key `full_typed_creature_surface` is directly renamed to `surface`; no production API field changed.\n2. Genuinely empty true-many collections are omitted from RecordSurface and its attached EncounterRuntime JSON. Corresponding generated TypeScript collection fields are optional. Populated collections remain ordered arrays.\n3. Typed unavailable presentations and populated targeted automation limitations remain explicit, so unsupported, ambiguous, failed, or unsafe projection cannot masquerade as an empty collection.\n4. The authorized one-file CLI consumer adaptation reads `record.surface.metadata` while preserving existing CLI output models, contracts, goldens, and behavior; no record surface is serialized as CLI output.\n5. No mechanics, generic registry, compatibility alias, shim, dual model, fallback, section ordering, or string-key semantic lookup was introduced.\n",
-            early_root.display()
+            "# E3 9c-to-F-001-correction delta ledger\n\n## Bound identities\n\n- Failed reviewed package root: `{}`.\n- Reviewed manifest/checksums SHA-256: `{REVIEWED_MANIFEST_SHA256}` / `{REVIEWED_CHECKSUMS_SHA256}`.\n- Failed technical review SHA-256: `{TECHNICAL_REVIEW_SHA256}`.\n- Correction candidate: `{candidate}` (tree `{candidate_tree}`), direct child of `{BASE}`.\n- Conditioned early-direction approval SHA-256: `{APPROVAL_SHA256}`.\n- CLI ownership amendment plan/task-map SHA-256: `{AMENDED_PLAN_SHA256}` / `{AMENDED_TASK_MAP_SHA256}`; independent planning review verdict SHA-256 `{PLANNING_REVIEW_VERDICT_SHA256}`.\n\n## Complete payload output ledger\n\nThis table is the no-omission union of every reviewed-9c payload output and every correction payload output present before this ledger is written. `manifest.json`, `checksums.sha256`, and this recursively self-describing ledger are excluded only from the table; all three are hash-bound by the correction checksum closure.\n\n| Output | Reviewed 9c SHA-256 | F-001 correction SHA-256 | Delta |\n|---|---|---|---|\n{rows}\n\n## Contract delta\n\n1. Genuinely known-empty true-many collections remain omitted and populated collections remain ordered arrays.\n2. Selected static creature domains now expose named typed `unavailable_domains` causes for missing, null, unsupported, ambiguous, failed, or unsafe canonical roots and required nested values. Unsafe ordinary values remain absent, but cannot masquerade as known-empty omission.\n3. Each cause exposes typed state, affected field, optional component identity, and canonical-field provenance. Its message is display-only and never behavior-parsed; raw source paths and generic keys are absent.\n4. Whole-record unavailable presentations and encounter runtime automation limitations retain their separate meanings. CLI output and mechanics are unchanged.\n5. No generic registry, compatibility alias, shim, dual model, fallback, section ordering, or string-key semantic lookup was introduced.\n",
+            reviewed_root.display()
         ),
     )
     .expect("delta ledger should write");

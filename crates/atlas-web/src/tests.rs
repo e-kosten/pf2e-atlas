@@ -2,27 +2,31 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
     AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
-    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
-    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
-    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
-    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterParticipantView, EncounterRuntimeAutomationLimitationCodeView,
-    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
-    EncounterRuntimeConditionView, EncounterRuntimeView, EncounterRuntimeVitalsView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
-    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
-    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RecordSurfaceMetadataView,
-    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
-    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
-    RuntimeCanonicalTargetView, RuntimeFactProvenanceView, RuntimeFactSourceView,
-    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
-    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
-    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
+    CreatureSurfaceFactProvenanceView, CreatureSurfaceProvenanceView,
+    CreatureSurfaceSourceFieldView, CreatureSurfaceUnavailableCauseView,
+    CreatureSurfaceUnavailableDomainsView, CreatureSurfaceUnavailableFieldView,
+    CreatureSurfaceUnavailableStateView, CreatureSurfaceView, DeleteEncounterView,
+    DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
+    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
+    EncounterConditionCatalogView, EncounterConditionCategoryView,
+    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
+    EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
+    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
+    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
+    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
+    RecordSurfaceSourceView, RecordSurfaceView, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    ResultWindowModeSummary, ResultWindowPage, RuntimeCanonicalTargetView,
+    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    SearchPageView, SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
@@ -372,6 +376,27 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["field_id"], "pack");
     assert_eq!(body["options"][0]["label"], "Actions");
+}
+
+#[tokio::test]
+async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omission() {
+    let (status, body) = route_json(Method::GET, "/api/records/creatures:typedFailure", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let creature = &body["surface"]["presentation"]["body"];
+    assert!(creature.get("movement").is_none());
+    assert_eq!(
+        creature["unavailable_domains"]["movement"]["causes"][0]["state"],
+        "unsupported"
+    );
+    assert_eq!(
+        creature["unavailable_domains"]["movement"]["causes"][0]["field"],
+        "movement_mode"
+    );
+    assert!(
+        creature["unavailable_domains"]["movement"]["causes"][0]
+            .get("source_path")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -868,6 +893,11 @@ impl AtlasWebService for MockService {
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
+        if record_key == "creatures:typedFailure" {
+            return Ok(RecordDetailView {
+                surface: typed_failure_surface(),
+            });
+        }
         Ok(RecordDetailView {
             surface: unavailable_surface(
                 Some(record_key),
@@ -1188,6 +1218,69 @@ impl AtlasWebService for MockService {
             slug: "research".to_string(),
             deleted: true,
         })
+    }
+}
+
+fn typed_failure_surface() -> RecordSurfaceView {
+    RecordSurfaceView {
+        metadata: RecordSurfaceMetadataView {
+            record_key: Some("creatures:typedFailure".to_string()),
+            title: "Typed Failure".to_string(),
+            kind: "creature".to_string(),
+            kind_label: "Creature".to_string(),
+            level: Some(1),
+            rarity: None,
+            traits: Vec::new(),
+            source: None,
+        },
+        profile: RecordSurfaceProfileView::RecordDetail,
+        presentation: RecordSurfacePresentationView::Creature {
+            body: Box::new(CreatureSurfaceView {
+                vitals: None,
+                defenses: None,
+                saves: None,
+                awareness: None,
+                abilities: None,
+                skills: None,
+                movement: None,
+                resources: None,
+                spellcasting: None,
+                activities: None,
+                content: None,
+                relationships: None,
+                unavailable_domains: Some(CreatureSurfaceUnavailableDomainsView {
+                    vitals: None,
+                    defenses: None,
+                    saves: None,
+                    awareness: None,
+                    abilities: None,
+                    skills: None,
+                    movement: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Unsupported,
+                            field: CreatureSurfaceUnavailableFieldView::MovementMode,
+                            component_id: Some("speed-1".to_string()),
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::Movement,
+                            },
+                            message: "Display only.".to_string(),
+                        }],
+                    }),
+                    resources: None,
+                    spellcasting: None,
+                    activities: None,
+                    relationships: None,
+                }),
+                provenance: Some(CreatureSurfaceProvenanceView {
+                    source_path: "packs/creatures/typed-failure.json".to_string(),
+                    source_contract_version: "test".to_string(),
+                    source_system_version: "test".to_string(),
+                    source_upstream_commit: "test".to_string(),
+                }),
+            }),
+        },
+        encounter: None,
     }
 }
 

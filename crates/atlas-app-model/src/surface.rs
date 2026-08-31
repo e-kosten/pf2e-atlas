@@ -134,10 +134,120 @@ pub struct CreatureSurfaceView {
     pub relationships: Option<Vec<CreatureSurfaceRelationshipView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub unavailable_domains: Option<CreatureSurfaceUnavailableDomainsView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub provenance: Option<CreatureSurfaceProvenanceView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceUnavailableDomainsView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub vitals: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub defenses: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub saves: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub awareness: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub abilities: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub skills: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub movement: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub resources: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spellcasting: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub activities: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub relationships: Option<CreatureSurfaceDomainUnavailableView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceDomainUnavailableView {
+    pub causes: Vec<CreatureSurfaceUnavailableCauseView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceUnavailableCauseView {
+    pub state: CreatureSurfaceUnavailableStateView,
+    pub field: CreatureSurfaceUnavailableFieldView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub component_id: Option<String>,
+    pub provenance: CreatureSurfaceFactProvenanceView,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CreatureSurfaceUnavailableStateView {
+    Missing,
+    Null,
+    Unsupported,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CreatureSurfaceUnavailableFieldView {
+    Defenses,
+    HitPoints,
+    ArmorClass,
+    Saves,
+    Immunities,
+    Resistances,
+    Weaknesses,
+    IwrAmount,
+    IwrExceptions,
+    IwrDoubleVs,
+    Perception,
+    Senses,
+    SenseAcuity,
+    Languages,
+    Skills,
+    SkillModifier,
+    LegacyAbilities,
+    Movement,
+    MovementMode,
+    MovementSpeed,
+    Resources,
+    ResourceMaximum,
+    EmbeddedEntities,
+    ActivityTraits,
+    ActivityActionCost,
+    ActivityRoll,
+    ActivityDamage,
+    DamageFormula,
+    DamageType,
+    SpellPreparation,
+    SpellTradition,
+    SpellAttack,
+    SpellDifficultyClass,
+    SpellTraits,
+    SpellRank,
+    Relationships,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceVitalsView {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -337,7 +447,7 @@ pub struct CreatureSurfaceActivityView {
     pub damage: Vec<CreatureSurfaceDamageView>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum CreatureSurfaceActivityTypeView {
@@ -509,21 +619,21 @@ pub struct CreatureSurfaceProvenanceView {
     pub source_upstream_commit: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceFactProvenanceView {
     pub owner: CreatureSurfaceFactOwnerView,
     pub field: CreatureSurfaceSourceFieldView,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum CreatureSurfaceFactOwnerView {
     CanonicalCreature,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum CreatureSurfaceSourceFieldView {
@@ -532,6 +642,9 @@ pub enum CreatureSurfaceSourceFieldView {
     Languages,
     Skills,
     LegacyAbilities,
+    Movement,
+    Resources,
+    EmbeddedEntities,
 }
 
 fn optional_vec_is_empty<T>(values: &Option<Vec<T>>) -> bool {
