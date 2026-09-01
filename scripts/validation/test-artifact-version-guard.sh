@@ -44,6 +44,7 @@ new_fixture() {
     crates/atlas-ingest/src/source/npc_core.rs \
     crates/atlas-ingest/src/source/npc_entities.rs \
     crates/atlas-ingest/src/source/owned_content.rs \
+    crates/atlas-ingest/src/build.rs \
     crates/atlas-ingest/src/diagnostics.rs \
     crates/atlas-ingest/src/embeddings.rs \
     crates/atlas-ingest/src/embeddings/generation.rs \
@@ -160,6 +161,15 @@ new_fixture manifest-owner
 printf 'changed manifest\n' >>"$case_dir/crates/atlas-ingest/src/artifact_manifest.rs"
 commit_case "test: change manifest owner"
 expect_guard_failure "guard accepted a manifest owner without a manifest bump"
+
+new_fixture build-contract-and-manifest-owner
+printf 'changed final build projection\n' >>"$case_dir/crates/atlas-ingest/src/build.rs"
+commit_case "test: change final build projection"
+expect_guard_failure "guard accepted the final build projection without contract and manifest bumps"
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+replace_version 'fixture-manifest/v1' 'fixture-manifest/v2'
+commit_case "test: bump build projection contract and manifest versions"
+expect_guard_success "guard rejected exact contract and manifest bumps for the final build projection"
 
 for unrelated in \
   crates/atlas-index/src/artifact/validation/canonical.rs \
