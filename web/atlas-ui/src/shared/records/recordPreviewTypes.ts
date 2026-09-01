@@ -14,5 +14,9 @@ export type RecordPreviewContentProps = {
   loading: boolean;
   onClose: () => void;
   onOpenFullPage: () => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: (
+    recordKey: string,
+    anchorRect?: DOMRect,
+    triggerElement?: HTMLElement,
+  ) => void;
 };
