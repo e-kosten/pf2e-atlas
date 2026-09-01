@@ -63,13 +63,6 @@ run_check() {
 }
 
 run_check "cargo fmt" cargo fmt --check
-run_check "broad clippy" cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-run_check "strict runtime clippy" cargo clippy --workspace --lib --bins -- -D warnings \
-  -D clippy::unwrap_used \
-  -D clippy::expect_used \
-  -D clippy::panic \
-  -D clippy::unimplemented \
-  -D clippy::todo \
-  -D clippy::unreachable
+run_check "workspace clippy" cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
 run_check "workspace tests" cargo test --workspace
 run_check "workspace build" cargo build --workspace

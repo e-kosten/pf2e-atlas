@@ -16,6 +16,9 @@ use atlas_record::RecordBody;
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntimeOptions};
 use serde_json::{Value, json};
 
+use crate::executor::{
+    RetrievalExecutor, no_embedding_acquisition_count, reset_no_embedding_acquisition_count,
+};
 use crate::service::{AtlasAppService, RetrievalBackend};
 use crate::surface::record_surface;
 
@@ -182,16 +185,21 @@ fn export_e3_record_surface_final_samples() {
         std::process::id(),
         unique_suffix()
     ));
-    let service = AtlasAppService::new(
-        RetrievalBackend::OnDemandNoEmbeddings,
-        AtlasRuntimeOptions {
-            path_mode: AtlasPathMode::Global,
-            overrides: AtlasPathOverrides {
-                source_root: Some(source_root.clone()),
-                embedding_cache_root: None,
-                index_path: Some(sample_index.clone()),
-            },
+    let runtime_options = AtlasRuntimeOptions {
+        path_mode: AtlasPathMode::Global,
+        overrides: AtlasPathOverrides {
+            source_root: Some(source_root.clone()),
+            embedding_cache_root: None,
+            index_path: Some(sample_index.clone()),
         },
+    };
+    reset_no_embedding_acquisition_count();
+    let service = AtlasAppService::new(
+        RetrievalBackend::Pooled(
+            RetrievalExecutor::start_no_embeddings(runtime_options.clone())
+                .expect("persistent no-embedding retrieval should start"),
+        ),
+        runtime_options,
         local_state.clone(),
     )
     .expect("sample service should start");
@@ -578,6 +586,11 @@ fn export_e3_record_surface_final_samples() {
         fs::set_permissions(path, permissions).expect("sample file should seal read-only");
     }
 
+    assert_eq!(
+        no_embedding_acquisition_count(),
+        1,
+        "one export must reuse one no-embedding retrieval acquisition"
+    );
     drop(service);
     let _ = fs::remove_file(local_state);
 }
@@ -679,16 +692,21 @@ fn export_e3_activity_content_early_samples() {
         std::process::id(),
         unique_suffix()
     ));
-    let service = AtlasAppService::new(
-        RetrievalBackend::OnDemandNoEmbeddings,
-        AtlasRuntimeOptions {
-            path_mode: AtlasPathMode::Global,
-            overrides: AtlasPathOverrides {
-                source_root: Some(source_root.clone()),
-                embedding_cache_root: None,
-                index_path: Some(sample_index.clone()),
-            },
+    let runtime_options = AtlasRuntimeOptions {
+        path_mode: AtlasPathMode::Global,
+        overrides: AtlasPathOverrides {
+            source_root: Some(source_root.clone()),
+            embedding_cache_root: None,
+            index_path: Some(sample_index.clone()),
         },
+    };
+    reset_no_embedding_acquisition_count();
+    let service = AtlasAppService::new(
+        RetrievalBackend::Pooled(
+            RetrievalExecutor::start_no_embeddings(runtime_options.clone())
+                .expect("persistent no-embedding retrieval should start"),
+        ),
+        runtime_options,
         local_state.clone(),
     )
     .expect("sample service should start from retained substrate");
@@ -1163,6 +1181,11 @@ fn export_e3_activity_content_early_samples() {
         fs::set_permissions(path, permissions).expect("sample file should seal read-only");
     }
 
+    assert_eq!(
+        no_embedding_acquisition_count(),
+        1,
+        "one export must reuse one no-embedding retrieval acquisition"
+    );
     drop(service);
     let _ = fs::remove_file(local_state);
 }

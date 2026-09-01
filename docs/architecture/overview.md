@@ -30,6 +30,8 @@ Read this document first when you need to understand crate ownership, then follo
 
 If you remember one rule, remember this: product surfaces stay thin, and durable behavior belongs in the crate that owns the concern.
 
+Ordinary artifact use is deliberately cheap: reader acquisition checks the manifest envelope plus exact artifact-contract/schema stamps, and keyed hydration validates only requested rows. Full canonical coherence, integrity, projection equality, and coverage are explicit supplementary diagnostics and builder/CI tests. The artifact contract version is the umbrella for incompatible codec/projection/hydration semantics, while schema and manifest versions independently cover physical DDL and envelope shape. Required pull-request CI enforces merge-base-aware source-owner bumps; local hooks are advisory.
+
 ## Checkpoint B Source-Faithful Target
 
 The source-faithful record contract in [ADRs 0033-0036](./decisions/README.md) was approved at Checkpoint B. Implementation remains dependency-ordered: authorization of the exact contract does not pre-approve later family work or allow one slice to edit another owner's paths.
@@ -61,7 +63,7 @@ Acceptance is staged along the dependency graph: D3 audits source/artifact/searc
 flowchart TD
     pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, build input"]
     ingest --> indexWriter["atlas-index<br/>SqliteIndexWriter"]
-    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1"]
+    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v3"]
     localStateDb["SQLite local state<br/>pf2e-local-state.sqlite"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]

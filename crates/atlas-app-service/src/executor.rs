@@ -2,6 +2,9 @@ use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use atlas_app_model::AppErrorCode;
 use atlas_runtime::{AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::AtlasRetrievalService;
@@ -10,6 +13,9 @@ use crate::error::{AppServiceError, AppServiceResult};
 
 const DEFAULT_RETRIEVAL_WORKERS: usize = 2;
 const DEFAULT_RETRIEVAL_QUEUE_CAPACITY: usize = 64;
+
+#[cfg(test)]
+static NO_EMBEDDING_ACQUISITION_COUNT: AtomicU64 = AtomicU64::new(0);
 
 type RetrievalJob = Box<dyn FnOnce(&mut AtlasRetrievalService) + Send + 'static>;
 
@@ -54,6 +60,22 @@ impl RetrievalExecutor {
             #[cfg(test)]
             worker_count,
             queue_capacity,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn start_no_embeddings(options: AtlasRuntimeOptions) -> AppServiceResult<Self> {
+        let (sender, receiver) = mpsc::sync_channel(DEFAULT_RETRIEVAL_QUEUE_CAPACITY);
+        let receiver = Arc::new(Mutex::new(receiver));
+        spawn_retrieval_worker(
+            "atlas-app-retrieval-no-embeddings".to_string(),
+            receiver,
+            move || open_retrieval_service_no_embeddings(options),
+        )?;
+        Ok(Self {
+            sender,
+            worker_count: 1,
+            queue_capacity: DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
         })
     }
 
@@ -198,8 +220,20 @@ fn open_retrieval_service(options: AtlasRuntimeOptions) -> AppServiceResult<Atla
 pub(super) fn open_retrieval_service_no_embeddings(
     options: AtlasRuntimeOptions,
 ) -> AppServiceResult<AtlasRetrievalService> {
+    #[cfg(test)]
+    NO_EMBEDDING_ACQUISITION_COUNT.fetch_add(1, Ordering::Relaxed);
     let runtime = AtlasRuntime::resolve(options)?;
     Ok(runtime.open_retrieval_service_no_embeddings()?)
+}
+
+#[cfg(test)]
+pub(super) fn reset_no_embedding_acquisition_count() {
+    NO_EMBEDDING_ACQUISITION_COUNT.store(0, Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub(super) fn no_embedding_acquisition_count() -> u64 {
+    NO_EMBEDDING_ACQUISITION_COUNT.load(Ordering::Relaxed)
 }
 
 pub(super) fn open_retrieval_service_for_stored_vectors(
@@ -272,6 +306,25 @@ mod tests {
         let executor = RetrievalExecutor::from_fixture_workers(0, 16);
 
         assert_eq!(executor.worker_count(), 1);
+    }
+
+    #[test]
+    fn one_persistent_worker_serves_multiple_requests_from_one_acquisition() {
+        static ACQUISITIONS: AtomicU64 = AtomicU64::new(0);
+
+        ACQUISITIONS.store(0, Ordering::Relaxed);
+        let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+            ACQUISITIONS.fetch_add(1, Ordering::Relaxed);
+            atlas_search::test_support::minimal_fixture_retrieval_service_without_embeddings()
+        });
+
+        for _ in 0..9 {
+            executor
+                .submit(|_| Ok(()))
+                .expect("request should complete");
+        }
+
+        assert_eq!(ACQUISITIONS.load(Ordering::Relaxed), 1);
     }
 
     #[test]

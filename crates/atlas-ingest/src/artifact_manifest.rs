@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::UNIX_EPOCH;
 
+pub use atlas_index::ARTIFACT_MANIFEST_VERSION;
 use atlas_index::{ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -13,7 +14,6 @@ use crate::source::loader::{
 };
 use crate::source::model::Manifest;
 
-pub const ARTIFACT_MANIFEST_VERSION: &str = "pf2e-atlas-artifact-manifest/v2";
 pub const ADJACENT_ARTIFACT_MANIFEST_PATH: &str = "manifest.json";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

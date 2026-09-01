@@ -90,8 +90,10 @@ Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
 
 Validation has four explicit tiers:
 
-- `just validate-fast` is the ordinary `just verify` gate with corpus identity
-  variables removed so pinned full-corpus tests cannot activate accidentally.
+- `just validate-fast` is the focused formatting plus single workspace-Clippy
+  tier. It does not run workspace tests/build or corpus/deep validation.
+  `scripts/validation/fast.sh --base <ref>` makes it path-sensitive and also
+  runs the merge-base artifact-version policy guard.
 - `just validate-focused` runs the ingest/index source-contract, mutation,
   corruption, publication, generation-binding, and validation-snapshot tests.
   It also removes corpus identity variables and never scans the full source.
@@ -118,15 +120,21 @@ member, destination, state/type/value, multiplicity/order, enforcement, and
 closure detail. A failed exhaustive run atomically preserves that report in its
 failed snapshot rather than reducing it to aggregate counts.
 
-Within each exhaustive artifact mode, validation opens one manifest-verified,
-generation-bound `SqliteIndexReader` and retains its existing Diesel hydration
-and rusqlite validation connections. One deep-validation receipt feeds inspection
+Within each exhaustive artifact mode, validation opens one generation-bound
+`SqliteIndexReader` and retains its existing Diesel hydration and rusqlite
+validation connections. One explicit deep-validation result feeds inspection
 and evidence projection; the same reader performs captured-record round-trip
-hydration. This composition does not remove or combine staged-manifest,
-publisher, visible-pair reader, or generation materialization/open SHA checks,
-and it preserves the required publication generation copy. Per-operation timing,
-byte, reader/connection, hash-category, validation, and copy counters are emitted
-with the author report.
+hydration. Existing locally published generations are not rehashed on ordinary
+open; transfer, copy, and recovery boundaries retain exactly-once checksums.
+Per-operation timing, byte, reader/connection, hash-category, validation, and
+copy counters report actual operations.
+
+`artifact_contract_version`, `schema_version`, and `manifest_version` respectively
+cover incompatible canonical/artifact semantics, physical DDL, and envelope
+shape. Pull-request CI runs the deterministic merge-base guard in
+`scripts/validation/check-artifact-version-bump.sh`; its small fixture suite does
+not build an artifact. Local hooks remain advisory and bypassable, while the
+configured required CI status is the intended pre-merge authority.
 
 Requested embedding selectors are resolved through the existing embedding-model
 catalog before source traversal. Validation binds the typed model and canonical

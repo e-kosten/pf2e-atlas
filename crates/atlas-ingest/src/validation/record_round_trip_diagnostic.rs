@@ -309,7 +309,7 @@ impl RecordRoundTripPolicyCategoryCounts {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct C1oTimingEvidence {
     write_ms: u128,
-    deep_validation_ms: u128,
+    compatibility_check_ms: u128,
     writer_digest_ms: u128,
     manifest_stage_ms: u128,
     lock_wait_ms: u128,
@@ -325,8 +325,7 @@ struct C1oTimingEvidence {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct C1oCounterEvidence {
     artifact_bytes: Option<u64>,
-    deep_validation_count: Option<u64>,
-    validation_handle_identity_check_count: Option<u64>,
+    compatibility_check_count: Option<u64>,
     writer_digest_pass_count: Option<u64>,
     writer_digest_bytes: Option<u64>,
     receipt_issue_count: Option<u64>,
@@ -342,6 +341,7 @@ struct C1oCounterEvidence {
     generation_alias_rejection_count: Option<u64>,
     reader_visible_sha_pass_count: Option<u64>,
     reader_generation_sha_pass_count: Option<u64>,
+    reader_compatibility_stamp_check_count: Option<u64>,
     recovery_sha_pass_count: Option<u64>,
     unclassified_sha_pass_count: Option<u64>,
     unclassified_copy_count: Option<u64>,
@@ -906,12 +906,14 @@ fn c1o_performance_evidence(
         required_generation_u64(generation, "reader_visible_sha_pass_count")?;
     let reader_generation_sha_pass_count =
         required_generation_u64(generation, "reader_generation_sha_pass_count")?;
+    let reader_compatibility_stamp_check_count =
+        required_generation_u64(generation, "compatibility_stamp_check_count")?;
     let receipt = &outcome.receipt_telemetry;
     let publication = &outcome.publication_telemetry;
     let evidence = C1oPerformanceEvidence {
         timing: C1oTimingEvidence {
             write_ms: receipt.write_ms,
-            deep_validation_ms: receipt.deep_validation_ms,
+            compatibility_check_ms: receipt.compatibility_check_ms,
             writer_digest_ms: receipt.writer_digest_ms,
             manifest_stage_ms: outcome.manifest_stage_ms,
             lock_wait_ms: publication.lock_wait_ms,
@@ -925,10 +927,7 @@ fn c1o_performance_evidence(
         },
         counters: C1oCounterEvidence {
             artifact_bytes: Some(receipt.artifact_bytes),
-            deep_validation_count: Some(receipt.deep_validation_count),
-            validation_handle_identity_check_count: Some(
-                receipt.validation_handle_identity_check_count,
-            ),
+            compatibility_check_count: Some(receipt.compatibility_check_count),
             writer_digest_pass_count: Some(receipt.writer_digest_pass_count),
             writer_digest_bytes: Some(receipt.writer_digest_bytes),
             receipt_issue_count: Some(receipt.receipt_issue_count),
@@ -948,6 +947,7 @@ fn c1o_performance_evidence(
             generation_alias_rejection_count: Some(publication.generation_alias_rejection_count),
             reader_visible_sha_pass_count: Some(reader_visible_sha_pass_count),
             reader_generation_sha_pass_count: Some(reader_generation_sha_pass_count),
+            reader_compatibility_stamp_check_count: Some(reader_compatibility_stamp_check_count),
             recovery_sha_pass_count: Some(publication.recovery_sha_pass_count),
             unclassified_sha_pass_count: Some(publication.unclassified_sha_pass_count),
             unclassified_copy_count: Some(publication.unclassified_copy_count),
@@ -1000,15 +1000,9 @@ fn c1o_performance_violations(evidence: &C1oPerformanceEvidence) -> Vec<String> 
     };
     expect_counter(
         &mut violations,
-        "deep_validation_count",
-        counters.deep_validation_count,
+        "compatibility_check_count",
+        counters.compatibility_check_count,
         1,
-    );
-    expect_counter_at_least(
-        &mut violations,
-        "validation_handle_identity_check_count",
-        counters.validation_handle_identity_check_count,
-        4,
     );
     expect_counter(
         &mut violations,
@@ -1092,12 +1086,18 @@ fn c1o_performance_violations(evidence: &C1oPerformanceEvidence) -> Vec<String> 
         &mut violations,
         "reader_visible_sha_pass_count",
         counters.reader_visible_sha_pass_count,
-        1,
+        0,
     );
     expect_counter(
         &mut violations,
         "reader_generation_sha_pass_count",
         counters.reader_generation_sha_pass_count,
+        0,
+    );
+    expect_counter(
+        &mut violations,
+        "reader_compatibility_stamp_check_count",
+        counters.reader_compatibility_stamp_check_count,
         1,
     );
     expect_counter(
@@ -1447,7 +1447,7 @@ fn synthetic_performance_evidence() -> C1oPerformanceEvidence {
     C1oPerformanceEvidence {
         timing: C1oTimingEvidence {
             write_ms: 1,
-            deep_validation_ms: 2,
+            compatibility_check_ms: 2,
             writer_digest_ms: 3,
             manifest_stage_ms: 4,
             lock_wait_ms: 5,
@@ -1461,8 +1461,7 @@ fn synthetic_performance_evidence() -> C1oPerformanceEvidence {
         },
         counters: C1oCounterEvidence {
             artifact_bytes: Some(4096),
-            deep_validation_count: Some(1),
-            validation_handle_identity_check_count: Some(4),
+            compatibility_check_count: Some(1),
             writer_digest_pass_count: Some(1),
             writer_digest_bytes: Some(4096),
             receipt_issue_count: Some(1),
@@ -1476,8 +1475,9 @@ fn synthetic_performance_evidence() -> C1oPerformanceEvidence {
             generation_copy_verify_sha_pass_count: Some(1),
             generation_distinct_identity_check_count: Some(1),
             generation_alias_rejection_count: Some(0),
-            reader_visible_sha_pass_count: Some(1),
-            reader_generation_sha_pass_count: Some(1),
+            reader_visible_sha_pass_count: Some(0),
+            reader_generation_sha_pass_count: Some(0),
+            reader_compatibility_stamp_check_count: Some(1),
             recovery_sha_pass_count: Some(0),
             unclassified_sha_pass_count: Some(0),
             unclassified_copy_count: Some(0),
@@ -1566,7 +1566,7 @@ fn temporary_workspaces_are_unique_and_cleaned_after_success() {
 #[test]
 fn synthetic_performance_counter_failures_are_closed() {
     type PerformanceMutation = (&'static str, fn(&mut C1oPerformanceEvidence));
-    let cases: [PerformanceMutation; 14] = [
+    let cases: [PerformanceMutation; 15] = [
         ("writer_digest_pass_count", |evidence| {
             evidence.counters.writer_digest_pass_count = None;
         }),
@@ -1601,7 +1601,10 @@ fn synthetic_performance_counter_failures_are_closed() {
             evidence.counters.reader_visible_sha_pass_count = None;
         }),
         ("reader_generation_sha_pass_count", |evidence| {
-            evidence.counters.reader_generation_sha_pass_count = Some(0);
+            evidence.counters.reader_generation_sha_pass_count = Some(1);
+        }),
+        ("reader_compatibility_stamp_check_count", |evidence| {
+            evidence.counters.reader_compatibility_stamp_check_count = Some(0);
         }),
         ("unclassified_sha_pass_count", |evidence| {
             evidence.counters.unclassified_sha_pass_count = Some(1);

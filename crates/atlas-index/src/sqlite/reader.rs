@@ -8,6 +8,10 @@ use diesel::{Connection as DieselConnection, SqliteConnection};
 use rusqlite::{Connection, OpenFlags};
 
 use crate::IndexValidationError;
+use crate::artifact::metadata::{
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION,
+    artifact_metadata_keys,
+};
 use crate::artifact::pair::{
     GenerationLease, PairLock, VerifiedArtifactFile, adjacent_manifest_path,
     open_verified_generation,
@@ -31,6 +35,7 @@ pub struct SqliteIndexReader {
     reader_acquisition_ms: u128,
     reader_visible_sha_pass_count: u64,
     reader_generation_sha_pass_count: u64,
+    compatibility_stamp_check_count: u64,
     diesel_connection: RefCell<SqliteConnection>,
     validation_connection: RefCell<Connection>,
     _artifact_file: File,
@@ -53,11 +58,16 @@ impl SqliteIndexReader {
         let manifest_path = adjacent_manifest_path(&path);
         let pair_lock = PairLock::shared(&manifest_path)?;
         let verified = VerifiedArtifactFile::open(&path, &manifest_path)?;
-        let (generation, generation_lease) =
+        let (generation, generation_lease, materialization) =
             open_verified_generation(&path, &manifest_path, &verified)?;
         after_verification();
         let database_url = immutable_read_only_sqlite_uri(&generation.file, &generation.path)?;
         let (diesel_connection, validation_connection) = open_connections(&database_url)?;
+        validate_compatibility_stamps(
+            &validation_connection,
+            &verified.artifact_contract_version,
+            &verified.schema_version,
+        )?;
         let verified_generation = verified_generation_identity(
             &path,
             &generation.path,
@@ -70,8 +80,9 @@ impl SqliteIndexReader {
             _verified_artifact_sha256: Some(verified.sha256),
             verified_generation: Some(verified_generation),
             reader_acquisition_ms: acquisition_started.elapsed().as_millis(),
-            reader_visible_sha_pass_count: 1,
-            reader_generation_sha_pass_count: 1,
+            reader_visible_sha_pass_count: 0,
+            reader_generation_sha_pass_count: materialization.verify_sha_pass_count,
+            compatibility_stamp_check_count: 1,
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: generation.file,
@@ -95,6 +106,7 @@ impl SqliteIndexReader {
             reader_acquisition_ms: 0,
             reader_visible_sha_pass_count: 0,
             reader_generation_sha_pass_count: 0,
+            compatibility_stamp_check_count: 0,
             diesel_connection: RefCell::new(diesel_connection),
             validation_connection: RefCell::new(validation_connection),
             _artifact_file: artifact_file,
@@ -184,6 +196,7 @@ impl SqliteIndexReader {
             "reader_acquisition_ms": self.reader_acquisition_ms,
             "reader_visible_sha_pass_count": self.reader_visible_sha_pass_count,
             "reader_generation_sha_pass_count": self.reader_generation_sha_pass_count,
+            "compatibility_stamp_check_count": self.compatibility_stamp_check_count,
         }))
     }
 
@@ -191,6 +204,63 @@ impl SqliteIndexReader {
     pub(crate) fn verified_artifact_sha256(&self) -> Option<&str> {
         self._verified_artifact_sha256.as_deref()
     }
+}
+
+fn validate_compatibility_stamps(
+    connection: &Connection,
+    manifest_contract_version: &str,
+    manifest_schema_version: &str,
+) -> Result<(), IndexValidationError> {
+    let sql = format!(
+        "SELECT key, value FROM {ARTIFACT_METADATA_TABLE} WHERE key IN (?1, ?2) ORDER BY key"
+    );
+    let mut statement = connection.prepare(&sql).map_err(|error| {
+        IndexValidationError::Unavailable(format!(
+            "artifact compatibility metadata is unavailable: {error}; rebuild the artifact"
+        ))
+    })?;
+    let rows = statement
+        .query_map(
+            [
+                artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
+                artifact_metadata_keys::SCHEMA_VERSION,
+            ],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+
+    if rows.len() != 2 {
+        return Err(IndexValidationError::Unavailable(
+            "artifact compatibility metadata is missing or duplicated; rebuild the artifact with `atlas index build`"
+                .to_string(),
+        ));
+    }
+    let values = rows
+        .into_iter()
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let contract_version = values
+        .get(artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION)
+        .ok_or_else(|| unsupported_stamp("artifact contract", "missing"))?;
+    let schema_version = values
+        .get(artifact_metadata_keys::SCHEMA_VERSION)
+        .ok_or_else(|| unsupported_stamp("schema", "missing"))?;
+    if contract_version != ARTIFACT_CONTRACT_VERSION
+        || contract_version != manifest_contract_version
+    {
+        return Err(unsupported_stamp("artifact contract", contract_version));
+    }
+    if schema_version != ARTIFACT_SCHEMA_VERSION || schema_version != manifest_schema_version {
+        return Err(unsupported_stamp("schema", schema_version));
+    }
+    Ok(())
+}
+
+fn unsupported_stamp(kind: &str, actual: &str) -> IndexValidationError {
+    IndexValidationError::Unavailable(format!(
+        "artifact {kind} version `{actual}` is unsupported or does not match its manifest; rebuild the artifact with `atlas index build`"
+    ))
 }
 
 fn verified_generation_identity(
@@ -306,6 +376,7 @@ fn read_only_sqlite_uri(path: &Path) -> Result<String, IndexValidationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use atlas_domain::RecordKey;
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -320,6 +391,32 @@ mod tests {
             Ok(_) => panic!("old unbound manifest must be rejected"),
             Err(error) => error,
         };
+        assert!(error.to_string().contains("rebuild"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn unsupported_manifest_envelope_version_is_rejected() {
+        let root = unique_root("old-manifest-envelope");
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("index.sqlite");
+        create_valid_generation(&path, "Old Envelope");
+        std::fs::write(
+            root.join("manifest.json"),
+            format!(
+                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","artifact_contract_version":"{}","schema_version":"{}","build":{{"artifact_sha256":"{}"}}}}"#,
+                crate::ARTIFACT_CONTRACT_VERSION,
+                crate::ARTIFACT_SCHEMA_VERSION,
+                sha256(&path),
+            ),
+        )
+        .unwrap();
+
+        let error = match SqliteIndexReader::open_read_only(&path) {
+            Ok(_) => panic!("old manifest envelope must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("manifest contract"));
         assert!(error.to_string().contains("rebuild"));
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -347,6 +444,114 @@ mod tests {
                 .contains("required adjacent manifest is missing")
         );
         assert!(error.to_string().contains("rebuild"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn warm_keyed_reads_skip_global_scans_and_full_file_hashes() {
+        let root = unique_root("warm-keyed-read");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        let manifest = root.join("manifest.json");
+        create_valid_generation(&artifact, "Warm");
+        let connection = rusqlite::Connection::open(&artifact).unwrap();
+        connection
+            .execute(
+                "UPDATE records SET record_kind = 'creature', foundry_document_type = 'Actor', foundry_record_type = 'npc' WHERE record_key = 'actions:testAction1'",
+                [],
+            )
+            .unwrap();
+        crate::test_support::insert_minimal_canonical_npc_body(
+            &connection,
+            "actions:testAction1",
+            20,
+            30,
+            30,
+            8,
+        )
+        .unwrap();
+        drop(connection);
+        write_manifest(&manifest, &artifact);
+
+        drop(SqliteIndexReader::open_read_only(&artifact).unwrap());
+        crate::read::records::reset_canonical_coherence_scan_count();
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let evidence = reader.verified_generation_evidence().unwrap();
+        assert_eq!(evidence["reader_visible_sha_pass_count"], 0);
+        assert_eq!(evidence["reader_generation_sha_pass_count"], 0);
+        assert_eq!(evidence["compatibility_stamp_check_count"], 1);
+
+        let key = RecordKey::parse("actions:testAction1").unwrap();
+        for _ in 0..2 {
+            let hydrated = reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&key))
+                .unwrap();
+            assert_eq!(hydrated.len(), 1);
+        }
+        assert_eq!(crate::read::records::canonical_coherence_scan_count(), 0);
+
+        drop(reader);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn incompatible_sqlite_version_stamp_is_rejected_on_open() {
+        let root = unique_root("incompatible-stamp");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Old Contract");
+        let connection = rusqlite::Connection::open(&artifact).unwrap();
+        connection
+            .execute(
+                "UPDATE artifact_metadata SET value = 'pf2e-atlas-artifact/v2' WHERE key = 'artifact_contract_version'",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        write_manifest(&root.join("manifest.json"), &artifact);
+
+        let error = match SqliteIndexReader::open_read_only(&artifact) {
+            Ok(_) => panic!("old artifact contract must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("artifact contract"));
+        assert!(error.to_string().contains("rebuild"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn keyed_canonical_decode_reports_local_mutation_normally() {
+        let root = unique_root("typed-decode-mutation");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Mutation");
+        let connection = rusqlite::Connection::open(&artifact).unwrap();
+        crate::test_support::insert_minimal_canonical_npc_body(
+            &connection,
+            "actions:testAction1",
+            20,
+            30,
+            30,
+            8,
+        )
+        .unwrap();
+        connection
+            .execute(
+                "UPDATE canonical_creature_records SET canonical_json = '{' WHERE record_key = 'actions:testAction1'",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        write_manifest(&root.join("manifest.json"), &artifact);
+
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let key = RecordKey::parse("actions:testAction1").unwrap();
+        let error = reader
+            .load_canonical_record_bodies_by_key(&[key])
+            .expect_err("malformed canonical JSON must fail typed decode");
+        assert!(matches!(error, crate::RecordLoadError::InvalidData(_)));
+
+        drop(reader);
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -386,7 +591,7 @@ mod tests {
                     std::fs::TryLockError::WouldBlock
                 ));
                 attempted_tx.send(()).unwrap();
-                let receipt = crate::ValidatedArtifactReceipt::issue_test(
+                let receipt = crate::ArtifactPublicationReceipt::issue_test(
                     &replacement_artifact,
                     &target_artifact,
                 )
@@ -613,8 +818,11 @@ mod tests {
         std::fs::write(
             path,
             format!(
-                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{}"}}}}"#,
-                sha256(artifact)
+                r#"{{"manifest_version":"{}","artifact_contract_version":"{}","schema_version":"{}","build":{{"artifact_sha256":"{}"}}}}"#,
+                crate::ARTIFACT_MANIFEST_VERSION,
+                crate::ARTIFACT_CONTRACT_VERSION,
+                crate::ARTIFACT_SCHEMA_VERSION,
+                sha256(artifact),
             ),
         )
         .unwrap();

@@ -8,10 +8,12 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+use crate::artifact::metadata::{
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_MANIFEST_VERSION, ARTIFACT_SCHEMA_VERSION,
+};
 use crate::{IndexValidationError, IndexWriteError, ValidationStatus};
 
 pub(crate) const ADJACENT_MANIFEST_FILE_NAME: &str = "manifest.json";
-const ARTIFACT_MANIFEST_VERSION: &str = "pf2e-atlas-artifact-manifest/v2";
 pub(crate) const PUBLICATION_LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(10);
 const GENERATION_DIRECTORY_SUFFIX: &str = ".atlas-generations";
@@ -35,11 +37,10 @@ struct FileState {
 #[derive(Debug, Clone)]
 pub struct ArtifactReceiptTelemetry {
     pub write_ms: u128,
-    pub deep_validation_ms: u128,
+    pub compatibility_check_ms: u128,
     pub writer_digest_ms: u128,
     pub artifact_bytes: u64,
-    pub deep_validation_count: u64,
-    pub validation_handle_identity_check_count: u64,
+    pub compatibility_check_count: u64,
     pub writer_digest_pass_count: u64,
     pub writer_digest_bytes: u64,
     pub receipt_issue_count: u64,
@@ -50,7 +51,7 @@ pub struct ArtifactReceiptTelemetry {
 ///
 /// Its private retained file handle and identity state cannot be serialized or
 /// reconstructed from evidence. Publication consumes it.
-pub struct ValidatedArtifactReceipt {
+pub struct ArtifactPublicationReceipt {
     file: Option<File>,
     staged_path: PathBuf,
     publication_target: PathBuf,
@@ -59,10 +60,10 @@ pub struct ValidatedArtifactReceipt {
     telemetry: ArtifactReceiptTelemetry,
 }
 
-impl std::fmt::Debug for ValidatedArtifactReceipt {
+impl std::fmt::Debug for ArtifactPublicationReceipt {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("ValidatedArtifactReceipt")
+            .debug_struct("ArtifactPublicationReceipt")
             .field("staged_path", &self.staged_path)
             .field("publication_target", &self.publication_target)
             .field("sha256", &self.sha256)
@@ -71,7 +72,7 @@ impl std::fmt::Debug for ValidatedArtifactReceipt {
     }
 }
 
-impl ValidatedArtifactReceipt {
+impl ArtifactPublicationReceipt {
     pub(crate) fn issue(
         staged_path: &Path,
         publication_target: &Path,
@@ -83,9 +84,11 @@ impl ValidatedArtifactReceipt {
             write_ms,
             |file, path| {
                 let connection = open_sqlite_from_retained_file(file, path)?;
-                let report =
-                    crate::validate_index_connection(path.display().to_string(), &connection)
-                        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+                let report = crate::validate_index_metadata_connection(
+                    path.display().to_string(),
+                    &connection,
+                )
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
                 if report.status != ValidationStatus::Ok {
                     let details = report
                         .diagnostics
@@ -95,7 +98,7 @@ impl ValidatedArtifactReceipt {
                         .collect::<Vec<_>>()
                         .join("; ");
                     return Err(IndexWriteError::WriteFailed(format!(
-                        "candidate artifact failed deep validation before publication: {details}"
+                        "candidate artifact failed compatibility checks before publication: {details}"
                     )));
                 }
                 Ok(())
@@ -110,7 +113,7 @@ impl ValidatedArtifactReceipt {
         publication_target: &Path,
         write_ms: u128,
         validator: impl FnOnce(&File, &Path) -> Result<(), IndexWriteError>,
-        after_validation: impl FnOnce() -> Result<(), IndexWriteError>,
+        after_compatibility_check: impl FnOnce() -> Result<(), IndexWriteError>,
         after_digest: impl FnOnce() -> Result<(), IndexWriteError>,
     ) -> Result<Self, IndexWriteError> {
         reject_sqlite_companions(staged_path)?;
@@ -132,10 +135,10 @@ impl ValidatedArtifactReceipt {
         assert_path_state(&file, &staged_path, &state)?;
         identity_checks += 1;
 
-        let deep_started = Instant::now();
+        let compatibility_started = Instant::now();
         validator(&file, &staged_path)?;
-        let deep_validation_ms = deep_started.elapsed().as_millis();
-        after_validation()?;
+        let compatibility_check_ms = compatibility_started.elapsed().as_millis();
+        after_compatibility_check()?;
         assert_path_state(&file, &staged_path, &state)?;
         identity_checks += 1;
 
@@ -156,11 +159,10 @@ impl ValidatedArtifactReceipt {
             sha256,
             telemetry: ArtifactReceiptTelemetry {
                 write_ms,
-                deep_validation_ms,
+                compatibility_check_ms,
                 writer_digest_ms,
                 artifact_bytes: state.bytes,
-                deep_validation_count: 1,
-                validation_handle_identity_check_count: identity_checks,
+                compatibility_check_count: 1,
                 writer_digest_pass_count: 1,
                 writer_digest_bytes: state.bytes,
                 receipt_issue_count: 1,
@@ -189,7 +191,7 @@ impl ValidatedArtifactReceipt {
     pub(crate) fn retained_file(&self) -> Result<&File, IndexWriteError> {
         self.file
             .as_ref()
-            .ok_or_else(|| receipt_invalidated("receipt no longer retains its validated file"))
+            .ok_or_else(|| receipt_invalidated("receipt no longer retains its checked file"))
     }
 
     pub(crate) fn assert_staged_current(&self) -> Result<(), IndexWriteError> {
@@ -247,7 +249,7 @@ impl ValidatedArtifactReceipt {
     fn issue_test_with_hooks(
         staged_path: &Path,
         publication_target: &Path,
-        after_validation: impl FnOnce() -> Result<(), IndexWriteError>,
+        after_compatibility_check: impl FnOnce() -> Result<(), IndexWriteError>,
         after_digest: impl FnOnce() -> Result<(), IndexWriteError>,
     ) -> Result<Self, IndexWriteError> {
         let mut permissions = std::fs::metadata(staged_path)
@@ -260,13 +262,13 @@ impl ValidatedArtifactReceipt {
             publication_target,
             0,
             |_, _| Ok(()),
-            after_validation,
+            after_compatibility_check,
             after_digest,
         )
     }
 }
 
-impl Drop for ValidatedArtifactReceipt {
+impl Drop for ArtifactPublicationReceipt {
     fn drop(&mut self) {
         let mut matched_path = None;
         for path in [&self.staged_path, &self.publication_target] {
@@ -321,7 +323,7 @@ fn assert_path_state(
     };
     if &handle_state != expected || &path_state != expected {
         return Err(receipt_invalidated(format!(
-            "retained handle or bound path {} changed after validation",
+            "retained handle or bound path {} changed after receipt issue",
             path.display()
         )));
     }
@@ -377,7 +379,8 @@ fn open_receipt_candidate(path: &Path) -> Result<File, IndexWriteError> {
     {
         let _ = path;
         Err(IndexWriteError::WriteFailed(
-            "validated artifact receipts require Unix or Windows file identity support".to_string(),
+            "artifact publication receipts require Unix or Windows file identity support"
+                .to_string(),
         ))
     }
 }
@@ -400,7 +403,7 @@ fn open_sqlite_from_retained_file(
     let database_url: String = {
         let _ = (file, display_path);
         return Err(IndexWriteError::WriteFailed(
-            "validated artifact receipts require retained-handle SQLite support".to_string(),
+            "artifact publication receipts require retained-handle SQLite support".to_string(),
         ));
     };
 
@@ -588,6 +591,8 @@ impl PairLock {
 pub(crate) struct VerifiedArtifactFile {
     pub(crate) file: File,
     pub(crate) sha256: String,
+    pub(crate) artifact_contract_version: String,
+    pub(crate) schema_version: String,
 }
 
 pub(crate) struct VerifiedGenerationFile {
@@ -624,12 +629,12 @@ impl VerifiedArtifactFile {
             ))
         })?;
         let manifest = read_manifest(manifest_path)?;
-        let sha256 = sha256_file(&file)
-            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-        if sha256 != manifest.build.artifact_sha256 {
-            return Err(pair_mismatch());
-        }
-        Ok(Self { file, sha256 })
+        Ok(Self {
+            file,
+            sha256: manifest.build.artifact_sha256,
+            artifact_contract_version: manifest.artifact_contract_version,
+            schema_version: manifest.schema_version,
+        })
     }
 }
 
@@ -637,21 +642,25 @@ pub(crate) fn open_verified_generation(
     target_artifact: &Path,
     manifest_path: &Path,
     verified: &VerifiedArtifactFile,
-) -> Result<(VerifiedGenerationFile, GenerationLease), IndexValidationError> {
-    let path = ensure_generation_file(&verified.file, target_artifact, &verified.sha256)
-        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-    let file = open_file_with_sha256(&path, &verified.sha256)
-        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+) -> Result<
+    (
+        VerifiedGenerationFile,
+        GenerationLease,
+        GenerationMaterialization,
+    ),
+    IndexValidationError,
+> {
+    let (generation, materialization) =
+        ensure_generation_file(&verified.file, target_artifact, &verified.sha256)
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
     Ok((
-        VerifiedGenerationFile {
-            file,
-            path: path.clone(),
-        },
+        generation,
         GenerationLease {
-            path,
+            path: generation_path(target_artifact, &verified.sha256),
             manifest_path: manifest_path.to_path_buf(),
             sha256: verified.sha256.clone(),
         },
+        materialization,
     ))
 }
 
@@ -663,31 +672,29 @@ pub(crate) struct GenerationMaterialization {
 }
 
 pub(crate) fn prepare_generation_file(
-    receipt: &ValidatedArtifactReceipt,
+    receipt: &ArtifactPublicationReceipt,
     target_artifact: &Path,
 ) -> Result<(PathBuf, GenerationMaterialization), IndexWriteError> {
     receipt.assert_staged_current()?;
     let sha256 = receipt.artifact_sha256();
-    let path = generation_path(target_artifact, sha256);
-    let existed = path.exists();
-    let path = ensure_generation_file(receipt.retained_file()?, target_artifact, sha256)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let generation = File::open(&path).map_err(write_error)?;
+    let (generation, materialization) =
+        ensure_generation_file(receipt.retained_file()?, target_artifact, sha256)
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let source_identity =
         portable_identity(&receipt.retained_file()?.metadata().map_err(write_error)?)?;
-    let generation_identity = portable_identity(&generation.metadata().map_err(write_error)?)?;
+    let generation_identity = portable_identity(&generation.file.metadata().map_err(write_error)?)?;
     if source_identity == generation_identity {
-        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&generation.path);
         return Err(receipt_invalidated(
             "generation snapshot aliases the receipt-bound artifact instead of isolating bytes",
         ));
     }
     Ok((
-        path,
+        generation.path,
         GenerationMaterialization {
-            copied_bytes: if existed { 0 } else { receipt.artifact_bytes() },
-            copy_count: u64::from(!existed),
-            verify_sha_pass_count: 1,
+            copied_bytes: materialization.copied_bytes,
+            copy_count: materialization.copy_count,
+            verify_sha_pass_count: materialization.verify_sha_pass_count,
             distinct_identity_check_count: 1,
         },
     ))
@@ -725,17 +732,20 @@ fn ensure_generation_file(
     source: &File,
     target_artifact: &Path,
     sha256: &str,
-) -> Result<PathBuf, std::io::Error> {
+) -> Result<(VerifiedGenerationFile, GenerationMaterialization), std::io::Error> {
     let path = generation_path(target_artifact, sha256);
     if path.exists() {
-        match open_file_with_sha256(&path, sha256) {
-            Ok(_) => return Ok(path),
-            Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
-                match std::fs::remove_file(&path) {
-                    Ok(()) => {}
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                    Err(error) => return Err(error),
-                }
+        match File::open(&path) {
+            Ok(file) => {
+                return Ok((
+                    VerifiedGenerationFile { file, path },
+                    GenerationMaterialization {
+                        copied_bytes: 0,
+                        copy_count: 0,
+                        verify_sha_pass_count: 0,
+                        distinct_identity_check_count: 0,
+                    },
+                ));
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => return Err(error),
@@ -746,12 +756,13 @@ fn ensure_generation_file(
     std::fs::create_dir_all(&directory)?;
     let temporary = generation_temp_path(target_artifact, sha256);
     let result = copy_open_file(source, &temporary).and_then(|()| {
-        open_file_with_sha256(&temporary, sha256)?;
+        let verified = open_file_with_sha256(&temporary, sha256)?;
         match std::fs::rename(&temporary, &path) {
-            Ok(()) => Ok(()),
+            Ok(()) => Ok(verified),
             Err(_) if path.exists() => {
-                open_file_with_sha256(&path, sha256)?;
-                std::fs::remove_file(&temporary)
+                drop(verified);
+                std::fs::remove_file(&temporary)?;
+                File::open(&path)
             }
             Err(error) => Err(error),
         }
@@ -759,8 +770,17 @@ fn ensure_generation_file(
     if result.is_err() {
         let _ = std::fs::remove_file(&temporary);
     }
-    result?;
-    Ok(path)
+    let file = result?;
+    let copied_bytes = file.metadata()?.len();
+    Ok((
+        VerifiedGenerationFile { file, path },
+        GenerationMaterialization {
+            copied_bytes,
+            copy_count: 1,
+            verify_sha_pass_count: 1,
+            distinct_identity_check_count: 0,
+        },
+    ))
 }
 
 fn copy_open_file(source: &File, target: &Path) -> Result<(), std::io::Error> {
@@ -824,6 +844,8 @@ fn owned_generation_file(path: &Path) -> bool {
 #[derive(Deserialize)]
 struct PairManifest {
     manifest_version: String,
+    artifact_contract_version: String,
+    schema_version: String,
     build: PairManifestBuild,
 }
 
@@ -843,9 +865,14 @@ pub(crate) fn verify_pair_files(
     artifact_path: &Path,
     manifest_path: &Path,
 ) -> Result<String, IndexWriteError> {
-    VerifiedArtifactFile::open(artifact_path, manifest_path)
-        .map(|verified| verified.sha256)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
+    let manifest = read_manifest(manifest_path)
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let file = File::open(artifact_path).map_err(write_error)?;
+    let sha256 = sha256_file(&file).map_err(write_error)?;
+    if sha256 != manifest.build.artifact_sha256 {
+        return Err(IndexWriteError::WriteFailed(pair_mismatch().to_string()));
+    }
+    Ok(sha256)
 }
 
 pub(crate) fn verify_manifest_digest(
@@ -856,7 +883,7 @@ pub(crate) fn verify_manifest_digest(
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     if manifest.build.artifact_sha256 != expected_sha256 {
         return Err(IndexWriteError::ReceiptInvalidated(
-            "adjacent manifest digest does not match the validated artifact receipt".to_string(),
+            "adjacent manifest digest does not match the artifact publication receipt".to_string(),
         ));
     }
     Ok(())
@@ -876,13 +903,25 @@ fn read_manifest(path: &Path) -> Result<PairManifest, IndexValidationError> {
     })?;
     let manifest: PairManifest = serde_json::from_slice(&bytes).map_err(|error| {
         IndexValidationError::Unavailable(format!(
-            "adjacent manifest is not a v2 pair manifest: {error}; rebuild the artifact and manifest together"
+            "adjacent manifest is not a supported pair manifest: {error}; rebuild the artifact and manifest together"
         ))
     })?;
     if manifest.manifest_version != ARTIFACT_MANIFEST_VERSION {
         return Err(IndexValidationError::Unavailable(format!(
             "adjacent manifest contract `{}` is unsupported; rebuild the artifact and manifest together",
             manifest.manifest_version
+        )));
+    }
+    if manifest.artifact_contract_version != ARTIFACT_CONTRACT_VERSION {
+        return Err(IndexValidationError::Unavailable(format!(
+            "adjacent manifest artifact contract `{}` is unsupported; rebuild the artifact and manifest together",
+            manifest.artifact_contract_version
+        )));
+    }
+    if manifest.schema_version != ARTIFACT_SCHEMA_VERSION {
+        return Err(IndexValidationError::Unavailable(format!(
+            "adjacent manifest schema `{}` is unsupported; rebuild the artifact and manifest together",
+            manifest.schema_version
         )));
     }
     Ok(manifest)
@@ -936,24 +975,21 @@ mod receipt_tests {
         let target = root.join("index.sqlite");
         std::fs::write(&staged, b"receipt bytes").unwrap();
 
-        let receipt = ValidatedArtifactReceipt::issue_test(&staged, &target).unwrap();
+        let receipt = ArtifactPublicationReceipt::issue_test(&staged, &target).unwrap();
 
         assert_eq!(receipt.artifact_bytes(), 13);
-        assert_eq!(receipt.telemetry().deep_validation_count, 1);
+        assert_eq!(receipt.telemetry().compatibility_check_count, 1);
         assert_eq!(receipt.telemetry().writer_digest_pass_count, 1);
         assert_eq!(receipt.telemetry().writer_digest_bytes, 13);
         assert_eq!(receipt.telemetry().receipt_issue_count, 1);
-        assert_eq!(
-            receipt.telemetry().validation_handle_identity_check_count,
-            4
-        );
+        assert_eq!(receipt.telemetry().receipt_identity_check_count, 4);
         receipt.assert_staged_current().unwrap();
         drop(receipt);
         std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
-    fn path_replacement_after_validation_cannot_issue_a_receipt() {
+    fn path_replacement_after_compatibility_check_cannot_issue_a_receipt() {
         let root = temp_root("path-replacement");
         let staged = root.join("staged.sqlite");
         let displaced = root.join("displaced.sqlite");
@@ -961,7 +997,7 @@ mod receipt_tests {
         std::fs::write(&staged, b"original bytes").unwrap();
         let staged_for_hook = staged.clone();
 
-        let error = ValidatedArtifactReceipt::issue_test_with_hooks(
+        let error = ArtifactPublicationReceipt::issue_test_with_hooks(
             &staged,
             &target,
             move || {
@@ -978,14 +1014,14 @@ mod receipt_tests {
     }
 
     #[test]
-    fn same_size_mutation_after_validation_cannot_issue_a_receipt() {
+    fn same_size_mutation_after_compatibility_check_cannot_issue_a_receipt() {
         let root = temp_root("same-size-mutation");
         let staged = root.join("staged.sqlite");
         let target = root.join("index.sqlite");
         std::fs::write(&staged, b"abcdefgh").unwrap();
         let staged_for_hook = staged.clone();
 
-        let error = ValidatedArtifactReceipt::issue_test_with_hooks(
+        let error = ArtifactPublicationReceipt::issue_test_with_hooks(
             &staged,
             &target,
             move || {
@@ -1011,7 +1047,7 @@ mod receipt_tests {
         std::fs::write(&staged, b"digest-bound").unwrap();
         let staged_for_hook = staged.clone();
 
-        let error = ValidatedArtifactReceipt::issue_test_with_hooks(
+        let error = ArtifactPublicationReceipt::issue_test_with_hooks(
             &staged,
             &target,
             || Ok(()),
@@ -1034,7 +1070,7 @@ mod receipt_tests {
         let target = root.join("index.sqlite");
         let wrong_target = root.join("other.sqlite");
         std::fs::write(&staged, b"receipt bytes").unwrap();
-        let receipt = ValidatedArtifactReceipt::issue_test(&staged, &target).unwrap();
+        let receipt = ArtifactPublicationReceipt::issue_test(&staged, &target).unwrap();
 
         let error = receipt.require_target(&wrong_target).unwrap_err();
 

@@ -17,6 +17,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  artifact-version:
+    name: artifact version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify artifact version policy fixtures
+        run: scripts/validation/test-artifact-version-guard.sh
+      - name: Enforce merge-base artifact version bumps
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: scripts/validation/check-artifact-version-bump.sh --base "$BASE_SHA"
+
   rust:
     name: rust
     runs-on: ubuntu-24.04

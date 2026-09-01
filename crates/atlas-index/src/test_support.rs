@@ -393,7 +393,10 @@ pub fn write_bound_test_manifest(path: &std::path::Path) -> Result<(), Box<dyn s
             .unwrap_or_else(|| std::path::Path::new("."))
             .join("manifest.json"),
         format!(
-            r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{hash}"}}}}"#
+            r#"{{"manifest_version":"{}","artifact_contract_version":"{}","schema_version":"{}","build":{{"artifact_sha256":"{hash}"}}}}"#,
+            crate::ARTIFACT_MANIFEST_VERSION,
+            crate::ARTIFACT_CONTRACT_VERSION,
+            crate::ARTIFACT_SCHEMA_VERSION,
         ),
     )?;
     Ok(())

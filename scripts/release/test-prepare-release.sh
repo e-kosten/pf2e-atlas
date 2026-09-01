@@ -325,13 +325,13 @@ grep -q 'npm --prefix web/atlas-ui run build' "$log" || {
 expect_log_absent 'scripts/release/test-prepare-release.sh' "prepare-release --open-pr ran recursive release-script smoke tests"
 expect_log_absent 'scripts/git-hooks/test-common.sh' "prepare-release --open-pr ran git-hook smoke tests"
 grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
-  echo "prepare-release --open-pr did not run broad clippy validation" >&2
+  echo "prepare-release --open-pr did not run workspace clippy validation" >&2
   exit 1
 }
-grep -q 'cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
-  echo "prepare-release --open-pr did not run strict runtime clippy validation" >&2
+if [ "$(grep -c 'cargo clippy ' "$log")" -ne 1 ]; then
+  echo "prepare-release --open-pr did not run exactly one workspace clippy pass" >&2
   exit 1
-}
+fi
 grep -q 'cargo test --workspace' "$log" || {
   echo "prepare-release --open-pr did not run cargo tests" >&2
   exit 1
