@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use crate::IndexWriteError;
 use crate::artifact::pair::{
-    PairLock, ValidatedArtifactReceipt, cleanup_generation_files, prepare_generation_file,
+    ArtifactPublicationReceipt, PairLock, cleanup_generation_files, prepare_generation_file,
     verify_manifest_digest, verify_pair_files,
 };
 
@@ -33,7 +33,7 @@ pub struct ArtifactPublicationTelemetry {
 }
 
 pub fn publish_artifact_pair(
-    receipt: ValidatedArtifactReceipt,
+    receipt: ArtifactPublicationReceipt,
     staged_manifest: &Path,
     target_artifact: &Path,
     target_manifest: &Path,
@@ -56,7 +56,7 @@ enum FailureDisposition {
 }
 
 fn publish_artifact_pair_with_hook(
-    receipt: ValidatedArtifactReceipt,
+    receipt: ArtifactPublicationReceipt,
     staged_manifest: &Path,
     target_artifact: &Path,
     target_manifest: &Path,
@@ -80,8 +80,9 @@ fn publish_artifact_pair_with_hook(
     let _pair_lock = PairLock::exclusive(target_manifest)?;
     telemetry.lock_wait_ms = phase.elapsed().as_millis();
     let phase = Instant::now();
-    recover_interrupted_publication(target_artifact, target_manifest)?;
+    let recovery = recover_interrupted_publication(target_artifact, target_manifest)?;
     telemetry.recovery_ms = phase.elapsed().as_millis();
+    telemetry.recovery_sha_pass_count = recovery.sha_pass_count;
     let phase = Instant::now();
     let (_, generation) = prepare_generation_file(&receipt, target_artifact)?;
     telemetry.generation_materialization_ms = phase.elapsed().as_millis();
@@ -90,7 +91,11 @@ fn publish_artifact_pair_with_hook(
     telemetry.generation_copy_verify_sha_pass_count = generation.verify_sha_pass_count;
     telemetry.generation_distinct_identity_check_count = generation.distinct_identity_check_count;
     let phase = Instant::now();
-    let had_previous = snapshot_previous_pair(target_artifact, target_manifest)?;
+    let had_previous = snapshot_previous_pair(
+        target_artifact,
+        target_manifest,
+        recovery.prior_pair_available,
+    )?;
     telemetry.prior_pair_snapshot_ms = phase.elapsed().as_millis();
 
     let phase = Instant::now();
@@ -212,44 +217,60 @@ fn handle_publication_failure<T>(
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct RecoveryResult {
+    prior_pair_available: bool,
+    sha_pass_count: u64,
+}
+
 fn recover_interrupted_publication(
     target_artifact: &Path,
     target_manifest: &Path,
-) -> Result<(), IndexWriteError> {
-    if pair_is_valid(target_artifact, target_manifest) {
+) -> Result<RecoveryResult, IndexWriteError> {
+    let mut sha_pass_count = 0;
+    if pair_is_valid(target_artifact, target_manifest, &mut sha_pass_count) {
         cleanup_backups(target_artifact, target_manifest)?;
-        return Ok(());
+        return Ok(RecoveryResult {
+            prior_pair_available: true,
+            sha_pass_count,
+        });
     }
 
     let artifact_backup = backup_path(target_artifact);
     let manifest_backup = backup_path(target_manifest);
-    if pair_is_valid(&artifact_backup, &manifest_backup) {
+    if pair_is_valid(&artifact_backup, &manifest_backup, &mut sha_pass_count) {
         remove_if_exists(target_artifact)?;
         remove_if_exists(target_manifest)?;
         remove_sqlite_companions(target_artifact)?;
         replace_file(&artifact_backup, target_artifact)?;
         replace_file(&manifest_backup, target_manifest)?;
         sync_parent(target_artifact)?;
-        verify_pair_files(target_artifact, target_manifest)?;
         cleanup_backups(target_artifact, target_manifest)?;
-        return Ok(());
+        return Ok(RecoveryResult {
+            prior_pair_available: true,
+            sha_pass_count,
+        });
     }
 
     remove_if_exists(target_artifact)?;
     remove_if_exists(target_manifest)?;
     remove_sqlite_companions(target_artifact)?;
     cleanup_backups(target_artifact, target_manifest)?;
-    sync_parent(target_artifact)
+    sync_parent(target_artifact)?;
+    Ok(RecoveryResult {
+        prior_pair_available: false,
+        sha_pass_count,
+    })
 }
 
 fn snapshot_previous_pair(
     target_artifact: &Path,
     target_manifest: &Path,
+    prior_pair_available: bool,
 ) -> Result<bool, IndexWriteError> {
-    if !target_artifact.exists() && !target_manifest.exists() {
+    if !prior_pair_available {
         return Ok(false);
     }
-    verify_pair_files(target_artifact, target_manifest)?;
     cleanup_backups(target_artifact, target_manifest)?;
     snapshot_file(target_artifact, &backup_path(target_artifact))?;
     snapshot_file(target_manifest, &backup_path(target_manifest))?;
@@ -277,8 +298,12 @@ fn restore_previous_pair(
     sync_parent(target_artifact)
 }
 
-fn pair_is_valid(artifact: &Path, manifest: &Path) -> bool {
-    artifact.is_file() && manifest.is_file() && verify_pair_files(artifact, manifest).is_ok()
+fn pair_is_valid(artifact: &Path, manifest: &Path, sha_pass_count: &mut u64) -> bool {
+    if !artifact.is_file() || !manifest.is_file() {
+        return false;
+    }
+    *sha_pass_count += 1;
+    verify_pair_files(artifact, manifest).is_ok()
 }
 
 fn ensure_same_parent(artifact: &Path, manifest: &Path) -> Result<(), IndexWriteError> {
@@ -368,7 +393,7 @@ mod tests {
         target_artifact: &Path,
         target_manifest: &Path,
     ) -> Result<(), IndexWriteError> {
-        let receipt = ValidatedArtifactReceipt::issue_test(staged_artifact, target_artifact)?;
+        let receipt = ArtifactPublicationReceipt::issue_test(staged_artifact, target_artifact)?;
         super::publish_artifact_pair(receipt, staged_manifest, target_artifact, target_manifest)
             .map(|_| ())
     }
@@ -381,7 +406,7 @@ mod tests {
         after_artifact_publish: impl FnOnce() -> Result<(), IndexWriteError>,
         failure_disposition: FailureDisposition,
     ) -> Result<(), IndexWriteError> {
-        let receipt = ValidatedArtifactReceipt::issue_test(staged_artifact, target_artifact)?;
+        let receipt = ArtifactPublicationReceipt::issue_test(staged_artifact, target_artifact)?;
         super::publish_artifact_pair_with_hook(
             receipt,
             staged_manifest,
@@ -399,7 +424,7 @@ mod tests {
         let (staged_artifact, staged_manifest) = fixture.stage("new");
         let bytes = fs::metadata(&staged_artifact).unwrap().len();
         let receipt =
-            ValidatedArtifactReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
+            ArtifactPublicationReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
 
         let telemetry = super::publish_artifact_pair(
             receipt,
@@ -426,12 +451,15 @@ mod tests {
         let fixture = PairFixture::new("receipt-manifest-mismatch");
         let (staged_artifact, staged_manifest) = fixture.stage("new");
         let receipt =
-            ValidatedArtifactReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
+            ArtifactPublicationReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
         fs::write(
             &staged_manifest,
             format!(
-                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{}"}}}}"#,
-                "0".repeat(64)
+                r#"{{"manifest_version":"{}","artifact_contract_version":"{}","schema_version":"{}","build":{{"artifact_sha256":"{}"}}}}"#,
+                crate::ARTIFACT_MANIFEST_VERSION,
+                crate::ARTIFACT_CONTRACT_VERSION,
+                crate::ARTIFACT_SCHEMA_VERSION,
+                "0".repeat(64),
             ),
         )
         .unwrap();
@@ -454,7 +482,7 @@ mod tests {
         let fixture = PairFixture::new("receipt-generation-alias");
         let (staged_artifact, staged_manifest) = fixture.stage("new");
         let receipt =
-            ValidatedArtifactReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
+            ArtifactPublicationReceipt::issue_test(&staged_artifact, &fixture.artifact).unwrap();
         let generation =
             crate::artifact::pair::generation_path(&fixture.artifact, receipt.artifact_sha256());
         fs::create_dir_all(generation.parent().unwrap()).unwrap();
@@ -524,7 +552,7 @@ mod tests {
     }
 
     #[test]
-    fn crash_window_is_fail_closed_and_next_publication_recovers() {
+    fn crash_window_serves_old_generation_and_next_publication_recovers() {
         let fixture = PairFixture::new("crash-recovery");
         fixture.publish_initial("old");
         let (crash_artifact, crash_manifest) = fixture.stage("crash");
@@ -543,7 +571,9 @@ mod tests {
         )
         .unwrap_err();
 
-        assert!(crate::SqliteIndexReader::open_read_only(&fixture.artifact).is_err());
+        let crash_reader = crate::SqliteIndexReader::open_read_only(&fixture.artifact).unwrap();
+        assert_eq!(reader_marker(&crash_reader), "old");
+        drop(crash_reader);
         let (recovery_artifact, recovery_manifest) = fixture.stage("recovered");
         publish_artifact_pair(
             &recovery_artifact,
@@ -796,7 +826,7 @@ mod tests {
     }
 
     #[test]
-    fn generation_binding_rebuilds_a_corrupted_cached_snapshot() {
+    fn existing_corrupted_generation_surfaces_normal_open_failure_without_rehash() {
         let fixture = PairFixture::new("corrupted-generation-snapshot");
         fixture.publish_initial("old");
         let (new_artifact, new_manifest) = fixture.stage("new");
@@ -813,9 +843,13 @@ mod tests {
         )
         .unwrap();
 
-        fixture.assert_published("new");
-        assert_eq!(sha256(&corrupted_generation), new_sha256);
-        fixture.assert_no_transaction_residue();
+        verify_pair_files(&fixture.artifact, &fixture.manifest).unwrap();
+        assert_ne!(sha256(&corrupted_generation), new_sha256);
+        let error = match crate::SqliteIndexReader::open_read_only(&fixture.artifact) {
+            Ok(_) => panic!("corrupted local generation must fail normal SQLite open"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("rebuild"));
     }
 
     #[test]
@@ -955,10 +989,25 @@ mod tests {
     fn sqlite_with_marker(path: &Path, value: &str) {
         let connection = rusqlite::Connection::open(path).unwrap();
         connection
-            .execute_batch("CREATE TABLE marker(value TEXT NOT NULL);")
+            .execute_batch(
+                "CREATE TABLE marker(value TEXT NOT NULL);
+                 CREATE TABLE artifact_metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);",
+            )
             .unwrap();
         connection
             .execute("INSERT INTO marker(value) VALUES (?1)", [value])
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artifact_metadata(key, value) VALUES ('artifact_contract_version', ?1)",
+                [crate::ARTIFACT_CONTRACT_VERSION],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artifact_metadata(key, value) VALUES ('schema_version', ?1)",
+                [crate::ARTIFACT_SCHEMA_VERSION],
+            )
             .unwrap();
     }
 
@@ -967,7 +1016,10 @@ mod tests {
         fs::write(
             path,
             format!(
-                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{hash}"}}}}"#
+                r#"{{"manifest_version":"{}","artifact_contract_version":"{}","schema_version":"{}","build":{{"artifact_sha256":"{hash}"}}}}"#,
+                crate::ARTIFACT_MANIFEST_VERSION,
+                crate::ARTIFACT_CONTRACT_VERSION,
+                crate::ARTIFACT_SCHEMA_VERSION,
             ),
         )
         .unwrap();

@@ -123,7 +123,7 @@ impl SqliteIndexReader {
     }
 
     pub fn inspect(&self) -> Result<IndexInspectionReport, IndexValidationError> {
-        let validation = self.validate()?;
+        let validation = self.check()?;
         let connection = self.validation_connection()?;
         inspect::inspect_index_connection(
             self.path().display().to_string(),

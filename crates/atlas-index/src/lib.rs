@@ -9,7 +9,7 @@ mod read;
 mod schema;
 mod sql;
 mod sqlite;
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 #[cfg(test)]
 mod tests;
@@ -17,9 +17,10 @@ mod validation;
 mod write;
 
 pub use artifact::metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND,
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_MANIFEST_VERSION, ARTIFACT_SCHEMA_VERSION,
+    EXPECTED_SOURCE_KIND,
 };
-pub use artifact::pair::{ArtifactReceiptTelemetry, ValidatedArtifactReceipt};
+pub use artifact::pair::{ArtifactPublicationReceipt, ArtifactReceiptTelemetry};
 pub use artifact::publication::{ArtifactPublicationTelemetry, publish_artifact_pair};
 pub use artifact::validation::validation_report_for_error;
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};

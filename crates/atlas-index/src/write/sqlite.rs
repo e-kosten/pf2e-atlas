@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::{IndexArtifactWriter, IndexBuildInput, ValidatedArtifactReceipt};
+use crate::{ArtifactPublicationReceipt, IndexArtifactWriter, IndexBuildInput};
 use atlas_embedding::EmbeddingModelId;
+use diesel::connection::SimpleConnection;
 use diesel::{Connection, SqliteConnection};
 use tracing::info;
 
@@ -70,7 +71,7 @@ impl IndexArtifactWriter for SqliteIndexWriter {
         &self,
         input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
-    ) -> Result<ValidatedArtifactReceipt, IndexWriteError> {
+    ) -> Result<ArtifactPublicationReceipt, IndexWriteError> {
         write_artifact(&self.path, &self.publication_target, input, embedding_model)
     }
 }
@@ -80,7 +81,7 @@ fn write_artifact(
     publication_target: &Path,
     input: &IndexBuildInput,
     embedding_model: EmbeddingModelId,
-) -> Result<ValidatedArtifactReceipt, IndexWriteError> {
+) -> Result<ArtifactPublicationReceipt, IndexWriteError> {
     let write_started = Instant::now();
     artifact_progress("artifact_write", "Preparing artifact output");
     info!(output = %path.display(), "preparing artifact output");
@@ -94,6 +95,7 @@ fn write_artifact(
     let database_url = sqlite_database_url(output.temp_path())?;
     let mut connection = SqliteConnection::establish(&database_url)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    enable_writer_foreign_keys(&mut connection)?;
     connection.transaction::<_, IndexWriteError, _>(|connection| {
         let canonical_record_keys = input
             .canonical_bodies
@@ -183,13 +185,19 @@ fn write_artifact(
     output.commit()?;
     let write_ms = write_started.elapsed().as_millis();
     artifact_progress("artifact_write", "Validating complete candidate artifact");
-    match ValidatedArtifactReceipt::issue(path, publication_target, write_ms) {
+    match ArtifactPublicationReceipt::issue(path, publication_target, write_ms) {
         Ok(receipt) => Ok(receipt),
         Err(error) => {
             let _ = output::remove_sqlite_files(path);
             Err(error)
         }
     }
+}
+
+fn enable_writer_foreign_keys(connection: &mut SqliteConnection) -> Result<(), IndexWriteError> {
+    connection
+        .batch_execute("PRAGMA foreign_keys = ON")
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }
 
 fn artifact_progress(phase: &'static str, message: &'static str) {
@@ -199,6 +207,7 @@ fn artifact_progress(phase: &'static str, message: &'static str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use diesel::Connection as _;
     use std::collections::BTreeMap;
     use std::ffi::OsString;
     use std::fs;
@@ -226,6 +235,28 @@ mod tests {
 
     use crate::{IndexBuildPack, ValidationStatus};
     use output::{move_existing_sqlite_files, remove_sqlite_files, sqlite_paths};
+
+    #[test]
+    fn writer_connection_enforces_foreign_keys_before_transactions() {
+        let mut connection = SqliteConnection::establish(":memory:").unwrap();
+        enable_writer_foreign_keys(&mut connection).unwrap();
+        connection
+            .batch_execute(
+                "CREATE TABLE parent(id INTEGER PRIMARY KEY);\
+                 CREATE TABLE child(parent_id INTEGER NOT NULL REFERENCES parent(id));",
+            )
+            .unwrap();
+
+        let error = connection
+            .transaction::<_, IndexWriteError, _>(|connection| {
+                connection
+                    .batch_execute("INSERT INTO child(parent_id) VALUES (99)")
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
+            })
+            .expect_err("foreign-key violations must abort the writer transaction");
+
+        assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
+    }
 
     #[test]
     fn writes_valid_artifact_through_diesel_writer() -> Result<(), Box<dyn std::error::Error>> {

@@ -20,6 +20,11 @@ mod parse;
 mod relationships;
 mod rows;
 
+#[cfg(test)]
+thread_local! {
+    static CANONICAL_COHERENCE_SCAN_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 #[derive(Debug, Error)]
 pub enum RecordLoadError {
     #[error("index is unavailable: {0}")]
@@ -80,6 +85,8 @@ impl SqliteIndexReader {
     pub fn validate_canonical_coherence(
         &self,
     ) -> Result<Vec<crate::ArtifactValidationDiagnostic>, crate::IndexValidationError> {
+        #[cfg(test)]
+        CANONICAL_COHERENCE_SCAN_COUNT.set(CANONICAL_COHERENCE_SCAN_COUNT.get() + 1);
         let connection = self.validation_connection()?;
         let mut diagnostics = Vec::new();
         crate::artifact::validation::canonical::validate_canonical_records(
@@ -92,7 +99,6 @@ impl SqliteIndexReader {
     pub fn load_canonical_record_bodies(
         &self,
     ) -> Result<Vec<atlas_record::RecordBody>, RecordLoadError> {
-        self.ensure_canonical_coherence()?;
         self.with_diesel_connection(canonical::read_canonical_record_bodies)
     }
 
@@ -100,36 +106,31 @@ impl SqliteIndexReader {
         &self,
         keys: &[RecordKey],
     ) -> Result<Vec<atlas_record::RecordBody>, RecordLoadError> {
-        self.ensure_canonical_coherence()?;
         self.with_diesel_connection(|connection| {
             canonical::read_canonical_record_bodies_by_key(connection, keys)
         })
     }
 
     pub fn load_hydrated_records(&self) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
-        let hydrated = self.with_diesel_connection(|connection| {
+        self.with_diesel_connection(|connection| {
             let records = load_persisted_records_from_diesel_connection(connection)?;
             let bodies =
                 canonical::bodies_by_key(canonical::read_canonical_record_bodies(connection)?);
             hydrate_records(records, bodies)
-        })?;
-        self.ensure_canonical_coherence()?;
-        Ok(hydrated)
+        })
     }
 
     pub fn load_hydrated_records_by_key(
         &self,
         keys: &[RecordKey],
     ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
-        let hydrated = self.with_diesel_connection(|connection| {
+        self.with_diesel_connection(|connection| {
             let records = load_persisted_records_by_key_from_diesel_connection(connection, keys)?;
             let bodies = canonical::bodies_by_key(canonical::read_canonical_record_bodies_by_key(
                 connection, keys,
             )?);
             hydrate_records(records, bodies)
-        })?;
-        self.ensure_canonical_coherence()?;
-        Ok(hydrated)
+        })
     }
 
     pub fn load_records(&self) -> Result<Vec<AtlasRecord>, RecordLoadError> {
@@ -173,24 +174,16 @@ impl SqliteIndexReader {
             )
         })
     }
+}
 
-    fn ensure_canonical_coherence(&self) -> Result<(), RecordLoadError> {
-        let diagnostics = self
-            .validate_canonical_coherence()
-            .map_err(|error| RecordLoadError::Unavailable(error.to_string()))?;
-        if let Some(diagnostic) = diagnostics.first() {
-            return Err(RecordLoadError::InvalidData(format!(
-                "canonical artifact coherence failed: {}{}",
-                diagnostic.message,
-                diagnostic
-                    .key
-                    .as_deref()
-                    .map(|key| format!(" ({key})"))
-                    .unwrap_or_default()
-            )));
-        }
-        Ok(())
-    }
+#[cfg(test)]
+pub(crate) fn reset_canonical_coherence_scan_count() {
+    CANONICAL_COHERENCE_SCAN_COUNT.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_coherence_scan_count() -> usize {
+    CANONICAL_COHERENCE_SCAN_COUNT.get()
 }
 
 fn hydrate_records(

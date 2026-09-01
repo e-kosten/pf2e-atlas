@@ -6,7 +6,7 @@ use thiserror::Error;
 pub(crate) mod input;
 pub(crate) mod sqlite;
 
-use crate::ValidatedArtifactReceipt;
+use crate::ArtifactPublicationReceipt;
 use crate::write::input::{IndexBuildInput, IndexBuildInputError};
 
 #[derive(Debug, Error)]
@@ -32,5 +32,5 @@ pub trait IndexArtifactWriter {
         &self,
         input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
-    ) -> Result<ValidatedArtifactReceipt, IndexWriteError>;
+    ) -> Result<ArtifactPublicationReceipt, IndexWriteError>;
 }

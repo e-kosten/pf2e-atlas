@@ -28,6 +28,25 @@ EOF_NPM
 chmod +x "$fake_bin/npm"
 
 : >"$log"
+fast_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/validation/fast.sh" 2>&1)
+if printf '%s\n' "$fast_output" | grep -Eq '(cargo|npm) detail output'; then
+  echo "quiet fast validation surfaced successful command detail output" >&2
+  exit 1
+fi
+grep -q 'cargo fmt --check' "$log" || {
+  echo "fast validation did not run cargo fmt" >&2
+  exit 1
+}
+grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
+  echo "fast validation did not run one workspace clippy pass" >&2
+  exit 1
+}
+if grep -Eq 'cargo (test|build)' "$log"; then
+  echo "fast validation unexpectedly ran workspace tests or build" >&2
+  exit 1
+fi
+
+: >"$log"
 quiet_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --all 2>&1)
 if printf '%s\n' "$quiet_output" | grep -Eq '(cargo|npm) detail output'; then
   echo "quiet changed-path verification surfaced successful command detail output" >&2
@@ -39,13 +58,13 @@ grep -q 'cargo fmt --check' "$log" || {
   exit 1
 }
 grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
-  echo "fast changed-path verification did not run broad clippy validation" >&2
+  echo "fast changed-path verification did not run workspace clippy validation" >&2
   exit 1
 }
-grep -q 'cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
-  echo "fast changed-path verification did not run strict runtime clippy validation" >&2
+if [ "$(grep -c '^cargo clippy ' "$log")" -ne 1 ]; then
+  echo "fast changed-path verification did not run exactly one workspace clippy pass" >&2
   exit 1
-}
+fi
 grep -q 'npm --prefix web/atlas-ui run format:check' "$log" || {
   echo "fast changed-path verification did not run web format check" >&2
   exit 1

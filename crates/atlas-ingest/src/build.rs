@@ -147,7 +147,7 @@ fn build_artifact_from_source_started(
     );
     info!(
         write_ms = receipt_telemetry.write_ms,
-        deep_validation_ms = receipt_telemetry.deep_validation_ms,
+        compatibility_check_ms = receipt_telemetry.compatibility_check_ms,
         writer_digest_ms = receipt_telemetry.writer_digest_ms,
         manifest_stage_ms,
         lock_wait_ms = publication.lock_wait_ms,
@@ -158,9 +158,15 @@ fn build_artifact_from_source_started(
         visible_pair_verification_ms = publication.visible_pair_verification_ms,
         cleanup_ms = publication.cleanup_ms,
         artifact_bytes = receipt_telemetry.artifact_bytes,
+        compatibility_check_count = receipt_telemetry.compatibility_check_count,
+        writer_digest_pass_count = receipt_telemetry.writer_digest_pass_count,
         writer_digest_bytes = receipt_telemetry.writer_digest_bytes,
+        publication_sha_pass_count = publication.publication_sha_pass_count,
         publication_sha_bytes = publication.publication_sha_bytes,
+        generation_copy_count = publication.generation_copy_count,
         generation_copy_bytes = publication.generation_copy_bytes,
+        generation_copy_verify_sha_pass_count = publication.generation_copy_verify_sha_pass_count,
+        recovery_sha_pass_count = publication.recovery_sha_pass_count,
         receipt_reuse_count = publication.receipt_reuse_count,
         "artifact publication receipt telemetry"
     );

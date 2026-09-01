@@ -542,7 +542,10 @@ mod tests {
                 .unwrap_or_else(|| Path::new("."))
                 .join("manifest.json"),
             format!(
-                r#"{{"manifest_version":"pf2e-atlas-artifact-manifest/v2","build":{{"artifact_sha256":"{hash}"}}}}"#
+                r#"{{"manifest_version":"{}","artifact_contract_version":"{}","schema_version":"{}","build":{{"artifact_sha256":"{hash}"}}}}"#,
+                atlas_index::ARTIFACT_MANIFEST_VERSION,
+                atlas_index::ARTIFACT_CONTRACT_VERSION,
+                atlas_index::ARTIFACT_SCHEMA_VERSION,
             ),
         )?;
         Ok(())
