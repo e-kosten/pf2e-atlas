@@ -7,6 +7,7 @@ import type {
   OpenResultWindowRequest,
   ResultWindowPage,
 } from "../../generated/atlas";
+import { recordSummaryFixture } from "../../test/recordFixtures";
 import {
   DEFAULT_SEARCH_STATE,
   encodeSearchState,
@@ -447,7 +448,7 @@ describe("useSearchWorkspace", () => {
 
     await waitFor(() => expect(result.current.resultsRefreshing).toBe(true));
     expect(result.current.resultsLoading).toBe(false);
-    expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+    expect(result.current.resultPage?.rows[0]?.record.surface.metadata.record_key).toBe(
       "spell:dirge-of-doom",
     );
 
@@ -460,7 +461,9 @@ describe("useSearchWorkspace", () => {
 
     await waitFor(() => expect(result.current.resultsRefreshing).toBe(false));
     expect(result.current.resultPage?.page.number).toBe(2);
-    expect(result.current.resultPage?.rows[0]?.record.record_key).toBe("spell:heal");
+    expect(result.current.resultPage?.rows[0]?.record.surface.metadata.record_key).toBe(
+      "spell:heal",
+    );
   });
 
   it("resets page execution when search changes from a later page", async () => {
@@ -570,12 +573,7 @@ function resultWindowPage(
       has_more: false,
     },
     rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
+      record: recordSummaryFixture(recordKey, recordKey.split(":")[1] ?? recordKey),
     })),
   };
 }

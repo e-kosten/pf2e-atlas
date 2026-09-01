@@ -390,10 +390,7 @@ function jsonBody(value: unknown): string {
 
 function safeIntegerPathSegment(value: number): string {
   if (!Number.isSafeInteger(value)) {
-    throw new AtlasApiError(
-      0,
-      "Request numeric field exceeds JSON safe integer range",
-    );
+    throw new AtlasApiError(0, "Request numeric field exceeds JSON safe integer range");
   }
   return value.toString();
 }

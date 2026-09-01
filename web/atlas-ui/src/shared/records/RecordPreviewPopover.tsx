@@ -1,5 +1,5 @@
 import type React from "react";
-import { RecordPresentation } from "./RecordPresentation";
+import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type {
   RecordPreviewAnchor,
@@ -42,8 +42,9 @@ export function RecordPreviewPopover({
           <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
         </header>
         <div className="record-preview-popover__body">
-          <RecordPresentation
+          <RecordDetailPane
             detail={detail}
+            errors={[]}
             loading={loading}
             onReference={onReference}
           />

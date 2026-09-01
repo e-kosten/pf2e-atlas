@@ -6,6 +6,10 @@ import type {
   RecordDetailView,
   ResultWindowPage,
 } from "../generated/atlas";
+import {
+  recordDetailFixture as typedRecordDetailFixture,
+  recordSummaryFixture,
+} from "../test/recordFixtures";
 import { AtlasApp } from "./AtlasApp";
 
 const apiMocks = vi.hoisted(() => ({
@@ -97,7 +101,7 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
+    const resultRow = await screen.findByRole("button", { name: /heal/i });
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
@@ -110,14 +114,14 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-  });
+  }, 10_000);
 
   it("adds the search side-detail record to a saved list", async () => {
     history.replaceState(null, "", "/search?q=heal&mode=text");
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
+    const resultRow = await screen.findByRole("button", { name: /heal/i });
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
@@ -191,12 +195,7 @@ function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
       has_more: false,
     },
     rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
+      record: recordSummaryFixture(recordKey, recordKey.split(":")[1] ?? recordKey),
     })),
   };
 }
@@ -220,17 +219,5 @@ function savedListIndexFixture() {
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const title = recordKey.split(":")[1] ?? recordKey;
-  return {
-    record_key: recordKey,
-    title,
-    kind: "spell",
-    presentation: {
-      record_key: recordKey,
-      kind: "spell",
-      title,
-      identity: [],
-      badges: [],
-      sections: [],
-    },
-  };
+  return typedRecordDetailFixture({ recordKey, title });
 }

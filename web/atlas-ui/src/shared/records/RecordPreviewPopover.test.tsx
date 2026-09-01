@@ -1,14 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { RecordDetailView } from "../../generated/atlas";
+import { recordDetailFixture } from "../../test/recordFixtures";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 
 describe("RecordPreviewPopover", () => {
-  it("opens nested references without re-anchoring the active popover", () => {
+  it("opens a nested generated-DT0 reference without re-anchoring the overlay", () => {
     const onReference = vi.fn();
     render(
       <RecordPreviewPopover
         anchor={{ top: 10, right: 20, bottom: 30, left: 5, width: 15, height: 20 }}
-        detail={recordDetailFixture()}
+        detail={recordDetailFixture({
+          referenceLabel: "Nested Rule",
+          referenceRecordKey: "rules:nested",
+        })}
         loading={false}
         onClose={vi.fn()}
         onOpenFullPage={vi.fn()}
@@ -16,7 +19,7 @@ describe("RecordPreviewPopover", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Nested Rule" }));
+    fireEvent.click(screen.getByRole("link", { name: "Nested Rule" }));
 
     expect(onReference).toHaveBeenCalledWith(
       "rules:nested",
@@ -24,36 +27,3 @@ describe("RecordPreviewPopover", () => {
     );
   });
 });
-
-function recordDetailFixture(): RecordDetailView {
-  return {
-    record_key: "conditionitems:friendly",
-    title: "Friendly",
-    kind: "rule",
-    presentation: {
-      record_key: "conditionitems:friendly",
-      kind: "rule",
-      title: "Friendly",
-      identity: [],
-      badges: [],
-      sections: [
-        {
-          kind: "references",
-          title: "References",
-          blocks: [
-            {
-              kind: "relationships",
-              content: [
-                {
-                  kind: "reference",
-                  label: "Nested Rule",
-                  record_key: "rules:nested",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
-}

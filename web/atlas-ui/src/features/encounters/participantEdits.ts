@@ -7,15 +7,16 @@ export function participantUpdate(
   participant: EncounterParticipantView,
   changes: Partial<UpdateEncounterParticipantRequest>,
 ): UpdateEncounterParticipantRequest {
+  const vitals = requireParticipantVitals(participant);
   return {
     participant_key: participant.participant_key,
     display_name: participant.display_name,
     side: participant.side,
     participant_variant: participant.participant_variant,
     initiative: participant.initiative,
-    max_hp: participant.max_hp,
-    current_hp: participant.current_hp,
-    temporary_hp: participant.temporary_hp,
+    max_hp: vitals.maximum_hp?.adjusted_value,
+    current_hp: vitals.current_hp,
+    temporary_hp: vitals.temporary_hp,
     defeated: participant.defeated,
     hidden: participant.hidden,
     note: participant.note,
@@ -27,18 +28,38 @@ export function applyParticipantUpdate(
   participant: EncounterParticipantView,
   request: UpdateEncounterParticipantRequest,
 ): EncounterParticipantView {
+  const encounter = participant.record_view.encounter;
+  const vitals = encounter?.vitals;
   return {
     ...participant,
     display_name: request.display_name,
     side: request.side,
     participant_variant: request.participant_variant,
     initiative: request.initiative,
-    max_hp: request.max_hp,
-    current_hp: request.current_hp,
-    temporary_hp: request.temporary_hp,
     defeated: request.defeated,
     hidden: request.hidden,
     note: request.note,
+    record_view:
+      encounter && vitals
+        ? {
+            ...participant.record_view,
+            encounter: {
+              ...encounter,
+              vitals: {
+                ...vitals,
+                current_hp: request.current_hp,
+                temporary_hp: request.temporary_hp,
+                maximum_hp:
+                  vitals.maximum_hp && request.max_hp !== undefined
+                    ? {
+                        ...vitals.maximum_hp,
+                        adjusted_value: request.max_hp,
+                      }
+                    : vitals.maximum_hp,
+              },
+            },
+          }
+        : participant.record_view,
   };
 }
 
@@ -46,15 +67,16 @@ export function damageChanges(
   participant: EncounterParticipantView,
   amount: number,
 ): Partial<UpdateEncounterParticipantRequest> {
-  const temporaryHp = asNumber(participant.temporary_hp);
-  const currentHp = asNumber(participant.current_hp);
+  const vitals = requireParticipantVitals(participant);
+  const temporaryHp = asNumber(vitals.temporary_hp);
+  const currentHp = asNumber(vitals.current_hp);
   const tempDamage = Math.min(temporaryHp, amount);
   const remaining = amount - tempDamage;
-  const current_hp = BigInt(Math.max(0, currentHp - remaining));
+  const current_hp = Math.max(0, currentHp - remaining);
   return {
-    temporary_hp: BigInt(temporaryHp - tempDamage),
+    temporary_hp: temporaryHp - tempDamage,
     current_hp,
-    defeated: current_hp === BigInt(0) ? true : participant.defeated,
+    defeated: current_hp === 0 ? true : participant.defeated,
   };
 }
 
@@ -63,8 +85,9 @@ export function healChanges(
   amount: number,
 ): Partial<UpdateEncounterParticipantRequest> {
   return {
-    current_hp: BigInt(
-      clampCurrentHp(participant, asNumber(participant.current_hp) + amount),
+    current_hp: clampCurrentHp(
+      participant,
+      asNumber(requireParticipantVitals(participant).current_hp) + amount,
     ),
   };
 }
@@ -74,10 +97,37 @@ export function clampCurrentHp(
   hp: number,
 ): number {
   const lowerBounded = Math.max(0, hp);
-  if (participant.max_hp === undefined) {
+  const maximumHp = requireParticipantVitals(participant).maximum_hp?.adjusted_value;
+  if (maximumHp === undefined) {
     return lowerBounded;
   }
-  return Math.min(lowerBounded, Number(participant.max_hp));
+  return Math.min(lowerBounded, Number(maximumHp));
+}
+
+export function participantCurrentHp(
+  participant: EncounterParticipantView,
+): number | undefined {
+  return participant.record_view.encounter?.vitals?.current_hp;
+}
+
+export function participantMaximumHp(
+  participant: EncounterParticipantView,
+): number | undefined {
+  return participant.record_view.encounter?.vitals?.maximum_hp?.adjusted_value;
+}
+
+export function participantTemporaryHp(
+  participant: EncounterParticipantView,
+): number | undefined {
+  return participant.record_view.encounter?.vitals?.temporary_hp;
+}
+
+function requireParticipantVitals(participant: EncounterParticipantView) {
+  const vitals = participant.record_view.encounter?.vitals;
+  if (!vitals) {
+    throw new Error("Encounter participant is missing its typed runtime vitals.");
+  }
+  return vitals;
 }
 
 export function evaluateHpFormula(value: string): number | null {
@@ -98,7 +148,7 @@ export function evaluateHpFormula(value: string): number | null {
   return Math.max(0, result);
 }
 
-export function optionalBigIntInput(value: string): bigint | undefined | null {
+export function optionalIntegerInput(value: string): number | undefined | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return undefined;
@@ -106,26 +156,26 @@ export function optionalBigIntInput(value: string): bigint | undefined | null {
   if (!/^-?\d+$/.test(trimmed)) {
     return null;
   }
-  return BigInt(trimmed);
+  return Number(trimmed);
 }
 
-export function optionalHpFormulaInput(value: string): bigint | undefined | null {
+export function optionalHpFormulaInput(value: string): number | undefined | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return undefined;
   }
   const hp = evaluateHpFormula(trimmed);
-  return hp === null ? null : BigInt(hp);
+  return hp;
 }
 
-export function asNumber(value: bigint | undefined): number {
-  return value === undefined ? 0 : Number(value);
+export function asNumber(value: number | undefined): number {
+  return value ?? 0;
 }
 
-export function optionalNumber(value: bigint | undefined): number | undefined {
-  return value === undefined ? undefined : Number(value);
+export function optionalNumber(value: number | undefined): number | undefined {
+  return value;
 }
 
-export function displayNumber(value: bigint | undefined): string {
+export function displayNumber(value: number | undefined): string {
   return value === undefined ? "--" : value.toString();
 }

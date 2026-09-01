@@ -120,7 +120,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     onSuccess: invalidateEncounter,
   });
   const removeCondition = useMutation({
-    mutationFn: (request: { participantKey: string; conditionId: bigint }) =>
+    mutationFn: (request: { participantKey: string; conditionId: number }) =>
       removeEncounterParticipantCondition(
         route.slug,
         request.participantKey,

@@ -1,12 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import type { RecordDetailView } from "../../generated/atlas";
+import { recordDetailFixture } from "../../test/recordFixtures";
 import { RecordDetailPane } from "./RecordDetailPane";
 
 describe("RecordDetailPane", () => {
-  it("wraps record presentation with a detail panel", () => {
+  it("renders the typed creature surface inside the detail panel", () => {
     const { container } = render(
       <RecordDetailPane
-        detail={recordDetailFixture()}
+        detail={recordDetailFixture({ title: "Dirge of Doom" })}
         loading={false}
         onReference={vi.fn()}
       />,
@@ -14,9 +14,25 @@ describe("RecordDetailPane", () => {
 
     expect(container.querySelector(".detail-panel")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
+    expect(screen.getByText("Description & Lore")).toBeInTheDocument();
   });
 
-  it("renders custom empty states and errors", () => {
+  it("renders an accessible loading state", () => {
+    render(
+      <RecordDetailPane
+        detail={undefined}
+        loading
+        loadingMessage="Loading creature"
+        onReference={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByLabelText("Loading creature").closest(".detail-panel"),
+    ).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("renders custom empty and error states", () => {
     render(
       <RecordDetailPane
         detail={undefined}
@@ -31,65 +47,17 @@ describe("RecordDetailPane", () => {
     expect(screen.getByText("Unable to load detail")).toBeInTheDocument();
   });
 
-  it("prefers the composed record surface when present", () => {
+  it("keeps stale content visible while announcing refresh", () => {
     render(
       <RecordDetailPane
-        detail={{
-          ...recordDetailFixture(),
-          surface: {
-            record_key: "actors:testCreature",
-            title: "Test Creature",
-            kind: "creature",
-            profile: "record_detail",
-            header: {
-              level_label: "3",
-              kind_label: "Creature",
-              traits: [{ kind: "trait", label: "hag", value: "hag" }],
-            },
-            sections: [
-              {
-                kind: "defenses",
-                title: "Defenses",
-                values: [
-                  {
-                    key: "ac",
-                    label: "AC",
-                    value: { kind: "number", value: 25n },
-                    base_value: { kind: "number", value: 25n },
-                    adjusted: false,
-                    display: "static_number",
-                  },
-                ],
-                collapsed_by_default: false,
-              },
-            ],
-            fallback_presentation: recordDetailFixture().presentation,
-          },
-        }}
+        detail={recordDetailFixture()}
         loading={false}
         onReference={vi.fn()}
+        stale
       />,
     );
 
-    expect(screen.getAllByRole("heading", { name: "Test Creature" })).toHaveLength(2);
-    expect(screen.getByText("AC")).toBeInTheDocument();
-    expect(screen.getByText("25")).toBeInTheDocument();
-    expect(screen.getByText("Source presentation")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Goblin Warrior" })).toBeInTheDocument();
+    expect(screen.getByText("Refreshing this record…")).toBeInTheDocument();
   });
 });
-
-function recordDetailFixture(): RecordDetailView {
-  return {
-    record_key: "spell:dirge-of-doom",
-    title: "Dirge of Doom",
-    kind: "spell",
-    presentation: {
-      record_key: "spell:dirge-of-doom",
-      kind: "spell",
-      title: "Dirge of Doom",
-      identity: [],
-      badges: [],
-      sections: [],
-    },
-  };
-}

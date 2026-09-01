@@ -12,7 +12,7 @@ import type {
 } from "../../generated/atlas";
 import {
   applyParticipantUpdate,
-  optionalBigIntInput,
+  optionalIntegerInput,
   participantUpdate,
 } from "./participantEdits";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
@@ -42,7 +42,7 @@ export function EncounterInspectorPane({
   onOpenRecordFullPage: (recordKey: string) => void;
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onRemoveCondition: (participantKey: string, conditionId: number) => void;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -122,7 +122,7 @@ function EncounterParticipantSurface({
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onRemoveCondition: (participantKey: string, conditionId: number) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   onUpdateCondition: (
     participantKey: string,
@@ -260,7 +260,7 @@ function ParticipantEditStrip({
           ariaLabel="Participant initiative"
           inputMode="numeric"
           onCommit={(value) => {
-            const initiative = optionalBigIntInput(value);
+            const initiative = optionalIntegerInput(value);
             if (initiative !== null) {
               onUpdate({ initiative });
             }
