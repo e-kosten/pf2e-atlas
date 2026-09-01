@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type {
   CreatureSurfaceContentView,
   RecordSurfaceView,
@@ -144,7 +144,7 @@ describe("RecordSurface", () => {
     expect(container.querySelector(".creature-sheet__activity hr")).toBeInTheDocument();
   });
 
-  it("opens typed spell content from compact occurrence links", () => {
+  it("opens typed spell content from compact occurrence links", async () => {
     renderSurface();
 
     expect(screen.getByRole("heading", { name: "Spells" })).toBeInTheDocument();
@@ -183,13 +183,11 @@ describe("RecordSurface", () => {
     expect(within(innatePopover).getByText("5th")).toBeInTheDocument();
     fireEvent.keyDown(innateLink, { key: "Escape" });
     expect(innateLink).toHaveAttribute("aria-expanded", "false");
-    expect(document.activeElement).toBe(innateLink);
+    await waitFor(() => expect(document.activeElement).toBe(innateLink));
     fireEvent.click(innateLink);
     fireEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "Dream Message spell details" }),
-      ).getByRole("button", {
-        name: "Open reference full page",
+      screen.getByRole("button", {
+        name: "Open spell record",
       }),
     );
     expect(onReference.mock.calls[onReference.mock.calls.length - 1]?.[0]).toBe(
@@ -198,7 +196,7 @@ describe("RecordSurface", () => {
 
     expect(screen.getAllByRole("link", { name: "Dream Message" })).toHaveLength(2);
     const covenSpell = screen.getAllByRole("link", { name: "Dream Message" })[1]!;
-    fireEvent.focus(covenSpell);
+    fireEvent.click(covenSpell);
     const covenPopover = screen.getByRole("dialog", {
       name: "Dream Message spell details",
     });
@@ -227,7 +225,7 @@ describe("RecordSurface", () => {
     expect(standaloneLinks[1]).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("You alter the weather.")).not.toBeInTheDocument();
 
-    fireEvent.focus(standaloneLinks[0]!);
+    fireEvent.click(standaloneLinks[0]!);
     const standalonePopover = screen.getByRole("dialog", {
       name: "Control Weather spell details",
     });
@@ -237,8 +235,10 @@ describe("RecordSurface", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("A second ritual occurrence.")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Reference preview overlay"));
-    expect(standaloneLinks[0]).toHaveAttribute("aria-expanded", "false");
+    fireEvent.mouseDown(document.body);
+    await waitFor(() =>
+      expect(standaloneLinks[0]).toHaveAttribute("aria-expanded", "false"),
+    );
 
     fireEvent.click(standaloneLinks[1]!);
     expect(

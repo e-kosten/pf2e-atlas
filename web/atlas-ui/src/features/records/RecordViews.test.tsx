@@ -71,6 +71,10 @@ describe("record route views", () => {
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Linked Record" }));
+    expect(
+      screen.getByRole("dialog", { name: "Linked Record spell details" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open spell record" }));
 
     await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
     expect(window.location.search).toBe("?preview=spell%3Alinked");

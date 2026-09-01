@@ -1,7 +1,15 @@
 import { Drawer } from "antd";
+import type { RecordDetailView } from "../../generated/atlas";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
-import type { RecordPreviewContentProps } from "./recordPreviewTypes";
+
+type RecordPreviewContentProps = {
+  detail: RecordDetailView | undefined;
+  loading: boolean;
+  onClose: () => void;
+  onOpenFullPage: () => void;
+  onReference: (recordKey: string) => void;
+};
 
 export function RecordPreviewDrawer({
   detail,

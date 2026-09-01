@@ -1,7 +1,6 @@
 import { Button, Form, Input, Select } from "antd";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
-import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterParticipantVariantView,
@@ -15,17 +14,14 @@ import {
   optionalIntegerInput,
   participantUpdate,
 } from "./participantEdits";
-import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
+import { RecordPreviewScope } from "../../shared/records/RecordPreviewScope";
 import { RecordSurface } from "../../shared/records/RecordSurface";
-import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
 
 export function EncounterInspectorPane({
-  onCloseRecordPreview,
   onOpenRecordFullPage,
-  onReference,
   onAddCondition,
   onRemoveCondition,
   onUpdateCondition,
@@ -33,14 +29,8 @@ export function EncounterInspectorPane({
   participant,
   participants,
   conditionDefinitions,
-  previewDetail,
-  previewLoading,
-  previewRecordKey,
-  previewAnchor,
 }: {
-  onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: number) => void;
   onUpdateCondition: (
@@ -51,10 +41,6 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
-  previewLoading: boolean;
-  previewRecordKey: string | null;
-  previewAnchor: RecordPreviewAnchor | null;
 }) {
   if (!participant) {
     return (
@@ -65,28 +51,20 @@ export function EncounterInspectorPane({
   return (
     <section className="encounter-pane encounter-record-pane">
       {surface ? (
-        <EncounterParticipantSurface
-          conditionDefinitions={conditionDefinitions}
-          onAddCondition={onAddCondition}
-          onReference={onReference}
-          onRemoveCondition={onRemoveCondition}
-          onUpdate={onUpdate}
-          onUpdateCondition={onUpdateCondition}
-          participant={participant}
-          participants={participants}
-        />
+        <RecordPreviewScope onOpenFullPage={onOpenRecordFullPage}>
+          <EncounterParticipantSurface
+            conditionDefinitions={conditionDefinitions}
+            onAddCondition={onAddCondition}
+            onReference={onOpenRecordFullPage}
+            onRemoveCondition={onRemoveCondition}
+            onUpdate={onUpdate}
+            onUpdateCondition={onUpdateCondition}
+            participant={participant}
+            participants={participants}
+          />
+        </RecordPreviewScope>
       ) : (
         <SurfaceUnavailable participant={participant} />
-      )}
-      {previewRecordKey && (
-        <RecordPreviewPopover
-          anchor={previewAnchor}
-          detail={previewDetail}
-          loading={previewLoading}
-          onClose={onCloseRecordPreview}
-          onOpenFullPage={() => onOpenRecordFullPage(previewRecordKey)}
-          onReference={onReference}
-        />
       )}
     </section>
   );
@@ -121,7 +99,7 @@ function EncounterParticipantSurface({
 }: {
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: (recordKey: string) => void;
   onRemoveCondition: (participantKey: string, conditionId: number) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   onUpdateCondition: (

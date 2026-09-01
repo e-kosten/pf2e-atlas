@@ -18,7 +18,7 @@ export function RecordDetailPane({
   errors?: RecordDetailPaneError[];
   loading: boolean;
   loadingMessage?: string;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: (recordKey: string) => void;
   stale?: boolean;
 }) {
   const visibleErrors = errors.filter((error): error is Error | { message: string } =>

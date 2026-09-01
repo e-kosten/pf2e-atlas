@@ -45,7 +45,6 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--warning": token.colorWarningText,
     "--danger": token.colorErrorText,
     "--shadow": token.boxShadowSecondary,
-    "--overlay-backdrop": token.colorBgMask,
     "--hp-current": token.colorSuccess,
     "--hp-bloodied": token.colorWarning,
     "--hp-critical": token.colorError,

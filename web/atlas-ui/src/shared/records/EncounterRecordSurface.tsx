@@ -11,9 +11,6 @@ import type {
   RuntimeNumberView,
 } from "../../generated/atlas";
 import {
-  formatRank,
-  formatSigned,
-  formatSlug,
   IdentityMetadata,
   ReferenceAndSourceContent,
   RuntimeAdjustedValue,
@@ -21,6 +18,7 @@ import {
   SurfaceSection,
   TraitRow,
 } from "./CreatureRecordSurface";
+import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
 import {
   narrativeContent,
   RecordReference,
