@@ -96,7 +96,7 @@ describe("RecordSurface", () => {
     expect(movement?.querySelector(".creature-sheet__movement")).toBeNull();
   });
 
-  it("keeps sparse fact sections semantic without empty shells", () => {
+  it("keeps sparse fact sections ordered for the staggered wide grid", () => {
     const surface = detailedSurfaceFixture();
     if (surface.presentation.presentation_type !== "creature") {
       throw new Error("Fixture must be a creature surface");
@@ -144,63 +144,87 @@ describe("RecordSurface", () => {
     expect(container.querySelector(".creature-sheet__activity hr")).toBeInTheDocument();
   });
 
-  it("places typed content on each spell occurrence without collapsing repeats", () => {
+  it("opens typed spell content from compact occurrence links", () => {
     renderSurface();
 
+    expect(screen.getByRole("heading", { name: "Spells" })).toBeInTheDocument();
+    expect(screen.queryByText("Details", { exact: true })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Occult Innate Spells"));
     expect(screen.getByText("5th")).toBeInTheDocument();
     const innateLink = screen.getByRole("link", { name: "Dream Message" });
-    const innateSpell = innateLink.closest<HTMLElement>(
-      ".creature-sheet__spell-occurrence",
-    );
-    expect(innateSpell).not.toBeNull();
+    expect(innateLink).toHaveAttribute("aria-haspopup", "dialog");
+    expect(innateLink).toHaveAttribute("aria-expanded", "false");
     expect(
       screen.queryByText("The innate message reaches a sleeper."),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      within(innateSpell!).getByRole("button", { name: /Details.*Dream Message/ }),
-    );
+    fireEvent.focus(innateLink);
+    expect(innateLink).toHaveAttribute("aria-expanded", "true");
+    const innatePopover = screen.getByRole("dialog", {
+      name: "Dream Message spell details",
+    });
     expect(
-      screen.getByText("The innate message reaches a sleeper."),
+      within(innatePopover).getByText("The innate message reaches a sleeper."),
     ).toBeInTheDocument();
+    expect(within(innatePopover).getByText("5th")).toBeInTheDocument();
+    fireEvent.click(
+      within(innatePopover).getByRole("link", { name: "Open spell record" }),
+    );
+    expect(onReference.mock.calls[onReference.mock.calls.length - 1]?.[0]).toBe(
+      "spells:dream-message",
+    );
+    fireEvent.keyDown(innateLink, { key: "Escape" });
+    expect(innateLink).toHaveAttribute("aria-expanded", "false");
+    expect(document.activeElement).toBe(innateLink);
 
     fireEvent.click(screen.getByText("Coven Spells"));
     expect(screen.getAllByRole("link", { name: "Dream Message" })).toHaveLength(2);
-    const covenSpell = screen
-      .getAllByRole("link", { name: "Dream Message" })[1]
-      ?.closest<HTMLElement>(".creature-sheet__spell-occurrence");
-    expect(covenSpell).not.toBeNull();
-    fireEvent.click(
-      within(covenSpell!).getByRole("button", { name: /Details.*Dream Message/ }),
-    );
+    const covenSpell = screen.getAllByRole("link", { name: "Dream Message" })[1]!;
+    fireEvent.focus(covenSpell);
+    const covenPopover = screen.getByRole("dialog", {
+      name: "Dream Message spell details",
+    });
     expect(
-      screen.getByText("The coven repeats the same authored spell."),
+      within(covenPopover).getByText("The coven repeats the same authored spell."),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("The innate message reaches a sleeper.")).toHaveLength(
-      1,
-    );
+    expect(
+      screen.queryByText("The innate message reaches a sleeper."),
+    ).not.toBeInTheDocument();
 
     const standaloneHeading = screen.getByRole("heading", {
-      name: "Standalone Spells & Rituals",
+      name: "Standalone",
     });
     const standalone = standaloneHeading.parentElement!;
+    expect(within(standalone).getByText("8th")).toBeInTheDocument();
     expect(
       within(standalone).getAllByRole("link", { name: "Control Weather" }),
     ).toHaveLength(2);
-    const standaloneDisclosures = within(standalone).getAllByRole("button", {
-      name: /Details.*Control Weather/,
+    const standaloneLinks = within(standalone).getAllByRole("link", {
+      name: "Control Weather",
     });
-    expect(standaloneDisclosures).toHaveLength(2);
-    expect(standaloneDisclosures[0]).toHaveAttribute("aria-expanded", "false");
-    expect(standaloneDisclosures[1]).toHaveAttribute("aria-expanded", "false");
+    expect(standaloneLinks[0]).toHaveAttribute("aria-expanded", "false");
+    expect(standaloneLinks[1]).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("You alter the weather.")).not.toBeInTheDocument();
 
-    fireEvent.click(standaloneDisclosures[0]!);
-    expect(screen.getByText("You alter the weather.")).toBeInTheDocument();
+    fireEvent.focus(standaloneLinks[0]!);
+    const standalonePopover = screen.getByRole("dialog", {
+      name: "Control Weather spell details",
+    });
+    expect(within(standalonePopover).getByText("8th")).toBeInTheDocument();
+    expect(
+      within(standalonePopover).getByText("You alter the weather."),
+    ).toBeInTheDocument();
     expect(screen.queryByText("A second ritual occurrence.")).not.toBeInTheDocument();
 
-    fireEvent.click(standaloneDisclosures[1]!);
-    expect(screen.getByText("A second ritual occurrence.")).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    fireEvent.click(document.body);
+    expect(standaloneLinks[0]).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(standaloneLinks[1]!);
+    expect(
+      within(
+        screen.getByRole("dialog", { name: "Control Weather spell details" }),
+      ).getByText("A second ritual occurrence."),
+    ).toBeInTheDocument();
   });
 
   it("aligns creature and encounter resources without changing encounter vitals", () => {

@@ -1,4 +1,5 @@
-import { Collapse, Empty, Space, Tag } from "antd";
+import { Collapse, Empty, Popover, Space, Tag, Typography } from "antd";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import type {
   CreatureSurfaceActionCostView,
@@ -511,14 +512,15 @@ function SpellcastingSection({
   const orderedStandalone = standalone
     .slice()
     .sort((left, right) => left.authored_order - right.authored_order);
-  const disclosureCount = spellcastingItems.length + orderedStandalone.length;
   return (
-    <SurfaceSection className="creature-sheet__spellcasting" title="Spellcasting">
+    <SurfaceSection className="creature-sheet__spellcasting" title="Spells">
       {spellcastingItems.length ? (
         <Collapse
           className="record-surface__inline-disclosure"
           defaultActiveKey={
-            disclosureCount === 1 ? [String(spellcastingItems[0]?.key ?? "")] : []
+            spellcastingItems.length === 1 && !orderedStandalone.length
+              ? [String(spellcastingItems[0]?.key ?? "")]
+              : []
           }
           ghost
           items={spellcastingItems}
@@ -527,20 +529,11 @@ function SpellcastingSection({
       ) : null}
       {orderedStandalone.length ? (
         <section
-          aria-labelledby="standalone-spells-rituals"
+          aria-labelledby="standalone-spells"
           className="creature-sheet__standalone-section"
         >
-          <h4 id="standalone-spells-rituals">Standalone Spells & Rituals</h4>
-          <div className="creature-sheet__spell-occurrence-list">
-            {orderedStandalone.map((spell) => (
-              <SpellOccurrence
-                defaultOpen={disclosureCount === 1}
-                key={spell.occurrence_id}
-                onReference={onReference}
-                spell={spell}
-              />
-            ))}
-          </div>
+          <h4 id="standalone-spells">Standalone</h4>
+          <SpellRoster onReference={onReference} spells={orderedStandalone} />
         </section>
       ) : null}
     </SurfaceSection>
@@ -581,13 +574,16 @@ function SpellRoster({
       {groupSpells(spells).map(([rank, ranked]) => (
         <div className="creature-sheet__spell-rank" key={rank}>
           <strong>{rank}</strong>
-          <div className="creature-sheet__spell-occurrence-list">
-            {ranked.map((spell) => (
-              <SpellOccurrence
-                key={spell.occurrence_id}
-                onReference={onReference}
-                spell={spell}
-              />
+          <div className="creature-sheet__spell-links">
+            {ranked.map((spell, index) => (
+              <span className="creature-sheet__spell-link" key={spell.occurrence_id}>
+                {index > 0 ? (
+                  <span aria-hidden="true" className="creature-sheet__spell-separator">
+                    {", "}
+                  </span>
+                ) : null}
+                <SpellOccurrence onReference={onReference} spell={spell} />
+              </span>
             ))}
           </div>
         </div>
@@ -597,49 +593,84 @@ function SpellRoster({
 }
 
 function SpellOccurrence({
-  defaultOpen = false,
   onReference,
   spell,
 }: {
-  defaultOpen?: boolean;
   onReference: ReferenceHandler;
   spell: CreatureSurfaceSpellView;
 }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLAnchorElement>(null);
   const content = spell.content ?? [];
-  return (
-    <div className="creature-sheet__spell-occurrence">
-      <RecordReference
-        label={spell.label}
-        onReference={onReference}
-        recordKey={spell.target_record_key}
-      />
-      {content.length ? (
-        <Collapse
-          className="creature-sheet__spell-details"
-          defaultActiveKey={defaultOpen ? [spell.occurrence_id] : []}
-          ghost
-          items={[
-            {
-              key: spell.occurrence_id,
-              label: (
-                <span>
-                  <span>Details</span>
-                  <span className="sr-only"> for {spell.label}</span>
-                </span>
-              ),
-              children: content.map((document) => (
-                <RichContent
-                  content={document}
-                  key={document.content_key}
-                  onReference={onReference}
-                />
-              )),
-            },
-          ]}
-          size="small"
+  const rank = formatRank(spell.rank);
+  const metadata = [rank, ...(spell.traits ?? []).map(formatSlug)].join(" · ");
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+  const popoverContent = (
+    <section
+      aria-label={`${spell.label} spell details`}
+      className="creature-sheet__spell-popover-content"
+      role="dialog"
+    >
+      <header className="creature-sheet__spell-popover-heading">
+        <strong>{spell.label}</strong>
+        <small>{metadata}</small>
+      </header>
+      {content.map((document) => (
+        <RichContent
+          content={document}
+          key={document.content_key}
+          onReference={onReference}
         />
+      ))}
+      {spell.target_record_key ? (
+        <footer className="creature-sheet__spell-popover-footer">
+          <RecordReference
+            label="Open spell record"
+            onReference={onReference}
+            recordKey={spell.target_record_key}
+          />
+        </footer>
       ) : null}
-    </div>
+    </section>
+  );
+  return (
+    <Popover
+      arrow={false}
+      autoAdjustOverflow
+      classNames={{ root: "creature-sheet__spell-popover" }}
+      content={popoverContent}
+      destroyOnHidden
+      open={open}
+      placement="bottomLeft"
+      trigger={["click", "focus"]}
+      onOpenChange={setOpen}
+    >
+      <Typography.Link
+        ref={triggerRef}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="creature-sheet__spell-trigger"
+        href={
+          spell.target_record_key
+            ? `/records/${encodeURIComponent(spell.target_record_key)}`
+            : undefined
+        }
+        onClick={(event) => event.preventDefault()}
+      >
+        {spell.label}
+      </Typography.Link>
+    </Popover>
   );
 }
 
