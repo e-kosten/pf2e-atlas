@@ -1654,29 +1654,16 @@ fn persist_and_enforce_strict_audit(
     write_checksum_sidecar_atomic(&report_path)?;
 
     let summary = strict_audit_summary(audit);
+    if !audit.authoritative_completeness {
+        return Err(validation_error(
+            "diagnostic source inventory is not authoritative; exact source-leaf receipts are required",
+        ));
+    }
     if !audit.enforcement.passed || !audit.closure_failures.is_empty() {
         return Err(validation_error(format!(
             "strict source audit failed with {} violations and {} closure failures",
             audit.enforcement.violation_count,
             audit.closure_failures.len()
-        )));
-    }
-    let expected = StrictAuditSummary {
-        total_paths: 614,
-        consumed_paths: 607,
-        provenance_only_paths: 7,
-        expected_observations: 1_746_725,
-        observed_observations: 1_746_725,
-        closure_failures: 0,
-        deferred_failures: 0,
-        unknown_failures: 0,
-        catch_all_failures: 0,
-        unowned_failures: 0,
-        regression_failures: 0,
-    };
-    if summary != expected {
-        return Err(validation_error(format!(
-            "canonical closure mismatch: expected {expected:?}, found {summary:?}"
         )));
     }
     Ok(summary)
@@ -2867,11 +2854,9 @@ mod tests {
         fs::create_dir(&stage).expect("strict failure stage");
         let error = persist_and_enforce_strict_audit(&stage, &report)
             .expect_err("deliberate strict mismatch must fail");
-        assert!(
-            error
-                .to_string()
-                .contains("1 violations and 1 closure failures")
-        );
+        assert!(error.to_string().contains(
+            "diagnostic source inventory is not authoritative; exact source-leaf receipts are required"
+        ));
 
         let report_path = stage.join("strict-source-audit.json");
         let checksum_path = checksum_sidecar_path(&report_path);

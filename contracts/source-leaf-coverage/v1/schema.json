@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pf2e-atlas.local/contracts/source-leaf-coverage/v1/schema.json",
+  "title": "PF2e Atlas exact source-leaf coverage ledger v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "type_id", "source_pin", "selector", "leaves"],
+  "properties": {
+    "contract_version": { "const": "atlas-source-leaf-coverage/v1" },
+    "type_id": { "$ref": "#/$defs/nonEmptyString" },
+    "source_pin": { "$ref": "#/$defs/sourcePin" },
+    "selector": { "$ref": "#/$defs/selector" },
+    "leaves": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/leaf" } }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "sourcePin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["upstream_commit", "source_signature"],
+      "properties": {
+        "upstream_commit": { "$ref": "#/$defs/nonEmptyString" },
+        "source_signature": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_contract_version", "document_class", "type_discriminator", "role", "parent_context"],
+      "properties": {
+        "source_contract_version": { "$ref": "#/$defs/nonEmptyString" },
+        "document_class": { "$ref": "#/$defs/nonEmptyString" },
+        "type_discriminator": { "$ref": "#/$defs/nonEmptyString" },
+        "role": { "enum": ["top_level", "embedded", "child", "generated", "container"] },
+        "parent_context": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "leaf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normalized_path", "expected_shapes", "source_prevalence", "disposition", "reader", "final_owners", "surfaces", "rationale", "owner", "acceptance_checkpoint"],
+      "properties": {
+        "normalized_path": { "$ref": "#/$defs/nonEmptyString" },
+        "expected_shapes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["missing", "null", "boolean", "number", "string", "array", "object", "array_member", "map_member"] }
+        },
+        "source_prevalence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_count", "occurrence_count"],
+          "properties": {
+            "record_count": { "type": "integer", "minimum": 0 },
+            "occurrence_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "map_key_policy": { "$ref": "#/$defs/mapKeyPolicy" },
+        "disposition": { "enum": ["promoted", "provenance_only", "ignored", "deferred", "unconsumed"] },
+        "reader": { "$ref": "#/$defs/reader" },
+        "final_owners": { "type": "array", "items": { "$ref": "#/$defs/finalOwner" } },
+        "surfaces": { "$ref": "#/$defs/surfaces" },
+        "rationale": { "type": "string" },
+        "owner": { "$ref": "#/$defs/nonEmptyString" },
+        "acceptance_checkpoint": { "$ref": "#/$defs/nonEmptyString" },
+        "future_owner": { "$ref": "#/$defs/nonEmptyString" },
+        "future_task": { "$ref": "#/$defs/nonEmptyString" },
+        "prerequisite": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "mapKeyPolicy": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "keys"],
+          "properties": {
+            "kind": { "const": "closed_vocabulary" },
+            "keys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nonEmptyString" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "open_vocabulary_retained_identity" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "typed_unsupported" } }
+        }
+      ]
+    },
+    "reader": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reader_id": { "$ref": "#/$defs/nonEmptyString" },
+        "parity_case_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "finalOwner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "destination"],
+      "properties": {
+        "stage": { "enum": ["source_dto", "canonical", "post_projection", "artifact_hydration", "public_surface", "durable_provenance"] },
+        "destination": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "surfaceDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "rationale"],
+      "properties": {
+        "disposition": { "enum": ["promoted", "not_applicable", "deferred"] },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "search", "cli", "app", "ui", "runtime"],
+      "properties": {
+        "artifact": { "$ref": "#/$defs/surfaceDecision" },
+        "search": { "$ref": "#/$defs/surfaceDecision" },
+        "cli": { "$ref": "#/$defs/surfaceDecision" },
+        "app": { "$ref": "#/$defs/surfaceDecision" },
+        "ui": { "$ref": "#/$defs/surfaceDecision" },
+        "runtime": { "$ref": "#/$defs/surfaceDecision" }
+      }
+    }
+  }
+}

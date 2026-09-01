@@ -33,23 +33,6 @@ use super::dto::{
 };
 use super::dto::{EmbeddedRelationshipKindSource, EmbeddedRelationshipSource};
 
-#[cfg(test)]
-pub(crate) const RETAINED_CAPABILITY_PATHS: [&str; 13] = [
-    "$.items[].system.attackEffects.custom",
-    "$.items[].system.area.details",
-    "$.items[].system.damage.*.materials[]",
-    "$.items[].system.defense.passive.statistic",
-    "$.items[].system.location.autoHeightenLevel",
-    "$.items[].system.prepared.flexible",
-    "$.items[].system.prepared.label",
-    "$.items[].system.prepared.type",
-    "$.items[].system.prepared.validItems",
-    "$.items[].system.spelldc.item",
-    "$.items[].system.spelldc.label",
-    "$.items[].system.spelldc.mod",
-    "$.items[].system.spelldc.type",
-];
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NpcEmbeddedCandidates {
     pub(crate) items: SourcePresence<Vec<NpcEmbeddedCandidate>>,

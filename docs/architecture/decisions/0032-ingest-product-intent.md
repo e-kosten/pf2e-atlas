@@ -44,6 +44,6 @@ Source-field promotion work should begin by stating which product surface the fi
 
 The audit command can reveal candidate gaps, but a high-frequency raw JSON path is not by itself a requirement to model that path. Conversely, a low-frequency path may still be worth modeling when it unlocks important record usability or runtime behavior.
 
-Coverage labels in audit reports should mature toward declarations from the real extractor owners. Heuristic path-family maps are acceptable for early discovery, but they should not become a parallel source interpretation layer.
+Raw-path inventory remains useful for discovery, but it is never coverage acceptance. Coverage declarations use exact source contract, document class, discriminator, role, parent context, and leaf selectors, and acceptance requires source-grounded evidence that the declared reader ran and the value survived every declared final owner. Path families, prefixes, declaration strings, transient consumers, diagnostics, and raw clones cannot satisfy that evidence. Missing, Null, and populated values remain distinct through the shared source-presence model.
 
 If a consumer needs to parse raw JSON at runtime to ship a feature, treat that as an ingest or projection gap unless the feature is explicitly diagnostic/debug tooling.

@@ -134,28 +134,21 @@ fn print_source_path_audit(report: &SourcePathAuditReport) {
         report.record_count, report.pack_count, report.source_root
     );
     println!(
-        "coverage: policy={} digest={} mode={:?} passed={} warnings={} violations={}",
+        "inventory: policy={} digest={} authoritative_completeness={} mode={:?} passed={} warnings={} violations={}",
         report.coverage_policy_version,
         report.coverage_policy_digest,
+        report.authoritative_completeness,
         report.enforcement.mode,
         report.enforcement.passed,
         report.enforcement.aggregate_warning_count,
         report.enforcement.violation_count
     );
     println!(
-        "paths: showing {} of {} meaningful paths with min_records={} consumed={} ignored={} provenance_only={} deferred={} unknown={} generic_deferred={} unowned_recursive={} consumed_regressions={} type_drift={} source_diff_changes={}",
+        "paths: showing {} of {} diagnostic leaves with min_records={} unconsumed={} source_diff_changes={}",
         report.paths.len(),
         report.path_count,
         report.filters.min_records,
-        report.summary.consumed_paths,
-        report.summary.ignored_with_rationale_paths,
-        report.summary.provenance_only_paths,
-        report.summary.deferred_paths,
         report.summary.unknown_paths,
-        report.summary.generic_deferred_paths,
-        report.summary.unowned_recursive_matches,
-        report.summary.consumed_regressions,
-        report.summary.type_drift_diagnostics,
         report.summary.source_diff_changes,
     );
     for diagnostic in &report.diagnostics {

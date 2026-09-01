@@ -12,6 +12,7 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
+mod source_coverage;
 mod source_pipeline;
 mod validation;
 
@@ -50,6 +51,16 @@ pub use source::model::{
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
+};
+pub use source_coverage::{
+    ATLAS_SOURCE_LEAF_COVERAGE_VERSION, CoverageContractError, CoverageFailure,
+    CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerContract, FinalOwnerStage,
+    FixtureReference, MapKeyPolicy, ReaderContract, SourceDocumentRole, SourceJsonType,
+    SourceLeafContract, SourceLeafCoverageLedger, SourceLeafDisposition, SourceLeafIdentity,
+    SourceLeafReceipt, SourceLeafSelector, SourceLeafValue, SourceMemberKind, SourcePin,
+    SourcePrevalence, StageObservation, SurfaceContract, SurfaceDecision, SurfaceDisposition,
+    TypedUnsupportedValue, evaluate_source_leaf_coverage, lint_source_leaf_ledger,
+    lint_source_leaf_ledgers, parse_source_leaf_ledger,
 };
 pub use validation::{
     AssertionInventoryEntry, ExhaustiveValidationOptions, ExhaustiveValidationReport,
