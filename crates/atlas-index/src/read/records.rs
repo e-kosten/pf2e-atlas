@@ -116,7 +116,7 @@ impl SqliteIndexReader {
             let records = load_persisted_records_from_diesel_connection(connection)?;
             let bodies =
                 canonical::bodies_by_key(canonical::read_canonical_record_bodies(connection)?);
-            hydrate_records(records, bodies)
+            hydrate_record_parts(records, bodies)
         })
     }
 
@@ -129,7 +129,7 @@ impl SqliteIndexReader {
             let bodies = canonical::bodies_by_key(canonical::read_canonical_record_bodies_by_key(
                 connection, keys,
             )?);
-            hydrate_records(records, bodies)
+            hydrate_record_parts(records, bodies)
         })
     }
 
@@ -186,7 +186,9 @@ pub(crate) fn canonical_coherence_scan_count() -> usize {
     CANONICAL_COHERENCE_SCAN_COUNT.get()
 }
 
-fn hydrate_records(
+/// Applies the same canonical-body ownership checks used by artifact reads to
+/// already decoded record and canonical-body values.
+pub fn hydrate_record_parts(
     records: Vec<AtlasRecord>,
     mut bodies: std::collections::BTreeMap<RecordKey, atlas_record::RecordBody>,
 ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {

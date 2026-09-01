@@ -37,7 +37,7 @@ pub use read::graph::product::{
     IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup, ReferenceReadIndex,
     RemasterReadIndex, VariantReadIndex,
 };
-pub use read::records::RecordLoadError;
+pub use read::records::{RecordLoadError, hydrate_record_parts};
 pub use read::search::filters::FilterCompileError;
 pub use read::search::vector::{RecordEmbeddingVector, VectorQueryError, VectorSearchHit};
 pub use read::search::{
