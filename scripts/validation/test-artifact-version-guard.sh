@@ -13,32 +13,71 @@ new_fixture() {
   git -C "$case_dir" init -q
   git -C "$case_dir" config user.name "Atlas Fixture"
   git -C "$case_dir" config user.email "atlas-fixture@example.invalid"
-  mkdir -p \
-    "$case_dir/scripts/validation" \
-    "$case_dir/crates/atlas-index/src/artifact" \
-    "$case_dir/crates/atlas-index/src/read/records" \
-    "$case_dir/crates/atlas-index/src/write/sqlite" \
-    "$case_dir/crates/atlas-index/migrations/0001_fixture" \
-    "$case_dir/crates/atlas-ingest/src/source/normalize" \
-    "$case_dir/crates/atlas-ingest/src"
+  mkdir -p "$case_dir/scripts/validation"
   cp "$repo_root/scripts/validation/check-artifact-version-bump.sh" "$case_dir/scripts/validation/"
   cp "$repo_root/scripts/validation/artifact-version-owners.txt" "$case_dir/scripts/validation/"
+  mkdir -p "$case_dir/crates/atlas-index/src/artifact"
   printf '%s\n' \
     'pub const ARTIFACT_CONTRACT_VERSION: &str = "fixture-contract/v1";' \
     'pub const ARTIFACT_SCHEMA_VERSION: &str = "1";' \
     'pub const ARTIFACT_MANIFEST_VERSION: &str = "fixture-manifest/v1";' \
     >"$case_dir/crates/atlas-index/src/artifact/metadata.rs"
   for path in \
+    crates/atlas-index/src/artifact/inventory/tables/canonical.rs \
     crates/atlas-index/src/artifact/canonical_json.rs \
     crates/atlas-index/src/artifact/pair.rs \
+    crates/atlas-index/src/artifact/storage.rs \
+    crates/atlas-index/src/read/records/canonical.rs \
+    crates/atlas-index/src/write/input.rs \
     crates/atlas-index/src/write/sqlite/records.rs \
     crates/atlas-index/migrations/0001_fixture/up.sql \
+    crates/atlas-record/src/content/search_projection.rs \
+    crates/atlas-record/src/creature.rs \
+    crates/atlas-record/src/mechanics/projection.rs \
+    crates/atlas-record/src/metrics/model.rs \
+    crates/atlas-record/src/reference_policy.rs \
+    crates/atlas-record/src/retrieved_record.rs \
+    crates/atlas-ingest/src/source/dto/npc.rs \
+    crates/atlas-ingest/src/source/loader.rs \
+    crates/atlas-ingest/src/source/normalize.rs \
     crates/atlas-ingest/src/source/normalize/content.rs \
+    crates/atlas-ingest/src/source/npc_core.rs \
+    crates/atlas-ingest/src/source/npc_entities.rs \
+    crates/atlas-ingest/src/source/owned_content.rs \
+    crates/atlas-ingest/src/diagnostics.rs \
+    crates/atlas-ingest/src/embeddings.rs \
+    crates/atlas-ingest/src/embeddings/generation.rs \
+    crates/atlas-ingest/src/records/aliases.rs \
+    crates/atlas-ingest/src/records/loaded.rs \
+    crates/atlas-ingest/src/records/metrics/emit.rs \
+    crates/atlas-ingest/src/records/references.rs \
+    crates/atlas-ingest/src/records/taxonomy.rs \
+    crates/atlas-ingest/src/records/variants.rs \
+    crates/atlas-ingest/src/generated/afflictions/records.rs \
+    crates/atlas-ingest/src/index_build_input.rs \
+    crates/atlas-ingest/src/source_pipeline.rs \
     crates/atlas-ingest/src/artifact_manifest.rs
   do
+    mkdir -p "$case_dir/$(dirname "$path")"
     printf 'base\n' >"$case_dir/$path"
   done
-  printf 'unrelated\n' >"$case_dir/README.md"
+  for path in \
+    crates/atlas-index/src/artifact/validation/canonical.rs \
+    crates/atlas-record/src/json_projection.rs \
+    crates/atlas-record/src/mechanics_view.rs \
+    crates/atlas-record/src/presentation.rs \
+    crates/atlas-record/src/presentation_recipe_tests.rs \
+    crates/atlas-record/src/metrics/tests.rs \
+    crates/atlas-ingest/src/source/dto/tests.rs \
+    crates/atlas-ingest/src/source/normalize/content_tests.rs \
+    crates/atlas-ingest/src/source/npc_core_tests.rs \
+    crates/atlas-ingest/src/records/aliases/tests.rs \
+    crates/atlas-ingest/src/records/metrics/tests.rs \
+    README.md
+  do
+    mkdir -p "$case_dir/$(dirname "$path")"
+    printf 'unrelated\n' >"$case_dir/$path"
+  done
   git -C "$case_dir" add .
   git -C "$case_dir" commit -qm "test: base fixture"
   case_base="$(git -C "$case_dir" rev-parse HEAD)"
@@ -70,12 +109,43 @@ expect_guard_success() {
   fi
 }
 
+# Keep one positive fixture for each compatibility-owner family. The seven paths
+# called out by the independent review are included literally in this inventory.
 for owner in \
-  crates/atlas-ingest/src/source/normalize/content.rs \
+  crates/atlas-index/src/artifact/metadata.rs \
+  crates/atlas-index/src/artifact/inventory/tables/canonical.rs \
+  crates/atlas-index/src/artifact/storage.rs \
+  crates/atlas-index/src/read/records/canonical.rs \
+  crates/atlas-index/src/write/input.rs \
   crates/atlas-index/src/write/sqlite/records.rs \
-  crates/atlas-index/src/artifact/metadata.rs
+  crates/atlas-record/src/content/search_projection.rs \
+  crates/atlas-record/src/creature.rs \
+  crates/atlas-record/src/mechanics/projection.rs \
+  crates/atlas-record/src/metrics/model.rs \
+  crates/atlas-record/src/reference_policy.rs \
+  crates/atlas-record/src/retrieved_record.rs \
+  crates/atlas-ingest/src/source/dto/npc.rs \
+  crates/atlas-ingest/src/source/loader.rs \
+  crates/atlas-ingest/src/source/normalize.rs \
+  crates/atlas-ingest/src/source/normalize/content.rs \
+  crates/atlas-ingest/src/source/npc_core.rs \
+  crates/atlas-ingest/src/source/npc_entities.rs \
+  crates/atlas-ingest/src/source/owned_content.rs \
+  crates/atlas-ingest/src/diagnostics.rs \
+  crates/atlas-ingest/src/embeddings.rs \
+  crates/atlas-ingest/src/embeddings/generation.rs \
+  crates/atlas-ingest/src/records/aliases.rs \
+  crates/atlas-ingest/src/records/loaded.rs \
+  crates/atlas-ingest/src/records/metrics/emit.rs \
+  crates/atlas-ingest/src/records/references.rs \
+  crates/atlas-ingest/src/records/taxonomy.rs \
+  crates/atlas-ingest/src/records/variants.rs \
+  crates/atlas-ingest/src/generated/afflictions/records.rs \
+  crates/atlas-ingest/src/index_build_input.rs \
+  crates/atlas-ingest/src/source_pipeline.rs
 do
-  new_fixture "missed-owner-$(basename "$owner" .rs)"
+  fixture_name="$(printf '%s' "$owner" | tr '/.' '--')"
+  new_fixture "contract-owner-$fixture_name"
   printf 'changed\n' >>"$case_dir/$owner"
   commit_case "test: change contract owner"
   expect_guard_failure "guard missed contract owner $owner"
@@ -91,10 +161,26 @@ printf 'changed manifest\n' >>"$case_dir/crates/atlas-ingest/src/artifact_manife
 commit_case "test: change manifest owner"
 expect_guard_failure "guard accepted a manifest owner without a manifest bump"
 
-new_fixture unrelated
-printf 'changed unrelated\n' >>"$case_dir/README.md"
-commit_case "test: change unrelated path"
-expect_guard_success "guard rejected an unrelated path"
+for unrelated in \
+  crates/atlas-index/src/artifact/validation/canonical.rs \
+  crates/atlas-record/src/json_projection.rs \
+  crates/atlas-record/src/mechanics_view.rs \
+  crates/atlas-record/src/presentation.rs \
+  crates/atlas-record/src/presentation_recipe_tests.rs \
+  crates/atlas-record/src/metrics/tests.rs \
+  crates/atlas-ingest/src/source/dto/tests.rs \
+  crates/atlas-ingest/src/source/normalize/content_tests.rs \
+  crates/atlas-ingest/src/source/npc_core_tests.rs \
+  crates/atlas-ingest/src/records/aliases/tests.rs \
+  crates/atlas-ingest/src/records/metrics/tests.rs \
+  README.md
+do
+  fixture_name="$(printf '%s' "$unrelated" | tr '/.' '--')"
+  new_fixture "unrelated-$fixture_name"
+  printf 'changed unrelated\n' >>"$case_dir/$unrelated"
+  commit_case "test: change unrelated path"
+  expect_guard_success "guard rejected unrelated path $unrelated"
+done
 
 new_fixture version-declaration-only
 replace_version 'fixture-manifest/v1' 'fixture-manifest/v2'
