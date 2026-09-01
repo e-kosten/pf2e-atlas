@@ -32,6 +32,7 @@ export function RecordPreviewPopover({
             errors={[detail.error]}
             loading={detail.isLoading || detail.isFetching}
             onReference={setActiveRecordKey}
+            showTitle={false}
           />
         </RecordPreviewContext.Provider>
       }
@@ -41,7 +42,7 @@ export function RecordPreviewPopover({
           setActiveRecordKey(recordKey);
         }
       }}
-      title="Reference"
+      title={detail.data?.surface.metadata.title ?? "Loading record…"}
     >
       {children}
     </PreviewPopover>

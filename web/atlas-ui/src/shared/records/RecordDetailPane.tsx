@@ -11,6 +11,7 @@ export function RecordDetailPane({
   loading,
   loadingMessage,
   onReference,
+  showTitle = true,
   stale = false,
 }: {
   detail: RecordDetailView | undefined;
@@ -19,6 +20,7 @@ export function RecordDetailPane({
   loading: boolean;
   loadingMessage?: string;
   onReference: (recordKey: string) => void;
+  showTitle?: boolean;
   stale?: boolean;
 }) {
   const visibleErrors = errors.filter((error): error is Error | { message: string } =>
@@ -31,7 +33,11 @@ export function RecordDetailPane({
           <Skeleton active paragraph={{ rows: 8 }} title />
         </div>
       ) : detail ? (
-        <RecordSurface surface={detail.surface} onReference={onReference} />
+        <RecordSurface
+          surface={detail.surface}
+          onReference={onReference}
+          showTitle={showTitle}
+        />
       ) : (
         <Empty
           className="detail-state"

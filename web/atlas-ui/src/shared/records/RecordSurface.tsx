@@ -11,19 +11,21 @@ import { EncounterParticipantSurface } from "./EncounterRecordSurface";
 
 type RecordSurfaceProps = {
   onReference: (recordKey: string) => void;
+  showTitle?: boolean;
   surface: RecordSurfaceView;
   slots?: Record<string, React.ReactNode>;
 };
 
 export const RecordSurface = memo(function RecordSurface({
   onReference,
+  showTitle = true,
   surface,
   slots = {},
 }: RecordSurfaceProps) {
   if (surface.presentation.presentation_type === "unavailable") {
     return (
       <article className="record-surface record-surface--unavailable">
-        <RecordHeader metadata={surface.metadata} />
+        <RecordHeader metadata={surface.metadata} showTitle={showTitle} />
         <Alert
           description={surface.presentation.unavailable.message}
           message="This record family is not available in the typed record surface yet."
@@ -62,6 +64,7 @@ export const RecordSurface = memo(function RecordSurface({
       body={body}
       metadata={surface.metadata}
       onReference={onReference}
+      showTitle={showTitle}
     />
   );
 });
