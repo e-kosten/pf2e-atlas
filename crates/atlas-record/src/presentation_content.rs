@@ -1,6 +1,6 @@
 use crate::content::foundry_node_display_text;
 use crate::{
-    FoundryLink, FoundryLinkBehavior, PresentationContent, PresentationContentBlock,
+    FoundryLink, FoundryLinkBehavior, FoundryNode, PresentationContent, PresentationContentBlock,
     PresentationInline, PresentationListItem, PresentationTableRow, RichDocument, RichLinkTarget,
     RichNode, render_plain_text,
 };
@@ -80,6 +80,7 @@ fn render_spans_plain_text(spans: &[PresentationInline]) -> String {
                 output.push_str(&render_spans_plain_text(spans));
             }
             PresentationInline::Reference { label, .. } => output.push_str(label),
+            PresentationInline::Check { display, .. } => output.push_str(display),
             PresentationInline::LineBreak => output.push('\n'),
         }
     }
@@ -154,11 +155,8 @@ fn project_node_blocks(node: &RichNode, blocks: &mut Vec<PresentationContentBloc
             });
         }
         RichNode::Foundry { node } => {
-            let text = foundry_node_display_text(node);
-            if !text.is_empty() {
-                blocks.push(PresentationContentBlock::Paragraph {
-                    spans: vec![PresentationInline::Text { text }],
-                });
+            if let Some(span) = foundry_inline(node) {
+                blocks.push(PresentationContentBlock::Paragraph { spans: vec![span] });
             }
         }
     }
@@ -283,11 +281,27 @@ fn project_node_inline(node: &RichNode, spans: &mut Vec<PresentationInline>) {
         },
         RichNode::FoundryLink { link } => spans.push(reference_inline(link)),
         RichNode::Foundry { node } => {
-            let text = foundry_node_display_text(node);
-            if !text.is_empty() {
-                spans.push(PresentationInline::Text { text });
+            if let Some(span) = foundry_inline(node) {
+                spans.push(span);
             }
         }
+    }
+}
+
+fn foundry_inline(node: &FoundryNode) -> Option<PresentationInline> {
+    let display = foundry_node_display_text(node);
+    if display.is_empty() {
+        return None;
+    }
+    match node {
+        FoundryNode::Check {
+            statistic, options, ..
+        } => Some(PresentationInline::Check {
+            display,
+            statistic: statistic.clone(),
+            difficulty_class: options.get("dc").and_then(|value| value.parse().ok()),
+        }),
+        _ => Some(PresentationInline::Text { text: display }),
     }
 }
 
@@ -380,6 +394,7 @@ fn inline_is_empty(span: &PresentationInline) -> bool {
             spans_are_empty(spans)
         }
         PresentationInline::Reference { label, .. } => label.trim().is_empty(),
+        PresentationInline::Check { display, .. } => display.trim().is_empty(),
         PresentationInline::LineBreak => false,
     }
 }
@@ -538,6 +553,23 @@ mod tests {
 
         let content = project_presentation_content(&document);
         assert_eq!(content.blocks.len(), 3);
+        assert!(matches!(
+            &content.blocks[0],
+            PresentationContentBlock::Paragraph { spans }
+                if matches!(
+                    spans.as_slice(),
+                    [
+                        PresentationInline::Text { text },
+                        PresentationInline::Check {
+                            display,
+                            statistic: Some(statistic),
+                            difficulty_class: Some(28),
+                        },
+                    ] if text == "Saving Throw "
+                        && display == "Fortitude DC 28"
+                        && statistic == "fortitude"
+                )
+        ));
         assert!(matches!(
             &content.blocks[0],
             PresentationContentBlock::Paragraph { spans }

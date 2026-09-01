@@ -3,4 +3,4 @@ import type { RuntimeAdjustmentView } from "./RuntimeAdjustmentView";
 import type { RuntimeCountSegmentView } from "./RuntimeCountSegmentView";
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 
-export type RuntimeCountView = { label: string, base_value: bigint, adjusted_value: bigint, segments?: Array<RuntimeCountSegmentView>, adjustments?: Array<RuntimeAdjustmentView>, suppressed_adjustments?: Array<RuntimeAdjustmentView>, provenance: RuntimeFactProvenanceView, };
+export type RuntimeCountView = { label: string, base_value: number, adjusted_value: number, segments?: Array<RuntimeCountSegmentView>, adjustments?: Array<RuntimeAdjustmentView>, suppressed_adjustments?: Array<RuntimeAdjustmentView>, provenance: RuntimeFactProvenanceView, };

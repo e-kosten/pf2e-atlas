@@ -33,7 +33,8 @@ pub struct RecordSurfaceMetadataView {
     pub kind: String,
     pub kind_label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub level: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -252,7 +253,8 @@ pub enum CreatureSurfaceUnavailableFieldView {
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceVitalsView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub hit_points: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -264,13 +266,15 @@ pub struct CreatureSurfaceVitalsView {
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceDefensesView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub armor_class: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub armor_class_details: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub hardness: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub immunities: Vec<CreatureSurfaceIwrView>,
@@ -288,7 +292,8 @@ pub struct CreatureSurfaceIwrView {
     pub authored_order: u32,
     pub kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub amount: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exceptions: Vec<String>,
@@ -319,7 +324,8 @@ pub struct CreatureSurfaceSavesView {
 pub struct CreatureSurfaceSaveView {
     pub component_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub modifier: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -330,7 +336,8 @@ pub struct CreatureSurfaceSaveView {
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceAwarenessView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub perception: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -358,7 +365,8 @@ pub struct CreatureSurfaceSenseView {
     #[ts(optional)]
     pub acuity: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub range_feet: Option<i64>,
 }
 
@@ -366,22 +374,28 @@ pub struct CreatureSurfaceSenseView {
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceAbilitiesView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub strength: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub dexterity: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub constitution: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub intelligence: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub wisdom: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub charisma: Option<i64>,
     pub provenance: CreatureSurfaceFactProvenanceView,
 }
@@ -394,7 +408,8 @@ pub struct CreatureSurfaceSkillView {
     pub kind: String,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub modifier: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -411,7 +426,8 @@ pub struct CreatureSurfaceMovementView {
     #[ts(optional)]
     pub label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub speed_feet: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -426,7 +442,8 @@ pub struct CreatureSurfaceResourceView {
     pub kind: String,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub maximum: Option<i64>,
 }
 
@@ -477,7 +494,8 @@ pub struct CreatureSurfaceRollView {
     pub label: String,
     pub kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub modifier: Option<i64>,
 }
 
@@ -509,10 +527,12 @@ pub struct CreatureSurfaceSpellcastingView {
     #[ts(optional)]
     pub tradition: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub attack_modifier: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub difficulty_class: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub spells: Vec<CreatureSurfaceSpellView>,
@@ -528,7 +548,8 @@ pub struct CreatureSurfaceSpellView {
     #[ts(optional)]
     pub target_record_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub rank: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<String>,
@@ -607,6 +628,16 @@ pub enum CreatureSurfaceContentInlineView {
         #[ts(optional)]
         record_key: Option<String>,
         embedded: bool,
+    },
+    Check {
+        display: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        statistic: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(with = "crate::json_integer::optional")]
+        #[ts(optional, type = "number")]
+        difficulty_class: Option<i64>,
     },
     LineBreak,
 }

@@ -164,6 +164,15 @@ pub enum PresentationInline {
         record_key: Option<RecordKey>,
         embedded: bool,
     },
+    Check {
+        display: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        statistic: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "number")]
+        difficulty_class: Option<i64>,
+    },
     LineBreak,
 }
 

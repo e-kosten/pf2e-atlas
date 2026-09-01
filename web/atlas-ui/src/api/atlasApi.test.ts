@@ -13,7 +13,9 @@ import {
   getSavedLists,
   openResultWindow,
   readResultWindowPage,
+  removeEncounterParticipantCondition,
   removeSavedListItem,
+  updateEncounterParticipantCondition,
   updateSavedList,
 } from "./atlasApi";
 
@@ -103,6 +105,77 @@ describe("atlasApi", () => {
     };
 
     await expect(openResultWindow(request)).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
+  it("round-trips encounter numbers without bigint conversion", async () => {
+    const fetchMock = mockFetch({
+      encounter: { round_number: 2 },
+      participants: [
+        {
+          position: 0,
+          initiative: 18,
+          initiative_order: 0,
+          record_view: {
+            metadata: { level: 9 },
+            encounter: {
+              conditions: [{ condition_id: 12, value: 2, duration_rounds: 3 }],
+            },
+          },
+        },
+      ],
+    });
+    const result = await updateEncounterParticipantCondition(
+      "encounter/one",
+      "participant/one",
+      {
+        condition_id: 12,
+        name: "Frightened",
+        value: 2,
+        duration_rounds: 3,
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/encounter%2Fone/participants/participant%2Fone/conditions/12",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          condition_id: 12,
+          name: "Frightened",
+          value: 2,
+          duration_rounds: 3,
+        }),
+      }),
+    );
+    expect(result.encounter.round_number).toBe(2);
+    expect(result.participants[0]?.position).toBe(0);
+    expect(result.participants[0]?.record_view.metadata.level).toBe(9);
+    expect(
+      result.participants[0]?.record_view.encounter?.conditions?.[0]?.condition_id,
+    ).toBe(12);
+  });
+
+  it("rejects unsafe encounter integer requests", async () => {
+    await expect(
+      updateEncounterParticipantCondition("encounter", "participant", {
+        condition_id: Number.MAX_SAFE_INTEGER + 1,
+        name: "Unsafe",
+      }),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+
+    await expect(
+      removeEncounterParticipantCondition(
+        "encounter",
+        "participant",
+        Number.MAX_SAFE_INTEGER + 1,
+      ),
+    ).rejects.toMatchObject({
       name: "AtlasApiError",
       message: "Request numeric field exceeds JSON safe integer range",
     });

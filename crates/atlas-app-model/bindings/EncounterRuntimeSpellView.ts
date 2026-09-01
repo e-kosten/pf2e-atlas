@@ -3,4 +3,4 @@ import type { CreatureSurfaceContentView } from "./CreatureSurfaceContentView";
 import type { EncounterRuntimeActivityView } from "./EncounterRuntimeActivityView";
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 
-export type EncounterRuntimeSpellView = { occurrence_id: string, authored_order: number, label: string, target_record_key?: string, rank?: bigint, traits?: Array<string>, content?: Array<CreatureSurfaceContentView>, activity?: EncounterRuntimeActivityView, provenance: RuntimeFactProvenanceView, };
+export type EncounterRuntimeSpellView = { occurrence_id: string, authored_order: number, label: string, target_record_key?: string, rank?: number, traits?: Array<string>, content?: Array<CreatureSurfaceContentView>, activity?: EncounterRuntimeActivityView, provenance: RuntimeFactProvenanceView, };

@@ -3,4 +3,4 @@ import type { RuntimeAdjustmentView } from "./RuntimeAdjustmentView";
 import type { RuntimeEffectNoteView } from "./RuntimeEffectNoteView";
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 
-export type RuntimeDistanceView = { movement_type: string, label: string, base_value_feet: bigint, adjusted_value_feet: bigint, adjustments?: Array<RuntimeAdjustmentView>, suppressed_adjustments?: Array<RuntimeAdjustmentView>, notes?: Array<RuntimeEffectNoteView>, provenance: RuntimeFactProvenanceView, };
+export type RuntimeDistanceView = { movement_type: string, label: string, base_value_feet: number, adjusted_value_feet: number, adjustments?: Array<RuntimeAdjustmentView>, suppressed_adjustments?: Array<RuntimeAdjustmentView>, notes?: Array<RuntimeEffectNoteView>, provenance: RuntimeFactProvenanceView, };

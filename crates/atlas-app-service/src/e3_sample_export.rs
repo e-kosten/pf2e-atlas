@@ -2005,6 +2005,7 @@ fn content_inline_contains_text(span: &CreatureSurfaceContentInlineView, needle:
             .iter()
             .any(|span| content_inline_contains_text(span, needle)),
         CreatureSurfaceContentInlineView::Reference { label, .. } => label.contains(needle),
+        CreatureSurfaceContentInlineView::Check { display, .. } => display.contains(needle),
         CreatureSurfaceContentInlineView::LineBreak => false,
     }
 }
@@ -2130,6 +2131,9 @@ fn render_content_inlines_html(spans: &[CreatureSurfaceContentInlineView], html:
             CreatureSurfaceContentInlineView::Reference { label, .. } => {
                 write!(html, "<a href=\"#\">{}</a>", escape_html(label))
                     .expect("string write should succeed");
+            }
+            CreatureSurfaceContentInlineView::Check { display, .. } => {
+                html.push_str(&escape_html(display));
             }
             CreatureSurfaceContentInlineView::LineBreak => html.push_str("<br>"),
         }

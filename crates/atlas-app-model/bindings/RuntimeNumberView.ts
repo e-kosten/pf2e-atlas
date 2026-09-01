@@ -2,4 +2,4 @@
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 import type { RuntimeModifierView } from "./RuntimeModifierView";
 
-export type RuntimeNumberView = { label: string, base_value: bigint, adjusted_value: bigint, modifiers?: Array<RuntimeModifierView>, suppressed_modifiers?: Array<RuntimeModifierView>, provenance: RuntimeFactProvenanceView, };
+export type RuntimeNumberView = { label: string, base_value: number, adjusted_value: number, modifiers?: Array<RuntimeModifierView>, suppressed_modifiers?: Array<RuntimeModifierView>, provenance: RuntimeFactProvenanceView, };

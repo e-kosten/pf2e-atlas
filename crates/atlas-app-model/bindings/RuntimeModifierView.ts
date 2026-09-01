@@ -2,4 +2,4 @@
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 import type { StatModifierTypeView } from "./StatModifierTypeView";
 
-export type RuntimeModifierView = { provenance: RuntimeFactProvenanceView, label: string, modifier_type: StatModifierTypeView, value: bigint, };
+export type RuntimeModifierView = { provenance: RuntimeFactProvenanceView, label: string, modifier_type: StatModifierTypeView, value: number, };
