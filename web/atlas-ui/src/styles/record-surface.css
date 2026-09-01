@@ -330,13 +330,11 @@
   line-height: 1.45;
 }
 
-.creature-sheet__movement-list,
 .creature-sheet__resource-list {
   display: grid;
   gap: 7px;
 }
 
-.creature-sheet__movement,
 .creature-sheet__resource-list > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -344,8 +342,12 @@
   align-items: baseline;
 }
 
-.creature-sheet__movement small {
-  grid-column: 1 / -1;
+.creature-sheet__movement-value {
+  display: grid;
+  gap: 2px;
+}
+
+.creature-sheet__movement-value small {
   color: var(--muted);
 }
 
@@ -503,14 +505,19 @@
   font-size: 11px;
 }
 
-.creature-sheet__standalone-content,
 .creature-sheet__standalone-spell {
   display: grid;
   gap: 14px;
 }
 
-.creature-sheet__standalone-content h4 {
-  margin: 0 0 7px;
+.creature-sheet__standalone-section {
+  display: grid;
+  gap: 5px;
+}
+
+.creature-sheet__standalone-section h4 {
+  margin: 0;
+  font-size: 13px;
 }
 
 .record-surface__secondary {
