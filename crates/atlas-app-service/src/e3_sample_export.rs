@@ -92,6 +92,23 @@ const EXPORTER_CORRECTION_CANDIDATE: &str = "5c94ff6516d4c8452f83faa677353d66ae6
 const EXPORTER_CORRECTION_TREE: &str = "387ff67a5d24bc80bc7eb42040052886170058b5";
 const STAGE_F_BASE_CANDIDATE: &str = "c1716e804bc1c26d8d4c2006fa7708da45167c69";
 const STAGE_F_BASE_TREE: &str = "58b8f09973e17e2194e204558e19d4d5ded3b0ea";
+const SPELL_CONTENT_CANDIDATE: &str = "7032c74826791cad686b32384a7596078fcd3288";
+const SPELL_CONTENT_TREE: &str = "a8ba8f9de485d1affb9bce7df40fa666dbfcfa3f";
+const BIND_SOUL_OCCURRENCE_ID: &str =
+    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:uxpBDVyA3sf3skst";
+const BIND_SOUL_TARGET_KEY: &str = "spells-srd:GYmXvS9NJ7QwfWGg";
+const BIND_SOUL_CONTENT_KEY: &str = "item:uxpBDVyA3sf3skst:description";
+const DREAM_COUNCIL_OCCURRENCE_ID: &str =
+    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:wBpy87CyaW0TfB5g";
+const DREAM_COUNCIL_TARGET_KEY: &str = "spells-srd:rwCh2qTYPA44KEoK";
+const DREAM_COUNCIL_CONTENT_KEY: &str = "item:wBpy87CyaW0TfB5g:description";
+const NIGHTMARE_TARGET_KEY: &str = "spells-srd:Uqj344bezBq3ESdq";
+const DREAM_MESSAGE_TARGET_KEY: &str = "spells-srd:yM3KTTSAIHhyuP14";
+const CONTROL_WEATHER_OCCURRENCE_ID: &str =
+    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:L2JfDRaRc4Ry15y6";
+const CONTROL_WEATHER_TARGET_KEY: &str = "spells-srd:XkDCzMIyc0YOjw05";
+const CONTROL_WEATHER_CONTENT_KEY: &str = "item:L2JfDRaRc4Ry15y6:description";
+const HEARTSTONE_CONTENT_KEY: &str = "item:DzTZXklKvlZmkvFX:description";
 const CONSUMER_READINESS_PASS_SHA256: &str =
     "be1e211181b91cffc01eb03e43ce1dfaf45cf93cd728b483399b3ca1f204b6e8";
 const ACTIVITY_CONTENT_PLAN_SHA256: &str =
@@ -640,66 +657,72 @@ fn export_e3_activity_content_early_samples() {
     assert_git_revision(
         Path::new("."),
         "HEAD^",
+        SPELL_CONTENT_CANDIDATE,
+        SPELL_CONTENT_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~2",
         STAGE_F_BASE_CANDIDATE,
         STAGE_F_BASE_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~2",
+        "HEAD~3",
         EXPORTER_CORRECTION_CANDIDATE,
         EXPORTER_CORRECTION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~3",
+        "HEAD~4",
         CONSUMER_READY_CANDIDATE,
         CONSUMER_READY_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~4",
+        "HEAD~5",
         CONSUMER_CONTRACT_CANDIDATE,
         CONSUMER_CONTRACT_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~5",
+        "HEAD~6",
         VALIDATION_RUNTIME_PASS_CANDIDATE,
         VALIDATION_RUNTIME_PASS_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~6",
+        "HEAD~7",
         VALIDATION_INVENTORY_CANDIDATE,
         VALIDATION_INVENTORY_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~7",
+        "HEAD~8",
         GENERATION_TRUST_CANDIDATE,
         GENERATION_TRUST_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~8",
+        "HEAD~9",
         RUNTIME_SIMPLIFICATION_CANDIDATE,
         RUNTIME_SIMPLIFICATION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~9",
+        "HEAD~10",
         SLOT_ASSERTION_CANDIDATE,
         SLOT_ASSERTION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~10",
+        "HEAD~11",
         ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE,
         ACTIVITY_CONTENT_IMPLEMENTATION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~11",
+        "HEAD~12",
         ACTIVITY_CONTENT_BASE,
         ACTIVITY_CONTENT_BASE_TREE,
     );
@@ -813,55 +836,98 @@ fn export_e3_activity_content_early_samples() {
         .iter()
         .flat_map(|entry| entry.spells.iter())
         .collect::<Vec<_>>();
-    for label in ["Bind Soul", "Dream Council"] {
-        let spell = static_grouped_spells
-            .iter()
-            .find(|spell| spell.label == label)
-            .unwrap_or_else(|| panic!("{label} should remain a grouped spell"));
-        assert!(
-            spell.content.is_some(),
-            "{label} should own its typed authored content"
-        );
-    }
-    for label in ["Nightmare", "Dream Message"] {
+    let bind_soul = static_grouped_spells
+        .iter()
+        .find(|spell| spell.occurrence_id == BIND_SOUL_OCCURRENCE_ID)
+        .expect("typed Bind Soul occurrence should remain grouped");
+    assert_eq!(bind_soul.authored_order, 2);
+    assert_eq!(
+        bind_soul.target_record_key.as_deref(),
+        Some(BIND_SOUL_TARGET_KEY)
+    );
+    assert!(!bind_soul.label.trim().is_empty());
+    assert_spell_content_key(bind_soul.content.as_ref(), BIND_SOUL_CONTENT_KEY);
+    let bind_soul_authored_label = bind_soul.label.clone();
+
+    let dream_council = static_grouped_spells
+        .iter()
+        .find(|spell| spell.occurrence_id == DREAM_COUNCIL_OCCURRENCE_ID)
+        .expect("typed Dream Council occurrence should remain grouped");
+    assert_eq!(dream_council.authored_order, 4);
+    assert_eq!(
+        dream_council.target_record_key.as_deref(),
+        Some(DREAM_COUNCIL_TARGET_KEY)
+    );
+    assert!(!dream_council.label.trim().is_empty());
+    assert_spell_content_key(dream_council.content.as_ref(), DREAM_COUNCIL_CONTENT_KEY);
+    let dream_council_authored_label = dream_council.label.clone();
+
+    for (target_key, expected) in [
+        (
+            NIGHTMARE_TARGET_KEY,
+            [
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:HGlDq5O3l3Hjp1yw",
+                    14,
+                    "item:HGlDq5O3l3Hjp1yw:description",
+                ),
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:BDM5m1bPFu2vbWuH",
+                    15,
+                    "item:BDM5m1bPFu2vbWuH:description",
+                ),
+            ],
+        ),
+        (
+            DREAM_MESSAGE_TARGET_KEY,
+            [
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY",
+                    18,
+                    "item:ej1xGHaP4SaZnpAY:description",
+                ),
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD",
+                    19,
+                    "item:8BweqVFR5GkGzySD:description",
+                ),
+            ],
+        ),
+    ] {
         let repeated = static_grouped_spells
             .iter()
-            .filter(|spell| spell.label == label)
+            .filter(|spell| spell.target_record_key.as_deref() == Some(target_key))
             .copied()
             .collect::<Vec<_>>();
-        assert!(repeated.len() >= 2, "{label} occurrences must be preserved");
-        assert_eq!(
-            repeated
+        assert_eq!(repeated.len(), expected.len());
+        for (occurrence_id, authored_order, content_key) in expected {
+            let spell = repeated
                 .iter()
-                .map(|spell| spell.occurrence_id.as_str())
-                .collect::<BTreeSet<_>>()
-                .len(),
-            repeated.len(),
-            "{label} occurrences must keep independent identities"
-        );
-        assert_eq!(
-            repeated
-                .iter()
-                .map(|spell| spell.authored_order)
-                .collect::<BTreeSet<_>>()
-                .len(),
-            repeated.len(),
-            "{label} occurrences must keep independent authored order"
-        );
-        assert!(
-            repeated
-                .iter()
-                .all(|spell| spell.target_record_key == repeated[0].target_record_key),
-            "{label} repeated target keys must not collapse occurrence rows"
-        );
+                .find(|spell| spell.occurrence_id == occurrence_id)
+                .expect("typed repeated spell occurrence should remain independent");
+            assert_eq!(spell.authored_order, authored_order);
+            assert!(!spell.label.trim().is_empty());
+            assert_spell_content_key(spell.content.as_ref(), content_key);
+        }
     }
     let static_standalone_spells = night_hag_body
         .standalone_spells
         .as_ref()
         .expect("Night Hag standalone spells should be present");
     assert_eq!(static_standalone_spells.len(), 1);
-    assert_eq!(static_standalone_spells[0].label, "Control Weather");
-    assert!(static_standalone_spells[0].content.is_some());
+    let control_weather = &static_standalone_spells[0];
+    assert_eq!(control_weather.occurrence_id, CONTROL_WEATHER_OCCURRENCE_ID);
+    assert_eq!(control_weather.authored_order, 3);
+    assert_eq!(
+        control_weather.target_record_key.as_deref(),
+        Some(CONTROL_WEATHER_TARGET_KEY)
+    );
+    assert!(!control_weather.label.trim().is_empty());
+    assert_spell_content_key(
+        control_weather.content.as_ref(),
+        CONTROL_WEATHER_CONTENT_KEY,
+    );
+    let control_weather_authored_label = control_weather.label.clone();
     let attached_spell_content_keys = static_grouped_spells
         .iter()
         .copied()
@@ -929,12 +995,23 @@ fn export_e3_activity_content_early_samples() {
         .content
         .as_ref()
         .expect("Night Hag general content should be present");
-    assert!(
-        general_content
-            .iter()
-            .any(|content| content.label.as_deref() == Some("Heartstone")),
-        "unrelated Heartstone content must remain general"
+    let heartstone = general_content
+        .iter()
+        .find(|content| content.content_key == HEARTSTONE_CONTENT_KEY)
+        .expect("typed unrelated Heartstone document must remain general");
+    assert_eq!(
+        heartstone.provenance.nested_source_id.as_deref(),
+        Some("DzTZXklKvlZmkvFX")
     );
+    assert!(
+        !heartstone
+            .label
+            .as_deref()
+            .unwrap_or_default()
+            .trim()
+            .is_empty()
+    );
+    let heartstone_authored_label = heartstone.label.clone().expect("authored Heartstone label");
     assert!(
         general_content
             .iter()
@@ -1097,46 +1174,98 @@ fn export_e3_activity_content_early_samples() {
             .iter()
             .all(|spell| spell.target_record_key.is_some())
     );
-    for label in ["Bind Soul", "Dream Council"] {
-        let spell = grouped_spells
-            .iter()
-            .find(|spell| spell.label == label)
-            .unwrap_or_else(|| panic!("runtime {label} should remain grouped"));
-        assert!(
-            spell.content.is_some(),
-            "runtime {label} should own its typed authored content"
-        );
-    }
-    for label in ["Nightmare", "Dream Message"] {
+    let runtime_bind_soul = grouped_spells
+        .iter()
+        .find(|spell| spell.occurrence_id == BIND_SOUL_OCCURRENCE_ID)
+        .expect("runtime typed Bind Soul occurrence should remain grouped");
+    assert_eq!(runtime_bind_soul.authored_order, 2);
+    assert_eq!(
+        runtime_bind_soul.target_record_key.as_deref(),
+        Some(BIND_SOUL_TARGET_KEY)
+    );
+    assert_eq!(runtime_bind_soul.label, bind_soul_authored_label);
+    assert_spell_content_key(runtime_bind_soul.content.as_ref(), BIND_SOUL_CONTENT_KEY);
+    let runtime_dream_council = grouped_spells
+        .iter()
+        .find(|spell| spell.occurrence_id == DREAM_COUNCIL_OCCURRENCE_ID)
+        .expect("runtime typed Dream Council occurrence should remain grouped");
+    assert_eq!(runtime_dream_council.authored_order, 4);
+    assert_eq!(
+        runtime_dream_council.target_record_key.as_deref(),
+        Some(DREAM_COUNCIL_TARGET_KEY)
+    );
+    assert_eq!(runtime_dream_council.label, dream_council_authored_label);
+    assert_spell_content_key(
+        runtime_dream_council.content.as_ref(),
+        DREAM_COUNCIL_CONTENT_KEY,
+    );
+    for (target_key, expected) in [
+        (
+            NIGHTMARE_TARGET_KEY,
+            [
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:HGlDq5O3l3Hjp1yw",
+                    14,
+                    "item:HGlDq5O3l3Hjp1yw:description",
+                ),
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:BDM5m1bPFu2vbWuH",
+                    15,
+                    "item:BDM5m1bPFu2vbWuH:description",
+                ),
+            ],
+        ),
+        (
+            DREAM_MESSAGE_TARGET_KEY,
+            [
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY",
+                    18,
+                    "item:ej1xGHaP4SaZnpAY:description",
+                ),
+                (
+                    "occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD",
+                    19,
+                    "item:8BweqVFR5GkGzySD:description",
+                ),
+            ],
+        ),
+    ] {
         let repeated = grouped_spells
             .iter()
-            .filter(|spell| spell.label == label)
+            .filter(|spell| spell.target_record_key.as_deref() == Some(target_key))
             .copied()
             .collect::<Vec<_>>();
-        assert!(
-            repeated.len() >= 2,
-            "runtime {label} rows must be preserved"
-        );
-        assert_eq!(
-            repeated
+        assert_eq!(repeated.len(), expected.len());
+        for (occurrence_id, authored_order, content_key) in expected {
+            let spell = repeated
                 .iter()
-                .map(|spell| spell.occurrence_id.as_str())
-                .collect::<BTreeSet<_>>()
-                .len(),
-            repeated.len()
-        );
-        assert!(
-            repeated
-                .iter()
-                .all(|spell| spell.target_record_key == repeated[0].target_record_key)
-        );
+                .find(|spell| spell.occurrence_id == occurrence_id)
+                .expect("runtime typed repeated spell occurrence should remain independent");
+            assert_eq!(spell.authored_order, authored_order);
+            assert!(!spell.label.trim().is_empty());
+            assert_spell_content_key(spell.content.as_ref(), content_key);
+        }
     }
     assert_eq!(night_hag_runtime.standalone_spells.len(), 1);
+    let runtime_control_weather = &night_hag_runtime.standalone_spells[0];
     assert_eq!(
-        night_hag_runtime.standalone_spells[0].label,
-        "Control Weather"
+        runtime_control_weather.occurrence_id,
+        CONTROL_WEATHER_OCCURRENCE_ID
     );
-    assert!(night_hag_runtime.standalone_spells[0].content.is_some());
+    assert_eq!(runtime_control_weather.authored_order, 3);
+    assert_eq!(
+        runtime_control_weather.target_record_key.as_deref(),
+        Some(CONTROL_WEATHER_TARGET_KEY)
+    );
+    assert_eq!(
+        runtime_control_weather.label,
+        control_weather_authored_label
+    );
+    assert_spell_content_key(
+        runtime_control_weather.content.as_ref(),
+        CONTROL_WEATHER_CONTENT_KEY,
+    );
     assert!(
         night_hag_runtime
             .activities
@@ -1189,7 +1318,7 @@ fn export_e3_activity_content_early_samples() {
             .as_ref()
             .expect("encounter Night Hag general content")
             .iter()
-            .any(|content| content.label.as_deref() == Some("Heartstone"))
+            .any(|content| content.content_key == HEARTSTONE_CONTENT_KEY)
     );
 
     let mut concept_surface = night_hag.surface.clone();
@@ -1286,14 +1415,14 @@ fn export_e3_activity_content_early_samples() {
     fs::write(
         sample_root.join("WALKTHROUGH.md"),
         format!(
-            "# E3 encounter-payload Stage F handoff walkthrough\n\nThis is candidate-authentic Stage F handoff evidence for typed spell-content correction `{candidate}` / tree `{candidate_tree}`, a direct child of Stage F base `{STAGE_F_BASE_CANDIDATE}` / tree `{STAGE_F_BASE_TREE}`. Its ancestry includes exporter correction `{EXPORTER_CORRECTION_CANDIDATE}`, consumer-ready candidate `{CONSUMER_READY_CANDIDATE}`, validation/runtime PASS `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, slot correction `{SLOT_ASSERTION_CANDIDATE}`, product implementation `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. Activities and authored embedded spells own typed rich content exactly once; Bind Soul and Dream Council are directly consumer-ready, repeated Nightmare and Dream Message occurrences remain independent, Heartstone remains general, and Control Weather remains explicit standalone content. Abyssal Plague retains its typed Fortitude DC 28 check and authored divider/order.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison, including Putrid Plague placement and absent spell collections.\n5. Encounter payloads demonstrate the same exact-once spell content association, non-runtime canonical context, runtime activity traits/content, two ordered Night Hag spellcasting entries with 26 grouped spells, standalone Control Weather, and no generic spell activity rows.\n6. `generated/` contains the exact candidate TypeScript bindings and API aggregation.\n7. `proposed-accepted-to-correction-delta-ledger.md` records the complete component chain and fresh output hashes.\n\nThe app service used the authenticated retained artifact and pinned PF2e checkout. No frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
+            "# E3 encounter-payload Stage F handoff walkthrough\n\nThis is candidate-authentic Stage F handoff evidence for exporter assertion correction `{candidate}` / tree `{candidate_tree}`, a direct child of typed spell-content product candidate `{SPELL_CONTENT_CANDIDATE}` / tree `{SPELL_CONTENT_TREE}`. Its ancestry includes Stage F base `{STAGE_F_BASE_CANDIDATE}`, exporter correction `{EXPORTER_CORRECTION_CANDIDATE}`, consumer-ready candidate `{CONSUMER_READY_CANDIDATE}`, validation/runtime PASS `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, slot correction `{SLOT_ASSERTION_CANDIDATE}`, product implementation `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. Activities and authored embedded spells own typed rich content exactly once; typed Bind Soul occurrence `{BIND_SOUL_OCCURRENCE_ID}` retains its source-faithful display `{bind_soul_authored_label}`, Dream Council remains directly consumer-ready, repeated Nightmare and Dream Message occurrences remain independent, `{heartstone_authored_label}` remains general, and `{control_weather_authored_label}` remains explicit standalone content. Abyssal Plague retains its typed Fortitude DC 28 check and authored divider/order.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison, including Putrid Plague placement and absent spell collections.\n5. Encounter payloads demonstrate the same exact-once spell content association, non-runtime canonical context, runtime activity traits/content, two ordered Night Hag spellcasting entries with 26 grouped spells, standalone Control Weather, and no generic spell activity rows.\n6. `generated/` contains the exact candidate TypeScript bindings and API aggregation.\n7. `proposed-accepted-to-correction-delta-ledger.md` records the complete component chain and fresh output hashes.\n\nThe app service used the authenticated retained artifact and pinned PF2e checkout. Assertions identify spells through typed occurrence, target, content, and authored-order fields rather than display labels. No frontend join, label normalization, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
         ),
     )
     .expect("walkthrough should write");
     fs::write(
         sample_root.join("report.md"),
         format!(
-            "# E3 encounter-payload consumer-ready export report\n\nTyped spell-content correction `{candidate}` / tree `{candidate_tree}` directly parents Stage F base `{STAGE_F_BASE_CANDIDATE}`. The explicitly recorded component chain includes `{EXPORTER_CORRECTION_CANDIDATE}`, `{CONSUMER_READY_CANDIDATE}`, `{CONSUMER_CONTRACT_CANDIDATE}`, `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, `{SLOT_ASSERTION_CANDIDATE}`, `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\nThe candidate composes authored embedded spell content directly onto static and runtime spell rows through typed canonical associations, preserves repeated authored occurrences and standalone Control Weather, keeps unrelated Heartstone content general, and removes claimed spell documents from general content exactly once. Ambiguous associations omit affected rows with typed unavailability or runtime limitations. Existing activity content, non-runtime encounter context, typed Check fidelity, slotless omission, spell mechanics, and later mutable-state exclusions remain unchanged.\n\nThe prior consumer-readiness PASS is `{CONSUMER_READINESS_PASS_SHA256}`; the focused spell-content contract PASS is checksum-bound in the manifest as `{spell_content_contract_pass_sha256}`. This package is ready for Stage F handoff. Broad validation, polish, F1/F2 implementation, delivery, and final user confirmation remain outside this export.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
+            "# E3 encounter-payload consumer-ready export report\n\nExporter assertion correction `{candidate}` / tree `{candidate_tree}` is a direct child of typed spell-content product candidate `{SPELL_CONTENT_CANDIDATE}`. The explicitly recorded component chain includes `{STAGE_F_BASE_CANDIDATE}`, `{EXPORTER_CORRECTION_CANDIDATE}`, `{CONSUMER_READY_CANDIDATE}`, `{CONSUMER_CONTRACT_CANDIDATE}`, `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, `{SLOT_ASSERTION_CANDIDATE}`, `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\nProduct candidate `{SPELL_CONTENT_CANDIDATE}` composes authored embedded spell content directly onto static and runtime spell rows through typed canonical associations, preserves repeated authored occurrences and standalone Control Weather, keeps unrelated Heartstone content general, and removes claimed spell documents from general content exactly once. This direct child changes exporter identity assertions only: it keys evidence by exact typed occurrence, target, content, and authored order while preserving actual authored labels such as `{bind_soul_authored_label}`.\n\nThe prior consumer-readiness PASS is `{CONSUMER_READINESS_PASS_SHA256}`; the focused spell-content contract PASS is checksum-bound in the manifest as `{spell_content_contract_pass_sha256}`. This package is ready for Stage F handoff. Broad validation, polish, F1/F2 implementation, delivery, and final user confirmation remain outside this export.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
         ),
     )
     .expect("report should write");
@@ -1311,8 +1440,9 @@ fn export_e3_activity_content_early_samples() {
     let manifest = json!({
         "schema": "atlas-e3-activity-content-fidelity-early/v1",
         "status": "consumer_ready_candidate_authentic_stage_f_handoff",
-        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": STAGE_F_BASE_CANDIDATE, "change_scope": "typed_static_and_runtime_spell_content_association" },
+        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": SPELL_CONTENT_CANDIDATE, "change_scope": "evidence_only_typed_spell_identity_assertions" },
         "component_commits": {
+            "typed_spell_content": { "commit": SPELL_CONTENT_CANDIDATE, "tree": SPELL_CONTENT_TREE, "parent": STAGE_F_BASE_CANDIDATE },
             "stage_f_base": { "commit": STAGE_F_BASE_CANDIDATE, "tree": STAGE_F_BASE_TREE, "parent": EXPORTER_CORRECTION_CANDIDATE },
             "exporter_correction": { "commit": EXPORTER_CORRECTION_CANDIDATE, "tree": EXPORTER_CORRECTION_TREE, "parent": CONSUMER_READY_CANDIDATE },
             "consumer_ready": { "commit": CONSUMER_READY_CANDIDATE, "tree": CONSUMER_READY_TREE, "parent": CONSUMER_CONTRACT_CANDIDATE },
@@ -1367,6 +1497,10 @@ fn export_e3_activity_content_early_samples() {
             ,"night_hag_static_grouped_spell_count": static_grouped_spells.len()
             ,"night_hag_static_spell_content_labels": static_grouped_spells.iter().filter(|spell| spell.content.is_some()).map(|spell| spell.label.clone()).collect::<Vec<_>>()
             ,"night_hag_static_standalone_spell_labels": static_standalone_spells.iter().map(|spell| spell.label.clone()).collect::<Vec<_>>()
+            ,"bind_soul_typed_identity": { "occurrence_id": BIND_SOUL_OCCURRENCE_ID, "authored_order": 2, "target_record_key": BIND_SOUL_TARGET_KEY, "content_key": BIND_SOUL_CONTENT_KEY, "authored_label": bind_soul_authored_label }
+            ,"dream_council_typed_identity": { "occurrence_id": DREAM_COUNCIL_OCCURRENCE_ID, "authored_order": 4, "target_record_key": DREAM_COUNCIL_TARGET_KEY, "content_key": DREAM_COUNCIL_CONTENT_KEY, "authored_label": dream_council_authored_label }
+            ,"control_weather_typed_identity": { "occurrence_id": CONTROL_WEATHER_OCCURRENCE_ID, "authored_order": 3, "target_record_key": CONTROL_WEATHER_TARGET_KEY, "content_key": CONTROL_WEATHER_CONTENT_KEY, "authored_label": control_weather_authored_label }
+            ,"heartstone_general_content": { "content_key": HEARTSTONE_CONTENT_KEY, "authored_label": heartstone_authored_label }
             ,"heartstone_retained_in_general_content": true
             ,"claimed_spell_content_removed_from_general_content": true
             ,"night_hag_standalone_spell_labels": night_hag_runtime.standalone_spells.iter().map(|spell| spell.label.clone()).collect::<Vec<_>>()
@@ -2211,6 +2345,15 @@ fn creature_surface_body(surface: &RecordSurfaceView) -> &CreatureSurfaceView {
     }
 }
 
+fn assert_spell_content_key(
+    content: Option<&Vec<CreatureSurfaceContentView>>,
+    expected_content_key: &str,
+) {
+    let content = content.expect("typed spell content should be attached");
+    assert_eq!(content.len(), 1);
+    assert_eq!(content[0].content_key, expected_content_key);
+}
+
 fn content_blocks_contain_text(blocks: &[CreatureSurfaceContentBlockView], needle: &str) -> bool {
     blocks.iter().any(|block| match block {
         CreatureSurfaceContentBlockView::Heading { text, .. } => text.contains(needle),
@@ -2400,7 +2543,7 @@ fn write_activity_content_delta_ledger(sample_root: &Path, candidate: &str, cand
     fs::write(
         sample_root.join("proposed-accepted-to-correction-delta-ledger.md"),
         format!(
-            "# Accepted-E3 to Stage F consumer-ready export ledger\n\nThis is the fresh candidate-authentic Stage F handoff ledger. It is not historical acceptance evidence and adds no separate data-model approval gate.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Product implementation: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`.\n- Slot assertion correction: `{SLOT_ASSERTION_CANDIDATE}` / `{SLOT_ASSERTION_TREE}`.\n- Runtime simplification: `{RUNTIME_SIMPLIFICATION_CANDIDATE}` / `{RUNTIME_SIMPLIFICATION_TREE}`.\n- Generation trust: `{GENERATION_TRUST_CANDIDATE}` / `{GENERATION_TRUST_TREE}`.\n- Validation owner inventory: `{VALIDATION_INVENTORY_CANDIDATE}` / `{VALIDATION_INVENTORY_TREE}`.\n- Validation/runtime PASS: `{VALIDATION_RUNTIME_PASS_CANDIDATE}` / `{VALIDATION_RUNTIME_PASS_TREE}`.\n- Consumer-contract remediation: `{CONSUMER_CONTRACT_CANDIDATE}` / `{CONSUMER_CONTRACT_TREE}`.\n- Consumer-ready candidate: `{CONSUMER_READY_CANDIDATE}` / `{CONSUMER_READY_TREE}`.\n- Evidence-only exporter correction: `{EXPORTER_CORRECTION_CANDIDATE}` / `{EXPORTER_CORRECTION_TREE}`.\n- Stage F CLI completion: `{STAGE_F_BASE_CANDIDATE}` / `{STAGE_F_BASE_TREE}`.\n- Typed spell-content correction: `{candidate}` / `{candidate_tree}`, direct child of the Stage F base.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Preserved product contract\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Static and runtime spellcasting are canonical ordered nested trees retaining entry identity and mechanics. Spell rows preserve occurrence identity, canonical target identity where known, directly attached typed authored content, and relevant runtime mechanics; legitimate slotless entries omit the empty true-many field without fabricating data.\n3. Claimed spell documents are absent from general content and spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit with content in each dedicated standalone collection while unrelated Heartstone content remains general.\n4. Encounter payloads retain non-runtime canonical context, runtime activity traits, and typed Check display/statistic/DC without static/runtime duplication or client joins.\n5. Invalid or ambiguous associations omit only affected rows with typed limitations.\n6. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n"
+            "# Accepted-E3 to Stage F consumer-ready export ledger\n\nThis is the fresh candidate-authentic Stage F handoff ledger. It is not historical acceptance evidence and adds no separate data-model approval gate.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Product implementation: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`.\n- Slot assertion correction: `{SLOT_ASSERTION_CANDIDATE}` / `{SLOT_ASSERTION_TREE}`.\n- Runtime simplification: `{RUNTIME_SIMPLIFICATION_CANDIDATE}` / `{RUNTIME_SIMPLIFICATION_TREE}`.\n- Generation trust: `{GENERATION_TRUST_CANDIDATE}` / `{GENERATION_TRUST_TREE}`.\n- Validation owner inventory: `{VALIDATION_INVENTORY_CANDIDATE}` / `{VALIDATION_INVENTORY_TREE}`.\n- Validation/runtime PASS: `{VALIDATION_RUNTIME_PASS_CANDIDATE}` / `{VALIDATION_RUNTIME_PASS_TREE}`.\n- Consumer-contract remediation: `{CONSUMER_CONTRACT_CANDIDATE}` / `{CONSUMER_CONTRACT_TREE}`.\n- Consumer-ready candidate: `{CONSUMER_READY_CANDIDATE}` / `{CONSUMER_READY_TREE}`.\n- Evidence-only exporter correction: `{EXPORTER_CORRECTION_CANDIDATE}` / `{EXPORTER_CORRECTION_TREE}`.\n- Stage F CLI completion: `{STAGE_F_BASE_CANDIDATE}` / `{STAGE_F_BASE_TREE}`.\n- Typed spell-content product: `{SPELL_CONTENT_CANDIDATE}` / `{SPELL_CONTENT_TREE}`, direct child of the Stage F base.\n- Exporter typed-identity assertion correction: `{candidate}` / `{candidate_tree}`, direct child of the typed spell-content product.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Preserved product contract\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Static and runtime spellcasting are canonical ordered nested trees retaining entry identity and mechanics. Spell rows preserve occurrence identity, canonical target identity where known, directly attached typed authored content, and relevant runtime mechanics; legitimate slotless entries omit the empty true-many field without fabricating data. Evidence assertions use those typed identities and authored order, never display labels as identity.\n3. Claimed spell documents are absent from general content and spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit with content in each dedicated standalone collection while unrelated Heartstone content remains general.\n4. Encounter payloads retain non-runtime canonical context, runtime activity traits, and typed Check display/statistic/DC without static/runtime duplication or client joins.\n5. Invalid or ambiguous associations omit only affected rows with typed limitations.\n6. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n"
         ),
     )
     .expect("activity-content delta ledger should write");
