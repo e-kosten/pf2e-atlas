@@ -10,7 +10,7 @@ import {
 import { EncounterParticipantSurface } from "./EncounterRecordSurface";
 
 type RecordSurfaceProps = {
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: (recordKey: string) => void;
   surface: RecordSurfaceView;
   slots?: Record<string, React.ReactNode>;
 };

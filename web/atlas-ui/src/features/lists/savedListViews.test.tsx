@@ -485,11 +485,42 @@ function filterField(id: string, label: string, controlKind: "option" | "range")
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return typedRecordDetailFixture({
+  const detail = typedRecordDetailFixture({
     recordKey,
     title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-    ...(recordKey === "rules:nested"
-      ? {}
-      : { referenceLabel: "Nested Rule", referenceRecordKey: "rules:nested" }),
   });
+  if (
+    recordKey !== "rules:nested" &&
+    detail.surface.presentation.presentation_type === "creature"
+  ) {
+    detail.surface.presentation.body.content = [
+      {
+        content_key: "nested-reference",
+        role: "primary_description",
+        authored_order: 0,
+        blocks: [
+          {
+            block_type: "paragraph",
+            spans: [
+              { span_type: "text", text: "See " },
+              {
+                span_type: "reference",
+                label: "Nested Rule",
+                record_key: "rules:nested",
+                embedded: false,
+              },
+            ],
+          },
+        ],
+        content_hash: "nested-reference-hash",
+        visibility: "public",
+        provenance: {
+          source_record_key: recordKey,
+          relative_source_path: "fixture.json",
+          field_family: "fixture.reference",
+        },
+      },
+    ];
+  }
+  return detail;
 }

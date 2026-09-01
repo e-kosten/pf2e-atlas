@@ -8,6 +8,7 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
+import { useRecordPreviewRenderer } from "../../shared/records/RecordPreviewContext";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { optionalNumber } from "./participantEdits";
 
@@ -38,7 +39,7 @@ export function EncounterConditionControls({
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: number) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: (recordKey: string) => void;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -197,13 +198,14 @@ function ConditionEditor({
   participantKey: string;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: (recordKey: string) => void;
   onRemove: (participantKey: string, conditionId: number) => void;
   onUpdate: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
   ) => void;
 }) {
+  const renderRecordPreview = useRecordPreviewRenderer();
   const [detailsForm] = Form.useForm<ConditionDetailsForm>();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasValue = conditionTakesValue(condition, conditionDefinitions);
@@ -251,18 +253,26 @@ function ConditionEditor({
         .join(" ")}
     >
       {condition.condition_key ? (
-        <button
-          className="encounter-condition-row__name encounter-condition-row__name-button"
-          onClick={(event) =>
-            onReference(
-              condition.condition_key!,
-              event.currentTarget.getBoundingClientRect(),
-            )
-          }
-          type="button"
-        >
-          {condition.name}
-        </button>
+        renderRecordPreview ? (
+          renderRecordPreview(condition.condition_key, (open) => (
+            <button
+              aria-expanded={open}
+              aria-haspopup="dialog"
+              className="encounter-condition-row__name encounter-condition-row__name-button"
+              type="button"
+            >
+              {condition.name}
+            </button>
+          ))
+        ) : (
+          <button
+            className="encounter-condition-row__name encounter-condition-row__name-button"
+            onClick={() => onReference(condition.condition_key!)}
+            type="button"
+          >
+            {condition.name}
+          </button>
+        )
       ) : (
         <span className="encounter-condition-row__name">{condition.name}</span>
       )}

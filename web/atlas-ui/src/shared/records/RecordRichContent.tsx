@@ -1,17 +1,13 @@
 import { Typography } from "antd";
-import { useRef } from "react";
 import type React from "react";
 import type {
   CreatureSurfaceContentBlockView,
   CreatureSurfaceContentInlineView,
   CreatureSurfaceContentView,
 } from "../../generated/atlas";
+import { useRecordPreviewRenderer } from "./RecordPreviewContext";
 
-export type ReferenceHandler = (
-  recordKey: string,
-  anchorRect?: DOMRect,
-  triggerElement?: HTMLElement,
-) => void;
+export type ReferenceHandler = (recordKey: string) => void;
 
 export function RichContent({
   compact = false,
@@ -145,52 +141,36 @@ function RichInline({
 }
 
 export function RecordReference({
-  expanded,
   label,
   onReference,
-  openOnFocus = false,
   recordKey,
 }: {
-  expanded?: boolean;
   label: string;
   onReference: ReferenceHandler;
-  openOnFocus?: boolean;
   recordKey: string | undefined;
 }) {
-  const pointerActivation = useRef(false);
+  const renderPreview = useRecordPreviewRenderer();
   if (!recordKey) {
     return <span>{label}</span>;
   }
-  const openReference = (element: HTMLElement) => {
-    onReference(recordKey, element.getBoundingClientRect(), element);
-  };
-  return (
+  const trigger = (open: boolean) => (
     <Typography.Link
-      aria-expanded={openOnFocus ? Boolean(expanded) : undefined}
-      aria-haspopup={openOnFocus ? "dialog" : undefined}
+      aria-expanded={renderPreview ? open : undefined}
+      aria-haspopup={renderPreview ? "dialog" : undefined}
       href={`/records/${encodeURIComponent(recordKey)}`}
-      onBlur={() => {
-        pointerActivation.current = false;
-      }}
-      onClick={(event) => {
-        event.preventDefault();
-        pointerActivation.current = false;
-        openReference(event.currentTarget);
-      }}
-      onFocus={(event) => {
-        if (openOnFocus && !pointerActivation.current) {
-          openReference(event.currentTarget);
-        }
-      }}
-      onPointerDown={() => {
-        if (openOnFocus) {
-          pointerActivation.current = true;
-        }
-      }}
+      onClick={
+        renderPreview
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              onReference(recordKey);
+            }
+      }
     >
       {label}
     </Typography.Link>
   );
+  return renderPreview ? renderPreview(recordKey, trigger) : trigger(false);
 }
 
 export function narrativeContent(content: CreatureSurfaceContentView[] | undefined) {

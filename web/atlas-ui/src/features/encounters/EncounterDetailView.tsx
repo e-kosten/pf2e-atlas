@@ -27,7 +27,6 @@ import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
 
 type EncounterDetailViewProps = {
   route: Extract<AtlasRoute, { kind: "encounter" }>;
@@ -45,7 +44,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const recordPreview = useRecordPreview();
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -185,7 +183,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             }
             onSelect={(participantKey) => {
               setSelectedParticipantKey(participantKey);
-              recordPreview.close();
             }}
             onReorder={(participantKey, targetParticipantKey, placement) =>
               reorderParticipant.mutate({
@@ -204,11 +201,9 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         results={
           <EncounterInspectorPane
             onAddCondition={(request) => addCondition.mutate(request)}
-            onCloseRecordPreview={recordPreview.close}
             onOpenRecordFullPage={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
-            onReference={recordPreview.open}
             onRemoveCondition={(participantKey, conditionId) =>
               removeCondition.mutate({ participantKey, conditionId })
             }
@@ -219,10 +214,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             participant={selected}
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
-            previewAnchor={recordPreview.anchor}
-            previewDetail={recordPreview.detail}
-            previewLoading={recordPreview.loading}
-            previewRecordKey={recordPreview.recordKey}
           />
         }
         labels={{ filter: "Roster", results: "Participant" }}

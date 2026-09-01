@@ -357,7 +357,7 @@ describe("encounter views", () => {
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
     );
 
-    fireEvent.click(screen.getByLabelText("Reference preview overlay"));
+    fireEvent.mouseDown(document.body);
 
     await waitFor(() =>
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),

@@ -1,5 +1,4 @@
 import { Collapse, Empty, Space, Tag } from "antd";
-import { useState } from "react";
 import type React from "react";
 import type {
   CreatureSurfaceActionCostView,
@@ -17,12 +16,12 @@ import type {
 import {
   contentLabel,
   narrativeContent,
-  RecordReference,
   RichContent,
   type ReferenceHandler,
 } from "./RecordRichContent";
-import { RecordPreviewPopover, useRecordPreviewHost } from "./RecordPreviewPopover";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
+import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
+import { SpellOccurrencePreviewPopover } from "./SpellOccurrencePreviewPopover";
 
 export function CreatureDetailSurface({
   body,
@@ -500,31 +499,6 @@ function SpellcastingSection({
   onReference: ReferenceHandler;
   standalone: CreatureSurfaceSpellView[];
 }) {
-  const previewHost = useRecordPreviewHost();
-  const [preview, setPreview] = useState<{
-    anchor: DOMRect;
-    spell: CreatureSurfaceSpellView;
-    triggerElement: HTMLElement;
-  } | null>(null);
-  const openSpellPreview = (
-    spell: CreatureSurfaceSpellView,
-    anchor: DOMRect,
-    triggerElement: HTMLElement,
-  ) => {
-    const target = spell.target_record_key;
-    if (previewHost && target) {
-      previewHost.open({
-        anchor,
-        content: <SpellPreviewContent onReference={onReference} spell={spell} />,
-        label: `${spell.label} spell details`,
-        recordKey: target,
-        title: "Spell",
-        triggerElement,
-      });
-      return;
-    }
-    setPreview({ anchor, spell, triggerElement });
-  };
   if (!entries?.length && !standalone.length) return null;
   const spellcastingItems: NonNullable<React.ComponentProps<typeof Collapse>["items"]> =
     (entries ?? [])
@@ -533,13 +507,7 @@ function SpellcastingSection({
       .map((entry) => ({
         key: entry.occurrence_id,
         label: <SpellcastingHeading entry={entry} />,
-        children: (
-          <SpellRoster
-            openOccurrenceId={preview?.spell.occurrence_id}
-            onPreview={openSpellPreview}
-            spells={entry.spells}
-          />
-        ),
+        children: <SpellRoster onReference={onReference} spells={entry.spells} />,
       }));
   const orderedStandalone = standalone
     .slice()
@@ -556,54 +524,27 @@ function SpellcastingSection({
               </span>
             ),
             children: (
-              <SpellRoster
-                openOccurrenceId={preview?.spell.occurrence_id}
-                onPreview={openSpellPreview}
-                spells={orderedStandalone}
-              />
+              <SpellRoster onReference={onReference} spells={orderedStandalone} />
             ),
           },
         ]
       : []),
   ];
-  const defaultOpenSpellGroups = spellGroups.flatMap((group) =>
+  const defaultActiveKey = spellGroups.flatMap((group) =>
     typeof group.key === "string" || typeof group.key === "number" ? [group.key] : [],
   );
   return (
-    <>
-      <SurfaceSection className="creature-sheet__spellcasting" title="Spells">
-        {spellGroups.length ? (
-          <Collapse
-            className="record-surface__inline-disclosure"
-            defaultActiveKey={defaultOpenSpellGroups}
-            ghost
-            items={spellGroups}
-            size="small"
-          />
-        ) : null}
-      </SurfaceSection>
-      {preview ? (
-        <RecordPreviewPopover
-          anchor={preview.anchor}
-          detail={undefined}
-          label={`${preview.spell.label} spell details`}
-          loading={false}
-          onClose={() => setPreview(null)}
-          onOpenFullPage={() => {
-            const target = preview.spell.target_record_key;
-            setPreview(null);
-            if (target) {
-              onReference(target, preview.anchor, preview.triggerElement);
-            }
-          }}
-          onReference={onReference}
-          title="Spell"
-          triggerElement={preview.triggerElement}
-        >
-          <SpellPreviewContent onReference={onReference} spell={preview.spell} />
-        </RecordPreviewPopover>
+    <SurfaceSection className="creature-sheet__spellcasting" title="Spells">
+      {spellGroups.length ? (
+        <Collapse
+          className="record-surface__inline-disclosure"
+          defaultActiveKey={defaultActiveKey}
+          ghost
+          items={spellGroups}
+          size="small"
+        />
       ) : null}
-    </>
+    </SurfaceSection>
   );
 }
 
@@ -625,16 +566,10 @@ function SpellcastingHeading({ entry }: { entry: CreatureSurfaceSpellcastingView
 }
 
 function SpellRoster({
-  openOccurrenceId,
-  onPreview,
+  onReference,
   spells,
 }: {
-  openOccurrenceId: string | undefined;
-  onPreview: (
-    spell: CreatureSurfaceSpellView,
-    anchor: DOMRect,
-    triggerElement: HTMLElement,
-  ) => void;
+  onReference: ReferenceHandler;
   spells: CreatureSurfaceSpellView[] | undefined;
 }) {
   if (!spells?.length) {
@@ -655,71 +590,15 @@ function SpellRoster({
                     {", "}
                   </span>
                 ) : null}
-                <SpellOccurrence
-                  open={spell.occurrence_id === openOccurrenceId}
-                  onPreview={onPreview}
+                <SpellOccurrencePreviewPopover
+                  onOpenSpellRecord={onReference}
+                  onReference={onReference}
                   spell={spell}
                 />
               </span>
             ))}
           </div>
         </div>
-      ))}
-    </div>
-  );
-}
-
-function SpellOccurrence({
-  open,
-  onPreview,
-  spell,
-}: {
-  open: boolean;
-  onPreview: (
-    spell: CreatureSurfaceSpellView,
-    anchor: DOMRect,
-    triggerElement: HTMLElement,
-  ) => void;
-  spell: CreatureSurfaceSpellView;
-}) {
-  return (
-    <RecordReference
-      expanded={open}
-      label={spell.label}
-      onReference={(_recordKey, anchor, triggerElement) => {
-        if (anchor && triggerElement) {
-          onPreview(spell, anchor, triggerElement);
-        }
-      }}
-      openOnFocus
-      recordKey={spell.target_record_key}
-    />
-  );
-}
-
-function SpellPreviewContent({
-  onReference,
-  spell,
-}: {
-  onReference: ReferenceHandler;
-  spell: CreatureSurfaceSpellView;
-}) {
-  const metadata = [
-    formatRank(spell.rank),
-    ...(spell.traits ?? []).map(formatSlug),
-  ].join(" · ");
-  return (
-    <div className="creature-sheet__standalone-spell">
-      <span className="creature-sheet__spell-heading">
-        <strong>{spell.label}</strong>
-        <small>{metadata}</small>
-      </span>
-      {(spell.content ?? []).map((document) => (
-        <RichContent
-          content={document}
-          key={document.content_key}
-          onReference={onReference}
-        />
       ))}
     </div>
   );
@@ -950,16 +829,6 @@ function formatIwr(value: CreatureSurfaceIwrView) {
   return `${formatSlug(value.kind)}${value.amount === undefined ? "" : ` ${value.amount}`}${exceptions}${doubled}`;
 }
 
-export function formatSigned(value: number) {
-  return value >= 0 ? `+${value}` : value.toString();
-}
-
-export function formatSlug(value: string) {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function sourceLabel(metadata: RecordSurfaceMetadataView) {
   return metadata.source?.publication_title ?? metadata.source?.pack_label ?? "";
 }
@@ -991,20 +860,6 @@ function groupSpells(
   return [...groups.entries()].sort(
     ([left], [right]) => rankSortValue(right) - rankSortValue(left),
   );
-}
-
-export function formatRank(rank: number | undefined) {
-  if (rank === undefined) return "Unranked";
-  if (rank === 0) return "Cantrips";
-  const suffix =
-    rank % 10 === 1 && rank % 100 !== 11
-      ? "st"
-      : rank % 10 === 2 && rank % 100 !== 12
-        ? "nd"
-        : rank % 10 === 3 && rank % 100 !== 13
-          ? "rd"
-          : "th";
-  return `${rank}${suffix}`;
 }
 
 function rankSortValue(rank: string) {
