@@ -185,6 +185,10 @@
   grid-column: span 3;
 }
 
+.creature-sheet__facts-grid > .creature-sheet__panel--defenses {
+  grid-row: span 2;
+}
+
 .creature-sheet__facts-grid > .creature-sheet__panel:only-child {
   grid-column: 1 / -1;
 }
@@ -203,11 +207,9 @@
   grid-column: span 4;
 }
 
-.creature-sheet__facts-grid > .creature-sheet__panel:first-child:nth-last-child(4),
 .creature-sheet__facts-grid
-  > .creature-sheet__panel:first-child:nth-last-child(4)
-  ~ .creature-sheet__panel {
-  grid-column: span 6;
+  > .creature-sheet__panel--defenses:first-child:nth-last-child(-n + 3) {
+  grid-row: auto;
 }
 
 .creature-sheet__panel {
@@ -474,21 +476,54 @@
   gap: 9px;
 }
 
-.creature-sheet__spell-occurrence-list,
-.creature-sheet__spell-occurrence {
+.creature-sheet__spell-links {
+  min-width: 0;
+  line-height: 1.7;
+}
+
+.creature-sheet__spell-link,
+.creature-sheet__spell-trigger {
+  display: inline;
+}
+
+.creature-sheet__spell-separator {
+  color: var(--muted);
+}
+
+.creature-sheet__spell-popover .ant-popover-inner {
+  max-width: min(480px, calc(100vw - 32px));
+}
+
+.creature-sheet__spell-popover-content {
   display: grid;
-  gap: 5px;
+  gap: 12px;
+  width: min(440px, calc(100vw - 64px));
+  max-height: min(520px, 70vh);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
-.creature-sheet__spell-details .ant-collapse-header {
-  width: fit-content;
-  padding-block: 2px !important;
-  color: var(--muted) !important;
-  font-size: 11px;
+.creature-sheet__spell-popover-heading {
+  display: grid;
+  gap: 2px;
 }
 
-.creature-sheet__spell-details .ant-collapse-content-box {
-  padding: 4px 0 10px 24px !important;
+.creature-sheet__spell-popover-heading strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.creature-sheet__spell-popover-heading small {
+  color: var(--muted);
+}
+
+.creature-sheet__spell-popover-content .creature-sheet__rich-content {
+  max-width: none;
+}
+
+.creature-sheet__spell-popover-footer {
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
 }
 
 .creature-sheet__spell-rank {
@@ -730,6 +765,10 @@
 @media (max-width: 880px) {
   .creature-sheet__facts-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .creature-sheet__facts-grid > .creature-sheet__panel--defenses {
+    grid-row: auto;
   }
 }
 
