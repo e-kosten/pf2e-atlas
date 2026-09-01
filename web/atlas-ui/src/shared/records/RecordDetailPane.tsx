@@ -1,5 +1,5 @@
+import { Alert, Empty, Skeleton } from "antd";
 import type { RecordDetailView } from "../../generated/atlas";
-import { RecordPresentation } from "./RecordPresentation";
 import { RecordSurface } from "./RecordSurface";
 
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
@@ -11,6 +11,7 @@ export function RecordDetailPane({
   loading,
   loadingMessage,
   onReference,
+  stale = false,
 }: {
   detail: RecordDetailView | undefined;
   emptyMessage?: string;
@@ -18,35 +19,44 @@ export function RecordDetailPane({
   loading: boolean;
   loadingMessage?: string;
   onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  stale?: boolean;
 }) {
+  const visibleErrors = errors.filter((error): error is Error | { message: string } =>
+    Boolean(error),
+  );
   return (
-    <section className="detail-panel">
+    <section aria-busy={loading || stale} className="detail-panel">
       {loading ? (
-        <RecordPresentation
-          detail={detail}
-          emptyMessage={emptyMessage}
-          loading={loading}
-          loadingMessage={loadingMessage}
-          onReference={onReference}
-        />
-      ) : detail?.surface ? (
+        <div aria-label={loadingMessage ?? "Loading record"} className="detail-state">
+          <Skeleton active paragraph={{ rows: 8 }} title />
+        </div>
+      ) : detail ? (
         <RecordSurface surface={detail.surface} onReference={onReference} />
       ) : (
-        <RecordPresentation
-          detail={detail}
-          emptyMessage={emptyMessage}
-          loading={loading}
-          loadingMessage={loadingMessage}
-          onReference={onReference}
+        <Empty
+          className="detail-state"
+          description={emptyMessage ?? "Select a result to inspect it."}
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )}
-      {errors.map((error, index) =>
-        error ? <InlineError key={index} message={error.message} /> : null,
+      {stale && detail && (
+        <Alert
+          className="detail-state__stale"
+          message="Refreshing this record…"
+          showIcon
+          type="info"
+        />
       )}
+      {visibleErrors.map((error, index) => (
+        <Alert
+          className="detail-state__error"
+          description={error.message}
+          key={index}
+          message="Unable to load this record"
+          showIcon
+          type="error"
+        />
+      ))}
     </section>
   );
-}
-
-function InlineError({ message }: { message: string }) {
-  return <div className="error-banner">{message}</div>;
 }

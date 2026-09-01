@@ -222,9 +222,11 @@ export function useSearchWorkspace({
       return null;
     }
     return focusedResultKey &&
-      resultRows.some((row) => row.record.record_key === focusedResultKey)
+      resultRows.some(
+        (row) => row.record.surface.metadata.record_key === focusedResultKey,
+      )
       ? focusedResultKey
-      : resultRows[0].record.record_key;
+      : (resultRows[0].record.surface.metadata.record_key ?? null);
   }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
@@ -246,7 +248,9 @@ export function useSearchWorkspace({
       return;
     }
     const currentIndex = activeResultKey
-      ? resultRows.findIndex((row) => row.record.record_key === activeResultKey)
+      ? resultRows.findIndex(
+          (row) => row.record.surface.metadata.record_key === activeResultKey,
+        )
       : -1;
     const fallbackIndex = direction === "next" ? 0 : resultRows.length - 1;
     const nextIndex =
@@ -258,7 +262,7 @@ export function useSearchWorkspace({
           );
     dispatch({
       type: "result.focused",
-      recordKey: resultRows[nextIndex].record.record_key,
+      recordKey: resultRows[nextIndex].record.surface.metadata.record_key ?? null,
     });
   }
 

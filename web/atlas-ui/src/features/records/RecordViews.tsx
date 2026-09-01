@@ -49,10 +49,11 @@ export function RecordView({ route }: RecordViewProps) {
           <RecordDetailPane
             detail={detail.data}
             errors={[detail.error]}
-            loading={detail.isLoading || detail.isFetching}
+            loading={detail.isLoading}
             onReference={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
+            stale={detail.isFetching && Boolean(detail.data)}
           />
         </RecordPane>
       }
@@ -80,7 +81,7 @@ export function ReaderView({ route }: ReaderViewProps) {
           <RecordDetailPane
             detail={detail.data}
             errors={[detail.error]}
-            loading={detail.isLoading || detail.isFetching}
+            loading={detail.isLoading}
             onReference={(previewRecordKey) =>
               navigateToAtlasRoute({
                 kind: "reader",
@@ -88,6 +89,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                 previewRecordKey,
               })
             }
+            stale={detail.isFetching && Boolean(detail.data)}
           />
         </RecordPane>
       }
@@ -125,15 +127,18 @@ export function ReaderView({ route }: ReaderViewProps) {
             detail={route.previewRecordKey ? preview.data : undefined}
             emptyMessage="Select a linked record to preview it."
             errors={[preview.error]}
-            loading={
-              route.previewRecordKey ? preview.isLoading || preview.isFetching : false
-            }
+            loading={route.previewRecordKey ? preview.isLoading : false}
             onReference={(previewRecordKey) =>
               navigateToAtlasRoute({
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
               })
+            }
+            stale={
+              Boolean(route.previewRecordKey) &&
+              preview.isFetching &&
+              Boolean(preview.data)
             }
           />
         </RecordPane>

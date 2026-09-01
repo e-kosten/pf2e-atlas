@@ -60,7 +60,7 @@ export function SearchPickerModal<FormValues>({
   const selectedRecord = useMemo(
     () =>
       recordResults.data?.rows.find(
-        (row) => row.record.record_key === selectedRecordKey,
+        (row) => row.record.surface.metadata.record_key === selectedRecordKey,
       ) ?? null,
     [recordResults.data?.rows, selectedRecordKey],
   );
@@ -112,14 +112,21 @@ export function SearchPickerModal<FormValues>({
           }}
           pagination={false}
           rowClassName={(row) =>
-            row.record.record_key === selectedRecordKey
+            row.record.surface.metadata.record_key === selectedRecordKey
               ? "search-picker__row search-picker__row--selected"
               : "search-picker__row"
           }
           onRow={(row) => ({
-            onClick: () => onSelectedRecordKeyChange(row.record.record_key),
+            onClick: () => {
+              const recordKey = row.record.surface.metadata.record_key;
+              if (recordKey) {
+                onSelectedRecordKeyChange(recordKey);
+              }
+            },
           })}
-          rowKey={(row) => row.record.record_key}
+          rowKey={(row) =>
+            row.record.surface.metadata.record_key ?? row.record.surface.metadata.title
+          }
           scroll={{ y: 280 }}
           size="small"
         />
@@ -144,32 +151,36 @@ function recordPickerColumns(
           className="search-picker__title"
           onClick={(event) => {
             event.stopPropagation();
-            onSelectRecord(row.record.record_key);
+            const recordKey = row.record.surface.metadata.record_key;
+            if (recordKey) {
+              onSelectRecord(recordKey);
+            }
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              onSelectRecord(row.record.record_key);
+              const recordKey = row.record.surface.metadata.record_key;
+              if (recordKey) {
+                onSelectRecord(recordKey);
+              }
             }
           }}
           role="button"
           tabIndex={0}
         >
-          <span>{row.record.title}</span>
-          {row.record.preview ? <small>{row.record.preview}</small> : null}
+          <span>{row.record.surface.metadata.title}</span>
         </span>
       ),
     },
     {
       title: "Kind",
-      dataIndex: ["record", "kind_label"],
+      render: (_, row) => row.record.surface.metadata.kind_label,
       width: 100,
     },
     {
       title: "Level",
-      dataIndex: ["record", "level_label"],
       width: 90,
-      render: (value) => value ?? "",
+      render: (_, row) => row.record.surface.metadata.level?.toString() ?? "",
     },
   ];
 }

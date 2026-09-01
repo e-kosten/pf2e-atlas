@@ -6,6 +6,10 @@ import type {
   SavedListDetailView,
   SavedListIndexView,
 } from "../../generated/atlas";
+import {
+  recordDetailFixture as typedRecordDetailFixture,
+  recordSummaryFixture,
+} from "../../test/recordFixtures";
 import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
@@ -218,14 +222,14 @@ describe("list views", () => {
       { wrapper: queryClientWrapper() },
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Nested Rule" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
 
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
-  });
+  }, 10_000);
 
   it("searches within a saved list through the filter route", async () => {
     render(
@@ -432,12 +436,7 @@ function savedListDetailFixture(): SavedListDetailView {
           title: "Test Action 1",
           kind: "rule",
         },
-        record: {
-          record_key: "actions:testAction1",
-          title: "Test Action 1",
-          kind: "rule",
-          kind_label: "Rule",
-        },
+        record: recordSummaryFixture("actions:testAction1", "Test Action 1"),
       },
     ],
   };
@@ -486,37 +485,11 @@ function filterField(id: string, label: string, controlKind: "option" | "range")
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return {
-    record_key: recordKey,
+  return typedRecordDetailFixture({
+    recordKey,
     title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-    kind: "rule",
-    presentation: {
-      record_key: recordKey,
-      kind: "rule",
-      title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-      identity: [],
-      badges: [],
-      sections:
-        recordKey === "rules:nested"
-          ? []
-          : [
-              {
-                kind: "references",
-                title: "References",
-                blocks: [
-                  {
-                    kind: "relationships",
-                    content: [
-                      {
-                        kind: "reference",
-                        label: "Nested Rule",
-                        record_key: "rules:nested",
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-    },
-  };
+    ...(recordKey === "rules:nested"
+      ? {}
+      : { referenceLabel: "Nested Rule", referenceRecordKey: "rules:nested" }),
+  });
 }

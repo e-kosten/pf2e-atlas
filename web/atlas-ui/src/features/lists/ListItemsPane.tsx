@@ -27,14 +27,15 @@ export function ListItemsPane({
         <RowTitleButton
           disabled={item.status === "unresolved"}
           onClick={() => onSelect(item.record_key)}
-          title={item.record?.title ?? item.snapshot.title}
+          title={item.record?.surface.metadata.title ?? item.snapshot.title}
         />
       ),
     },
     {
       title: "Kind",
       width: 120,
-      render: (_, item) => item.record?.kind_label ?? item.snapshot.kind ?? "",
+      render: (_, item) =>
+        item.record?.surface.metadata.kind_label ?? item.snapshot.kind ?? "",
     },
     {
       title: "",

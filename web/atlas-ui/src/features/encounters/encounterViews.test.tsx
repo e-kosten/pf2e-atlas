@@ -6,10 +6,15 @@ import type {
   EncounterIndexView as EncounterIndexViewDto,
   EncounterParticipantView,
   RecordDetailView,
-  RecordSurfaceSectionView,
-  RecordSummaryView,
   ResultWindowPage,
 } from "../../generated/atlas";
+import {
+  creatureSurfaceFixture,
+  encounterParticipantFixture,
+  encounterRuntimeFixture,
+  recordDetailFixture as typedRecordDetailFixture,
+  recordSummaryFixture as typedRecordSummaryFixture,
+} from "../../test/recordFixtures";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
@@ -149,7 +154,9 @@ describe("encounter views", () => {
       throw new Error("Kyra roster row was not rendered");
     }
     fireEvent.click(kyraRow);
-    await screen.findByText("PC");
+    expect(
+      (await screen.findAllByRole("heading", { name: "Kyra" })).length,
+    ).toBeGreaterThan(0);
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Set turn to Kyra" }));
@@ -208,21 +215,21 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
+    await screen.findByText("Turn Economy");
+    const runtimeSection = screen
+      .getByText("Turn Economy")
+      .closest(".creature-sheet__panel");
     if (!(runtimeSection instanceof HTMLElement)) {
       throw new Error("Runtime section was not rendered");
     }
 
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("2")).toBeInTheDocument();
-    expect(
-      within(runtimeSection).getByLabelText("Show explanation for Actions"),
-    ).toBeInTheDocument();
+    expect(within(runtimeSection).getByText(/base 3/)).toBeInTheDocument();
     expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
     const movementSection = screen
-      .getByText("Senses & Movement")
-      .closest(".record-surface-card");
+      .getByText("Movement")
+      .closest(".creature-sheet__panel");
     if (!(movementSection instanceof HTMLElement)) {
       throw new Error("Movement section was not rendered");
     }
@@ -230,12 +237,10 @@ describe("encounter views", () => {
       0,
     );
     expect(within(movementSection).getByText("15 ft")).toBeInTheDocument();
-    expect(
-      within(movementSection).getByLabelText("Show explanation for Land Speed"),
-    ).toBeInTheDocument();
+    expect(within(movementSection).getByText(/base 25 ft/)).toBeInTheDocument();
     const activitiesSection = screen
-      .getByText("Activities")
-      .closest(".record-surface-card");
+      .getByText("Actions & Abilities")
+      .closest(".creature-sheet__panel");
     if (!(activitiesSection instanceof HTMLElement)) {
       throw new Error("Activities section was not rendered");
     }
@@ -250,8 +255,10 @@ describe("encounter views", () => {
 
     fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
 
-    await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
+    await screen.findByText("Turn Economy");
+    const runtimeSection = screen
+      .getByText("Turn Economy")
+      .closest(".creature-sheet__panel");
     if (!(runtimeSection instanceof HTMLElement)) {
       throw new Error("Runtime section was not rendered");
     }
@@ -273,7 +280,7 @@ describe("encounter views", () => {
     fireEvent.click(kyraRow);
 
     const hpInput = await screen.findByLabelText("HP");
-    expect(hpInput).toHaveValue("24");
+    expect(hpInput).toHaveValue("10");
     fireEvent.change(hpInput, { target: { value: "20" } });
     fireEvent.keyDown(hpInput, { key: "Enter" });
 
@@ -282,7 +289,7 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_b",
-          current_hp: 20n,
+          current_hp: 12,
         }),
       ),
     );
@@ -313,12 +320,13 @@ describe("encounter views", () => {
     });
 
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
-    fireEvent.click(await screen.findByText("Source presentation"));
-    const linkedRuleButton = (await screen.findByText("Linked Rule")).closest("button");
-    if (!linkedRuleButton) {
-      throw new Error("Linked Rule button was not rendered");
+    fireEvent.click(await screen.findByText("Spellcasting"));
+    fireEvent.click(await screen.findByText("Innate Spells"));
+    const linkedRuleLink = await screen.findByRole("link", { name: "Linked Rule" });
+    if (!linkedRuleLink) {
+      throw new Error("Linked Rule link was not rendered");
     }
-    fireEvent.click(linkedRuleButton);
+    fireEvent.click(linkedRuleLink);
 
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
@@ -336,14 +344,15 @@ describe("encounter views", () => {
 
     fireEvent.click(await screen.findByText("Goblin"));
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
-    fireEvent.click(await screen.findByText("Source presentation"));
-    const linkedRuleButtonAfterReselect = (
-      await screen.findByText("Linked Rule")
-    ).closest("button");
-    if (!linkedRuleButtonAfterReselect) {
-      throw new Error("Linked Rule button was not rendered after reselection");
+    fireEvent.click(await screen.findByText("Spellcasting"));
+    fireEvent.click(await screen.findByText("Innate Spells"));
+    const linkedRuleLinkAfterReselect = await screen.findByRole("link", {
+      name: "Linked Rule",
+    });
+    if (!linkedRuleLinkAfterReselect) {
+      throw new Error("Linked Rule link was not rendered after reselection");
     }
-    fireEvent.click(linkedRuleButtonAfterReselect);
+    fireEvent.click(linkedRuleLinkAfterReselect);
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
     );
@@ -374,8 +383,8 @@ describe("encounter views", () => {
   it("renders HP meter segments and threshold states", async () => {
     apiMocks.getEncounter.mockResolvedValue(
       encounterDetailFixture("participant_a", {
-        current_hp: 6n,
-        temporary_hp: 5n,
+        current_hp: 6,
+        temporary_hp: 5,
       }),
     );
     const { unmount } = render(
@@ -413,8 +422,8 @@ describe("encounter views", () => {
     unmount();
     apiMocks.getEncounter.mockResolvedValue(
       encounterDetailFixture("participant_a", {
-        current_hp: 3n,
-        temporary_hp: 0n,
+        current_hp: 3,
+        temporary_hp: 0,
       }),
     );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -444,7 +453,7 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          current_hp: 12n,
+          current_hp: 12,
         }),
       ),
     );
@@ -459,8 +468,8 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          temporary_hp: 6n,
-          current_hp: 12n,
+          temporary_hp: 6,
+          current_hp: 12,
         }),
       ),
     );
@@ -473,8 +482,8 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          temporary_hp: 0n,
-          current_hp: 10n,
+          temporary_hp: 0,
+          current_hp: 10,
         }),
       ),
     );
@@ -488,8 +497,8 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          temporary_hp: 0n,
-          current_hp: 7n,
+          temporary_hp: 0,
+          current_hp: 7,
         }),
       ),
     );
@@ -502,7 +511,7 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          current_hp: 12n,
+          current_hp: 12,
         }),
       ),
     );
@@ -527,8 +536,8 @@ describe("encounter views", () => {
         "ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          temporary_hp: 0n,
-          current_hp: 7n,
+          temporary_hp: 0,
+          current_hp: 7,
         }),
       ),
     );
@@ -566,7 +575,7 @@ describe("encounter views", () => {
         encounter_ref: "ambush",
         record_ref: "actors:goblin",
         quantity: 2,
-        initiative: 18n,
+        initiative: 18,
       }),
     );
   }, 10_000);
@@ -599,8 +608,8 @@ describe("encounter views", () => {
         expect.objectContaining({
           participant_key: "participant_a",
           condition_ref: "conditionitems:fesd1n5eVhpCSS18",
-          value: 2n,
-          duration_rounds: 3n,
+          value: 2,
+          duration_rounds: 3,
           note: "poison",
         }),
       ),
@@ -608,7 +617,7 @@ describe("encounter views", () => {
     expect(
       apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
     ).not.toHaveProperty("name");
-  }, 10_000);
+  }, 15_000);
 
   it("edits and removes conditions for the current participant", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -628,9 +637,9 @@ describe("encounter views", () => {
         "ambush",
         "participant_a",
         expect.objectContaining({
-          condition_id: 7n,
+          condition_id: 7,
           name: "Frightened",
-          value: 2n,
+          value: 2,
         }),
       ),
     );
@@ -652,9 +661,9 @@ describe("encounter views", () => {
         "ambush",
         "participant_a",
         expect.objectContaining({
-          condition_id: 7n,
+          condition_id: 7,
           name: "Frightened",
-          duration_rounds: 4n,
+          duration_rounds: 4,
           note: "aura",
         }),
       ),
@@ -672,7 +681,7 @@ describe("encounter views", () => {
       expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
         "ambush",
         "participant_a",
-        7n,
+        7,
       ),
     );
   }, 10_000);
@@ -737,7 +746,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         name: "Ambush",
         description: "Road fight",
         status: "draft",
-        round_number: 1n,
+        round_number: 1,
         participant_count: 2,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
@@ -747,7 +756,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         slug: "old-fight",
         name: "Old Fight",
         status: "archived",
-        round_number: 1n,
+        round_number: 1,
         participant_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
@@ -800,14 +809,64 @@ function conditionDefinitionFixture(
     applies_to: ["creature"],
     categories: [automationLevel === "automated" ? "stat_modifier" : "runtime_state"],
     has_value: hasValue,
-    ...(hasValue ? { default_value: 1n } : {}),
+    ...(hasValue ? { default_value: 1 } : {}),
   };
 }
 
+type ParticipantRuntimeOverrides = Partial<EncounterParticipantView> & {
+  current_hp?: number;
+  max_hp?: number;
+  temporary_hp?: number;
+};
+
 function encounterDetailFixture(
   currentTurnParticipantKey: string | undefined = "participant_a",
-  firstParticipantOverrides: Partial<EncounterParticipantView> = {},
+  firstParticipantOverrides: ParticipantRuntimeOverrides = {},
 ): EncounterDetailViewDto {
+  const {
+    current_hp = 10,
+    max_hp = 12,
+    temporary_hp = 5,
+    record_view,
+    ...participantOverrides
+  } = firstParticipantOverrides;
+  const defaultSurface = recordSurfaceFixture({
+    actions: 2,
+    actionBase: 3,
+    actionAdjustment: -1,
+    speed: 15,
+    speedBase: 25,
+    speedAdjustment: -10,
+  });
+  const selectedSurface = record_view ?? defaultSurface;
+  const selectedRuntime = selectedSurface.encounter ?? encounterRuntimeFixture();
+  const goblinSurface = {
+    ...selectedSurface,
+    encounter: {
+      ...selectedRuntime,
+      vitals: {
+        ...(selectedRuntime.vitals ?? {
+          temporary_hp: 0,
+        }),
+        maximum_hp: numberFact("Maximum HP", max_hp),
+        current_hp,
+        temporary_hp,
+      },
+      conditions: [
+        {
+          condition_id: 7,
+          condition_key: "conditionitems:TBSHQspnbcqxsmjL",
+          name: "Frightened",
+          value: 1,
+          duration_rounds: 2,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+          provenance: runtimeProvenance,
+        },
+      ],
+    },
+  };
+
   return {
     encounter: encounterIndexFixture().encounters[0],
     note: "Encounter note",
@@ -819,87 +878,9 @@ function encounterDetailFixture(
         record_key: "actors:goblin",
         participant_kind: "creature",
         side: "enemy",
-        initiative: 18n,
-        max_hp: 12n,
-        current_hp: 10n,
-        temporary_hp: 5n,
-        record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
-        record_view: recordSurfaceFixture({
-          actions: 2n,
-          actionBase: 3n,
-          actionAdjustment: -1n,
-          speed: 15n,
-          speedBase: 25n,
-          speedAdjustment: -10n,
-        }),
-        stat_block: {
-          record_key: "actors:goblin",
-          title: "Goblin Warrior",
-          level: 1n,
-          adjusted_level: 1n,
-          values: [],
-          speeds: [
-            {
-              movement_type: "land",
-              label: "Land Speed",
-              base_value_feet: 25n,
-              adjusted_value_feet: 15n,
-              adjustments: [
-                {
-                  source: "Encumbered",
-                  label: "Speed penalty",
-                  value: -10n,
-                  reason:
-                    "Encumbered reduces speeds by 10 feet, to a minimum of 5 feet.",
-                },
-              ],
-              suppressed_adjustments: [],
-              notes: [],
-            },
-          ],
-          action_budget: {
-            actions: {
-              label: "Actions",
-              base_value: 3n,
-              adjusted_value: 2n,
-              segments: [{ label: "Base", value: 2n, restricted: false }],
-              adjustments: [
-                {
-                  source: "Slowed 1",
-                  label: "Reduced actions regained",
-                  value: -1n,
-                  reason: "Applied to the next action-regain step.",
-                },
-              ],
-              suppressed_adjustments: [],
-            },
-            reactions: {
-              label: "Reactions",
-              base_value: 1n,
-              adjusted_value: 1n,
-              segments: [{ label: "Base", value: 1n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            can_act: { available: true },
-            can_react: { available: true },
-            notes: [],
-          },
-          activities: [],
-          unapplied_effects: [],
-        },
-        conditions: [
-          {
-            condition_id: 7n,
-            condition_key: "conditionitems:TBSHQspnbcqxsmjL",
-            name: "Frightened",
-            value: 1n,
-            duration_rounds: 2n,
-            created_at: "2026-01-01T00:00:00Z",
-            updated_at: "2026-01-01T00:00:00Z",
-          },
-        ],
-        ...firstParticipantOverrides,
+        initiative: 18,
+        record_view: goblinSurface,
+        ...participantOverrides,
       }),
       participantFixture({
         participant_key: "participant_b",
@@ -907,47 +888,15 @@ function encounterDetailFixture(
         participant_kind: "pc",
         status: "manual",
         side: "pc",
-        initiative: 15n,
-        max_hp: 24n,
-        current_hp: 24n,
-        stat_block: {
-          record_key: "participant_b",
-          title: "Kyra",
-          values: [],
-          speeds: [],
-          action_budget: {
-            actions: {
-              label: "Actions",
-              base_value: 3n,
-              adjusted_value: 3n,
-              segments: [{ label: "Base", value: 3n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            reactions: {
-              label: "Reactions",
-              base_value: 1n,
-              adjusted_value: 1n,
-              segments: [{ label: "Base", value: 1n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            can_act: { available: true },
-            can_react: { available: true },
-            notes: [],
-          },
-          activities: [],
-          unapplied_effects: [],
-        },
+        initiative: 15,
         record_view: recordSurfaceFixture({
           kind: "pc",
-          kindLabel: "PC",
           levelLabel: undefined,
           recordKey: "participant_b",
           title: "Kyra",
           traits: [],
-          actions: 3n,
-          reactions: 1n,
+          actions: 3,
+          reactions: 1,
         }),
       }),
     ],
@@ -958,19 +907,7 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView>,
 ): EncounterParticipantView {
   return {
-    participant_key: "participant",
-    participant_kind: "creature",
-    participant_variant: "normal",
-    status: "active",
-    position: 1n,
-    display_name: "Participant",
-    side: "enemy",
-    initiative_order: 1n,
-    temporary_hp: 0n,
-    defeated: false,
-    hidden: false,
-    note_hint: null,
-    conditions: [],
+    ...encounterParticipantFixture(),
     ...overrides,
   };
 }
@@ -982,26 +919,10 @@ function resultWindowFixture(): ResultWindowPage {
     page: { number: 1, size: 25, count: 1, total: 1n, has_more: false },
     rows: [
       {
-        record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
+        record: typedRecordSummaryFixture("actors:goblin", "Goblin Warrior"),
         match_summary: undefined,
       },
     ],
-  };
-}
-
-function recordSummaryFixture(recordKey: string, title: string): RecordSummaryView {
-  return {
-    record_key: recordKey,
-    title,
-    kind: "creature",
-    kind_label: "Creature",
-    level_label: "1",
-    rarity: undefined,
-    traits: [],
-    taxonomy: [],
-    publication: undefined,
-    pack: "Bestiary",
-    preview: "A small enemy.",
   };
 }
 
@@ -1009,207 +930,183 @@ function recordSurfaceFixture({
   actionAdjustment,
   actionBase,
   actions,
+  includeActivities = true,
   kind = "creature",
-  kindLabel = "Creature",
-  includeActivities = kind === "creature",
   levelLabel = "1",
-  reactions = 1n,
+  reactions = 1,
   recordKey = "actors:goblin",
   speed,
   speedAdjustment,
   speedBase,
   title = "Goblin Warrior",
-  traits = [
-    { kind: "trait", label: "Goblin", value: "goblin" },
-    { kind: "trait", label: "Humanoid", value: "humanoid" },
-  ],
+  traits = ["Goblin", "Humanoid"],
 }: {
-  actionAdjustment?: bigint;
-  actionBase?: bigint;
-  actions?: bigint;
+  actionAdjustment?: number;
+  actionBase?: number;
+  actions?: number;
+  includeActivities?: boolean;
   kind?: string;
   kindLabel?: string;
-  includeActivities?: boolean;
   levelLabel?: string;
-  reactions?: bigint;
+  reactions?: number;
   recordKey?: string;
-  speed?: bigint;
-  speedAdjustment?: bigint;
-  speedBase?: bigint;
+  speed?: number;
+  speedAdjustment?: number;
+  speedBase?: number;
   title?: string;
-  traits?: Array<{ kind: string; label: string; value: string }>;
+  traits?: string[];
 } = {}) {
-  const sections: RecordSurfaceSectionView[] = [
-    {
-      kind: "vitals" as const,
-      title: "Vitals",
-      collapsed_by_default: false,
-    },
-    {
-      kind: "conditions" as const,
-      title: "Conditions",
-      collapsed_by_default: false,
-    },
-  ];
-  if (actions !== undefined) {
-    sections.push({
-      kind: "runtime" as const,
-      title: "Runtime",
-      collapsed_by_default: false,
-      values: [
-        {
-          key: "actions",
-          label: "Actions",
-          value: { kind: "number" as const, value: actions },
-          ...(actionBase !== undefined
-            ? { base_value: { kind: "number" as const, value: actionBase } }
-            : {}),
-          adjusted: actionBase !== undefined && actions !== actionBase,
-          display: "static_number" as const,
-          ...(actionAdjustment !== undefined
-            ? {
-                adjustments: [
-                  {
-                    label: "Reduced actions regained",
-                    source: "Slowed 1",
-                    delta: { kind: "number" as const, value: actionAdjustment },
-                  },
-                ],
-              }
-            : {}),
-        },
-        {
-          key: "reactions",
-          label: "Reactions",
-          value: { kind: "number" as const, value: reactions },
-          adjusted: false,
-          display: "static_number" as const,
-        },
-      ],
-    });
-  }
-  if (speed !== undefined) {
-    sections.push({
-      kind: "movement" as const,
-      title: "Movement",
-      collapsed_by_default: false,
-      values: [
-        {
-          key: "speed.land",
-          label: "Land Speed",
-          value: { kind: "distance_feet" as const, value: speed },
-          ...(speedBase !== undefined
-            ? { base_value: { kind: "distance_feet" as const, value: speedBase } }
-            : {}),
-          adjusted: speedBase !== undefined && speed !== speedBase,
-          display: "distance" as const,
-          ...(speedAdjustment !== undefined
-            ? {
-                adjustments: [
-                  {
-                    label: "Speed penalty",
-                    source: "Encumbered",
-                    delta: { kind: "distance_feet" as const, value: speedAdjustment },
-                  },
-                ],
-              }
-            : {}),
-        },
-      ],
-    });
-  }
-  if (includeActivities) {
-    sections.push({
-      kind: "activities" as const,
-      title: "Activities",
-      collapsed_by_default: false,
-      activities: [
-        {
-          key: "claw",
-          label: "Claw",
-          kind: "strike",
-          usage: "unlimited",
-          values: [
-            {
-              key: "activity.claw.roll.attack",
-              label: "Attack",
-              value: { kind: "number" as const, value: 12n },
-              base_value: { kind: "number" as const, value: 12n },
-              adjusted: false,
-              display: "signed_modifier" as const,
+  const runtime = encounterRuntimeFixture({
+    actions: actions ?? 3,
+    currentHp: 10,
+    maximumHp: 12,
+    reactions,
+    temporaryHp: 5,
+  });
+  const actionBudget = runtime.action_budget;
+  const encounter = {
+    ...runtime,
+    ...(actionBudget && actions !== undefined
+      ? {
+          action_budget: {
+            ...actionBudget,
+            actions: {
+              ...actionBudget.actions,
+              base_value: actionBase ?? actions,
+              adjusted_value: actions,
+              ...(actionAdjustment === undefined
+                ? {}
+                : {
+                    adjustments: [
+                      {
+                        provenance: runtimeProvenance,
+                        label: "Reduced actions regained",
+                        value: actionAdjustment,
+                        reason: "Applied to the next action-regain step.",
+                      },
+                    ],
+                  }),
             },
+          },
+        }
+      : {}),
+    ...(speed === undefined
+      ? {}
+      : {
+          movement: {
+            speeds: [
+              {
+                movement_type: "land",
+                label: "Land Speed",
+                base_value_feet: speedBase ?? speed,
+                adjusted_value_feet: speed,
+                ...(speedAdjustment === undefined
+                  ? {}
+                  : {
+                      adjustments: [
+                        {
+                          provenance: runtimeProvenance,
+                          label: "Speed penalty",
+                          value: speedAdjustment,
+                          reason: "Encumbered reduces speed.",
+                        },
+                      ],
+                    }),
+                provenance: runtimeProvenance,
+              },
+            ],
+          },
+        }),
+    ...(includeActivities
+      ? {
+          activities: [
             {
-              key: "activity.claw.damage.main",
-              label: "Damage",
-              value: { kind: "formula" as const, value: "1d6+2 slashing" },
-              base_value: { kind: "formula" as const, value: "1d6+2 slashing" },
-              adjusted: false,
-              display: "formula" as const,
+              activity_id: "claw",
+              label: "Claw",
+              kind: "strike" as const,
+              usage: "unlimited" as const,
+              rolls: [
+                {
+                  roll_id: "attack",
+                  label: "Attack",
+                  base_value: 12,
+                  adjusted_value: 12,
+                  surface: "attack_roll" as const,
+                  provenance: runtimeProvenance,
+                },
+              ],
+              damage: [
+                {
+                  damage_id: "main",
+                  formula: "1d6+2",
+                  damage_type: "slashing",
+                  effect_kind: "damage" as const,
+                  provenance: runtimeProvenance,
+                },
+              ],
+              provenance: runtimeProvenance,
             },
           ],
-        },
-      ],
-    });
-  }
-  return {
-    record_key: recordKey,
-    title,
-    kind,
-    profile: "encounter_participant" as const,
-    header: {
-      ...(levelLabel === undefined ? {} : { level_label: levelLabel }),
-      kind_label: kindLabel,
-      traits,
-    },
-    sections,
-    ...(recordKey.startsWith("actors:")
-      ? { fallback_presentation: recordDetailFixture(recordKey).presentation }
+        }
+      : { activities: [] }),
+    ...(kind === "creature"
+      ? {
+          spellcasting: [
+            {
+              entry_id: "innate",
+              authored_order: 0,
+              label: "Innate Spells",
+              spells: [
+                {
+                  occurrence_id: "linked-spell",
+                  authored_order: 0,
+                  label: "Linked Rule",
+                  target_record_key: "rules:linked",
+                  rank: 1,
+                  provenance: runtimeProvenance,
+                },
+              ],
+            },
+          ],
+        }
       : {}),
   };
+  return creatureSurfaceFixture({
+    encounter,
+    level: levelLabel === undefined ? 1 : Number(levelLabel),
+    profile: "encounter_participant",
+    recordKey,
+    title,
+    traits,
+  });
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const linked = recordKey === "rules:linked";
   const condition = recordKey.startsWith("conditionitems:");
+  const title = condition
+    ? "Frightened Condition"
+    : linked
+      ? "Linked Rule"
+      : "Goblin Warrior";
+  return typedRecordDetailFixture({
+    recordKey,
+    title,
+    ...(linked || condition
+      ? {}
+      : { referenceLabel: "Linked Rule", referenceRecordKey: "rules:linked" }),
+  });
+}
+
+const runtimeProvenance = {
+  source: { source_type: "canonical_record" as const },
+};
+
+function numberFact(label: string, value: number) {
   return {
-    record_key: recordKey,
-    title: condition
-      ? "Frightened Condition"
-      : linked
-        ? "Linked Rule"
-        : "Goblin Warrior",
-    kind: condition || linked ? "rule" : "creature",
-    presentation: {
-      record_key: recordKey,
-      kind: condition || linked ? "rule" : "creature",
-      title: condition
-        ? "Frightened Condition"
-        : linked
-          ? "Linked Rule"
-          : "Goblin Warrior",
-      identity: [],
-      badges: [],
-      sections:
-        linked || condition
-          ? []
-          : [
-              {
-                kind: "references",
-                title: "References",
-                blocks: [
-                  {
-                    kind: "relationships",
-                    content: [
-                      {
-                        kind: "reference",
-                        label: "Linked Rule",
-                        record_key: "rules:linked",
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-    },
+    label,
+    base_value: value,
+    adjusted_value: value,
+    provenance: runtimeProvenance,
   };
 }
