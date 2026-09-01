@@ -74,6 +74,22 @@ const ACTIVITY_CONTENT_BASE: &str = "d4543d1bdce692378ff280254237275b08660487";
 const ACTIVITY_CONTENT_BASE_TREE: &str = "843ac73580ba7fa21377f45f8ed12e77eec7ca64";
 const ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE: &str = "e56bae73a2613bedd58e8d8c25bc4d715798ec0f";
 const ACTIVITY_CONTENT_IMPLEMENTATION_TREE: &str = "c397d5d90214ca69e0360c31a5ae8092c9398ad7";
+const SLOT_ASSERTION_CANDIDATE: &str = "41d9afcee60253f9135414a282aaccd387ee3f71";
+const SLOT_ASSERTION_TREE: &str = "22bd87855de27b25f1c1ce4e9b5a8c38a19e7423";
+const RUNTIME_SIMPLIFICATION_CANDIDATE: &str = "35a6aaa0fd713420f62cde2a570dc5fd42149fac";
+const RUNTIME_SIMPLIFICATION_TREE: &str = "981c6b42e36ef8fefaf5723367d11e0b70419041";
+const GENERATION_TRUST_CANDIDATE: &str = "b7f2a1f0912b38fc4836eb70412758bb5e2217fe";
+const GENERATION_TRUST_TREE: &str = "d1d57a3bdc148259ae85f17c81dfb65b3c8a6701";
+const VALIDATION_INVENTORY_CANDIDATE: &str = "56af52ff9c90db18a4b192f6c8f2a39c98a8c7b9";
+const VALIDATION_INVENTORY_TREE: &str = "b24ba3109c9a9887abd49d69aa0436053cb866a0";
+const VALIDATION_RUNTIME_PASS_CANDIDATE: &str = "f47a533726919bd56bcb13bea519136895394815";
+const VALIDATION_RUNTIME_PASS_TREE: &str = "e3b7477181aa9bf290db9b32c670d9e7a7a19cfc";
+const CONSUMER_CONTRACT_CANDIDATE: &str = "a1dd199fa71320e276275764420cef2adc568f32";
+const CONSUMER_CONTRACT_TREE: &str = "65c42480757996377feff6c9ec61e7fe4080ca68";
+const CONSUMER_READY_CANDIDATE: &str = "ae7cbd41838157076a2ca005bc9eabba02dd26dd";
+const CONSUMER_READY_TREE: &str = "467602fddc9513c50c2c48476ff61158250488f3";
+const CONSUMER_READINESS_PASS_SHA256: &str =
+    "be1e211181b91cffc01eb03e43ce1dfaf45cf93cd728b483399b3ca1f204b6e8";
 const ACTIVITY_CONTENT_PLAN_SHA256: &str =
     "9eee39f10437247f4c8744b7cc2e97a8f90b90e8c8945ba4edc626c68e0ca455";
 const ACTIVITY_CONTENT_TASK_MAP_SHA256: &str =
@@ -616,26 +632,60 @@ fn export_e3_activity_content_early_samples() {
 
     let candidate = required_env("E3_ACTIVITY_SAMPLE_CANDIDATE");
     let candidate_tree = required_env("E3_ACTIVITY_SAMPLE_TREE");
-    assert_eq!(git_value(Path::new("."), &["rev-parse", "HEAD"]), candidate);
-    assert_eq!(
-        git_value(Path::new("."), &["rev-parse", "HEAD^{tree}"]),
-        candidate_tree
+    assert_git_revision(Path::new("."), "HEAD", &candidate, &candidate_tree);
+    assert_git_revision(
+        Path::new("."),
+        "HEAD^",
+        CONSUMER_READY_CANDIDATE,
+        CONSUMER_READY_TREE,
     );
-    assert_eq!(
-        git_value(Path::new("."), &["rev-parse", "HEAD^"]),
-        ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~2",
+        CONSUMER_CONTRACT_CANDIDATE,
+        CONSUMER_CONTRACT_TREE,
     );
-    assert_eq!(
-        git_value(Path::new("."), &["rev-parse", "HEAD^^{tree}"]),
-        ACTIVITY_CONTENT_IMPLEMENTATION_TREE
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~3",
+        VALIDATION_RUNTIME_PASS_CANDIDATE,
+        VALIDATION_RUNTIME_PASS_TREE,
     );
-    assert_eq!(
-        git_value(Path::new("."), &["rev-parse", "HEAD^^"]),
-        ACTIVITY_CONTENT_BASE
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~4",
+        VALIDATION_INVENTORY_CANDIDATE,
+        VALIDATION_INVENTORY_TREE,
     );
-    assert_eq!(
-        git_value(Path::new("."), &["rev-parse", "HEAD^^^{tree}"]),
-        ACTIVITY_CONTENT_BASE_TREE
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~5",
+        GENERATION_TRUST_CANDIDATE,
+        GENERATION_TRUST_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~6",
+        RUNTIME_SIMPLIFICATION_CANDIDATE,
+        RUNTIME_SIMPLIFICATION_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~7",
+        SLOT_ASSERTION_CANDIDATE,
+        SLOT_ASSERTION_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~8",
+        ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE,
+        ACTIVITY_CONTENT_IMPLEMENTATION_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~9",
+        ACTIVITY_CONTENT_BASE,
+        ACTIVITY_CONTENT_BASE_TREE,
     );
 
     let approval = required_path_env("E3_ACTIVITY_APPROVAL");
@@ -643,6 +693,7 @@ fn export_e3_activity_content_early_samples() {
     let task_map = required_path_env("E3_ACTIVITY_TASK_MAP");
     let diagnosis = required_path_env("E3_ACTIVITY_AUDIT");
     let planning_review_root = required_path_env("E3_ACTIVITY_PLANNING_REVIEW_ROOT");
+    let consumer_readiness_pass = required_path_env("E3_ACTIVITY_CONSUMER_READINESS_PASS");
     assert_bound_file(&approval, ACTIVITY_CONTENT_APPROVAL_SHA256);
     assert_bound_file(
         &PathBuf::from(format!("{}.sha256", approval.display())),
@@ -664,6 +715,7 @@ fn export_e3_activity_content_early_samples() {
         ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256,
     );
     verify_checksums(&planning_review_root);
+    assert_bound_file(&consumer_readiness_pass, CONSUMER_READINESS_PASS_SHA256);
 
     let source_root = required_path_env("E3_ACTIVITY_SOURCE_ROOT");
     let source_commit = required_env("E3_ACTIVITY_SOURCE_COMMIT");
@@ -684,6 +736,9 @@ fn export_e3_activity_content_early_samples() {
     let sample_index = required_path_env("E3_ACTIVITY_INDEX");
     let sample_index_sha256 = required_env("E3_ACTIVITY_INDEX_SHA256");
     assert_eq!(file_sha256(&sample_index), sample_index_sha256);
+    let artifact_rebuilt = required_env("E3_ACTIVITY_ARTIFACT_REBUILT")
+        .parse::<bool>()
+        .expect("E3_ACTIVITY_ARTIFACT_REBUILT must be true or false");
     let retained_target = required_path_env("E3_ACTIVITY_RETAINED_TARGET");
     let retained_node_modules = required_path_env("E3_ACTIVITY_RETAINED_NODE_MODULES");
 
@@ -1070,14 +1125,14 @@ fn export_e3_activity_content_early_samples() {
     fs::write(
         sample_root.join("WALKTHROUGH.md"),
         format!(
-            "# E3 activity-content fidelity early walkthrough\n\nThis is **early-direction evidence**, not E3 re-acceptance, technical review, final evidence, or delivery approval. Candidate `{candidate}` / tree `{candidate_tree}` is a direct child of implementation candidate `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, whose direct parent is accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. The four actor-local activity descriptions are nested exactly once; Abyssal Plague retains `Fortitude DC 28`; Public Notes retains four paragraph blocks plus its divider and the authored `are`/reference adjacency.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison.\n5. `generated/` contains the exact candidate TypeScript bindings for activity content.\n6. `proposed-accepted-to-correction-delta-ledger.md` records the proposed early-to-final accounting boundary.\n\nThe app service used the retained authenticated artifact and pinned PF2e checkout. No index rebuild, source query, frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
+            "# E3 encounter-payload Stage F handoff walkthrough\n\nThis is candidate-authentic Stage F handoff evidence for exporter correction `{candidate}` / tree `{candidate_tree}`, a direct child of consumer-ready candidate `{CONSUMER_READY_CANDIDATE}` / tree `{CONSUMER_READY_TREE}`. That candidate directly parents consumer-contract remediation `{CONSUMER_CONTRACT_CANDIDATE}`; its ancestry includes validation/runtime PASS `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, slot correction `{SLOT_ASSERTION_CANDIDATE}`, product implementation `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`. No separate data-model approval gate follows this package.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. The four actor-local activity descriptions are nested exactly once; Abyssal Plague retains its typed Fortitude DC 28 check and authored divider/order.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison, including Putrid Plague placement.\n5. Encounter payloads demonstrate non-runtime canonical context, runtime activity traits/content, two ordered Night Hag spellcasting entries with 26 grouped spells, standalone Control Weather, and no generic spell activity rows.\n6. `generated/` contains the exact candidate TypeScript bindings and API aggregation.\n7. `proposed-accepted-to-correction-delta-ledger.md` records the complete component chain and fresh output hashes.\n\nThe app service used the authenticated retained artifact and pinned PF2e checkout. No frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
         ),
     )
     .expect("walkthrough should write");
     fs::write(
         sample_root.join("report.md"),
         format!(
-            "# E3 activity-content fidelity first representative candidate\n\nCandidate `{candidate}` / tree `{candidate_tree}` directly replaces only the accepted E3 activity-content presentation gap. `CreatureSurfaceActivityView.content` contains nonempty ordered typed documents. App-service resolves typed occurrence targets, attaches occurrence-owned and exact actor-local entity-owned content once, removes attached documents from general content, and fails affected activities closed for invalid associations. `atlas-record` supplies typed RichDocument blocks with shared Check display, including Abyssal Plague `Fortitude DC 28`, and preserves authored dividers. The render-only component consumes typed blocks.\n\nFocused Rust and UI tests and binding freshness passed before export. Full validation, polish, independent technical review, final evidence, final user approval, and downstream F1/F2 remain intentionally pending until early-direction approval.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
+            "# E3 encounter-payload consumer-ready export report\n\nExporter correction `{candidate}` / tree `{candidate_tree}` changes evidence ancestry/provenance only and directly parents consumer-ready candidate `{CONSUMER_READY_CANDIDATE}`. Product payload semantics come from the explicitly recorded chain through `{CONSUMER_CONTRACT_CANDIDATE}`, `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, `{SLOT_ASSERTION_CANDIDATE}`, `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\nThe candidate preserves backend-composed exact-once typed activity content, non-runtime encounter context, runtime activity traits, typed Check display/statistic/DC with paragraph/divider order, ordered nested spellcasting, legitimate slotless omission, standalone Control Weather, generic spell-row deduplication, and affected-row fail-closed behavior. No DTO, service, runtime, persistence, or product code changed in the exporter correction.\n\nThe authoritative consumer-readiness PASS is `{CONSUMER_READINESS_PASS_SHA256}`. This package is ready for Stage F handoff without another user data-model approval gate. Broad validation, polish, F1/F2 implementation, delivery, and final user confirmation remain outside this export.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
         ),
     )
     .expect("report should write");
@@ -1094,21 +1149,32 @@ fn export_e3_activity_content_early_samples() {
         .collect::<Vec<_>>();
     let manifest = json!({
         "schema": "atlas-e3-activity-content-fidelity-early/v1",
-        "status": "first_representative_candidate_awaiting_explicit_early_direction_approval",
-        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE },
-        "implementation_candidate": { "commit": ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE, "tree": ACTIVITY_CONTENT_IMPLEMENTATION_TREE, "parent": ACTIVITY_CONTENT_BASE },
+        "status": "consumer_ready_candidate_authentic_stage_f_handoff",
+        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": CONSUMER_READY_CANDIDATE, "change_scope": "evidence_only_exporter_ancestry_and_provenance" },
+        "component_commits": {
+            "consumer_ready": { "commit": CONSUMER_READY_CANDIDATE, "tree": CONSUMER_READY_TREE, "parent": CONSUMER_CONTRACT_CANDIDATE },
+            "consumer_contract_remediation": { "commit": CONSUMER_CONTRACT_CANDIDATE, "tree": CONSUMER_CONTRACT_TREE, "parent": VALIDATION_RUNTIME_PASS_CANDIDATE },
+            "validation_runtime_pass": { "commit": VALIDATION_RUNTIME_PASS_CANDIDATE, "tree": VALIDATION_RUNTIME_PASS_TREE, "parent": VALIDATION_INVENTORY_CANDIDATE },
+            "validation_owner_inventory": { "commit": VALIDATION_INVENTORY_CANDIDATE, "tree": VALIDATION_INVENTORY_TREE, "parent": GENERATION_TRUST_CANDIDATE },
+            "generation_trust": { "commit": GENERATION_TRUST_CANDIDATE, "tree": GENERATION_TRUST_TREE, "parent": RUNTIME_SIMPLIFICATION_CANDIDATE },
+            "runtime_simplification": { "commit": RUNTIME_SIMPLIFICATION_CANDIDATE, "tree": RUNTIME_SIMPLIFICATION_TREE, "parent": SLOT_ASSERTION_CANDIDATE },
+            "slot_assertion_correction": { "commit": SLOT_ASSERTION_CANDIDATE, "tree": SLOT_ASSERTION_TREE, "parent": ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE },
+            "product_implementation": { "commit": ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE, "tree": ACTIVITY_CONTENT_IMPLEMENTATION_TREE, "parent": ACTIVITY_CONTENT_BASE },
+            "accepted_e3": { "commit": ACTIVITY_CONTENT_BASE, "tree": ACTIVITY_CONTENT_BASE_TREE }
+        },
         "authority": {
             "approval": { "path": approval, "sha256": ACTIVITY_CONTENT_APPROVAL_SHA256, "sidecar_file_sha256": ACTIVITY_CONTENT_APPROVAL_SIDECAR_SHA256, "mode": "0444" },
             "plan": { "path": plan, "sha256": ACTIVITY_CONTENT_PLAN_SHA256, "mode": "0444" },
             "task_map": { "path": task_map, "sha256": ACTIVITY_CONTENT_TASK_MAP_SHA256, "mode": "0444" },
             "audit": { "path": diagnosis, "sha256": ACTIVITY_CONTENT_DIAGNOSIS_SHA256, "mode": "0444" },
-            "planning_review": { "root": planning_review_root, "verdict": "PASS", "verdict_md_sha256": ACTIVITY_CONTENT_REVIEW_VERDICT_SHA256, "verdict_json_sha256": ACTIVITY_CONTENT_REVIEW_JSON_SHA256, "checksums_sha256": ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256, "mode": "0444", "checksum_closure": "pass" }
+            "planning_review": { "root": planning_review_root, "verdict": "PASS", "verdict_md_sha256": ACTIVITY_CONTENT_REVIEW_VERDICT_SHA256, "verdict_json_sha256": ACTIVITY_CONTENT_REVIEW_JSON_SHA256, "checksums_sha256": ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256, "mode": "0444", "checksum_closure": "pass" },
+            "consumer_readiness": { "path": consumer_readiness_pass, "verdict": "PASS", "sha256": CONSUMER_READINESS_PASS_SHA256, "mode": "0444" }
         },
         "accepted_e3": { "commit": ACTIVITY_CONTENT_BASE, "tree": ACTIVITY_CONTENT_BASE_TREE },
         "producer": {
             "command": "cargo test -p atlas-app-service e3_sample_export::export_e3_activity_content_early_samples -- --ignored --exact",
             "test_path": "crates/atlas-app-service/src/e3_sample_export.rs",
-            "artifact_rebuilt": false,
+            "artifact_rebuilt": artifact_rebuilt,
             "source_query_run": false
         },
         "source": {
@@ -1143,7 +1209,8 @@ fn export_e3_activity_content_early_samples() {
             "focused_atlas_web_transport": "pass",
             "focused_ui_typed_renderer": "pass",
             "generated_binding_freshness": "pass",
-            "full_validation": "deferred_until_early_direction_approval"
+            "broad_validation": "not_run_by_bounded_export_contract",
+            "next_gate": "stage_f_implementation_without_separate_data_model_approval"
         },
         "retained_substrate": {
             "source": { "path": source_root, "size_kib": directory_size_kib(&source_root) },
@@ -2164,7 +2231,7 @@ fn write_activity_content_delta_ledger(sample_root: &Path, candidate: &str, cand
     fs::write(
         sample_root.join("proposed-accepted-to-correction-delta-ledger.md"),
         format!(
-            "# Proposed accepted-E3 to encounter-payload correction delta ledger\n\nThis is the starting ledger for the fresh representative candidate, not final evidence or historical acceptance evidence.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Implementation candidate: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`, direct child of accepted E3.\n- Fresh assertion correction: `{candidate}` / `{candidate_tree}`, direct child of the implementation candidate.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Intended contract delta\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Runtime spellcasting is a canonical ordered nested tree retaining final entry attack, DC, and slots when present; legitimate slotless entries omit the empty true-many field without fabricating data. Spell rows preserve occurrence identity, canonical target identity where known, typed content, and relevant mechanics.\n3. Spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit in the dedicated standalone collection.\n4. Invalid or ambiguous associations omit only affected rows with typed limitations.\n5. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n6. Same-direction refinements after explicit early approval must append every sample-visible change here before final evidence.\n"
+            "# Accepted-E3 to Stage F consumer-ready export ledger\n\nThis is the fresh candidate-authentic Stage F handoff ledger. It is not historical acceptance evidence and adds no separate data-model approval gate.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Product implementation: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`.\n- Slot assertion correction: `{SLOT_ASSERTION_CANDIDATE}` / `{SLOT_ASSERTION_TREE}`.\n- Runtime simplification: `{RUNTIME_SIMPLIFICATION_CANDIDATE}` / `{RUNTIME_SIMPLIFICATION_TREE}`.\n- Generation trust: `{GENERATION_TRUST_CANDIDATE}` / `{GENERATION_TRUST_TREE}`.\n- Validation owner inventory: `{VALIDATION_INVENTORY_CANDIDATE}` / `{VALIDATION_INVENTORY_TREE}`.\n- Validation/runtime PASS: `{VALIDATION_RUNTIME_PASS_CANDIDATE}` / `{VALIDATION_RUNTIME_PASS_TREE}`.\n- Consumer-contract remediation: `{CONSUMER_CONTRACT_CANDIDATE}` / `{CONSUMER_CONTRACT_TREE}`.\n- Consumer-ready candidate: `{CONSUMER_READY_CANDIDATE}` / `{CONSUMER_READY_TREE}`.\n- Evidence-only exporter correction: `{candidate}` / `{candidate_tree}`, direct child of the consumer-ready candidate.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Preserved product contract\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Runtime spellcasting is a canonical ordered nested tree retaining final entry attack, DC, and slots when present; legitimate slotless entries omit the empty true-many field without fabricating data. Spell rows preserve occurrence identity, canonical target identity where known, typed content, and relevant mechanics.\n3. Spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit in the dedicated standalone collection.\n4. Encounter payloads retain non-runtime canonical context, runtime activity traits, and typed Check display/statistic/DC without static/runtime duplication or client joins.\n5. Invalid or ambiguous associations omit only affected rows with typed limitations.\n6. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n"
         ),
     )
     .expect("activity-content delta ledger should write");
@@ -2200,6 +2267,14 @@ fn git_value(root: &Path, args: &[&str]) -> String {
         .expect("git output should be UTF-8")
         .trim()
         .to_string()
+}
+
+fn assert_git_revision(root: &Path, revision: &str, commit: &str, tree: &str) {
+    assert_eq!(git_value(root, &["rev-parse", revision]), commit);
+    assert_eq!(
+        git_value(root, &["rev-parse", &format!("{revision}^{{tree}}")]),
+        tree
+    );
 }
 
 fn file_sha256(path: &Path) -> String {
