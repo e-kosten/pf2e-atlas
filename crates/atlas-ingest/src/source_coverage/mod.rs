@@ -7,19 +7,24 @@
 mod contract;
 mod parity;
 mod receipt;
+mod registry;
 
 pub use contract::{
     ATLAS_SOURCE_LEAF_COVERAGE_VERSION, CoverageContractError, ExpectedSourceShape,
-    FinalOwnerContract, FinalOwnerStage, MapKeyPolicy, ReaderContract, SourceDocumentRole,
-    SourceLeafContract, SourceLeafCoverageLedger, SourceLeafDisposition, SourceLeafIdentity,
-    SourceLeafSelector, SourcePin, SourcePrevalence, SurfaceContract, SurfaceDecision,
-    SurfaceDisposition, lint_source_leaf_ledger, lint_source_leaf_ledgers,
-    parse_source_leaf_ledger,
+    FinalOwnerContract, FinalOwnerStage, FixtureContract, FixtureProvenance, MapKeyPolicy,
+    ReaderContract, SourceDocumentRole, SourceLeafContract, SourceLeafCoverageLedger,
+    SourceLeafDisposition, SourceLeafIdentity, SourceLeafSelector, SourceParentContextSelector,
+    SourcePin, SourcePrevalence, SurfaceContract, SurfaceDecision, SurfaceDisposition,
+    lint_source_leaf_ledger, lint_source_leaf_ledgers, parse_source_leaf_ledger,
 };
 pub use parity::{
     CoverageFailure, CoverageFailureCode, CoverageReport, evaluate_source_leaf_coverage,
 };
 pub use receipt::{
-    FixtureReference, SourceJsonType, SourceLeafReceipt, SourceLeafValue, SourceMemberKind,
-    StageObservation, TypedUnsupportedValue,
+    FinalOwnerAccessor, FixtureReference, SemanticOutputAccessor, SourceAccessorPurpose,
+    SourceJsonType, SourceLeafAccessor, SourceLeafReceipt, SourceLeafReceiptBuilder,
+    SourceLeafValue, SourceMemberKind, StageObservation, TypedUnsupportedValue,
+};
+pub use registry::{
+    PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256, PF2E_TYPE_REGISTRY_VERSION,
 };

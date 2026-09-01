@@ -23,9 +23,9 @@ pub use npc::{ActorType, NpcSource, VersionedNpcSource, parse_npc_source};
 pub use presence::SourcePresence;
 pub use value::SerializedSourceObject;
 pub use version::{
-    PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SYSTEM_ID,
-    PF2E_SOURCE_PINNED_SYSTEM_VERSION, SourceVersionMetadata, pinned_source_version_metadata,
-    validate_pinned_source_version,
+    PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE,
+    PF2E_SOURCE_PINNED_SYSTEM_ID, PF2E_SOURCE_PINNED_SYSTEM_VERSION, SourceVersionMetadata,
+    pinned_source_version_metadata, validate_pinned_source_version,
 };
 
 pub(crate) use embedded::{

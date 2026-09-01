@@ -40,11 +40,11 @@ pub use report::{
 };
 pub use source::dto::{
     ActorType, FullItemSource, ItemSource, ItemType, NpcSource, PF2E_SOURCE_CONTRACT_VERSION,
-    PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SYSTEM_ID, PF2E_SOURCE_PINNED_SYSTEM_VERSION,
-    SerializedSourceObject, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
-    SourceParentContext, SourcePresence, SourceVersionMetadata, VersionedItemSource,
-    VersionedNpcSource, parse_item_source, parse_npc_source, pinned_source_version_metadata,
-    validate_pinned_source_version,
+    PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE, PF2E_SOURCE_PINNED_SYSTEM_ID,
+    PF2E_SOURCE_PINNED_SYSTEM_VERSION, SerializedSourceObject, SourceDiagnostic,
+    SourceDiagnosticKind, SourceIdentity, SourceParentContext, SourcePresence,
+    SourceVersionMetadata, VersionedItemSource, VersionedNpcSource, parse_item_source,
+    parse_npc_source, pinned_source_version_metadata, validate_pinned_source_version,
 };
 pub use source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingRecordTruncationCoverageReport,
@@ -54,13 +54,16 @@ pub use source::model::{
 };
 pub use source_coverage::{
     ATLAS_SOURCE_LEAF_COVERAGE_VERSION, CoverageContractError, CoverageFailure,
-    CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerContract, FinalOwnerStage,
-    FixtureReference, MapKeyPolicy, ReaderContract, SourceDocumentRole, SourceJsonType,
-    SourceLeafContract, SourceLeafCoverageLedger, SourceLeafDisposition, SourceLeafIdentity,
-    SourceLeafReceipt, SourceLeafSelector, SourceLeafValue, SourceMemberKind, SourcePin,
-    SourcePrevalence, StageObservation, SurfaceContract, SurfaceDecision, SurfaceDisposition,
-    TypedUnsupportedValue, evaluate_source_leaf_coverage, lint_source_leaf_ledger,
-    lint_source_leaf_ledgers, parse_source_leaf_ledger,
+    CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerAccessor,
+    FinalOwnerContract, FinalOwnerStage, FixtureContract, FixtureProvenance, FixtureReference,
+    MapKeyPolicy, PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256,
+    PF2E_TYPE_REGISTRY_VERSION, ReaderContract, SemanticOutputAccessor, SourceAccessorPurpose,
+    SourceDocumentRole, SourceJsonType, SourceLeafAccessor, SourceLeafContract,
+    SourceLeafCoverageLedger, SourceLeafDisposition, SourceLeafIdentity, SourceLeafReceipt,
+    SourceLeafReceiptBuilder, SourceLeafSelector, SourceLeafValue, SourceMemberKind,
+    SourceParentContextSelector, SourcePin, SourcePrevalence, StageObservation, SurfaceContract,
+    SurfaceDecision, SurfaceDisposition, TypedUnsupportedValue, evaluate_source_leaf_coverage,
+    lint_source_leaf_ledger, lint_source_leaf_ledgers, parse_source_leaf_ledger,
 };
 pub use validation::{
     AssertionInventoryEntry, ExhaustiveValidationOptions, ExhaustiveValidationReport,

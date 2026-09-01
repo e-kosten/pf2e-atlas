@@ -174,8 +174,8 @@ fn analyze_index_json_reports_source_without_writing_artifact()
 }
 
 #[test]
-fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn std::error::Error>>
-{
+fn audit_source_paths_json_reports_non_authoritative_inventory()
+-> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-audit-source-paths");
     write_record_search_source(&root)?;
 
@@ -197,9 +197,10 @@ fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn
     assert_eq!(audit_json["filters"]["record_type"], "action");
     assert_eq!(
         audit_json["coverage_policy_version"],
-        "pf2e-source-coverage/v1"
+        "pf2e-source-path-inventory/v1"
     );
-    assert_eq!(audit_json["registry_assignment_count"], 313);
+    assert_eq!(audit_json["registry_assignment_count"], 0);
+    assert_eq!(audit_json["authoritative_completeness"], false);
     assert_eq!(audit_json["enforcement"]["mode"], "relaxed");
     assert_eq!(audit_json["enforcement"]["passed"], true);
     assert!(
@@ -210,8 +211,10 @@ fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn
     let paths = audit_json["paths"].as_array().expect("audit paths");
     assert!(paths.iter().any(|path| {
         path["path"] == "$.system.description.value"
-            && path["disposition"] == "consumed"
-            && path["owner"] == "source::normalize::content_sources"
+            && path["disposition"] == "unconsumed"
+            && path["owner"] == "unassigned"
+            && path["matched_rule_id"] == "diagnostic_inventory_only"
+            && path["complete_family_assignment"] == false
     }));
 
     let strict_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -219,10 +222,15 @@ fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn
         .arg(&root)
         .args(["--record-type", "action", "--strict", "--json"])
         .output()?;
-    assert!(strict_output.status.success());
+    assert_eq!(strict_output.status.code(), Some(3));
     let strict_json = parse_ok_data(&strict_output)?;
     assert_eq!(strict_json["enforcement"]["mode"], "strict");
-    assert_eq!(strict_json["enforcement"]["passed"], true);
+    assert_eq!(strict_json["enforcement"]["passed"], false);
+    assert!(
+        strict_json["enforcement"]["violation_count"]
+            .as_u64()
+            .is_some_and(|count| count > 0)
+    );
 
     let repeat_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "audit-source-paths", "--source"])
