@@ -43,7 +43,7 @@ pub struct EncounterConditionDefinitionView {
     pub categories: Vec<EncounterConditionCategoryView>,
     pub has_value: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub default_value: Option<i64>,
 }
@@ -194,7 +194,7 @@ pub struct EncounterParticipantView {
     pub display_name: String,
     pub side: EncounterParticipantSideView,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
     #[serde(with = "crate::json_integer")]
@@ -216,7 +216,7 @@ pub struct AddEncounterRecordParticipantRequest {
     pub record_ref: String,
     pub quantity: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
 }
@@ -227,15 +227,15 @@ pub struct AddEncounterManualParticipantRequest {
     pub encounter_ref: String,
     pub display_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub max_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub current_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
 }
@@ -248,15 +248,15 @@ pub struct UpdateEncounterParticipantRequest {
     pub side: EncounterParticipantSideView,
     pub participant_variant: EncounterParticipantVariantView,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub max_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub current_hp: Option<i64>,
     #[serde(with = "crate::json_integer")]
@@ -296,14 +296,14 @@ pub struct AddEncounterParticipantConditionRequest {
     #[ts(optional)]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub duration_rounds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -322,14 +322,14 @@ pub struct UpdateEncounterParticipantConditionRequest {
     pub condition_ref: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub duration_rounds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]

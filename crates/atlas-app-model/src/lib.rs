@@ -578,6 +578,99 @@ mod tests {
     }
 
     #[test]
+    fn encounter_request_optional_integers_accept_omission_and_bound_present_values() {
+        let record =
+            serde_json::from_value::<AddEncounterRecordParticipantRequest>(serde_json::json!({
+                "encounter_ref": "ambush",
+                "record_ref": "actors:test-creature",
+                "quantity": 1,
+            }))
+            .expect("omitted record-participant initiative should deserialize");
+        assert_eq!(record.initiative, None);
+
+        let manual =
+            serde_json::from_value::<AddEncounterManualParticipantRequest>(serde_json::json!({
+                "encounter_ref": "ambush",
+                "display_name": "Kyra",
+            }))
+            .expect("omitted manual-participant integers should deserialize");
+        assert_eq!(
+            (manual.max_hp, manual.current_hp, manual.initiative),
+            (None, None, None)
+        );
+
+        let participant =
+            serde_json::from_value::<UpdateEncounterParticipantRequest>(serde_json::json!({
+                "participant_key": "participant-a",
+                "display_name": "Goblin",
+                "side": "enemy",
+                "participant_variant": "normal",
+                "temporary_hp": 0,
+                "defeated": false,
+                "hidden": false,
+            }))
+            .expect("omitted participant-update integers should deserialize");
+        assert_eq!(
+            (
+                participant.initiative,
+                participant.max_hp,
+                participant.current_hp
+            ),
+            (None, None, None)
+        );
+
+        let added_condition = serde_json::from_value::<AddEncounterParticipantConditionRequest>(
+            serde_json::json!({"participant_key": "participant-a"}),
+        )
+        .expect("omitted condition-add integers should deserialize");
+        assert_eq!(
+            (added_condition.value, added_condition.duration_rounds),
+            (None, None)
+        );
+
+        let updated_condition =
+            serde_json::from_value::<UpdateEncounterParticipantConditionRequest>(
+                serde_json::json!({
+                    "condition_id": 7,
+                    "name": "Clumsy",
+                }),
+            )
+            .expect("omitted condition-update integers should deserialize");
+        assert_eq!(
+            (updated_condition.value, updated_condition.duration_rounds),
+            (None, None)
+        );
+
+        let bounded_condition =
+            serde_json::from_value::<UpdateEncounterParticipantConditionRequest>(
+                serde_json::json!({
+                    "condition_id": 7,
+                    "name": "Clumsy",
+                    "value": json_integer::JS_SAFE_INTEGER_MAX,
+                    "duration_rounds": json_integer::JS_SAFE_INTEGER_MIN,
+                }),
+            )
+            .expect("present safe optional integers should deserialize");
+        assert_eq!(
+            (bounded_condition.value, bounded_condition.duration_rounds),
+            (
+                Some(json_integer::JS_SAFE_INTEGER_MAX),
+                Some(json_integer::JS_SAFE_INTEGER_MIN),
+            )
+        );
+
+        let error = serde_json::from_value::<UpdateEncounterParticipantConditionRequest>(
+            serde_json::json!({
+                "condition_id": 7,
+                "name": "Clumsy",
+                "value": json_integer::JS_SAFE_INTEGER_MAX + 1,
+            }),
+        )
+        .expect_err("present unsafe optional integer should be rejected");
+        assert!(error.to_string().contains("JavaScript safe-integer range"));
+    }
+
+    #[test]
     fn targeted_automation_limitation_remains_explicit_when_empty_runtime_arrays_are_omitted() {
         let runtime = EncounterRuntimeView {
             level: None,

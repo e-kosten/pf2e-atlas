@@ -803,6 +803,108 @@ async fn encounter_routes_use_real_router_wiring() {
 }
 
 #[tokio::test]
+async fn encounter_routes_accept_omitted_numeric_optionals_and_reject_unsafe_values() {
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/record",
+        Some(json!({
+            "encounter_ref": "ignored",
+            "record_ref": "actors:testCreature",
+            "quantity": 1
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/manual",
+        Some(json!({
+            "encounter_ref": "ignored",
+            "display_name": "Kyra"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a",
+        Some(json!({
+            "participant_key": "ignored",
+            "display_name": "Goblin",
+            "side": "enemy",
+            "participant_variant": "normal",
+            "temporary_hp": 0,
+            "defeated": false,
+            "hidden": false
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/conditions",
+        Some(json!({
+            "participant_key": "ignored",
+            "name": "Clumsy"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a/conditions/7",
+        Some(json!({
+            "condition_id": 999,
+            "name": "Clumsy",
+            "value": 3,
+            "duration_rounds": 1
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["value"],
+        3
+    );
+
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/wrong_participant/conditions/7",
+        Some(json!({
+            "condition_id": 999,
+            "name": "Clumsy",
+            "value": 3
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["code"], "encounter_participant_not_found");
+
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a/conditions/7",
+        Some(json!({
+            "condition_id": 7,
+            "name": "Clumsy",
+            "value": 9_007_199_254_740_992_i64
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    assert!(
+        body["message"]
+            .as_str()
+            .expect("message should be string")
+            .contains("JavaScript safe-integer range")
+    );
+}
+
+#[tokio::test]
 async fn malformed_json_route_body_returns_app_error_envelope() {
     let app = test_router();
     let response = app

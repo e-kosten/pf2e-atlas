@@ -53,7 +53,7 @@ pub struct EncounterRuntimeVitalsView {
     #[ts(optional)]
     pub maximum_hp: Option<RuntimeNumberView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub current_hp: Option<i64>,
     #[serde(with = "crate::json_integer")]
@@ -200,7 +200,7 @@ pub struct EncounterRuntimeSpellView {
     #[ts(optional)]
     pub target_record_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub rank: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -347,14 +347,14 @@ pub struct EncounterRuntimeConditionView {
     pub condition_key: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub duration_rounds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -583,14 +583,14 @@ pub enum EncounterRuntimeActionCostKindView {
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeFrequencyView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub maximum: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub period: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub serialized_value: Option<i64>,
     pub provenance: RuntimeFactProvenanceView,
@@ -600,11 +600,11 @@ pub struct EncounterRuntimeFrequencyView {
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeUsesView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub maximum: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::json_integer::optional")]
+    #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub serialized_value: Option<i64>,
     pub provenance: RuntimeFactProvenanceView,
