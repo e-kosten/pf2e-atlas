@@ -3,6 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::source::dto::{
+    PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE,
+};
+
+use super::registry::accepted_registry;
 use super::{CoverageFailure, CoverageFailureCode};
 
 pub const ATLAS_SOURCE_LEAF_COVERAGE_VERSION: &str = "atlas-source-leaf-coverage/v1";
@@ -24,6 +29,15 @@ pub struct SourcePin {
     pub source_signature: String,
 }
 
+impl SourcePin {
+    pub fn pinned() -> Self {
+        Self {
+            upstream_commit: PF2E_SOURCE_PINNED_COMMIT.to_string(),
+            source_signature: PF2E_SOURCE_PINNED_SIGNATURE.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceLeafSelector {
@@ -31,7 +45,28 @@ pub struct SourceLeafSelector {
     pub document_class: String,
     pub type_discriminator: String,
     pub role: SourceDocumentRole,
-    pub parent_context: String,
+    pub parent_context: SourceParentContextSelector,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceParentContextSelector {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub document_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub type_discriminator: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relationship_path: Option<String>,
+}
+
+impl SourceParentContextSelector {
+    pub const fn root() -> Self {
+        Self {
+            document_class: None,
+            type_discriminator: None,
+            relationship_path: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -54,6 +89,7 @@ pub struct SourceLeafContract {
     pub map_key_policy: Option<MapKeyPolicy>,
     pub disposition: SourceLeafDisposition,
     pub reader: ReaderContract,
+    pub fixtures: Vec<FixtureContract>,
     pub final_owners: Vec<FinalOwnerContract>,
     pub surfaces: SurfaceContract,
     pub rationale: String,
@@ -113,6 +149,24 @@ pub struct ReaderContract {
     pub reader_id: Option<String>,
     #[serde(default)]
     pub parity_case_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FixtureContract {
+    pub case_id: String,
+    pub record_key: String,
+    pub source_path: String,
+    pub source_file_digest: String,
+    pub excerpt_digest: String,
+    pub provenance: FixtureProvenance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FixtureProvenance {
+    PinnedSource,
+    ContractOnly,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -236,20 +290,17 @@ pub fn lint_source_leaf_ledger(ledger: &SourceLeafCoverageLedger) -> Vec<Coverag
             ),
         ));
     }
+    if ledger.source_pin != SourcePin::pinned()
+        || ledger.selector.source_contract_version != PF2E_SOURCE_CONTRACT_VERSION
+    {
+        failures.push(CoverageFailure::ledger(
+            CoverageFailureCode::SourcePinMismatch,
+            format!(
+                "ledger must bind source contract {PF2E_SOURCE_CONTRACT_VERSION}, commit {PF2E_SOURCE_PINNED_COMMIT}, and signature {PF2E_SOURCE_PINNED_SIGNATURE}"
+            ),
+        ));
+    }
     for (field, value) in [
-        ("type_id", ledger.type_id.as_str()),
-        (
-            "source_pin.upstream_commit",
-            ledger.source_pin.upstream_commit.as_str(),
-        ),
-        (
-            "source_pin.source_signature",
-            ledger.source_pin.source_signature.as_str(),
-        ),
-        (
-            "selector.source_contract_version",
-            ledger.selector.source_contract_version.as_str(),
-        ),
         (
             "selector.document_class",
             ledger.selector.document_class.as_str(),
@@ -258,10 +309,6 @@ pub fn lint_source_leaf_ledger(ledger: &SourceLeafCoverageLedger) -> Vec<Coverag
             "selector.type_discriminator",
             ledger.selector.type_discriminator.as_str(),
         ),
-        (
-            "selector.parent_context",
-            ledger.selector.parent_context.as_str(),
-        ),
     ] {
         if value.trim().is_empty() {
             failures.push(CoverageFailure::ledger(
@@ -269,6 +316,27 @@ pub fn lint_source_leaf_ledger(ledger: &SourceLeafCoverageLedger) -> Vec<Coverag
                 format!("{field} must be non-empty"),
             ));
         }
+    }
+    match accepted_registry() {
+        Ok(registry) => {
+            let exact_match = registry.entries.iter().any(|entry| {
+                entry.type_id == ledger.type_id
+                    && entry.document_class == ledger.selector.document_class
+                    && entry.type_discriminator == ledger.selector.type_discriminator
+                    && entry.role == ledger.selector.role
+                    && entry.parent_context == ledger.selector.parent_context
+            });
+            if !exact_match {
+                failures.push(CoverageFailure::ledger(
+                    CoverageFailureCode::RegistryBindingMismatch,
+                    "type_id and exact document/discriminator/role/parent-context selector must match one accepted registry entry",
+                ));
+            }
+        }
+        Err(error) => failures.push(CoverageFailure::ledger(
+            CoverageFailureCode::RegistryBindingMismatch,
+            error,
+        )),
     }
     if ledger.leaves.is_empty() {
         failures.push(CoverageFailure::ledger(
@@ -409,6 +477,33 @@ fn lint_leaf(
             "parity_case_ids must be unique non-empty fixture identities",
         ));
     }
+    let fixture_cases = leaf
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.case_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let parity_cases = leaf
+        .reader
+        .parity_case_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    if fixture_cases.len() != leaf.fixtures.len()
+        || fixture_cases != parity_cases
+        || leaf.fixtures.iter().any(|fixture| {
+            fixture.case_id.trim().is_empty()
+                || fixture.record_key.trim().is_empty()
+                || fixture.source_path.trim().is_empty()
+                || !valid_sha256_digest(&fixture.source_file_digest)
+                || !valid_sha256_digest(&fixture.excerpt_digest)
+        })
+    {
+        failures.push(CoverageFailure::for_identity(
+            CoverageFailureCode::FixtureNotSourceGrounded,
+            identity.clone(),
+            "fixture contracts must uniquely and exactly bind every parity case to record/path/sha256 provenance",
+        ));
+    }
     if leaf.source_prevalence.occurrence_count < leaf.source_prevalence.record_count {
         failures.push(CoverageFailure::for_identity(
             CoverageFailureCode::InvalidContract,
@@ -465,11 +560,14 @@ fn lint_leaf(
     match leaf.disposition {
         SourceLeafDisposition::Promoted => lint_promoted(leaf, &stages, identity.clone(), failures),
         SourceLeafDisposition::ProvenanceOnly => {
-            if !stages.contains_key(&FinalOwnerStage::DurableProvenance) {
+            if leaf.reader.reader_id.as_deref().is_none_or(str::is_empty)
+                || leaf.final_owners.len() != 1
+                || !stages.contains_key(&FinalOwnerStage::DurableProvenance)
+            {
                 failures.push(CoverageFailure::for_identity(
                     CoverageFailureCode::ProvenanceNotDurable,
                     identity.clone(),
-                    "provenance_only requires an exact durable_provenance final owner",
+                    "provenance_only requires an exact provenance reader and durable_provenance as its sole final owner",
                 ));
             }
             if leaf
@@ -532,6 +630,12 @@ fn lint_leaf(
             "accepted dispositions require at least one source-grounded parity case",
         ));
     }
+}
+
+fn valid_sha256_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
 }
 
 fn lint_promoted(
@@ -602,16 +706,16 @@ mod tests {
 
     const LEDGER: &str = r#"
 contract_version: atlas-source-leaf-coverage/v1
-type_id: actor:npc
+type_id: actor--npc--top-level--root--root--root
 source_pin:
-  upstream_commit: abc123
-  source_signature: foundry-pf2e:sha256:fixture
+  upstream_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+  source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
 selector:
   source_contract_version: pf2e-serialized-source/v1
   document_class: Actor
   type_discriminator: npc
   role: top_level
-  parent_context: root
+  parent_context: {}
 leaves:
   - normalized_path: $.system.abilities.*.mod
     expected_shapes: [missing, null, number, map_member]
@@ -623,6 +727,13 @@ leaves:
     reader:
       reader_id: source::dto::NpcLegacyAbilitySource::mod
       parity_case_ids: [dense-npc]
+    fixtures:
+      - case_id: dense-npc
+        record_key: pf2e.pathfinder-bestiary:fixture
+        source_path: packs/pathfinder-bestiary/fixture.json
+        source_file_digest: sha256:14191cbe7fa302bf633734290cbb660ae8e955bef24d587cc909533ad6bf68c5
+        excerpt_digest: sha256:14191cbe7fa302bf633734290cbb660ae8e955bef24d587cc909533ad6bf68c5
+        provenance: pinned_source
     final_owners:
       - { stage: source_dto, destination: NpcLegacyAbilitySource.mod }
       - { stage: canonical, destination: CreatureRecord.legacy_abilities }
@@ -643,7 +754,10 @@ leaves:
         let ledger = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
         assert_eq!(ledger.leaves.len(), 1);
         assert!(lint_source_leaf_ledger(&ledger).is_empty());
-        assert_eq!(ledger.selector.parent_context, "root");
+        assert_eq!(
+            ledger.selector.parent_context,
+            SourceParentContextSelector::root()
+        );
     }
 
     #[test]
@@ -662,8 +776,8 @@ leaves:
     #[test]
     fn parser_rejects_unknown_fields_with_exact_code() {
         let error = parse_source_leaf_ledger(&LEDGER.replace(
-            "type_id: actor:npc",
-            "type_id: actor:npc\npath_family: $.system.**",
+            "type_id: actor--npc--top-level--root--root--root",
+            "type_id: actor--npc--top-level--root--root--root\npath_family: $.system.**",
         ))
         .expect_err("unknown broad field");
         assert_eq!(error.code, CoverageFailureCode::InvalidContract);
@@ -698,5 +812,51 @@ leaves:
             failure.code == CoverageFailureCode::DuplicateOwnership
                 && failure.message.contains("more than one ledger")
         }));
+    }
+
+    #[test]
+    fn lint_rejects_wrong_pin_and_registry_tuple_with_exact_codes() {
+        let mut wrong_pin = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        wrong_pin.source_pin.upstream_commit = "not-the-pinned-source".to_string();
+        assert!(
+            lint_source_leaf_ledger(&wrong_pin)
+                .iter()
+                .any(|failure| { failure.code == CoverageFailureCode::SourcePinMismatch })
+        );
+
+        let mut wrong_tuple = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        wrong_tuple.selector.parent_context = SourceParentContextSelector {
+            document_class: Some("Actor".to_string()),
+            type_discriminator: Some("npc".to_string()),
+            relationship_path: Some("Actor.items".to_string()),
+        };
+        assert!(
+            lint_source_leaf_ledger(&wrong_tuple)
+                .iter()
+                .any(|failure| { failure.code == CoverageFailureCode::RegistryBindingMismatch })
+        );
+    }
+
+    #[test]
+    fn provenance_only_rejects_semantic_final_owners() {
+        let mut ledger = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        let leaf = &mut ledger.leaves[0];
+        leaf.disposition = SourceLeafDisposition::ProvenanceOnly;
+        leaf.final_owners = vec![
+            FinalOwnerContract {
+                stage: FinalOwnerStage::DurableProvenance,
+                destination: "AtlasRecord.raw_json".to_string(),
+            },
+            FinalOwnerContract {
+                stage: FinalOwnerStage::Canonical,
+                destination: "CreatureRecord.semantic".to_string(),
+            },
+        ];
+        leaf.surfaces = SurfaceContract::default();
+        assert!(
+            lint_source_leaf_ledger(&ledger)
+                .iter()
+                .any(|failure| { failure.code == CoverageFailureCode::ProvenanceNotDurable })
+        );
     }
 }

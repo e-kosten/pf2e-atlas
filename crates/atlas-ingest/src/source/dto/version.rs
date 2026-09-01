@@ -6,6 +6,8 @@ pub const PF2E_SOURCE_CONTRACT_VERSION: &str = "pf2e-serialized-source/v1";
 pub const PF2E_SOURCE_PINNED_SYSTEM_ID: &str = "pf2e";
 pub const PF2E_SOURCE_PINNED_SYSTEM_VERSION: &str = "6.12.4";
 pub const PF2E_SOURCE_PINNED_COMMIT: &str = "4cbdaa37d6c33e9519561bae2c59a23e0288cbce";
+pub const PF2E_SOURCE_PINNED_SIGNATURE: &str =
+    "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a";
 
 /// Version identity emitted with source-boundary diagnostics and build inputs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
