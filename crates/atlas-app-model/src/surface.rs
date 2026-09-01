@@ -126,6 +126,9 @@ pub struct CreatureSurfaceView {
     pub spellcasting: Option<Vec<CreatureSurfaceSpellcastingView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
+    pub standalone_spells: Option<Vec<CreatureSurfaceSpellView>>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
     pub activities: Option<Vec<CreatureSurfaceActivityView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
@@ -246,6 +249,7 @@ pub enum CreatureSurfaceUnavailableFieldView {
     SpellDifficultyClass,
     SpellTraits,
     SpellRank,
+    SpellContent,
     Relationships,
 }
 
@@ -553,6 +557,9 @@ pub struct CreatureSurfaceSpellView {
     pub rank: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<String>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub content: Option<Vec<CreatureSurfaceContentView>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

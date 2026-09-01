@@ -7,29 +7,30 @@ use atlas_app_model::{
     CreatureSurfaceContentRoleView, CreatureSurfaceContentView,
     CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
     CreatureSurfaceFactProvenanceView, CreatureSurfaceProvenanceView,
-    CreatureSurfaceSourceFieldView, CreatureSurfaceUnavailableCauseView,
-    CreatureSurfaceUnavailableDomainsView, CreatureSurfaceUnavailableFieldView,
-    CreatureSurfaceUnavailableStateView, CreatureSurfaceView, DeleteEncounterView,
-    DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
-    EncounterConditionCatalogView, EncounterConditionCategoryView,
-    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
-    EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
-    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
-    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
-    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
-    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
-    RecordSurfaceSourceView, RecordSurfaceView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, RuntimeCanonicalTargetView,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchPageView, SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    CreatureSurfaceSourceFieldView, CreatureSurfaceSpellView, CreatureSurfaceSpellcastingView,
+    CreatureSurfaceUnavailableCauseView, CreatureSurfaceUnavailableDomainsView,
+    CreatureSurfaceUnavailableFieldView, CreatureSurfaceUnavailableStateView, CreatureSurfaceView,
+    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
+    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
+    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterRuntimeAutomationLimitationCodeView,
+    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
+    EncounterRuntimeConditionView, EncounterRuntimeView, EncounterRuntimeVitalsView,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
+    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
+    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RecordSurfaceMetadataView,
+    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
+    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
+    RuntimeCanonicalTargetView, RuntimeFactProvenanceView, RuntimeFactSourceView,
+    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
@@ -403,7 +404,7 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
 }
 
 #[tokio::test]
-async fn record_route_serializes_activity_content_blocks_without_owner_or_flattened_text() {
+async fn record_route_serializes_owned_activity_and_spell_content_without_flattening() {
     let (status, body) =
         route_json(Method::GET, "/api/records/creatures:activityContent", None).await;
     assert_eq!(status, StatusCode::OK);
@@ -429,7 +430,16 @@ async fn record_route_serializes_activity_content_blocks_without_owner_or_flatte
     assert_eq!(activity_content["blocks"][1]["block_type"], "divider");
     assert!(activity_content.get("owner").is_none());
     assert!(activity_content.get("text").is_none());
-    assert!(creature.get("content").is_none());
+    assert_eq!(
+        creature["spellcasting"][0]["spells"][0]["content"][0]["content_key"],
+        "bind-soul"
+    );
+    assert_eq!(
+        creature["standalone_spells"][0]["content"][0]["content_key"],
+        "control-weather"
+    );
+    assert_eq!(creature["content"][0]["content_key"], "heartstone");
+    assert_eq!(creature["content"].as_array().map(Vec::len), Some(1));
 }
 
 #[tokio::test]
@@ -1364,6 +1374,30 @@ impl AtlasWebService for MockService {
 }
 
 fn activity_content_surface() -> RecordSurfaceView {
+    let content = |content_key: &str, label: &str| CreatureSurfaceContentView {
+        content_key: content_key.to_string(),
+        role: CreatureSurfaceContentRoleView::EmbeddedCapability,
+        authored_order: 0,
+        label: Some(label.to_string()),
+        blocks: vec![
+            CreatureSurfaceContentBlockView::Paragraph {
+                spans: vec![CreatureSurfaceContentInlineView::Check {
+                    display: "Fortitude DC 28".to_string(),
+                    statistic: Some("fortitude".to_string()),
+                    difficulty_class: Some(28),
+                }],
+            },
+            CreatureSurfaceContentBlockView::Divider,
+        ],
+        content_hash: "fixture".to_string(),
+        visibility: "public".to_string(),
+        provenance: CreatureSurfaceContentProvenanceView {
+            source_record_key: "creatures:activityContent".to_string(),
+            relative_source_path: format!("items[{content_key}].system.description.value"),
+            field_family: "embedded_item_description".to_string(),
+            nested_source_id: Some(content_key.to_string()),
+        },
+    };
     RecordSurfaceView {
         metadata: RecordSurfaceMetadataView {
             record_key: Some("creatures:activityContent".to_string()),
@@ -1386,7 +1420,33 @@ fn activity_content_surface() -> RecordSurfaceView {
                 skills: None,
                 movement: None,
                 resources: None,
-                spellcasting: None,
+                spellcasting: Some(vec![CreatureSurfaceSpellcastingView {
+                    occurrence_id: "entry-occult".to_string(),
+                    authored_order: 0,
+                    label: "Occult Innate Spells".to_string(),
+                    preparation: Some("innate".to_string()),
+                    tradition: Some("occult".to_string()),
+                    attack_modifier: Some(20),
+                    difficulty_class: Some(28),
+                    spells: vec![CreatureSurfaceSpellView {
+                        occurrence_id: "bind-soul".to_string(),
+                        authored_order: 1,
+                        label: "Bind Soul".to_string(),
+                        target_record_key: None,
+                        rank: Some(9),
+                        traits: vec!["spell".to_string()],
+                        content: Some(vec![content("bind-soul", "Bind Soul")]),
+                    }],
+                }]),
+                standalone_spells: Some(vec![CreatureSurfaceSpellView {
+                    occurrence_id: "control-weather".to_string(),
+                    authored_order: 2,
+                    label: "Control Weather".to_string(),
+                    target_record_key: Some("spells:control-weather".to_string()),
+                    rank: Some(8),
+                    traits: vec!["spell".to_string()],
+                    content: Some(vec![content("control-weather", "Control Weather")]),
+                }]),
                 activities: Some(vec![CreatureSurfaceActivityView {
                     occurrence_id: "occurrence:plague".to_string(),
                     authored_order: 0,
@@ -1396,33 +1456,9 @@ fn activity_content_surface() -> RecordSurfaceView {
                     action_cost: None,
                     rolls: Vec::new(),
                     damage: Vec::new(),
-                    content: Some(vec![CreatureSurfaceContentView {
-                        content_key: "item:plague:description".to_string(),
-                        role: CreatureSurfaceContentRoleView::EmbeddedCapability,
-                        authored_order: 0,
-                        label: Some("Abyssal Plague".to_string()),
-                        blocks: vec![
-                            CreatureSurfaceContentBlockView::Paragraph {
-                                spans: vec![CreatureSurfaceContentInlineView::Check {
-                                    display: "Fortitude DC 28".to_string(),
-                                    statistic: Some("fortitude".to_string()),
-                                    difficulty_class: Some(28),
-                                }],
-                            },
-                            CreatureSurfaceContentBlockView::Divider,
-                        ],
-                        content_hash: "fixture".to_string(),
-                        visibility: "public".to_string(),
-                        provenance: CreatureSurfaceContentProvenanceView {
-                            source_record_key: "creatures:activityContent".to_string(),
-                            relative_source_path: "items[plague].system.description.value"
-                                .to_string(),
-                            field_family: "embedded_item_description".to_string(),
-                            nested_source_id: Some("plague".to_string()),
-                        },
-                    }]),
+                    content: Some(vec![content("item:plague:description", "Abyssal Plague")]),
                 }]),
-                content: None,
+                content: Some(vec![content("heartstone", "Heartstone")]),
                 relationships: None,
                 unavailable_domains: None,
                 provenance: None,
@@ -1456,6 +1492,7 @@ fn typed_failure_surface() -> RecordSurfaceView {
                 movement: None,
                 resources: None,
                 spellcasting: None,
+                standalone_spells: None,
                 activities: None,
                 content: None,
                 relationships: None,
