@@ -180,7 +180,7 @@ fn publish_artifact_pair_with_hook(
 
     let phase = Instant::now();
     cleanup_backups(target_artifact, target_manifest)?;
-    cleanup_generation_files(target_artifact, &staged_sha256)?;
+    cleanup_generation_files(target_artifact, Some(&staged_sha256))?;
     sync_parent(target_artifact)?;
     telemetry.cleanup_ms = phase.elapsed().as_millis();
     Ok(telemetry)
@@ -290,9 +290,9 @@ fn restore_previous_pair(
         replace_file(&backup_path(target_artifact), target_artifact)?;
         replace_file(&backup_path(target_manifest), target_manifest)?;
         let sha256 = verify_pair_files(target_artifact, target_manifest)?;
-        cleanup_generation_files(target_artifact, &sha256)?;
+        cleanup_generation_files(target_artifact, Some(&sha256))?;
     } else {
-        cleanup_generation_files(target_artifact, "")?;
+        cleanup_generation_files(target_artifact, None)?;
     }
     cleanup_backups(target_artifact, target_manifest)?;
     sync_parent(target_artifact)
@@ -499,7 +499,7 @@ mod tests {
         assert!(matches!(error, IndexWriteError::ReceiptInvalidated(_)));
         assert!(!fixture.artifact.exists());
         assert!(!fixture.manifest.exists());
-        assert!(!generation.exists());
+        assert!(generation.exists());
     }
 
     #[test]
@@ -826,7 +826,7 @@ mod tests {
     }
 
     #[test]
-    fn existing_corrupted_generation_surfaces_normal_open_failure_without_rehash() {
+    fn existing_owner_writable_corrupted_generation_is_recreated_at_copy_boundary() {
         let fixture = PairFixture::new("corrupted-generation-snapshot");
         fixture.publish_initial("old");
         let (new_artifact, new_manifest) = fixture.stage("new");
@@ -835,21 +835,21 @@ mod tests {
             crate::artifact::pair::generation_path(&fixture.artifact, &new_sha256);
         fs::write(&corrupted_generation, b"corrupted generation cache").unwrap();
 
-        publish_artifact_pair(
-            &new_artifact,
+        let receipt =
+            ArtifactPublicationReceipt::issue_test(&new_artifact, &fixture.artifact).unwrap();
+        let telemetry = super::publish_artifact_pair(
+            receipt,
             &new_manifest,
             &fixture.artifact,
             &fixture.manifest,
         )
         .unwrap();
 
+        assert_eq!(telemetry.generation_copy_count, 1);
+        assert_eq!(telemetry.generation_copy_verify_sha_pass_count, 1);
         verify_pair_files(&fixture.artifact, &fixture.manifest).unwrap();
-        assert_ne!(sha256(&corrupted_generation), new_sha256);
-        let error = match crate::SqliteIndexReader::open_read_only(&fixture.artifact) {
-            Ok(_) => panic!("corrupted local generation must fail normal SQLite open"),
-            Err(error) => error,
-        };
-        assert!(error.to_string().contains("rebuild"));
+        assert_eq!(sha256(&corrupted_generation), new_sha256);
+        assert_eq!(fixture.marker(), "new");
     }
 
     #[test]
@@ -954,10 +954,8 @@ mod tests {
         fn assert_no_transaction_residue(&self) {
             assert!(!backup_path(&self.artifact).exists());
             assert!(!backup_path(&self.manifest).exists());
-            let generation_directory = crate::artifact::pair::generation_path(&self.artifact, "")
-                .parent()
-                .unwrap()
-                .to_path_buf();
+            let generation_directory =
+                crate::artifact::pair::generation_directory_for_test(&self.artifact);
             let mut actual = if generation_directory.exists() {
                 fs::read_dir(&generation_directory)
                     .unwrap()
@@ -970,12 +968,17 @@ mod tests {
             let expected = verify_pair_files(&self.artifact, &self.manifest)
                 .ok()
                 .map(|sha256| {
-                    vec![crate::artifact::pair::generation_path(
-                        &self.artifact,
-                        &sha256,
-                    )]
+                    vec![
+                        crate::artifact::pair::generation_path(&self.artifact, &sha256),
+                        crate::artifact::pair::generation_trust_path_for_test(
+                            &self.artifact,
+                            &sha256,
+                        ),
+                    ]
                 })
                 .unwrap_or_default();
+            let mut expected = expected;
+            expected.sort();
             assert_eq!(actual, expected);
         }
     }

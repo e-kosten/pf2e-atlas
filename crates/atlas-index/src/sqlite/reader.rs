@@ -72,12 +72,12 @@ impl SqliteIndexReader {
             &path,
             &generation.path,
             &generation.file,
-            verified.sha256.clone(),
+            verified.sha256.as_str().to_string(),
         )?;
         drop(pair_lock);
         Ok(Self {
             path,
-            _verified_artifact_sha256: Some(verified.sha256),
+            _verified_artifact_sha256: Some(verified.sha256.as_str().to_string()),
             verified_generation: Some(verified_generation),
             reader_acquisition_ms: acquisition_started.elapsed().as_millis(),
             reader_visible_sha_pass_count: 0,
@@ -448,6 +448,209 @@ mod tests {
     }
 
     #[test]
+    fn noncanonical_manifest_digests_are_rejected_before_path_construction() {
+        let invalid_digests = [
+            "../outside.sqlite".to_string(),
+            "A".repeat(64),
+            "a".repeat(63),
+            "g".repeat(64),
+            format!("{}{}{}", "a".repeat(31), "/", "b".repeat(32)),
+        ];
+
+        for (index, digest) in invalid_digests.into_iter().enumerate() {
+            let root = unique_root(&format!("invalid-digest-{index}"));
+            std::fs::create_dir_all(&root).unwrap();
+            let artifact = root.join("index.sqlite");
+            create_valid_generation(&artifact, "Invalid Digest");
+            write_manifest_digest(&root.join("manifest.json"), &digest);
+
+            let error = match SqliteIndexReader::open_read_only(&artifact) {
+                Ok(_) => panic!("noncanonical manifest digest must be rejected"),
+                Err(error) => error,
+            };
+            assert!(error.to_string().contains("64 lowercase hexadecimal"));
+            assert!(
+                !crate::artifact::pair::generation_path(&artifact, &"a".repeat(64))
+                    .parent()
+                    .unwrap()
+                    .exists()
+            );
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn untrusted_generation_prepopulation_is_replaced_from_the_primary() {
+        let root = unique_root("prepopulated-generation");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Primary");
+        write_manifest(&root.join("manifest.json"), &artifact);
+        let digest = sha256(&artifact);
+        let generation = crate::artifact::pair::generation_path(&artifact, &digest);
+        std::fs::create_dir_all(generation.parent().unwrap()).unwrap();
+        create_valid_generation(&generation, "Prepopulated");
+        seal_test_file(&generation);
+
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        assert_reader_generation(&reader, "Primary", &digest);
+        let evidence = reader.verified_generation_evidence().unwrap();
+        assert_eq!(evidence["reader_generation_sha_pass_count"], 2);
+        drop(reader);
+        assert_eq!(generation_name(&generation), "Primary 1");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn owner_writable_legacy_generation_is_recreated_and_sealed() {
+        let root = unique_root("owner-writable-generation");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Primary");
+        write_manifest(&root.join("manifest.json"), &artifact);
+        let digest = sha256(&artifact);
+        drop(SqliteIndexReader::open_read_only(&artifact).unwrap());
+        let generation = crate::artifact::pair::generation_path(&artifact, &digest);
+        make_test_owner_writable(&generation);
+        let connection = rusqlite::Connection::open(&generation).unwrap();
+        connection
+            .execute(
+                "UPDATE records SET name = 'Legacy Mutation' WHERE record_key = 'actions:testAction1'",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        assert_reader_generation(&reader, "Primary", &digest);
+        assert!(
+            std::fs::metadata(&generation)
+                .unwrap()
+                .permissions()
+                .readonly()
+        );
+        drop(reader);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sealed_generation_tamper_and_replacement_are_recovered_without_warm_rehash() {
+        let root = unique_root("generation-tamper-replacement");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Primary");
+        write_manifest(&root.join("manifest.json"), &artifact);
+        let digest = sha256(&artifact);
+        drop(SqliteIndexReader::open_read_only(&artifact).unwrap());
+        let generation = crate::artifact::pair::generation_path(&artifact, &digest);
+
+        make_test_owner_writable(&generation);
+        let connection = rusqlite::Connection::open(&generation).unwrap();
+        connection
+            .execute(
+                "UPDATE records SET name = 'Tampered' WHERE record_key = 'actions:testAction1'",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        seal_test_file(&generation);
+        drop(SqliteIndexReader::open_read_only(&artifact).unwrap());
+        assert_eq!(generation_name(&generation), "Primary 1");
+
+        let replacement = root.join("replacement.sqlite");
+        create_valid_generation(&replacement, "Replacement");
+        seal_test_file(&replacement);
+        std::fs::remove_file(&generation).unwrap();
+        std::fs::rename(&replacement, &generation).unwrap();
+        drop(SqliteIndexReader::open_read_only(&artifact).unwrap());
+        assert_eq!(generation_name(&generation), "Primary 1");
+
+        let warm = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        assert_eq!(
+            warm.verified_generation_evidence().unwrap()["reader_generation_sha_pass_count"],
+            0
+        );
+        drop(warm);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn generation_links_are_rejected_without_deleting_their_targets() {
+        let root = unique_root("generation-links");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Primary");
+        write_manifest(&root.join("manifest.json"), &artifact);
+        let digest = sha256(&artifact);
+        let generation = crate::artifact::pair::generation_path(&artifact, &digest);
+        std::fs::create_dir_all(generation.parent().unwrap()).unwrap();
+        let victim = root.join("victim.sqlite");
+        create_valid_generation(&victim, "Victim");
+        std::os::unix::fs::symlink(&victim, &generation).unwrap();
+
+        let error = match SqliteIndexReader::open_read_only(&artifact) {
+            Ok(_) => panic!("generation symlink must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("not a link or reparse alias"));
+        assert!(victim.exists());
+        std::fs::remove_file(&generation).unwrap();
+        std::fs::hard_link(&artifact, &generation).unwrap();
+        let error = match SqliteIndexReader::open_read_only(&artifact) {
+            Ok(_) => panic!("generation hard link to the primary must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("aliases the visible or staged artifact")
+        );
+        assert!(artifact.exists());
+
+        std::fs::remove_file(&generation).unwrap();
+        let generation_directory = generation.parent().unwrap();
+        std::fs::remove_dir(generation_directory).unwrap();
+        let outside_directory = root.join("outside-generation-directory");
+        std::fs::create_dir_all(&outside_directory).unwrap();
+        std::os::unix::fs::symlink(&outside_directory, generation_directory).unwrap();
+        let error = match SqliteIndexReader::open_read_only(&artifact) {
+            Ok(_) => panic!("generation directory symlink must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("must be a real directory"));
+        assert!(outside_directory.exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn obsolete_lease_does_not_delete_a_replacement_generation() {
+        let root = unique_root("lease-replacement");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Primary");
+        write_manifest(&root.join("manifest.json"), &artifact);
+        let digest = sha256(&artifact);
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let generation = crate::artifact::pair::generation_path(&artifact, &digest);
+        let replacement = root.join("lease-replacement.sqlite");
+        create_valid_generation(&replacement, "Replacement");
+        seal_test_file(&replacement);
+        std::fs::remove_file(&generation).unwrap();
+        std::fs::rename(&replacement, &generation).unwrap();
+        write_manifest_digest(&root.join("manifest.json"), &"f".repeat(64));
+
+        drop(reader);
+        assert!(generation.exists());
+        assert_eq!(generation_name(&generation), "Replacement 1");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn warm_keyed_reads_skip_global_scans_and_full_file_hashes() {
         let root = unique_root("warm-keyed-read");
         std::fs::create_dir_all(&root).unwrap();
@@ -474,6 +677,15 @@ mod tests {
         write_manifest(&manifest, &artifact);
 
         drop(SqliteIndexReader::open_read_only(&artifact).unwrap());
+        let digest = sha256(&artifact);
+        let generation = crate::artifact::pair::generation_path(&artifact, &digest);
+        let trust = crate::artifact::pair::generation_trust_path_for_test(&artifact, &digest);
+        for path in [&generation, &trust] {
+            let metadata = std::fs::symlink_metadata(path).unwrap();
+            assert!(metadata.file_type().is_file());
+            assert!(!metadata.file_type().is_symlink());
+            assert!(metadata.permissions().readonly());
+        }
         crate::read::records::reset_canonical_coherence_scan_count();
         let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
         let evidence = reader.verified_generation_evidence().unwrap();
@@ -738,6 +950,7 @@ mod tests {
         let generation_path = evidence["generation_path"].as_str().unwrap();
         let bytes = evidence["bytes"].as_u64().unwrap();
 
+        make_test_owner_writable(Path::new(generation_path));
         let file = std::fs::OpenOptions::new()
             .append(true)
             .open(generation_path)
@@ -815,6 +1028,10 @@ mod tests {
     }
 
     fn write_manifest(path: &Path, artifact: &Path) {
+        write_manifest_digest(path, &sha256(artifact));
+    }
+
+    fn write_manifest_digest(path: &Path, digest: &str) {
         std::fs::write(
             path,
             format!(
@@ -822,10 +1039,41 @@ mod tests {
                 crate::ARTIFACT_MANIFEST_VERSION,
                 crate::ARTIFACT_CONTRACT_VERSION,
                 crate::ARTIFACT_SCHEMA_VERSION,
-                sha256(artifact),
+                digest,
             ),
         )
         .unwrap();
+    }
+
+    #[cfg(unix)]
+    fn make_test_owner_writable(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let metadata = std::fs::metadata(path).unwrap();
+        let mut permissions = metadata.permissions();
+        permissions.set_mode(permissions.mode() | 0o200);
+        std::fs::set_permissions(path, permissions).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn seal_test_file(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let metadata = std::fs::metadata(path).unwrap();
+        let mut permissions = metadata.permissions();
+        permissions.set_mode(permissions.mode() & !0o222);
+        std::fs::set_permissions(path, permissions).unwrap();
+    }
+
+    fn generation_name(path: &Path) -> String {
+        rusqlite::Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap()
+            .query_row(
+                "SELECT name FROM records WHERE record_key = 'actions:testAction1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap()
     }
 
     fn sha256(path: &Path) -> String {
