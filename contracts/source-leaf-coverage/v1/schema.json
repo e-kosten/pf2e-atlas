@@ -47,16 +47,30 @@
     "leaf": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["normalized_path", "expected_shapes", "source_prevalence", "disposition", "reader", "fixtures", "final_owners", "surfaces", "rationale", "owner", "acceptance_checkpoint"],
+      "required": ["normalized_path", "leaf_kind", "expected_shapes", "source_prevalence", "fixture_prevalence", "disposition", "reader", "fixtures", "final_owners", "surfaces", "rationale", "owner", "acceptance_checkpoint"],
       "properties": {
         "normalized_path": { "$ref": "#/$defs/nonEmptyString" },
+        "leaf_kind": { "enum": ["scalar", "array_member", "map_member"] },
         "expected_shapes": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "enum": ["missing", "null", "boolean", "number", "string", "array", "object", "array_member", "map_member"] }
+          "items": { "enum": ["missing", "null", "boolean", "number", "string"] }
         },
         "source_prevalence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_contract_version", "source_commit", "source_signature", "registry_sha256", "record_count", "occurrence_count"],
+          "properties": {
+            "source_contract_version": { "const": "pf2e-serialized-source/v1" },
+            "source_commit": { "const": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce" },
+            "source_signature": { "const": "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a" },
+            "registry_sha256": { "const": "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f" },
+            "record_count": { "type": "integer", "minimum": 0 },
+            "occurrence_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "fixture_prevalence": {
           "type": "object",
           "additionalProperties": false,
           "required": ["record_count", "occurrence_count"],

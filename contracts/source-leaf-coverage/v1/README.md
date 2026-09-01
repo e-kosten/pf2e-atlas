@@ -8,16 +8,23 @@ entry owns one normalized leaf. Lint authenticates that selector against the
 `38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f`)
 and accepts only the pinned PF2e source contract, commit, and signature.
 
-`[]` denotes an exact array-member shape and preserves identity, order, and
-multiplicity. `*` is valid only as a complete segment for a true map and must
-carry an explicit `map_key_policy`. Recursive `**`, prefixes, implicit
-descendants, and declaration-only consumer claims are invalid.
+`leaf_kind` distinguishes scalar, ordered array-member, and identity-retaining
+map-member leaves. Object and collection containers are prefixes rather than
+leaves. `[]` preserves member identity, order, and multiplicity. `*` is valid
+only as a complete segment for a true map and must carry an explicit
+`map_key_policy`. Recursive `**`, prefixes, implicit descendants, and
+declaration-only consumer claims are invalid.
 
 The raw source-path audit is discovery-only and cannot satisfy this contract.
 Acceptance requires source-grounded actual-read receipts and parity at every
 declared final-owner stage. Fixture record/path/digest identities are declared
-in the ledger. Receipts are emitted only by mutation-sensitive typed accessors,
-and final-owner observations are emitted by typed stage accessors. Aggregate
-receipts must reconcile declared record/occurrence prevalence, collection
-identity, authored order, and unit multiplicity. Creature declarations and
-fixtures are intentionally not part of this A1 contract-engine slice.
+in the ledger. The sealed accessor registry loads the source blob from the
+pinned Git tree, resolves its record key, runs the production parser and real
+selected owner functions, and derives its mutation proof internally. There is
+no caller-implemented accessor, receipt builder, caller byte payload, or
+success flag. `source_prevalence` is full-pin metadata bound to the source and
+registry identities; `fixture_prevalence` independently governs the focused
+receipt set. Focused receipts reconcile fixture identity, collection identity,
+authored order, and unit multiplicity without claiming to enumerate the corpus.
+Creature coverage declarations and A2 fixtures are intentionally not part of
+this A1 contract-engine slice.

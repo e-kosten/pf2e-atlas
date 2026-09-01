@@ -54,16 +54,15 @@ pub use source::model::{
 };
 pub use source_coverage::{
     ATLAS_SOURCE_LEAF_COVERAGE_VERSION, CoverageContractError, CoverageFailure,
-    CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerAccessor,
-    FinalOwnerContract, FinalOwnerStage, FixtureContract, FixtureProvenance, FixtureReference,
-    MapKeyPolicy, PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256,
-    PF2E_TYPE_REGISTRY_VERSION, ReaderContract, SemanticOutputAccessor, SourceAccessorPurpose,
-    SourceDocumentRole, SourceJsonType, SourceLeafAccessor, SourceLeafContract,
-    SourceLeafCoverageLedger, SourceLeafDisposition, SourceLeafIdentity, SourceLeafReceipt,
-    SourceLeafReceiptBuilder, SourceLeafSelector, SourceLeafValue, SourceMemberKind,
-    SourceParentContextSelector, SourcePin, SourcePrevalence, StageObservation, SurfaceContract,
-    SurfaceDecision, SurfaceDisposition, TypedUnsupportedValue, evaluate_source_leaf_coverage,
-    lint_source_leaf_ledger, lint_source_leaf_ledgers, parse_source_leaf_ledger,
+    CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerContract, FinalOwnerStage,
+    FixtureContract, FixturePrevalence, FixtureProvenance, MapKeyPolicy,
+    PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256, PF2E_TYPE_REGISTRY_VERSION,
+    ReaderContract, SourceDocumentRole, SourceLeafContract, SourceLeafCoverageLedger,
+    SourceLeafDisposition, SourceLeafIdentity, SourceLeafKind, SourceLeafReceipt,
+    SourceLeafSelector, SourceParentContextSelector, SourcePin, SourcePrevalence, SurfaceContract,
+    SurfaceDecision, SurfaceDisposition, capture_registered_source_leaf_receipt,
+    evaluate_source_leaf_coverage, lint_source_leaf_ledger, lint_source_leaf_ledgers,
+    parse_source_leaf_ledger,
 };
 pub use validation::{
     AssertionInventoryEntry, ExhaustiveValidationOptions, ExhaustiveValidationReport,

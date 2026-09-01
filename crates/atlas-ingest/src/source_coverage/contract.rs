@@ -7,7 +7,7 @@ use crate::source::dto::{
     PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE,
 };
 
-use super::registry::accepted_registry;
+use super::registry::{PF2E_TYPE_REGISTRY_SHA256, accepted_registry};
 use super::{CoverageFailure, CoverageFailureCode};
 
 pub const ATLAS_SOURCE_LEAF_COVERAGE_VERSION: &str = "atlas-source-leaf-coverage/v1";
@@ -83,8 +83,10 @@ pub enum SourceDocumentRole {
 #[serde(deny_unknown_fields)]
 pub struct SourceLeafContract {
     pub normalized_path: String,
+    pub leaf_kind: SourceLeafKind,
     pub expected_shapes: Vec<ExpectedSourceShape>,
     pub source_prevalence: SourcePrevalence,
+    pub fixture_prevalence: FixturePrevalence,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub map_key_policy: Option<MapKeyPolicy>,
     pub disposition: SourceLeafDisposition,
@@ -113,13 +115,30 @@ pub enum ExpectedSourceShape {
     String,
     Array,
     Object,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourcePrevalence {
+    pub source_contract_version: String,
+    pub source_commit: String,
+    pub source_signature: String,
+    pub registry_sha256: String,
+    pub record_count: usize,
+    pub occurrence_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceLeafKind {
+    Scalar,
     ArrayMember,
     MapMember,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SourcePrevalence {
+pub struct FixturePrevalence {
     pub record_count: usize,
     pub occurrence_count: usize,
 }
@@ -409,10 +428,7 @@ fn lint_leaf(
         .normalized_path
         .split('.')
         .any(|segment| segment == "*");
-    if has_map_wildcard
-        != leaf
-            .expected_shapes
-            .contains(&ExpectedSourceShape::MapMember)
+    if has_map_wildcard != (leaf.leaf_kind == SourceLeafKind::MapMember)
         || has_map_wildcard != leaf.map_key_policy.is_some()
     {
         failures.push(CoverageFailure::for_identity(
@@ -422,11 +438,7 @@ fn lint_leaf(
         ));
     }
     let has_array_member = leaf.normalized_path.contains("[]");
-    if has_array_member
-        != leaf
-            .expected_shapes
-            .contains(&ExpectedSourceShape::ArrayMember)
-    {
+    if has_array_member != (leaf.leaf_kind == SourceLeafKind::ArrayMember) {
         failures.push(CoverageFailure::for_identity(
             CoverageFailureCode::BroadDeclaration,
             identity.clone(),
@@ -449,6 +461,18 @@ fn lint_leaf(
             CoverageFailureCode::InvalidContract,
             identity.clone(),
             "expected_shapes must name the allowed source states and shapes",
+        ));
+    }
+    if leaf.expected_shapes.iter().any(|shape| {
+        matches!(
+            shape,
+            ExpectedSourceShape::Array | ExpectedSourceShape::Object
+        )
+    }) {
+        failures.push(CoverageFailure::for_identity(
+            CoverageFailureCode::BroadDeclaration,
+            identity.clone(),
+            "object and collection containers are prefixes, not exact source leaves; declare independently receipted [] or * members",
         ));
     }
     if leaf.expected_shapes.iter().collect::<BTreeSet<_>>().len() != leaf.expected_shapes.len() {
@@ -504,11 +528,37 @@ fn lint_leaf(
             "fixture contracts must uniquely and exactly bind every parity case to record/path/sha256 provenance",
         ));
     }
+    if leaf.source_prevalence.source_contract_version != PF2E_SOURCE_CONTRACT_VERSION
+        || leaf.source_prevalence.source_commit != PF2E_SOURCE_PINNED_COMMIT
+        || leaf.source_prevalence.source_signature != PF2E_SOURCE_PINNED_SIGNATURE
+        || leaf.source_prevalence.registry_sha256 != PF2E_TYPE_REGISTRY_SHA256
+    {
+        failures.push(CoverageFailure::for_identity(
+            CoverageFailureCode::SourcePrevalenceMismatch,
+            identity.clone(),
+            "global source prevalence must bind the accepted source contract, pin, signature, and registry digest",
+        ));
+    }
     if leaf.source_prevalence.occurrence_count < leaf.source_prevalence.record_count {
         failures.push(CoverageFailure::for_identity(
             CoverageFailureCode::InvalidContract,
             identity.clone(),
             "source occurrence count cannot be smaller than record count",
+        ));
+    }
+    let fixture_records = leaf
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.record_key.as_str())
+        .collect::<BTreeSet<_>>()
+        .len();
+    if leaf.fixture_prevalence.record_count != fixture_records
+        || leaf.fixture_prevalence.occurrence_count < leaf.fixture_prevalence.record_count
+    {
+        failures.push(CoverageFailure::for_identity(
+            CoverageFailureCode::ReceiptSetMismatch,
+            identity.clone(),
+            "focused fixture prevalence must describe its own fixture record and occurrence set independently of global source prevalence",
         ));
     }
     if leaf.owner.trim().is_empty() || leaf.acceptance_checkpoint.trim().is_empty() {
@@ -718,8 +768,16 @@ selector:
   parent_context: {}
 leaves:
   - normalized_path: $.system.abilities.*.mod
-    expected_shapes: [missing, null, number, map_member]
-    source_prevalence: { record_count: 1, occurrence_count: 6 }
+    leaf_kind: map_member
+    expected_shapes: [missing, null, number]
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f
+      record_count: 100
+      occurrence_count: 600
+    fixture_prevalence: { record_count: 1, occurrence_count: 1 }
     map_key_policy:
       kind: closed_vocabulary
       keys: [str, dex, con, int, wis, cha]
@@ -753,11 +811,36 @@ leaves:
     fn parser_accepts_exact_selector_and_governed_true_map() {
         let ledger = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
         assert_eq!(ledger.leaves.len(), 1);
-        assert!(lint_source_leaf_ledger(&ledger).is_empty());
+        let failures = lint_source_leaf_ledger(&ledger);
+        assert!(failures.is_empty(), "{failures:#?}");
         assert_eq!(
             ledger.selector.parent_context,
             SourceParentContextSelector::root()
         );
+    }
+
+    #[test]
+    fn object_and_collection_parent_prefixes_are_not_exact_leaves() {
+        let ledger = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        for path in ["$.system", "$.system.details", "$.items"] {
+            let mut parent = ledger.clone();
+            parent.leaves[0].normalized_path = path.to_string();
+            parent.leaves[0].leaf_kind = SourceLeafKind::Scalar;
+            parent.leaves[0].expected_shapes = if path == "$.items" {
+                vec![ExpectedSourceShape::Array]
+            } else {
+                vec![ExpectedSourceShape::Object]
+            };
+            parent.leaves[0].map_key_policy = None;
+            let codes = lint_source_leaf_ledger(&parent)
+                .into_iter()
+                .map(|failure| failure.code)
+                .collect::<Vec<_>>();
+            assert!(
+                codes.contains(&CoverageFailureCode::BroadDeclaration),
+                "{path}"
+            );
+        }
     }
 
     #[test]
@@ -835,6 +918,14 @@ leaves:
                 .iter()
                 .any(|failure| { failure.code == CoverageFailureCode::RegistryBindingMismatch })
         );
+
+        let mut wrong_prevalence = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        wrong_prevalence.leaves[0].source_prevalence.source_commit = "caller-stamped".to_string();
+        assert!(
+            lint_source_leaf_ledger(&wrong_prevalence)
+                .iter()
+                .any(|failure| { failure.code == CoverageFailureCode::SourcePrevalenceMismatch })
+        );
     }
 
     #[test]
@@ -857,6 +948,32 @@ leaves:
             lint_source_leaf_ledger(&ledger)
                 .iter()
                 .any(|failure| { failure.code == CoverageFailureCode::ProvenanceNotDurable })
+        );
+    }
+
+    #[test]
+    fn deferred_and_unconsumed_remain_exact_fail_closed_states() {
+        let mut deferred = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        deferred.leaves[0].disposition = SourceLeafDisposition::Deferred;
+        deferred.leaves[0].future_owner = Some("H1".to_string());
+        deferred.leaves[0].future_task = Some("H1 exact leaf".to_string());
+        deferred.leaves[0].prerequisite = Some("A2 review".to_string());
+        let report = super::super::evaluate_source_leaf_coverage(&deferred, &[]);
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| { failure.code == CoverageFailureCode::UnresolvedDeferred })
+        );
+
+        let mut unconsumed = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        unconsumed.leaves[0].disposition = SourceLeafDisposition::Unconsumed;
+        let report = super::super::evaluate_source_leaf_coverage(&unconsumed, &[]);
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| { failure.code == CoverageFailureCode::UnconsumedLeaf })
         );
     }
 }
