@@ -29,16 +29,34 @@ policy="$repo_root/scripts/validation/artifact-version-owners.txt"
 merge_base="$(git merge-base "$base" "$head")"
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/atlas-artifact-version.XXXXXX")"
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
-git diff --name-only --diff-filter=ACDMRTUXB "$merge_base" "$head" >"$tmp_dir/paths"
+git diff --name-only --no-renames --diff-filter=ACDMRTUXB "$merge_base" "$head" \
+  | LC_ALL=C sort -u >"$tmp_dir/paths"
 
 schema=0
 contract=0
 manifest=0
+owner_change_requires_bump() {
+  class="$1"
+  path="$2"
+  if [ "$class" = contract ] && [ "$path" = crates/atlas-index/src/artifact/metadata.rs ]; then
+    git diff --unified=0 "$merge_base" "$head" -- "$path" \
+      | sed -n '/^[+-][^+-]/p' \
+      | grep -Ev '^[+-](pub )?const ARTIFACT_(CONTRACT|SCHEMA|MANIFEST)_VERSION: &str = "[^"]*";$' \
+      | grep -q .
+    return
+  fi
+  return 0
+}
+
 while IFS='|' read -r class pattern; do
   case "$class" in ''|'#'*) continue ;; esac
   while IFS= read -r path; do
     case "$path" in
-      $pattern) eval "$class=1" ;;
+      $pattern)
+        if owner_change_requires_bump "$class" "$path"; then
+          eval "$class=1"
+        fi
+        ;;
     esac
   done <"$tmp_dir/paths"
 done <"$policy"
@@ -62,6 +80,31 @@ read_constant() {
 }
 
 failed=0
+expected_next_version() {
+  class="$1"
+  before="$2"
+  case "$class" in
+    schema)
+      number="$before"
+      prefix=
+      ;;
+    contract | manifest)
+      case "$before" in
+        */v[0-9]*)
+          number="${before##*/v}"
+          prefix="${before%/v*}/v"
+          ;;
+        *) return 1 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+  case "$number" in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+  printf '%s%s\n' "$prefix" "$((number + 1))"
+}
+
 check_bump() {
   class="$1"
   required="$2"
@@ -69,8 +112,11 @@ check_bump() {
   [ "$required" -eq 1 ] || return 0
   before="$(read_constant "$merge_base" "$constant")"
   after="$(read_constant "$head" "$constant")"
-  if [ "$before" = "$after" ]; then
-    echo "$class owners changed without bumping $constant ($before)" >&2
+  if ! expected="$(expected_next_version "$class" "$before")"; then
+    echo "unable to derive the next $class version from $constant=$before" >&2
+    failed=1
+  elif [ "$after" != "$expected" ]; then
+    echo "$class owners changed but $constant must advance exactly $before -> $expected (found $after)" >&2
     failed=1
   else
     echo "$class version bump: $before -> $after" >&2

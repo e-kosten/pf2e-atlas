@@ -8,6 +8,8 @@ HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 docs_only_push=1
 saw_ref=0
 validation_range=
+version_base=
+version_head=
 
 while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
   [ -n "${local_ref:-}" ] || continue
@@ -15,6 +17,10 @@ while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
   if ! push_range_is_docs_only "$local_oid" "$remote_oid"; then
     docs_only_push=0
     validation_range="$(push_range "$local_oid" "$remote_oid" || true)"
+    if [ -n "$validation_range" ]; then
+      version_base="$remote_oid"
+      version_head="$local_oid"
+    fi
     break
   fi
 done
@@ -27,6 +33,11 @@ fi
 
 if [ "$docs_only_push" -ne 1 ]; then
   echo "Running path-sensitive full pre-push checks..." >&2
+  if [ -n "$version_base" ]; then
+    run_advisory_artifact_version_guard "$version_base" "$version_head"
+  else
+    echo "Advisory artifact-version check skipped because this push has no existing remote range; required pre-merge CI remains authoritative." >&2
+  fi
   if [ -n "$validation_range" ]; then
     run_full_verification_for_range "$validation_range"
   else

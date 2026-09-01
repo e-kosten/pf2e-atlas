@@ -90,8 +90,11 @@ Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
 
 Validation has four explicit tiers:
 
-- `just validate-fast` is the focused formatting plus single workspace-Clippy
-  tier. It does not run workspace tests/build or corpus/deep validation.
+- `just validate-fast` is the focused formatting plus complementary Clippy
+  tier: strict panic-oriented denies apply to runtime libraries/binaries, while
+  tests, benches, and examples retain warnings-as-errors and the `dbg!` ban.
+  The target sets do not overlap and no all-targets pass repeats runtime linting.
+  It does not run workspace tests/build or corpus/deep validation.
   `scripts/validation/fast.sh --base <ref>` makes it path-sensitive and also
   runs the merge-base artifact-version policy guard.
 - `just validate-focused` runs the ingest/index source-contract, mutation,
@@ -132,9 +135,12 @@ copy counters report actual operations.
 `artifact_contract_version`, `schema_version`, and `manifest_version` respectively
 cover incompatible canonical/artifact semantics, physical DDL, and envelope
 shape. Pull-request CI runs the deterministic merge-base guard in
-`scripts/validation/check-artifact-version-bump.sh`; its small fixture suite does
-not build an artifact. Local hooks remain advisory and bypassable, while the
-configured required CI status is the intended pre-merge authority.
+`scripts/validation/check-artifact-version-bump.sh`; it inventories the actual
+normalization, writer, metadata, DDL, and envelope owners and requires the exact
+next version for every affected class. Its small fixture suite covers missed
+owners, renames/deletes, downgrades, overlapping owners, and unrelated paths
+without building an artifact. Pre-push runs the same range guard as non-blocking,
+bypassable feedback; required CI remains the pre-merge authority.
 
 Requested embedding selectors are resolved through the existing embedding-model
 catalog before source traversal. Validation binds the typed model and canonical
@@ -302,7 +308,9 @@ Tracked git hooks live in `.githooks/` and enforce:
 - `pre-commit`: run path-sensitive fast checks for staged Rust and web UI changes; docs-only commits are allowed without code validation
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
 - `pre-merge-commit`: run the same path-sensitive fast checks for non-docs merge commits
-- `pre-push`: run path-sensitive full checks for pushed Rust and web UI changes
+- `pre-push`: report advisory merge-base artifact-version feedback, then run
+  path-sensitive full checks for pushed Rust and web UI changes; Git's
+  `--no-verify` bypass remains available and required CI is authoritative
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 
