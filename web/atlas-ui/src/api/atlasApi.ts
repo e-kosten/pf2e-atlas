@@ -233,7 +233,7 @@ export async function updateEncounterParticipantCondition(
   request: UpdateEncounterParticipantConditionRequest,
 ): Promise<EncounterDetailView> {
   return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${request.condition_id.toString()}`,
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${safeIntegerPathSegment(request.condition_id)}`,
     {
       method: "PATCH",
       body: jsonBody(request),
@@ -244,10 +244,10 @@ export async function updateEncounterParticipantCondition(
 export async function removeEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
-  conditionId: bigint,
+  conditionId: number,
 ): Promise<EncounterDetailView> {
   return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${safeIntegerPathSegment(conditionId)}`,
     { method: "DELETE" },
   );
 }
@@ -362,10 +362,23 @@ function parseJsonResponse(
 
 function jsonBody(value: unknown): string {
   return JSON.stringify(value, (_key, nestedValue) => {
+    if (
+      typeof nestedValue === "number" &&
+      Number.isInteger(nestedValue) &&
+      !Number.isSafeInteger(nestedValue)
+    ) {
+      throw new AtlasApiError(
+        0,
+        "Request numeric field exceeds JSON safe integer range",
+      );
+    }
     if (typeof nestedValue !== "bigint") {
       return nestedValue;
     }
-    if (nestedValue > BigInt(Number.MAX_SAFE_INTEGER)) {
+    if (
+      nestedValue > BigInt(Number.MAX_SAFE_INTEGER) ||
+      nestedValue < BigInt(Number.MIN_SAFE_INTEGER)
+    ) {
       throw new AtlasApiError(
         0,
         "Request numeric field exceeds JSON safe integer range",
@@ -373,6 +386,16 @@ function jsonBody(value: unknown): string {
     }
     return Number(nestedValue);
   });
+}
+
+function safeIntegerPathSegment(value: number): string {
+  if (!Number.isSafeInteger(value)) {
+    throw new AtlasApiError(
+      0,
+      "Request numeric field exceeds JSON safe integer range",
+    );
+  }
+  return value.toString();
 }
 
 function fallbackErrorMessage(

@@ -1838,6 +1838,7 @@ fn activity_view(
         label: activity.label,
         kind: activity_kind_view(kind),
         usage: activity_usage_view(usage),
+        traits: Vec::new(),
         action_cost: metadata.action_cost,
         frequency: metadata.frequency,
         uses: metadata.uses,

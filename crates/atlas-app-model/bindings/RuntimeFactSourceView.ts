@@ -2,4 +2,4 @@
 import type { EncounterParticipantVariantView } from "./EncounterParticipantVariantView";
 import type { RuntimeRuleView } from "./RuntimeRuleView";
 
-export type RuntimeFactSourceView = { "source_type": "canonical_record" } | { "source_type": "participant_state" } | { "source_type": "participant_variant", variant: EncounterParticipantVariantView, } | { "source_type": "condition", condition_id: bigint, condition_ref: string, label: string, } | { "source_type": "runtime_rule", rule: RuntimeRuleView, };
+export type RuntimeFactSourceView = { "source_type": "canonical_record" } | { "source_type": "participant_state" } | { "source_type": "participant_variant", variant: EncounterParticipantVariantView, } | { "source_type": "condition", condition_id: number, condition_ref: string, label: string, } | { "source_type": "runtime_rule", rule: RuntimeRuleView, };

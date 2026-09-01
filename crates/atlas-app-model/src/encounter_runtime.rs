@@ -53,8 +53,11 @@ pub struct EncounterRuntimeVitalsView {
     #[ts(optional)]
     pub maximum_hp: Option<RuntimeNumberView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub current_hp: Option<i64>,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub temporary_hp: i64,
 }
 
@@ -137,7 +140,11 @@ pub struct EncounterRuntimeMovementView {
 pub struct RuntimeDistanceView {
     pub movement_type: String,
     pub label: String,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub base_value_feet: i64,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub adjusted_value_feet: i64,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub adjustments: Vec<RuntimeAdjustmentView>,
@@ -193,7 +200,8 @@ pub struct EncounterRuntimeSpellView {
     #[ts(optional)]
     pub target_record_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub rank: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<String>,
@@ -209,6 +217,8 @@ pub struct EncounterRuntimeSpellView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeSpellSlotView {
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub rank: i64,
     pub maximum: RuntimeCountView,
 }
@@ -217,7 +227,11 @@ pub struct EncounterRuntimeSpellSlotView {
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeNumberView {
     pub label: String,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub base_value: i64,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub adjusted_value: i64,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modifiers: Vec<RuntimeModifierView>,
@@ -241,6 +255,8 @@ pub struct RuntimeModifierView {
     pub provenance: RuntimeFactProvenanceView,
     pub label: String,
     pub modifier_type: StatModifierTypeView,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub value: i64,
 }
 
@@ -249,6 +265,8 @@ pub struct RuntimeModifierView {
 pub struct RuntimeAdjustmentView {
     pub provenance: RuntimeFactProvenanceView,
     pub label: String,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub value: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -259,7 +277,11 @@ pub struct RuntimeAdjustmentView {
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeCountView {
     pub label: String,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub base_value: i64,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub adjusted_value: i64,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub segments: Vec<RuntimeCountSegmentView>,
@@ -274,6 +296,8 @@ pub struct RuntimeCountView {
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeCountSegmentView {
     pub label: String,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub value: i64,
     pub restricted: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -315,19 +339,23 @@ pub struct EncounterRuntimeActionBudgetView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeConditionView {
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub condition_key: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub duration_rounds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -367,10 +395,20 @@ pub enum EncounterRuntimeAutomationLimitationCodeView {
 #[ts(tag = "target_type", rename_all = "snake_case")]
 pub enum EncounterRuntimeAutomationLimitationTargetView {
     Participant,
-    Condition { condition_id: i64 },
-    Activity { activity_id: String },
-    Spell { occurrence_id: String },
-    Spellcasting { entry_id: String },
+    Condition {
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        condition_id: i64,
+    },
+    Activity {
+        activity_id: String,
+    },
+    Spell {
+        occurrence_id: String,
+    },
+    Spellcasting {
+        entry_id: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -392,6 +430,8 @@ pub enum RuntimeFactSourceView {
         variant: EncounterParticipantVariantView,
     },
     Condition {
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
         condition_id: i64,
         condition_ref: String,
         label: String,
@@ -457,6 +497,8 @@ pub enum RuntimeCanonicalTargetView {
     },
     SpellSlotMaximum {
         entry_id: String,
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
         rank: i64,
     },
     RitualDc,
@@ -490,6 +532,8 @@ pub struct EncounterRuntimeActivityView {
     pub label: String,
     pub kind: EncounterRuntimeActivityKindView,
     pub usage: EncounterRuntimeActivityUsageView,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub traits: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub action_cost: Option<EncounterRuntimeActionCostView>,
@@ -525,21 +569,29 @@ pub enum EncounterRuntimeActionCostKindView {
     Passive,
     Reaction,
     FreeAction,
-    Actions { count: i64 },
-    Time { value: String },
+    Actions {
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        count: i64,
+    },
+    Time {
+        value: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeFrequencyView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub maximum: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub period: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub serialized_value: Option<i64>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -548,10 +600,12 @@ pub struct EncounterRuntimeFrequencyView {
 #[serde(rename_all = "snake_case")]
 pub struct EncounterRuntimeUsesView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub maximum: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub serialized_value: Option<i64>,
     pub provenance: RuntimeFactProvenanceView,
 }
@@ -601,7 +655,11 @@ fn optional_vec_is_empty<T>(values: &Option<Vec<T>>) -> bool {
 pub struct RuntimeRollView {
     pub roll_id: String,
     pub label: String,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub base_value: i64,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub adjusted_value: i64,
     pub surface: RuntimeRollSurfaceView,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

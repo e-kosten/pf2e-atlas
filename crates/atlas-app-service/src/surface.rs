@@ -187,19 +187,27 @@ fn creature_surface_with_placement(
     } else {
         defenses.and_then(|defenses| vitals(defenses, &mut unavailable))
     };
-    let defenses_view = if encounter {
-        None
-    } else {
+    let defenses_view = if detail {
         defenses.map(|defenses| defenses_view(defenses, &mut unavailable))
+    } else if encounter {
+        defenses.and_then(|defenses| encounter_defenses_view(defenses, &mut unavailable))
+    } else {
+        None
     };
     let saves = if detail {
         defenses.and_then(|defenses| saves_view(defenses, &mut unavailable))
+    } else if encounter {
+        defenses.and_then(|defenses| encounter_saves_view(defenses, &mut unavailable))
     } else {
         None
     };
-    let awareness = (!encounter)
-        .then(|| awareness(creature, &mut unavailable))
-        .flatten();
+    let awareness = if detail {
+        awareness(creature, &mut unavailable, true)
+    } else if encounter {
+        awareness(creature, &mut unavailable, false)
+    } else {
+        None
+    };
     let abilities = detail
         .then(|| abilities(creature, &mut unavailable))
         .flatten();
@@ -213,9 +221,14 @@ fn creature_surface_with_placement(
     let spellcasting = detail
         .then(|| spellcasting(creature, &mut unavailable))
         .flatten();
-    let activities = detail
-        .then(|| activities(creature, activity_content, &mut unavailable))
-        .flatten();
+    let activities = if detail {
+        activities(creature, activity_content, &mut unavailable)
+    } else {
+        if encounter {
+            register_encounter_activity_trait_unavailability(creature, &mut unavailable);
+        }
+        None
+    };
     let relationships = (detail || encounter)
         .then(|| relationships(creature, &mut unavailable))
         .flatten();
@@ -304,6 +317,21 @@ impl SurfaceUnavailableDomains {
             );
             self.add(
                 SurfaceDomain::Defenses,
+                state,
+                CreatureSurfaceUnavailableFieldView::Defenses,
+                CreatureSurfaceSourceFieldView::Defenses,
+                None,
+            );
+        } else {
+            self.add(
+                SurfaceDomain::Defenses,
+                state,
+                CreatureSurfaceUnavailableFieldView::Defenses,
+                CreatureSurfaceSourceFieldView::Defenses,
+                None,
+            );
+            self.add(
+                SurfaceDomain::Saves,
                 state,
                 CreatureSurfaceUnavailableFieldView::Defenses,
                 CreatureSurfaceSourceFieldView::Defenses,
@@ -487,6 +515,42 @@ fn defenses_view(
     }
 }
 
+fn encounter_defenses_view(
+    defenses: &CreatureDefenses,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceDefensesView> {
+    let view = CreatureSurfaceDefensesView {
+        armor_class: None,
+        armor_class_details: defenses
+            .armor_class
+            .as_value()
+            .and_then(|armor_class| note(&armor_class.details)),
+        hardness: integer(&defenses.hardness),
+        immunities: iwr(
+            &defenses.immunities,
+            unavailable,
+            CreatureSurfaceUnavailableFieldView::Immunities,
+        ),
+        resistances: iwr(
+            &defenses.resistances,
+            unavailable,
+            CreatureSurfaceUnavailableFieldView::Resistances,
+        ),
+        weaknesses: iwr(
+            &defenses.weaknesses,
+            unavailable,
+            CreatureSurfaceUnavailableFieldView::Weaknesses,
+        ),
+        provenance: fact_provenance(CreatureSurfaceSourceFieldView::Defenses),
+    };
+    (view.armor_class_details.is_some()
+        || view.hardness.is_some()
+        || !view.immunities.is_empty()
+        || !view.resistances.is_empty()
+        || !view.weaknesses.is_empty())
+    .then_some(view)
+}
+
 fn iwr(
     values: &FactValue<Vec<CreatureIwr>>,
     unavailable: &mut SurfaceUnavailableDomains,
@@ -584,6 +648,54 @@ fn saves_view(
     })
 }
 
+fn encounter_saves_view(
+    defenses: &CreatureDefenses,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceSavesView> {
+    let saves = required_fact(
+        &defenses.saves,
+        unavailable,
+        SurfaceDomain::Saves,
+        CreatureSurfaceUnavailableFieldView::Saves,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    );
+    let fortitude =
+        saves.and_then(|saves| save_context_fact(&saves.fortitude, unavailable, "fortitude"));
+    let reflex = saves.and_then(|saves| save_context_fact(&saves.reflex, unavailable, "reflex"));
+    let will = saves.and_then(|saves| save_context_fact(&saves.will, unavailable, "will"));
+    let all_saves_note = note(&defenses.all_saves_note);
+    (fortitude.is_some() || reflex.is_some() || will.is_some() || all_saves_note.is_some())
+        .then_some(CreatureSurfaceSavesView {
+            fortitude,
+            reflex,
+            will,
+            all_saves_note,
+            provenance: fact_provenance(CreatureSurfaceSourceFieldView::Defenses),
+        })
+}
+
+fn save_context_fact(
+    value: &FactValue<atlas_record::CreatureSave>,
+    unavailable: &mut SurfaceUnavailableDomains,
+    destination: &str,
+) -> Option<CreatureSurfaceSaveView> {
+    let value = required_fact(
+        value,
+        unavailable,
+        SurfaceDomain::Saves,
+        CreatureSurfaceUnavailableFieldView::Saves,
+        CreatureSurfaceSourceFieldView::Defenses,
+        Some(destination.to_string()),
+    )?;
+    let details = note(&value.details)?;
+    Some(CreatureSurfaceSaveView {
+        component_id: value.id.as_str().to_string(),
+        modifier: None,
+        details: Some(details),
+    })
+}
+
 fn save_fact(
     value: &FactValue<atlas_record::CreatureSave>,
     unavailable: &mut SurfaceUnavailableDomains,
@@ -617,6 +729,7 @@ fn save_fact(
 fn awareness(
     creature: &CreatureRecord,
     unavailable: &mut SurfaceUnavailableDomains,
+    include_perception_modifier: bool,
 ) -> Option<CreatureSurfaceAwarenessView> {
     let languages = required_fact(
         &creature.languages.value,
@@ -695,18 +808,22 @@ fn awareness(
         })
         .unwrap_or_else(Vec::new);
     senses.sort_by_key(|value| value.authored_order);
-    Some(CreatureSurfaceAwarenessView {
-        perception: perception.and_then(|value| {
-            required_fact(
-                &value.modifier,
-                unavailable,
-                SurfaceDomain::Awareness,
-                CreatureSurfaceUnavailableFieldView::Perception,
-                CreatureSurfaceSourceFieldView::Perception,
-                None,
-            )
-            .copied()
-        }),
+    let view = CreatureSurfaceAwarenessView {
+        perception: include_perception_modifier
+            .then(|| {
+                perception.and_then(|value| {
+                    required_fact(
+                        &value.modifier,
+                        unavailable,
+                        SurfaceDomain::Awareness,
+                        CreatureSurfaceUnavailableFieldView::Perception,
+                        CreatureSurfaceSourceFieldView::Perception,
+                        None,
+                    )
+                    .copied()
+                })
+            })
+            .flatten(),
         details: perception.and_then(|value| note(&value.details)),
         has_vision: perception.and_then(|value| boolean(&value.has_vision)),
         senses,
@@ -720,7 +837,18 @@ fn awareness(
             .unwrap_or_else(Vec::new),
         language_details: languages.and_then(|value| note(&value.details)),
         provenance: fact_provenance(CreatureSurfaceSourceFieldView::Perception),
-    })
+    };
+    if include_perception_modifier
+        || view.details.is_some()
+        || view.has_vision.is_some()
+        || !view.senses.is_empty()
+        || !view.languages.is_empty()
+        || view.language_details.is_some()
+    {
+        Some(view)
+    } else {
+        None
+    }
 }
 
 fn abilities(
@@ -978,6 +1106,43 @@ fn activities(
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
     non_empty(projected)
+}
+
+fn register_encounter_activity_trait_unavailability(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) {
+    let Some(embedded) = required_fact(
+        &creature.embedded_entities.value,
+        unavailable,
+        SurfaceDomain::Activities,
+        CreatureSurfaceUnavailableFieldView::EmbeddedEntities,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        None,
+    ) else {
+        return;
+    };
+    for occurrence in &embedded.occurrences {
+        let Some(traits) = activity_traits(occurrence) else {
+            continue;
+        };
+        required_fact(
+            traits,
+            unavailable,
+            SurfaceDomain::Activities,
+            CreatureSurfaceUnavailableFieldView::ActivityTraits,
+            CreatureSurfaceSourceFieldView::EmbeddedEntities,
+            Some(occurrence.id.as_str().to_string()),
+        );
+    }
+}
+
+fn activity_traits(occurrence: &CreatureEntityOccurrence) -> Option<&FactValue<Vec<String>>> {
+    match &occurrence.capability {
+        CreatureCapability::Strike(capability) => Some(&capability.traits),
+        CreatureCapability::Action(capability) => Some(&capability.traits),
+        _ => None,
+    }
 }
 
 struct ActivityProjection<'a> {
@@ -1386,6 +1551,10 @@ fn compose_encounter_payload(
             continue;
         }
         let mut activity = matches.remove(0);
+        activity.traits = activity_traits(occurrence)
+            .and_then(FactValue::as_value)
+            .cloned()
+            .unwrap_or_default();
         activity.content =
             content_for_occurrence(creature, &placement.by_occurrence, occurrence_id);
         retained_activities.push(activity);
@@ -1754,6 +1923,15 @@ fn project_content_inline(span: PresentationInline) -> CreatureSurfaceContentInl
             record_key: record_key.map(|key| key.to_string()),
             embedded,
         },
+        PresentationInline::Check {
+            display,
+            statistic,
+            difficulty_class,
+        } => CreatureSurfaceContentInlineView::Check {
+            display,
+            statistic,
+            difficulty_class,
+        },
         PresentationInline::LineBreak => CreatureSurfaceContentInlineView::LineBreak,
     }
 }
@@ -1999,10 +2177,11 @@ mod tests {
         ContentProvenance, ContentRole, ContentSourceKind, ContentVisibility,
         CreatureActionCapability, CreatureArmorClass, CreatureDefenses, CreatureEmbeddedEntities,
         CreatureEntity, CreatureEntityFamily, CreatureEntityTarget, CreatureFact, CreatureFamily,
-        CreatureHitPoints, CreatureIdentity, CreatureLanguages, CreatureLegacyAbilities,
-        CreatureNumber, CreatureOccurrenceParent, CreaturePerception, CreatureProvenance,
-        CreatureSave, CreatureSaveKind, CreatureSaves, CreatureSourceField, DuplicateContentStatus,
-        FactValue, FoundryNode, OwnedRichContent, OwnedRichContentDocument, RichDocument, RichNode,
+        CreatureHitPoints, CreatureIdentity, CreatureIwr, CreatureIwrKind, CreatureLanguages,
+        CreatureLegacyAbilities, CreatureNote, CreatureNumber, CreatureOccurrenceParent,
+        CreaturePerception, CreatureProvenance, CreatureSave, CreatureSaveKind, CreatureSaves,
+        CreatureSense, CreatureSourceField, DuplicateContentStatus, FactValue, FoundryNode,
+        OwnedRichContent, OwnedRichContentDocument, RichDocument, RichNode,
         UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
     };
 
@@ -2048,6 +2227,163 @@ mod tests {
         assert!(surface.activities.is_none());
         assert!(surface.relationships.is_none());
         assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
+    fn encounter_profile_retains_only_non_runtime_canonical_context() {
+        let mut creature = activity_content_fixture();
+        let mut defenses = creature
+            .defenses
+            .value
+            .as_value()
+            .expect("defenses")
+            .clone();
+        defenses.armor_class = FactValue::Value(CreatureArmorClass {
+            value: FactValue::Value(25),
+            details: FactValue::Value(CreatureNote::new("against spells")),
+        });
+        defenses.hardness = FactValue::Value(5);
+        defenses.all_saves_note = FactValue::Value(CreatureNote::new("+1 status vs. magic"));
+        let mut saves = defenses.saves.as_value().expect("saves").clone();
+        let mut fortitude = saves.fortitude.as_value().expect("fortitude").clone();
+        fortitude.details = FactValue::Value(CreatureNote::new("+2 vs. disease"));
+        saves.fortitude = FactValue::Value(fortitude);
+        defenses.saves = FactValue::Value(saves);
+        let iwr = |id: &str, authored_order, kind, iwr_type: &str, value| CreatureIwr {
+            id: atlas_record::CreatureComponentId::new(id).expect("iwr id"),
+            authored_order,
+            kind,
+            iwr_type: atlas_record::IwrType::new(iwr_type).expect("iwr type"),
+            value,
+            exceptions: FactValue::Value(Vec::new()),
+            double_vs: FactValue::Value(Vec::new()),
+            apply_once: FactValue::Missing,
+        };
+        defenses.immunities = FactValue::Value(vec![iwr(
+            "sleep",
+            0,
+            CreatureIwrKind::Immunity,
+            "sleep",
+            FactValue::Missing,
+        )]);
+        defenses.resistances = FactValue::Value(vec![iwr(
+            "mental",
+            0,
+            CreatureIwrKind::Resistance,
+            "mental",
+            FactValue::Value(10),
+        )]);
+        defenses.weaknesses = FactValue::Value(vec![iwr(
+            "cold-iron",
+            0,
+            CreatureIwrKind::Weakness,
+            "cold-iron",
+            FactValue::Value(10),
+        )]);
+        creature.defenses.value = FactValue::Value(defenses);
+        creature.perception.value = FactValue::Value(CreaturePerception {
+            modifier: FactValue::Value(18),
+            details: FactValue::Value(CreatureNote::new("keen awareness")),
+            has_vision: FactValue::Value(true),
+            senses: FactValue::Value(vec![CreatureSense {
+                id: atlas_record::CreatureComponentId::new("darkvision").expect("sense id"),
+                authored_order: 0,
+                sense_type: atlas_record::SenseType::new("darkvision").expect("sense type"),
+                acuity: FactValue::Value(atlas_record::SenseAcuity::Precise),
+                range: FactValue::Missing,
+            }]),
+        });
+        creature.languages.value = FactValue::Value(CreatureLanguages {
+            values: FactValue::Value(
+                ["common", "aklo", "infernal", "jotun", "necril"]
+                    .into_iter()
+                    .map(|value| atlas_record::Language::new(value).expect("language"))
+                    .collect(),
+            ),
+            details: FactValue::Value(CreatureNote::new("telepathy 100 feet")),
+        });
+        let embedded = creature
+            .embedded_entities
+            .value
+            .as_value()
+            .expect("embedded entities");
+        let mut embedded = embedded.clone();
+        let atlas_record::CreatureCapability::Action(capability) =
+            &mut embedded.occurrences[0].capability
+        else {
+            panic!("fixture activity should be an action");
+        };
+        capability.traits = FactValue::Value(vec!["disease".to_string(), "divine".to_string()]);
+        creature.embedded_entities.value = FactValue::Value(embedded);
+
+        let placement = activity_content_placement(&creature);
+        let mut runtime = empty_runtime();
+        runtime.activities.push(runtime_activity(
+            "activity",
+            EncounterRuntimeActivityKindView::Other,
+        ));
+        compose_encounter_payload(&creature, &placement, &mut runtime);
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::EncounterParticipant);
+
+        let defenses = surface.defenses.expect("encounter defense context");
+        assert_eq!(defenses.armor_class, None);
+        assert_eq!(
+            defenses.armor_class_details.as_deref(),
+            Some("against spells")
+        );
+        assert_eq!(defenses.hardness, Some(5));
+        assert_eq!(defenses.immunities[0].kind, "sleep");
+        assert_eq!(defenses.resistances[0].amount, Some(10));
+        assert_eq!(defenses.weaknesses[0].amount, Some(10));
+        let saves = surface.saves.expect("encounter save context");
+        assert_eq!(saves.all_saves_note.as_deref(), Some("+1 status vs. magic"));
+        assert!(saves.fortitude.as_ref().is_some_and(|save| {
+            save.modifier.is_none() && save.details.as_deref() == Some("+2 vs. disease")
+        }));
+        let awareness = surface.awareness.expect("encounter awareness context");
+        assert_eq!(awareness.perception, None);
+        assert_eq!(awareness.senses[0].kind, "darkvision");
+        assert_eq!(awareness.languages.len(), 5);
+        assert_eq!(
+            awareness.language_details.as_deref(),
+            Some("telepathy 100 feet")
+        );
+        assert!(surface.activities.is_none());
+        assert_eq!(runtime.activities[0].traits, ["disease", "divine"]);
+        assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
+    fn encounter_activity_traits_keep_typed_unavailable_state_without_static_rows() {
+        let mut creature = activity_content_fixture();
+        let embedded = creature
+            .embedded_entities
+            .value
+            .as_value()
+            .expect("embedded entities");
+        let mut embedded = embedded.clone();
+        let atlas_record::CreatureCapability::Action(capability) =
+            &mut embedded.occurrences[0].capability
+        else {
+            panic!("fixture activity should be an action");
+        };
+        capability.traits = FactValue::Missing;
+        creature.embedded_entities.value = FactValue::Value(embedded);
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::EncounterParticipant);
+        assert!(surface.activities.is_none());
+        assert_causes(
+            &surface
+                .unavailable_domains
+                .expect("missing activity traits should stay typed")
+                .activities,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Missing,
+                CreatureSurfaceUnavailableFieldView::ActivityTraits,
+                Some("activity"),
+                CreatureSurfaceSourceFieldView::EmbeddedEntities,
+            )],
+        );
     }
 
     #[test]
@@ -2755,6 +3091,23 @@ mod tests {
             &attached[1].blocks,
             "Fortitude DC 28"
         ));
+        assert!(matches!(
+            &attached[1].blocks[0],
+            CreatureSurfaceContentBlockView::Paragraph { spans }
+                if matches!(
+                    spans.as_slice(),
+                    [
+                        CreatureSurfaceContentInlineView::Text { text },
+                        CreatureSurfaceContentInlineView::Check {
+                            display,
+                            statistic: Some(statistic),
+                            difficulty_class: Some(28),
+                        },
+                    ] if text == "Saving Throw "
+                        && display == "Fortitude DC 28"
+                        && statistic == "fortitude"
+                )
+        ));
         let general = forward.content.as_ref().expect("general content");
         assert_eq!(
             general
@@ -3022,6 +3375,7 @@ mod tests {
             label: activity_id.to_string(),
             kind,
             usage: EncounterRuntimeActivityUsageView::Unlimited,
+            traits: Vec::new(),
             action_cost: None,
             frequency: None,
             uses: None,
@@ -3485,6 +3839,7 @@ mod tests {
                 spans.iter().any(|span| inline_contains_text(span, needle))
             }
             CreatureSurfaceContentInlineView::Reference { label, .. } => label.contains(needle),
+            CreatureSurfaceContentInlineView::Check { display, .. } => display.contains(needle),
             CreatureSurfaceContentInlineView::LineBreak => false,
         }
     }

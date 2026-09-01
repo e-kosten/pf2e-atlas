@@ -4,6 +4,7 @@ mod encounter;
 mod encounter_runtime;
 mod error;
 mod filter;
+mod json_integer;
 mod list;
 mod readiness;
 mod record;
@@ -91,6 +92,7 @@ mod tests {
             .get("EncounterRuntimeActivityView.ts")
             .expect("runtime activity binding should exist");
         assert!(runtime_activity.contains("content?: Array<CreatureSurfaceContentView>"));
+        assert!(runtime_activity.contains("traits?: Array<string>"));
         let runtime_spellcasting = actual
             .get("EncounterRuntimeSpellcastingView.ts")
             .expect("runtime spellcasting binding should exist");
@@ -164,6 +166,67 @@ mod tests {
         assert!(!content.contains("owner:"));
         assert!(!content.contains("text:"));
         assert!(!actual.contains_key(&["CreatureSurfaceContent", "OwnerView.ts"].concat()));
+        let content_inline = actual
+            .get("CreatureSurfaceContentInlineView.ts")
+            .expect("typed content inline binding should exist");
+        for field in [
+            "\"span_type\": \"check\"",
+            "display: string",
+            "statistic?: string",
+            "difficulty_class?: number",
+        ] {
+            assert!(content_inline.contains(field), "missing `{field}`");
+        }
+
+        for binding in [
+            "AddEncounterManualParticipantRequest.ts",
+            "AddEncounterParticipantConditionRequest.ts",
+            "AddEncounterRecordParticipantRequest.ts",
+            "CreatureSurfaceAbilitiesView.ts",
+            "CreatureSurfaceAwarenessView.ts",
+            "CreatureSurfaceDefensesView.ts",
+            "CreatureSurfaceIwrView.ts",
+            "CreatureSurfaceMovementView.ts",
+            "CreatureSurfaceResourceView.ts",
+            "CreatureSurfaceRollView.ts",
+            "CreatureSurfaceSaveView.ts",
+            "CreatureSurfaceSenseView.ts",
+            "CreatureSurfaceSkillView.ts",
+            "CreatureSurfaceSpellView.ts",
+            "CreatureSurfaceSpellcastingView.ts",
+            "CreatureSurfaceVitalsView.ts",
+            "EncounterConditionDefinitionView.ts",
+            "EncounterParticipantView.ts",
+            "EncounterRuntimeActionCostKindView.ts",
+            "EncounterRuntimeAutomationLimitationTargetView.ts",
+            "EncounterRuntimeConditionView.ts",
+            "EncounterRuntimeFrequencyView.ts",
+            "EncounterRuntimeSpellSlotView.ts",
+            "EncounterRuntimeSpellView.ts",
+            "EncounterRuntimeUsesView.ts",
+            "EncounterRuntimeVitalsView.ts",
+            "EncounterSummaryView.ts",
+            "RecordSurfaceMetadataView.ts",
+            "RuntimeAdjustmentView.ts",
+            "RuntimeCanonicalTargetView.ts",
+            "RuntimeCountSegmentView.ts",
+            "RuntimeCountView.ts",
+            "RuntimeDistanceView.ts",
+            "RuntimeFactSourceView.ts",
+            "RuntimeModifierView.ts",
+            "RuntimeNumberView.ts",
+            "RuntimeRollView.ts",
+            "UpdateEncounterParticipantConditionRequest.ts",
+            "UpdateEncounterParticipantRequest.ts",
+        ] {
+            assert!(
+                !actual
+                    .get(binding)
+                    .unwrap_or_else(|| panic!("{binding} binding should exist"))
+                    .contains("bigint"),
+                "{binding} must match the ordinary-number HTTP contract"
+            );
+        }
 
         let unavailable = actual
             .get("CreatureSurfaceUnavailableDomainsView.ts")
@@ -422,8 +485,10 @@ mod tests {
                                 text: "Saving Throw".to_string(),
                             }],
                         },
-                        CreatureSurfaceContentInlineView::Text {
-                            text: " Fortitude DC 28".to_string(),
+                        CreatureSurfaceContentInlineView::Check {
+                            display: " Fortitude DC 28".to_string(),
+                            statistic: Some("fortitude".to_string()),
+                            difficulty_class: Some(28),
                         },
                     ],
                 },
@@ -459,8 +524,57 @@ mod tests {
             serialized["content"][0]["blocks"][0]["spans"][0]["span_type"],
             "strong"
         );
+        assert_eq!(
+            serialized["content"][0]["blocks"][0]["spans"][1],
+            serde_json::json!({
+                "span_type": "check",
+                "display": " Fortitude DC 28",
+                "statistic": "fortitude",
+                "difficulty_class": 28,
+            })
+        );
         assert!(serialized["content"][0].get("owner").is_none());
         assert!(serialized["content"][0].get("text").is_none());
+    }
+
+    #[test]
+    fn app_contract_integers_enforce_the_javascript_safe_range() {
+        let metadata = |level| RecordSurfaceMetadataView {
+            record_key: Some("creatures:safe-integer".to_string()),
+            title: "Safe Integer".to_string(),
+            kind: "creature".to_string(),
+            kind_label: "Creature".to_string(),
+            level,
+            rarity: None,
+            traits: Vec::new(),
+            source: None,
+        };
+
+        assert_eq!(
+            serde_json::to_value(metadata(Some(json_integer::JS_SAFE_INTEGER_MAX)))
+                .expect("maximum safe integer should serialize")["level"],
+            json_integer::JS_SAFE_INTEGER_MAX
+        );
+        assert_eq!(
+            serde_json::to_value(metadata(Some(json_integer::JS_SAFE_INTEGER_MIN)))
+                .expect("minimum safe integer should serialize")["level"],
+            json_integer::JS_SAFE_INTEGER_MIN
+        );
+        let error = serde_json::to_value(metadata(Some(json_integer::JS_SAFE_INTEGER_MAX + 1)))
+            .expect_err("unsafe integer must not serialize");
+        assert!(error.to_string().contains("JavaScript safe-integer range"));
+        let error = serde_json::to_value(metadata(Some(json_integer::JS_SAFE_INTEGER_MIN - 1)))
+            .expect_err("negative unsafe integer must not serialize");
+        assert!(error.to_string().contains("JavaScript safe-integer range"));
+
+        let error = serde_json::from_value::<RecordSurfaceMetadataView>(serde_json::json!({
+            "title": "Unsafe Integer",
+            "kind": "creature",
+            "kind_label": "Creature",
+            "level": 9_007_199_254_740_992_i64,
+        }))
+        .expect_err("unsafe integer must not deserialize");
+        assert!(error.to_string().contains("JavaScript safe-integer range"));
     }
 
     #[test]

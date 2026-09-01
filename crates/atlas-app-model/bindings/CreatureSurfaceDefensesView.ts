@@ -2,4 +2,4 @@
 import type { CreatureSurfaceFactProvenanceView } from "./CreatureSurfaceFactProvenanceView";
 import type { CreatureSurfaceIwrView } from "./CreatureSurfaceIwrView";
 
-export type CreatureSurfaceDefensesView = { armor_class?: bigint, armor_class_details?: string, hardness?: bigint, immunities?: Array<CreatureSurfaceIwrView>, resistances?: Array<CreatureSurfaceIwrView>, weaknesses?: Array<CreatureSurfaceIwrView>, provenance: CreatureSurfaceFactProvenanceView, };
+export type CreatureSurfaceDefensesView = { armor_class?: number, armor_class_details?: string, hardness?: number, immunities?: Array<CreatureSurfaceIwrView>, resistances?: Array<CreatureSurfaceIwrView>, weaknesses?: Array<CreatureSurfaceIwrView>, provenance: CreatureSurfaceFactProvenanceView, };

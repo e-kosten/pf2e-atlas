@@ -411,8 +411,20 @@ async fn record_route_serializes_activity_content_blocks_without_owner_or_flatte
     let activity_content = &creature["activities"][0]["content"][0];
     assert_eq!(activity_content["content_key"], "item:plague:description");
     assert_eq!(
-        activity_content["blocks"][0]["spans"][0]["text"],
+        activity_content["blocks"][0]["spans"][0]["span_type"],
+        "check"
+    );
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["display"],
         "Fortitude DC 28"
+    );
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["statistic"],
+        "fortitude"
+    );
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["difficulty_class"],
+        28
     );
     assert_eq!(activity_content["blocks"][1]["block_type"], "divider");
     assert!(activity_content.get("owner").is_none());
@@ -1289,8 +1301,10 @@ fn activity_content_surface() -> RecordSurfaceView {
                         label: Some("Abyssal Plague".to_string()),
                         blocks: vec![
                             CreatureSurfaceContentBlockView::Paragraph {
-                                spans: vec![CreatureSurfaceContentInlineView::Text {
-                                    text: "Fortitude DC 28".to_string(),
+                                spans: vec![CreatureSurfaceContentInlineView::Check {
+                                    display: "Fortitude DC 28".to_string(),
+                                    statistic: Some("fortitude".to_string()),
+                                    difficulty_class: Some(28),
                                 }],
                             },
                             CreatureSurfaceContentBlockView::Divider,

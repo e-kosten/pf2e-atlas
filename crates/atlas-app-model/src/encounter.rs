@@ -13,6 +13,8 @@ pub struct EncounterSummaryView {
     #[ts(optional)]
     pub description: Option<String>,
     pub status: EncounterStatusView,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub round_number: i64,
     pub participant_count: u32,
     pub created_at: String,
@@ -41,7 +43,8 @@ pub struct EncounterConditionDefinitionView {
     pub categories: Vec<EncounterConditionCategoryView>,
     pub has_value: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub default_value: Option<i64>,
 }
 
@@ -185,12 +188,17 @@ pub struct EncounterParticipantView {
     pub participant_kind: EncounterParticipantKindView,
     pub participant_variant: EncounterParticipantVariantView,
     pub status: EncounterParticipantStatusView,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub position: i64,
     pub display_name: String,
     pub side: EncounterParticipantSideView,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub initiative_order: i64,
     pub defeated: bool,
     pub hidden: bool,
@@ -208,7 +216,8 @@ pub struct AddEncounterRecordParticipantRequest {
     pub record_ref: String,
     pub quantity: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
 }
 
@@ -218,13 +227,16 @@ pub struct AddEncounterManualParticipantRequest {
     pub encounter_ref: String,
     pub display_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub max_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub current_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
 }
 
@@ -236,14 +248,19 @@ pub struct UpdateEncounterParticipantRequest {
     pub side: EncounterParticipantSideView,
     pub participant_variant: EncounterParticipantVariantView,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub max_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub current_hp: Option<i64>,
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub temporary_hp: i64,
     pub defeated: bool,
     pub hidden: bool,
@@ -279,13 +296,15 @@ pub struct AddEncounterParticipantConditionRequest {
     #[ts(optional)]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub duration_rounds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -295,19 +314,23 @@ pub struct AddEncounterParticipantConditionRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateEncounterParticipantConditionRequest {
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
     pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub condition_ref: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[serde(with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
     pub duration_rounds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

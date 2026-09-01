@@ -52,7 +52,7 @@ All authored rich content is stored in `record_content`; `records` does not carr
 
 Raw source markup is not a runtime source of truth. It may be retained for ingest, provenance, diagnostics, or debug workflows, but runtime presentation, FTS, semantic chunks, and reference extraction derive from `RichDocument`.
 
-`atlas-record` also owns the one structured presentation projection from `RichDocument`. That projection preserves authored heading, paragraph, list, table, and divider blocks; paragraph content preserves typed text, emphasis, strong text, code, references, and line breaks. Foundry `Check` nodes use one display projection across plain, markdown, and structured output, including their structured DC when present. For example, the authored Abyssal Plague check remains `Fortitude DC 28`; consumers do not recover the DC by parsing prose or raw markup.
+`atlas-record` also owns the one structured presentation projection from `RichDocument`. That projection preserves authored heading, paragraph, list, table, and divider blocks; paragraph content preserves typed text, emphasis, strong text, code, references, line breaks, and Foundry `Check` nodes. A public `Check` inline carries its display fallback plus optional statistic and numeric difficulty class, while plain and markdown projections continue to render the same display text. For example, the authored Abyssal Plague check remains a typed Fortitude check with DC 28 and display `Fortitude DC 28`; consumers do not recover the statistic or DC by parsing prose or raw markup.
 
 All plain-text and retrieval documents are projections:
 
