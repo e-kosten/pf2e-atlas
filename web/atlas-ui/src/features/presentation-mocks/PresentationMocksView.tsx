@@ -293,12 +293,73 @@ const conceptSurface: RecordSurfaceView = {
               label: "Dream Message",
               rank: 5,
               target_record_key: "spells:dream-message",
+              content: [
+                {
+                  content_key: "concept:dream-message",
+                  role: "embedded_capability",
+                  authored_order: 0,
+                  label: "Dream Message",
+                  blocks: [
+                    {
+                      block_type: "paragraph",
+                      spans: [
+                        {
+                          span_type: "text",
+                          text: "The envoy sends a message through the target's dreams.",
+                        },
+                      ],
+                    },
+                  ],
+                  content_hash: "concept-spell-not-source-authentic",
+                  visibility: "public",
+                  provenance: {
+                    source_record_key: "concept:f1-dream-coven-envoy",
+                    relative_source_path: "F1 concept mock",
+                    field_family: "concept.spell",
+                  },
+                },
+              ],
             },
             {
               occurrence_id: "nightmare",
               authored_order: 1,
               label: "Nightmare",
               rank: 4,
+            },
+          ],
+        },
+      ],
+      standalone_spells: [
+        {
+          occurrence_id: "control-weather",
+          authored_order: 0,
+          label: "Control Weather",
+          target_record_key: "spells:control-weather",
+          rank: 8,
+          content: [
+            {
+              content_key: "concept:control-weather",
+              role: "embedded_capability",
+              authored_order: 0,
+              label: "Control Weather",
+              blocks: [
+                {
+                  block_type: "paragraph",
+                  spans: [
+                    {
+                      span_type: "text",
+                      text: "The envoy reshapes the weather around its dream coven.",
+                    },
+                  ],
+                },
+              ],
+              content_hash: "concept-standalone-spell-not-source-authentic",
+              visibility: "public",
+              provenance: {
+                source_record_key: "concept:f1-dream-coven-envoy",
+                relative_source_path: "F1 concept mock",
+                field_family: "concept.standalone-spell",
+              },
             },
           ],
         },

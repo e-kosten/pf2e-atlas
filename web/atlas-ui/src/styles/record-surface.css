@@ -330,18 +330,6 @@
   line-height: 1.45;
 }
 
-.creature-sheet__resource-list {
-  display: grid;
-  gap: 7px;
-}
-
-.creature-sheet__resource-list > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3px 12px;
-  align-items: baseline;
-}
-
 .creature-sheet__movement-value {
   display: grid;
   gap: 2px;
@@ -432,6 +420,9 @@
 
 .creature-sheet__activity-heading {
   align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 3px 8px;
 }
 
 .creature-sheet__action-cost {
@@ -481,6 +472,23 @@
 .creature-sheet__spell-roster {
   display: grid;
   gap: 9px;
+}
+
+.creature-sheet__spell-occurrence-list,
+.creature-sheet__spell-occurrence {
+  display: grid;
+  gap: 5px;
+}
+
+.creature-sheet__spell-details .ant-collapse-header {
+  width: fit-content;
+  padding-block: 2px !important;
+  color: var(--muted) !important;
+  font-size: 11px;
+}
+
+.creature-sheet__spell-details .ant-collapse-content-box {
+  padding: 4px 0 10px 24px !important;
 }
 
 .creature-sheet__spell-rank {
