@@ -144,6 +144,7 @@ mod tests {
             "skills?: Array<CreatureSurfaceSkillView>",
             "movement?: Array<CreatureSurfaceMovementView>",
             "spellcasting?: Array<CreatureSurfaceSpellcastingView>",
+            "standalone_spells?: Array<CreatureSurfaceSpellView>",
             "activities?: Array<CreatureSurfaceActivityView>",
             "content?: Array<CreatureSurfaceContentView>",
             "relationships?: Array<CreatureSurfaceRelationshipView>",
@@ -159,6 +160,10 @@ mod tests {
             .get("CreatureSurfaceActivityView.ts")
             .expect("activity binding should exist");
         assert!(activity.contains("content?: Array<CreatureSurfaceContentView>"));
+        let spell = actual
+            .get("CreatureSurfaceSpellView.ts")
+            .expect("spell binding should exist");
+        assert!(spell.contains("content?: Array<CreatureSurfaceContentView>"));
         let content = actual
             .get("CreatureSurfaceContentView.ts")
             .expect("content binding should exist");
@@ -387,6 +392,7 @@ mod tests {
                     movement: None,
                     resources: None,
                     spellcasting: None,
+                    standalone_spells: Some(Vec::new()),
                     activities: Some(vec![CreatureSurfaceActivityView {
                         occurrence_id: "activity-bite".to_string(),
                         authored_order: 0,
@@ -415,6 +421,7 @@ mod tests {
         let body = &serialized["presentation"]["body"];
         assert!(body.get("skills").is_none());
         assert!(body.get("content").is_none());
+        assert!(body.get("standalone_spells").is_none());
         assert!(body.get("relationships").is_none());
         assert!(body["defenses"].get("immunities").is_none());
         assert!(body["defenses"].get("weaknesses").is_none());
@@ -512,6 +519,15 @@ mod tests {
             action_cost: None,
             rolls: Vec::new(),
             damage: Vec::new(),
+            content: Some(vec![content.clone()]),
+        };
+        let spell = CreatureSurfaceSpellView {
+            occurrence_id: "occurrence:bind-soul".to_string(),
+            authored_order: 5,
+            label: "Bind Soul".to_string(),
+            target_record_key: None,
+            rank: Some(9),
+            traits: vec!["spell".to_string()],
             content: Some(vec![content]),
         };
 
@@ -535,6 +551,13 @@ mod tests {
         );
         assert!(serialized["content"][0].get("owner").is_none());
         assert!(serialized["content"][0].get("text").is_none());
+
+        let serialized = serde_json::to_value(spell).expect("spell should serialize");
+        assert_eq!(
+            serialized["content"][0]["blocks"][1]["block_type"],
+            "divider"
+        );
+        assert!(serialized["content"][0].get("owner").is_none());
     }
 
     #[test]

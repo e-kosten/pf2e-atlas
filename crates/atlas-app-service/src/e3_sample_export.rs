@@ -88,6 +88,10 @@ const CONSUMER_CONTRACT_CANDIDATE: &str = "a1dd199fa71320e276275764420cef2adc568
 const CONSUMER_CONTRACT_TREE: &str = "65c42480757996377feff6c9ec61e7fe4080ca68";
 const CONSUMER_READY_CANDIDATE: &str = "ae7cbd41838157076a2ca005bc9eabba02dd26dd";
 const CONSUMER_READY_TREE: &str = "467602fddc9513c50c2c48476ff61158250488f3";
+const EXPORTER_CORRECTION_CANDIDATE: &str = "5c94ff6516d4c8452f83faa677353d66ae611f11";
+const EXPORTER_CORRECTION_TREE: &str = "387ff67a5d24bc80bc7eb42040052886170058b5";
+const STAGE_F_BASE_CANDIDATE: &str = "c1716e804bc1c26d8d4c2006fa7708da45167c69";
+const STAGE_F_BASE_TREE: &str = "58b8f09973e17e2194e204558e19d4d5ded3b0ea";
 const CONSUMER_READINESS_PASS_SHA256: &str =
     "be1e211181b91cffc01eb03e43ce1dfaf45cf93cd728b483399b3ca1f204b6e8";
 const ACTIVITY_CONTENT_PLAN_SHA256: &str =
@@ -636,54 +640,66 @@ fn export_e3_activity_content_early_samples() {
     assert_git_revision(
         Path::new("."),
         "HEAD^",
+        STAGE_F_BASE_CANDIDATE,
+        STAGE_F_BASE_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~2",
+        EXPORTER_CORRECTION_CANDIDATE,
+        EXPORTER_CORRECTION_TREE,
+    );
+    assert_git_revision(
+        Path::new("."),
+        "HEAD~3",
         CONSUMER_READY_CANDIDATE,
         CONSUMER_READY_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~2",
+        "HEAD~4",
         CONSUMER_CONTRACT_CANDIDATE,
         CONSUMER_CONTRACT_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~3",
+        "HEAD~5",
         VALIDATION_RUNTIME_PASS_CANDIDATE,
         VALIDATION_RUNTIME_PASS_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~4",
+        "HEAD~6",
         VALIDATION_INVENTORY_CANDIDATE,
         VALIDATION_INVENTORY_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~5",
+        "HEAD~7",
         GENERATION_TRUST_CANDIDATE,
         GENERATION_TRUST_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~6",
+        "HEAD~8",
         RUNTIME_SIMPLIFICATION_CANDIDATE,
         RUNTIME_SIMPLIFICATION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~7",
+        "HEAD~9",
         SLOT_ASSERTION_CANDIDATE,
         SLOT_ASSERTION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~8",
+        "HEAD~10",
         ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE,
         ACTIVITY_CONTENT_IMPLEMENTATION_TREE,
     );
     assert_git_revision(
         Path::new("."),
-        "HEAD~9",
+        "HEAD~11",
         ACTIVITY_CONTENT_BASE,
         ACTIVITY_CONTENT_BASE_TREE,
     );
@@ -694,6 +710,9 @@ fn export_e3_activity_content_early_samples() {
     let diagnosis = required_path_env("E3_ACTIVITY_AUDIT");
     let planning_review_root = required_path_env("E3_ACTIVITY_PLANNING_REVIEW_ROOT");
     let consumer_readiness_pass = required_path_env("E3_ACTIVITY_CONSUMER_READINESS_PASS");
+    let spell_content_contract_pass = required_path_env("E3_ACTIVITY_SPELL_CONTENT_CONTRACT_PASS");
+    let spell_content_contract_pass_sha256 =
+        required_env("E3_ACTIVITY_SPELL_CONTENT_CONTRACT_PASS_SHA256");
     assert_bound_file(&approval, ACTIVITY_CONTENT_APPROVAL_SHA256);
     assert_bound_file(
         &PathBuf::from(format!("{}.sha256", approval.display())),
@@ -716,6 +735,10 @@ fn export_e3_activity_content_early_samples() {
     );
     verify_checksums(&planning_review_root);
     assert_bound_file(&consumer_readiness_pass, CONSUMER_READINESS_PASS_SHA256);
+    assert_bound_file(
+        &spell_content_contract_pass,
+        &spell_content_contract_pass_sha256,
+    );
 
     let source_root = required_path_env("E3_ACTIVITY_SOURCE_ROOT");
     let source_commit = required_env("E3_ACTIVITY_SOURCE_COMMIT");
@@ -774,6 +797,78 @@ fn export_e3_activity_content_early_samples() {
         .expect("Giant Rat detail should project from retained artifact");
     let night_hag_body = creature_surface_body(&night_hag.surface);
     let giant_rat_body = creature_surface_body(&giant_rat.surface);
+    let static_spellcasting = night_hag_body
+        .spellcasting
+        .as_ref()
+        .expect("Night Hag spellcasting should be present");
+    assert_eq!(static_spellcasting.len(), 2);
+    assert_eq!(
+        static_spellcasting
+            .iter()
+            .map(|entry| entry.spells.len())
+            .sum::<usize>(),
+        26
+    );
+    let static_grouped_spells = static_spellcasting
+        .iter()
+        .flat_map(|entry| entry.spells.iter())
+        .collect::<Vec<_>>();
+    for label in ["Bind Soul", "Dream Council"] {
+        let spell = static_grouped_spells
+            .iter()
+            .find(|spell| spell.label == label)
+            .unwrap_or_else(|| panic!("{label} should remain a grouped spell"));
+        assert!(
+            spell.content.is_some(),
+            "{label} should own its typed authored content"
+        );
+    }
+    for label in ["Nightmare", "Dream Message"] {
+        let repeated = static_grouped_spells
+            .iter()
+            .filter(|spell| spell.label == label)
+            .copied()
+            .collect::<Vec<_>>();
+        assert!(repeated.len() >= 2, "{label} occurrences must be preserved");
+        assert_eq!(
+            repeated
+                .iter()
+                .map(|spell| spell.occurrence_id.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            repeated.len(),
+            "{label} occurrences must keep independent identities"
+        );
+        assert_eq!(
+            repeated
+                .iter()
+                .map(|spell| spell.authored_order)
+                .collect::<BTreeSet<_>>()
+                .len(),
+            repeated.len(),
+            "{label} occurrences must keep independent authored order"
+        );
+        assert!(
+            repeated
+                .iter()
+                .all(|spell| spell.target_record_key == repeated[0].target_record_key),
+            "{label} repeated target keys must not collapse occurrence rows"
+        );
+    }
+    let static_standalone_spells = night_hag_body
+        .standalone_spells
+        .as_ref()
+        .expect("Night Hag standalone spells should be present");
+    assert_eq!(static_standalone_spells.len(), 1);
+    assert_eq!(static_standalone_spells[0].label, "Control Weather");
+    assert!(static_standalone_spells[0].content.is_some());
+    let attached_spell_content_keys = static_grouped_spells
+        .iter()
+        .copied()
+        .chain(static_standalone_spells.iter())
+        .flat_map(|spell| spell.content.iter().flatten())
+        .map(|content| content.content_key.as_str())
+        .collect::<BTreeSet<_>>();
     let attached_activity_labels = night_hag_body
         .activities
         .as_ref()
@@ -830,6 +925,21 @@ fn export_e3_activity_content_early_samples() {
         .iter()
         .find(|content| content.content_key == "public-notes")
         .expect("public notes should remain general record-owned content");
+    let general_content = night_hag_body
+        .content
+        .as_ref()
+        .expect("Night Hag general content should be present");
+    assert!(
+        general_content
+            .iter()
+            .any(|content| content.label.as_deref() == Some("Heartstone")),
+        "unrelated Heartstone content must remain general"
+    );
+    assert!(
+        general_content
+            .iter()
+            .all(|content| { !attached_spell_content_keys.contains(content.content_key.as_str()) })
+    );
     assert_eq!(
         public_notes
             .blocks
@@ -860,6 +970,8 @@ fn export_e3_activity_content_early_samples() {
         ["Putrid Plague"],
         "Giant Rat should remain the genuinely sparse one-document comparison"
     );
+    assert!(giant_rat_body.spellcasting.is_none());
+    assert!(giant_rat_body.standalone_spells.is_none());
 
     let encounter = service
         .create_encounter(CreateEncounterRequest {
@@ -985,11 +1097,46 @@ fn export_e3_activity_content_early_samples() {
             .iter()
             .all(|spell| spell.target_record_key.is_some())
     );
+    for label in ["Bind Soul", "Dream Council"] {
+        let spell = grouped_spells
+            .iter()
+            .find(|spell| spell.label == label)
+            .unwrap_or_else(|| panic!("runtime {label} should remain grouped"));
+        assert!(
+            spell.content.is_some(),
+            "runtime {label} should own its typed authored content"
+        );
+    }
+    for label in ["Nightmare", "Dream Message"] {
+        let repeated = grouped_spells
+            .iter()
+            .filter(|spell| spell.label == label)
+            .copied()
+            .collect::<Vec<_>>();
+        assert!(
+            repeated.len() >= 2,
+            "runtime {label} rows must be preserved"
+        );
+        assert_eq!(
+            repeated
+                .iter()
+                .map(|spell| spell.occurrence_id.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            repeated.len()
+        );
+        assert!(
+            repeated
+                .iter()
+                .all(|spell| spell.target_record_key == repeated[0].target_record_key)
+        );
+    }
     assert_eq!(night_hag_runtime.standalone_spells.len(), 1);
     assert_eq!(
         night_hag_runtime.standalone_spells[0].label,
         "Control Weather"
     );
+    assert!(night_hag_runtime.standalone_spells[0].content.is_some());
     assert!(
         night_hag_runtime
             .activities
@@ -1032,6 +1179,17 @@ fn export_e3_activity_content_early_samples() {
             .filter(|activity| activity.label == "Putrid Plague" && activity.content.is_some())
             .count(),
         1
+    );
+    assert!(giant_rat_runtime.spellcasting.is_empty());
+    assert!(giant_rat_runtime.standalone_spells.is_empty());
+    let encounter_night_hag_body = creature_surface_body(&encounter_night_hag.record_view);
+    assert!(
+        encounter_night_hag_body
+            .content
+            .as_ref()
+            .expect("encounter Night Hag general content")
+            .iter()
+            .any(|content| content.label.as_deref() == Some("Heartstone"))
     );
 
     let mut concept_surface = night_hag.surface.clone();
@@ -1091,7 +1249,10 @@ fn export_e3_activity_content_early_samples() {
         .canonicalize()
         .expect("repository root should resolve");
     for binding in [
+        "CreatureSurfaceView.ts",
         "CreatureSurfaceActivityView.ts",
+        "CreatureSurfaceSpellcastingView.ts",
+        "CreatureSurfaceSpellView.ts",
         "CreatureSurfaceContentView.ts",
         "CreatureSurfaceContentBlockView.ts",
         "CreatureSurfaceContentInlineView.ts",
@@ -1125,14 +1286,14 @@ fn export_e3_activity_content_early_samples() {
     fs::write(
         sample_root.join("WALKTHROUGH.md"),
         format!(
-            "# E3 encounter-payload Stage F handoff walkthrough\n\nThis is candidate-authentic Stage F handoff evidence for exporter correction `{candidate}` / tree `{candidate_tree}`, a direct child of consumer-ready candidate `{CONSUMER_READY_CANDIDATE}` / tree `{CONSUMER_READY_TREE}`. That candidate directly parents consumer-contract remediation `{CONSUMER_CONTRACT_CANDIDATE}`; its ancestry includes validation/runtime PASS `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, slot correction `{SLOT_ASSERTION_CANDIDATE}`, product implementation `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`. No separate data-model approval gate follows this package.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. The four actor-local activity descriptions are nested exactly once; Abyssal Plague retains its typed Fortitude DC 28 check and authored divider/order.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison, including Putrid Plague placement.\n5. Encounter payloads demonstrate non-runtime canonical context, runtime activity traits/content, two ordered Night Hag spellcasting entries with 26 grouped spells, standalone Control Weather, and no generic spell activity rows.\n6. `generated/` contains the exact candidate TypeScript bindings and API aggregation.\n7. `proposed-accepted-to-correction-delta-ledger.md` records the complete component chain and fresh output hashes.\n\nThe app service used the authenticated retained artifact and pinned PF2e checkout. No frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
+            "# E3 encounter-payload Stage F handoff walkthrough\n\nThis is candidate-authentic Stage F handoff evidence for typed spell-content correction `{candidate}` / tree `{candidate_tree}`, a direct child of Stage F base `{STAGE_F_BASE_CANDIDATE}` / tree `{STAGE_F_BASE_TREE}`. Its ancestry includes exporter correction `{EXPORTER_CORRECTION_CANDIDATE}`, consumer-ready candidate `{CONSUMER_READY_CANDIDATE}`, validation/runtime PASS `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, slot correction `{SLOT_ASSERTION_CANDIDATE}`, product implementation `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. Activities and authored embedded spells own typed rich content exactly once; Bind Soul and Dream Council are directly consumer-ready, repeated Nightmare and Dream Message occurrences remain independent, Heartstone remains general, and Control Weather remains explicit standalone content. Abyssal Plague retains its typed Fortitude DC 28 check and authored divider/order.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison, including Putrid Plague placement and absent spell collections.\n5. Encounter payloads demonstrate the same exact-once spell content association, non-runtime canonical context, runtime activity traits/content, two ordered Night Hag spellcasting entries with 26 grouped spells, standalone Control Weather, and no generic spell activity rows.\n6. `generated/` contains the exact candidate TypeScript bindings and API aggregation.\n7. `proposed-accepted-to-correction-delta-ledger.md` records the complete component chain and fresh output hashes.\n\nThe app service used the authenticated retained artifact and pinned PF2e checkout. No frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
         ),
     )
     .expect("walkthrough should write");
     fs::write(
         sample_root.join("report.md"),
         format!(
-            "# E3 encounter-payload consumer-ready export report\n\nExporter correction `{candidate}` / tree `{candidate_tree}` changes evidence ancestry/provenance only and directly parents consumer-ready candidate `{CONSUMER_READY_CANDIDATE}`. Product payload semantics come from the explicitly recorded chain through `{CONSUMER_CONTRACT_CANDIDATE}`, `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, `{SLOT_ASSERTION_CANDIDATE}`, `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\nThe candidate preserves backend-composed exact-once typed activity content, non-runtime encounter context, runtime activity traits, typed Check display/statistic/DC with paragraph/divider order, ordered nested spellcasting, legitimate slotless omission, standalone Control Weather, generic spell-row deduplication, and affected-row fail-closed behavior. No DTO, service, runtime, persistence, or product code changed in the exporter correction.\n\nThe authoritative consumer-readiness PASS is `{CONSUMER_READINESS_PASS_SHA256}`. This package is ready for Stage F handoff without another user data-model approval gate. Broad validation, polish, F1/F2 implementation, delivery, and final user confirmation remain outside this export.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
+            "# E3 encounter-payload consumer-ready export report\n\nTyped spell-content correction `{candidate}` / tree `{candidate_tree}` directly parents Stage F base `{STAGE_F_BASE_CANDIDATE}`. The explicitly recorded component chain includes `{EXPORTER_CORRECTION_CANDIDATE}`, `{CONSUMER_READY_CANDIDATE}`, `{CONSUMER_CONTRACT_CANDIDATE}`, `{VALIDATION_RUNTIME_PASS_CANDIDATE}`, `{SLOT_ASSERTION_CANDIDATE}`, `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, and accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\nThe candidate composes authored embedded spell content directly onto static and runtime spell rows through typed canonical associations, preserves repeated authored occurrences and standalone Control Weather, keeps unrelated Heartstone content general, and removes claimed spell documents from general content exactly once. Ambiguous associations omit affected rows with typed unavailability or runtime limitations. Existing activity content, non-runtime encounter context, typed Check fidelity, slotless omission, spell mechanics, and later mutable-state exclusions remain unchanged.\n\nThe prior consumer-readiness PASS is `{CONSUMER_READINESS_PASS_SHA256}`; the focused spell-content contract PASS is checksum-bound in the manifest as `{spell_content_contract_pass_sha256}`. This package is ready for Stage F handoff. Broad validation, polish, F1/F2 implementation, delivery, and final user confirmation remain outside this export.\n\nExactly two authentic records are included: Night Hag (`{NIGHT_HAG_KEY}`) and Giant Rat (`{GIANT_RAT_KEY}`), from source `{SOURCE_SIGNATURE}` at `{source_commit}` / `{source_tree}`. The concept files are unambiguously non-authentic.\n"
         ),
     )
     .expect("report should write");
@@ -1150,8 +1311,10 @@ fn export_e3_activity_content_early_samples() {
     let manifest = json!({
         "schema": "atlas-e3-activity-content-fidelity-early/v1",
         "status": "consumer_ready_candidate_authentic_stage_f_handoff",
-        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": CONSUMER_READY_CANDIDATE, "change_scope": "evidence_only_exporter_ancestry_and_provenance" },
+        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": STAGE_F_BASE_CANDIDATE, "change_scope": "typed_static_and_runtime_spell_content_association" },
         "component_commits": {
+            "stage_f_base": { "commit": STAGE_F_BASE_CANDIDATE, "tree": STAGE_F_BASE_TREE, "parent": EXPORTER_CORRECTION_CANDIDATE },
+            "exporter_correction": { "commit": EXPORTER_CORRECTION_CANDIDATE, "tree": EXPORTER_CORRECTION_TREE, "parent": CONSUMER_READY_CANDIDATE },
             "consumer_ready": { "commit": CONSUMER_READY_CANDIDATE, "tree": CONSUMER_READY_TREE, "parent": CONSUMER_CONTRACT_CANDIDATE },
             "consumer_contract_remediation": { "commit": CONSUMER_CONTRACT_CANDIDATE, "tree": CONSUMER_CONTRACT_TREE, "parent": VALIDATION_RUNTIME_PASS_CANDIDATE },
             "validation_runtime_pass": { "commit": VALIDATION_RUNTIME_PASS_CANDIDATE, "tree": VALIDATION_RUNTIME_PASS_TREE, "parent": VALIDATION_INVENTORY_CANDIDATE },
@@ -1168,7 +1331,8 @@ fn export_e3_activity_content_early_samples() {
             "task_map": { "path": task_map, "sha256": ACTIVITY_CONTENT_TASK_MAP_SHA256, "mode": "0444" },
             "audit": { "path": diagnosis, "sha256": ACTIVITY_CONTENT_DIAGNOSIS_SHA256, "mode": "0444" },
             "planning_review": { "root": planning_review_root, "verdict": "PASS", "verdict_md_sha256": ACTIVITY_CONTENT_REVIEW_VERDICT_SHA256, "verdict_json_sha256": ACTIVITY_CONTENT_REVIEW_JSON_SHA256, "checksums_sha256": ACTIVITY_CONTENT_REVIEW_CHECKSUMS_SHA256, "mode": "0444", "checksum_closure": "pass" },
-            "consumer_readiness": { "path": consumer_readiness_pass, "verdict": "PASS", "sha256": CONSUMER_READINESS_PASS_SHA256, "mode": "0444" }
+            "consumer_readiness": { "path": consumer_readiness_pass, "verdict": "PASS", "sha256": CONSUMER_READINESS_PASS_SHA256, "mode": "0444" },
+            "spell_content_contract": { "path": spell_content_contract_pass, "verdict": "PASS", "sha256": spell_content_contract_pass_sha256, "mode": "0444" }
         },
         "accepted_e3": { "commit": ACTIVITY_CONTENT_BASE, "tree": ACTIVITY_CONTENT_BASE_TREE },
         "producer": {
@@ -1200,6 +1364,11 @@ fn export_e3_activity_content_early_samples() {
             ,"night_hag_spellcasting_slot_counts": night_hag_runtime.spellcasting.iter().map(|entry| entry.slots.len()).collect::<Vec<_>>()
             ,"night_hag_spellcasting_empty_slots_omitted": night_hag_runtime.spellcasting.iter().all(|entry| serde_json::to_value(entry).expect("Night Hag spellcasting entry should serialize").get("slots").is_none())
             ,"night_hag_grouped_spell_count": grouped_spells.len()
+            ,"night_hag_static_grouped_spell_count": static_grouped_spells.len()
+            ,"night_hag_static_spell_content_labels": static_grouped_spells.iter().filter(|spell| spell.content.is_some()).map(|spell| spell.label.clone()).collect::<Vec<_>>()
+            ,"night_hag_static_standalone_spell_labels": static_standalone_spells.iter().map(|spell| spell.label.clone()).collect::<Vec<_>>()
+            ,"heartstone_retained_in_general_content": true
+            ,"claimed_spell_content_removed_from_general_content": true
             ,"night_hag_standalone_spell_labels": night_hag_runtime.standalone_spells.iter().map(|spell| spell.label.clone()).collect::<Vec<_>>()
             ,"generic_runtime_spell_activity_count": 0
             ,"giant_rat_runtime_activity_content": "Putrid Plague"
@@ -1210,7 +1379,7 @@ fn export_e3_activity_content_early_samples() {
             "focused_ui_typed_renderer": "pass",
             "generated_binding_freshness": "pass",
             "broad_validation": "not_run_by_bounded_export_contract",
-            "next_gate": "stage_f_implementation_without_separate_data_model_approval"
+            "next_gate": "stage_f_handoff_and_f1_rebase"
         },
         "retained_substrate": {
             "source": { "path": source_root, "size_kib": directory_size_kib(&source_root) },
@@ -2231,7 +2400,7 @@ fn write_activity_content_delta_ledger(sample_root: &Path, candidate: &str, cand
     fs::write(
         sample_root.join("proposed-accepted-to-correction-delta-ledger.md"),
         format!(
-            "# Accepted-E3 to Stage F consumer-ready export ledger\n\nThis is the fresh candidate-authentic Stage F handoff ledger. It is not historical acceptance evidence and adds no separate data-model approval gate.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Product implementation: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`.\n- Slot assertion correction: `{SLOT_ASSERTION_CANDIDATE}` / `{SLOT_ASSERTION_TREE}`.\n- Runtime simplification: `{RUNTIME_SIMPLIFICATION_CANDIDATE}` / `{RUNTIME_SIMPLIFICATION_TREE}`.\n- Generation trust: `{GENERATION_TRUST_CANDIDATE}` / `{GENERATION_TRUST_TREE}`.\n- Validation owner inventory: `{VALIDATION_INVENTORY_CANDIDATE}` / `{VALIDATION_INVENTORY_TREE}`.\n- Validation/runtime PASS: `{VALIDATION_RUNTIME_PASS_CANDIDATE}` / `{VALIDATION_RUNTIME_PASS_TREE}`.\n- Consumer-contract remediation: `{CONSUMER_CONTRACT_CANDIDATE}` / `{CONSUMER_CONTRACT_TREE}`.\n- Consumer-ready candidate: `{CONSUMER_READY_CANDIDATE}` / `{CONSUMER_READY_TREE}`.\n- Evidence-only exporter correction: `{candidate}` / `{candidate_tree}`, direct child of the consumer-ready candidate.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Preserved product contract\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Runtime spellcasting is a canonical ordered nested tree retaining final entry attack, DC, and slots when present; legitimate slotless entries omit the empty true-many field without fabricating data. Spell rows preserve occurrence identity, canonical target identity where known, typed content, and relevant mechanics.\n3. Spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit in the dedicated standalone collection.\n4. Encounter payloads retain non-runtime canonical context, runtime activity traits, and typed Check display/statistic/DC without static/runtime duplication or client joins.\n5. Invalid or ambiguous associations omit only affected rows with typed limitations.\n6. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n"
+            "# Accepted-E3 to Stage F consumer-ready export ledger\n\nThis is the fresh candidate-authentic Stage F handoff ledger. It is not historical acceptance evidence and adds no separate data-model approval gate.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Product implementation: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`.\n- Slot assertion correction: `{SLOT_ASSERTION_CANDIDATE}` / `{SLOT_ASSERTION_TREE}`.\n- Runtime simplification: `{RUNTIME_SIMPLIFICATION_CANDIDATE}` / `{RUNTIME_SIMPLIFICATION_TREE}`.\n- Generation trust: `{GENERATION_TRUST_CANDIDATE}` / `{GENERATION_TRUST_TREE}`.\n- Validation owner inventory: `{VALIDATION_INVENTORY_CANDIDATE}` / `{VALIDATION_INVENTORY_TREE}`.\n- Validation/runtime PASS: `{VALIDATION_RUNTIME_PASS_CANDIDATE}` / `{VALIDATION_RUNTIME_PASS_TREE}`.\n- Consumer-contract remediation: `{CONSUMER_CONTRACT_CANDIDATE}` / `{CONSUMER_CONTRACT_TREE}`.\n- Consumer-ready candidate: `{CONSUMER_READY_CANDIDATE}` / `{CONSUMER_READY_TREE}`.\n- Evidence-only exporter correction: `{EXPORTER_CORRECTION_CANDIDATE}` / `{EXPORTER_CORRECTION_TREE}`.\n- Stage F CLI completion: `{STAGE_F_BASE_CANDIDATE}` / `{STAGE_F_BASE_TREE}`.\n- Typed spell-content correction: `{candidate}` / `{candidate_tree}`, direct child of the Stage F base.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Preserved product contract\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Static and runtime spellcasting are canonical ordered nested trees retaining entry identity and mechanics. Spell rows preserve occurrence identity, canonical target identity where known, directly attached typed authored content, and relevant runtime mechanics; legitimate slotless entries omit the empty true-many field without fabricating data.\n3. Claimed spell documents are absent from general content and spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit with content in each dedicated standalone collection while unrelated Heartstone content remains general.\n4. Encounter payloads retain non-runtime canonical context, runtime activity traits, and typed Check display/statistic/DC without static/runtime duplication or client joins.\n5. Invalid or ambiguous associations omit only affected rows with typed limitations.\n6. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n"
         ),
     )
     .expect("activity-content delta ledger should write");

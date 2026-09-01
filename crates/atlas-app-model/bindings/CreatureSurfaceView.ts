@@ -10,8 +10,9 @@ import type { CreatureSurfaceRelationshipView } from "./CreatureSurfaceRelations
 import type { CreatureSurfaceResourceView } from "./CreatureSurfaceResourceView";
 import type { CreatureSurfaceSavesView } from "./CreatureSurfaceSavesView";
 import type { CreatureSurfaceSkillView } from "./CreatureSurfaceSkillView";
+import type { CreatureSurfaceSpellView } from "./CreatureSurfaceSpellView";
 import type { CreatureSurfaceSpellcastingView } from "./CreatureSurfaceSpellcastingView";
 import type { CreatureSurfaceUnavailableDomainsView } from "./CreatureSurfaceUnavailableDomainsView";
 import type { CreatureSurfaceVitalsView } from "./CreatureSurfaceVitalsView";
 
-export type CreatureSurfaceView = { vitals?: CreatureSurfaceVitalsView, defenses?: CreatureSurfaceDefensesView, saves?: CreatureSurfaceSavesView, awareness?: CreatureSurfaceAwarenessView, abilities?: CreatureSurfaceAbilitiesView, skills?: Array<CreatureSurfaceSkillView>, movement?: Array<CreatureSurfaceMovementView>, resources?: Array<CreatureSurfaceResourceView>, spellcasting?: Array<CreatureSurfaceSpellcastingView>, activities?: Array<CreatureSurfaceActivityView>, content?: Array<CreatureSurfaceContentView>, relationships?: Array<CreatureSurfaceRelationshipView>, unavailable_domains?: CreatureSurfaceUnavailableDomainsView, provenance?: CreatureSurfaceProvenanceView, };
+export type CreatureSurfaceView = { vitals?: CreatureSurfaceVitalsView, defenses?: CreatureSurfaceDefensesView, saves?: CreatureSurfaceSavesView, awareness?: CreatureSurfaceAwarenessView, abilities?: CreatureSurfaceAbilitiesView, skills?: Array<CreatureSurfaceSkillView>, movement?: Array<CreatureSurfaceMovementView>, resources?: Array<CreatureSurfaceResourceView>, spellcasting?: Array<CreatureSurfaceSpellcastingView>, standalone_spells?: Array<CreatureSurfaceSpellView>, activities?: Array<CreatureSurfaceActivityView>, content?: Array<CreatureSurfaceContentView>, relationships?: Array<CreatureSurfaceRelationshipView>, unavailable_domains?: CreatureSurfaceUnavailableDomainsView, provenance?: CreatureSurfaceProvenanceView, };

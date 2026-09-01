@@ -218,9 +218,11 @@ fn creature_surface_with_placement(
     let resources = detail
         .then(|| resources(creature, &mut unavailable))
         .flatten();
-    let spellcasting = detail
-        .then(|| spellcasting(creature, &mut unavailable))
-        .flatten();
+    let (spellcasting, standalone_spells) = if detail {
+        spellcasting(creature, activity_content, &mut unavailable)
+    } else {
+        (None, None)
+    };
     let activities = if detail {
         activities(creature, activity_content, &mut unavailable)
     } else {
@@ -243,9 +245,10 @@ fn creature_surface_with_placement(
         movement,
         resources,
         spellcasting,
+        standalone_spells,
         activities,
         content: (detail || encounter)
-            .then(|| content(creature, activity_content, encounter))
+            .then(|| content(creature, activity_content))
             .flatten(),
         relationships,
         unavailable_domains: unavailable.into_view(),
@@ -1186,16 +1189,22 @@ fn activity(
 
 fn spellcasting(
     creature: &CreatureRecord,
+    content_placement: &ActivityContentPlacement,
     unavailable: &mut SurfaceUnavailableDomains,
-) -> Option<Vec<CreatureSurfaceSpellcastingView>> {
-    let embedded = required_fact(
+) -> (
+    Option<Vec<CreatureSurfaceSpellcastingView>>,
+    Option<Vec<CreatureSurfaceSpellView>>,
+) {
+    let Some(embedded) = required_fact(
         &creature.embedded_entities.value,
         unavailable,
         SurfaceDomain::Spellcasting,
         CreatureSurfaceUnavailableFieldView::EmbeddedEntities,
         CreatureSurfaceSourceFieldView::EmbeddedEntities,
         None,
-    )?;
+    ) else {
+        return (None, None);
+    };
     let mut projected = embedded
         .occurrences
         .iter()
@@ -1216,37 +1225,14 @@ fn spellcasting(
                     if parent != &entry.id {
                         return None;
                     }
-                    let component_id = spell.id.as_str().to_string();
-                    let rank = required_fact(
-                        &capability.base_rank,
+                    surface_spell_view(
+                        spell,
+                        capability,
+                        creature,
+                        embedded,
+                        content_placement,
                         unavailable,
-                        SurfaceDomain::Spellcasting,
-                        CreatureSurfaceUnavailableFieldView::SpellRank,
-                        CreatureSurfaceSourceFieldView::EmbeddedEntities,
-                        Some(component_id.clone()),
                     )
-                    .copied();
-                    let traits = required_fact(
-                        &capability.traits,
-                        unavailable,
-                        SurfaceDomain::Spellcasting,
-                        CreatureSurfaceUnavailableFieldView::SpellTraits,
-                        CreatureSurfaceSourceFieldView::EmbeddedEntities,
-                        Some(component_id.clone()),
-                    )
-                    .cloned()
-                    .unwrap_or_default();
-                    Some(CreatureSurfaceSpellView {
-                        occurrence_id: component_id,
-                        authored_order: spell.authored_order,
-                        label: occurrence_label(spell, embedded),
-                        target_record_key: match &spell.target {
-                            CreatureEntityTarget::CanonicalRecord(key) => Some(key.to_string()),
-                            CreatureEntityTarget::ActorOwned(_) => None,
-                        },
-                        rank,
-                        traits,
-                    })
                 })
                 .collect::<Vec<_>>();
             spells.sort_by_key(|value| value.authored_order);
@@ -1297,7 +1283,82 @@ fn spellcasting(
         })
         .collect::<Vec<_>>();
     projected.sort_by_key(|value| value.authored_order);
-    non_empty(projected)
+    let mut standalone_spells = embedded
+        .occurrences
+        .iter()
+        .filter_map(|spell| {
+            let CreatureCapability::Spell(capability) = &spell.capability else {
+                return None;
+            };
+            matches!(spell.parent, CreatureOccurrenceParent::Creature).then_some(())?;
+            surface_spell_view(
+                spell,
+                capability,
+                creature,
+                embedded,
+                content_placement,
+                unavailable,
+            )
+        })
+        .collect::<Vec<_>>();
+    standalone_spells.sort_by_key(|value| value.authored_order);
+    (non_empty(projected), non_empty(standalone_spells))
+}
+
+fn surface_spell_view(
+    spell: &CreatureEntityOccurrence,
+    capability: &atlas_record::CreatureSpellCapability,
+    creature: &CreatureRecord,
+    embedded: &CreatureEmbeddedEntities,
+    content_placement: &ActivityContentPlacement,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceSpellView> {
+    let component_id = spell.id.as_str().to_string();
+    if content_placement.failed_spells.contains(&component_id) {
+        unsupported(
+            unavailable,
+            SurfaceDomain::Spellcasting,
+            CreatureSurfaceUnavailableFieldView::SpellContent,
+            CreatureSurfaceSourceFieldView::EmbeddedEntities,
+            Some(component_id),
+        );
+        return None;
+    }
+    let rank = required_fact(
+        &capability.base_rank,
+        unavailable,
+        SurfaceDomain::Spellcasting,
+        CreatureSurfaceUnavailableFieldView::SpellRank,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        Some(component_id.clone()),
+    )
+    .copied();
+    let traits = required_fact(
+        &capability.traits,
+        unavailable,
+        SurfaceDomain::Spellcasting,
+        CreatureSurfaceUnavailableFieldView::SpellTraits,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        Some(component_id.clone()),
+    )
+    .cloned()
+    .unwrap_or_default();
+    Some(CreatureSurfaceSpellView {
+        occurrence_id: component_id.clone(),
+        authored_order: spell.authored_order,
+        label: occurrence_label(spell, embedded),
+        target_record_key: match &spell.target {
+            CreatureEntityTarget::CanonicalRecord(key) => Some(key.to_string()),
+            CreatureEntityTarget::ActorOwned(_) => None,
+        },
+        rank,
+        traits,
+        content: content_for_occurrence(
+            creature,
+            &content_placement.spell_by_occurrence,
+            &component_id,
+        ),
+    })
 }
 
 #[derive(Default)]
@@ -1817,7 +1878,6 @@ fn content_for_occurrence(
 fn content(
     creature: &CreatureRecord,
     activity_content: &ActivityContentPlacement,
-    encounter: bool,
 ) -> Option<Vec<CreatureSurfaceContentView>> {
     let mut documents = creature
         .content
@@ -1826,7 +1886,7 @@ fn content(
         .enumerate()
         .filter(|(index, _)| {
             !activity_content.withheld_activity_documents.contains(index)
-                && (!encounter || !activity_content.withheld_spell_documents.contains(index))
+                && !activity_content.withheld_spell_documents.contains(index)
         })
         .collect::<Vec<_>>();
     documents
@@ -2224,6 +2284,7 @@ mod tests {
         assert!(surface.movement.is_none());
         assert!(surface.resources.is_none());
         assert!(surface.spellcasting.is_none());
+        assert!(surface.standalone_spells.is_none());
         assert!(surface.activities.is_none());
         assert!(surface.relationships.is_none());
         assert!(surface.unavailable_domains.is_none());
@@ -2748,7 +2809,7 @@ mod tests {
                 },
             ),
         );
-        let spell = occurrence(
+        let mut spell = occurrence(
             &owner,
             "spell",
             2,
@@ -2773,6 +2834,9 @@ mod tests {
                 action_cost: atlas_record::CreatureActionCost::Actions(1),
                 unsupported_notes: Vec::new(),
             }),
+        );
+        spell.target = CreatureEntityTarget::CanonicalRecord(
+            RecordKey::parse("spells:unsupported-fixture").expect("spell key"),
         );
         creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
             entities: vec![entity(&owner, "strike", CreatureEntityFamily::Strike)],
@@ -3248,8 +3312,88 @@ mod tests {
                         && content_contains_text(&content[0].blocks, "Activity content.")
                 })
         );
-        assert!(super::content(&creature, &placement, true).is_none());
+        assert!(super::content(&creature, &placement).is_none());
         assert!(runtime.automation_limitations.is_empty());
+    }
+
+    #[test]
+    fn night_hag_static_spells_attach_typed_content_once_and_preserve_authored_occurrences() {
+        let creature = spell_payload_fixture();
+        let forward = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let spellcasting = forward.spellcasting.as_ref().expect("spellcasting");
+        assert_eq!(spellcasting.len(), 2);
+        assert_eq!(spellcasting[0].label, "Occult Innate Spells");
+        assert_eq!(spellcasting[1].label, "Coven Spells");
+        let spells = spellcasting
+            .iter()
+            .flat_map(|entry| entry.spells.iter())
+            .collect::<Vec<_>>();
+        assert_eq!(spells.len(), 26);
+
+        let bind_soul = spells
+            .iter()
+            .find(|spell| spell.occurrence_id == "bind-soul")
+            .expect("Bind Soul");
+        assert!(bind_soul.target_record_key.is_none());
+        assert_eq!(
+            bind_soul
+                .content
+                .as_ref()
+                .expect("Bind Soul content")
+                .iter()
+                .map(|content| content.content_key.as_str())
+                .collect::<Vec<_>>(),
+            ["bind-soul-first", "bind-soul-second"]
+        );
+        let dream_council = spells
+            .iter()
+            .find(|spell| spell.occurrence_id == "dream-council")
+            .expect("Dream Council");
+        assert!(dream_council.target_record_key.is_none());
+        assert!(dream_council.content.is_some());
+
+        for (label, expected_occurrences) in [
+            ("Nightmare", ["nightmare-1", "nightmare-2"]),
+            ("Dream Message", ["dream-message-1", "dream-message-2"]),
+        ] {
+            let repeated = spells
+                .iter()
+                .filter(|spell| spell.label == label)
+                .copied()
+                .collect::<Vec<_>>();
+            assert_eq!(repeated.len(), 2);
+            assert_eq!(
+                repeated
+                    .iter()
+                    .map(|spell| spell.occurrence_id.as_str())
+                    .collect::<Vec<_>>(),
+                expected_occurrences
+            );
+            assert_eq!(repeated[0].target_record_key, repeated[1].target_record_key);
+            assert_ne!(repeated[0].content, repeated[1].content);
+        }
+
+        let standalone = forward
+            .standalone_spells
+            .as_ref()
+            .expect("standalone spells");
+        assert_eq!(standalone.len(), 1);
+        assert_eq!(standalone[0].label, "Control Weather");
+        assert!(standalone[0].content.is_some());
+        let general = forward
+            .content
+            .as_ref()
+            .expect("general Heartstone content");
+        assert_eq!(general.len(), 1);
+        assert_eq!(general[0].label.as_deref(), Some("Heartstone"));
+
+        let mut reversed_creature = creature.clone();
+        if let FactValue::Value(embedded) = &mut reversed_creature.embedded_entities.value {
+            embedded.occurrences.reverse();
+        }
+        reversed_creature.content.documents.reverse();
+        let reversed = creature_surface(&reversed_creature, RecordSurfaceProfileView::RecordDetail);
+        assert_eq!(forward, reversed, "typed authored order must be stable");
     }
 
     #[test]
@@ -3273,28 +3417,52 @@ mod tests {
 
         assert_eq!(forward, reversed);
         assert_eq!(forward.spellcasting.len(), 2);
-        assert_eq!(forward.spellcasting[0].label, "Arcane Innate Spells");
+        assert_eq!(forward.spellcasting[0].label, "Occult Innate Spells");
         assert_eq!(
             forward.spellcasting[0].preparation.as_deref(),
             Some("innate")
         );
-        assert_eq!(forward.spellcasting[0].tradition.as_deref(), Some("arcane"));
-        assert_eq!(forward.spellcasting[0].spells.len(), 2);
+        assert_eq!(forward.spellcasting[0].tradition.as_deref(), Some("occult"));
         assert_eq!(
-            forward.spellcasting[0].spells[0].target_record_key,
-            forward.spellcasting[0].spells[1].target_record_key,
-            "repeated canonical targets remain distinct occurrence rows"
+            forward
+                .spellcasting
+                .iter()
+                .map(|entry| entry.spells.len())
+                .sum::<usize>(),
+            26
         );
-        assert!(forward.spellcasting[0].spells[0].content.is_some());
+        let spells = forward
+            .spellcasting
+            .iter()
+            .flat_map(|entry| entry.spells.iter())
+            .collect::<Vec<_>>();
+        for id in [
+            "bind-soul",
+            "dream-council",
+            "nightmare-1",
+            "nightmare-2",
+            "dream-message-1",
+            "dream-message-2",
+        ] {
+            assert!(
+                spells
+                    .iter()
+                    .any(|spell| spell.occurrence_id == id && spell.content.is_some()),
+                "{id} should retain its own typed content"
+            );
+        }
         assert_eq!(forward.standalone_spells.len(), 1);
         assert_eq!(forward.standalone_spells[0].label, "Control Weather");
+        assert!(forward.standalone_spells[0].content.is_some());
         assert!(
             forward
                 .activities
                 .iter()
                 .all(|activity| activity.kind != EncounterRuntimeActivityKindView::Spell)
         );
-        assert!(super::content(&creature, &placement, true).is_none());
+        let general = super::content(&creature, &placement).expect("Heartstone content");
+        assert_eq!(general.len(), 1);
+        assert_eq!(general[0].label.as_deref(), Some("Heartstone"));
         assert!(forward.automation_limitations.is_empty());
     }
 
@@ -3307,8 +3475,8 @@ mod tests {
         let duplicate = embedded
             .occurrences
             .iter()
-            .find(|occurrence| occurrence.id.as_str() == "spell-a")
-            .expect("spell-a")
+            .find(|occurrence| occurrence.id.as_str() == "bind-soul")
+            .expect("bind-soul")
             .clone();
         embedded.occurrences.push(duplicate);
         let dangling = spell_occurrence(
@@ -3325,14 +3493,26 @@ mod tests {
         let placement = activity_content_placement(&creature);
         let mut runtime = spell_payload_runtime();
         runtime.activities.push(runtime_activity(
-            "spell-a",
+            "bind-soul",
             EncounterRuntimeActivityKindView::Spell,
         ));
 
         compose_encounter_payload(&creature, &placement, &mut runtime);
 
-        assert_eq!(runtime.spellcasting[0].spells.len(), 1);
-        assert_eq!(runtime.spellcasting[0].spells[0].occurrence_id, "spell-b");
+        assert_eq!(
+            runtime
+                .spellcasting
+                .iter()
+                .map(|entry| entry.spells.len())
+                .sum::<usize>(),
+            25
+        );
+        assert!(runtime.spellcasting.iter().all(|entry| {
+            entry
+                .spells
+                .iter()
+                .all(|spell| spell.occurrence_id != "bind-soul")
+        }));
         assert_eq!(runtime.standalone_spells.len(), 1);
         assert!(runtime.automation_limitations.iter().any(|limitation| {
             limitation.code
@@ -3344,6 +3524,130 @@ mod tests {
                 .iter()
                 .all(|activity| activity.kind != EncounterRuntimeActivityKindView::Spell)
         );
+    }
+
+    #[test]
+    fn spell_content_association_ambiguity_fails_only_affected_rows_closed() {
+        let base = spell_payload_fixture();
+        let mut cases = Vec::new();
+
+        let mut missing_target = base.clone();
+        if let FactValue::Value(embedded) = &mut missing_target.embedded_entities.value {
+            embedded
+                .entities
+                .retain(|entity| entity.id.as_str() != "bind-soul-entity");
+        }
+        cases.push(("missing-target", missing_target));
+
+        let mut duplicate_target = base.clone();
+        if let FactValue::Value(embedded) = &mut duplicate_target.embedded_entities.value {
+            let duplicate = embedded
+                .entities
+                .iter()
+                .find(|entity| entity.id.as_str() == "bind-soul-entity")
+                .expect("Bind Soul entity")
+                .clone();
+            embedded.entities.push(duplicate);
+        }
+        cases.push(("duplicate-target", duplicate_target));
+
+        let mut duplicate_occurrence = base.clone();
+        if let FactValue::Value(embedded) = &mut duplicate_occurrence.embedded_entities.value {
+            let duplicate = embedded
+                .occurrences
+                .iter()
+                .find(|occurrence| occurrence.id.as_str() == "bind-soul")
+                .expect("Bind Soul occurrence")
+                .clone();
+            embedded.occurrences.push(duplicate);
+        }
+        cases.push(("duplicate-occurrence", duplicate_occurrence));
+
+        let mut duplicate_content = base.clone();
+        let duplicate = duplicate_content
+            .content
+            .documents
+            .iter()
+            .find(|document| document.id.content_key.as_str() == "bind-soul-first")
+            .expect("Bind Soul content")
+            .clone();
+        duplicate_content.content.documents.push(duplicate);
+        cases.push(("duplicate-content", duplicate_content));
+
+        let mut multiple_matches = base;
+        if let FactValue::Value(embedded) = &mut multiple_matches.embedded_entities.value {
+            let mut shadow = spell_occurrence(
+                &multiple_matches.identity.record_key,
+                "bind-soul-shadow",
+                "Bind Soul",
+                30,
+                CreatureOccurrenceParent::SpellcastingEntry(
+                    atlas_record::CreatureOccurrenceId::new("entry-coven").expect("entry id"),
+                ),
+                "spells:bind-soul",
+            );
+            shadow.target = CreatureEntityTarget::ActorOwned(
+                atlas_record::CreatureEntityId::new("bind-soul-entity").expect("entity id"),
+            );
+            embedded.occurrences.push(shadow);
+        }
+        cases.push(("multiple-matches", multiple_matches));
+
+        for (case, creature) in cases {
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            let spells = surface
+                .spellcasting
+                .as_ref()
+                .expect("unaffected spellcasting entries")
+                .iter()
+                .flat_map(|entry| entry.spells.iter())
+                .collect::<Vec<_>>();
+            assert!(
+                spells
+                    .iter()
+                    .all(|spell| !spell.occurrence_id.starts_with("bind-soul")),
+                "{case} must omit only ambiguously associated Bind Soul rows"
+            );
+            assert!(
+                spells
+                    .iter()
+                    .any(|spell| spell.occurrence_id == "dream-council"),
+                "{case} must retain unambiguous rows"
+            );
+            assert_eq!(
+                surface.standalone_spells.as_ref().expect("Control Weather")[0].label,
+                "Control Weather"
+            );
+            let general = surface.content.as_ref().expect("Heartstone content");
+            assert_eq!(general.len(), 1, "{case} must not leak spell lore");
+            assert_eq!(general[0].label.as_deref(), Some("Heartstone"));
+            let causes = &surface
+                .unavailable_domains
+                .as_ref()
+                .expect("typed unavailability")
+                .spellcasting
+                .as_ref()
+                .expect("spellcasting cause")
+                .causes;
+            assert!(causes.iter().any(|cause| {
+                cause.field == CreatureSurfaceUnavailableFieldView::SpellContent
+                    && cause
+                        .component_id
+                        .as_deref()
+                        .is_some_and(|id| id.starts_with("bind-soul"))
+            }));
+
+            let placement = activity_content_placement(&creature);
+            let mut runtime = spell_payload_runtime();
+            compose_encounter_payload(&creature, &placement, &mut runtime);
+            assert!(runtime.spellcasting.iter().all(|entry| {
+                entry
+                    .spells
+                    .iter()
+                    .all(|spell| !spell.occurrence_id.starts_with("bind-soul"))
+            }));
+            assert_eq!(runtime.standalone_spells[0].label, "Control Weather");
+        }
     }
 
     fn empty_runtime() -> EncounterRuntimeView {
@@ -3392,7 +3696,7 @@ mod tests {
 
     fn spell_payload_runtime() -> EncounterRuntimeView {
         let mut runtime = empty_runtime();
-        for entry_id in ["entry-arcane", "entry-divine"] {
+        for entry_id in ["entry-occult", "entry-coven"] {
             runtime.spellcasting.push(EncounterRuntimeSpellcastingView {
                 entry_id: entry_id.to_string(),
                 authored_order: 0,
@@ -3409,9 +3713,23 @@ mod tests {
                 EncounterRuntimeActivityKindView::Spell,
             ));
         }
-        for spell_id in ["spell-a", "spell-b", "control-weather"] {
+        for spell_id in [
+            "bind-soul",
+            "dream-council",
+            "nightmare-1",
+            "nightmare-2",
+            "dream-message-1",
+            "dream-message-2",
+            "control-weather",
+        ] {
             runtime.activities.push(runtime_activity(
                 spell_id,
+                EncounterRuntimeActivityKindView::Spell,
+            ));
+        }
+        for index in 0..20 {
+            runtime.activities.push(runtime_activity(
+                &format!("grouped-spell-{index:02}"),
                 EncounterRuntimeActivityKindView::Spell,
             ));
         }
@@ -3421,74 +3739,200 @@ mod tests {
     fn spell_payload_fixture() -> atlas_record::CreatureRecord {
         let mut creature = known_empty_creature();
         let owner = creature.identity.record_key.clone();
-        let arcane = spellcasting_entry_occurrence(
+        creature.identity.name = "Night Hag".to_string();
+        let occult = spellcasting_entry_occurrence(
             &owner,
-            "entry-arcane",
-            "Arcane Innate Spells",
-            1,
-            "arcane",
+            "entry-occult",
+            "Occult Innate Spells",
+            0,
+            "occult",
         );
-        let divine = spellcasting_entry_occurrence(
+        let coven =
+            spellcasting_entry_occurrence(&owner, "entry-coven", "Coven Spells", 1, "occult");
+        let occult_parent =
+            atlas_record::CreatureOccurrenceId::new("entry-occult").expect("entry id");
+        let coven_parent =
+            atlas_record::CreatureOccurrenceId::new("entry-coven").expect("entry id");
+        let mut bind_soul = spell_occurrence(
             &owner,
-            "entry-divine",
-            "Divine Innate Spells",
+            "bind-soul",
+            "Bind Soul",
             2,
-            "divine",
+            CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+            "spells:bind-soul",
         );
-        let parent = atlas_record::CreatureOccurrenceId::new("entry-arcane").expect("entry id");
-        let spell_a = spell_occurrence(
+        bind_soul.target = CreatureEntityTarget::ActorOwned(
+            atlas_record::CreatureEntityId::new("bind-soul-entity").expect("entity id"),
+        );
+        let mut dream_council = spell_occurrence(
             &owner,
-            "spell-a",
-            "Repeated Spell",
+            "dream-council",
+            "Dream Council",
             3,
-            CreatureOccurrenceParent::SpellcastingEntry(parent.clone()),
-            "spells:repeated-spell",
+            CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+            "spells:dream-council",
         );
-        let spell_b = spell_occurrence(
-            &owner,
-            "spell-b",
-            "Repeated Spell",
-            4,
-            CreatureOccurrenceParent::SpellcastingEntry(parent),
-            "spells:repeated-spell",
+        dream_council.target = CreatureEntityTarget::ActorOwned(
+            atlas_record::CreatureEntityId::new("dream-council-entity").expect("entity id"),
         );
+        let mut grouped = vec![
+            bind_soul,
+            dream_council,
+            spell_occurrence(
+                &owner,
+                "nightmare-1",
+                "Nightmare",
+                4,
+                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                "spells:nightmare",
+            ),
+            spell_occurrence(
+                &owner,
+                "nightmare-2",
+                "Nightmare",
+                5,
+                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                "spells:nightmare",
+            ),
+            spell_occurrence(
+                &owner,
+                "dream-message-1",
+                "Dream Message",
+                6,
+                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                "spells:dream-message",
+            ),
+            spell_occurrence(
+                &owner,
+                "dream-message-2",
+                "Dream Message",
+                7,
+                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                "spells:dream-message",
+            ),
+        ];
+        for index in 0..20 {
+            let parent = if index < 7 {
+                occult_parent.clone()
+            } else {
+                coven_parent.clone()
+            };
+            grouped.push(spell_occurrence(
+                &owner,
+                &format!("grouped-spell-{index:02}"),
+                &format!("Grouped Spell {index:02}"),
+                8 + index,
+                CreatureOccurrenceParent::SpellcastingEntry(parent),
+                &format!("spells:grouped-spell-{index:02}"),
+            ));
+        }
         let standalone = spell_occurrence(
             &owner,
             "control-weather",
             "Control Weather",
-            5,
+            28,
             CreatureOccurrenceParent::Creature,
             "spells:control-weather",
         );
+        let mut occurrences = vec![coven, standalone, occult];
+        occurrences.extend(grouped.into_iter().rev());
         creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
             entities: vec![
                 entity(
                     &owner,
-                    "entry-arcane",
+                    "entry-occult",
                     CreatureEntityFamily::SpellcastingEntry,
                 ),
                 entity(
                     &owner,
-                    "entry-divine",
+                    "entry-coven",
                     CreatureEntityFamily::SpellcastingEntry,
                 ),
+                entity(&owner, "bind-soul-entity", CreatureEntityFamily::Spell),
+                entity(&owner, "dream-council-entity", CreatureEntityFamily::Spell),
+                entity(&owner, "heartstone-entity", CreatureEntityFamily::Action),
             ],
-            occurrences: vec![divine, spell_b, standalone, arcane, spell_a],
+            occurrences,
             relationships: Vec::new(),
             actor_spellcasting: FactValue::Missing,
         });
-        creature.content.documents = vec![content_document(
-            &owner,
-            "spell-a-rules",
-            ContentOwner::CreatureOccurrence(
-                atlas_record::CreatureOccurrenceId::new("spell-a").expect("spell id"),
+        let occurrence_document = |id: &str, order: u32, text: &str| {
+            content_document(
+                &owner,
+                &format!("{id}-rules"),
+                ContentOwner::CreatureOccurrence(
+                    atlas_record::CreatureOccurrenceId::new(id).expect("spell id"),
+                ),
+                order,
+                id,
+                vec![paragraph(vec![RichNode::Text {
+                    text: text.to_string(),
+                }])],
+            )
+        };
+        creature.content.documents = vec![
+            content_document(
+                &owner,
+                "bind-soul-second",
+                ContentOwner::CreatureEntity(
+                    atlas_record::CreatureEntityId::new("bind-soul-entity").expect("entity id"),
+                ),
+                2,
+                "Bind Soul",
+                vec![paragraph(vec![RichNode::Text {
+                    text: "Bind Soul second rules.".to_string(),
+                }])],
             ),
-            0,
-            "Repeated Spell Rules",
-            vec![paragraph(vec![RichNode::Text {
-                text: "Spell occurrence rules.".to_string(),
-            }])],
-        )];
+            occurrence_document("nightmare-2", 5, "Nightmare second occurrence rules."),
+            content_document(
+                &owner,
+                "heartstone-description",
+                ContentOwner::CreatureEntity(
+                    atlas_record::CreatureEntityId::new("heartstone-entity").expect("entity id"),
+                ),
+                29,
+                "Heartstone",
+                vec![paragraph(vec![RichNode::Text {
+                    text: "Heartstone general rules.".to_string(),
+                }])],
+            ),
+            occurrence_document("control-weather", 28, "Control Weather rules."),
+            content_document(
+                &owner,
+                "dream-council-rules",
+                ContentOwner::CreatureEntity(
+                    atlas_record::CreatureEntityId::new("dream-council-entity").expect("entity id"),
+                ),
+                3,
+                "Dream Council",
+                vec![paragraph(vec![RichNode::Text {
+                    text: "Dream Council rules.".to_string(),
+                }])],
+            ),
+            occurrence_document("nightmare-1", 4, "Nightmare first occurrence rules."),
+            occurrence_document(
+                "dream-message-2",
+                7,
+                "Dream Message second occurrence rules.",
+            ),
+            content_document(
+                &owner,
+                "bind-soul-first",
+                ContentOwner::CreatureEntity(
+                    atlas_record::CreatureEntityId::new("bind-soul-entity").expect("entity id"),
+                ),
+                1,
+                "Bind Soul",
+                vec![paragraph(vec![RichNode::Text {
+                    text: "Bind Soul first rules.".to_string(),
+                }])],
+            ),
+            occurrence_document(
+                "dream-message-1",
+                6,
+                "Dream Message first occurrence rules.",
+            ),
+        ];
         creature
     }
 
