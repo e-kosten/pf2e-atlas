@@ -169,41 +169,6 @@
   vertical-align: top;
 }
 
-.creature-sheet__snapshot {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(82px, 1fr));
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.creature-sheet__snapshot-fact {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 13px 10px;
-  border-right: 1px solid var(--line);
-}
-
-.creature-sheet__snapshot-fact:last-child {
-  border-right: 0;
-}
-
-.creature-sheet__snapshot-fact span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.creature-sheet__snapshot-fact strong {
-  font-size: 21px;
-  line-height: 1.1;
-}
-
 .creature-sheet__facts-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -254,8 +219,7 @@
 }
 
 .creature-sheet__stat-list,
-.creature-sheet__ability-grid,
-.creature-sheet__provenance-list {
+.creature-sheet__ability-grid {
   display: grid;
   gap: 7px 18px;
   margin: 0;
@@ -266,37 +230,27 @@
 }
 
 .creature-sheet__stat-list > div,
-.creature-sheet__ability-grid > div,
-.creature-sheet__provenance-list > div {
+.creature-sheet__ability-grid > div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.creature-sheet__provenance-list > .creature-sheet__provenance-row {
-  grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
-  gap: 8px 18px;
-  align-items: start;
-}
-
 .creature-sheet__stat-list dt,
-.creature-sheet__ability-grid dt,
-.creature-sheet__provenance-list dt {
+.creature-sheet__ability-grid dt {
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
 }
 
 .creature-sheet__stat-list dd,
-.creature-sheet__ability-grid dd,
-.creature-sheet__provenance-list dd {
+.creature-sheet__ability-grid dd {
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
   font-weight: 700;
 }
 
-.creature-sheet__fact-line,
 .record-surface__runtime-vitals {
   display: flex;
   align-items: baseline;
@@ -305,9 +259,30 @@
   margin: 0;
 }
 
-.creature-sheet__fact-line strong {
+.record-key-value-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.record-key-value-list__row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.record-key-value-list dt {
   color: var(--muted);
   font-size: 12px;
+  font-weight: 700;
+}
+
+.record-key-value-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .creature-sheet__detail-note {
@@ -730,22 +705,6 @@
     font-size: 31px;
   }
 
-  .creature-sheet__snapshot {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .creature-sheet__snapshot-fact {
-    border-bottom: 1px solid var(--line);
-  }
-
-  .creature-sheet__snapshot-fact:nth-child(3n) {
-    border-right: 0;
-  }
-
-  .creature-sheet__snapshot-fact:nth-last-child(-n + 3) {
-    border-bottom: 0;
-  }
-
   .creature-sheet__ability-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -774,7 +733,7 @@
 }
 
 @media (max-width: 560px) {
-  .creature-sheet__provenance-list > .creature-sheet__provenance-row {
+  .record-key-value-list__row {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
   }
@@ -785,25 +744,8 @@
     display: grid;
   }
 
-  .creature-sheet__snapshot,
   .record-surface-search__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .creature-sheet__snapshot-fact:nth-child(3n) {
-    border-right: 1px solid var(--line);
-  }
-
-  .creature-sheet__snapshot-fact:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .creature-sheet__snapshot-fact:nth-last-child(-n + 3) {
-    border-bottom: 1px solid var(--line);
-  }
-
-  .creature-sheet__snapshot-fact:nth-last-child(-n + 2) {
-    border-bottom: 0;
   }
 
   .record-surface-structured__title-row {

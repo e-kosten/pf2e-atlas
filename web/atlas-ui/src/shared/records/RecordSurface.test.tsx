@@ -27,9 +27,9 @@ describe("RecordSurface", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Level 9")).toBeInTheDocument();
     expect(screen.getByText("Creature")).toBeInTheDocument();
-    expect(container.querySelector(".creature-sheet__snapshot")).not.toHaveTextContent(
-      "Speed",
-    );
+    expect(
+      container.querySelector(".creature-sheet__snapshot"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders each core statistic exactly once", () => {
@@ -38,15 +38,30 @@ describe("RecordSurface", () => {
     for (const label of ["Perception", "HP", "AC", "Fortitude", "Reflex", "Will"]) {
       expect(screen.getAllByText(label, { exact: true })).toHaveLength(1);
     }
-    const defenses = screen.getByRole("heading", { name: "Defenses" }).parentElement;
+    const defenses = screen.getByRole("heading", {
+      name: "Defenses & Vitals",
+    }).parentElement;
     expect(defenses).not.toBeNull();
+    for (const label of ["HP", "AC", "Fortitude", "Reflex", "Will"]) {
+      expect(within(defenses!).getByText(label, { exact: true })).toBeInTheDocument();
+    }
     expect(within(defenses!).getByText("Cold Iron 5")).toBeInTheDocument();
     expect(
-      within(defenses!).queryByText("AC", { exact: true }),
+      within(defenses!).queryByText("Perception", { exact: true }),
     ).not.toBeInTheDocument();
+
+    const senses = screen.getByRole("heading", {
+      name: "Senses & Languages",
+    }).parentElement;
+    expect(senses).not.toBeNull();
     expect(
-      within(defenses!).queryByText("HP", { exact: true }),
-    ).not.toBeInTheDocument();
+      within(senses!).getByText("Perception", { exact: true }),
+    ).toBeInTheDocument();
+    for (const label of ["HP", "AC", "Fortitude", "Reflex", "Will"]) {
+      expect(
+        within(senses!).queryByText(label, { exact: true }),
+      ).not.toBeInTheDocument();
+    }
   });
 
   it("keeps all movement modes together outside defenses", () => {
@@ -60,7 +75,7 @@ describe("RecordSurface", () => {
     expect(within(movement!).getByText("40 ft")).toBeInTheDocument();
   });
 
-  it("keeps a sparse three-section facts surface semantically balanced", () => {
+  it("keeps sparse fact sections semantic without empty shells", () => {
     const surface = detailedSurfaceFixture();
     if (surface.presentation.presentation_type !== "creature") {
       throw new Error("Fixture must be a creature surface");
@@ -86,10 +101,11 @@ describe("RecordSurface", () => {
     const sections = container.querySelectorAll(
       ".creature-sheet__facts-grid > .creature-sheet__panel",
     );
-    expect(sections).toHaveLength(3);
-    expect(sections[0]).toHaveClass("creature-sheet__panel--senses");
-    expect(sections[1]).toHaveClass("creature-sheet__panel--movement");
-    expect(sections[2]).toHaveClass("creature-sheet__panel--skills");
+    expect(sections).toHaveLength(4);
+    expect(sections[0]).toHaveClass("creature-sheet__panel--defenses");
+    expect(sections[1]).toHaveClass("creature-sheet__panel--senses");
+    expect(sections[2]).toHaveClass("creature-sheet__panel--movement");
+    expect(sections[3]).toHaveClass("creature-sheet__panel--skills");
   });
 
   it("expands typed activity content inline with check DC and divider structure", () => {
@@ -123,14 +139,25 @@ describe("RecordSurface", () => {
     expect(screen.queryByText("upstream commit")).not.toBeInTheDocument();
   });
 
-  it("uses stable provenance label and value cells", () => {
+  it("uses the shared key-value grid for facts and provenance", () => {
     const { container } = renderSurface();
 
     fireEvent.click(screen.getByText("References & Source"));
-    const recordId = screen.getByText("Record ID").parentElement;
-    expect(recordId).toHaveClass("creature-sheet__provenance-row");
-    expect(recordId?.children).toHaveLength(2);
-    expect(container.querySelector(".creature-sheet__provenance-list")).toBeVisible();
+    for (const label of [
+      "Immunities",
+      "Weaknesses",
+      "Resistances",
+      "Senses",
+      "Languages",
+      "Record ID",
+    ]) {
+      const row = screen.getByText(label, { exact: true }).parentElement;
+      expect(row).toHaveClass("record-key-value-list__row");
+      expect(row?.children).toHaveLength(2);
+    }
+    expect(
+      container.querySelectorAll(".record-key-value-list").length,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it("keeps description secondary in the encounter profile", () => {
@@ -170,6 +197,21 @@ function detailedSurfaceFixture(): RecordSurfaceView {
     ...surface.presentation.body,
     defenses: {
       ...surface.presentation.body.defenses!,
+      immunities: [
+        {
+          component_id: "sleep",
+          authored_order: 0,
+          kind: "sleep",
+        },
+      ],
+      resistances: [
+        {
+          component_id: "fire",
+          authored_order: 0,
+          kind: "fire",
+          amount: 5,
+        },
+      ],
       weaknesses: [
         {
           component_id: "cold-iron",
@@ -178,6 +220,17 @@ function detailedSurfaceFixture(): RecordSurfaceView {
           amount: 5,
         },
       ],
+    },
+    awareness: {
+      ...surface.presentation.body.awareness!,
+      senses: [
+        {
+          component_id: "darkvision",
+          authored_order: 0,
+          kind: "darkvision",
+        },
+      ],
+      languages: ["Aklo", "Common"],
     },
     movement: [
       {
