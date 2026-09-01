@@ -69,6 +69,8 @@ const RECORD_VIEW_RENAME_REVIEW_SHA256: &str =
     "b3c38ad29e8337ed9dd763ffd98b459912554e0e6b6fb8e04ae7c6eb9a88444d";
 const ACTIVITY_CONTENT_BASE: &str = "d4543d1bdce692378ff280254237275b08660487";
 const ACTIVITY_CONTENT_BASE_TREE: &str = "843ac73580ba7fa21377f45f8ed12e77eec7ca64";
+const ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE: &str = "e56bae73a2613bedd58e8d8c25bc4d715798ec0f";
+const ACTIVITY_CONTENT_IMPLEMENTATION_TREE: &str = "c397d5d90214ca69e0360c31a5ae8092c9398ad7";
 const ACTIVITY_CONTENT_PLAN_SHA256: &str =
     "9eee39f10437247f4c8744b7cc2e97a8f90b90e8c8945ba4edc626c68e0ca455";
 const ACTIVITY_CONTENT_TASK_MAP_SHA256: &str =
@@ -608,10 +610,18 @@ fn export_e3_activity_content_early_samples() {
     );
     assert_eq!(
         git_value(Path::new("."), &["rev-parse", "HEAD^"]),
-        ACTIVITY_CONTENT_BASE
+        ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE
     );
     assert_eq!(
         git_value(Path::new("."), &["rev-parse", "HEAD^^{tree}"]),
+        ACTIVITY_CONTENT_IMPLEMENTATION_TREE
+    );
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^^"]),
+        ACTIVITY_CONTENT_BASE
+    );
+    assert_eq!(
+        git_value(Path::new("."), &["rev-parse", "HEAD^^^{tree}"]),
         ACTIVITY_CONTENT_BASE_TREE
     );
 
@@ -863,13 +873,33 @@ fn export_e3_activity_content_early_samples() {
             .windows(2)
             .all(|entries| { entries[0].authored_order <= entries[1].authored_order })
     );
+    assert_eq!(
+        night_hag_runtime
+            .spellcasting
+            .iter()
+            .map(|entry| entry.label.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Occult Innate Spells", "Coven Spells"]
+    );
     assert!(night_hag_runtime.spellcasting.iter().all(|entry| {
         entry.label != "Spell Attack"
-            && entry.preparation.is_some()
-            && entry.tradition.is_some()
+            && entry.preparation.as_deref() == Some("innate")
+            && entry.tradition.as_deref() == Some("occult")
             && entry.attack.is_some()
             && entry.dc.is_some()
-            && !entry.slots.is_empty()
+    }));
+    assert!(
+        night_hag_runtime
+            .spellcasting
+            .iter()
+            .all(|entry| entry.slots.is_empty()),
+        "Night Hag innate spellcasting entries must not fabricate slot maxima"
+    );
+    assert!(night_hag_runtime.spellcasting.iter().all(|entry| {
+        serde_json::to_value(entry)
+            .expect("Night Hag spellcasting entry should serialize")
+            .get("slots")
+            .is_none()
     }));
     let grouped_spells = night_hag_runtime
         .spellcasting
@@ -1022,7 +1052,7 @@ fn export_e3_activity_content_early_samples() {
     fs::write(
         sample_root.join("WALKTHROUGH.md"),
         format!(
-            "# E3 activity-content fidelity early walkthrough\n\nThis is **early-direction evidence**, not E3 re-acceptance, technical review, final evidence, or delivery approval. Candidate `{candidate}` / tree `{candidate_tree}` is a direct child of accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. The four actor-local activity descriptions are nested exactly once; Abyssal Plague retains `Fortitude DC 28`; Public Notes retains four paragraph blocks plus its divider and the authored `are`/reference adjacency.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison.\n5. `generated/` contains the exact candidate TypeScript bindings for activity content.\n6. `proposed-accepted-to-correction-delta-ledger.md` records the proposed early-to-final accounting boundary.\n\nThe app service used the retained authenticated artifact and pinned PF2e checkout. No index rebuild, source query, frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
+            "# E3 activity-content fidelity early walkthrough\n\nThis is **early-direction evidence**, not E3 re-acceptance, technical review, final evidence, or delivery approval. Candidate `{candidate}` / tree `{candidate_tree}` is a direct child of implementation candidate `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}`, whose direct parent is accepted E3 `{ACTIVITY_CONTENT_BASE}`.\n\n## Start here\n\n1. `activity-content-visual-mock.html` is the rendered concept walkthrough; it is explicitly mock/non-authentic.\n2. `concept-mock-activity-content.json` is the corresponding labeled typed mock envelope.\n3. `record-detail-night-hag.json` and `api-record-detail-night-hag.json` are authentic dense candidate serializations. The four actor-local activity descriptions are nested exactly once; Abyssal Plague retains `Fortitude DC 28`; Public Notes retains four paragraph blocks plus its divider and the authored `are`/reference adjacency.\n4. `record-detail-giant-rat.json` and `api-record-detail-giant-rat.json` are the authentic sparse comparison.\n5. `generated/` contains the exact candidate TypeScript bindings for activity content.\n6. `proposed-accepted-to-correction-delta-ledger.md` records the proposed early-to-final accounting boundary.\n\nThe app service used the retained authenticated artifact and pinned PF2e checkout. No index rebuild, source query, frontend join, label match, ID parsing, prose parsing, canonical persistence change, or mechanics change produced this package.\n"
         ),
     )
     .expect("walkthrough should write");
@@ -1047,7 +1077,8 @@ fn export_e3_activity_content_early_samples() {
     let manifest = json!({
         "schema": "atlas-e3-activity-content-fidelity-early/v1",
         "status": "first_representative_candidate_awaiting_explicit_early_direction_approval",
-        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": ACTIVITY_CONTENT_BASE },
+        "candidate": { "commit": candidate, "tree": candidate_tree, "parent": ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE },
+        "implementation_candidate": { "commit": ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE, "tree": ACTIVITY_CONTENT_IMPLEMENTATION_TREE, "parent": ACTIVITY_CONTENT_BASE },
         "authority": {
             "approval": { "path": approval, "sha256": ACTIVITY_CONTENT_APPROVAL_SHA256, "sidecar_file_sha256": ACTIVITY_CONTENT_APPROVAL_SIDECAR_SHA256, "mode": "0444" },
             "plan": { "path": plan, "sha256": ACTIVITY_CONTENT_PLAN_SHA256, "mode": "0444" },
@@ -1082,6 +1113,8 @@ fn export_e3_activity_content_early_samples() {
             "attached_content_removed_from_general_content": true,
             "typed_blocks_no_flattened_text_or_public_owner": true
             ,"night_hag_spellcasting_entry_count": night_hag_runtime.spellcasting.len()
+            ,"night_hag_spellcasting_slot_counts": night_hag_runtime.spellcasting.iter().map(|entry| entry.slots.len()).collect::<Vec<_>>()
+            ,"night_hag_spellcasting_empty_slots_omitted": night_hag_runtime.spellcasting.iter().all(|entry| serde_json::to_value(entry).expect("Night Hag spellcasting entry should serialize").get("slots").is_none())
             ,"night_hag_grouped_spell_count": grouped_spells.len()
             ,"night_hag_standalone_spell_labels": night_hag_runtime.standalone_spells.iter().map(|spell| spell.label.clone()).collect::<Vec<_>>()
             ,"generic_runtime_spell_activity_count": 0
@@ -2104,7 +2137,7 @@ fn write_activity_content_delta_ledger(sample_root: &Path, candidate: &str, cand
     fs::write(
         sample_root.join("proposed-accepted-to-correction-delta-ledger.md"),
         format!(
-            "# Proposed accepted-E3 to encounter-payload correction delta ledger\n\nThis is the starting ledger for the fresh representative candidate, not final evidence or historical acceptance evidence.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Fresh correction: `{candidate}` / `{candidate_tree}`, direct child.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Intended contract delta\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Runtime spellcasting is a canonical ordered nested tree retaining final entry attack, DC, and slots; spell rows preserve occurrence identity, canonical target identity where known, typed content, and relevant mechanics.\n3. Spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit in the dedicated standalone collection.\n4. Invalid or ambiguous associations omit only affected rows with typed limitations.\n5. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n6. Same-direction refinements after explicit early approval must append every sample-visible change here before final evidence.\n"
+            "# Proposed accepted-E3 to encounter-payload correction delta ledger\n\nThis is the starting ledger for the fresh representative candidate, not final evidence or historical acceptance evidence.\n\n- Accepted E3: `{ACTIVITY_CONTENT_BASE}` / `{ACTIVITY_CONTENT_BASE_TREE}`.\n- Implementation candidate: `{ACTIVITY_CONTENT_IMPLEMENTATION_CANDIDATE}` / `{ACTIVITY_CONTENT_IMPLEMENTATION_TREE}`, direct child of accepted E3.\n- Fresh assertion correction: `{candidate}` / `{candidate_tree}`, direct child of the implementation candidate.\n\n| Candidate output | Candidate SHA-256 | Classification |\n|---|---|---|\n{rows}\n\n## Intended contract delta\n\n1. Static and runtime activities own their typed ordered rich content exactly once, with attached documents absent from generic content.\n2. Runtime spellcasting is a canonical ordered nested tree retaining final entry attack, DC, and slots when present; legitimate slotless entries omit the empty true-many field without fabricating data. Spell rows preserve occurrence identity, canonical target identity where known, typed content, and relevant mechanics.\n3. Spell rows are absent from generic runtime activities; creature-parent Control Weather is explicit in the dedicated standalone collection.\n4. Invalid or ambiguous associations omit only affected rows with typed limitations.\n5. Canonical storage, ingest, index, search, CLI, routes, local state, and mutable encounter-resource lifecycle remain unchanged.\n6. Same-direction refinements after explicit early approval must append every sample-visible change here before final evidence.\n"
         ),
     )
     .expect("activity-content delta ledger should write");
