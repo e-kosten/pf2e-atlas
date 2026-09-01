@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { recordDetailFixture } from "../../test/recordFixtures";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
@@ -35,12 +35,21 @@ describe("RecordPreviewPopover", () => {
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("actors:goblin"),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    const header = document.querySelector<HTMLElement>(".preview-popover__header");
+    const content = document.querySelector<HTMLElement>(".preview-popover__content");
+    expect(header).not.toBeNull();
+    expect(content).not.toBeNull();
+    expect(within(header!).getByText("Goblin Warrior")).toBeInTheDocument();
+    expect(within(content!).queryByText("Goblin Warrior")).not.toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
     );
-    expect(await screen.findByRole("heading", { name: "Nested Rule" })).toBeVisible();
+    await waitFor(() =>
+      expect(within(header!).getByText("Nested Rule")).toBeInTheDocument(),
+    );
+    expect(within(content!).queryByText("Nested Rule")).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Reference preview")).toHaveLength(1);
   });
 

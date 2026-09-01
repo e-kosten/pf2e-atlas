@@ -32,7 +32,6 @@ export function SpellOccurrencePreviewPopover({
       content={
         <div className="creature-sheet__standalone-spell">
           <span className="creature-sheet__spell-heading">
-            <strong>{spell.label}</strong>
             <small>{metadata}</small>
           </span>
           {(spell.content ?? []).map((document) => (
@@ -44,7 +43,7 @@ export function SpellOccurrencePreviewPopover({
           ))}
         </div>
       }
-      title="Spell"
+      title={spell.label}
     >
       {(open) => (
         <Typography.Link

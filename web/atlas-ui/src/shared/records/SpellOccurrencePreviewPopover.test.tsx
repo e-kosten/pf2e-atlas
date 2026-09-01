@@ -17,6 +17,10 @@ describe("SpellOccurrencePreviewPopover", () => {
     const dialog = screen.getByRole("dialog", {
       name: "Control Weather spell details",
     });
+    const header = document.querySelector<HTMLElement>(".preview-popover__header");
+    expect(header).not.toBeNull();
+    expect(within(header!).getByText("Control Weather")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Control Weather")).not.toBeInTheDocument();
     expect(within(dialog).getByText("8th")).toBeInTheDocument();
     expect(within(dialog).getByText("You alter the weather.")).toBeInTheDocument();
 

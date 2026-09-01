@@ -27,16 +27,18 @@ export function CreatureDetailSurface({
   body,
   metadata,
   onReference,
+  showTitle,
 }: {
   body: CreatureSurfaceView;
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
+  showTitle: boolean;
 }) {
   const narrative = narrativeContent(body.content);
   const standalone = body.standalone_spells ?? [];
   return (
     <article className="record-surface record-surface--record-detail">
-      <RecordHeader metadata={metadata} />
+      <RecordHeader metadata={metadata} showTitle={showTitle} />
       <NarrativeSection content={narrative} onReference={onReference} />
       <div className="creature-sheet__facts-grid">
         <DefensePanel body={body} />
@@ -101,11 +103,17 @@ export function SearchCompactSurface({
   );
 }
 
-export function RecordHeader({ metadata }: { metadata: RecordSurfaceMetadataView }) {
+export function RecordHeader({
+  metadata,
+  showTitle = true,
+}: {
+  metadata: RecordSurfaceMetadataView;
+  showTitle?: boolean;
+}) {
   return (
     <header className="creature-sheet__header">
       <div className="creature-sheet__identity">
-        <h2>{metadata.title}</h2>
+        {showTitle ? <h2>{metadata.title}</h2> : null}
         <IdentityMetadata metadata={metadata} />
         <TraitRow metadata={metadata} />
       </div>
