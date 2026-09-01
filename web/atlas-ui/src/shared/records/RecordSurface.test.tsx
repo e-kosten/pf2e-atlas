@@ -149,15 +149,30 @@ describe("RecordSurface", () => {
 
     expect(screen.getByRole("heading", { name: "Spells" })).toBeInTheDocument();
     expect(screen.queryByText("Details", { exact: true })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Occult Innate Spells"));
-    expect(screen.getByText("5th")).toBeInTheDocument();
-    const innateLink = screen.getByRole("link", { name: "Dream Message" });
+    const innateGroup = screen.getByRole("button", {
+      name: /Occult Innate Spells/,
+    });
+    const covenGroup = screen.getByRole("button", { name: /Coven Spells/ });
+    const standaloneGroup = screen.getByRole("button", { name: /Standalone/ });
+    expect(innateGroup).toHaveAttribute("aria-expanded", "true");
+    expect(covenGroup).toHaveAttribute("aria-expanded", "true");
+    expect(standaloneGroup).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByText("5th")).toHaveLength(2);
+    fireEvent.click(innateGroup);
+    expect(innateGroup).toHaveAttribute("aria-expanded", "false");
+    expect(covenGroup).toHaveAttribute("aria-expanded", "true");
+    expect(standaloneGroup).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(innateGroup);
+    expect(innateGroup).toHaveAttribute("aria-expanded", "true");
+    const innateLink = screen.getAllByRole("link", { name: "Dream Message" })[0]!;
     expect(innateLink).toHaveAttribute("aria-haspopup", "dialog");
     expect(innateLink).toHaveAttribute("aria-expanded", "false");
     expect(
       screen.queryByText("The innate message reaches a sleeper."),
     ).not.toBeInTheDocument();
+    fireEvent.pointerDown(innateLink);
     fireEvent.focus(innateLink);
+    fireEvent.click(innateLink);
     expect(innateLink).toHaveAttribute("aria-expanded", "true");
     const innatePopover = screen.getByRole("dialog", {
       name: "Dream Message spell details",
@@ -166,17 +181,21 @@ describe("RecordSurface", () => {
       within(innatePopover).getByText("The innate message reaches a sleeper."),
     ).toBeInTheDocument();
     expect(within(innatePopover).getByText("5th")).toBeInTheDocument();
+    fireEvent.keyDown(innateLink, { key: "Escape" });
+    expect(innateLink).toHaveAttribute("aria-expanded", "false");
+    expect(document.activeElement).toBe(innateLink);
+    fireEvent.click(innateLink);
     fireEvent.click(
-      within(innatePopover).getByRole("link", { name: "Open spell record" }),
+      within(
+        screen.getByRole("dialog", { name: "Dream Message spell details" }),
+      ).getByRole("button", {
+        name: "Open reference full page",
+      }),
     );
     expect(onReference.mock.calls[onReference.mock.calls.length - 1]?.[0]).toBe(
       "spells:dream-message",
     );
-    fireEvent.keyDown(innateLink, { key: "Escape" });
-    expect(innateLink).toHaveAttribute("aria-expanded", "false");
-    expect(document.activeElement).toBe(innateLink);
 
-    fireEvent.click(screen.getByText("Coven Spells"));
     expect(screen.getAllByRole("link", { name: "Dream Message" })).toHaveLength(2);
     const covenSpell = screen.getAllByRole("link", { name: "Dream Message" })[1]!;
     fireEvent.focus(covenSpell);
@@ -190,10 +209,13 @@ describe("RecordSurface", () => {
       screen.queryByText("The innate message reaches a sleeper."),
     ).not.toBeInTheDocument();
 
-    const standaloneHeading = screen.getByRole("heading", {
-      name: "Standalone",
-    });
-    const standalone = standaloneHeading.parentElement!;
+    fireEvent.click(standaloneGroup);
+    expect(standaloneGroup).toHaveAttribute("aria-expanded", "false");
+    expect(innateGroup).toHaveAttribute("aria-expanded", "true");
+    expect(covenGroup).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(standaloneGroup);
+    expect(standaloneGroup).toHaveAttribute("aria-expanded", "true");
+    const standalone = standaloneGroup.closest<HTMLElement>(".ant-collapse-item")!;
     expect(within(standalone).getByText("8th")).toBeInTheDocument();
     expect(
       within(standalone).getAllByRole("link", { name: "Control Weather" }),
@@ -215,8 +237,7 @@ describe("RecordSurface", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("A second ritual occurrence.")).not.toBeInTheDocument();
 
-    fireEvent.mouseDown(document.body);
-    fireEvent.click(document.body);
+    fireEvent.click(screen.getByLabelText("Reference preview overlay"));
     expect(standaloneLinks[0]).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(standaloneLinks[1]!);

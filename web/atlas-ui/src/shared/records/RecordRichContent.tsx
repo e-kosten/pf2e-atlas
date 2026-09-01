@@ -1,4 +1,5 @@
 import { Typography } from "antd";
+import { useRef } from "react";
 import type React from "react";
 import type {
   CreatureSurfaceContentBlockView,
@@ -6,7 +7,11 @@ import type {
   CreatureSurfaceContentView,
 } from "../../generated/atlas";
 
-export type ReferenceHandler = (recordKey: string, anchorRect?: DOMRect) => void;
+export type ReferenceHandler = (
+  recordKey: string,
+  anchorRect?: DOMRect,
+  triggerElement?: HTMLElement,
+) => void;
 
 export function RichContent({
   compact = false,
@@ -140,23 +145,47 @@ function RichInline({
 }
 
 export function RecordReference({
+  expanded,
   label,
   onReference,
+  openOnFocus = false,
   recordKey,
 }: {
+  expanded?: boolean;
   label: string;
   onReference: ReferenceHandler;
+  openOnFocus?: boolean;
   recordKey: string | undefined;
 }) {
+  const pointerActivation = useRef(false);
   if (!recordKey) {
     return <span>{label}</span>;
   }
+  const openReference = (element: HTMLElement) => {
+    onReference(recordKey, element.getBoundingClientRect(), element);
+  };
   return (
     <Typography.Link
+      aria-expanded={openOnFocus ? Boolean(expanded) : undefined}
+      aria-haspopup={openOnFocus ? "dialog" : undefined}
       href={`/records/${encodeURIComponent(recordKey)}`}
+      onBlur={() => {
+        pointerActivation.current = false;
+      }}
       onClick={(event) => {
         event.preventDefault();
-        onReference(recordKey, event.currentTarget.getBoundingClientRect());
+        pointerActivation.current = false;
+        openReference(event.currentTarget);
+      }}
+      onFocus={(event) => {
+        if (openOnFocus && !pointerActivation.current) {
+          openReference(event.currentTarget);
+        }
+      }}
+      onPointerDown={() => {
+        if (openOnFocus) {
+          pointerActivation.current = true;
+        }
       }}
     >
       {label}

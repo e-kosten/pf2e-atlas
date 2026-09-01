@@ -490,42 +490,6 @@
   color: var(--muted);
 }
 
-.creature-sheet__spell-popover .ant-popover-inner {
-  max-width: min(480px, calc(100vw - 32px));
-}
-
-.creature-sheet__spell-popover-content {
-  display: grid;
-  gap: 12px;
-  width: min(440px, calc(100vw - 64px));
-  max-height: min(520px, 70vh);
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.creature-sheet__spell-popover-heading {
-  display: grid;
-  gap: 2px;
-}
-
-.creature-sheet__spell-popover-heading strong {
-  color: var(--text);
-  font-size: 14px;
-}
-
-.creature-sheet__spell-popover-heading small {
-  color: var(--muted);
-}
-
-.creature-sheet__spell-popover-content .creature-sheet__rich-content {
-  max-width: none;
-}
-
-.creature-sheet__spell-popover-footer {
-  padding-top: 9px;
-  border-top: 1px solid var(--line);
-}
-
 .creature-sheet__spell-rank {
   display: grid;
   grid-template-columns: 82px minmax(0, 1fr);
@@ -551,16 +515,6 @@
 .creature-sheet__standalone-spell {
   display: grid;
   gap: 14px;
-}
-
-.creature-sheet__standalone-section {
-  display: grid;
-  gap: 5px;
-}
-
-.creature-sheet__standalone-section h4 {
-  margin: 0;
-  font-size: 13px;
 }
 
 .record-surface__secondary {

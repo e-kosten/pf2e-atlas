@@ -1,3 +1,4 @@
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type React from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
@@ -8,17 +9,67 @@ import type {
 
 type RecordPreviewPopoverProps = RecordPreviewContentProps & {
   anchor: RecordPreviewAnchor | null;
+  children?: React.ReactNode;
+  label?: string;
+  title?: React.ReactNode;
+  triggerElement?: HTMLElement | null;
 };
+
+type ImmediateRecordPreview = {
+  anchor: DOMRect;
+  content: React.ReactNode;
+  label: string;
+  recordKey: string;
+  title: React.ReactNode;
+  triggerElement: HTMLElement;
+};
+
+type RecordPreviewHost = {
+  open: (preview: ImmediateRecordPreview) => void;
+};
+
+const RecordPreviewHostContext = createContext<RecordPreviewHost | null>(null);
+
+export function useRecordPreviewHost() {
+  return useContext(RecordPreviewHostContext);
+}
 
 export function RecordPreviewPopover({
   anchor,
+  children,
   detail,
+  label = "Reference preview",
   loading,
   onClose,
   onOpenFullPage,
   onReference,
+  title = "Reference",
+  triggerElement,
 }: RecordPreviewPopoverProps) {
-  const position = recordPreviewPosition(anchor);
+  const [immediate, setImmediate] = useState<ImmediateRecordPreview | null>(null);
+  const position = recordPreviewPosition(immediate?.anchor ?? anchor);
+  const activeTrigger = immediate?.triggerElement ?? triggerElement;
+  const closeAndRestoreFocus = useCallback(() => {
+    activeTrigger?.focus();
+    onClose();
+  }, [activeTrigger, onClose]);
+  const openImmediate = useCallback(
+    (preview: ImmediateRecordPreview) => {
+      setImmediate(preview);
+      onReference(preview.recordKey, preview.anchor, preview.triggerElement);
+    },
+    [onReference],
+  );
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAndRestoreFocus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [closeAndRestoreFocus]);
 
   return (
     <div
@@ -32,22 +83,29 @@ export function RecordPreviewPopover({
       }}
     >
       <section
-        aria-label="Reference preview"
+        aria-label={immediate?.label ?? label}
         className="record-preview-popover"
         role="dialog"
         style={position}
       >
         <header className="record-preview-popover__header">
-          <span>Reference</span>
-          <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
+          <span>{immediate?.title ?? title}</span>
+          <RecordPreviewActions
+            onClose={closeAndRestoreFocus}
+            onOpenFullPage={onOpenFullPage}
+          />
         </header>
         <div className="record-preview-popover__body">
-          <RecordDetailPane
-            detail={detail}
-            errors={[]}
-            loading={loading}
-            onReference={onReference}
-          />
+          <RecordPreviewHostContext.Provider value={{ open: openImmediate }}>
+            {immediate?.content ?? children ?? (
+              <RecordDetailPane
+                detail={detail}
+                errors={[]}
+                loading={loading}
+                onReference={onReference}
+              />
+            )}
+          </RecordPreviewHostContext.Provider>
         </div>
       </section>
     </div>
