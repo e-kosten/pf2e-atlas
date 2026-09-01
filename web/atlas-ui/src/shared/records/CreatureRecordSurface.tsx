@@ -32,9 +32,7 @@ export function CreatureDetailSurface({
   onReference: ReferenceHandler;
 }) {
   const narrative = narrativeContent(body.content);
-  const standalone = (body.content ?? []).filter(
-    (content) => content.role === "embedded_capability",
-  );
+  const standalone = body.standalone_spells ?? [];
   return (
     <article className="record-surface record-surface--record-detail">
       <RecordHeader metadata={metadata} />
@@ -498,7 +496,7 @@ function SpellcastingSection({
 }: {
   entries: CreatureSurfaceSpellcastingView[] | undefined;
   onReference: ReferenceHandler;
-  standalone: CreatureSurfaceContentView[];
+  standalone: CreatureSurfaceSpellView[];
 }) {
   if (!entries?.length && !standalone.length) return null;
   const spellcastingItems: NonNullable<React.ComponentProps<typeof Collapse>["items"]> =
@@ -510,16 +508,10 @@ function SpellcastingSection({
         label: <SpellcastingHeading entry={entry} />,
         children: <SpellRoster onReference={onReference} spells={entry.spells} />,
       }));
-  const standaloneItems: NonNullable<React.ComponentProps<typeof Collapse>["items"]> =
-    standalone
-      .slice()
-      .sort((left, right) => left.authored_order - right.authored_order)
-      .map((document, index) => ({
-        key: `standalone:${document.content_key}:${index}`,
-        label: <strong>{contentLabel(document)}</strong>,
-        children: <RichContent content={document} onReference={onReference} />,
-      }));
-  const disclosureCount = spellcastingItems.length + standaloneItems.length;
+  const orderedStandalone = standalone
+    .slice()
+    .sort((left, right) => left.authored_order - right.authored_order);
+  const disclosureCount = spellcastingItems.length + orderedStandalone.length;
   return (
     <SurfaceSection className="creature-sheet__spellcasting" title="Spellcasting">
       {spellcastingItems.length ? (
@@ -533,21 +525,22 @@ function SpellcastingSection({
           size="small"
         />
       ) : null}
-      {standaloneItems.length ? (
+      {orderedStandalone.length ? (
         <section
           aria-labelledby="standalone-spells-rituals"
           className="creature-sheet__standalone-section"
         >
           <h4 id="standalone-spells-rituals">Standalone Spells & Rituals</h4>
-          <Collapse
-            className="record-surface__inline-disclosure"
-            defaultActiveKey={
-              disclosureCount === 1 ? [String(standaloneItems[0]?.key ?? "")] : []
-            }
-            ghost
-            items={standaloneItems}
-            size="small"
-          />
+          <div className="creature-sheet__spell-occurrence-list">
+            {orderedStandalone.map((spell) => (
+              <SpellOccurrence
+                defaultOpen={disclosureCount === 1}
+                key={spell.occurrence_id}
+                onReference={onReference}
+                spell={spell}
+              />
+            ))}
+          </div>
         </section>
       ) : null}
     </SurfaceSection>
@@ -588,20 +581,64 @@ function SpellRoster({
       {groupSpells(spells).map(([rank, ranked]) => (
         <div className="creature-sheet__spell-rank" key={rank}>
           <strong>{rank}</strong>
-          <div>
-            {ranked.map((spell, index) => (
-              <span key={spell.occurrence_id}>
-                {index > 0 && ", "}
-                <RecordReference
-                  label={spell.label}
-                  onReference={onReference}
-                  recordKey={spell.target_record_key}
-                />
-              </span>
+          <div className="creature-sheet__spell-occurrence-list">
+            {ranked.map((spell) => (
+              <SpellOccurrence
+                key={spell.occurrence_id}
+                onReference={onReference}
+                spell={spell}
+              />
             ))}
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function SpellOccurrence({
+  defaultOpen = false,
+  onReference,
+  spell,
+}: {
+  defaultOpen?: boolean;
+  onReference: ReferenceHandler;
+  spell: CreatureSurfaceSpellView;
+}) {
+  const content = spell.content ?? [];
+  return (
+    <div className="creature-sheet__spell-occurrence">
+      <RecordReference
+        label={spell.label}
+        onReference={onReference}
+        recordKey={spell.target_record_key}
+      />
+      {content.length ? (
+        <Collapse
+          className="creature-sheet__spell-details"
+          defaultActiveKey={defaultOpen ? [spell.occurrence_id] : []}
+          ghost
+          items={[
+            {
+              key: spell.occurrence_id,
+              label: (
+                <span>
+                  <span>Details</span>
+                  <span className="sr-only"> for {spell.label}</span>
+                </span>
+              ),
+              children: content.map((document) => (
+                <RichContent
+                  content={document}
+                  key={document.content_key}
+                  onReference={onReference}
+                />
+              )),
+            },
+          ]}
+          size="small"
+        />
+      ) : null}
     </div>
   );
 }
@@ -612,16 +649,14 @@ function ResourcesSection({
   resources: CreatureSurfaceView["resources"];
 }) {
   if (!resources?.length) return null;
+  const facts: RecordKeyValueItem[] = resources.map((resource) => ({
+    key: resource.component_id,
+    label: resource.label,
+    value: resource.maximum ?? "—",
+  }));
   return (
     <SurfaceSection title="Resources">
-      <div className="creature-sheet__resource-list">
-        {resources.map((resource) => (
-          <div key={resource.component_id}>
-            <span>{resource.label}</span>
-            {resource.maximum !== undefined && <strong>{resource.maximum}</strong>}
-          </div>
-        ))}
-      </div>
+      <RecordKeyValueList ariaLabel="Resources" items={facts} />
     </SurfaceSection>
   );
 }

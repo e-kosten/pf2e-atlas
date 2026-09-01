@@ -133,25 +133,63 @@ describe("RecordSurface", () => {
     const { container } = renderSurface();
 
     expect(screen.queryByText("View rules")).not.toBeInTheDocument();
+    const activityHeading = screen
+      .getByText("Dream Bargain")
+      .closest<HTMLElement>(".creature-sheet__activity-heading");
+    expect(activityHeading).not.toBeNull();
+    expect(within(activityHeading!).getByText("2 actions")).toBeInTheDocument();
+    expect(activityHeading?.children).toHaveLength(2);
     fireEvent.click(screen.getByText("Dream Bargain"));
     expect(screen.getByText("Will DC 28")).toBeInTheDocument();
     expect(container.querySelector(".creature-sheet__activity hr")).toBeInTheDocument();
   });
 
-  it("uses grouped spellcasting and one disclosure per standalone occurrence", () => {
+  it("places typed content on each spell occurrence without collapsing repeats", () => {
     renderSurface();
 
     fireEvent.click(screen.getByText("Occult Innate Spells"));
     expect(screen.getByText("5th")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dream Message" })).toBeInTheDocument();
+    const innateLink = screen.getByRole("link", { name: "Dream Message" });
+    const innateSpell = innateLink.closest<HTMLElement>(
+      ".creature-sheet__spell-occurrence",
+    );
+    expect(innateSpell).not.toBeNull();
+    expect(
+      screen.queryByText("The innate message reaches a sleeper."),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      within(innateSpell!).getByRole("button", { name: /Details.*Dream Message/ }),
+    );
+    expect(
+      screen.getByText("The innate message reaches a sleeper."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Coven Spells"));
+    expect(screen.getAllByRole("link", { name: "Dream Message" })).toHaveLength(2);
+    const covenSpell = screen
+      .getAllByRole("link", { name: "Dream Message" })[1]
+      ?.closest<HTMLElement>(".creature-sheet__spell-occurrence");
+    expect(covenSpell).not.toBeNull();
+    fireEvent.click(
+      within(covenSpell!).getByRole("button", { name: /Details.*Dream Message/ }),
+    );
+    expect(
+      screen.getByText("The coven repeats the same authored spell."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("The innate message reaches a sleeper.")).toHaveLength(
+      1,
+    );
 
     const standaloneHeading = screen.getByRole("heading", {
       name: "Standalone Spells & Rituals",
     });
-    const standaloneDisclosures = within(standaloneHeading.parentElement!).getAllByRole(
-      "button",
-      { name: /Control Weather/ },
-    );
+    const standalone = standaloneHeading.parentElement!;
+    expect(
+      within(standalone).getAllByRole("link", { name: "Control Weather" }),
+    ).toHaveLength(2);
+    const standaloneDisclosures = within(standalone).getAllByRole("button", {
+      name: /Details.*Control Weather/,
+    });
     expect(standaloneDisclosures).toHaveLength(2);
     expect(standaloneDisclosures[0]).toHaveAttribute("aria-expanded", "false");
     expect(standaloneDisclosures[1]).toHaveAttribute("aria-expanded", "false");
@@ -163,6 +201,50 @@ describe("RecordSurface", () => {
 
     fireEvent.click(standaloneDisclosures[1]!);
     expect(screen.getByText("A second ritual occurrence.")).toBeInTheDocument();
+  });
+
+  it("aligns creature and encounter resources without changing encounter vitals", () => {
+    const { unmount } = renderSurface();
+    const recordResources = screen.getByRole("heading", {
+      name: "Resources",
+    }).parentElement;
+    expect(recordResources).not.toBeNull();
+    const recordRow = within(recordResources!).getByText("Dream tokens").parentElement;
+    expect(recordRow).toHaveClass("record-key-value-list__row");
+    expect(within(recordRow!).getByText("3")).toBeInTheDocument();
+    unmount();
+
+    const surface = detailedSurfaceFixture();
+    surface.profile = "encounter_participant";
+    const runtime = encounterRuntimeFixture({ temporaryHp: 2 });
+    const numberFact = (label: string, value: number) => ({
+      label,
+      base_value: value,
+      adjusted_value: value,
+      provenance: { source: { source_type: "canonical_record" as const } },
+    });
+    runtime.resources = [
+      {
+        resource_id: "dream-token",
+        label: "Dream tokens",
+        current: numberFact("Current dream tokens", 1),
+        maximum: numberFact("Maximum dream tokens", 3),
+      },
+    ];
+    surface.encounter = runtime;
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+
+    const encounterResources = screen.getByRole("heading", {
+      name: "Resources",
+    }).parentElement;
+    const encounterRow = within(encounterResources!).getByText(
+      "Dream tokens",
+    ).parentElement;
+    expect(encounterRow).toHaveClass("record-key-value-list__row");
+    expect(within(encounterRow!).getByText("1 / 3")).toBeInTheDocument();
+    expect(
+      screen.getByText("+2 temporary").closest(".record-surface__runtime-vitals"),
+    ).not.toBeNull();
   });
 
   it("places record identity only in the inline provenance disclosure", () => {
@@ -316,49 +398,72 @@ function detailedSurfaceFixture(): RecordSurfaceView {
             label: "Dream Message",
             target_record_key: "spells:dream-message",
             rank: 5,
+            content: [
+              spellContent(
+                "innate-dream-message",
+                "Dream Message",
+                "The innate message reaches a sleeper.",
+              ),
+            ],
+          },
+        ],
+      },
+      {
+        occurrence_id: "coven",
+        authored_order: 1,
+        label: "Coven Spells",
+        tradition: "occult",
+        spells: [
+          {
+            occurrence_id: "coven-dream-message",
+            authored_order: 1,
+            label: "Dream Message",
+            target_record_key: "spells:dream-message",
+            rank: 5,
+            content: [
+              spellContent(
+                "coven-dream-message",
+                "Dream Message",
+                "The coven repeats the same authored spell.",
+              ),
+            ],
           },
         ],
       },
     ],
-    content: [
-      ...(surface.presentation.body.content ?? []),
+    standalone_spells: [
       {
-        content_key: "control-weather-repeat",
-        role: "embedded_capability",
+        occurrence_id: "control-weather-repeat",
         authored_order: 2,
         label: "Control Weather",
-        blocks: [
-          {
-            block_type: "paragraph",
-            spans: [{ span_type: "text", text: "A second ritual occurrence." }],
-          },
+        target_record_key: "spells:control-weather",
+        rank: 8,
+        content: [
+          spellContent(
+            "control-weather-repeat",
+            "Control Weather",
+            "A second ritual occurrence.",
+          ),
         ],
-        content_hash: "control-weather-repeat",
-        visibility: "public",
-        provenance: {
-          source_record_key: "concept:f1-record",
-          relative_source_path: "fixture.json",
-          field_family: "fixture.spell",
-        },
       },
       {
-        content_key: "control-weather",
-        role: "embedded_capability",
+        occurrence_id: "control-weather",
         authored_order: 1,
         label: "Control Weather",
-        blocks: [
-          {
-            block_type: "paragraph",
-            spans: [{ span_type: "text", text: "You alter the weather." }],
-          },
+        target_record_key: "spells:control-weather",
+        rank: 8,
+        content: [
+          spellContent("control-weather", "Control Weather", "You alter the weather."),
         ],
-        content_hash: "control-weather",
-        visibility: "public",
-        provenance: {
-          source_record_key: "concept:f1-record",
-          relative_source_path: "fixture.json",
-          field_family: "fixture.spell",
-        },
+      },
+    ],
+    resources: [
+      {
+        component_id: "dream-token",
+        authored_order: 0,
+        kind: "uses",
+        label: "Dream tokens",
+        maximum: 3,
       },
     ],
     provenance: {
@@ -369,6 +474,32 @@ function detailedSurfaceFixture(): RecordSurfaceView {
     },
   };
   return surface;
+}
+
+function spellContent(
+  contentKey: string,
+  label: string,
+  text: string,
+): CreatureSurfaceContentView {
+  return {
+    content_key: contentKey,
+    role: "embedded_capability",
+    authored_order: 0,
+    label,
+    blocks: [
+      {
+        block_type: "paragraph",
+        spans: [{ span_type: "text", text }],
+      },
+    ],
+    content_hash: contentKey,
+    visibility: "public",
+    provenance: {
+      source_record_key: "concept:f1-record",
+      relative_source_path: "fixture.json",
+      field_family: "fixture.spell",
+    },
+  };
 }
 
 function activityContent(): CreatureSurfaceContentView {

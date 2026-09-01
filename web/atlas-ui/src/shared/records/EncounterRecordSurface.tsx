@@ -27,6 +27,7 @@ import {
   RichContent,
   type ReferenceHandler,
 } from "./RecordRichContent";
+import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
 
 export function EncounterParticipantSurface({
   body,
@@ -473,19 +474,14 @@ function RuntimeSpell({
 
 function RuntimeResources({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
   if (!runtime?.resources?.length) return null;
+  const facts: RecordKeyValueItem[] = runtime.resources.map((resource) => ({
+    key: resource.resource_id,
+    label: resource.label,
+    value: `${resource.current?.adjusted_value ?? "—"} / ${resource.maximum.adjusted_value}`,
+  }));
   return (
     <SurfaceSection title="Resources">
-      <div className="creature-sheet__resource-list">
-        {runtime.resources.map((resource) => (
-          <div key={resource.resource_id}>
-            <span>{resource.label}</span>
-            <strong>
-              {resource.current?.adjusted_value ?? "—"} /{" "}
-              {resource.maximum.adjusted_value}
-            </strong>
-          </div>
-        ))}
-      </div>
+      <RecordKeyValueList ariaLabel="Resources" items={facts} />
     </SurfaceSection>
   );
 }
