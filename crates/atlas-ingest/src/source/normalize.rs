@@ -31,6 +31,7 @@ use content_sources::extract_content_sources;
 use embedded_items::{attach_embedded_content_refs, extract_embedded_item_facts};
 use journal_pages::extract_journal_page_facts;
 
+#[cfg(test)]
 pub(crate) use content::parse_foundry_content;
 pub(crate) use content::{LocalizationResolver, parse_foundry_content_with_localization};
 pub(crate) use content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
