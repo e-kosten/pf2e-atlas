@@ -42,8 +42,14 @@ describe("RecordSurface", () => {
       name: "Defenses & Vitals",
     }).parentElement;
     expect(defenses).not.toBeNull();
+    const defenseStats = defenses!.querySelector(".creature-sheet__defense-stats");
+    expect(defenseStats).toBeVisible();
+    expect(defenseStats?.children).toHaveLength(5);
     for (const label of ["HP", "AC", "Fortitude", "Reflex", "Will"]) {
-      expect(within(defenses!).getByText(label, { exact: true })).toBeInTheDocument();
+      const statLabel = within(defenses!).getByText(label, { exact: true });
+      expect(statLabel).toBeInTheDocument();
+      expect(statLabel.closest("dl")).toBe(defenseStats);
+      expect(statLabel.closest(".record-key-value-list")).toBeNull();
     }
     expect(within(defenses!).getByText("Cold Iron 5")).toBeInTheDocument();
     expect(
@@ -57,6 +63,14 @@ describe("RecordSurface", () => {
     expect(
       within(senses!).getByText("Perception", { exact: true }),
     ).toBeInTheDocument();
+    expect(
+      within(senses!).getByText("Perception", { exact: true }).closest("dl"),
+    ).toHaveClass("creature-sheet__perception-stat");
+    expect(
+      within(senses!)
+        .getByText("Perception", { exact: true })
+        .closest(".record-key-value-list"),
+    ).toBeNull();
     for (const label of ["HP", "AC", "Fortitude", "Reflex", "Will"]) {
       expect(
         within(senses!).queryByText(label, { exact: true }),
@@ -139,7 +153,7 @@ describe("RecordSurface", () => {
     expect(screen.queryByText("upstream commit")).not.toBeInTheDocument();
   });
 
-  it("uses the shared key-value grid for facts and provenance", () => {
+  it("uses aligned key-value grids only for natural definition groups", () => {
     const { container } = renderSurface();
 
     fireEvent.click(screen.getByText("References & Source"));
@@ -155,9 +169,17 @@ describe("RecordSurface", () => {
       expect(row).toHaveClass("record-key-value-list__row");
       expect(row?.children).toHaveLength(2);
     }
+    expect(screen.getByText("Record ID").closest(".record-key-value-list")).toHaveClass(
+      "record-key-value-list--provenance",
+    );
     expect(
       container.querySelectorAll(".record-key-value-list").length,
     ).toBeGreaterThanOrEqual(3);
+    for (const label of ["AC", "HP", "Fortitude", "Reflex", "Will", "Perception"]) {
+      expect(
+        screen.getByText(label, { exact: true }).closest(".record-key-value-list"),
+      ).toBeNull();
+    }
   });
 
   it("keeps description secondary in the encounter profile", () => {

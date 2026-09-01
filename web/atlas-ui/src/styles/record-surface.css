@@ -260,15 +260,21 @@
 }
 
 .record-key-value-list {
+  --record-key-value-label-width: 88px;
+
   display: grid;
   gap: 7px;
   margin: 0;
 }
 
+.record-key-value-list--provenance {
+  --record-key-value-label-width: 112px;
+}
+
 .record-key-value-list__row {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 4px 12px;
+  grid-template-columns: var(--record-key-value-label-width) minmax(0, 1fr);
+  gap: 8px 18px;
   align-items: baseline;
   min-width: 0;
 }
@@ -283,6 +289,38 @@
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.creature-sheet__defense-stats,
+.creature-sheet__perception-stat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin: 0;
+}
+
+.creature-sheet__defense-stats > div,
+.creature-sheet__perception-stat > div {
+  display: grid;
+  gap: 1px;
+  min-width: 52px;
+}
+
+.creature-sheet__defense-stats dt,
+.creature-sheet__perception-stat dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.creature-sheet__defense-stats dd,
+.creature-sheet__perception-stat dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
 }
 
 .creature-sheet__detail-note {
