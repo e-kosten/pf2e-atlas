@@ -110,6 +110,7 @@ contract|crates/atlas-ingest/src/source/npc_entities.rs
 contract|crates/atlas-ingest/src/source/owned_content.rs
 
 # Canonical enrichment, references, generated records, and final build package.
+contract|crates/atlas-ingest/src/build.rs
 contract|crates/atlas-ingest/src/diagnostics.rs
 contract|crates/atlas-ingest/src/embeddings.rs
 contract|crates/atlas-ingest/src/embeddings/generation.rs
@@ -142,3 +143,12 @@ contract|crates/atlas-ingest/src/source_pipeline.rs
 # Manifest envelope owners.
 manifest|crates/atlas-index/src/artifact/pair.rs
 manifest|crates/atlas-ingest/src/artifact_manifest.rs
+manifest|crates/atlas-ingest/src/build.rs
+
+# Reviewed production non-owners are intentionally absent: crate/module facades
+# (`lib.rs`, `artifact.rs`, `read.rs`, and subtree `mod.rs` files), ingest reports,
+# index query/discovery/inspection code, embedding-cache reuse adapters, and
+# audit/deep-validation implementations consume the contracts owned above but do
+# not define persisted codecs, deterministic projections, envelope fields, or
+# publication binding. `build.rs` is the sole top-level composition exception:
+# it selects the final write package and constructs and publishes the manifest.
