@@ -318,19 +318,24 @@ export function MovementPanel({
   movement: CreatureSurfaceMovementView[] | undefined;
 }) {
   if (!movement?.length) return null;
+  const facts: RecordKeyValueItem[] = movement
+    .slice()
+    .sort((left, right) => left.authored_order - right.authored_order)
+    .map((entry, index) => ({
+      key: `${entry.component_id}:${index}`,
+      label: formatSlug(entry.label ?? entry.mode),
+      value: (
+        <span className="creature-sheet__movement-value">
+          <strong>
+            {entry.speed_feet === undefined ? "—" : `${entry.speed_feet} ft`}
+          </strong>
+          {entry.details && <small>{entry.details}</small>}
+        </span>
+      ),
+    }));
   return (
     <SurfaceSection className="creature-sheet__panel--movement" title="Movement">
-      <div className="creature-sheet__movement-list">
-        {movement.map((entry) => (
-          <div className="creature-sheet__movement" key={entry.component_id}>
-            <span>{formatSlug(entry.label ?? entry.mode)}</span>
-            <strong>
-              {entry.speed_feet === undefined ? "—" : `${entry.speed_feet} ft`}
-            </strong>
-            {entry.details && <small>{entry.details}</small>}
-          </div>
-        ))}
-      </div>
+      <RecordKeyValueList ariaLabel="Movement speeds" items={facts} />
     </SurfaceSection>
   );
 }
@@ -496,43 +501,55 @@ function SpellcastingSection({
   standalone: CreatureSurfaceContentView[];
 }) {
   if (!entries?.length && !standalone.length) return null;
-  const items: NonNullable<React.ComponentProps<typeof Collapse>["items"]> = [
-    ...(entries ?? [])
+  const spellcastingItems: NonNullable<React.ComponentProps<typeof Collapse>["items"]> =
+    (entries ?? [])
       .slice()
       .sort((left, right) => left.authored_order - right.authored_order)
       .map((entry) => ({
         key: entry.occurrence_id,
         label: <SpellcastingHeading entry={entry} />,
         children: <SpellRoster onReference={onReference} spells={entry.spells} />,
-      })),
-    ...(standalone.length
-      ? [
-          {
-            key: "standalone",
-            label: <strong>Standalone Spells & Rituals</strong>,
-            children: (
-              <div className="creature-sheet__standalone-content">
-                {standalone.map((document) => (
-                  <section key={document.content_key}>
-                    <h4>{contentLabel(document)}</h4>
-                    <RichContent content={document} onReference={onReference} />
-                  </section>
-                ))}
-              </div>
-            ),
-          },
-        ]
-      : []),
-  ];
+      }));
+  const standaloneItems: NonNullable<React.ComponentProps<typeof Collapse>["items"]> =
+    standalone
+      .slice()
+      .sort((left, right) => left.authored_order - right.authored_order)
+      .map((document, index) => ({
+        key: `standalone:${document.content_key}:${index}`,
+        label: <strong>{contentLabel(document)}</strong>,
+        children: <RichContent content={document} onReference={onReference} />,
+      }));
+  const disclosureCount = spellcastingItems.length + standaloneItems.length;
   return (
     <SurfaceSection className="creature-sheet__spellcasting" title="Spellcasting">
-      <Collapse
-        className="record-surface__inline-disclosure"
-        defaultActiveKey={items.length === 1 ? [String(items[0]?.key ?? "")] : []}
-        ghost
-        items={items}
-        size="small"
-      />
+      {spellcastingItems.length ? (
+        <Collapse
+          className="record-surface__inline-disclosure"
+          defaultActiveKey={
+            disclosureCount === 1 ? [String(spellcastingItems[0]?.key ?? "")] : []
+          }
+          ghost
+          items={spellcastingItems}
+          size="small"
+        />
+      ) : null}
+      {standaloneItems.length ? (
+        <section
+          aria-labelledby="standalone-spells-rituals"
+          className="creature-sheet__standalone-section"
+        >
+          <h4 id="standalone-spells-rituals">Standalone Spells & Rituals</h4>
+          <Collapse
+            className="record-surface__inline-disclosure"
+            defaultActiveKey={
+              disclosureCount === 1 ? [String(standaloneItems[0]?.key ?? "")] : []
+            }
+            ghost
+            items={standaloneItems}
+            size="small"
+          />
+        </section>
+      ) : null}
     </SurfaceSection>
   );
 }

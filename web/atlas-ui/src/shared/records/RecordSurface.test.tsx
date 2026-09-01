@@ -87,6 +87,13 @@ describe("RecordSurface", () => {
     expect(within(movement!).getByText("Fly")).toBeInTheDocument();
     expect(within(movement!).getByText("25 ft")).toBeInTheDocument();
     expect(within(movement!).getByText("40 ft")).toBeInTheDocument();
+    expect(movement?.querySelectorAll(".record-key-value-list__row")).toHaveLength(2);
+    for (const label of ["Speed", "Fly"]) {
+      expect(within(movement!).getByText(label).parentElement).toHaveClass(
+        "record-key-value-list__row",
+      );
+    }
+    expect(movement?.querySelector(".creature-sheet__movement")).toBeNull();
   });
 
   it("keeps sparse fact sections semantic without empty shells", () => {
@@ -131,15 +138,31 @@ describe("RecordSurface", () => {
     expect(container.querySelector(".creature-sheet__activity hr")).toBeInTheDocument();
   });
 
-  it("uses collapsible grouped spellcasting and standalone content", () => {
+  it("uses grouped spellcasting and one disclosure per standalone occurrence", () => {
     renderSurface();
 
     fireEvent.click(screen.getByText("Occult Innate Spells"));
     expect(screen.getByText("5th")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dream Message" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Standalone Spells & Rituals"));
-    expect(screen.getByText("Control Weather")).toBeInTheDocument();
+    const standaloneHeading = screen.getByRole("heading", {
+      name: "Standalone Spells & Rituals",
+    });
+    const standaloneDisclosures = within(standaloneHeading.parentElement!).getAllByRole(
+      "button",
+      { name: /Control Weather/ },
+    );
+    expect(standaloneDisclosures).toHaveLength(2);
+    expect(standaloneDisclosures[0]).toHaveAttribute("aria-expanded", "false");
+    expect(standaloneDisclosures[1]).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("You alter the weather.")).not.toBeInTheDocument();
+
+    fireEvent.click(standaloneDisclosures[0]!);
+    expect(screen.getByText("You alter the weather.")).toBeInTheDocument();
+    expect(screen.queryByText("A second ritual occurrence.")).not.toBeInTheDocument();
+
+    fireEvent.click(standaloneDisclosures[1]!);
+    expect(screen.getByText("A second ritual occurrence.")).toBeInTheDocument();
   });
 
   it("places record identity only in the inline provenance disclosure", () => {
@@ -299,6 +322,25 @@ function detailedSurfaceFixture(): RecordSurfaceView {
     ],
     content: [
       ...(surface.presentation.body.content ?? []),
+      {
+        content_key: "control-weather-repeat",
+        role: "embedded_capability",
+        authored_order: 2,
+        label: "Control Weather",
+        blocks: [
+          {
+            block_type: "paragraph",
+            spans: [{ span_type: "text", text: "A second ritual occurrence." }],
+          },
+        ],
+        content_hash: "control-weather-repeat",
+        visibility: "public",
+        provenance: {
+          source_record_key: "concept:f1-record",
+          relative_source_path: "fixture.json",
+          field_family: "fixture.spell",
+        },
+      },
       {
         content_key: "control-weather",
         role: "embedded_capability",
