@@ -224,30 +224,34 @@ function CompactCreatureFacts({ body }: { body: CreatureSurfaceView }) {
 
 function DefensePanel({ body }: { body: CreatureSurfaceView }) {
   const { defenses, saves, vitals } = body;
-  const facts = [
-    recordKeyValue("hit-points", "HP", vitals?.hit_points),
-    recordKeyValue("armor-class", "AC", defenses?.armor_class),
-    recordKeyValue(
-      "fortitude",
-      "Fortitude",
-      formatOptionalSigned(saves?.fortitude?.modifier),
-    ),
-    recordKeyValue("reflex", "Reflex", formatOptionalSigned(saves?.reflex?.modifier)),
-    recordKeyValue("will", "Will", formatOptionalSigned(saves?.will?.modifier)),
+  const stats = [
+    compactFact("AC", defenses?.armor_class),
+    compactFact("HP", vitals?.hit_points),
+    compactFact("Fortitude", saves?.fortitude?.modifier, true),
+    compactFact("Reflex", saves?.reflex?.modifier, true),
+    compactFact("Will", saves?.will?.modifier, true),
+  ].filter(isCompactFact);
+  const iwr = [
     iwrKeyValue("immunities", "Immunities", defenses?.immunities),
-    iwrKeyValue("resistances", "Resistances", defenses?.resistances),
     iwrKeyValue("weaknesses", "Weaknesses", defenses?.weaknesses),
+    iwrKeyValue("resistances", "Resistances", defenses?.resistances),
   ].filter(isRecordKeyValueItem);
   const hasDetails = Boolean(
     defenses?.armor_class_details || vitals?.details || saves?.all_saves_note,
   );
-  if (!facts.length && !hasDetails) return null;
+  if (!stats.length && !iwr.length && !hasDetails) return null;
   return (
     <SurfaceSection
       className="creature-sheet__panel--defenses"
       title="Defenses & Vitals"
     >
-      <RecordKeyValueList ariaLabel="Defenses and vitals" items={facts} />
+      {stats.length ? (
+        <dl aria-label="Defense statistics" className="creature-sheet__defense-stats">
+          {stats.map(({ label, value }) => (
+            <Fact key={label} label={label} value={value} />
+          ))}
+        </dl>
+      ) : null}
       {defenses?.armor_class_details && (
         <p className="creature-sheet__detail-note">{defenses.armor_class_details}</p>
       )}
@@ -257,6 +261,10 @@ function DefensePanel({ body }: { body: CreatureSurfaceView }) {
       {saves?.all_saves_note && (
         <p className="creature-sheet__detail-note">{saves.all_saves_note}</p>
       )}
+      <RecordKeyValueList
+        ariaLabel="Immunities, weaknesses, and resistances"
+        items={iwr}
+      />
     </SurfaceSection>
   );
 }
@@ -265,11 +273,6 @@ function SensesLanguagesPanel({ body }: { body: CreatureSurfaceView }) {
   const awareness = body.awareness;
   if (!awareness) return null;
   const facts = [
-    recordKeyValue(
-      "perception",
-      "Perception",
-      formatOptionalSigned(awareness.perception),
-    ),
     recordKeyValue(
       "senses",
       "Senses",
@@ -293,6 +296,11 @@ function SensesLanguagesPanel({ body }: { body: CreatureSurfaceView }) {
       className="creature-sheet__panel--senses"
       title="Senses & Languages"
     >
+      {awareness.perception !== undefined ? (
+        <dl aria-label="Perception" className="creature-sheet__perception-stat">
+          <Fact label="Perception" signed value={awareness.perception} />
+        </dl>
+      ) : null}
       <RecordKeyValueList ariaLabel="Senses and languages" items={facts} />
       {awareness.details && (
         <p className="creature-sheet__detail-note">{awareness.details}</p>
@@ -688,7 +696,11 @@ function SourceDetails({ metadata }: { metadata: RecordSurfaceMetadataView }) {
   return (
     <section>
       <h4>Provenance</h4>
-      <RecordKeyValueList ariaLabel="Provenance" items={facts} />
+      <RecordKeyValueList
+        ariaLabel="Provenance"
+        items={facts}
+        labelWidth="provenance"
+      />
     </section>
   );
 }
@@ -792,10 +804,6 @@ function isRecordKeyValueItem(
   value: RecordKeyValueItem | null,
 ): value is RecordKeyValueItem {
   return value !== null;
-}
-
-function formatOptionalSigned(value: number | undefined) {
-  return value === undefined ? undefined : formatSigned(value);
 }
 
 function formatIwr(value: CreatureSurfaceIwrView) {
