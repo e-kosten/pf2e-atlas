@@ -83,10 +83,8 @@ export function SearchCompactSurface({
       <div className="record-surface-search__identity">
         <div className="record-surface-search__heading">
           <h2>{metadata.title}</h2>
-          {metadata.level !== undefined && (
-            <span className="creature-sheet__level">Level {metadata.level}</span>
-          )}
         </div>
+        <IdentityMetadata compact metadata={metadata} />
         <TraitRow compact metadata={metadata} />
         {description && (
           <RichContent compact content={description} onReference={onReference} />
@@ -109,12 +107,36 @@ export function RecordHeader({ metadata }: { metadata: RecordSurfaceMetadataView
     <header className="creature-sheet__header">
       <div className="creature-sheet__identity">
         <h2>{metadata.title}</h2>
+        <IdentityMetadata metadata={metadata} />
         <TraitRow metadata={metadata} />
       </div>
-      {metadata.level !== undefined && (
-        <div className="creature-sheet__level">Level {metadata.level}</div>
-      )}
     </header>
+  );
+}
+
+export function IdentityMetadata({
+  compact = false,
+  metadata,
+}: {
+  compact?: boolean;
+  metadata: RecordSurfaceMetadataView;
+}) {
+  return (
+    <div
+      className={[
+        "creature-sheet__identity-meta",
+        compact ? "creature-sheet__identity-meta--compact" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span className="creature-sheet__kind">
+        {metadata.kind_label || formatSlug(metadata.kind)}
+      </span>
+      {metadata.level !== undefined && (
+        <span className="creature-sheet__level">Level {metadata.level}</span>
+      )}
+    </div>
   );
 }
 
@@ -187,8 +209,8 @@ function CreatureSnapshot({ body }: { body: CreatureSurfaceView }) {
     compactFact("Perception", body.awareness?.perception, true),
     compactFact("AC", body.defenses?.armor_class),
     compactFact("HP", body.vitals?.hit_points),
-    compactFact("Fort", body.saves?.fortitude?.modifier, true),
-    compactFact("Ref", body.saves?.reflex?.modifier, true),
+    compactFact("Fortitude", body.saves?.fortitude?.modifier, true),
+    compactFact("Reflex", body.saves?.reflex?.modifier, true),
     compactFact("Will", body.saves?.will?.modifier, true),
   ].filter(isCompactFact);
   if (!facts.length) return null;
@@ -224,26 +246,17 @@ function CompactCreatureFacts({ body }: { body: CreatureSurfaceView }) {
 
 function DefensePanel({ body }: { body: CreatureSurfaceView }) {
   const { defenses, saves, vitals } = body;
-  if (!defenses && !saves && !vitals) return null;
+  const hasAdditionalDefenseContext = Boolean(
+    defenses?.armor_class_details ||
+    vitals?.details ||
+    saves?.all_saves_note ||
+    defenses?.immunities?.length ||
+    defenses?.resistances?.length ||
+    defenses?.weaknesses?.length,
+  );
+  if (!hasAdditionalDefenseContext) return null;
   return (
     <SurfaceSection className="creature-sheet__panel--defenses" title="Defenses">
-      <dl className="creature-sheet__stat-list creature-sheet__stat-list--defenses">
-        {defenses?.armor_class !== undefined && (
-          <Fact label="Armor Class" value={defenses.armor_class} />
-        )}
-        {vitals?.hit_points !== undefined && (
-          <Fact label="Hit Points" value={vitals.hit_points} />
-        )}
-        {saves?.fortitude?.modifier !== undefined && (
-          <Fact label="Fortitude" signed value={saves.fortitude.modifier} />
-        )}
-        {saves?.reflex?.modifier !== undefined && (
-          <Fact label="Reflex" signed value={saves.reflex.modifier} />
-        )}
-        {saves?.will?.modifier !== undefined && (
-          <Fact label="Will" signed value={saves.will.modifier} />
-        )}
-      </dl>
       {defenses?.armor_class_details && (
         <p className="creature-sheet__detail-note">{defenses.armor_class_details}</p>
       )}
@@ -264,21 +277,17 @@ function SensesLanguagesPanel({ body }: { body: CreatureSurfaceView }) {
   const awareness = body.awareness;
   if (
     !awareness ||
-    (awareness.perception === undefined &&
-      !awareness.senses?.length &&
+    (!awareness.senses?.length &&
       !awareness.languages?.length &&
       !awareness.details &&
       !awareness.language_details)
   )
     return null;
   return (
-    <SurfaceSection title="Senses & Languages">
-      {awareness.perception !== undefined && (
-        <p className="creature-sheet__lead-fact">
-          <span>Perception</span>
-          <strong>{formatSigned(awareness.perception)}</strong>
-        </p>
-      )}
+    <SurfaceSection
+      className="creature-sheet__panel--senses"
+      title="Senses & Languages"
+    >
       {awareness.senses?.length ? (
         <FactLine
           label="Senses"
@@ -315,7 +324,7 @@ export function MovementPanel({
 }) {
   if (!movement?.length) return null;
   return (
-    <SurfaceSection title="Movement">
+    <SurfaceSection className="creature-sheet__panel--movement" title="Movement">
       <div className="creature-sheet__movement-list">
         {movement.map((entry) => (
           <div className="creature-sheet__movement" key={entry.component_id}>
@@ -334,7 +343,7 @@ export function MovementPanel({
 function SkillsPanel({ body }: { body: CreatureSurfaceView }) {
   if (!body.skills?.length) return null;
   return (
-    <SurfaceSection title="Skills">
+    <SurfaceSection className="creature-sheet__panel--skills" title="Skills">
       <div className="creature-sheet__chip-list">
         {body.skills.map((skill) => (
           <span className="creature-sheet__skill" key={skill.component_id}>
@@ -363,7 +372,10 @@ function AbilitiesPanel({ body }: { body: CreatureSurfaceView }) {
   ].filter((entry): entry is [string, number] => entry[1] !== undefined);
   if (!values.length) return null;
   return (
-    <SurfaceSection title="Ability Modifiers">
+    <SurfaceSection
+      className="creature-sheet__panel--abilities"
+      title="Ability Modifiers"
+    >
       <dl className="creature-sheet__ability-grid">
         {values.map(([label, value]) => (
           <Fact key={label} label={label} signed value={value} />
@@ -684,12 +696,34 @@ function SourceDetails({ metadata }: { metadata: RecordSurfaceMetadataView }) {
     <section>
       <h4>Provenance</h4>
       <dl className="creature-sheet__provenance-list">
-        {metadata.record_key && <Fact label="Record ID" value={metadata.record_key} />}
-        {source?.publication_title && (
-          <Fact label="Publication" value={source.publication_title} />
+        {metadata.record_key && (
+          <Fact
+            className="creature-sheet__provenance-row"
+            label="Record ID"
+            value={metadata.record_key}
+          />
         )}
-        {source?.pack_label && <Fact label="Source pack" value={source.pack_label} />}
-        {source?.source_path && <Fact label="Source path" value={source.source_path} />}
+        {source?.publication_title && (
+          <Fact
+            className="creature-sheet__provenance-row"
+            label="Publication"
+            value={source.publication_title}
+          />
+        )}
+        {source?.pack_label && (
+          <Fact
+            className="creature-sheet__provenance-row"
+            label="Source pack"
+            value={source.pack_label}
+          />
+        )}
+        {source?.source_path && (
+          <Fact
+            className="creature-sheet__provenance-row"
+            label="Source path"
+            value={source.source_path}
+          />
+        )}
       </dl>
     </section>
   );
@@ -713,16 +747,18 @@ export function SurfaceSection({
 }
 
 export function Fact({
+  className,
   label,
   signed = false,
   value,
 }: {
+  className?: string;
   label: string;
   signed?: boolean;
   value: number | string;
 }) {
   return (
-    <div>
+    <div className={className}>
       <dt>{label}</dt>
       <dd>{typeof value === "number" && signed ? formatSigned(value) : value}</dd>
     </div>

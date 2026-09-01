@@ -14,6 +14,7 @@ import {
   formatRank,
   formatSigned,
   formatSlug,
+  IdentityMetadata,
   ReferenceAndSourceContent,
   RuntimeAdjustedValue,
   RuntimeFact,
@@ -47,9 +48,7 @@ export function EncounterParticipantSurface({
         <div>
           <div className="record-surface-structured__title-row">
             <h2>{metadata.title}</h2>
-            {metadata.level !== undefined && (
-              <span className="creature-sheet__level">Level {metadata.level}</span>
-            )}
+            <IdentityMetadata compact metadata={metadata} />
           </div>
           <TraitRow compact metadata={metadata} />
         </div>

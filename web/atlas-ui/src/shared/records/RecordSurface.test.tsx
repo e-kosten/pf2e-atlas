@@ -14,7 +14,7 @@ const onReference = vi.fn();
 describe("RecordSurface", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders description before mechanics without a redundant creature eyebrow", () => {
+  it("renders description before mechanics with record kind in identity metadata", () => {
     const { container } = renderSurface();
 
     const description = screen.getByRole("heading", { name: "Description & Lore" });
@@ -26,10 +26,27 @@ describe("RecordSurface", () => {
       screen.getByRole("heading", { name: "Dream-Coven Envoy" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Level 9")).toBeInTheDocument();
-    expect(screen.queryByText("Creature")).not.toBeInTheDocument();
+    expect(screen.getByText("Creature")).toBeInTheDocument();
     expect(container.querySelector(".creature-sheet__snapshot")).not.toHaveTextContent(
       "Speed",
     );
+  });
+
+  it("renders each core statistic exactly once", () => {
+    renderSurface();
+
+    for (const label of ["Perception", "HP", "AC", "Fortitude", "Reflex", "Will"]) {
+      expect(screen.getAllByText(label, { exact: true })).toHaveLength(1);
+    }
+    const defenses = screen.getByRole("heading", { name: "Defenses" }).parentElement;
+    expect(defenses).not.toBeNull();
+    expect(within(defenses!).getByText("Cold Iron 5")).toBeInTheDocument();
+    expect(
+      within(defenses!).queryByText("AC", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(defenses!).queryByText("HP", { exact: true }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps all movement modes together outside defenses", () => {
@@ -41,6 +58,38 @@ describe("RecordSurface", () => {
     expect(within(movement!).getByText("Fly")).toBeInTheDocument();
     expect(within(movement!).getByText("25 ft")).toBeInTheDocument();
     expect(within(movement!).getByText("40 ft")).toBeInTheDocument();
+  });
+
+  it("keeps a sparse three-section facts surface semantically balanced", () => {
+    const surface = detailedSurfaceFixture();
+    if (surface.presentation.presentation_type !== "creature") {
+      throw new Error("Fixture must be a creature surface");
+    }
+    surface.presentation.body.defenses = {
+      ...surface.presentation.body.defenses!,
+      weaknesses: undefined,
+    };
+    surface.presentation.body.abilities = undefined;
+    surface.presentation.body.skills = [
+      {
+        component_id: "stealth",
+        authored_order: 0,
+        kind: "stealth",
+        label: "Stealth",
+        modifier: 5,
+      },
+    ];
+
+    const { container } = render(
+      <RecordSurface onReference={onReference} surface={surface} />,
+    );
+    const sections = container.querySelectorAll(
+      ".creature-sheet__facts-grid > .creature-sheet__panel",
+    );
+    expect(sections).toHaveLength(3);
+    expect(sections[0]).toHaveClass("creature-sheet__panel--senses");
+    expect(sections[1]).toHaveClass("creature-sheet__panel--movement");
+    expect(sections[2]).toHaveClass("creature-sheet__panel--skills");
   });
 
   it("expands typed activity content inline with check DC and divider structure", () => {
@@ -72,6 +121,16 @@ describe("RecordSurface", () => {
     expect(screen.getByText("concept:f1-record")).toBeInTheDocument();
     expect(screen.queryByText("source contract")).not.toBeInTheDocument();
     expect(screen.queryByText("upstream commit")).not.toBeInTheDocument();
+  });
+
+  it("uses stable provenance label and value cells", () => {
+    const { container } = renderSurface();
+
+    fireEvent.click(screen.getByText("References & Source"));
+    const recordId = screen.getByText("Record ID").parentElement;
+    expect(recordId).toHaveClass("creature-sheet__provenance-row");
+    expect(recordId?.children).toHaveLength(2);
+    expect(container.querySelector(".creature-sheet__provenance-list")).toBeVisible();
   });
 
   it("keeps description secondary in the encounter profile", () => {
@@ -109,6 +168,17 @@ function detailedSurfaceFixture(): RecordSurfaceView {
   }
   surface.presentation.body = {
     ...surface.presentation.body,
+    defenses: {
+      ...surface.presentation.body.defenses!,
+      weaknesses: [
+        {
+          component_id: "cold-iron",
+          authored_order: 0,
+          kind: "cold iron",
+          amount: 5,
+        },
+      ],
+    },
     movement: [
       {
         component_id: "land",
