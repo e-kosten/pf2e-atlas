@@ -890,6 +890,7 @@ fn render_inline_spans(spans: &[PresentationInline], style: TerminalStyle) -> St
                 output.push('`');
             }
             PresentationInline::Reference { label, .. } => output.push_str(label),
+            PresentationInline::Check { display, .. } => output.push_str(display),
             PresentationInline::LineBreak => output.push('\n'),
         }
     }
@@ -1000,5 +1001,29 @@ fn invalid_input(json: bool, message: String) -> Result<ExitCode, String> {
         Ok(ExitCode::from(2))
     } else {
         Err(message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_check_inline_from_existing_display() {
+        let spans = [
+            PresentationInline::Text {
+                text: "Saving Throw ".to_string(),
+            },
+            PresentationInline::Check {
+                display: "Fortitude DC 28".to_string(),
+                statistic: Some("will".to_string()),
+                difficulty_class: Some(99),
+            },
+        ];
+
+        assert_eq!(
+            render_inline_spans(&spans, TerminalStyle::stdout()),
+            "Saving Throw Fortitude DC 28"
+        );
     }
 }
