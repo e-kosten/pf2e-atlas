@@ -20,6 +20,7 @@ import {
   RichContent,
   type ReferenceHandler,
 } from "./RecordRichContent";
+import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
 
 export function CreatureDetailSurface({
   body,
@@ -38,7 +39,6 @@ export function CreatureDetailSurface({
     <article className="record-surface record-surface--record-detail">
       <RecordHeader metadata={metadata} />
       <NarrativeSection content={narrative} onReference={onReference} />
-      <CreatureSnapshot body={body} />
       <div className="creature-sheet__facts-grid">
         <DefensePanel body={body} />
         <SensesLanguagesPanel body={body} />
@@ -204,28 +204,6 @@ function NarrativeSection({
   );
 }
 
-function CreatureSnapshot({ body }: { body: CreatureSurfaceView }) {
-  const facts = [
-    compactFact("Perception", body.awareness?.perception, true),
-    compactFact("AC", body.defenses?.armor_class),
-    compactFact("HP", body.vitals?.hit_points),
-    compactFact("Fortitude", body.saves?.fortitude?.modifier, true),
-    compactFact("Reflex", body.saves?.reflex?.modifier, true),
-    compactFact("Will", body.saves?.will?.modifier, true),
-  ].filter(isCompactFact);
-  if (!facts.length) return null;
-  return (
-    <section aria-label="Core creature statistics" className="creature-sheet__snapshot">
-      {facts.map(({ label, value }) => (
-        <div className="creature-sheet__snapshot-fact" key={label}>
-          <span>{label}</span>
-          <strong>{value}</strong>
-        </div>
-      ))}
-    </section>
-  );
-}
-
 function CompactCreatureFacts({ body }: { body: CreatureSurfaceView }) {
   const facts = [
     compactFact("Perception", body.awareness?.perception, true),
@@ -246,17 +224,30 @@ function CompactCreatureFacts({ body }: { body: CreatureSurfaceView }) {
 
 function DefensePanel({ body }: { body: CreatureSurfaceView }) {
   const { defenses, saves, vitals } = body;
-  const hasAdditionalDefenseContext = Boolean(
-    defenses?.armor_class_details ||
-    vitals?.details ||
-    saves?.all_saves_note ||
-    defenses?.immunities?.length ||
-    defenses?.resistances?.length ||
-    defenses?.weaknesses?.length,
+  const facts = [
+    recordKeyValue("hit-points", "HP", vitals?.hit_points),
+    recordKeyValue("armor-class", "AC", defenses?.armor_class),
+    recordKeyValue(
+      "fortitude",
+      "Fortitude",
+      formatOptionalSigned(saves?.fortitude?.modifier),
+    ),
+    recordKeyValue("reflex", "Reflex", formatOptionalSigned(saves?.reflex?.modifier)),
+    recordKeyValue("will", "Will", formatOptionalSigned(saves?.will?.modifier)),
+    iwrKeyValue("immunities", "Immunities", defenses?.immunities),
+    iwrKeyValue("resistances", "Resistances", defenses?.resistances),
+    iwrKeyValue("weaknesses", "Weaknesses", defenses?.weaknesses),
+  ].filter(isRecordKeyValueItem);
+  const hasDetails = Boolean(
+    defenses?.armor_class_details || vitals?.details || saves?.all_saves_note,
   );
-  if (!hasAdditionalDefenseContext) return null;
+  if (!facts.length && !hasDetails) return null;
   return (
-    <SurfaceSection className="creature-sheet__panel--defenses" title="Defenses">
+    <SurfaceSection
+      className="creature-sheet__panel--defenses"
+      title="Defenses & Vitals"
+    >
+      <RecordKeyValueList ariaLabel="Defenses and vitals" items={facts} />
       {defenses?.armor_class_details && (
         <p className="creature-sheet__detail-note">{defenses.armor_class_details}</p>
       )}
@@ -266,47 +257,43 @@ function DefensePanel({ body }: { body: CreatureSurfaceView }) {
       {saves?.all_saves_note && (
         <p className="creature-sheet__detail-note">{saves.all_saves_note}</p>
       )}
-      <IwrGroup label="Immunities" values={defenses?.immunities} />
-      <IwrGroup label="Resistances" values={defenses?.resistances} />
-      <IwrGroup label="Weaknesses" values={defenses?.weaknesses} />
     </SurfaceSection>
   );
 }
 
 function SensesLanguagesPanel({ body }: { body: CreatureSurfaceView }) {
   const awareness = body.awareness;
-  if (
-    !awareness ||
-    (!awareness.senses?.length &&
-      !awareness.languages?.length &&
-      !awareness.details &&
-      !awareness.language_details)
-  )
-    return null;
+  if (!awareness) return null;
+  const facts = [
+    recordKeyValue(
+      "perception",
+      "Perception",
+      formatOptionalSigned(awareness.perception),
+    ),
+    recordKeyValue(
+      "senses",
+      "Senses",
+      awareness.senses
+        ?.map((sense) =>
+          [
+            formatSlug(sense.kind),
+            sense.acuity ? `(${formatSlug(sense.acuity)})` : "",
+            sense.range_feet === undefined ? "" : `${sense.range_feet} ft`,
+          ]
+            .filter(Boolean)
+            .join(" "),
+        )
+        .join(", "),
+    ),
+    recordKeyValue("languages", "Languages", awareness.languages?.join(", ")),
+  ].filter(isRecordKeyValueItem);
+  if (!facts.length && !awareness.details && !awareness.language_details) return null;
   return (
     <SurfaceSection
       className="creature-sheet__panel--senses"
       title="Senses & Languages"
     >
-      {awareness.senses?.length ? (
-        <FactLine
-          label="Senses"
-          value={awareness.senses
-            .map((sense) =>
-              [
-                formatSlug(sense.kind),
-                sense.acuity ? `(${formatSlug(sense.acuity)})` : "",
-                sense.range_feet === undefined ? "" : `${sense.range_feet} ft`,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            )
-            .join(", ")}
-        />
-      ) : null}
-      {awareness.languages?.length ? (
-        <FactLine label="Languages" value={awareness.languages.join(", ")} />
-      ) : null}
+      <RecordKeyValueList ariaLabel="Senses and languages" items={facts} />
       {awareness.details && (
         <p className="creature-sheet__detail-note">{awareness.details}</p>
       )}
@@ -692,39 +679,16 @@ function RelationshipRow({
 
 function SourceDetails({ metadata }: { metadata: RecordSurfaceMetadataView }) {
   const source = metadata.source;
+  const facts = [
+    recordKeyValue("record-id", "Record ID", metadata.record_key),
+    recordKeyValue("publication", "Publication", source?.publication_title),
+    recordKeyValue("source-pack", "Source pack", source?.pack_label),
+    recordKeyValue("source-path", "Source path", source?.source_path),
+  ].filter(isRecordKeyValueItem);
   return (
     <section>
       <h4>Provenance</h4>
-      <dl className="creature-sheet__provenance-list">
-        {metadata.record_key && (
-          <Fact
-            className="creature-sheet__provenance-row"
-            label="Record ID"
-            value={metadata.record_key}
-          />
-        )}
-        {source?.publication_title && (
-          <Fact
-            className="creature-sheet__provenance-row"
-            label="Publication"
-            value={source.publication_title}
-          />
-        )}
-        {source?.pack_label && (
-          <Fact
-            className="creature-sheet__provenance-row"
-            label="Source pack"
-            value={source.pack_label}
-          />
-        )}
-        {source?.source_path && (
-          <Fact
-            className="creature-sheet__provenance-row"
-            label="Source path"
-            value={source.source_path}
-          />
-        )}
-      </dl>
+      <RecordKeyValueList ariaLabel="Provenance" items={facts} />
     </section>
   );
 }
@@ -747,18 +711,16 @@ export function SurfaceSection({
 }
 
 export function Fact({
-  className,
   label,
   signed = false,
   value,
 }: {
-  className?: string;
   label: string;
   signed?: boolean;
   value: number | string;
 }) {
   return (
-    <div className={className}>
+    <div>
       <dt>{label}</dt>
       <dd>{typeof value === "number" && signed ? formatSigned(value) : value}</dd>
     </div>
@@ -808,24 +770,32 @@ export function RuntimeAdjustedValue({
   );
 }
 
-function FactLine({ label, value }: { label: string; value: string }) {
-  return (
-    <p className="creature-sheet__fact-line">
-      <strong>{label}</strong>
-      <span>{value}</span>
-    </p>
-  );
+function recordKeyValue(
+  key: React.Key,
+  label: React.ReactNode,
+  value: React.ReactNode | undefined | null,
+): RecordKeyValueItem | null {
+  return value === undefined || value === null || value === ""
+    ? null
+    : { key, label, value };
 }
 
-function IwrGroup({
-  label,
-  values,
-}: {
-  label: string;
-  values: CreatureSurfaceIwrView[] | undefined;
-}) {
-  if (!values?.length) return null;
-  return <FactLine label={label} value={values.map(formatIwr).join(", ")} />;
+function iwrKeyValue(
+  key: React.Key,
+  label: string,
+  values: CreatureSurfaceIwrView[] | undefined,
+): RecordKeyValueItem | null {
+  return recordKeyValue(key, label, values?.map(formatIwr).join(", "));
+}
+
+function isRecordKeyValueItem(
+  value: RecordKeyValueItem | null,
+): value is RecordKeyValueItem {
+  return value !== null;
+}
+
+function formatOptionalSigned(value: number | undefined) {
+  return value === undefined ? undefined : formatSigned(value);
 }
 
 function formatIwr(value: CreatureSurfaceIwrView) {
