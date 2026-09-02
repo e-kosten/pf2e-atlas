@@ -1,0 +1,248 @@
+Air Scamp
+  Type: creature · Pack: Monster Core
+  Key: pathfinder-monster-core:MSm1im7lZA5i82rz
+
+Classification
+  Level: 1
+  Rarity: common
+  Traits: air, elemental
+  Size: sm
+  Source: Pathfinder Monster Core
+
+Defenses
+  AC: 16;
+  HP: current 12; maximum 12; temporary 0; fast healing 2 (in open air)
+  Fortitude: 3;
+  Reflex: 9;
+  Will: 7;
+  Immunities: bleed, paralyzed, poison, sleep
+
+Awareness and abilities
+  Perception: +3; fog vision; darkvision
+  Initiative: perception
+  Languages: sussuran
+  Abilities: Str +1, Dex +4, Con +0, Int -2, Wis +0, Cha +0
+  Acrobatics: +7
+  Stealth: +7
+
+Movement
+  land: 20 feet
+  fly: 40 feet
+
+Strikes
+  - Jaws — [1 action]
+    Traits: finesse, unarmed
+    Attack: attack +9
+    Damage: 1d6+1 piercing
+
+Activities
+  - Fog Vision — passive
+    Category: interaction
+  - Fast Healing 2 (In Open Air) — passive
+    Category: defensive
+  - Sirocco Breath — [2 actions]
+    Traits: air, arcane
+    Category: offensive
+
+Spellcasting
+  - Arcane Innate Spells — innate · arcane
+    Attack: +9
+    DC: 17
+    Rank 2
+      - Blur — [2 actions]
+        Traits: concentrate, illusion, manipulate, visual
+        Target: 1 creature
+        Range: touch
+        Time: 2
+    Rank 1
+      - Gust of Wind — [2 actions]
+        Traits: air, concentrate, manipulate
+        Time: 2
+    Damage: 2d6 bludgeoning damage
+
+Public Notes
+  A pale blue head and paper-thin wings peek out from the cloud that clings to
+  the air scamp. Air scamps are short-sighted and flighty, even relative to
+  their kin; they are as likely to fly recklessly into battle as they are to
+  whine in terror at a loud noise.
+  ---
+  Elemental scamps are bat-like critters marked by elemental powers. Scamps are
+  dispatched from the Elemental Planes by more powerful residents or called to
+  the Universe by neophyte summoners. All scamps have a hint of magical power
+  due to a lingering connection to their home plane, which they largely use to
+  pull simple pranks.
+  Scamps rapidly form a pecking order of cleverness. Humanoids often confuse
+  scamps when meeting such creatures for the first time. These confused scamps
+  usually resort to an escalating series of pranks and mischief, seeing what
+  they can get away with to establish their place in the hierarchy.
+
+Blur
+  The target's form appears blurry. It becomes Concealed. As the nature of this
+  effect still leaves the target's location obvious, the target can't use this
+  concealment to Hide or Sneak.
+
+Gust of Wind
+  A violent wind issues forth from your palm, blowing from the point where you
+  are when you Cast the Spell to the line's opposite end. The wind extinguishes
+  small non-magical fires, disperses fog and mist, blows objects of light Bulk
+  or less around, and pushes larger objects. Large or smaller creatures in the
+  area must attempt a Fortitude save. Large or smaller creatures that later move
+  into the gust must attempt the save on entering.
+  ---
+  Critical Success The creature is unaffected.
+  Success The creature can't move against the wind.
+  Failure The creature is knocked Prone. If it was flying, it takes the effects
+  of critical failure instead.
+  Critical Failure The creature is pushed 30 feet in the wind's direction,
+  knocked prone, and takes 2d6 bludgeoning damage.
+
+Fog Vision
+  The air scamp ignores the Concealed condition from fog and mist.
+
+Fast Healing 2 (In Open Air)
+  PF2E.NPC.Abilities.Glossary.FastHealing
+
+Sirocco Breath
+  The air scamp creates cutting winds in a cone that deal 2d6[slashing] damage
+  to each creature within the area (Reflex DC 17 save). A creature that fails
+  its save is also pushed back 10 feet.
+  The air scamp can't use Sirocco Breath again for 1d4 rounds.
+
+Provenance and edition
+  Publication: Pathfinder Monster Core
+  Pack: Monster Core (pathfinder-monster-core)
+  Source path: packs/pathfinder-monster-core/air-scamp.json
+  Foundry: Actor / npc
+  Edition: remaster
+  Counterpart: legacy counterpart: Air Mephit
+               (pathfinder-bestiary:KDRlxdIUADWHI6Vr)
+  Contract: pf2e-serialized-source/v1
+  System: 6.12.4
+  Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+
+Data availability
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: "Pathfinder Monster Core"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: "common"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: {"details":"In Open Air","key":"FastHealing","value":2}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:yC1vWH3Q9V6GoICd
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:yC1vWH3Q9V6GoICd
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
+    Source value: "Pathfinder Player Core"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
+    Source value: "common"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
+    Source value: "Pathfinder Player Core"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
+    Source value: "common"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: 1
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: false
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: {}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: null
+    The source supplied an unsupported mechanic.

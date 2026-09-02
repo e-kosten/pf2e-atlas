@@ -51,6 +51,15 @@ Use `record get` when you already have a canonical `pack:id` record key:
 atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail description
 ```
 
+Use `record provenance` only when you need the typed diagnostic trail for an
+exact canonical key. It reports source facts, occurrence identity, content
+ownership, edition lookup state, and exact references without exposing raw
+source JSON. Add `--json` for the standard machine-readable envelope:
+
+```bash
+atlas record provenance bestiary:Night-Hag --json
+```
+
 Use `record resolve` when you need one record from a strict name or verified alias. A verified alias is an alias already confirmed by the user, returned by a previous Atlas result, or known from canonical PF2E naming/remaster context; do not guess aliases just to make strict resolution pass:
 
 ```bash
@@ -110,7 +119,7 @@ atlas similar "Dirge of Doom" --kind spell --json
 atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain
 ```
 
-For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--include-raw` only when raw source is directly relevant; it is an independent opt-in and does not require `--detail full`.
+For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when complete authored content without mechanics is needed to judge fit. Standard adds complete mechanics and a teaser. Full adds rich content plus concise source and edition context, while field-level and ownership diagnostics live under `record provenance`. Use `--include-raw` only when raw source is directly relevant; it is an independent JSON-only opt-in and does not require `--detail full`.
 
 Every record-bearing JSON result uses the same tagged `RecordJson`. Inspect
 `presentation_type` first. For `creature`, read direct typed fields:

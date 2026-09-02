@@ -1,0 +1,53 @@
+Air Mephit
+  Type: creature · Pack: Bestiary 1
+  Key:
+       pathfinder-bestiary:KDRlxdIUADWHI6Vr
+
+Classification
+  Level: 1
+  Rarity: common
+  Traits: air, elemental
+  Size: sm
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 16;
+  HP: current 12; maximum 12; temporary
+      0; fast healing 2 (in open air)
+  Fortitude: 3;
+  Reflex: 19;
+  Will: 7;
+  Immunities: bleed, paralyzed, poison,
+              sleep
+
+Awareness and abilities
+  Perception: +3; darkvision
+  Initiative: perception
+  Languages: sussuran
+  Abilities: Str +1, Dex +4, Con +0, Int
+             -2, Wis +0, Cha +0
+  Acrobatics: +7
+  Stealth: +7
+
+Movement
+  land: 20 feet
+  fly: 40 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Claw — [1 action]
+
+Activities
+  - Fast Healing 2 (In Open Air) —
+    passive
+  - Breath Weapon — [2 actions]
+
+Spellcasting
+  - Arcane Innate Spells — innate ·
+    arcane
+    Rank 2
+      - Blur — [2 actions]
+    Rank 1
+      - Gust of Wind — [2 actions]

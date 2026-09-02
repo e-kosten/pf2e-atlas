@@ -1,0 +1,36 @@
+Giant Rat
+  Type: creature · Pack: Monster Core
+  Key: pathfinder-monster-core:iIJPJcDT8wlJ8z5M
+
+Classification
+  Level: -1
+  Rarity: common
+  Traits: animal
+  Size: sm
+  Source: Pathfinder Monster Core
+
+Defenses
+  AC: 15;
+  HP: current 8; maximum 8; temporary 0;
+  Fortitude: 6;
+  Reflex: 7;
+  Will: 3;
+
+Awareness and abilities
+  Perception: +5; low-light-vision; scent (imprecise) 30 feet
+  Initiative: perception
+  Abilities: Str +1, Dex +3, Con +2, Int -4, Wis +1, Cha -3
+  Acrobatics: +5
+  Athletics: +2
+    - to Climb or Swim +4 when any:action:climb|action:swim
+  Stealth: +5
+
+Movement
+  land: 30 feet
+  climb: 10 feet
+
+Strikes
+  - Jaws — [1 action]
+
+Activities
+  - Putrid Plague — passive

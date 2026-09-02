@@ -1,10 +1,13 @@
 use atlas_domain::DetailLevel;
-use atlas_record::{RecordJsonOptions, record_json};
+use atlas_record::RecordJsonOptions;
 use atlas_search::{
     GraphContextEdge, GraphContextResult, GraphContextSection, RemasterLinksResult,
     VariantGroupResult,
 };
 use serde::Serialize;
+
+use crate::client::AtlasClient;
+use crate::commands::record::context::project_record;
 
 #[derive(Debug, Serialize)]
 pub(super) struct GraphLinksData {
@@ -93,9 +96,10 @@ pub(super) struct GraphEdgeSourceJson {
 }
 
 pub(super) fn graph_links_data(
+    client: &impl AtlasClient,
     result: &GraphContextResult,
     detail: DetailLevel,
-) -> Result<GraphLinksData, atlas_record::RecordJsonError> {
+) -> Result<GraphLinksData, atlas_app_model::AppError> {
     let options = RecordJsonOptions {
         detail,
         include_source_json: false,
@@ -103,17 +107,18 @@ pub(super) fn graph_links_data(
     Ok(GraphLinksData {
         detail: detail.to_string(),
         seed: GraphSeedJson {
-            record: record_json(&result.seed, options)?,
+            record: project_record(client, &result.seed, options)?,
         },
-        outgoing: graph_section_json(&result.outgoing, options)?,
-        backlinks: graph_section_json(&result.backlinks, options)?,
+        outgoing: graph_section_json(client, &result.outgoing, options)?,
+        backlinks: graph_section_json(client, &result.backlinks, options)?,
     })
 }
 
 pub(super) fn graph_uses_data(
+    client: &impl AtlasClient,
     result: &GraphContextResult,
     detail: DetailLevel,
-) -> Result<GraphUsesData, atlas_record::RecordJsonError> {
+) -> Result<GraphUsesData, atlas_app_model::AppError> {
     let options = RecordJsonOptions {
         detail,
         include_source_json: false,
@@ -121,16 +126,17 @@ pub(super) fn graph_uses_data(
     Ok(GraphUsesData {
         detail: detail.to_string(),
         seed: GraphSeedJson {
-            record: record_json(&result.seed, options)?,
+            record: project_record(client, &result.seed, options)?,
         },
-        uses: graph_section_json(&result.backlinks, options)?,
+        uses: graph_section_json(client, &result.backlinks, options)?,
     })
 }
 
 pub(super) fn graph_variants_data(
+    client: &impl AtlasClient,
     result: &VariantGroupResult,
     detail: DetailLevel,
-) -> Result<GraphVariantsData, atlas_record::RecordJsonError> {
+) -> Result<GraphVariantsData, atlas_app_model::AppError> {
     let options = RecordJsonOptions {
         detail,
         include_source_json: false,
@@ -140,7 +146,9 @@ pub(super) fn graph_variants_data(
         seed: result
             .seed
             .as_ref()
-            .map(|seed| record_json(seed, options).map(|record| GraphSeedJson { record }))
+            .map(|seed| {
+                project_record(client, seed, options).map(|record| GraphSeedJson { record })
+            })
             .transpose()?,
         variant_group_key: result.variant_group_key.clone(),
         variants: result
@@ -148,7 +156,7 @@ pub(super) fn graph_variants_data(
             .iter()
             .map(|record| {
                 Ok(GraphVariantJson {
-                    record: record_json(record, options)?,
+                    record: project_record(client, record, options)?,
                     is_seed: result
                         .seed
                         .as_ref()
@@ -173,14 +181,15 @@ pub(super) fn graph_variants_data(
                         .to_string(),
                 })
             })
-            .collect::<Result<Vec<_>, atlas_record::RecordJsonError>>()?,
+            .collect::<Result<Vec<_>, atlas_app_model::AppError>>()?,
     })
 }
 
 pub(super) fn graph_remaster_data(
+    client: &impl AtlasClient,
     result: &RemasterLinksResult,
     detail: DetailLevel,
-) -> Result<GraphRemasterData, atlas_record::RecordJsonError> {
+) -> Result<GraphRemasterData, atlas_app_model::AppError> {
     let options = RecordJsonOptions {
         detail,
         include_source_json: false,
@@ -188,7 +197,7 @@ pub(super) fn graph_remaster_data(
     Ok(GraphRemasterData {
         detail: detail.to_string(),
         seed: GraphSeedJson {
-            record: record_json(&result.seed, options)?,
+            record: project_record(client, &result.seed, options)?,
         },
         links: result
             .links
@@ -202,28 +211,29 @@ pub(super) fn graph_remaster_data(
                     };
                 Ok(GraphRemasterLinkJson {
                     direction,
-                    remaster: record_json(&link.remaster_record, options)?,
-                    legacy: record_json(&link.legacy_record, options)?,
+                    remaster: project_record(client, &link.remaster_record, options)?,
+                    legacy: project_record(client, &link.legacy_record, options)?,
                     source: GraphRemasterSourceJson {
                         kind: link.source.as_str().to_string(),
                         reference: link.source_ref.clone(),
                     },
                 })
             })
-            .collect::<Result<Vec<_>, atlas_record::RecordJsonError>>()?,
+            .collect::<Result<Vec<_>, atlas_app_model::AppError>>()?,
     })
 }
 
 fn graph_section_json(
+    client: &impl AtlasClient,
     section: &GraphContextSection,
     options: RecordJsonOptions,
-) -> Result<GraphSectionJson, atlas_record::RecordJsonError> {
+) -> Result<GraphSectionJson, atlas_app_model::AppError> {
     Ok(GraphSectionJson {
         records: section
             .records
             .iter()
-            .map(|record| record_json(record, options))
-            .collect::<Result<Vec<_>, atlas_record::RecordJsonError>>()?,
+            .map(|record| project_record(client, record, options))
+            .collect::<Result<Vec<_>, atlas_app_model::AppError>>()?,
         edges: section.edges.iter().map(graph_edge_json).collect(),
         truncated: section.truncated,
         total_records: section.total_records,

@@ -12,12 +12,13 @@ use atlas_app_model::{
     SavedListItemView, SavedListSummaryView, UpdateSavedListRequest,
 };
 use atlas_domain::{DetailLevel, RecordKey};
-use atlas_record::{RecordJson, RecordJsonOptions, record_json};
+use atlas_record::{RecordJson, RecordJsonOptions};
 use serde::Serialize;
 
 use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
+use crate::commands::record::context::project_record;
 use crate::output::{write_json_data, write_json_error, write_json_error_data};
 
 pub(crate) mod args;
@@ -522,7 +523,7 @@ fn list_show_data(
         items: view
             .items
             .into_iter()
-            .map(|item| list_show_item(item, &records_by_key, detail))
+            .map(|item| list_show_item(client, item, &records_by_key, detail))
             .collect::<Result<Vec<_>, AppError>>()?,
     })
 }
@@ -584,16 +585,14 @@ fn hydrate_records(
 }
 
 fn list_show_item(
+    client: &impl AtlasClient,
     item: SavedListItemView,
     records_by_key: &BTreeMap<String, atlas_record::RetrievedRecord>,
     detail: DetailLevel,
 ) -> Result<ListShowItem, AppError> {
     let record = records_by_key
         .get(&item.record_key)
-        .map(|record| {
-            record_json(record, record_json_options(detail))
-                .map_err(|error| AppError::new(AppErrorCode::QueryFailed, error.to_string()))
-        })
+        .map(|record| project_record(client, record, record_json_options(detail)))
         .transpose()?;
     Ok(ListShowItem {
         record_key: item.record_key,
@@ -1011,8 +1010,8 @@ fn legacy_ambiguous_record_refs(
                 .as_deref()
                 .and_then(|record_key| records_by_key.get(record_key))
                 .map(|record| {
-                    record_json(record, record_json_options(DetailLevel::Standard))
-                        .map_err(|error| error.to_string())
+                    project_record(client, record, record_json_options(DetailLevel::Standard))
+                        .map_err(|error| error.message)
                         .and_then(|record| {
                             serde_json::to_value(record).map_err(|error| error.to_string())
                         })

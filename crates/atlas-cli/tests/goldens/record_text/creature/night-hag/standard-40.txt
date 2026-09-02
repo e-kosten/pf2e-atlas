@@ -1,0 +1,1323 @@
+Night Hag
+  Type: creature · Pack: Bestiary 1
+  Key:
+       pathfinder-bestiary:WQy7HBUcgDLsfVJd
+
+Classification
+  Level: 9
+  Rarity: common
+  Traits: evil, fiend, hag, humanoid,
+          unholy
+  Size: med
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 28;
+  HP: current 170; maximum 170;
+      temporary 0;
+  Fortitude: 19;
+  Reflex: 17;
+  Will: 18;
+  All saves: +2 status to all saves vs.
+             magic, -2 to all saves (if
+             heartstone is lost)
+  Immunities: sleep
+  Resistances: mental 10
+  Weaknesses: cold-iron 10
+
+Awareness and abilities
+  Perception: +18; darkvision
+  Initiative: perception
+  Languages: aklo, chthonian, common,
+             diabolic, empyrean
+  Abilities: Str +5, Dex +4, Con +6, Int
+             +4, Wis +5, Cha +3
+  Arcana: +18
+  Deception: +18
+  Diplomacy: +18
+  Intimidation: +14
+  Occultism: +20
+  Religion: +20
+
+Movement
+  land: 25 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Jaws — [1 action]
+    Traits: magical, unarmed, unholy
+    Attack effects: abyssal-plague
+    Attack: attack +20
+    Damage: 1d6 spirit
+    Damage: 2d8+8 piercing
+  - Claw — [1 action]
+    Traits: agile, magical, unarmed,
+            unholy
+    Attack: attack +20
+    Damage: 2d10+8 slashing
+    Damage: 1d6 spirit
+
+Activities
+  - Coven — passive
+    Traits: mental, occult
+    Category: interaction
+  - Nightmare Rider — passive
+    Category: interaction
+  - Constant Spells — passive
+    Category: interaction
+  - +2 Status to All Saves vs. Magic —
+    passive
+    Category: defensive
+  - -2 to All Saves (If Heartstone is
+    Lost) — passive
+    Category: defensive
+  - Abyssal Plague — passive
+    Traits: disease
+    Category: offensive
+  - Change Shape — [1 action]
+    Traits: concentrate, occult,
+            polymorph
+    Category: offensive
+  - Dream Haunting — passive
+    Traits: mental, occult
+    Category: offensive
+  - Spell Ambush — passive
+    Category: offensive
+
+Spellcasting
+  - Occult Innate Spells — innate ·
+    occult
+    Attack: +20
+    DC: 28
+    Rank 9
+      - Bind Soul (At Will) (Heartstone)
+        — [2 actions]
+        Traits: concentrate, evil,
+                manipulate
+        Cost: black sapphire with a gp
+              value of at least the
+              target's level × 100
+        Target: 1 creature that died
+                within the last minute
+        Range: 30 feet
+        Time: 2
+      - Ethereal Jaunt (At Will)
+        (Heartstone) — [2 actions]
+        Traits: concentrate, manipulate,
+                teleportation
+        Time: 2
+    Rank 8
+      - Dream Council — 10 minutes
+        Traits: concentrate, illusion,
+                manipulate, mental,
+                sleep
+        Target: up to 12 creatures you
+                know by name and have
+                met in person
+        Range: planetary
+        Time: 10 minutes
+    Rank 5
+      - Shadow Blast (Heartstone) — [2
+        actions]
+        Traits: concentrate, manipulate,
+                shadow
+        Range: varies
+        Time: 2
+      - Nightmare — 10 minutes
+        Traits: concentrate, illusion,
+                manipulate, mental
+        Target: 1 creature you know by
+                name
+        Range: planetary
+        Time: 10 minutes
+    Rank 3
+      - Dream Message (At Will) — 10
+        minutes
+        Traits: concentrate, manipulate,
+                mental
+        Target: 1 creature you know by
+                name and have met in
+                person
+        Range: planetary
+        Time: 10 minutes
+      - Magic Missile (At Will) — 1 to
+        3
+        Traits: concentrate, force,
+                manipulate
+        Target: 1 creature
+        Range: 120 feet
+        Time: 1 to 3
+    Damage: 1d4+1 force damage
+    Rank 2
+      - Invisibility (At Will) — [2
+        actions]
+        Traits: illusion, manipulate
+        Target: 1 creature
+        Range: touch
+        Time: 2
+      - Detect Alignment (Constant) (All
+        Alignments) — [2 actions]
+        Traits: concentrate, detection,
+                manipulate
+        Time: 2
+    Rank 1
+      - Detect Magic (Constant) (3rd)
+        — [2 actions]
+        Traits: cantrip, concentrate,
+                detection, manipulate
+        Time: 2
+      - Ray of Enfeeblement (At Will)
+        — [2 actions]
+        Traits: attack, concentrate,
+                manipulate
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - Sleep (At Will) — [2 actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, mental,
+                sleep
+        Range: 30 feet
+        Time: 2
+  - Coven Spells — innate · occult
+    Attack: +20
+    DC: 28
+    Rank 8
+      - Baleful Polymorph — [2
+        actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, polymorph
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+    Rank 6
+      - Dominate — [2 actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, mental
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - Scrying — 10 minutes
+        Traits: concentrate, manipulate,
+                scrying
+        Target: 1 creature
+        Range: planetary
+        Time: 10 minutes
+      - Spellwrack — [2 actions]
+        Traits: concentrate, curse,
+                force, manipulate
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+    Rank 5
+      - Illusory Scene — 10 minutes
+        Traits: auditory, concentrate,
+                illusion, manipulate,
+                olfactory, visual
+        Range: 500 feet
+        Time: 10 minutes
+      - Prying Eye — 1 minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: see text
+        Time: 1 minute
+      - Clairvoyance — 1 minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: 500 feet
+        Time: 1 minute
+      - Talking Corpse — 10 minutes
+        Traits: concentrate, manipulate
+        Target: 1 corpse
+        Range: touch
+        Time: 10 minutes
+      - Clairaudience — 1 minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: 500 feet
+        Time: 1 minute
+      - Dream Message — 10 minutes
+        Traits: concentrate, manipulate,
+                mental
+        Target: 1 creature you know by
+                name and have met in
+                person
+        Range: planetary
+        Time: 10 minutes
+      - Augury — 10 minutes
+        Traits: concentrate, manipulate,
+                prediction
+        Time: 10 minutes
+      - Charm — [2 actions]
+        Traits: concentrate, emotion,
+                incapacitation,
+                manipulate, mental
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - Illusory Disguise — [2
+        actions]
+        Traits: concentrate, illusion,
+                manipulate, visual
+        Time: 2
+    Rank 4
+      - Nightmare — 10 minutes
+        Traits: concentrate, illusion,
+                manipulate, mental
+        Target: 1 creature you know by
+                name
+        Range: planetary
+        Time: 10 minutes
+  - Control Weather — 1 day
+    Time: 1 day
+
+Rituals
+  Actor DC: 23
+
+Equipment
+  - Heartstone
+    Traits: invested, occult
+    Level: 9
+    Usage: worn
+    Quantity: 1
+
+Data availability
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:DxJcguaM5VY5ipoX
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:DxJcguaM5VY5ipoX
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:DxJcguaM5VY5ipoX
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:DxJcguaM5VY5ipoX
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:DxJcguaM5VY5ipoX
+    Source value:
+                  {"key":"FlatModifier","predicate":["item:magical"],"selector":"saving-throw","type":"status","value":2}
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:M2JcdJZTsdKY31Ed
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:M2JcdJZTsdKY31Ed
+    Source value: "Pathfinder Bestiary"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:M2JcdJZTsdKY31Ed
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:M2JcdJZTsdKY31Ed
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:SZafYEjKmu9zC1XL
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:SZafYEjKmu9zC1XL
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:SZafYEjKmu9zC1XL
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:SZafYEjKmu9zC1XL
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:SZafYEjKmu9zC1XL
+    Source value:
+                  {"key":"Note","predicate":["target:condition:off-guard"],"selector":"spell-attack","text":"{item|system.description.value}","title":"{item|name}"}
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:V6Y4yCrWba6tmSL9
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:V6Y4yCrWba6tmSL9
+    Source value: "Pathfinder Bestiary"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:V6Y4yCrWba6tmSL9
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:aWM3N85sMlll5djQ
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:aWM3N85sMlll5djQ
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:aWM3N85sMlll5djQ
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:hvdEekJwNvI4RMw1
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:hvdEekJwNvI4RMw1
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:hvdEekJwNvI4RMw1
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:hvdEekJwNvI4RMw1
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:hvdEekJwNvI4RMw1
+    Source value:
+                  {"domain":"saving-throw","key":"RollOption","option":"lost-heartstone","toggleable":true}
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:hvdEekJwNvI4RMw1
+    Source value:
+                  {"key":"FlatModifier","predicate":["lost-heartstone"],"selector":"saving-throw","value":-2}
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:iL66w8THCpYdsALT
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:iL66w8THCpYdsALT
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:iL66w8THCpYdsALT
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:iL66w8THCpYdsALT
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:vskdCA5sskgL7g3S
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:vskdCA5sskgL7g3S
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:vskdCA5sskgL7g3S
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:wya8y6adOGTfI5jX
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:wya8y6adOGTfI5jX
+    Source value: "Pathfinder Bestiary"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:action:wya8y6adOGTfI5jX
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: "Pathfinder Bestiary"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: "med"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: "worn"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: 600
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: false
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: null
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: null
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: null
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value: null
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:equipment:DzTZXklKvlZmkvFX
+    Source value:
+                  {"key":"FlatModifier","selector":"saving-throw","type":"item","value":2}
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:3au1ICKApnTHdsxH
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:3au1ICKApnTHdsxH
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:3au1ICKApnTHdsxH
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:3p2JdQQKOnQPCHS8
+    Source value: "ORC"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:3p2JdQQKOnQPCHS8
+    Source value: "Pathfinder Player
+                  Core"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:3p2JdQQKOnQPCHS8
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:4ujaJEFOHxbaPKHG
+    Source value: "30 feet"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:4ujaJEFOHxbaPKHG
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:4ujaJEFOHxbaPKHG
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:4ujaJEFOHxbaPKHG
+    Source value: "fixed"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:4ujaJEFOHxbaPKHG
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:4ujaJEFOHxbaPKHG
+    Source value: "you and up to five
+                  additional willing
+                  creatures"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:6t0gl9hzgPA6IfrY
+    Source value: "10 creatures"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:6t0gl9hzgPA6IfrY
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:6t0gl9hzgPA6IfrY
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:6t0gl9hzgPA6IfrY
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:6t0gl9hzgPA6IfrY
+    Source value: "fixed"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:75VdwAPtU6SHcqzX
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:75VdwAPtU6SHcqzX
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:75VdwAPtU6SHcqzX
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:7jzwcYFJerQ5t5ms
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:7jzwcYFJerQ5t5ms
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:7jzwcYFJerQ5t5ms
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD
+    Source value: "10 creatures you know
+                  by name and have met
+                  in person"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:8BweqVFR5GkGzySD
+    Source value: "fixed"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:BDM5m1bPFu2vbWuH
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:BDM5m1bPFu2vbWuH
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:BDM5m1bPFu2vbWuH
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:Eda5fh47F48g5dZ4
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:Eda5fh47F48g5dZ4
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:Eda5fh47F48g5dZ4
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:HGlDq5O3l3Hjp1yw
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:HGlDq5O3l3Hjp1yw
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:HGlDq5O3l3Hjp1yw
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:IlnHqtnS1QltdeKo
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:IlnHqtnS1QltdeKo
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:IlnHqtnS1QltdeKo
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:L2JfDRaRc4Ry15y6
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:L2JfDRaRc4Ry15y6
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:L2JfDRaRc4Ry15y6
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:L2JfDRaRc4Ry15y6
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:L2JfDRaRc4Ry15y6
+    Source value: []
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:SY1G16Ui8bYouUtr
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:SY1G16Ui8bYouUtr
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:SY1G16Ui8bYouUtr
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:djz4joarJVDQyibC
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:djz4joarJVDQyibC
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:djz4joarJVDQyibC
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY
+    Source value: "10 creatures you know
+                  by name and have met
+                  in person"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ej1xGHaP4SaZnpAY
+    Source value: "fixed"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:gJXsZM1X2ClLUV54
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:gJXsZM1X2ClLUV54
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:gJXsZM1X2ClLUV54
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:hWirfQyQp8busYO9
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:hWirfQyQp8busYO9
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:hWirfQyQp8busYO9
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:iO5Xw9g7tRODM1vg
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:iO5Xw9g7tRODM1vg
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:iO5Xw9g7tRODM1vg
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:iy7tvCfN1zywa2hY
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:iy7tvCfN1zywa2hY
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:iy7tvCfN1zywa2hY
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:kCJQ7j3xLvaUjQBi
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:kCJQ7j3xLvaUjQBi
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:kCJQ7j3xLvaUjQBi
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:m0zG0H17EryWyKWQ
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:m0zG0H17EryWyKWQ
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:m0zG0H17EryWyKWQ
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:mcr2V792FAew1VjO
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:mcr2V792FAew1VjO
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:mcr2V792FAew1VjO
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ohUNKfq04l5PrGdm
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ohUNKfq04l5PrGdm
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:ohUNKfq04l5PrGdm
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:qnLHokHYBnaoGH4p
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:qnLHokHYBnaoGH4p
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:qnLHokHYBnaoGH4p
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:uxpBDVyA3sf3skst
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:uxpBDVyA3sf3skst
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:uxpBDVyA3sf3skst
+    Source value: "uncommon"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:wBpy87CyaW0TfB5g
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:wBpy87CyaW0TfB5g
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:wBpy87CyaW0TfB5g
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:yZU1zXt3Amwj8nQ6
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:yZU1zXt3Amwj8nQ6
+    Source value: "Pathfinder Core
+                  Rulebook"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spell:yZU1zXt3Amwj8nQ6
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:DOoR2SsbZF96IxlF
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:DOoR2SsbZF96IxlF
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:DOoR2SsbZF96IxlF
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:DOoR2SsbZF96IxlF
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:DOoR2SsbZF96IxlF
+    Source value: false
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:DOoR2SsbZF96IxlF
+    Source value: false
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:qg3r6OKHjX8qHiNS
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:qg3r6OKHjX8qHiNS
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:qg3r6OKHjX8qHiNS
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:qg3r6OKHjX8qHiNS
+    Source value: 0
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:qg3r6OKHjX8qHiNS
+    Source value: false
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:spellcasting-entry:qg3r6OKHjX8qHiNS
+    Source value: false
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:3cGYB1usBk6SXYto
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:3cGYB1usBk6SXYto
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:3cGYB1usBk6SXYto
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:3cGYB1usBk6SXYto
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:3cGYB1usBk6SXYto
+    Source value: null
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:tV18raweChPRFzPo
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:tV18raweChPRFzPo
+    Source value: ""
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:tV18raweChPRFzPo
+    Source value: "OGL"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:tV18raweChPRFzPo
+    Source value: "common"
+    The source supplied an unsupported
+    mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:pathfinder-bestiary:WQy7HBUcgDLsfVJd:strike:tV18raweChPRFzPo
+    Source value: null
+    The source supplied an unsupported
+    mechanic.

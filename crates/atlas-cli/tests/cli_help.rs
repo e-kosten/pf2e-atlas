@@ -49,6 +49,11 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(record_get_help.contains("equipment-srd:s1vB3HdXjMigYAnY"));
     assert!(record_get_help.contains("Canonical record keys"));
 
+    let record_provenance_help = help_output(&["record", "provenance"])?;
+    assert!(record_provenance_help.contains("atlas record provenance bestiary:Night-Hag"));
+    assert!(record_provenance_help.contains("does not resolve names"));
+    assert!(record_provenance_help.contains("--json"));
+
     let record_resolve_help = help_output(&["record", "resolve"])?;
     assert!(record_resolve_help.contains("atlas record resolve \"Treat Wounds\""));
     assert!(record_resolve_help.contains("--filter-json"));

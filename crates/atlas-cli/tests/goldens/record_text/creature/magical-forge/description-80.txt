@@ -1,0 +1,32 @@
+Magical Forge
+  Type: creature · Pack: Triumph of the Tusk
+  Key: triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n
+
+Public Notes
+  This huge forge or oven is animated to protect a workspace or kitchen, travel
+  alongside its owner, or both.
+  ---
+  Many animated objects have useful functions but become dangers when
+  uncontrolled.
+
+Summary
+  Weak animated furnace
+
+Construct Armor (Hardness 8)
+  Like normal objects, an animated furnace has Hardness. This Hardness reduces
+  any damage the furnace takes by an amount equal to the Hardness. Once an
+  animated furnace is reduced to fewer than half its Hit Points, or immediately
+  upon being damaged by a critical hit, its construct armor breaks, removing the
+  Hardness and reducing its Armor Class to 24.
+
+Fan the Flames
+  The animated furnace opens its door and fans its flames in a cone that deals
+  5d6[fire] damage (Reflex DC 28 save).
+
+Swallow Whole
+  Large, (2d8+9)[fire], Rupture 15
+  ---
+  PF2E.NPC.Abilities.Glossary.SwallowWhole
+
+Improved Grab
+  PF2E.NPC.Abilities.Glossary.ImprovedGrab
