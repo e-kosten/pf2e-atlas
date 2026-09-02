@@ -4,6 +4,53 @@ source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
 source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
 registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
 entries:
+  - entry_id: "actor-npc-top-level-ability-str-mod@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: &actor_npc_selector
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "Actor"
+      type_discriminator: "npc"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.system.abilities.str.mod"
+    record_count: 5492
+    occurrence_count: 5492
+  - entry_id: "actor-npc-top-level-ability-dex-mod@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: *actor_npc_selector
+    normalized_path: "$.system.abilities.dex.mod"
+    record_count: 5492
+    occurrence_count: 5492
+  - entry_id: "actor-npc-top-level-ability-con-mod@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: *actor_npc_selector
+    normalized_path: "$.system.abilities.con.mod"
+    record_count: 5492
+    occurrence_count: 5492
+  - entry_id: "actor-npc-top-level-ability-int-mod@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: *actor_npc_selector
+    normalized_path: "$.system.abilities.int.mod"
+    record_count: 5492
+    occurrence_count: 5492
+  - entry_id: "actor-npc-top-level-ability-wis-mod@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: *actor_npc_selector
+    normalized_path: "$.system.abilities.wis.mod"
+    record_count: 5492
+    occurrence_count: 5492
+  - entry_id: "actor-npc-top-level-ability-cha-mod@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: *actor_npc_selector
+    normalized_path: "$.system.abilities.cha.mod"
+    record_count: 5492
+    occurrence_count: 5492
+  - entry_id: "actor-npc-top-level-skills-base@4cbdaa37"
+    type_id: "actor--npc--top-level--root--root--root"
+    selector: *actor_npc_selector
+    normalized_path: "$.system.skills.*.base"
+    record_count: 5492
+    occurrence_count: 22296
   - entry_id: "item-action-top-level-name@4cbdaa37"
     type_id: "item--action--top-level--root--root--root"
     selector:

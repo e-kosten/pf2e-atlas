@@ -806,7 +806,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 22c74832840c1016ac81f79599ee29768a483b9dd6bb03503503b15958e41e32
+      inventory_sha256: 466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf
       entry_id: item-action-top-level-name@4cbdaa37
       record_count: 1169
       occurrence_count: 1169

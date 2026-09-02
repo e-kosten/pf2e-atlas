@@ -35,5 +35,8 @@ success flag. `source_prevalence` is full-pin metadata bound to the source and
 registry identities; `fixture_prevalence` independently governs the focused
 receipt set. Focused receipts reconcile fixture identity, collection identity,
 authored order, and unit multiplicity without claiming to enumerate the corpus.
-Creature coverage declarations and A2 fixtures are intentionally not part of
-this A1 contract-engine slice.
+`actor-npc.yaml` is the A2 adversarial pilot. It binds the six exact authored
+ability modifier leaves and the true skills map's exact `base` members to
+pinned source excerpts. Its promoted declarations intentionally fail on the
+current parser/canonical/persistence/public-owner mismatches; B1 owns changing
+those failures to passing product values after independent A1+A2 review.

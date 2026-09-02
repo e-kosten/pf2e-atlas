@@ -1,0 +1,28 @@
+{
+  "_id": "B65InLN9TZjlascU",
+  "name": "Inkdrop",
+  "type": "npc",
+  "system": {
+    "abilities": {
+      "cha": { "mod": -5 },
+      "con": { "mod": 2 },
+      "dex": { "mod": -3 },
+      "int": { "mod": -5 },
+      "str": { "mod": 0 },
+      "wis": { "mod": null }
+    },
+    "skills": {
+      "athletics": { "base": 2 },
+      "stealth": {
+        "base": 3,
+        "special": [
+          {
+            "base": 5,
+            "label": "in dim light or darkness",
+            "predicate": [{ "or": ["dim-light", "darkness"] }]
+          }
+        ]
+      }
+    }
+  }
+}

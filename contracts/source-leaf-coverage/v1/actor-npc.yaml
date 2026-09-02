@@ -1,0 +1,230 @@
+contract_version: "atlas-source-leaf-coverage/v1"
+type_id: "actor--npc--top-level--root--root--root"
+source_pin:
+  upstream_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+  source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+selector:
+  source_contract_version: "pf2e-serialized-source/v1"
+  document_class: "Actor"
+  type_discriminator: "npc"
+  role: "top_level"
+  parent_context: {}
+leaves:
+  - normalized_path: "$.system.abilities.str.mod"
+    leaf_kind: "scalar"
+    expected_shapes: ["number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-ability-str-mod@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 5492
+    fixture_prevalence: { record_count: 3, occurrence_count: 3 }
+    disposition: "promoted"
+    reader:
+      reader_id: "source::dto::NpcLegacyAbilitySource::mod"
+      parity_case_ids: ["night-hag-mod-only", "giant-rat-mod-only-negative", "karumzek-divergent-mod-value"]
+    fixtures:
+      - { case_id: "night-hag-mod-only", record_key: "pathfinder-bestiary:WQy7HBUcgDLsfVJd", source_path: "packs/pathfinder-bestiary/night-hag.json", source_file_digest: "sha256:9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8", excerpt_digest: "sha256:393888a0626eda2c050251ac008405ff96a793135cba038aacb83b5d44480256", provenance: "pinned_source" }
+      - { case_id: "giant-rat-mod-only-negative", record_key: "pathfinder-monster-core:iIJPJcDT8wlJ8z5M", source_path: "packs/pathfinder-monster-core/giant-rat.json", source_file_digest: "sha256:f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f", excerpt_digest: "sha256:fd53bab318359b32e567363a72b8984118882ab6aebafb89e36bf308613c7245", provenance: "pinned_source" }
+      - { case_id: "karumzek-divergent-mod-value", record_key: "curtain-call-bestiary:BgPshRvqaBvy4ulr", source_path: "packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json", source_file_digest: "sha256:4f670136bbc720c3ad9f75f67b55d42c1e89eb027b6739ca2c3d37392ee030c0", excerpt_digest: "sha256:90211361583ce185b51a6b0c8b7509291ae9fea0bd453a11ad3c47843ea9facb", provenance: "pinned_source" }
+    final_owners:
+      - { stage: "source_dto", destination: "NpcLegacyAbilitySource.mod" }
+      - { stage: "canonical", destination: "CreatureRecord.legacy_abilities.strength" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].legacy_abilities.strength" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.legacy_abilities.strength" }
+    surfaces: &ability_surfaces
+      artifact: { disposition: "promoted", rationale: "the canonical creature modifier must persist and hydrate" }
+      search: { disposition: "deferred", rationale: "B3 owns the minimum search profile" }
+      cli: { disposition: "deferred", rationale: "B3 owns the minimum public profile" }
+      app: { disposition: "deferred", rationale: "B3 owns the minimum public profile" }
+      ui: { disposition: "deferred", rationale: "B5 owns rendering after backend repair" }
+      runtime: { disposition: "not_applicable", rationale: "A2 proves static record fidelity only" }
+    rationale: "A2 adversarial pilot requires authored strength.mod, never sibling value or a transient metric"
+    owner: "atlas-ingest::source::dto::creature_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
+
+  - normalized_path: "$.system.abilities.dex.mod"
+    leaf_kind: "scalar"
+    expected_shapes: ["number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-ability-dex-mod@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 5492
+    fixture_prevalence: { record_count: 3, occurrence_count: 3 }
+    disposition: "promoted"
+    reader: { reader_id: "source::dto::NpcLegacyAbilitySource::mod", parity_case_ids: ["night-hag-mod-only", "giant-rat-mod-only-negative", "karumzek-divergent-mod-value"] }
+    fixtures: &core_ability_fixtures
+      - { case_id: "night-hag-mod-only", record_key: "pathfinder-bestiary:WQy7HBUcgDLsfVJd", source_path: "packs/pathfinder-bestiary/night-hag.json", source_file_digest: "sha256:9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8", excerpt_digest: "sha256:393888a0626eda2c050251ac008405ff96a793135cba038aacb83b5d44480256", provenance: "pinned_source" }
+      - { case_id: "giant-rat-mod-only-negative", record_key: "pathfinder-monster-core:iIJPJcDT8wlJ8z5M", source_path: "packs/pathfinder-monster-core/giant-rat.json", source_file_digest: "sha256:f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f", excerpt_digest: "sha256:fd53bab318359b32e567363a72b8984118882ab6aebafb89e36bf308613c7245", provenance: "pinned_source" }
+      - { case_id: "karumzek-divergent-mod-value", record_key: "curtain-call-bestiary:BgPshRvqaBvy4ulr", source_path: "packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json", source_file_digest: "sha256:4f670136bbc720c3ad9f75f67b55d42c1e89eb027b6739ca2c3d37392ee030c0", excerpt_digest: "sha256:90211361583ce185b51a6b0c8b7509291ae9fea0bd453a11ad3c47843ea9facb", provenance: "pinned_source" }
+    final_owners:
+      - { stage: "source_dto", destination: "NpcLegacyAbilitySource.mod" }
+      - { stage: "canonical", destination: "CreatureRecord.legacy_abilities.dexterity" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].legacy_abilities.dexterity" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.legacy_abilities.dexterity" }
+    surfaces: *ability_surfaces
+    rationale: "A2 adversarial pilot requires authored dexterity.mod, including exact negative counterexamples"
+    owner: "atlas-ingest::source::dto::creature_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
+
+  - normalized_path: "$.system.abilities.con.mod"
+    leaf_kind: "scalar"
+    expected_shapes: ["number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-ability-con-mod@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 5492
+    fixture_prevalence: { record_count: 3, occurrence_count: 3 }
+    disposition: "promoted"
+    reader: { reader_id: "source::dto::NpcLegacyAbilitySource::mod", parity_case_ids: ["night-hag-mod-only", "giant-rat-mod-only-negative", "karumzek-divergent-mod-value"] }
+    fixtures: *core_ability_fixtures
+    final_owners:
+      - { stage: "source_dto", destination: "NpcLegacyAbilitySource.mod" }
+      - { stage: "canonical", destination: "CreatureRecord.legacy_abilities.constitution" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].legacy_abilities.constitution" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.legacy_abilities.constitution" }
+    surfaces: *ability_surfaces
+    rationale: "A2 adversarial pilot requires authored constitution.mod rather than any score-shaped sibling"
+    owner: "atlas-ingest::source::dto::creature_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
+
+  - normalized_path: "$.system.abilities.int.mod"
+    leaf_kind: "scalar"
+    expected_shapes: ["number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-ability-int-mod@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 5492
+    fixture_prevalence: { record_count: 3, occurrence_count: 3 }
+    disposition: "promoted"
+    reader: { reader_id: "source::dto::NpcLegacyAbilitySource::mod", parity_case_ids: ["night-hag-mod-only", "giant-rat-mod-only-negative", "karumzek-divergent-mod-value"] }
+    fixtures: *core_ability_fixtures
+    final_owners:
+      - { stage: "source_dto", destination: "NpcLegacyAbilitySource.mod" }
+      - { stage: "canonical", destination: "CreatureRecord.legacy_abilities.intelligence" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].legacy_abilities.intelligence" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.legacy_abilities.intelligence" }
+    surfaces: *ability_surfaces
+    rationale: "A2 adversarial pilot requires authored intelligence.mod and rejects score-shaped value"
+    owner: "atlas-ingest::source::dto::creature_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
+
+  - normalized_path: "$.system.abilities.wis.mod"
+    leaf_kind: "scalar"
+    expected_shapes: ["null", "number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-ability-wis-mod@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 5492
+    fixture_prevalence: { record_count: 4, occurrence_count: 4 }
+    disposition: "promoted"
+    reader: { reader_id: "source::dto::NpcLegacyAbilitySource::mod", parity_case_ids: ["night-hag-mod-only", "giant-rat-mod-only-negative", "karumzek-divergent-mod-value", "inkdrop-explicit-null-wis-mod"] }
+    fixtures:
+      - { case_id: "night-hag-mod-only", record_key: "pathfinder-bestiary:WQy7HBUcgDLsfVJd", source_path: "packs/pathfinder-bestiary/night-hag.json", source_file_digest: "sha256:9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8", excerpt_digest: "sha256:393888a0626eda2c050251ac008405ff96a793135cba038aacb83b5d44480256", provenance: "pinned_source" }
+      - { case_id: "giant-rat-mod-only-negative", record_key: "pathfinder-monster-core:iIJPJcDT8wlJ8z5M", source_path: "packs/pathfinder-monster-core/giant-rat.json", source_file_digest: "sha256:f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f", excerpt_digest: "sha256:fd53bab318359b32e567363a72b8984118882ab6aebafb89e36bf308613c7245", provenance: "pinned_source" }
+      - { case_id: "karumzek-divergent-mod-value", record_key: "curtain-call-bestiary:BgPshRvqaBvy4ulr", source_path: "packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json", source_file_digest: "sha256:4f670136bbc720c3ad9f75f67b55d42c1e89eb027b6739ca2c3d37392ee030c0", excerpt_digest: "sha256:90211361583ce185b51a6b0c8b7509291ae9fea0bd453a11ad3c47843ea9facb", provenance: "pinned_source" }
+      - { case_id: "inkdrop-explicit-null-wis-mod", record_key: "lost-omens-bestiary:B65InLN9TZjlascU", source_path: "packs/lost-omens-bestiary/tian-xia-world-guide/inkdrop.json", source_file_digest: "sha256:d862dc11638db2ac0ef9c0172e256cc78804db75ab215915915b619f07d89bae", excerpt_digest: "sha256:494090d798933b84380554d66aff86fa705a984c265c3cf5c16382be6f31111a", provenance: "pinned_source" }
+    final_owners:
+      - { stage: "source_dto", destination: "NpcLegacyAbilitySource.mod" }
+      - { stage: "canonical", destination: "CreatureRecord.legacy_abilities.wisdom" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].legacy_abilities.wisdom" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.legacy_abilities.wisdom" }
+    surfaces: *ability_surfaces
+    rationale: "A2 adversarial pilot preserves Inkdrop explicit null distinctly from missing"
+    owner: "atlas-ingest::source::dto::creature_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
+
+  - normalized_path: "$.system.abilities.cha.mod"
+    leaf_kind: "scalar"
+    expected_shapes: ["number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-ability-cha-mod@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 5492
+    fixture_prevalence: { record_count: 3, occurrence_count: 3 }
+    disposition: "promoted"
+    reader: { reader_id: "source::dto::NpcLegacyAbilitySource::mod", parity_case_ids: ["night-hag-mod-only", "giant-rat-mod-only-negative", "karumzek-divergent-mod-value"] }
+    fixtures: *core_ability_fixtures
+    final_owners:
+      - { stage: "source_dto", destination: "NpcLegacyAbilitySource.mod" }
+      - { stage: "canonical", destination: "CreatureRecord.legacy_abilities.charisma" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].legacy_abilities.charisma" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.legacy_abilities.charisma" }
+    surfaces: *ability_surfaces
+    rationale: "A2 adversarial pilot requires authored charisma.mod rather than a sibling score"
+    owner: "atlas-ingest::source::dto::creature_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
+
+  - normalized_path: "$.system.skills.*.base"
+    leaf_kind: "map_member"
+    expected_shapes: ["null", "number"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf"
+      entry_id: "actor-npc-top-level-skills-base@4cbdaa37"
+      record_count: 5492
+      occurrence_count: 22296
+    fixture_prevalence: { record_count: 2, occurrence_count: 2 }
+    map_key_policy: { kind: "typed_unsupported" }
+    disposition: "promoted"
+    reader:
+      reader_id: "source::dto::NpcCoreSource::skills"
+      parity_case_ids: ["gray-master-populated-intimidate", "chernasardo-malformed-null-shadow-skill"]
+    fixtures:
+      - { case_id: "gray-master-populated-intimidate", record_key: "curtain-call-bestiary:1eX4Csnv3psAsfLf", source_path: "packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json", source_file_digest: "sha256:497ccd4fe79f6579d7ac33bd9f48bc941bb10182ac82b54ed9c60179208e20f6", excerpt_digest: "sha256:5c856483c6f3eec58ce754dadfd91d23f98df1b57ea631a63ad6dc98e7bc9b19", provenance: "pinned_source" }
+      - { case_id: "chernasardo-malformed-null-shadow-skill", record_key: "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E", source_path: "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json", source_file_digest: "sha256:b655a11ea8928936ca586f13fd74a0f87c795454e618e8cb4d22d54a15bd566c", excerpt_digest: "sha256:5038083d837b95b133ca01538f814ba582b599bb788d5f6425ec25eb24b791bd", provenance: "pinned_source" }
+    final_owners:
+      - { stage: "source_dto", destination: "NpcCoreSource.skills[*].base" }
+      - { stage: "canonical", destination: "CreatureRecord.skills.by_authored_key[*]" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].skills.by_authored_key[*]" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.skills.by_authored_key[*]" }
+      - { stage: "public_surface", destination: "RecordPresentationJson.creature.skills.by_authored_key[*]" }
+    surfaces:
+      artifact: { disposition: "promoted", rationale: "an authored noncanonical key needs an owned persisted value or typed unavailable cause" }
+      search: { disposition: "deferred", rationale: "B3 owns the minimum search profile" }
+      cli: { disposition: "promoted", rationale: "a diagnostic alone cannot satisfy the public skill owner" }
+      app: { disposition: "deferred", rationale: "B3 owns the minimum public profile" }
+      ui: { disposition: "deferred", rationale: "B5 owns rendering after B1 selects the backend disposition" }
+      runtime: { disposition: "not_applicable", rationale: "A2 proves static record fidelity only" }
+    rationale: "A2 retains the exact authored shadow-skill key as populated unsupported evidence even when base is null; B1 selects alias versus typed unsupported representation"
+    owner: "atlas-ingest::source::npc_core"
+    acceptance_checkpoint: "independent A1+A2 technical review"
