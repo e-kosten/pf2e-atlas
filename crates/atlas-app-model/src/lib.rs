@@ -146,6 +146,7 @@ mod tests {
             "awareness?: CreatureSurfaceAwarenessView",
             "abilities?: CreatureSurfaceAbilitiesView",
             "skills?: Array<CreatureSurfaceSkillView>",
+            "unmodeled_skills?: Array<CreatureSurfaceUnmodeledSkillView>",
             "movement?: Array<CreatureSurfaceMovementView>",
             "rituals?: CreatureSurfaceRitualsView",
             "equipment?: Array<CreatureSurfaceEquipmentView>",
@@ -177,6 +178,7 @@ mod tests {
             .get("CreatureSurfaceActivityView.ts")
             .expect("activity binding should exist");
         assert!(activity.contains("content?: Array<CreatureSurfaceContentView>"));
+        assert!(activity.contains("provenance: CreatureSurfaceOccurrenceProvenanceView"));
         for field in [
             "attack_effects?: Array<string>",
             "category?: string",
@@ -193,10 +195,48 @@ mod tests {
             .expect("spell binding should exist");
         assert!(spell.contains("content?: Array<CreatureSurfaceContentView>"));
         assert!(spell.contains("context?: CreatureSurfaceSpellOccurrenceContextView"));
+        assert!(spell.contains("provenance: CreatureSurfaceOccurrenceProvenanceView"));
         let spellcasting = actual
             .get("CreatureSurfaceSpellcastingView.ts")
             .expect("spellcasting binding should exist");
         assert!(spellcasting.contains("slots?: Array<CreatureSurfaceSpellSlotView>"));
+        assert!(spellcasting.contains("provenance: CreatureSurfaceOccurrenceProvenanceView"));
+        for binding in [
+            "CreatureSurfaceEquipmentView.ts",
+            "CreatureSurfaceLoreView.ts",
+        ] {
+            assert!(
+                actual
+                    .get(binding)
+                    .unwrap_or_else(|| panic!("{binding} should exist"))
+                    .contains("provenance: CreatureSurfaceOccurrenceProvenanceView"),
+                "{binding} should reuse typed occurrence provenance"
+            );
+        }
+        let occurrence_provenance = actual
+            .get("CreatureSurfaceOccurrenceProvenanceView.ts")
+            .expect("occurrence provenance binding should exist");
+        for field in [
+            "identity_stability: CreatureSurfaceOccurrenceIdentityStabilityView",
+            "nested_source_id?: string",
+            "stable_source_locator?: string",
+            "source_locators?: Array<CreatureSurfaceSourceLocatorView>",
+        ] {
+            assert!(occurrence_provenance.contains(field), "missing `{field}`");
+        }
+        assert!(!occurrence_provenance.contains("source_path"));
+        let unmodeled = actual
+            .get("CreatureSurfaceUnmodeledSkillView.ts")
+            .expect("unmodeled skill binding should exist");
+        for field in [
+            "component_id: string",
+            "authored_order: number",
+            "source_entries?: Array<CreatureSurfaceSkillSourceEntryView>",
+            "source_item_id?: string",
+            "authored_key: string",
+        ] {
+            assert!(unmodeled.contains(field), "missing `{field}`");
+        }
         let content = actual
             .get("CreatureSurfaceContentView.ts")
             .expect("content binding should exist");
@@ -439,6 +479,7 @@ mod tests {
                     }),
                     abilities: None,
                     skills: Some(Vec::new()),
+                    unmodeled_skills: None,
                     movement: None,
                     resources: None,
                     rituals: None,
@@ -449,6 +490,7 @@ mod tests {
                     activities: Some(vec![CreatureSurfaceActivityView {
                         occurrence_id: "activity-bite".to_string(),
                         authored_order: 0,
+                        provenance: surface_occurrence_provenance(),
                         activity_type: CreatureSurfaceActivityTypeView::Strike,
                         label: "Bite".to_string(),
                         traits: Vec::new(),
@@ -554,6 +596,14 @@ mod tests {
                 field: CreatureSurfaceSourceFieldView::Skills,
             },
             unmodeled_skill: Some(CreatureSurfaceUnmodeledSkillView {
+                component_id: "skill-source-7".to_string(),
+                authored_order: 7,
+                source_entries: Some(vec![CreatureSurfaceSkillSourceEntryView {
+                    authored_order: 0,
+                    authored_key: authored_key.clone(),
+                    modifier: CreatureSurfaceIntegerPresenceView::Null,
+                }]),
+                source_item_id: None,
                 authored_key: authored_key.clone(),
                 base: CreatureSurfaceIntegerPresenceView::Null,
                 reason: CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey,
@@ -565,6 +615,15 @@ mod tests {
         assert_eq!(serialized["state"], "unsupported");
         assert_eq!(serialized["field"], "unmodeled_skill");
         assert_eq!(serialized["unmodeled_skill"]["authored_key"], authored_key);
+        assert_eq!(
+            serialized["unmodeled_skill"]["component_id"],
+            "skill-source-7"
+        );
+        assert_eq!(serialized["unmodeled_skill"]["authored_order"], 7);
+        assert_eq!(
+            serialized["unmodeled_skill"]["source_entries"][0]["authored_key"],
+            authored_key
+        );
         assert_eq!(serialized["unmodeled_skill"]["base"]["state"], "null");
         assert_eq!(
             serialized["unmodeled_skill"]["reason"],
@@ -611,6 +670,7 @@ mod tests {
         let activity = CreatureSurfaceActivityView {
             occurrence_id: "occurrence:plague".to_string(),
             authored_order: 4,
+            provenance: surface_occurrence_provenance(),
             activity_type: CreatureSurfaceActivityTypeView::Action,
             label: "Abyssal Plague".to_string(),
             traits: Vec::new(),
@@ -629,6 +689,7 @@ mod tests {
         let spell = CreatureSurfaceSpellView {
             occurrence_id: "occurrence:bind-soul".to_string(),
             authored_order: 5,
+            provenance: surface_occurrence_provenance(),
             label: "Bind Soul".to_string(),
             target_record_key: None,
             rank: Some(9),
@@ -985,6 +1046,19 @@ mod tests {
         CreatureSurfaceFactProvenanceView {
             owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
             field: CreatureSurfaceSourceFieldView::Defenses,
+        }
+    }
+
+    fn surface_occurrence_provenance() -> CreatureSurfaceOccurrenceProvenanceView {
+        CreatureSurfaceOccurrenceProvenanceView {
+            identity_stability:
+                CreatureSurfaceOccurrenceIdentityStabilityView::StableNestedSourceId,
+            nested_source_id: Some("source-item".to_string()),
+            stable_source_locator: Some("items/source-item".to_string()),
+            source_locators: Some(vec![CreatureSurfaceSourceLocatorView {
+                locator: "items/source-item".to_string(),
+                precedence: 0,
+            }]),
         }
     }
 

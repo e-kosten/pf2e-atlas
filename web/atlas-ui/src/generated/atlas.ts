@@ -36,6 +36,8 @@ export type { CreatureSurfaceIntegerPresenceView } from "../../../../crates/atla
 export type { CreatureSurfaceIwrView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceIwrView";
 export type { CreatureSurfaceLoreView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceLoreView";
 export type { CreatureSurfaceMovementView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceMovementView";
+export type { CreatureSurfaceOccurrenceIdentityStabilityView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceOccurrenceIdentityStabilityView";
+export type { CreatureSurfaceOccurrenceProvenanceView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceOccurrenceProvenanceView";
 export type { CreatureSurfaceProvenanceView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceProvenanceView";
 export type { CreatureSurfaceRelationshipKindView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceRelationshipKindView";
 export type { CreatureSurfaceRelationshipTargetView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceRelationshipTargetView";
@@ -55,6 +57,7 @@ export type { CreatureSurfaceSkillSourceEntryView } from "../../../../crates/atl
 export type { CreatureSurfaceSkillVariantView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSkillVariantView";
 export type { CreatureSurfaceSkillView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSkillView";
 export type { CreatureSurfaceSourceFieldView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSourceFieldView";
+export type { CreatureSurfaceSourceLocatorView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSourceLocatorView";
 export type { CreatureSurfaceSpellOccurrenceContextView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSpellOccurrenceContextView";
 export type { CreatureSurfaceSpellSlotView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSpellSlotView";
 export type { CreatureSurfaceSpellView } from "../../../../crates/atlas-app-model/bindings/CreatureSurfaceSpellView";

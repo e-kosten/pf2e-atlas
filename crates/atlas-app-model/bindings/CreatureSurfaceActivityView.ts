@@ -4,8 +4,9 @@ import type { CreatureSurfaceActivityTypeView } from "./CreatureSurfaceActivityT
 import type { CreatureSurfaceContentView } from "./CreatureSurfaceContentView";
 import type { CreatureSurfaceDamageView } from "./CreatureSurfaceDamageView";
 import type { CreatureSurfaceFrequencyView } from "./CreatureSurfaceFrequencyView";
+import type { CreatureSurfaceOccurrenceProvenanceView } from "./CreatureSurfaceOccurrenceProvenanceView";
 import type { CreatureSurfaceRollView } from "./CreatureSurfaceRollView";
 import type { CreatureSurfaceSelfEffectView } from "./CreatureSurfaceSelfEffectView";
 import type { CreatureSurfaceUsesView } from "./CreatureSurfaceUsesView";
 
-export type CreatureSurfaceActivityView = { occurrence_id: string, authored_order: number, activity_type: CreatureSurfaceActivityTypeView, label: string, traits?: Array<string>, action_cost?: CreatureSurfaceActionCostView, attack_effects?: Array<string>, category?: string, frequency?: CreatureSurfaceFrequencyView, requirements?: string, cost?: string, uses?: CreatureSurfaceUsesView, self_effect?: CreatureSurfaceSelfEffectView, rolls?: Array<CreatureSurfaceRollView>, damage?: Array<CreatureSurfaceDamageView>, content?: Array<CreatureSurfaceContentView>, };
+export type CreatureSurfaceActivityView = { occurrence_id: string, authored_order: number, provenance: CreatureSurfaceOccurrenceProvenanceView, activity_type: CreatureSurfaceActivityTypeView, label: string, traits?: Array<string>, action_cost?: CreatureSurfaceActionCostView, attack_effects?: Array<string>, category?: string, frequency?: CreatureSurfaceFrequencyView, requirements?: string, cost?: string, uses?: CreatureSurfaceUsesView, self_effect?: CreatureSurfaceSelfEffectView, rolls?: Array<CreatureSurfaceRollView>, damage?: Array<CreatureSurfaceDamageView>, content?: Array<CreatureSurfaceContentView>, };
