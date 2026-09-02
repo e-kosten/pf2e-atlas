@@ -86,7 +86,7 @@ case "${1:-}" in
         -- --exact
     PF2E_SOURCE_REPOSITORY="$source_repository" \
       cargo test -p atlas-ingest --lib \
-        source_coverage::receipt::tests::removing_exact_intimidate_alias_fails_canonical_hydrated_and_public_parity \
+        source_coverage::receipt::tests::exact_intimidate_alias_is_indispensable_through_real_sqlite \
         -- --exact
     ;;
   persistence)

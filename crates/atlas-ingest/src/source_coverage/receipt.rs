@@ -556,6 +556,10 @@ struct NpcPipeline {
     public_surface: RecordJson,
     #[cfg(test)]
     diagnostic_source_fields: Vec<String>,
+    #[cfg(test)]
+    persisted_record: atlas_record::AtlasRecord,
+    #[cfg(test)]
+    persisted_pack: atlas_index::IndexBuildPack,
 }
 
 fn run_npc_pipeline(
@@ -641,6 +645,20 @@ fn run_npc_pipeline(
     };
     let input = index_build_input(source_load);
     let post_projection = creature_body(input.canonical_bodies.first())?.clone();
+    #[cfg(test)]
+    let persisted_record = input.records.first().cloned().ok_or_else(|| {
+        error(
+            CoverageFailureCode::PostProjectionMismatch,
+            "NPC pipeline produced no post-IndexBuildInput record",
+        )
+    })?;
+    #[cfg(test)]
+    let persisted_pack = input.packs.first().cloned().ok_or_else(|| {
+        error(
+            CoverageFailureCode::PostProjectionMismatch,
+            "NPC pipeline produced no post-IndexBuildInput pack",
+        )
+    })?;
     let bodies = input
         .canonical_bodies
         .into_iter()
@@ -668,6 +686,10 @@ fn run_npc_pipeline(
         public_surface,
         #[cfg(test)]
         diagnostic_source_fields,
+        #[cfg(test)]
+        persisted_record,
+        #[cfg(test)]
+        persisted_pack,
     })
 }
 
@@ -1804,7 +1826,59 @@ mod tests {
     }
 
     #[test]
-    fn removing_exact_intimidate_alias_fails_canonical_hydrated_and_public_parity() {
+    fn exact_intimidate_alias_is_indispensable_through_real_sqlite() {
+        struct TemporaryArtifact(PathBuf);
+
+        impl TemporaryArtifact {
+            fn new() -> Self {
+                let nonce = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("system time after Unix epoch")
+                    .as_nanos();
+                let root = std::env::temp_dir().join(format!(
+                    "pf2e-atlas-b1-exact-alias-{}-{nonce}",
+                    std::process::id()
+                ));
+                std::fs::create_dir_all(&root).expect("create alias-only artifact root");
+                Self(root)
+            }
+
+            fn artifact(&self) -> PathBuf {
+                self.0.join("index.sqlite")
+            }
+
+            fn manifest(&self) -> PathBuf {
+                self.0.join("manifest.json")
+            }
+        }
+
+        impl Drop for TemporaryArtifact {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+
+        fn assert_exact_alias_skill(creature: &CreatureRecord) {
+            let skills = creature.skills.value.as_value().expect("creature skills");
+            let intimidation = skills
+                .iter()
+                .find(|skill| skill.kind == CreatureSkillKind::Intimidation)
+                .expect("exact intimidate alias must produce modeled Intimidation");
+            assert_eq!(intimidation.modifier, FactValue::Value(38));
+            assert_eq!(intimidation.source_entries.len(), 1);
+            assert_eq!(intimidation.source_entries[0].authored_key, "intimidate");
+            assert_eq!(
+                intimidation.source_entries[0].modifier,
+                FactValue::Value(38)
+            );
+            assert!(intimidation.unmodeled.as_value().is_none());
+            assert!(
+                skills
+                    .iter()
+                    .all(|skill| skill.kind != CreatureSkillKind::Unmodeled)
+            );
+        }
+
         let repository = require_pinned_repository();
         let ledger = parse_source_leaf_ledger(include_str!(
             "../../../../contracts/source-leaf-coverage/v1/actor-npc.yaml"
@@ -1817,105 +1891,119 @@ mod tests {
             &identity.selector,
         )
         .expect("Gray Master pinned fixture");
-        let skill_key = unsupported_skill_key(&fixture.raw).expect("exact raw alias");
-        assert_eq!(skill_key, "intimidate");
-        let source = shadow_skill_from_raw(&fixture.raw, &skill_key).expect("authored alias base");
-        let mut alias_removed = fixture.raw.clone();
-        assert!(
-            alias_removed
-                .pointer_mut("/system/skills")
-                .and_then(Value::as_object_mut)
-                .expect("Gray Master skills")
-                .remove("intimidate")
-                .is_some()
-        );
-        let source_mutation = SourcePresence::Missing;
-        assert!(matches!(source_mutation, SourcePresence::Missing));
-        let removed = run_npc_pipeline(&fixture, alias_removed).expect("alias-removed pipeline");
-        let observations = vec![
-            presence_stage(
-                FinalOwnerStage::SourceDto,
-                "NpcCoreSource.skills[*].base",
-                "source::dto::parse_npc_source",
-                dto_shadow_skill_value(&removed.source_dto, &skill_key),
-                &source_mutation,
-            ),
-            presence_stage(
-                FinalOwnerStage::Canonical,
-                "CreatureRecord.skills[*].source_entries[*].modifier",
-                "source::npc_core::convert_npc_core",
-                creature_skill_value(&removed.canonical, &skill_key),
-                &source_mutation,
-            ),
-            presence_stage(
-                FinalOwnerStage::PostProjection,
-                "IndexBuildInput.canonical_bodies[].skills[*].source_entries[*].modifier",
-                "index_build_input::index_build_input",
-                creature_skill_value(&removed.post_projection, &skill_key),
-                &source_mutation,
-            ),
-            presence_stage(
-                FinalOwnerStage::ArtifactHydration,
-                "RetrievedRecord.body.skills[*].source_entries[*].modifier",
-                "atlas_index::hydrate_record_parts",
-                creature_skill_value(&removed.hydration, &skill_key),
-                &source_mutation,
-            ),
-            presence_stage(
-                FinalOwnerStage::PublicSurface,
-                "RecordPresentationJson.creature.skills[*].source_entries[*].modifier",
-                "atlas_record::record_json",
-                public_skill_value(&removed.public_surface, &skill_key),
-                &source_mutation,
-            ),
-        ];
-        let broken_gray = sealed_receipt(
-            identity,
-            fixture.reference,
-            source,
-            source_mutation,
-            NPC_SKILLS_READER,
-            "sealed::ActorNpcExactAliasRemovalNegative",
-            observations,
-        )
-        .expect("sealed alias-removal negative receipt");
-
-        let mut receipts = Vec::new();
-        for (leaf_index, leaf) in ledger.leaves.iter().enumerate() {
-            for fixture_index in 0..leaf.fixtures.len() {
-                if leaf_index == 6 && fixture_index == 0 {
-                    receipts.push(broken_gray.clone());
-                } else {
-                    receipts.push(
-                        capture_registered_source_leaf_receipt(
-                            &ledger,
-                            leaf_index,
-                            fixture_index,
-                            &repository,
-                        )
-                        .expect("authenticated sibling receipt"),
-                    );
-                }
-            }
-        }
-        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
-        assert!(!report.passed);
-        let codes = report
-            .failures
-            .iter()
-            .map(|failure| failure.code)
-            .collect::<std::collections::BTreeSet<_>>();
+        validate_actor_excerpt(&fixture).expect("authenticated Gray Master excerpt");
+        let source = shadow_skill_from_raw(&fixture.raw, "intimidate")
+            .expect("populated authored intimidate base");
+        let mut alias_only = fixture.raw.clone();
+        let skills = alias_only
+            .pointer_mut("/system/skills")
+            .and_then(Value::as_object_mut)
+            .expect("Gray Master skills");
         assert_eq!(
-            codes,
-            [
-                CoverageFailureCode::DtoMismatch,
-                CoverageFailureCode::CanonicalMismatch,
-                CoverageFailureCode::PostProjectionMismatch,
-                CoverageFailureCode::ArtifactHydrationMismatch,
-                CoverageFailureCode::PublicSurfaceMismatch,
-            ]
-            .into_iter()
-            .collect()
+            skills
+                .get("intimidate")
+                .and_then(|skill| skill.get("base"))
+                .and_then(Value::as_i64),
+            Some(38)
         );
+        assert!(
+            skills.remove("intimidation").is_some(),
+            "mutation removes only the canonical sibling"
+        );
+        assert!(skills.contains_key("intimidate"));
+        let alias_only = run_npc_pipeline(&fixture, alias_only).expect("alias-only pipeline");
+
+        assert_eq!(
+            dto_shadow_skill_value(&alias_only.source_dto, "intimidate"),
+            source
+        );
+        assert_exact_alias_skill(&alias_only.canonical);
+        assert_eq!(
+            creature_skill_value(&alias_only.canonical, "intimidate"),
+            source
+        );
+        assert_exact_alias_skill(&alias_only.post_projection);
+        assert_eq!(
+            creature_skill_value(&alias_only.post_projection, "intimidate"),
+            source
+        );
+
+        let record_key = alias_only.persisted_record.identity.key.clone();
+        let input = atlas_index::IndexBuildInput {
+            source_signature: PF2E_SOURCE_PINNED_SIGNATURE.to_string(),
+            source_record_count: 1,
+            packs: vec![alias_only.persisted_pack],
+            records: vec![alias_only.persisted_record],
+            canonical_bodies: vec![RecordBody::Creature(alias_only.post_projection)],
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links: Vec::new(),
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
+        };
+        assert!(input.pending_document_embeddings.is_empty());
+        assert!(input.document_embeddings.is_empty());
+
+        let artifact = TemporaryArtifact::new();
+        let artifact_path = artifact.artifact();
+        let receipt = atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(artifact_path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect("write alias-only canonical JSON to SQLite");
+        std::fs::write(
+            artifact.manifest(),
+            serde_json::to_vec(&serde_json::json!({
+                "manifest_version": atlas_index::ARTIFACT_MANIFEST_VERSION,
+                "artifact_contract_version": atlas_index::ARTIFACT_CONTRACT_VERSION,
+                "schema_version": atlas_index::ARTIFACT_SCHEMA_VERSION,
+                "build": { "artifact_sha256": receipt.artifact_sha256() },
+            }))
+            .expect("serialize alias-only artifact manifest"),
+        )
+        .expect("write alias-only artifact manifest");
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&artifact_path)
+            .expect("open alias-only SQLite artifact");
+        let hydrated = reader
+            .load_hydrated_records_by_key(std::slice::from_ref(&record_key))
+            .expect("hydrate alias-only record from SQLite");
+        assert_eq!(hydrated.len(), 1);
+        let sqlite_creature = creature_body(hydrated[0].body.as_ref())
+            .expect("SQLite-hydrated Gray Master creature body");
+        assert_exact_alias_skill(sqlite_creature);
+        assert_eq!(creature_skill_value(sqlite_creature, "intimidate"), source);
+
+        let cli = record_json(
+            &hydrated[0],
+            RecordJsonOptions {
+                detail: DetailLevel::Full,
+                include_source_json: false,
+            },
+        )
+        .expect("project SQLite-hydrated alias-only record");
+        let RecordPresentationJson::Creature {
+            skills: Some(cli_skills),
+            ..
+        } = &cli.presentation
+        else {
+            panic!("alias-only CLI projection must include creature skills");
+        };
+        let cli_intimidation = cli_skills
+            .iter()
+            .find(|skill| skill.slug == "intimidation")
+            .expect("exact alias must project as CLI Intimidation");
+        assert_eq!(cli_intimidation.modifier, Some(38));
+        assert_eq!(cli_intimidation.source_entries.len(), 1);
+        assert_eq!(
+            cli_intimidation.source_entries[0].authored_key,
+            "intimidate"
+        );
+        assert_eq!(
+            cli_intimidation.source_entries[0].modifier,
+            atlas_record::CreatureIntegerPresenceJson::Value(38)
+        );
+        assert!(cli_intimidation.unmodeled.is_none());
+        assert_eq!(public_skill_value(&cli, "intimidate"), source);
     }
 }
