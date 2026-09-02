@@ -750,6 +750,9 @@ pub struct CreatureSurfaceFrequencyView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub period: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub display: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

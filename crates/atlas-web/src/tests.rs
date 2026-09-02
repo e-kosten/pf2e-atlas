@@ -433,6 +433,7 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
     let frequency = &creature["activities"][0]["frequency"];
     assert_eq!(frequency["maximum"], 1);
     assert!(frequency.get("period").is_none());
+    assert_eq!(frequency["display"], "1");
     assert_eq!(
         creature["unavailable_domains"]["activities"]["causes"]
             .as_array()
@@ -1696,6 +1697,7 @@ fn typed_failure_surface() -> RecordSurfaceView {
                     frequency: Some(CreatureSurfaceFrequencyView {
                         maximum: Some(1),
                         period: None,
+                        display: Some("1".to_string()),
                     }),
                     requirements: None,
                     cost: None,

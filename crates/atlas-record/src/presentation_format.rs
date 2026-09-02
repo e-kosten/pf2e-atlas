@@ -4,6 +4,80 @@ use crate::{
     MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellMechanics, definition_for,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CreatureFrequencyPeriod {
+    Turn,
+    Round,
+    Minute,
+    TenMinutes,
+    Hour,
+    TwentyFourHours,
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+impl CreatureFrequencyPeriod {
+    pub fn from_source_token(value: &str) -> Option<Self> {
+        match value {
+            "turn" => Some(Self::Turn),
+            "round" => Some(Self::Round),
+            "PT1M" => Some(Self::Minute),
+            "PT10M" => Some(Self::TenMinutes),
+            "PT1H" => Some(Self::Hour),
+            "PT24H" => Some(Self::TwentyFourHours),
+            "day" => Some(Self::Day),
+            "P1W" => Some(Self::Week),
+            "P1M" => Some(Self::Month),
+            "P1Y" => Some(Self::Year),
+            _ => None,
+        }
+    }
+
+    pub const fn source_token(self) -> &'static str {
+        match self {
+            Self::Turn => "turn",
+            Self::Round => "round",
+            Self::Minute => "PT1M",
+            Self::TenMinutes => "PT10M",
+            Self::Hour => "PT1H",
+            Self::TwentyFourHours => "PT24H",
+            Self::Day => "day",
+            Self::Week => "P1W",
+            Self::Month => "P1M",
+            Self::Year => "P1Y",
+        }
+    }
+
+    pub const fn display_label(self) -> &'static str {
+        match self {
+            Self::Turn => "turn",
+            Self::Round => "round",
+            Self::Minute => "minute",
+            Self::TenMinutes => "10 minutes",
+            Self::Hour => "hour",
+            Self::TwentyFourHours => "24 hours",
+            Self::Day => "day",
+            Self::Week => "week",
+            Self::Month => "month",
+            Self::Year => "year",
+        }
+    }
+}
+
+pub fn format_creature_frequency(
+    maximum: Option<i64>,
+    period: Option<CreatureFrequencyPeriod>,
+) -> Option<String> {
+    match (maximum, period) {
+        (Some(maximum), Some(period)) => Some(format!("{maximum} per {}", period.display_label())),
+        (Some(maximum), None) => Some(maximum.to_string()),
+        (None, Some(period)) => Some(period.display_label().to_string()),
+        (None, None) => None,
+    }
+}
+
 pub(crate) fn metric_number(metrics: &[MetricRow], domain: MetricDomain, key: &str) -> Option<f64> {
     metrics.iter().find_map(|metric| {
         if metric.domain == domain
@@ -274,4 +348,52 @@ pub(crate) fn format_modifier(value: f64) -> String {
 
 fn format_feet(value: f64) -> String {
     format!("{} feet", format_number(value))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn creature_frequency_periods_use_the_exact_pinned_vocabulary_and_human_meanings() {
+        for (source_token, display_label) in [
+            ("turn", "turn"),
+            ("round", "round"),
+            ("PT1M", "minute"),
+            ("PT10M", "10 minutes"),
+            ("PT1H", "hour"),
+            ("PT24H", "24 hours"),
+            ("day", "day"),
+            ("P1W", "week"),
+            ("P1M", "month"),
+            ("P1Y", "year"),
+        ] {
+            let period = CreatureFrequencyPeriod::from_source_token(source_token)
+                .expect("pinned period token");
+            assert_eq!(period.source_token(), source_token);
+            assert_eq!(period.display_label(), display_label);
+        }
+        assert_eq!(
+            format_creature_frequency(Some(1), Some(CreatureFrequencyPeriod::Minute)).as_deref(),
+            Some("1 per minute")
+        );
+        assert_eq!(
+            format_creature_frequency(Some(1), Some(CreatureFrequencyPeriod::Month)).as_deref(),
+            Some("1 per month")
+        );
+        assert_eq!(CreatureFrequencyPeriod::from_source_token("per-moon"), None);
+    }
+
+    #[test]
+    fn creature_frequency_display_preserves_supported_partial_children() {
+        assert_eq!(
+            format_creature_frequency(Some(2), None).as_deref(),
+            Some("2")
+        );
+        assert_eq!(
+            format_creature_frequency(None, Some(CreatureFrequencyPeriod::Day)).as_deref(),
+            Some("day")
+        );
+        assert_eq!(format_creature_frequency(None, None), None);
+    }
 }

@@ -202,6 +202,8 @@ pub struct CreatureFrequencyJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub display: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub serialized_value: Option<i64>,
 }
 
@@ -805,9 +807,15 @@ fn action_cost(value: &CreatureActionCost) -> CreatureActionCostJson {
 }
 
 fn frequency(value: &CreatureFrequency) -> CreatureFrequencyJson {
+    let maximum = integer(&value.maximum);
+    let period = text(&value.period);
+    let display_period = period
+        .as_deref()
+        .and_then(crate::CreatureFrequencyPeriod::from_source_token);
     CreatureFrequencyJson {
-        maximum: integer(&value.maximum),
-        period: text(&value.period),
+        maximum,
+        period,
+        display: crate::format_creature_frequency(maximum, display_period),
         serialized_value: integer(&value.serialized_value),
     }
 }

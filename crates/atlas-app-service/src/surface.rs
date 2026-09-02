@@ -45,7 +45,7 @@ use atlas_record::{
     CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSize, CreatureSourceScalar,
     CreatureSpellPreparation, CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue,
     PresentationContent, PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord,
-    SenseAcuity, project_presentation_content, render_plain_text,
+    SenseAcuity, format_creature_frequency, project_presentation_content, render_plain_text,
 };
 
 const SEARCH_TEASER_WORDS: usize = 50;
@@ -1930,7 +1930,27 @@ fn frequency_view(
         Some(component_id.to_string()),
     )
     .cloned();
-    Some(CreatureSurfaceFrequencyView { maximum, period })
+    let display_period = period.as_deref().and_then(|period| {
+        match atlas_record::CreatureFrequencyPeriod::from_source_token(period) {
+            Some(period) => Some(period),
+            None => {
+                unsupported(
+                    unavailable,
+                    SurfaceDomain::Activities,
+                    CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                    Some(component_id.to_string()),
+                );
+                None
+            }
+        }
+    });
+    let display = format_creature_frequency(maximum, display_period);
+    Some(CreatureSurfaceFrequencyView {
+        maximum,
+        period,
+        display,
+    })
 }
 
 fn spellcasting(
@@ -3920,6 +3940,14 @@ mod tests {
                 .as_ref()
                 .expect("populated frequency parent");
             assert!(frequency.maximum.is_some() || frequency.period.is_some());
+            assert_eq!(
+                frequency.display.as_deref(),
+                if failed_field == CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod {
+                    Some("1")
+                } else {
+                    Some("day")
+                }
+            );
             assert_causes(
                 &surface
                     .unavailable_domains
@@ -3938,9 +3966,11 @@ mod tests {
             if failed_field == CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod {
                 assert_eq!(frequency["maximum"], 1);
                 assert!(frequency.get("period").is_none());
+                assert_eq!(frequency["display"], "1");
             } else {
                 assert!(frequency.get("maximum").is_none());
                 assert_eq!(frequency["period"], "day");
+                assert_eq!(frequency["display"], "day");
             }
             assert_eq!(
                 payload["unavailable_domains"]["activities"]["causes"]
@@ -3949,6 +3979,104 @@ mod tests {
                 Some(1)
             );
         }
+    }
+
+    #[test]
+    fn frequency_display_retains_raw_period_and_rejects_unknown_display_text() {
+        let mut creature = known_empty_creature();
+        let owner = creature.identity.record_key.clone();
+        let mut action = action_occurrence(&owner, "timed-action", "timed-action", 0);
+        let atlas_record::CreatureCapability::Action(capability) = &mut action.capability else {
+            panic!("action fixture");
+        };
+        capability.frequency = FactValue::Value(atlas_record::CreatureFrequency {
+            maximum: FactValue::Value(1),
+            period: FactValue::Value("PT1M".to_string()),
+            serialized_value: FactValue::Value(1),
+        });
+        creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+            entities: vec![entity(&owner, "timed-action", CreatureEntityFamily::Action)],
+            occurrences: vec![action],
+            relationships: Vec::new(),
+            actor_spellcasting: FactValue::Missing,
+        });
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let frequency = surface.activities.as_ref().expect("action")[0]
+            .frequency
+            .as_ref()
+            .expect("frequency");
+        assert_eq!(frequency.maximum, Some(1));
+        assert_eq!(frequency.period.as_deref(), Some("PT1M"));
+        assert_eq!(frequency.display.as_deref(), Some("1 per minute"));
+        assert!(surface.unavailable_domains.is_none());
+        let payload = serde_json::to_value(&surface).expect("frequency API payload");
+        assert_eq!(payload["activities"][0]["frequency"]["maximum"], 1);
+        assert_eq!(payload["activities"][0]["frequency"]["period"], "PT1M");
+        assert_eq!(
+            payload["activities"][0]["frequency"]["display"],
+            "1 per minute"
+        );
+
+        let mut creature = known_empty_creature();
+        let owner = creature.identity.record_key.clone();
+        let mut action = action_occurrence(&owner, "unknown-period", "unknown-period", 0);
+        let atlas_record::CreatureCapability::Action(capability) = &mut action.capability else {
+            panic!("action fixture");
+        };
+        capability.frequency = FactValue::Value(atlas_record::CreatureFrequency {
+            maximum: FactValue::Value(1),
+            period: FactValue::Value("per-moon".to_string()),
+            serialized_value: FactValue::Value(1),
+        });
+        creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+            entities: vec![entity(
+                &owner,
+                "unknown-period",
+                CreatureEntityFamily::Action,
+            )],
+            occurrences: vec![action],
+            relationships: Vec::new(),
+            actor_spellcasting: FactValue::Missing,
+        });
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let frequency = surface.activities.as_ref().expect("action")[0]
+            .frequency
+            .as_ref()
+            .expect("frequency");
+        assert_eq!(frequency.maximum, Some(1));
+        assert_eq!(frequency.period.as_deref(), Some("per-moon"));
+        assert_eq!(frequency.display.as_deref(), Some("1"));
+        assert_ne!(frequency.display.as_deref(), frequency.period.as_deref());
+        assert_causes(
+            &surface
+                .unavailable_domains
+                .as_ref()
+                .expect("unsupported period")
+                .activities,
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Unsupported,
+                CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod,
+                Some("unknown-period"),
+                CreatureSurfaceSourceFieldView::EmbeddedEntities,
+            )],
+        );
+        let payload = serde_json::to_value(&surface).expect("unknown frequency API payload");
+        assert_eq!(payload["activities"][0]["frequency"]["period"], "per-moon");
+        assert_eq!(payload["activities"][0]["frequency"]["display"], "1");
+        assert_eq!(
+            payload["unavailable_domains"]["activities"]["causes"][0]["state"],
+            "unsupported"
+        );
+        assert_eq!(
+            payload["unavailable_domains"]["activities"]["causes"][0]["field"],
+            "action_frequency_period"
+        );
+        assert_eq!(
+            payload["unavailable_domains"]["activities"]["causes"][0]["component_id"],
+            "unknown-period"
+        );
     }
 
     #[test]
