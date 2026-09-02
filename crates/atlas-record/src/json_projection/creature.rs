@@ -8,7 +8,7 @@ use crate::{
     CreatureOccurrenceContext, CreatureOccurrenceParent, CreaturePreparedSpellSlot, CreatureRecord,
     CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSave, CreatureSkill,
     CreatureSkillVariant, CreatureSourceScalar, CreatureSpellPreparation, CreatureSpellSlot,
-    CreatureUseLimit, FactValue, ResourceCurrentPolicy,
+    CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue, ResourceCurrentPolicy,
 };
 
 use super::{CreaturePerceptionJson, RecordPresentationJson};
@@ -104,6 +104,8 @@ pub struct CreatureSenseJson {
 pub struct CreatureSkillJson {
     pub id: String,
     pub order: u32,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub source_entries: Vec<CreatureSkillSourceEntryJson>,
     pub slug: String,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -114,6 +116,29 @@ pub struct CreatureSkillJson {
     pub variants: Vec<CreatureSkillVariantJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_item_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unmodeled: Option<CreatureUnmodeledSkillJson>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureSkillSourceEntryJson {
+    pub authored_key: String,
+    pub modifier: CreatureIntegerPresenceJson,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureUnmodeledSkillJson {
+    pub authored_key: String,
+    pub base: CreatureIntegerPresenceJson,
+    pub reason: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", content = "value", rename_all = "snake_case")]
+pub enum CreatureIntegerPresenceJson {
+    Missing,
+    Null,
+    Value(i64),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -606,9 +631,22 @@ fn skill(value: &CreatureSkill) -> CreatureSkillJson {
     CreatureSkillJson {
         id: value.id.as_str().to_string(),
         order: value.authored_order,
+        source_entries: value
+            .source_entries
+            .iter()
+            .map(|entry| CreatureSkillSourceEntryJson {
+                authored_key: entry.authored_key.clone(),
+                modifier: integer_presence(&entry.modifier),
+            })
+            .collect(),
         slug: value.kind.source_slug().to_string(),
         label: value.label.clone(),
-        modifier: integer(&value.modifier),
+        modifier: value
+            .unmodeled
+            .as_value()
+            .is_none()
+            .then(|| integer(&value.modifier))
+            .flatten(),
         note: note(&value.note),
         variants: value
             .variants
@@ -619,6 +657,24 @@ fn skill(value: &CreatureSkill) -> CreatureSkillJson {
             .source_item_id
             .as_value()
             .map(|value| value.as_str().to_string()),
+        unmodeled: value
+            .unmodeled
+            .as_value()
+            .map(|unmodeled| CreatureUnmodeledSkillJson {
+                authored_key: unmodeled.authored_key.clone(),
+                base: integer_presence(&unmodeled.base),
+                reason: match unmodeled.reason {
+                    CreatureUnmodeledSkillReason::UnknownAuthoredKey => "unknown_authored_key",
+                },
+            }),
+    }
+}
+
+fn integer_presence(value: &FactValue<i64>) -> CreatureIntegerPresenceJson {
+    match value {
+        FactValue::Missing => CreatureIntegerPresenceJson::Missing,
+        FactValue::Null => CreatureIntegerPresenceJson::Null,
+        FactValue::Value(value) => CreatureIntegerPresenceJson::Value(*value),
     }
 }
 

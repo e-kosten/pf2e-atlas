@@ -11,13 +11,15 @@ use atlas_record::{
     CreaturePerception, CreaturePredicate, CreatureProvenance, CreaturePublication, CreatureRecord,
     CreatureResource, CreatureResourceAmount, CreatureResourceKind, CreatureSave, CreatureSaveKind,
     CreatureSaves, CreatureSense, CreatureShield, CreatureSize, CreatureSkill, CreatureSkillKind,
-    CreatureSkillVariant, CreatureSourceAlliance, CreatureSourceField, CreatureSourceId,
-    CreatureSpeed, CreatureStatistic, CreatureTrait, CreatureUnsupportedSourceFact,
-    CreatureUnsupportedSourceField, FactValue, IwrQualifier, IwrType, Language, PredicateTerm,
-    PublicationLicense, RecordBody, ResourceCurrentPolicy, SenseAcuity, SenseType,
-    ShieldCurrentPolicy, UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
+    CreatureSkillSourceEntry, CreatureSkillVariant, CreatureSourceAlliance, CreatureSourceField,
+    CreatureSourceId, CreatureSpeed, CreatureStatistic, CreatureTrait, CreatureUnmodeledSkill,
+    CreatureUnmodeledSkillReason, CreatureUnsupportedSourceFact, CreatureUnsupportedSourceField,
+    FactValue, IwrQualifier, IwrType, Language, PredicateTerm, PublicationLicense, RecordBody,
+    ResourceCurrentPolicy, SenseAcuity, SenseType, ShieldCurrentPolicy, UnsupportedSourceReason,
+    UnsupportedSourceShape, UnsupportedSourceValue,
 };
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 use super::dto::{
     ItemType, NpcCoreSource, NpcIwrSource, NpcPredicateSource, NpcResourceAmountSource,
@@ -75,7 +77,6 @@ impl NpcCoreDiagnostic {
 pub(crate) enum NpcCoreDiagnosticKind {
     UnsupportedOpenValue,
     UnsupportedLegacyShape,
-    InvalidShadowSkill,
     UnstableSourceOrderIdentity,
     ComponentIdSourceFallback,
     ComponentIdScopedOrdinalFallback,
@@ -87,7 +88,6 @@ impl NpcCoreDiagnosticKind {
         match self {
             Self::UnsupportedOpenValue => "atlas.npc_core.unsupported_open_value.v1",
             Self::UnsupportedLegacyShape => "atlas.npc_core.unsupported_legacy_shape.v1",
-            Self::InvalidShadowSkill => "atlas.npc_core.invalid_shadow_skill.v1",
             Self::UnstableSourceOrderIdentity => "atlas.npc_core.unstable_source_order_identity.v1",
             Self::ComponentIdSourceFallback => "atlas.npc_core.component_id_source_fallback.v1",
             Self::ComponentIdScopedOrdinalFallback => {
@@ -101,7 +101,6 @@ impl NpcCoreDiagnosticKind {
         match self {
             Self::UnsupportedOpenValue => "source value is outside the supported closed vocabulary",
             Self::UnsupportedLegacyShape => "source value uses an ambiguous legacy shape",
-            Self::InvalidShadowSkill => "source skill key is not a canonical standard skill",
             Self::UnstableSourceOrderIdentity => "nested source component has no stable source id",
             Self::ComponentIdSourceFallback => {
                 "source-derived component identity violates canonical id syntax"
@@ -120,7 +119,6 @@ impl NpcCoreDiagnosticKind {
             Self::UnsupportedOpenValue
             | Self::UnsupportedLegacyShape
             | Self::ResourceMaximumDrift => NpcCoreDiagnosticDisposition::TypedUnsupported,
-            Self::InvalidShadowSkill => NpcCoreDiagnosticDisposition::SourceEnvelope,
             Self::UnstableSourceOrderIdentity | Self::ComponentIdScopedOrdinalFallback => {
                 NpcCoreDiagnosticDisposition::DiagnosedScopedOrdinal
             }
@@ -134,8 +132,6 @@ impl NpcCoreDiagnosticKind {
 pub(crate) enum NpcCoreDiagnosticDisposition {
     #[serde(rename = "preserved_as_typed_unsupported")]
     TypedUnsupported,
-    #[serde(rename = "preserved_in_source_envelope")]
-    SourceEnvelope,
     #[serde(rename = "preserved_with_stable_source_fallback")]
     StableSourceFallback,
     #[serde(rename = "preserved_with_diagnosed_scoped_ordinal")]
@@ -337,7 +333,7 @@ fn legacy_abilities(core: &NpcCoreSource) -> FactValue<CreatureLegacyAbilities> 
 }
 
 fn legacy_ability(source: &SourcePresence<super::dto::NpcLegacyAbilitySource>) -> FactValue<i64> {
-    nested(source, |ability| presence(&ability.value))
+    nested(source, |ability| presence(&ability.r#mod))
 }
 
 fn rarity(core: &NpcCoreSource) -> Result<FactValue<Rarity>, NpcCoreConversionError> {
@@ -509,26 +505,24 @@ fn skills(
     let mut canonical = match &source.source.core.skills {
         SourcePresence::Missing => return Ok(FactValue::Missing),
         SourcePresence::Null => return Ok(FactValue::Null),
-        SourcePresence::Value(skills) => CreatureSkillKind::STANDARD
-            .into_iter()
-            .filter_map(|kind| skills.get(kind.source_slug()).map(|skill| (kind, skill)))
-            .enumerate()
-            .map(|(order, (kind, skill))| standard_skill(kind, skill, order as u32, diagnostics))
-            .collect::<Result<Vec<_>, _>>()?,
+        SourcePresence::Value(skills) => {
+            let mut modeled = Vec::new();
+            for kind in CreatureSkillKind::STANDARD {
+                let entries = modeled_skill_entries(kind, skills);
+                if !entries.is_empty() {
+                    let authored_order = modeled.len() as u32;
+                    modeled.push(standard_skill(kind, &entries, authored_order, diagnostics)?);
+                }
+            }
+            modeled
+        }
     };
 
     if let SourcePresence::Value(skills) = &source.source.core.skills {
         for (slug, skill) in skills {
-            if CreatureSkillKind::from_source_slug(slug).is_none() {
-                diagnostics.push(NpcCoreDiagnostic::new(
-                    NpcCoreDiagnosticKind::InvalidShadowSkill,
-                    format!("$.system.skills.{slug}"),
-                    match &skill.base {
-                        SourcePresence::Missing => "base=<missing>".to_string(),
-                        SourcePresence::Null => "base=<null>".to_string(),
-                        SourcePresence::Value(value) => format!("base={value}"),
-                    },
-                ));
+            if modeled_skill_kind(slug).is_none() {
+                let authored_order = canonical.len() as u32;
+                canonical.push(unmodeled_skill(slug, skill, authored_order)?);
             }
         }
     }
@@ -563,12 +557,14 @@ fn skills(
                 CreatureSkill {
                     id: component_id(&format!("skill:lore:{}", source_id.as_str()))?,
                     authored_order: 0,
+                    source_entries: Vec::new(),
                     kind: CreatureSkillKind::Lore,
                     label: item.name.clone(),
                     modifier,
                     note: FactValue::Missing,
                     variants: FactValue::Missing,
                     source_item_id: FactValue::Value(source_id),
+                    unmodeled: FactValue::Missing,
                 },
             ))
         })
@@ -589,14 +585,22 @@ fn skills(
 
 fn standard_skill(
     kind: CreatureSkillKind,
-    source: &NpcSkillSource,
+    entries: &[(&str, &NpcSkillSource)],
     authored_order: u32,
     diagnostics: &mut Vec<NpcCoreDiagnostic>,
 ) -> Result<CreatureSkill, NpcCoreConversionError> {
     let slug = kind.source_slug();
+    let source = entries[0].1;
     Ok(CreatureSkill {
         id: component_id(&format!("skill:{slug}"))?,
         authored_order,
+        source_entries: entries
+            .iter()
+            .map(|(authored_key, source)| CreatureSkillSourceEntry {
+                authored_key: (*authored_key).to_string(),
+                modifier: presence(&source.base),
+            })
+            .collect(),
         kind,
         label: title_case_slug(slug),
         modifier: presence(&source.base),
@@ -609,6 +613,58 @@ fn standard_skill(
                 .collect()
         })?,
         source_item_id: FactValue::Missing,
+        unmodeled: FactValue::Missing,
+    })
+}
+
+fn modeled_skill_entries<'a>(
+    kind: CreatureSkillKind,
+    skills: &'a BTreeMap<String, NpcSkillSource>,
+) -> Vec<(&'a str, &'a NpcSkillSource)> {
+    let mut entries = Vec::new();
+    let canonical_key = kind.source_slug();
+    if let Some(source) = skills.get(canonical_key) {
+        entries.push((canonical_key, source));
+    }
+    if kind == CreatureSkillKind::Intimidation
+        && let Some(source) = skills.get("intimidate")
+    {
+        entries.push(("intimidate", source));
+    }
+    entries
+}
+
+fn modeled_skill_kind(authored_key: &str) -> Option<CreatureSkillKind> {
+    match authored_key {
+        "intimidate" => Some(CreatureSkillKind::Intimidation),
+        exact => CreatureSkillKind::from_source_slug(exact),
+    }
+}
+
+fn unmodeled_skill(
+    authored_key: &str,
+    source: &NpcSkillSource,
+    authored_order: u32,
+) -> Result<CreatureSkill, NpcCoreConversionError> {
+    let key_digest = format!("{:x}", Sha256::digest(authored_key.as_bytes()));
+    Ok(CreatureSkill {
+        id: component_id(&format!("skill:unmodeled:{key_digest}"))?,
+        authored_order,
+        source_entries: vec![CreatureSkillSourceEntry {
+            authored_key: authored_key.to_string(),
+            modifier: presence(&source.base),
+        }],
+        kind: CreatureSkillKind::Unmodeled,
+        label: authored_key.to_string(),
+        modifier: presence(&source.base),
+        note: note_presence(&source.note),
+        variants: FactValue::Missing,
+        source_item_id: FactValue::Missing,
+        unmodeled: FactValue::Value(CreatureUnmodeledSkill {
+            authored_key: authored_key.to_string(),
+            base: presence(&source.base),
+            reason: CreatureUnmodeledSkillReason::UnknownAuthoredKey,
+        }),
     })
 }
 

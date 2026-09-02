@@ -310,7 +310,7 @@ fn actor_npc_ledger_is_exact_and_source_grounded() {
 }
 
 #[test]
-fn current_creature_pipeline_fails_exact_promoted_owners() {
+fn b1_creature_pipeline_satisfies_exact_promoted_owners() {
     let repository = require_pinned_repository();
     let ledger = parse_source_leaf_ledger(LEDGER).expect("Actor NPC A2 ledger parses");
     let mut receipts = Vec::new();
@@ -328,57 +328,8 @@ fn current_creature_pipeline_fails_exact_promoted_owners() {
         }
     }
     let report = evaluate_source_leaf_coverage(&ledger, &receipts);
-    assert!(
-        !report.passed,
-        "A2 must expose current mismatches, not repair B1"
-    );
+    assert!(report.passed, "{:#?}", report.failures);
     assert_eq!(report.receipt_count, 21);
-    let codes = report
-        .failures
-        .iter()
-        .map(|failure| failure.code)
-        .collect::<BTreeSet<_>>();
-    for expected in [
-        CoverageFailureCode::DtoMismatch,
-        CoverageFailureCode::CanonicalMismatch,
-        CoverageFailureCode::PostProjectionMismatch,
-        CoverageFailureCode::ArtifactHydrationMismatch,
-        CoverageFailureCode::PublicSurfaceMismatch,
-    ] {
-        assert!(
-            codes.contains(&expected),
-            "missing {expected:?}: {:#?}",
-            report.failures
-        );
-    }
-
-    let has_failure = |path: &str, code: CoverageFailureCode| {
-        report.failures.iter().any(|failure| {
-            failure.code == code
-                && failure
-                    .identity
-                    .as_ref()
-                    .is_some_and(|identity| identity.normalized_path == path)
-        })
-    };
-    assert!(has_failure(
-        "$.system.abilities.str.mod",
-        CoverageFailureCode::DtoMismatch
-    ));
-    for code in [
-        CoverageFailureCode::CanonicalMismatch,
-        CoverageFailureCode::PostProjectionMismatch,
-        CoverageFailureCode::ArtifactHydrationMismatch,
-    ] {
-        assert!(
-            has_failure("$.system.abilities.str.mod", code),
-            "a transient metric or container cannot satisfy the {code:?} leaf owner"
-        );
-    }
-    assert!(has_failure(
-        "$.system.skills.*.base",
-        CoverageFailureCode::PublicSurfaceMismatch
-    ));
 
     let mut broad_parent = ledger.clone();
     broad_parent.leaves[0].normalized_path = "$.system.abilities.*".to_string();

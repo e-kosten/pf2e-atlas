@@ -88,7 +88,7 @@ case "${1:-}" in
   persistence)
     [ "$#" -eq 1 ] || { usage >&2; exit 2; }
     cargo test -p atlas-ingest --test source_leaf_persistence \
-      single_actor_npc_no_embedding_persistence_proves_current_mismatch -- --exact
+      single_actor_npc_no_embedding_persistence_proves_b1_ability_ownership -- --exact
     ;;
   -h | --help)
     usage

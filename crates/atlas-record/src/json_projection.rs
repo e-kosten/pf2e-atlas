@@ -7,12 +7,13 @@ use serde::Serialize;
 
 pub use creature::{
     CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson, CreatureDamageJson,
-    CreatureDefensesJson, CreatureFrequencyJson, CreatureHitPointsJson, CreatureIwrJson,
-    CreatureMovementJson, CreatureMovementModeJson, CreatureOccurrenceContextJson,
-    CreaturePreparedSpellJson, CreatureResourceJson, CreatureRollJson, CreatureSaveJson,
-    CreatureSavesJson, CreatureSenseJson, CreatureSkillJson, CreatureSkillVariantJson,
-    CreatureSpellJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
-    CreatureSpellcastingJson, CreatureStrikeJson, CreatureUseLimitJson,
+    CreatureDefensesJson, CreatureFrequencyJson, CreatureHitPointsJson,
+    CreatureIntegerPresenceJson, CreatureIwrJson, CreatureMovementJson, CreatureMovementModeJson,
+    CreatureOccurrenceContextJson, CreaturePreparedSpellJson, CreatureResourceJson,
+    CreatureRollJson, CreatureSaveJson, CreatureSavesJson, CreatureSenseJson, CreatureSkillJson,
+    CreatureSkillSourceEntryJson, CreatureSkillVariantJson, CreatureSpellJson,
+    CreatureSpellSlotJson, CreatureSpellcastingEntryJson, CreatureSpellcastingJson,
+    CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
 };
 
 use crate::{
@@ -1008,12 +1009,14 @@ mod tests {
                 FactValue::Value(vec![crate::CreatureSkill {
                     id: crate::CreatureComponentId::new("theater-lore").expect("skill id"),
                     authored_order: 0,
+                    source_entries: Vec::new(),
                     kind: crate::CreatureSkillKind::Lore,
                     label: "Theater Lore".to_string(),
                     modifier: FactValue::Value(15),
                     note: FactValue::Value(crate::CreatureNote::new("stage performances")),
                     variants: FactValue::Value(Vec::new()),
                     source_item_id: FactValue::Missing,
+                    unmodeled: FactValue::Missing,
                 }]),
                 crate::CreatureSourceField::Skills,
             ),

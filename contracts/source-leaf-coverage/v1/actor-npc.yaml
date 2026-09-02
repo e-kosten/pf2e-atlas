@@ -214,10 +214,10 @@ leaves:
       - { case_id: "chernasardo-malformed-null-shadow-skill", record_key: "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E", source_path: "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json", source_file_digest: "sha256:b655a11ea8928936ca586f13fd74a0f87c795454e618e8cb4d22d54a15bd566c", excerpt_digest: "sha256:5038083d837b95b133ca01538f814ba582b599bb788d5f6425ec25eb24b791bd", provenance: "pinned_source" }
     final_owners:
       - { stage: "source_dto", destination: "NpcCoreSource.skills[*].base" }
-      - { stage: "canonical", destination: "CreatureRecord.skills.by_authored_key[*]" }
-      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].skills.by_authored_key[*]" }
-      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.skills.by_authored_key[*]" }
-      - { stage: "public_surface", destination: "RecordPresentationJson.creature.skills.by_authored_key[*]" }
+      - { stage: "canonical", destination: "CreatureRecord.skills[*].source_entries[*].modifier" }
+      - { stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].skills[*].source_entries[*].modifier" }
+      - { stage: "artifact_hydration", destination: "RetrievedRecord.body.skills[*].source_entries[*].modifier" }
+      - { stage: "public_surface", destination: "RecordPresentationJson.creature.skills[*].source_entries[*].modifier" }
     surfaces:
       artifact: { disposition: "promoted", rationale: "an authored noncanonical key needs an owned persisted value or typed unavailable cause" }
       search: { disposition: "deferred", rationale: "B3 owns the minimum search profile" }
@@ -225,6 +225,6 @@ leaves:
       app: { disposition: "deferred", rationale: "B3 owns the minimum public profile" }
       ui: { disposition: "deferred", rationale: "B5 owns rendering after B1 selects the backend disposition" }
       runtime: { disposition: "not_applicable", rationale: "A2 proves static record fidelity only" }
-    rationale: "A2 retains the exact authored shadow-skill key as populated unsupported evidence even when base is null; B1 selects alias versus typed unsupported representation"
+    rationale: "B1 maps only exact intimidate to Intimidation while retaining every exact authored source entry; other unknown keys become named unmodeled skill facts even when base is null"
     owner: "atlas-ingest::source::npc_core"
     acceptance_checkpoint: "independent A1+A2 technical review"

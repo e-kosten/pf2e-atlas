@@ -81,7 +81,7 @@ pub struct NpcAbilitiesSource {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NpcLegacyAbilitySource {
-    pub value: SourcePresence<i64>,
+    pub r#mod: SourcePresence<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -416,7 +416,7 @@ fn parse_abilities(
 ) -> Result<NpcAbilitiesSource, SourceDiagnostic> {
     let parse = |map: &Map<String, Value>, identity: &SourceIdentity, path: &str| {
         Ok(NpcLegacyAbilitySource {
-            value: integer_member(map, "value", identity, &format!("{path}.value"))?,
+            r#mod: integer_member(map, "mod", identity, &format!("{path}.mod"))?,
         })
     };
     Ok(NpcAbilitiesSource {

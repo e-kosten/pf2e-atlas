@@ -204,19 +204,8 @@ pub(super) const NPC_REMAINDER_STATIC_SPECS: &[StaticMetricSourceSpec] = &[
     },
 ];
 
-pub(super) const NPC_REMAINDER_DYNAMIC_SPECS: &[DynamicMetricSourceSpec] = &[
-    DynamicMetricSourceSpec {
-        definition: metric_definitions::actor::ability::MOD,
-        key_builder: metric_definitions::actor::ability::mod_key,
-        capture_source: MetricCaptureSource::ClosedVocabulary {
-            captures: &["str", "dex", "con", "int", "wis", "cha"],
-            paths: &[
-                number_template("/system/abilities/", "/mod"),
-                number_template("/system/abilities/", "/modifier"),
-            ],
-        },
-    },
-    DynamicMetricSourceSpec {
+pub(super) const NPC_REMAINDER_DYNAMIC_SPECS: &[DynamicMetricSourceSpec] =
+    &[DynamicMetricSourceSpec {
         definition: metric_definitions::actor::skill::RANK,
         key_builder: metric_definitions::actor::skill::rank_key,
         capture_source: MetricCaptureSource::ObjectEntries {
@@ -224,8 +213,7 @@ pub(super) const NPC_REMAINDER_DYNAMIC_SPECS: &[DynamicMetricSourceSpec] = &[
             capture_normalize: CaptureNormalize::Slug,
             value_paths: &[number("/rank")],
         },
-    },
-];
+    }];
 
 pub(super) const WEAPON_STATIC_SPECS: &[StaticMetricSourceSpec] = &[
     StaticMetricSourceSpec {

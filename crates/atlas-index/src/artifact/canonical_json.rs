@@ -307,7 +307,8 @@ impl CanonicalJson for atlas_domain::Rarity {
 
 unit_enum_json!(CreatureFamily { Npc => "npc" });
 unit_enum_json!(CreatureSize { Tiny => "tiny", Small => "small", Medium => "medium", Large => "large", Huge => "huge", Gargantuan => "gargantuan" });
-unit_enum_json!(CreatureSkillKind { Acrobatics => "acrobatics", Arcana => "arcana", Athletics => "athletics", Crafting => "crafting", Deception => "deception", Diplomacy => "diplomacy", Intimidation => "intimidation", Medicine => "medicine", Nature => "nature", Occultism => "occultism", Performance => "performance", Religion => "religion", Society => "society", Stealth => "stealth", Survival => "survival", Thievery => "thievery", Lore => "lore" });
+unit_enum_json!(CreatureSkillKind { Acrobatics => "acrobatics", Arcana => "arcana", Athletics => "athletics", Crafting => "crafting", Deception => "deception", Diplomacy => "diplomacy", Intimidation => "intimidation", Medicine => "medicine", Nature => "nature", Occultism => "occultism", Performance => "performance", Religion => "religion", Society => "society", Stealth => "stealth", Survival => "survival", Thievery => "thievery", Lore => "lore", Unmodeled => "unmodeled" });
+unit_enum_json!(CreatureUnmodeledSkillReason { UnknownAuthoredKey => "unknown_authored_key" });
 unit_enum_json!(CreatureSaveKind { Fortitude => "fortitude", Reflex => "reflex", Will => "will" });
 unit_enum_json!(CreatureIwrKind { Immunity => "immunity", Resistance => "resistance", Weakness => "weakness" });
 unit_enum_json!(ResourceCurrentPolicy { SerializedValueIsProvenanceOnly => "serialized_value_is_provenance_only" });
@@ -372,12 +373,23 @@ struct_json!(CreatureLanguages { values, details });
 struct_json!(CreatureSkill {
     id,
     authored_order,
+    source_entries,
     kind,
     label,
     modifier,
     note,
     variants,
-    source_item_id
+    source_item_id,
+    unmodeled
+});
+struct_json!(CreatureSkillSourceEntry {
+    authored_key,
+    modifier
+});
+struct_json!(CreatureUnmodeledSkill {
+    authored_key,
+    base,
+    reason
 });
 struct_json!(CreatureSkillVariant {
     id,

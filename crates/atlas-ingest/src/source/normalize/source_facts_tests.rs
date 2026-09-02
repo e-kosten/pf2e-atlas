@@ -46,8 +46,9 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             },
             "initiative": {"statistic": "perception"},
             "abilities": {
-                "str": {"value": 16}, "dex": {"value": 14}, "con": {"value": 12},
-                "int": {"value": 10}, "wis": {"value": 8}, "cha": {"value": 6}
+                "str": {"mod": 3, "value": 16}, "dex": {"mod": 2, "value": 14},
+                "con": {"mod": 1, "value": 12}, "int": {"mod": 0, "value": 10},
+                "wis": {"mod": -1, "value": 8}, "cha": {"mod": -2, "value": 6}
             },
             "resources": {"focus": {"max": 1, "maxx": 2, "value": 1}},
             "traits": {
@@ -123,7 +124,7 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             .as_value()
             .expect("legacy abilities")
             .strength,
-        FactValue::Value(16)
+        FactValue::Value(3)
     );
     let defenses = creature.defenses.value.as_value().expect("defenses");
     assert_eq!(defenses.hardness, FactValue::Value(5));

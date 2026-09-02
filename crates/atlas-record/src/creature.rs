@@ -331,12 +331,32 @@ impl Language {
 pub struct CreatureSkill {
     pub id: CreatureComponentId,
     pub authored_order: u32,
+    pub source_entries: Vec<CreatureSkillSourceEntry>,
     pub kind: CreatureSkillKind,
     pub label: String,
     pub modifier: FactValue<i64>,
     pub note: FactValue<CreatureNote>,
     pub variants: FactValue<Vec<CreatureSkillVariant>>,
     pub source_item_id: FactValue<CreatureSourceId>,
+    pub unmodeled: FactValue<CreatureUnmodeledSkill>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatureSkillSourceEntry {
+    pub authored_key: String,
+    pub modifier: FactValue<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatureUnmodeledSkill {
+    pub authored_key: String,
+    pub base: FactValue<i64>,
+    pub reason: CreatureUnmodeledSkillReason,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CreatureUnmodeledSkillReason {
+    UnknownAuthoredKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -368,6 +388,7 @@ pub enum CreatureSkillKind {
     Survival,
     Thievery,
     Lore,
+    Unmodeled,
 }
 
 impl CreatureSkillKind {
@@ -431,6 +452,7 @@ impl CreatureSkillKind {
             Self::Survival => "survival",
             Self::Thievery => "thievery",
             Self::Lore => "lore",
+            Self::Unmodeled => "unmodeled",
         }
     }
 }

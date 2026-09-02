@@ -42,7 +42,7 @@ impl Drop for TemporaryOutput {
 }
 
 #[test]
-fn single_actor_npc_no_embedding_persistence_proves_current_mismatch()
+fn single_actor_npc_no_embedding_persistence_proves_b1_ability_ownership()
 -> Result<(), Box<dyn std::error::Error>> {
     let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join(SOURCE_ROOT);
     let raw: serde_json::Value =
@@ -56,21 +56,21 @@ fn single_actor_npc_no_embedding_persistence_proves_current_mismatch()
     let SourcePresence::Value(abilities) = dto.source.core.abilities else {
         panic!("Night Hag has an authored abilities map");
     };
-    for parsed_value in [
+    for (parsed_value, expected) in [
         abilities.strength,
         abilities.dexterity,
         abilities.constitution,
         abilities.intelligence,
         abilities.wisdom,
         abilities.charisma,
-    ] {
+    ]
+    .into_iter()
+    .zip([5, 4, 6, 4, 5, 3])
+    {
         let SourcePresence::Value(parsed) = parsed_value else {
             panic!("each authored ability object must parse");
         };
-        assert!(
-            matches!(parsed.value, SourcePresence::Missing),
-            "current parser incorrectly looks for .value and must not pass authored .mod"
-        );
+        assert_eq!(parsed.r#mod, SourcePresence::Value(expected));
     }
 
     let temporary = TemporaryOutput::new()?;
@@ -103,18 +103,18 @@ fn single_actor_npc_no_embedding_persistence_proves_current_mismatch()
     let FactValue::Value(abilities) = &creature.legacy_abilities.value else {
         panic!("current canonical projection retains the ability container");
     };
-    for persisted_leaf in [
+    for (persisted_leaf, expected) in [
         &abilities.strength,
         &abilities.dexterity,
         &abilities.constitution,
         &abilities.intelligence,
         &abilities.wisdom,
         &abilities.charisma,
-    ] {
-        assert!(
-            matches!(persisted_leaf, FactValue::Missing),
-            "a transient or container-level metric cannot satisfy the canonical persisted leaf owner"
-        );
+    ]
+    .into_iter()
+    .zip([5, 4, 6, 4, 5, 3])
+    {
+        assert_eq!(persisted_leaf, &FactValue::Value(expected));
     }
     drop(reader);
 
@@ -124,9 +124,12 @@ fn single_actor_npc_no_embedding_persistence_proves_current_mismatch()
         [RECORD_KEY],
         |row| row.get(0),
     )?;
-    assert_eq!(
-        ability_metric_count, 0,
-        "missing .value inputs must not masquerade as persisted authored .mod metrics"
-    );
+    assert_eq!(ability_metric_count, 6);
+    let strength_modifier: f64 = connection.query_row(
+        "SELECT number_value FROM record_metrics WHERE record_key = ?1 AND metric_key = 'ability.str.mod'",
+        [RECORD_KEY],
+        |row| row.get(0),
+    )?;
+    assert_eq!(strength_modifier, 5.0);
     Ok(())
 }

@@ -1,6 +1,6 @@
 pub const ARTIFACT_METADATA_TABLE: &str = "artifact_metadata";
 pub const LEGACY_METADATA_TABLE: &str = "metadata";
-pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-artifact/v3";
+pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-artifact/v4";
 pub const ARTIFACT_SCHEMA_VERSION: &str = "2";
 pub const ARTIFACT_MANIFEST_VERSION: &str = "pf2e-atlas-artifact-manifest/v3";
 
