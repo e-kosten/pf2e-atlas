@@ -2,10 +2,10 @@ use atlas_domain::DetailLevel;
 use atlas_record::{
     CreatureActionCostJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
     CreatureContentJson, CreatureDamageJson, CreatureRollJson, CreatureSpellJson,
-    PresentationContent, PresentationContentBlock, PresentationInline, RecordBlockJson,
-    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionStatusJson,
-    RecordJson, RecordPresentationJson, RecordRelationshipDirectionJson,
-    RecordRelationshipLookupJson,
+    CreatureUnmodeledSkillAvailabilityJson, PresentationContent, PresentationContentBlock,
+    PresentationInline, RecordBlockJson, RecordEditionCounterpartLookupJson,
+    RecordEditionCounterpartRoleJson, RecordEditionStatusJson, RecordJson, RecordPresentationJson,
+    RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
 };
 
 use crate::terminal::TerminalStyle;
@@ -54,10 +54,11 @@ pub(super) fn render_record(
             lore,
             content,
             relationships: _,
-            provenance,
+            provenance: _,
             edition,
             record_relationships,
             availability,
+            unmodeled_skill_availability,
             availability_evidence: _,
         } => {
             if detail != DetailLevel::Description {
@@ -108,9 +109,9 @@ pub(super) fn render_record(
                 out.relationships(record_relationships.as_ref());
             }
             if detail == DetailLevel::Full {
-                out.provenance(record, provenance.as_ref(), edition.as_ref());
+                out.source_and_edition(record, edition.as_ref());
             }
-            out.availability(detail, availability, skills.as_deref());
+            out.availability(detail, availability, unmodeled_skill_availability);
         }
         RecordPresentationJson::Unmigrated { sections, .. } => out.generic_sections(sections),
     }
@@ -866,32 +867,21 @@ impl Writer {
         }
     }
 
-    fn provenance(
+    fn source_and_edition(
         &mut self,
         record: &RecordJson,
-        provenance: Option<&atlas_record::CreatureProvenanceJson>,
         edition: Option<&atlas_record::RecordEditionContextJson>,
     ) {
-        if provenance.is_none() && edition.is_none() && record.source.is_none() {
+        if edition.is_none() && record.source.is_none() {
             return;
         }
-        self.section("Provenance and edition");
+        self.section("Source and edition");
         if let Some(source) = &record.source {
             if let Some(title) = &source.publication_title {
                 self.field("Publication", title, 2);
             }
             if let Some(pack) = &source.pack {
                 self.field("Pack", format!("{} ({})", pack.label, pack.name), 2);
-            }
-            if let Some(path) = &source.source_path {
-                self.field("Source path", path, 2);
-            }
-            if let Some(foundry) = &source.foundry {
-                self.field(
-                    "Foundry",
-                    format!("{} / {}", foundry.document_type, foundry.record_type),
-                    2,
-                );
             }
         }
         if let Some(edition) = edition {
@@ -931,18 +921,13 @@ impl Writer {
                 }
             }
         }
-        if let Some(provenance) = provenance {
-            self.field("Contract", &provenance.source_contract_version, 2);
-            self.field("System", &provenance.source_system_version, 2);
-            self.field("Upstream commit", &provenance.source_upstream_commit, 2);
-        }
     }
 
     fn availability(
         &mut self,
         detail: DetailLevel,
         availability: &[CreatureAvailabilityJson],
-        skills: Option<&[atlas_record::CreatureSkillJson]>,
+        unmodeled_skills: &[CreatureUnmodeledSkillAvailabilityJson],
     ) {
         if detail == DetailLevel::Preview {
             return;
@@ -954,36 +939,20 @@ impl Writer {
                     || row.field == CreatureAvailabilityFieldJson::ContentAssociation
             })
             .collect::<Vec<_>>();
-        if rows.is_empty() {
+        if rows.is_empty() && unmodeled_skills.is_empty() {
             return;
         }
         self.section("Data availability");
-        for row in rows {
-            if row.field == CreatureAvailabilityFieldJson::UnmodeledSkill {
-                let unmodeled = row.authored_key.as_deref().and_then(|authored_key| {
-                    skills.into_iter().flatten().find_map(|skill| {
-                        skill
-                            .unmodeled
-                            .as_ref()
-                            .filter(|value| value.authored_key == authored_key)
-                    })
-                });
-                self.lines
-                    .push(format!("  {}", self.style.label("Unmodeled skill entry")));
-                if let Some(key) = unmodeled
-                    .map(|value| value.authored_key.as_str())
-                    .or(row.authored_key.as_deref())
-                {
-                    self.field("Key", key, 4);
-                }
-                if let Some(atlas_record::CreatureIntegerPresenceJson::Value(value)) =
-                    unmodeled.map(|value| &value.base)
-                {
-                    self.field("Modifier", format!("{value:+}"), 4);
-                }
-                self.paragraph("The source supplied an unrecognized skill key.", 4);
-                continue;
+        for row in unmodeled_skills {
+            self.lines
+                .push(format!("  {}", self.style.label("Unmodeled skill entry")));
+            self.field("Key", &row.authored_key, 4);
+            if let atlas_record::CreatureIntegerPresenceJson::Value(value) = row.modifier {
+                self.field("Modifier", format!("{value:+}"), 4);
             }
+            self.paragraph(row.message, 4);
+        }
+        for row in rows {
             self.lines.push(format!(
                 "  {}",
                 self.style.label(availability_label(row.field))
@@ -1574,21 +1543,17 @@ pub(super) mod tests {
     fn unmodeled_skill_modifier_uses_typed_presence_without_parsing_the_key() {
         let mut record = review_fixture(DetailLevel::Standard);
         let RecordPresentationJson::Creature {
-            skills,
-            availability,
+            unmodeled_skill_availability,
             ..
         } = &mut record.presentation
         else {
             panic!("creature fixture");
         };
-        let skill = skills
-            .as_mut()
-            .and_then(|skills| skills.first_mut())
+        let unmodeled = unmodeled_skill_availability
+            .first_mut()
             .expect("synthetic unmodeled skill");
-        let unmodeled = skill.unmodeled.as_mut().expect("unmodeled fact");
         unmodeled.authored_key = "synthetic-review-skill+23".into();
-        unmodeled.base = CreatureIntegerPresenceJson::Value(17);
-        availability[0].authored_key = Some("synthetic-review-skill+23".into());
+        unmodeled.modifier = CreatureIntegerPresenceJson::Value(17);
 
         let rendered = render_record(&record, DetailLevel::Standard, 80, TerminalStyle::plain());
         let key = rendered
@@ -1609,15 +1574,17 @@ pub(super) mod tests {
             CreatureIntegerPresenceJson::Null,
         ] {
             let mut record = review_fixture(DetailLevel::Standard);
-            let RecordPresentationJson::Creature { skills, .. } = &mut record.presentation else {
+            let RecordPresentationJson::Creature {
+                unmodeled_skill_availability,
+                ..
+            } = &mut record.presentation
+            else {
                 panic!("creature fixture");
             };
-            skills
-                .as_mut()
-                .and_then(|skills| skills.first_mut())
-                .and_then(|skill| skill.unmodeled.as_mut())
+            unmodeled_skill_availability
+                .first_mut()
                 .expect("unmodeled fact")
-                .base = base;
+                .modifier = base;
             let rendered =
                 render_record(&record, DetailLevel::Standard, 80, TerminalStyle::plain());
             assert!(rendered.contains("Key: synthetic-review-skill"));
@@ -1629,6 +1596,68 @@ pub(super) mod tests {
                 1
             );
         }
+    }
+
+    #[test]
+    fn duplicate_unmodeled_skill_keys_render_each_occurrence_in_authored_order() {
+        let mut record = review_fixture(DetailLevel::Standard);
+        let rows = vec![
+            CreatureUnmodeledSkillAvailabilityJson {
+                skill_id: "skill-value".into(),
+                authored_order: 8,
+                authored_key: "same-authored-key".into(),
+                modifier: CreatureIntegerPresenceJson::Value(17),
+                message: "The source supplied an unrecognized skill key.",
+            },
+            CreatureUnmodeledSkillAvailabilityJson {
+                skill_id: "skill-missing".into(),
+                authored_order: 3,
+                authored_key: "same-authored-key".into(),
+                modifier: CreatureIntegerPresenceJson::Missing,
+                message: "The source supplied an unrecognized skill key.",
+            },
+            CreatureUnmodeledSkillAvailabilityJson {
+                skill_id: "skill-null".into(),
+                authored_order: 5,
+                authored_key: "same-authored-key".into(),
+                modifier: CreatureIntegerPresenceJson::Null,
+                message: "The source supplied an unrecognized skill key.",
+            },
+        ];
+        let RecordPresentationJson::Creature {
+            unmodeled_skill_availability,
+            ..
+        } = &mut record.presentation
+        else {
+            panic!("creature fixture");
+        };
+        *unmodeled_skill_availability = rows;
+
+        let rendered = render_record(&record, DetailLevel::Standard, 80, TerminalStyle::plain());
+        assert_eq!(rendered.matches("Key: same-authored-key").count(), 3);
+        assert_eq!(rendered.matches("Modifier: +17").count(), 1);
+        assert_eq!(
+            rendered
+                .matches("The source supplied an unrecognized skill key.")
+                .count(),
+            3
+        );
+
+        let RecordPresentationJson::Creature {
+            unmodeled_skill_availability,
+            ..
+        } = &mut record.presentation
+        else {
+            panic!("creature fixture");
+        };
+        unmodeled_skill_availability.reverse();
+        let reversed = render_record(&record, DetailLevel::Standard, 80, TerminalStyle::plain());
+        assert_ne!(
+            rendered, reversed,
+            "presentation row order must be observable"
+        );
+        assert_eq!(reversed.matches("Key: same-authored-key").count(), 3);
+        assert_eq!(reversed.matches("Modifier: +17").count(), 1);
     }
 
     #[test]
@@ -1890,7 +1919,14 @@ pub(super) mod tests {
                 provenance: (detail == DetailLevel::Full).then_some(provenance),
                 edition: (detail == DetailLevel::Full).then(|| RecordEditionContextJson { status: RecordEditionStatusJson::Legacy, counterpart_lookup: RecordEditionCounterpartLookupJson::Verified { counterparts: vec![RecordEditionCounterpartJson { role: RecordEditionCounterpartRoleJson::RemasteredCounterpart, record_key: "bestiary:Dream-Hag".into(), title: "Dream Hag".into() }] } }),
                 record_relationships: scan.then(|| RecordRelationshipLookupJson::Verified { relationships: vec![RecordCanonicalRelationshipJson { direction: RecordRelationshipDirectionJson::Reference, kind: ReferenceRelationKind::Reference, label: "Dream Message".into(), target_record_key: "spells:Dream-Message".into(), provenance: RecordRelationshipProvenanceJson { from_record_key: "bestiary:Night-Hag".into(), to_record_key: "spells:Dream-Message".into(), source_kind: ContentSourceKind::Description, visibility: ContentVisibility::Public } }] }),
-                availability: if scan { vec![CreatureAvailabilityJson { state: CreatureAvailabilityStateJson::Unsupported, field: CreatureAvailabilityFieldJson::UnmodeledSkill, authored_key: Some("synthetic-review-skill".into()), source_value: None, message: "The source supplied an unrecognized skill key.".into() }] } else { Vec::new() },
+                availability: Vec::new(),
+                unmodeled_skill_availability: scan.then(|| vec![CreatureUnmodeledSkillAvailabilityJson {
+                    skill_id: "synthetic-unmodeled-skill".into(),
+                    authored_order: 0,
+                    authored_key: "synthetic-review-skill".into(),
+                    modifier: CreatureIntegerPresenceJson::Value(17),
+                    message: "The source supplied an unrecognized skill key.",
+                }]).unwrap_or_default(),
                 availability_evidence: full.then(|| vec![CreatureAvailabilityEvidenceJson {
                     state: CreatureAvailabilityStateJson::Unsupported,
                     field: CreatureAvailabilityFieldJson::ResourceSerializedValue,

@@ -1,0 +1,371 @@
+Areelu Vorlesh
+  Type: creature · Pack: Revenge of the Runelords
+  Key: revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ
+
+Classification
+  Level: 20
+  Rarity: unique
+  Traits: human, humanoid, mythic, nephilim, unholy
+  Size: med
+  Source: Pathfinder #221: Into the Apocalypse Archive
+
+Defenses
+  AC: 44
+  HP: current 400; maximum 400; temporary 0
+  Fortitude: 36
+  Reflex: 32
+  Will: 34
+  Resistances: mythic 10
+  Weaknesses: cold-iron 20, holy 20
+
+Awareness and abilities
+  Perception: +34; darkvision, truesight
+  Initiative: perception
+  Languages: aklo, chthonian, common, diabolic, draconic, dwarven, elven,
+             empyrean, fey, halfling, hallit, jotun, necril, sakvroth, gnomish,
+             orcish
+  Abilities: Str +4, Dex +8, Con +10, Int +10, Wis +6, Cha +10
+  Acrobatics: +34
+  Arcana: +38
+  Athletics: +32
+  Deception: +38
+  Diplomacy: +36
+  Intimidation: +38
+  Occultism: +38
+  Religion: +34
+  Society: +36
+
+Movement
+  land: 25 feet
+  fly: 35 feet
+
+Strikes
+  - Dagger — [1 action]
+    Traits: agile, finesse, versatile-s
+    Attack: attack +39
+    Damage: 1d6 spirit
+    Damage: 1d4 spirit
+    Damage: 4d4+12 piercing
+  - Claw — [1 action]
+    Traits: agile, finesse, magical, unarmed, unholy
+    Attack: attack +36
+    Damage: 2d6 spirit
+    Damage: 4d8+12 slashing
+
+Activities
+  - Remove a Condition — [1 action]
+    Traits: concentrate
+    Category: interaction
+  - Constant Spells — passive
+    Category: interaction
+  - Mythic Resilience (Fortitude and Will) — passive
+    Category: defensive
+  - Rejection Vulnerability — passive
+    Category: defensive
+  - Undying Myth — [free action]
+    Category: defensive
+  - Embrace — [1 action]
+    Category: offensive
+  - Kiss of Locusts — [1 action]
+    Traits: divine, emotion, mental, unholy
+    Category: offensive
+  - Recharge — [1 action]
+    Traits: concentrate
+    Category: offensive
+  - Reroll — [free action]
+    Traits: fortune
+    Category: offensive
+
+Spellcasting
+  - Divine Innate Spells — innate · divine
+    Attack: +34
+    DC: 42
+    Rank 9
+      - Overwhelming Presence — [2 actions]
+        Traits: auditory, concentrate, incapacitation, manipulate, mental,
+                visual
+        Target: any number of creatures
+        Time: 2
+      - Wails of the Damned — [2 actions]
+        Traits: auditory, concentrate, death, manipulate, void
+        Time: 2
+        Damage: 8d10 void damage
+      - Execute — [2 actions]
+        Traits: concentrate, death, manipulate, void
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+        Damage: 70 void damage
+      - Truesight (Constant) — [2 actions]
+        Traits: concentrate, manipulate, revelation
+        Time: 2
+      - Dispel Magic — [2 actions]
+        Traits: concentrate, manipulate
+        Target: 1 spell effect or unattended magic item
+        Range: 120 feet
+        Time: 2
+    Rank 7
+      - Warp Mind — [2 actions]
+        Traits: concentrate, emotion, incapacitation, manipulate, mental
+        Target: 1 creature
+        Range: 120 feet
+        Time: 2
+    Rank 10
+      - Dominate — [2 actions]
+        Traits: concentrate, incapacitation, manipulate, mental
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+    Rank 8
+      - Vampiric Exsanguination — [2 actions]
+        Traits: concentrate, death, manipulate, void
+        Time: 2
+        Damage: 12d6 void damage
+      - Divine Immolation — [2 actions]
+        Traits: concentrate, fire, manipulate, sanctified, spirit
+        Range: 120 feet
+        Time: 2
+        Damage: 6d6 fire damage
+      - Divine Wrath — [2 actions]
+        Traits: concentrate, manipulate, sanctified, spirit
+        Range: 120 feet
+        Time: 2
+        Damage: 4d10 spirit damage
+    Rank 1
+      - Divine Lance — [2 actions]
+        Traits: attack, cantrip, concentrate, manipulate, sanctified, spirit
+        Target: 1 creature
+        Range: 60 feet
+        Time: 2
+        Damage: 2d4 spirit damage
+      - Shield — [1 action]
+        Traits: cantrip, concentrate, force
+        Time: 1
+      - Void Warp — [2 actions]
+        Traits: cantrip, concentrate, manipulate, void
+        Target: 1 living creature
+        Range: 30 feet
+        Time: 2
+        Damage: 2d4 void damage
+
+Overwhelming Presence
+  You surround yourself with supernatural splendor, appearing to be a god or
+  similarly majestic being, with an appearance, regalia, and iconography of your
+  choice. Targets must attempt a Will save. Regardless of the outcome, the
+  target is then temporarily immune for 1 minute.
+  ---
+  Critical Success The target is unaffected.
+  Success The target must pay tribute to you two times. Paying tribute requires
+  that the target spend a single action, which has either the move trait (as
+  they bow) or manipulate trait (as they offer up a token in their hands). They
+  must pay tribute at least once on each of their turns, if possible. While
+  affected, the target is Fascinated by you and can't use hostile actions
+  against you.
+  Failure As success, but the target must pay tribute a total of six times.
+  Critical Failure As failure, but the target must spend all its actions paying
+  tribute, and they cannot take other actions until the tribute is fully paid.
+
+Summary
+  Female cambion demoniac
+
+Wails of the Damned
+  You howl a lament of damned souls. Each living enemy in the area takes 8d10
+  void damage and must attempt a Fortitude save.
+  ---
+  Critical Success The creature is unaffected.
+  Success The creature takes full damage.
+  Failure The creature takes full damage and is Drained 1d4.
+  Critical Failure The creature takes double damage and is Drained 4.
+
+Execute
+  You point at a creature and invoke the demise of all things. The target takes
+  70 void damage with a basic Fortitude save. If the target is undead or
+  otherwise has void healing, the spell loses the death and void traits and
+  gains the vitality trait, and the target takes 70 vitality damage with a basic
+  Fortitude save.
+  ---
+  Heightened (+1) The damage increases by 10.
+
+Warp Mind
+  You scramble a creature's mental faculties and sensory input. The target must
+  attempt a Will saving throw. Regardless of the result of that save, the target
+  is then temporarily immune for 10 minutes. Warp mind's effects happen
+  instantly, so Dispel Magic and other effects that counteract spells can't
+  counteract them. However, Wish rituals and abilities that can remove
+  non-magical effects can still counteract the effects.
+  ---
+  Critical Success The target is unaffected.
+  Success The target spends the first action on its next turn with the Confused
+  condition.
+  Failure The target is Confused for 1 minute.
+  Critical Failure The target is Confused permanently.
+
+Dominate
+  You take command of the target, forcing it to obey your orders. If you issue
+  an obviously self-destructive order, the target doesn't act until you issue a
+  new order. The effect depends on its Will save.
+  ---
+  Critical Success The target is unaffected.
+  Success The target is Stunned 1 as it fights off your commands.
+  Failure You control the target. It gains the Controlled condition, but it can
+  attempt a Will save at the end of each of its turns. On a success, the spell
+  ends.
+  Critical Failure As a failure, but the target receives a new save only if you
+  give it a new order that is against its nature, such as killing its allies.
+  ---
+  Heightened (10th) The duration is unlimited.
+
+Truesight (Constant)
+  You see things within 60 feet as they actually are. The GM rolls a secret
+  counteract check against any illusion, morph or polymorph effect in the area,
+  but only for the purpose of determining whether you see through it (for
+  instance, if the check succeeds against a polymorph spell, you can see the
+  creature's true form, but you don't end the polymorph spell).
+
+Vampiric Exsanguination
+  You draw in the blood and life force of other creatures through your
+  outstretched arms. You deal 12d6 void damage to living creatures in the area
+  with a basic Fortitude save.
+  You gain temporary Hit Points equal to half the damage a single creature takes
+  from this spell; calculate these temporary Hit Points using the creature that
+  took the most damage. You lose any remaining temporary Hit Points after 1
+  minute.
+  ---
+  Heightened (+1) The damage increases by 2d6.
+
+Divine Immolation
+  Divine flames scour creatures within the area. Creatures take 6d6 fire damage
+  and (@item.level -3)d6[persistent,fire] damage. The divine power within the
+  flames scorches the spirit as well; a creature takes spirit damage instead of
+  fire damage from divine immolation if that would be more detrimental to the
+  creature (as determined by the GM).
+  ---
+  Critical Success The creature is unaffected.
+  Success The creature takes half damage and no persistent damage.
+  Failure The creature takes full damage and persistent damage.
+  Critical Failure The creature takes double damage and double persistent
+  damage.
+  ---
+  Heightened (+1) The damage increases by 1d6 and persistent damage increases by
+  1d6.
+
+Divine Wrath
+  You channel the fury of divinity against your foes. You deal 4d10 spirit
+  damage to enemies in the area, depending on their Fortitude save.
+  ---
+  Critical Success The creature is unaffected.
+  Success The creature takes half damage.
+  Failure The creature takes full damage and is Sickened 1.
+  Critical Failure The creature takes full damage and is Sickened 2; while it's
+  sickened, it's also Slowed 1.
+  ---
+  Heightened (+1) The damage increases by 1d10.
+
+Dispel Magic
+  You unravel the magic behind a spell or effect. Attempt a counteract check
+  against the target. If you successfully counteract a magic item, the item
+  becomes a mundane item of its type for 10 minutes. This doesn't change the
+  item's non-magical properties. If the target is an artifact or similar item,
+  you automatically fail.
+
+Divine Lance
+  You unleash a beam of divine energy. Make a ranged spell attack against the
+  target's AC. On a hit, the target takes 2d4 spirit damage (double damage on a
+  critical hit).
+  ---
+  Heightened (+1) The damage increases by 1d4.
+
+Shield
+  You raise a magical shield of force. This counts as using the Raise a Shield
+  action, giving you a +1 circumstance bonus to AC until the start of your next
+  turn, but it doesn't require a hand to use.
+  While the spell is in effect, you can use the Shield Block reaction with your
+  magic shield. The shield has Hardness 5. You can use the spell's reaction to
+  reduce damage from any spell or magical effect, even if it doesn't deal
+  physical damage. After you use Shield Block, the spell ends and you can't cast
+  it again for 10 minutes.
+  Spell Effect: Shield
+  Effect: Shield Immunity
+  ---
+  Heightened (+2) The shield's Hardness increases by 5.
+
+Void Warp
+  You call upon the Void to harm life force. The target takes 2d4 void damage
+  with a basic Fortitude save. On a critical failure, the target is also
+  Enfeebled 1 until the start of your next turn.
+  ---
+  Heightened (+1) The damage increases by 1d4.
+
+Dagger
+  This small, bladed weapon is held in one hand and used to stab a creature in
+  close combat. It can also be thrown.
+
+Remove a Condition
+  Cost 1 Mythic Point
+  ---
+  Effect Areelu ends one condition affecting her.
+
+Constant Spells
+  PF2E.NPC.Abilities.Glossary.ConstantSpells
+
+Mythic Resilience (Fortitude and Will)
+  The creature treats its saving throws with the associated save as one degree
+  of success better than it rolled. This is not cumulative with other effects
+  that change their degree of success, like the incapacitation trait (except for
+  rolling a natural 1 or 20). Each time the monster gains mythic resilience,
+  choose one save. The ability should apply to the creature's highest saves
+  first.
+
+Rejection Vulnerability
+  Areelu Vorlesh's apotheosis into a demon has made her vulnerable to rejection
+  like a succubus. When Areelu fails a Deception check to Embrace or Lie, or
+  when a creature succeeds at its save against her mental spells or abilities,
+  she takes 6d6[mental] damage. For 1 hour after causing mental damage to Areelu
+  in this way, the creature can deal 6d6[mental] damage to her with a successful
+  Demoralize action incorporating its rejection.
+
+Undying Myth
+  Cost all of Areelu's Mythic Points
+  Trigger Areelu would die and has at least 1 Mythic Point
+  ---
+  Effect Areelu remains standing and conscious and recovers 200[healing] Hit
+  Points.
+
+Embrace
+  Areelu attempts to grapple skill=deception a creature using her Deception
+  bonus instead of Athletics. If the creature is willing, Areelu automatically
+  succeeds.
+
+Kiss of Locusts
+  Frequency once per round
+  ---
+  Effect Areelu engages a creature she has Grabbed or Restrained in an embrace
+  or other act of passion, creating an opportunity for a cloud of locusts to
+  enter the creature's body. The creature takes 5d6[persistent,bleed] damage and
+  is Sickened 2 and Off Guard for as long as they remain sickened.
+
+Recharge
+  Cost 1 Mythic Point
+  ---
+  Effect Areelu regains an expended spell slot.
+
+Reroll
+  Cost 1 Mythic Point
+  Trigger Areelu fails a check
+  ---
+  Effect Areelu rerolls the check.
+
+Source and edition
+  Publication: Pathfinder #221: Into the Apocalypse Archive
+  Pack: Revenge of the Runelords (revenge-of-the-runelords-bestiary)
+  Edition: remaster
+  Counterparts: verified: none
+
+Data availability
+  Unmodeled skill entry
+    Key: craft
+    Modifier: +36
+    The source supplied an unrecognized skill key.
+  Unsupported capability
+    Key: weapon
+    The source supplied an unsupported creature capability.

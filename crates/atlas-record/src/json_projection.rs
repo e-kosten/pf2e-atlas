@@ -20,7 +20,8 @@ pub use creature::{
     CreatureSkillSourceEntryJson, CreatureSkillVariantJson, CreatureSpellAreaJson,
     CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
-    CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
+    CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillAvailabilityJson,
+    CreatureUnmodeledSkillJson, CreatureUseLimitJson,
 };
 
 use crate::{
@@ -239,7 +240,7 @@ impl std::error::Error for RecordEditionLookupError {}
 pub struct RecordJsonContext {
     edition: RecordEditionLookup,
     relationships: RecordRelationshipLookupJson,
-    include_availability_evidence: bool,
+    include_provenance_evidence: bool,
 }
 
 impl RecordJsonContext {
@@ -247,7 +248,7 @@ impl RecordJsonContext {
         Self {
             edition: RecordEditionLookup::NotPerformed,
             relationships: RecordRelationshipLookupJson::NotPerformed,
-            include_availability_evidence: false,
+            include_provenance_evidence: false,
         }
     }
 
@@ -261,8 +262,8 @@ impl RecordJsonContext {
         self
     }
 
-    pub fn with_availability_evidence(mut self) -> Self {
-        self.include_availability_evidence = true;
+    pub fn with_provenance_evidence(mut self) -> Self {
+        self.include_provenance_evidence = true;
         self
     }
 }
@@ -552,6 +553,8 @@ pub enum RecordPresentationJson {
         record_relationships: Option<RecordRelationshipLookupJson>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         availability: Vec<CreatureAvailabilityJson>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        unmodeled_skill_availability: Vec<CreatureUnmodeledSkillAvailabilityJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         availability_evidence: Option<Vec<CreatureAvailabilityEvidenceJson>>,
     },
@@ -669,7 +672,7 @@ pub fn record_json_with_context(
     let RecordJsonContext {
         edition,
         relationships,
-        include_availability_evidence,
+        include_provenance_evidence,
     } = context;
     let document = build_record_presentation_document(record);
     let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
@@ -680,7 +683,7 @@ pub fn record_json_with_context(
                 options.detail,
                 Some(edition.context_for(record)?),
                 Some(relationships),
-                include_availability_evidence,
+                include_provenance_evidence,
                 matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
                     .then(|| record.content.description())
                     .flatten()
@@ -727,7 +730,14 @@ pub fn record_json_with_context(
                 Vec::new()
             },
             source: (options.detail != DetailLevel::Summary)
-                .then(|| source_json(record, options.detail))
+                .then(|| {
+                    source_json(
+                        record,
+                        options.detail,
+                        include_provenance_evidence
+                            || record.classification.kind != RecordKind::Creature,
+                    )
+                })
                 .flatten(),
             supplementary_sections: if record.classification.kind == RecordKind::Creature {
                 creature_supplementary_sections(&detailed_sections)
@@ -743,7 +753,11 @@ pub fn record_json_with_context(
     })
 }
 
-fn source_json(record: &AtlasRecord, detail: DetailLevel) -> Option<RecordSourceJson> {
+fn source_json(
+    record: &AtlasRecord,
+    detail: DetailLevel,
+    include_provenance_evidence: bool,
+) -> Option<RecordSourceJson> {
     let full = detail == DetailLevel::Full;
     Some(RecordSourceJson {
         publication_title: record.publication.title.clone(),
@@ -753,8 +767,9 @@ fn source_json(record: &AtlasRecord, detail: DetailLevel) -> Option<RecordSource
         }),
         category: full.then(|| record.publication.category.as_str()),
         publication_remaster: full.then_some(record.publication.remaster),
-        source_path: full.then(|| record.provenance.source_path.clone()),
-        foundry: full.then(|| FoundrySourceJson {
+        source_path: (full && include_provenance_evidence)
+            .then(|| record.provenance.source_path.clone()),
+        foundry: (full && include_provenance_evidence).then(|| FoundrySourceJson {
             document_type: record.foundry.document_type.as_str().to_string(),
             record_type: record.foundry.record_type.as_str().to_string(),
         }),
@@ -1246,15 +1261,11 @@ mod tests {
             "occult-innate"
         );
         let full_value = serde_json::to_value(full).expect("full json");
-        assert_eq!(full_value["provenance"]["source_contract_version"], "test");
-        assert_eq!(
-            full_value["provenance"]["facts"]["defenses"]["kind"],
-            "source"
-        );
-        assert_eq!(
-            full_value["provenance"]["facts"]["defenses"]["field"],
-            "defenses"
-        );
+        assert!(full_value.get("provenance").is_none());
+        assert!(full_value.get("relationships").is_none());
+        assert!(full_value["source"].get("source_path").is_none());
+        assert!(full_value["source"].get("foundry").is_none());
+        assert!(full_value["strikes"][0].get("provenance").is_none());
         assert_eq!(full_value["edition"]["status"], "remaster");
         assert_eq!(
             full_value["edition"]["counterpart_lookup"]["state"],
@@ -1267,6 +1278,33 @@ mod tests {
         );
         assert!(description.supplementary_sections.is_empty());
         assert!(description_value.get("content").is_none());
+
+        let provenance_value = serde_json::to_value(
+            record_json_with_context(
+                &record,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+                RecordJsonContext::without_lookups(&record.record).with_provenance_evidence(),
+            )
+            .expect("provenance projection"),
+        )
+        .expect("provenance json");
+        assert_eq!(
+            provenance_value["provenance"]["source_contract_version"],
+            "test"
+        );
+        assert_eq!(
+            provenance_value["provenance"]["facts"]["defenses"]["field"],
+            "defenses"
+        );
+        assert_eq!(
+            provenance_value["source"]["source_path"],
+            "packs/actions/treat-wounds.json"
+        );
+        assert!(provenance_value["source"]["foundry"].is_object());
+        assert!(provenance_value["strikes"][0]["provenance"].is_object());
     }
 
     #[test]
@@ -2094,11 +2132,14 @@ mod tests {
                 .iter()
                 .any(|cause| { cause["field"] == "perception" && cause["state"] == "null" })
         );
-        let unmodeled = availability
-            .iter()
-            .find(|cause| cause["field"] == "unmodeled_skill")
+        let unmodeled = standard["unmodeled_skill_availability"]
+            .as_array()
+            .and_then(|rows| rows.first())
             .expect("unmodeled availability");
+        assert_eq!(unmodeled["skill_id"], "malformed-skill");
+        assert_eq!(unmodeled["authored_order"], 0);
         assert_eq!(unmodeled["authored_key"], "acrobatics+13");
+        assert_eq!(unmodeled["modifier"]["state"], "null");
         assert_eq!(
             unmodeled["message"],
             "The source supplied an unrecognized skill key."
@@ -2118,6 +2159,80 @@ mod tests {
             0
         );
         assert!(standard.get("relationships").is_none());
+    }
+
+    #[test]
+    fn unmodeled_skill_availability_preserves_occurrence_order_multiplicity_and_presence() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        creature.skills.value = FactValue::Value(
+            [
+                ("skill-value", 8, FactValue::Value(17)),
+                ("skill-missing", 3, FactValue::Missing),
+                ("skill-null", 5, FactValue::Null),
+            ]
+            .into_iter()
+            .map(|(id, authored_order, base)| crate::CreatureSkill {
+                id: crate::CreatureComponentId::new(id).expect("skill id"),
+                authored_order,
+                source_entries: vec![crate::CreatureSkillSourceEntry {
+                    authored_key: "same-authored-key".to_string(),
+                    modifier: base.clone(),
+                }],
+                kind: crate::CreatureSkillKind::Unmodeled,
+                label: "same-authored-key".to_string(),
+                modifier: base.clone(),
+                note: FactValue::Missing,
+                variants: FactValue::Value(Vec::new()),
+                source_item_id: FactValue::Missing,
+                unmodeled: FactValue::Value(crate::CreatureUnmodeledSkill {
+                    authored_key: "same-authored-key".to_string(),
+                    base,
+                    reason: crate::CreatureUnmodeledSkillReason::UnknownAuthoredKey,
+                }),
+            })
+            .collect(),
+        );
+
+        let project = |retrieved: &RetrievedRecord| {
+            let value = serde_json::to_value(
+                record_json(
+                    retrieved,
+                    RecordJsonOptions {
+                        detail: DetailLevel::Standard,
+                        include_source_json: false,
+                    },
+                )
+                .expect("standard projection"),
+            )
+            .expect("json");
+            value["unmodeled_skill_availability"]
+                .as_array()
+                .expect("unmodeled rows")
+                .clone()
+        };
+        let forward = project(&retrieved);
+        assert_eq!(forward.len(), 3);
+        assert_eq!(forward[0]["skill_id"], "skill-value");
+        assert_eq!(forward[1]["skill_id"], "skill-missing");
+        assert_eq!(forward[2]["skill_id"], "skill-null");
+        assert_eq!(forward[0]["modifier"]["value"], 17);
+        assert_eq!(forward[1]["modifier"]["state"], "missing");
+        assert_eq!(forward[2]["modifier"]["state"], "null");
+
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let FactValue::Value(skills) = &mut creature.skills.value else {
+            panic!("skills")
+        };
+        skills.reverse();
+        let reversed = project(&retrieved);
+        assert_eq!(reversed[0]["skill_id"], "skill-null");
+        assert_eq!(reversed[1]["skill_id"], "skill-missing");
+        assert_eq!(reversed[2]["skill_id"], "skill-value");
+        assert_ne!(
+            forward, reversed,
+            "authored occurrence order must be observable"
+        );
     }
 
     #[test]
@@ -2308,7 +2423,7 @@ mod tests {
                         detail: DetailLevel::Full,
                         include_source_json: false,
                     },
-                    RecordJsonContext::without_lookups(&record.record).with_availability_evidence(),
+                    RecordJsonContext::without_lookups(&record.record).with_provenance_evidence(),
                 )
                 .expect("full projection"),
             )

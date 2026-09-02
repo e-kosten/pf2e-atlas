@@ -596,13 +596,8 @@ Dream Haunting
 Spell Ambush
   A creature Off Guard to the night hag takes a -2 circumstance penalty to checks and DCs to defend against her spells.
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder Bestiary
   Pack: Bestiary 1 (pathfinder-bestiary)
-  Source path: packs/pathfinder-bestiary/night-hag.json
-  Foundry: Actor / npc
   Edition: legacy
   Counterparts: verified: none
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce

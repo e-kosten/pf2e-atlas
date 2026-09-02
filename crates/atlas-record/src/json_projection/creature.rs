@@ -427,6 +427,15 @@ pub struct CreatureUnmodeledSkillJson {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureUnmodeledSkillAvailabilityJson {
+    pub skill_id: String,
+    pub authored_order: u32,
+    pub authored_key: String,
+    pub modifier: CreatureIntegerPresenceJson,
+    pub message: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "state", content = "value", rename_all = "snake_case")]
 pub enum CreatureIntegerPresenceJson {
     Missing,
@@ -753,7 +762,7 @@ pub(super) fn creature_presentation(
     detail: DetailLevel,
     edition: Option<RecordEditionContextJson>,
     record_relationships: Option<RecordRelationshipLookupJson>,
-    include_availability_evidence: bool,
+    include_provenance_evidence: bool,
     teaser: Option<String>,
 ) -> RecordPresentationJson {
     let include_scan = matches!(
@@ -788,6 +797,7 @@ pub(super) fn creature_presentation(
             edition: None,
             record_relationships: None,
             availability: Vec::new(),
+            unmodeled_skill_availability: Vec::new(),
             availability_evidence: None,
         };
     }
@@ -812,11 +822,19 @@ pub(super) fn creature_presentation(
                         .then(|| damage(&capability.damage))
                         .flatten(),
                     content: include_content
-                        .then(|| occurrence_content(creature, &placement, occurrence, detail))
+                        .then(|| {
+                            occurrence_content(
+                                creature,
+                                &placement,
+                                occurrence,
+                                detail,
+                                include_provenance_evidence,
+                            )
+                        })
                         .flatten(),
                     target_record_key: target_record_key(occurrence),
                     target_entity_id: target_entity_id(occurrence),
-                    provenance: (detail == DetailLevel::Full)
+                    provenance: (detail == DetailLevel::Full && include_provenance_evidence)
                         .then(|| occurrence_provenance(occurrence)),
                 }),
                 CreatureCapability::Action(capability) => actions.push(CreatureActionJson {
@@ -845,11 +863,19 @@ pub(super) fn creature_presentation(
                         .then(|| text(&capability.self_effect_label))
                         .flatten(),
                     content: include_content
-                        .then(|| occurrence_content(creature, &placement, occurrence, detail))
+                        .then(|| {
+                            occurrence_content(
+                                creature,
+                                &placement,
+                                occurrence,
+                                detail,
+                                include_provenance_evidence,
+                            )
+                        })
                         .flatten(),
                     target_record_key: target_record_key(occurrence),
                     target_entity_id: target_entity_id(occurrence),
-                    provenance: (detail == DetailLevel::Full)
+                    provenance: (detail == DetailLevel::Full && include_provenance_evidence)
                         .then(|| occurrence_provenance(occurrence)),
                 }),
                 CreatureCapability::SpellcastingEntry(capability) => {
@@ -867,10 +893,18 @@ pub(super) fn creature_presentation(
                         spells: Vec::new(),
                         target_record_key: target_record_key(occurrence),
                         target_entity_id: target_entity_id(occurrence),
-                        provenance: (detail == DetailLevel::Full)
+                        provenance: (detail == DetailLevel::Full && include_provenance_evidence)
                             .then(|| occurrence_provenance(occurrence)),
                         content: include_content
-                            .then(|| occurrence_content(creature, &placement, occurrence, detail))
+                            .then(|| {
+                                occurrence_content(
+                                    creature,
+                                    &placement,
+                                    occurrence,
+                                    detail,
+                                    include_provenance_evidence,
+                                )
+                            })
                             .flatten(),
                     });
                 }
@@ -964,9 +998,17 @@ pub(super) fn creature_presentation(
                         .then(|| damage(&capability.damage))
                         .flatten(),
                     content: include_content
-                        .then(|| occurrence_content(creature, &placement, occurrence, detail))
+                        .then(|| {
+                            occurrence_content(
+                                creature,
+                                &placement,
+                                occurrence,
+                                detail,
+                                include_provenance_evidence,
+                            )
+                        })
                         .flatten(),
-                    provenance: (detail == DetailLevel::Full)
+                    provenance: (detail == DetailLevel::Full && include_provenance_evidence)
                         .then(|| occurrence_provenance(occurrence)),
                 }),
                 CreatureCapability::Equipment(_)
@@ -991,7 +1033,8 @@ pub(super) fn creature_presentation(
     }
 
     let availability_evidence = availability_evidence(creature, &placement, detail);
-    let availability = product_availability(&availability_evidence);
+    let availability = product_availability(&availability_evidence, detail);
+    let unmodeled_skill_availability = unmodeled_skill_availability(creature, detail);
     RecordPresentationJson::Creature {
         teaser,
         size: include_scan
@@ -1082,26 +1125,31 @@ pub(super) fn creature_presentation(
             .flatten(),
         rituals: include_details.then(|| rituals(creature)).flatten(),
         equipment: include_scan
-            .then(|| equipment(creature, &placement, detail))
+            .then(|| equipment(creature, &placement, detail, include_provenance_evidence))
             .flatten(),
         lore: include_scan
-            .then(|| lore(creature, &placement, detail))
+            .then(|| lore(creature, &placement, detail, include_provenance_evidence))
             .flatten(),
         content: include_content
-            .then(|| all_content(creature, &placement, detail))
+            .then(|| all_content(creature, &placement, detail, include_provenance_evidence))
             .flatten(),
-        relationships: include_scan.then(|| relationships(&placement)).flatten(),
-        provenance: (detail == DetailLevel::Full).then(|| CreatureProvenanceJson {
-            source_path: creature.provenance.source_path.clone(),
-            source_contract_version: creature.provenance.source_contract_version.clone(),
-            source_system_version: creature.provenance.source_system_version.clone(),
-            source_upstream_commit: creature.provenance.source_upstream_commit.clone(),
-            facts: fact_provenance_set(creature),
+        relationships: include_provenance_evidence
+            .then(|| relationships(&placement))
+            .flatten(),
+        provenance: (detail == DetailLevel::Full && include_provenance_evidence).then(|| {
+            CreatureProvenanceJson {
+                source_path: creature.provenance.source_path.clone(),
+                source_contract_version: creature.provenance.source_contract_version.clone(),
+                source_system_version: creature.provenance.source_system_version.clone(),
+                source_upstream_commit: creature.provenance.source_upstream_commit.clone(),
+                facts: fact_provenance_set(creature),
+            }
         }),
         edition,
         record_relationships,
         availability,
-        availability_evidence: include_availability_evidence
+        unmodeled_skill_availability,
+        availability_evidence: include_provenance_evidence
             .then_some(availability_evidence)
             .filter(|evidence| !evidence.is_empty()),
     }
@@ -1247,6 +1295,7 @@ fn equipment(
     creature: &CreatureRecord,
     placement: &CreatureContentPlacement,
     detail: DetailLevel,
+    include_provenance_evidence: bool,
 ) -> Option<Vec<CreatureEquipmentJson>> {
     let embedded = creature.embedded_entities.value.as_value()?;
     let mut values = embedded
@@ -1267,10 +1316,18 @@ fn equipment(
                 uses: value.uses.as_value().map(use_limit),
                 target_record_key: target_record_key(occurrence),
                 target_entity_id: target_entity_id(occurrence),
-                provenance: (detail == DetailLevel::Full)
+                provenance: (detail == DetailLevel::Full && include_provenance_evidence)
                     .then(|| occurrence_provenance(occurrence)),
                 content: (detail == DetailLevel::Full)
-                    .then(|| occurrence_content(creature, placement, occurrence, detail))
+                    .then(|| {
+                        occurrence_content(
+                            creature,
+                            placement,
+                            occurrence,
+                            detail,
+                            include_provenance_evidence,
+                        )
+                    })
                     .flatten(),
             })
         })
@@ -1283,6 +1340,7 @@ fn lore(
     creature: &CreatureRecord,
     placement: &CreatureContentPlacement,
     detail: DetailLevel,
+    include_provenance_evidence: bool,
 ) -> Option<Vec<CreatureLoreJson>> {
     let embedded = creature.embedded_entities.value.as_value()?;
     let mut values = embedded
@@ -1299,10 +1357,18 @@ fn lore(
                 modifier: integer(&value.modifier),
                 target_record_key: target_record_key(occurrence),
                 target_entity_id: target_entity_id(occurrence),
-                provenance: (detail == DetailLevel::Full)
+                provenance: (detail == DetailLevel::Full && include_provenance_evidence)
                     .then(|| occurrence_provenance(occurrence)),
                 content: (detail == DetailLevel::Full)
-                    .then(|| occurrence_content(creature, placement, occurrence, detail))
+                    .then(|| {
+                        occurrence_content(
+                            creature,
+                            placement,
+                            occurrence,
+                            detail,
+                            include_provenance_evidence,
+                        )
+                    })
                     .flatten(),
             })
         })
@@ -1316,10 +1382,16 @@ fn occurrence_content(
     placement: &CreatureContentPlacement,
     occurrence: &CreatureEntityOccurrence,
     detail: DetailLevel,
+    include_provenance_evidence: bool,
 ) -> Option<Vec<CreatureContentJson>> {
     let values = placement
         .documents_for_occurrence(creature, &occurrence.id)
-        .map(|document| content_json(document, detail == DetailLevel::Full))
+        .map(|document| {
+            content_json(
+                document,
+                detail == DetailLevel::Full && include_provenance_evidence,
+            )
+        })
         .collect::<Vec<_>>();
     (!values.is_empty()).then_some(values)
 }
@@ -1328,6 +1400,7 @@ fn all_content(
     creature: &CreatureRecord,
     placement: &CreatureContentPlacement,
     detail: DetailLevel,
+    include_provenance_evidence: bool,
 ) -> Option<Vec<CreatureContentJson>> {
     let mut documents = if detail == DetailLevel::Description {
         placement.all_documents(creature).collect::<Vec<_>>()
@@ -1337,7 +1410,12 @@ fn all_content(
     documents.sort_by_key(|document| (document.authored_order, document.id.content_key.as_str()));
     let values = documents
         .into_iter()
-        .map(|document| content_json(document, detail == DetailLevel::Full))
+        .map(|document| {
+            content_json(
+                document,
+                detail == DetailLevel::Full && include_provenance_evidence,
+            )
+        })
         .collect::<Vec<_>>();
     (!values.is_empty()).then_some(values)
 }
@@ -1526,13 +1604,18 @@ fn availability_evidence(
 
 fn product_availability(
     evidence: &[CreatureAvailabilityEvidenceJson],
+    detail: DetailLevel,
 ) -> Vec<CreatureAvailabilityJson> {
+    if detail == DetailLevel::Preview {
+        return Vec::new();
+    }
     let mut values = evidence
         .iter()
         .filter(|cause| {
             !matches!(
                 cause.field,
-                CreatureAvailabilityFieldJson::ResourceSerializedValue
+                CreatureAvailabilityFieldJson::UnmodeledSkill
+                    | CreatureAvailabilityFieldJson::ResourceSerializedValue
                     | CreatureAvailabilityFieldJson::ResourceSourceDrift
                     | CreatureAvailabilityFieldJson::SpellSlotSerializedValue
                     | CreatureAvailabilityFieldJson::UnsupportedMechanic
@@ -1556,6 +1639,32 @@ fn product_availability(
     });
     values.dedup();
     values
+}
+
+fn unmodeled_skill_availability(
+    creature: &CreatureRecord,
+    detail: DetailLevel,
+) -> Vec<CreatureUnmodeledSkillAvailabilityJson> {
+    if !matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+        return Vec::new();
+    }
+    creature
+        .skills
+        .value
+        .as_value()
+        .into_iter()
+        .flatten()
+        .filter_map(|skill| {
+            let unmodeled = skill.unmodeled.as_value()?;
+            Some(CreatureUnmodeledSkillAvailabilityJson {
+                skill_id: skill.id.as_str().to_string(),
+                authored_order: skill.authored_order,
+                authored_key: unmodeled.authored_key.clone(),
+                modifier: integer_presence(&unmodeled.base),
+                message: "The source supplied an unrecognized skill key.",
+            })
+        })
+        .collect()
 }
 
 fn product_source_value(cause: &CreatureAvailabilityEvidenceJson) -> Option<String> {

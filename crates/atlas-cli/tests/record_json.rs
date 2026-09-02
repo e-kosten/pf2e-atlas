@@ -586,7 +586,6 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
     assert_eq!(record["perception"]["modifier"], 12);
     assert_eq!(record["languages"][0], "common");
     assert_eq!(record["movement"]["modes"][0]["value_feet"], 25);
-    assert!(serde_json::to_string(record)?.contains("A sturdy fixture creature."));
     let forbidden_generic_body = ["creature", "mechanics"].join("_");
     assert!(!serde_json::to_string(record)?.contains(&forbidden_generic_body));
 
@@ -612,6 +611,12 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
         assert_eq!(record.get("strikes").is_some(), includes_scan_fields);
         assert_eq!(record.get("actions").is_some(), includes_scan_fields);
         assert_eq!(record.get("spellcasting").is_some(), includes_scan_fields);
+        for forbidden in ["relationships", "provenance", "availability_evidence"] {
+            assert!(
+                record.get(forbidden).is_none(),
+                "ordinary {detail} exposed provenance-only {forbidden}"
+            );
+        }
         if detail == "preview" {
             assert!(record["strikes"][0].get("rolls").is_none());
             assert!(record["strikes"][0].get("damage").is_none());
@@ -651,20 +656,27 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
                 record["spellcasting"]["entries"].as_array().unwrap().len(),
                 2
             );
-            assert_eq!(
-                record["spellcasting"]["spells"].as_array().unwrap().len(),
-                2
-            );
+            let spells = record["spellcasting"]["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|entry| entry["spells"].as_array().into_iter().flatten())
+                .collect::<Vec<_>>();
+            assert_eq!(spells.len(), 2);
             assert!(record["strikes"][0]["rolls"].is_array());
             assert!(record["strikes"][0]["damage"].is_array());
             assert!(record["actions"][0]["rolls"].is_array());
-            assert!(record["spellcasting"]["spells"][0]["damage"].is_array());
-            assert_eq!(record["spellcasting"]["spells"][0]["context"]["rank"], 3);
-            assert!(record["spellcasting"]["spells"][0]["parent_entry_id"].is_string());
-            assert!(serde_json::to_string(record)?.contains("Heartstones"));
+            assert!(spells[0]["damage"].is_array());
+            assert_eq!(spells[0]["context"]["rank"], 3);
+            assert!(spells[0]["parent_entry_id"].is_string());
+            if detail == "full" {
+                assert!(serde_json::to_string(record)?.contains("Heartstones"));
+            }
         }
         if detail == "full" {
-            assert_eq!(record["source"]["foundry"]["document_type"], "Actor");
+            assert!(record["source"].get("source_path").is_none());
+            assert!(record["source"].get("foundry").is_none());
+            assert!(record["strikes"][0].get("provenance").is_none());
         }
     }
 

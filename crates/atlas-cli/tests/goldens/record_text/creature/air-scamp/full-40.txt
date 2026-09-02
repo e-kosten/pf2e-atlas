@@ -147,18 +147,11 @@ Sirocco Breath
   The air scamp can't use Sirocco Breath
   again for 1d4 rounds.
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder Monster Core
   Pack: Monster Core
         (pathfinder-monster-core)
-  Source path:
-               packs/pathfinder-monster-core/air-scamp.json
-  Foundry: Actor / npc
   Edition: remaster
   Counterpart: legacy counterpart: Air
                Mephit
                (pathfinder-bestiary:KDRlxdIUADWHI6Vr)
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit:
-                   4cbdaa37d6c33e9519561bae2c59a23e0288cbce

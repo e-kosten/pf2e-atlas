@@ -70,13 +70,8 @@ Putrid Plague
   Stage 4 Unconscious (1 day)
   Stage 5 dead
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder Monster Core
   Pack: Monster Core (pathfinder-monster-core)
-  Source path: packs/pathfinder-monster-core/giant-rat.json
-  Foundry: Actor / npc
   Edition: remaster
   Counterparts: verified: none
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce

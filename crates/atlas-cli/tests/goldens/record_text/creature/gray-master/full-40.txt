@@ -414,17 +414,10 @@ Wrath of the Trap
   8d10 slashing damage and 8d6 void
   damage (Reflex DC 40 save).
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder #206: Bring
                the House Down
   Pack: Curtain Call
         (curtain-call-bestiary)
-  Source path:
-               packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json
-  Foundry: Actor / npc
   Edition: remaster
   Counterparts: verified: none
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit:
-                   4cbdaa37d6c33e9519561bae2c59a23e0288cbce
