@@ -28,7 +28,9 @@ use atlas_app_model::{
     CreatureSurfaceVitalsView, EncounterRuntimeActivityKindView, EncounterRuntimeActivityView,
     EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
     EncounterRuntimeAutomationLimitationView, EncounterRuntimeSpellView,
-    EncounterRuntimeSpellcastingView, EncounterRuntimeView, RecordSurfaceMetadataView,
+    EncounterRuntimeSpellcastingView, EncounterRuntimeView,
+    RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionCounterpartView,
+    RecordSurfaceEditionStatusView, RecordSurfaceEditionView, RecordSurfaceMetadataView,
     RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
     RecordSurfaceView, RuntimeFactProvenanceView, RuntimeFactSourceView,
     SurfaceUnavailableReasonView, SurfaceUnavailableView,
@@ -43,6 +45,7 @@ use atlas_record::{
     PresentationContent, PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord,
     SenseAcuity, project_presentation_content, render_plain_text,
 };
+use atlas_search::RemasterLinksResult;
 
 use crate::projection::kind_label;
 
@@ -52,8 +55,9 @@ pub(crate) fn record_surface(
     retrieved: &RetrievedRecord,
     profile: RecordSurfaceProfileView,
     mut encounter: Option<EncounterRuntimeView>,
+    remaster_links: Option<&RemasterLinksResult>,
 ) -> RecordSurfaceView {
-    let metadata = record_metadata(retrieved);
+    let metadata = record_metadata(retrieved, remaster_links);
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
         (atlas_domain::RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
             let content_placement = activity_content_placement(creature);
@@ -106,6 +110,7 @@ pub(crate) fn unavailable_participant_surface(
         level: None,
         rarity: None,
         traits: Vec::new(),
+        edition: None,
         source: None,
     };
     RecordSurfaceView {
@@ -153,7 +158,10 @@ fn teaser_from_text(text: &str) -> Option<String> {
     (!teaser.is_empty()).then_some(teaser)
 }
 
-fn record_metadata(retrieved: &RetrievedRecord) -> RecordSurfaceMetadataView {
+fn record_metadata(
+    retrieved: &RetrievedRecord,
+    remaster_links: Option<&RemasterLinksResult>,
+) -> RecordSurfaceMetadataView {
     let record = &retrieved.record;
     let creature_provenance = retrieved
         .body
@@ -170,6 +178,7 @@ fn record_metadata(retrieved: &RetrievedRecord) -> RecordSurfaceMetadataView {
             .rarity
             .map(|rarity| rarity.as_str().to_string()),
         traits: record.classification.traits.clone(),
+        edition: Some(record_edition(retrieved, remaster_links)),
         source: Some(RecordSurfaceSourceView {
             publication_title: record.publication.title.clone(),
             pack_label: record.foundry.pack_label.clone(),
@@ -184,6 +193,69 @@ fn record_metadata(retrieved: &RetrievedRecord) -> RecordSurfaceMetadataView {
                 .map(|value| value.source_upstream_commit.clone()),
         }),
     }
+}
+
+fn record_edition(
+    retrieved: &RetrievedRecord,
+    remaster_links: Option<&RemasterLinksResult>,
+) -> RecordSurfaceEditionView {
+    let status = if retrieved.record.publication.remaster {
+        RecordSurfaceEditionStatusView::Remaster
+    } else {
+        RecordSurfaceEditionStatusView::Legacy
+    };
+    let counterparts = remaster_links
+        .filter(|links| {
+            links.seed.record.identity.key == retrieved.record.identity.key
+                && links.seed.record.publication.remaster == retrieved.record.publication.remaster
+        })
+        .into_iter()
+        .flat_map(|links| &links.links)
+        .filter_map(|link| verified_edition_counterpart(retrieved, link))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    RecordSurfaceEditionView {
+        status,
+        counterparts,
+    }
+}
+
+fn verified_edition_counterpart(
+    seed: &RetrievedRecord,
+    link: &atlas_search::RemasterLinkResult,
+) -> Option<RecordSurfaceEditionCounterpartView> {
+    let seed_key = &seed.record.identity.key;
+    let (seed_side, counterpart, role, expected_seed_remaster, expected_target_remaster) =
+        if seed.record.publication.remaster {
+            (
+                &link.remaster_record,
+                &link.legacy_record,
+                RecordSurfaceEditionCounterpartRoleView::LegacyCounterpart,
+                true,
+                false,
+            )
+        } else {
+            (
+                &link.legacy_record,
+                &link.remaster_record,
+                RecordSurfaceEditionCounterpartRoleView::RemasteredCounterpart,
+                false,
+                true,
+            )
+        };
+    if seed_side.record.identity.key != *seed_key
+        || seed_side.record.publication.remaster != expected_seed_remaster
+        || counterpart.record.identity.key == *seed_key
+        || counterpart.record.publication.remaster != expected_target_remaster
+    {
+        return None;
+    }
+    Some(RecordSurfaceEditionCounterpartView {
+        role,
+        record_key: counterpart.record.identity.key.to_string(),
+        title: counterpart.record.identity.name.clone(),
+    })
 }
 
 #[cfg(test)]
@@ -2999,7 +3071,7 @@ fn non_empty<T>(values: Vec<T>) -> Option<Vec<T>> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind};
+    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind, RemasterLinkSource};
     use atlas_record::{
         ContentId, ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner,
         ContentProvenance, ContentRole, ContentSourceKind, ContentVisibility,
@@ -3024,9 +3096,11 @@ mod tests {
         CreatureSurfaceUnavailableStateView, EncounterRuntimeActivityKindView,
         EncounterRuntimeActivityUsageView, EncounterRuntimeActivityView,
         EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeSpellcastingView,
-        EncounterRuntimeView, EncounterRuntimeVitalsView, RecordSurfaceProfileView,
-        RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView,
+        EncounterRuntimeView, EncounterRuntimeVitalsView, RecordSurfaceEditionCounterpartRoleView,
+        RecordSurfaceEditionStatusView, RecordSurfaceProfileView, RuntimeFactProvenanceView,
+        RuntimeFactSourceView, RuntimeNumberView,
     };
+    use atlas_search::{RemasterLinkResult, RemasterLinksResult};
 
     type CauseTuple = (
         CreatureSurfaceUnavailableStateView,
@@ -3035,6 +3109,189 @@ mod tests {
         CreatureSurfaceFactOwnerView,
         CreatureSurfaceSourceFieldView,
     );
+
+    const NIGHT_HAG_KEY: &str = "pathfinder-bestiary:WQy7HBUcgDLsfVJd";
+    const GIANT_RAT_KEY: &str = "pathfinder-monster-core:iIJPJcDT8wlJ8z5M";
+    const AIR_MEPHIT_KEY: &str = "pathfinder-bestiary:KDRlxdIUADWHI6Vr";
+    const AIR_SCAMP_KEY: &str = "pathfinder-monster-core:MSm1im7lZA5i82rz";
+
+    #[test]
+    fn real_creature_editions_expose_unlinked_controls_and_both_air_pair_directions() {
+        let night_hag = edition_record(NIGHT_HAG_KEY, "Night Hag", false);
+        let giant_rat = edition_record(GIANT_RAT_KEY, "Giant Rat", true);
+        let air_mephit = edition_record(AIR_MEPHIT_KEY, "Air Mephit", false);
+        let air_scamp = edition_record(AIR_SCAMP_KEY, "Air Scamp", true);
+        let air_link = remaster_link(&air_scamp, &air_mephit);
+
+        let night_hag_edition =
+            edition_for(&night_hag, None, RecordSurfaceProfileView::RecordDetail);
+        assert_eq!(
+            night_hag_edition.status,
+            RecordSurfaceEditionStatusView::Legacy
+        );
+        assert!(night_hag_edition.counterparts.is_empty());
+
+        let giant_rat_edition =
+            edition_for(&giant_rat, None, RecordSurfaceProfileView::RecordDetail);
+        assert_eq!(
+            giant_rat_edition.status,
+            RecordSurfaceEditionStatusView::Remaster
+        );
+        assert!(giant_rat_edition.counterparts.is_empty());
+
+        let legacy_links = remaster_result(&air_mephit, vec![air_link.clone()]);
+        let legacy_edition = edition_for(
+            &air_mephit,
+            Some(&legacy_links),
+            RecordSurfaceProfileView::RecordDetail,
+        );
+        assert_eq!(
+            legacy_edition.status,
+            RecordSurfaceEditionStatusView::Legacy
+        );
+        assert_eq!(legacy_edition.counterparts.len(), 1);
+        assert_eq!(
+            legacy_edition.counterparts[0].role,
+            RecordSurfaceEditionCounterpartRoleView::RemasteredCounterpart
+        );
+        assert_eq!(legacy_edition.counterparts[0].record_key, AIR_SCAMP_KEY);
+        assert_eq!(legacy_edition.counterparts[0].title, "Air Scamp");
+
+        let remaster_links = remaster_result(&air_scamp, vec![air_link]);
+        let remaster_edition = edition_for(
+            &air_scamp,
+            Some(&remaster_links),
+            RecordSurfaceProfileView::RecordDetail,
+        );
+        assert_eq!(
+            remaster_edition.status,
+            RecordSurfaceEditionStatusView::Remaster
+        );
+        assert_eq!(remaster_edition.counterparts.len(), 1);
+        assert_eq!(
+            remaster_edition.counterparts[0].role,
+            RecordSurfaceEditionCounterpartRoleView::LegacyCounterpart
+        );
+        assert_eq!(remaster_edition.counterparts[0].record_key, AIR_MEPHIT_KEY);
+        assert_eq!(remaster_edition.counterparts[0].title, "Air Mephit");
+    }
+
+    #[test]
+    fn edition_metadata_is_identical_across_all_record_surface_profiles() {
+        let air_mephit = edition_record(AIR_MEPHIT_KEY, "Air Mephit", false);
+        let air_scamp = edition_record(AIR_SCAMP_KEY, "Air Scamp", true);
+        let links = remaster_result(&air_mephit, vec![remaster_link(&air_scamp, &air_mephit)]);
+        let expected = edition_for(
+            &air_mephit,
+            Some(&links),
+            RecordSurfaceProfileView::RecordDetail,
+        );
+
+        for profile in [
+            RecordSurfaceProfileView::SearchCompact,
+            RecordSurfaceProfileView::RecordDetail,
+            RecordSurfaceProfileView::EncounterParticipant,
+        ] {
+            assert_eq!(edition_for(&air_mephit, Some(&links), profile), expected);
+        }
+    }
+
+    #[test]
+    fn contradictory_edition_direction_drops_only_the_counterpart() {
+        let air_mephit = edition_record(AIR_MEPHIT_KEY, "Air Mephit", false);
+        let contradictory_target = edition_record(AIR_SCAMP_KEY, "Air Scamp", false);
+        let links = remaster_result(
+            &air_mephit,
+            vec![remaster_link(&contradictory_target, &air_mephit)],
+        );
+
+        let edition = edition_for(
+            &air_mephit,
+            Some(&links),
+            RecordSurfaceProfileView::RecordDetail,
+        );
+        assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
+        assert!(edition.counterparts.is_empty());
+    }
+
+    #[test]
+    fn multiple_counterparts_are_deduplicated_and_sorted_by_exact_record_identity() {
+        let legacy = edition_record("legacy-pack:seed", "Legacy Seed", false);
+        let remaster_a = edition_record("remaster-pack:a", "First Remaster", true);
+        let remaster_z = edition_record("remaster-pack:z", "Last Remaster", true);
+        let link_a = remaster_link(&remaster_a, &legacy);
+        let link_z = remaster_link(&remaster_z, &legacy);
+        let links = remaster_result(&legacy, vec![link_z, link_a.clone(), link_a]);
+
+        let edition = edition_for(
+            &legacy,
+            Some(&links),
+            RecordSurfaceProfileView::RecordDetail,
+        );
+        assert_eq!(
+            edition
+                .counterparts
+                .iter()
+                .map(|counterpart| counterpart.record_key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["remaster-pack:a", "remaster-pack:z"]
+        );
+    }
+
+    fn edition_record(
+        record_key: &str,
+        title: &str,
+        remaster: bool,
+    ) -> atlas_record::RetrievedRecord {
+        let mut record = atlas_record::AtlasRecord::new(
+            atlas_record::RecordIdentity::new(
+                RecordKey::parse(record_key).expect("edition fixture key"),
+                title,
+            ),
+            atlas_record::RecordClassification::new(RecordKind::Creature),
+            atlas_record::FoundryRecordInfo::new(
+                "Edition Fixture",
+                atlas_record::FoundryDocumentType::Actor,
+                atlas_record::FoundryRecordType::Npc,
+            ),
+            atlas_record::RecordProvenance::new(format!("fixtures/{record_key}.json")),
+        );
+        record.publication.remaster = remaster;
+        atlas_record::RetrievedRecord { record, body: None }
+    }
+
+    fn remaster_link(
+        remaster_record: &atlas_record::RetrievedRecord,
+        legacy_record: &atlas_record::RetrievedRecord,
+    ) -> RemasterLinkResult {
+        RemasterLinkResult {
+            remaster_record: remaster_record.clone(),
+            legacy_record: legacy_record.clone(),
+            source: RemasterLinkSource::RemasterJournal,
+            source_ref: "journal:Bestiaries".to_string(),
+        }
+    }
+
+    fn remaster_result(
+        seed: &atlas_record::RetrievedRecord,
+        links: Vec<RemasterLinkResult>,
+    ) -> RemasterLinksResult {
+        RemasterLinksResult {
+            seed: seed.clone(),
+            links,
+        }
+    }
+
+    fn edition_for(
+        record: &atlas_record::RetrievedRecord,
+        remaster_links: Option<&RemasterLinksResult>,
+        profile: RecordSurfaceProfileView,
+    ) -> atlas_app_model::RecordSurfaceEditionView {
+        super::record_surface(record, profile, None, remaster_links)
+            .metadata
+            .edition
+            .expect("canonical fixture record should expose edition metadata")
+    }
 
     #[test]
     fn collection_projection_distinguishes_populated_from_known_empty() {
@@ -3135,8 +3392,12 @@ mod tests {
             body: Some(atlas_record::RecordBody::Creature(creature)),
         };
 
-        let surface =
-            super::record_surface(&retrieved, RecordSurfaceProfileView::SearchCompact, None);
+        let surface = super::record_surface(
+            &retrieved,
+            RecordSurfaceProfileView::SearchCompact,
+            None,
+            None,
+        );
         let atlas_app_model::RecordSurfacePresentationView::Creature { body } =
             surface.presentation
         else {

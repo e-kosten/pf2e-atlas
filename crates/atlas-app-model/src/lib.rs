@@ -123,6 +123,15 @@ mod tests {
         assert!(surface.contains("encounter?: EncounterRuntimeView"));
         assert!(!surface.contains(&["sec", "tions"].concat()));
         assert!(!surface.contains(&["section", "order"].join("_")));
+        let metadata = actual
+            .get("RecordSurfaceMetadataView.ts")
+            .expect("RecordSurfaceMetadataView binding should exist");
+        assert!(metadata.contains("edition?: RecordSurfaceEditionView"));
+        let edition = actual
+            .get("RecordSurfaceEditionView.ts")
+            .expect("RecordSurfaceEditionView binding should exist");
+        assert!(edition.contains("status: RecordSurfaceEditionStatusView"));
+        assert!(edition.contains("counterparts: Array<RecordSurfaceEditionCounterpartView>"));
         let encounter_participant = actual
             .get("EncounterParticipantView.ts")
             .expect("EncounterParticipantView binding should exist");
@@ -402,6 +411,7 @@ mod tests {
                 level: None,
                 rarity: None,
                 traits: Vec::new(),
+                edition: None,
                 source: None,
             },
             profile: RecordSurfaceProfileView::RecordDetail,
@@ -430,6 +440,33 @@ mod tests {
     }
 
     #[test]
+    fn record_surface_edition_serializes_typed_status_and_zero_or_more_counterparts() {
+        let unlinked = RecordSurfaceEditionView {
+            status: RecordSurfaceEditionStatusView::Legacy,
+            counterparts: Vec::new(),
+        };
+        let linked = RecordSurfaceEditionView {
+            status: RecordSurfaceEditionStatusView::Remaster,
+            counterparts: vec![RecordSurfaceEditionCounterpartView {
+                role: RecordSurfaceEditionCounterpartRoleView::LegacyCounterpart,
+                record_key: "pathfinder-bestiary:KDRlxdIUADWHI6Vr".to_string(),
+                title: "Air Mephit".to_string(),
+            }],
+        };
+
+        let unlinked = serde_json::to_value(unlinked).expect("unlinked edition should serialize");
+        let linked = serde_json::to_value(linked).expect("linked edition should serialize");
+        assert_eq!(unlinked["status"], "legacy");
+        assert_eq!(unlinked["counterparts"], serde_json::json!([]));
+        assert_eq!(linked["status"], "remaster");
+        assert_eq!(linked["counterparts"][0]["role"], "legacy_counterpart");
+        assert_eq!(
+            linked["counterparts"][0]["record_key"],
+            "pathfinder-bestiary:KDRlxdIUADWHI6Vr"
+        );
+    }
+
+    #[test]
     fn record_surface_omits_known_empty_collections_but_keeps_populated_true_many_values() {
         let surface = RecordSurfaceView {
             metadata: RecordSurfaceMetadataView {
@@ -440,6 +477,7 @@ mod tests {
                 level: Some(1),
                 rarity: None,
                 traits: vec!["beast".to_string()],
+                edition: None,
                 source: None,
             },
             profile: RecordSurfaceProfileView::RecordDetail,
@@ -737,6 +775,7 @@ mod tests {
             level,
             rarity: None,
             traits: Vec::new(),
+            edition: None,
             source: None,
         };
 
@@ -968,6 +1007,7 @@ mod tests {
                 level: Some(5),
                 rarity: None,
                 traits: Vec::new(),
+                edition: None,
                 source: None,
             },
             profile: RecordSurfaceProfileView::EncounterParticipant,

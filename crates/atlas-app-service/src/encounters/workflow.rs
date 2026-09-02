@@ -234,7 +234,7 @@ impl AtlasAppService {
             let level = existing
                 .record_key
                 .as_ref()
-                .and_then(|key| records_by_key.get(key))
+                .and_then(|key| records_by_key.records_by_key.get(key))
                 .and_then(canonical_creature_level);
             let hp_delta =
                 variant_hp_adjustment_delta(existing.participant_variant, new_variant, level);

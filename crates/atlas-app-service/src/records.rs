@@ -2,7 +2,8 @@ use atlas_app_model::{AppErrorCode, RecordDetailView};
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_search::{
     GetRecordRequest, GetRecordsRequest, RecordRefResolutionResult, RecordResolutionResult,
-    RecordRetrieval, ResolveRecordRefRequest, ResolveRecordRequest,
+    RecordRetrieval, RemasterLinksRequest, RemasterRetrieval, ResolveRecordRefRequest,
+    ResolveRecordRequest,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -62,7 +63,10 @@ impl AtlasAppService {
                         format!("record `{record_key}` was not found"),
                     )
                 })?;
-            record_detail(&record)
+            let remaster_links = retrieval.remaster_links(RemasterLinksRequest {
+                record_key: &record_key,
+            })?;
+            record_detail(&record, remaster_links.as_ref())
         })
     }
 }
@@ -70,8 +74,8 @@ impl AtlasAppService {
 #[cfg(test)]
 mod tests {
     use atlas_app_model::{
-        AppErrorCode, RecordSurfacePresentationView, RecordSurfaceProfileView,
-        SurfaceUnavailableReasonView,
+        AppErrorCode, RecordSurfaceEditionStatusView, RecordSurfacePresentationView,
+        RecordSurfaceProfileView, SurfaceUnavailableReasonView,
     };
 
     use crate::test_support::fixture_worker;
@@ -90,6 +94,13 @@ mod tests {
         );
         assert_eq!(detail.surface.metadata.title, "Test Action 1");
         assert_eq!(detail.surface.metadata.kind, "rule");
+        let edition = detail
+            .surface
+            .metadata
+            .edition
+            .expect("canonical record should expose edition metadata");
+        assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
+        assert!(edition.counterparts.is_empty());
         assert_eq!(
             detail.surface.profile,
             RecordSurfaceProfileView::RecordDetail

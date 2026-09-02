@@ -141,6 +141,10 @@ export type { RecordListSortView } from "../../../../crates/atlas-app-model/bind
 export type { RecordResolutionAmbiguousView } from "../../../../crates/atlas-app-model/bindings/RecordResolutionAmbiguousView";
 export type { RecordResolutionCandidateView } from "../../../../crates/atlas-app-model/bindings/RecordResolutionCandidateView";
 export type { RecordSummaryView } from "../../../../crates/atlas-app-model/bindings/RecordSummaryView";
+export type { RecordSurfaceEditionCounterpartRoleView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceEditionCounterpartRoleView";
+export type { RecordSurfaceEditionCounterpartView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceEditionCounterpartView";
+export type { RecordSurfaceEditionStatusView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceEditionStatusView";
+export type { RecordSurfaceEditionView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceEditionView";
 export type { RecordSurfaceMetadataView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceMetadataView";
 export type { RecordSurfacePresentationView } from "../../../../crates/atlas-app-model/bindings/RecordSurfacePresentationView";
 export type { RecordSurfaceProfileView } from "../../../../crates/atlas-app-model/bindings/RecordSurfaceProfileView";

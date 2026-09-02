@@ -26,7 +26,9 @@ use atlas_app_model::{
     EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
     FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
     FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RecordSurfaceMetadataView,
+    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
+    RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionCounterpartView,
+    RecordSurfaceEditionStatusView, RecordSurfaceEditionView, RecordSurfaceMetadataView,
     RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
     RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
@@ -384,6 +386,31 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["field_id"], "pack");
     assert_eq!(body["options"][0]["label"], "Actions");
+}
+
+#[tokio::test]
+async fn record_route_preserves_typed_edition_metadata() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/pathfinder-bestiary:KDRlxdIUADWHI6Vr",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["surface"]["metadata"]["edition"]["status"], "legacy");
+    assert_eq!(
+        body["surface"]["metadata"]["edition"]["counterparts"][0]["role"],
+        "remastered_counterpart"
+    );
+    assert_eq!(
+        body["surface"]["metadata"]["edition"]["counterparts"][0]["record_key"],
+        "pathfinder-monster-core:MSm1im7lZA5i82rz"
+    );
+    assert_eq!(
+        body["surface"]["metadata"]["edition"]["counterparts"][0]["title"],
+        "Air Scamp"
+    );
 }
 
 #[tokio::test]
@@ -1105,6 +1132,11 @@ impl AtlasWebService for MockService {
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
+        if record_key == "pathfinder-bestiary:KDRlxdIUADWHI6Vr" {
+            return Ok(RecordDetailView {
+                surface: air_mephit_surface(),
+            });
+        }
         if record_key == "creatures:activityContent" {
             return Ok(RecordDetailView {
                 surface: activity_content_surface(),
@@ -1438,6 +1470,24 @@ impl AtlasWebService for MockService {
     }
 }
 
+fn air_mephit_surface() -> RecordSurfaceView {
+    let mut surface = unavailable_surface(
+        Some("pathfinder-bestiary:KDRlxdIUADWHI6Vr"),
+        "Air Mephit",
+        RecordSurfaceProfileView::RecordDetail,
+        None,
+    );
+    surface.metadata.edition = Some(RecordSurfaceEditionView {
+        status: RecordSurfaceEditionStatusView::Legacy,
+        counterparts: vec![RecordSurfaceEditionCounterpartView {
+            role: RecordSurfaceEditionCounterpartRoleView::RemasteredCounterpart,
+            record_key: "pathfinder-monster-core:MSm1im7lZA5i82rz".to_string(),
+            title: "Air Scamp".to_string(),
+        }],
+    });
+    surface
+}
+
 fn activity_content_surface() -> RecordSurfaceView {
     let content = |content_key: &str, label: &str| CreatureSurfaceContentView {
         content_key: content_key.to_string(),
@@ -1472,6 +1522,7 @@ fn activity_content_surface() -> RecordSurfaceView {
             level: Some(9),
             rarity: None,
             traits: Vec::new(),
+            edition: None,
             source: None,
         },
         profile: RecordSurfaceProfileView::RecordDetail,
@@ -1594,6 +1645,7 @@ fn typed_failure_surface() -> RecordSurfaceView {
             level: Some(1),
             rarity: None,
             traits: Vec::new(),
+            edition: None,
             source: None,
         },
         profile: RecordSurfaceProfileView::RecordDetail,
@@ -1924,6 +1976,7 @@ fn unavailable_surface(
             level: None,
             rarity: None,
             traits: Vec::new(),
+            edition: None,
             source: Some(RecordSurfaceSourceView {
                 publication_title: None,
                 pack_label: "Actions".to_string(),

@@ -258,10 +258,18 @@ fn export_e3_record_surface_final_samples() {
     assert!(matches!(night_hag.body, Some(RecordBody::Creature(_))));
     assert!(matches!(giant_rat.body, Some(RecordBody::Creature(_))));
 
-    let night_hag_compact =
-        record_surface(night_hag, RecordSurfaceProfileView::SearchCompact, None);
-    let giant_rat_compact =
-        record_surface(giant_rat, RecordSurfaceProfileView::SearchCompact, None);
+    let night_hag_compact = record_surface(
+        night_hag,
+        RecordSurfaceProfileView::SearchCompact,
+        None,
+        None,
+    );
+    let giant_rat_compact = record_surface(
+        giant_rat,
+        RecordSurfaceProfileView::SearchCompact,
+        None,
+        None,
+    );
     assert_compact_surface(&night_hag_compact);
     assert_compact_surface(&giant_rat_compact);
 
@@ -384,6 +392,7 @@ fn export_e3_record_surface_final_samples() {
             level: None,
             rarity: None,
             traits: Vec::new(),
+            edition: None,
             source: None,
         },
         profile: RecordSurfaceProfileView::RecordDetail,
