@@ -371,7 +371,7 @@ fn capture_actor_npc_ability(
     let observations = vec![
         presence_stage(
             FinalOwnerStage::SourceDto,
-            "NpcLegacyAbilitySource.value",
+            "NpcLegacyAbilitySource.mod",
             "source::dto::parse_npc_source",
             dto_ability_value(&actual.source_dto, slot),
             &dto_ability_value(&mutation.source_dto, slot),
@@ -444,28 +444,28 @@ fn capture_actor_npc_shadow_skill(
         ),
         presence_stage(
             FinalOwnerStage::Canonical,
-            "CreatureRecord.skills.by_authored_key[*]",
+            "CreatureRecord.skills[*].source_entries[*].modifier",
             "source::npc_core::convert_npc_core",
             creature_skill_value(&actual.canonical, &skill_key),
             &creature_skill_value(&mutation.canonical, &skill_key),
         ),
         presence_stage(
             FinalOwnerStage::PostProjection,
-            "IndexBuildInput.canonical_bodies[].skills.by_authored_key[*]",
+            "IndexBuildInput.canonical_bodies[].skills[*].source_entries[*].modifier",
             "index_build_input::index_build_input",
             creature_skill_value(&actual.post_projection, &skill_key),
             &creature_skill_value(&mutation.post_projection, &skill_key),
         ),
         presence_stage(
             FinalOwnerStage::ArtifactHydration,
-            "RetrievedRecord.body.skills.by_authored_key[*]",
+            "RetrievedRecord.body.skills[*].source_entries[*].modifier",
             "atlas_index::hydrate_record_parts",
             creature_skill_value(&actual.hydration, &skill_key),
             &creature_skill_value(&mutation.hydration, &skill_key),
         ),
         presence_stage(
             FinalOwnerStage::PublicSurface,
-            "RecordPresentationJson.creature.skills.by_authored_key[*]",
+            "RecordPresentationJson.creature.skills[*].source_entries[*].modifier",
             "atlas_record::record_json",
             public_skill_value(&actual.public_surface, &skill_key),
             &public_skill_value(&mutation.public_surface, &skill_key),
@@ -757,7 +757,7 @@ fn dto_ability_value(
     match ability {
         SourcePresence::Missing => SourcePresence::Missing,
         SourcePresence::Null => SourcePresence::Null,
-        SourcePresence::Value(ability) => source_number(&ability.value),
+        SourcePresence::Value(ability) => source_number(&ability.r#mod),
     }
 }
 
@@ -859,29 +859,76 @@ fn creature_skill_value(creature: &CreatureRecord, key: &str) -> SourcePresence<
     let FactValue::Value(skills) = &creature.skills.value else {
         return fact_presence(&creature.skills.value);
     };
-    let Some(skill) = skills.iter().find(|skill| skill.kind.source_slug() == key) else {
+    let Some(skill) = skills.iter().find(|skill| {
+        skill
+            .source_entries
+            .iter()
+            .any(|entry| entry.authored_key == key)
+    }) else {
         return SourcePresence::Missing;
     };
-    match &skill.modifier {
-        FactValue::Value(value) => map_number_leaf(key, *value),
-        FactValue::Null => SourcePresence::Null,
-        FactValue::Missing => SourcePresence::Missing,
-    }
+    let entry = skill
+        .source_entries
+        .iter()
+        .find(|entry| entry.authored_key == key)
+        .expect("skill source entry was selected above");
+    skill_fact_leaf(key, &entry.modifier)
 }
 
 fn public_skill_value(record: &RecordJson, key: &str) -> SourcePresence<SourceLeafValue> {
     let RecordPresentationJson::Creature { skills, .. } = &record.presentation else {
         return SourcePresence::Missing;
     };
-    let Some(skill) = skills
-        .as_ref()
-        .and_then(|skills| skills.iter().find(|skill| skill.slug == key))
-    else {
+    let Some(skill) = skills.as_ref().and_then(|skills| {
+        skills.iter().find(|skill| {
+            skill
+                .source_entries
+                .iter()
+                .any(|entry| entry.authored_key == key)
+        })
+    }) else {
         return SourcePresence::Missing;
     };
-    match skill.modifier {
-        Some(value) => map_number_leaf(key, value),
-        None => SourcePresence::Missing,
+    let source_entry = skill
+        .source_entries
+        .iter()
+        .find(|entry| entry.authored_key == key)
+        .expect("public skill source entry was selected above");
+    if skill.unmodeled.is_some() {
+        return match source_entry.modifier {
+            atlas_record::CreatureIntegerPresenceJson::Missing => SourcePresence::Missing,
+            atlas_record::CreatureIntegerPresenceJson::Null => {
+                unsupported_map_leaf(key, Value::Null, SourceJsonType::Null)
+            }
+            atlas_record::CreatureIntegerPresenceJson::Value(value) => {
+                unsupported_map_leaf(key, Value::from(value), SourceJsonType::Number)
+            }
+        };
+    }
+    match source_entry.modifier {
+        atlas_record::CreatureIntegerPresenceJson::Value(value)
+            if CreatureSkillKind::from_source_slug(key).is_none() =>
+        {
+            unsupported_map_leaf(key, Value::from(value), SourceJsonType::Number)
+        }
+        atlas_record::CreatureIntegerPresenceJson::Value(value) => map_number_leaf(key, value),
+        atlas_record::CreatureIntegerPresenceJson::Null => SourcePresence::Null,
+        atlas_record::CreatureIntegerPresenceJson::Missing => SourcePresence::Missing,
+    }
+}
+
+fn skill_fact_leaf(key: &str, source: &FactValue<i64>) -> SourcePresence<SourceLeafValue> {
+    let noncanonical_key = CreatureSkillKind::from_source_slug(key).is_none();
+    match source {
+        FactValue::Value(value) if noncanonical_key => {
+            unsupported_map_leaf(key, Value::from(*value), SourceJsonType::Number)
+        }
+        FactValue::Null if noncanonical_key => {
+            unsupported_map_leaf(key, Value::Null, SourceJsonType::Null)
+        }
+        FactValue::Value(value) => map_number_leaf(key, *value),
+        FactValue::Null => SourcePresence::Null,
+        FactValue::Missing => SourcePresence::Missing,
     }
 }
 
@@ -1680,15 +1727,13 @@ mod tests {
                 .map(|unsupported| &unsupported.value),
             Some(&Value::Null)
         );
-        assert_eq!(
-            malformed.observations()[0].value(),
-            malformed.source(),
-            "the DTO reader must retain the exact unknown authored key"
-        );
-        assert!(matches!(
-            malformed.observations()[1].value(),
-            SourcePresence::Missing
-        ));
+        for observation in malformed.observations() {
+            assert_eq!(
+                observation.value(),
+                malformed.source(),
+                "every selected owner retains the exact unknown authored key"
+            );
+        }
 
         let malformed_identity = ledger.identity_for(&ledger.leaves[6]);
         let malformed_fixture = ResolvedFixture::load(
@@ -1701,11 +1746,48 @@ mod tests {
             run_npc_pipeline(&malformed_fixture, malformed_fixture.raw.clone())
                 .expect("malformed production pipeline");
         assert!(
-            malformed_pipeline
+            !malformed_pipeline
                 .diagnostic_source_fields
                 .iter()
-                .any(|field| field == "$.system.skills.acrobatics+13"),
-            "the current diagnostic exists but cannot satisfy canonical or public ownership"
+                .any(|field| field == "$.system.skills.acrobatics+13")
+        );
+
+        let gray_identity = ledger.identity_for(&ledger.leaves[6]);
+        let gray_fixture = ResolvedFixture::load(
+            &ledger.leaves[6].fixtures[0],
+            &repository,
+            &gray_identity.selector,
+        )
+        .expect("Gray Master pinned fixture");
+        let gray_pipeline = run_npc_pipeline(&gray_fixture, gray_fixture.raw.clone())
+            .expect("Gray Master production pipeline");
+        let gray_intimidation = gray_pipeline
+            .canonical
+            .skills
+            .value
+            .as_value()
+            .expect("Gray Master skills")
+            .iter()
+            .find(|skill| skill.kind == CreatureSkillKind::Intimidation)
+            .expect("exact intimidate alias becomes Intimidation");
+        assert_eq!(gray_intimidation.modifier, FactValue::Value(38));
+        assert_eq!(
+            gray_intimidation
+                .source_entries
+                .iter()
+                .map(|entry| entry.authored_key.as_str())
+                .collect::<Vec<_>>(),
+            ["intimidation", "intimidate"]
+        );
+        assert!(
+            gray_pipeline
+                .canonical
+                .skills
+                .value
+                .as_value()
+                .expect("Gray Master skills")
+                .iter()
+                .all(|skill| skill.kind != CreatureSkillKind::Unmodeled)
         );
 
         let known_optional_null =
@@ -1716,6 +1798,8 @@ mod tests {
         let divergent = capture_registered_source_leaf_receipt(&ledger, 0, 2, &repository)
             .expect("Karumzek divergent mod/value receipt");
         assert_eq!(divergent.source(), &number_leaf(6));
-        assert_eq!(divergent.observations()[0].value(), &number_leaf(16));
+        for observation in divergent.observations() {
+            assert_eq!(observation.value(), divergent.source());
+        }
     }
 }

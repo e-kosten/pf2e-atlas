@@ -243,7 +243,7 @@ const fn creature_skill_ability(kind: CreatureSkillKind) -> Option<AbilityKind> 
         | CreatureSkillKind::Diplomacy
         | CreatureSkillKind::Intimidation
         | CreatureSkillKind::Performance => Some(AbilityKind::Charisma),
-        CreatureSkillKind::Lore => None,
+        CreatureSkillKind::Lore | CreatureSkillKind::Unmodeled => None,
     }
 }
 

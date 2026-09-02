@@ -63,7 +63,7 @@ Acceptance is staged along the dependency graph: D3 audits source/artifact/searc
 flowchart TD
     pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, build input"]
     ingest --> indexWriter["atlas-index<br/>SqliteIndexWriter"]
-    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v3"]
+    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v4"]
     localStateDb["SQLite local state<br/>pf2e-local-state.sqlite"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]

@@ -2,9 +2,9 @@ use atlas_domain::{MetricDomain, PackName, Rarity, RecordId, RecordKey};
 use atlas_record::{
     CreatureAdjustment, CreatureInitiativeStatistic, CreatureIwrKind, CreatureMovementMode,
     CreatureNumber, CreatureResourceAmount, CreatureSkillKind, CreatureSourceAlliance,
-    CreatureUnsupportedSourceField, FactValue, MetricValue, RecordBody, ResourceCurrentPolicy,
-    SenseAcuity, ShieldCurrentPolicy, UnsupportedSourceReason, UnsupportedSourceShape,
-    project_creature_facts,
+    CreatureUnmodeledSkillReason, CreatureUnsupportedSourceField, FactValue, MetricValue,
+    RecordBody, ResourceCurrentPolicy, SenseAcuity, ShieldCurrentPolicy, UnsupportedSourceReason,
+    UnsupportedSourceShape, project_creature_facts,
 };
 use serde_json::{Value, json};
 use std::path::Path;
@@ -430,8 +430,9 @@ fn actor_root_facts_preserve_missing_null_value_and_serialized_state_boundaries(
             "type": "npc",
             "system": {
                 "abilities": {
-                    "str": {"value": 0}, "dex": {"value": 12}, "con": {"value": 13},
-                    "int": {"value": 14}, "wis": {"value": 15}, "cha": {"value": 16}
+                    "str": {"mod": 0, "value": 10}, "dex": {"mod": 2, "value": 12},
+                    "con": {"mod": 3, "value": 13}, "int": {"mod": 4, "value": 14},
+                    "wis": {"mod": 5, "value": 15}, "cha": {"mod": 6, "value": 16}
                 },
                 "attributes": {
                     "adjustment": "elite",
@@ -480,8 +481,8 @@ fn actor_root_facts_preserve_missing_null_value_and_serialized_state_boundaries(
         .as_value()
         .expect("legacy abilities");
     assert_eq!(abilities.strength, FactValue::Value(0));
-    assert_eq!(abilities.dexterity, FactValue::Value(12));
-    assert_eq!(abilities.charisma, FactValue::Value(16));
+    assert_eq!(abilities.dexterity, FactValue::Value(2));
+    assert_eq!(abilities.charisma, FactValue::Value(6));
     let defenses = creature.defenses.value.as_value().expect("defenses");
     assert_eq!(defenses.hardness, FactValue::Value(0));
     let shield = defenses.shield.as_value().expect("shield");
@@ -650,10 +651,12 @@ fn malformed_and_unsupported_source_are_diagnosed_explicitly() {
         &unsupported_open,
     )
     .expect("open values are preserved with diagnostics");
-    assert!(converted.diagnostics.iter().any(|diagnostic| {
-        diagnostic.kind == NpcCoreDiagnosticKind::InvalidShadowSkill
-            && diagnostic.source_field == "$.system.skills.or singing)"
-    }));
+    assert!(
+        !converted
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.source_field == "$.system.skills.or singing)")
+    );
     assert!(converted.diagnostics.iter().any(|diagnostic| {
         diagnostic.kind == NpcCoreDiagnosticKind::UnsupportedLegacyShape
             && diagnostic.source_field == "$.system.resources.focus.max"
@@ -670,6 +673,27 @@ fn malformed_and_unsupported_source_are_diagnosed_explicitly() {
         }));
     }
     let RecordBody::Creature(creature) = &converted.body;
+    let unmodeled = creature
+        .skills
+        .value
+        .as_value()
+        .expect("skills")
+        .iter()
+        .find(|skill| skill.kind == CreatureSkillKind::Unmodeled)
+        .expect("unknown authored skill key is canonical evidence");
+    assert_eq!(unmodeled.modifier, FactValue::Null);
+    assert_eq!(unmodeled.source_entries[0].authored_key, "or singing)");
+    assert_eq!(unmodeled.source_entries[0].modifier, FactValue::Null);
+    let unmodeled_fact = unmodeled
+        .unmodeled
+        .as_value()
+        .expect("named unmodeled skill fact");
+    assert_eq!(unmodeled_fact.authored_key, "or singing)");
+    assert_eq!(unmodeled_fact.base, FactValue::Null);
+    assert_eq!(
+        unmodeled_fact.reason,
+        CreatureUnmodeledSkillReason::UnknownAuthoredKey
+    );
     assert!(matches!(
         creature.adjustment.value,
         FactValue::Value(CreatureAdjustment::Unsupported(_))
@@ -785,13 +809,22 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "NpIoefm1VZTTnR8h",
         "packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/oriole.json",
     );
-    let invalid_shadow_skills = oriole
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| diagnostic.kind == NpcCoreDiagnosticKind::InvalidShadowSkill)
-        .count();
-    assert_eq!(invalid_shadow_skills, 3);
+    assert!(!oriole.diagnostics.iter().any(|diagnostic| {
+        diagnostic.source_field.starts_with("$.system.skills.")
+            && diagnostic.source_field != "$.system.skills.performance.special[0]"
+    }));
     let RecordBody::Creature(oriole) = &oriole.body;
+    assert_eq!(
+        oriole
+            .skills
+            .value
+            .as_value()
+            .expect("skills")
+            .iter()
+            .filter(|skill| skill.kind == CreatureSkillKind::Unmodeled)
+            .count(),
+        3
+    );
     let performance = oriole
         .skills
         .value

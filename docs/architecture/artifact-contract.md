@@ -38,7 +38,7 @@ Typed visibility/provenance and product retrieval disposition are separate. `rec
 The supported contract version is:
 
 ```text
-pf2e-atlas-artifact/v3
+pf2e-atlas-artifact/v4
 ```
 
 The SQLite schema version for this active development artifact family is:
@@ -66,7 +66,7 @@ Required keys:
 
 | Key | Required value or rule |
 | --- | --- |
-| `artifact_contract_version` | `pf2e-atlas-artifact/v3` |
+| `artifact_contract_version` | `pf2e-atlas-artifact/v4` |
 | `schema_version` | `2` |
 | `source_kind` | `foundry-pf2e` |
 | `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |

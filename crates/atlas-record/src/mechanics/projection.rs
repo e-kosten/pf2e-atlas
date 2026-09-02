@@ -161,6 +161,9 @@ fn project_awareness_and_skills(
         return;
     };
     for skill in skills {
+        if skill.kind == crate::CreatureSkillKind::Unmodeled {
+            continue;
+        }
         projection.facts.push(MechanicFact {
             target: MechanicTarget::CreatureSkill {
                 skill_id: skill.id.clone(),
@@ -1530,12 +1533,17 @@ mod tests {
                 FactValue::Value(vec![CreatureSkill {
                     id: component("component:arcana"),
                     authored_order: 0,
+                    source_entries: vec![crate::CreatureSkillSourceEntry {
+                        authored_key: "arcana".to_string(),
+                        modifier: FactValue::Value(18),
+                    }],
                     kind: CreatureSkillKind::Arcana,
                     label: "save.fortitude".to_string(),
                     modifier: FactValue::Value(18),
                     note: FactValue::Missing,
                     variants: FactValue::Missing,
                     source_item_id: FactValue::Missing,
+                    unmodeled: FactValue::Missing,
                 }]),
                 CreatureSourceField::Skills,
             ),

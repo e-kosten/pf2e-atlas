@@ -47,10 +47,28 @@ fn project_metrics(creature: &CreatureRecord) -> Vec<MetricRow> {
         project_defense_metrics(&mut projected, defenses);
     }
 
+    if let Some(abilities) = creature.legacy_abilities.value.as_value() {
+        for (slug, modifier) in [
+            ("str", &abilities.strength),
+            ("dex", &abilities.dexterity),
+            ("con", &abilities.constitution),
+            ("int", &abilities.intelligence),
+            ("wis", &abilities.wisdom),
+            ("cha", &abilities.charisma),
+        ] {
+            push_number(
+                &mut projected,
+                metrics::actor::ability::mod_key(slug),
+                modifier.as_value().copied(),
+            );
+        }
+    }
+
     if let Some(skills) = creature.skills.value.as_value() {
         for skill in skills {
-            let segment = skill_metric_segment(skill);
-            if !segment.is_empty() {
+            if let Some(segment) = skill_metric_segment(skill)
+                && !segment.is_empty()
+            {
                 push_number(
                     &mut projected,
                     metrics::actor::skill::mod_key(&segment),
@@ -189,10 +207,11 @@ fn project_iwr(entries: Option<&Vec<crate::CreatureIwr>>) -> Vec<String> {
         .collect()
 }
 
-fn skill_metric_segment(skill: &CreatureSkill) -> String {
+fn skill_metric_segment(skill: &CreatureSkill) -> Option<String> {
     match skill.kind {
-        CreatureSkillKind::Lore => metrics::normalize_metric_key_segment(&skill.label),
-        kind => kind.source_slug().to_string(),
+        CreatureSkillKind::Lore => Some(metrics::normalize_metric_key_segment(&skill.label)),
+        CreatureSkillKind::Unmodeled => None,
+        kind => Some(kind.source_slug().to_string()),
     }
 }
 
@@ -554,12 +573,17 @@ mod tests {
         CreatureSkill {
             id: CreatureComponentId::new(id).expect("skill id"),
             authored_order: 0,
+            source_entries: vec![crate::CreatureSkillSourceEntry {
+                authored_key: kind.source_slug().to_string(),
+                modifier: FactValue::Value(modifier),
+            }],
             kind,
             label: label.to_string(),
             modifier: FactValue::Value(modifier),
             note: FactValue::Missing,
             variants: FactValue::Missing,
             source_item_id: FactValue::Missing,
+            unmodeled: FactValue::Missing,
         }
     }
 

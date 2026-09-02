@@ -907,6 +907,7 @@ fn skills(
     )?;
     let mut projected = values
         .iter()
+        .filter(|value| value.kind != atlas_record::CreatureSkillKind::Unmodeled)
         .map(|value| {
             let component_id = value.id.as_str().to_string();
             CreatureSurfaceSkillView {
@@ -2291,6 +2292,74 @@ mod tests {
     }
 
     #[test]
+    fn b1_abilities_project_exact_canonical_modifiers_without_exposing_unmodeled_skills() {
+        let mut creature = known_empty_creature();
+        creature.legacy_abilities.value = FactValue::Value(CreatureLegacyAbilities {
+            strength: FactValue::Value(5),
+            dexterity: FactValue::Value(4),
+            constitution: FactValue::Value(6),
+            intelligence: FactValue::Value(4),
+            wisdom: FactValue::Value(5),
+            charisma: FactValue::Value(3),
+        });
+        creature.skills.value = FactValue::Value(vec![
+            atlas_record::CreatureSkill {
+                id: atlas_record::CreatureComponentId::new("intimidation").expect("skill id"),
+                authored_order: 0,
+                source_entries: vec![atlas_record::CreatureSkillSourceEntry {
+                    authored_key: "intimidate".to_string(),
+                    modifier: FactValue::Value(38),
+                }],
+                kind: atlas_record::CreatureSkillKind::Intimidation,
+                label: "Intimidation".to_string(),
+                modifier: FactValue::Value(38),
+                note: FactValue::Missing,
+                variants: FactValue::Missing,
+                source_item_id: FactValue::Missing,
+                unmodeled: FactValue::Missing,
+            },
+            atlas_record::CreatureSkill {
+                id: atlas_record::CreatureComponentId::new("unmodeled").expect("skill id"),
+                authored_order: 1,
+                source_entries: vec![atlas_record::CreatureSkillSourceEntry {
+                    authored_key: "acrobatics+13".to_string(),
+                    modifier: FactValue::Null,
+                }],
+                kind: atlas_record::CreatureSkillKind::Unmodeled,
+                label: "acrobatics+13".to_string(),
+                modifier: FactValue::Null,
+                note: FactValue::Missing,
+                variants: FactValue::Missing,
+                source_item_id: FactValue::Missing,
+                unmodeled: FactValue::Value(atlas_record::CreatureUnmodeledSkill {
+                    authored_key: "acrobatics+13".to_string(),
+                    base: FactValue::Null,
+                    reason: atlas_record::CreatureUnmodeledSkillReason::UnknownAuthoredKey,
+                }),
+            },
+        ]);
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let abilities = surface.abilities.expect("canonical abilities");
+        assert_eq!(
+            [
+                abilities.strength,
+                abilities.dexterity,
+                abilities.constitution,
+                abilities.intelligence,
+                abilities.wisdom,
+                abilities.charisma,
+            ],
+            [Some(5), Some(4), Some(6), Some(4), Some(5), Some(3)]
+        );
+        let skills = surface.skills.expect("modeled skill");
+        assert_eq!(skills.len(), 1);
+        assert_eq!(skills[0].kind, "intimidation");
+        assert_eq!(skills[0].modifier, Some(38));
+        assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
     fn encounter_profile_retains_only_non_runtime_canonical_context() {
         let mut creature = activity_content_fixture();
         let mut defenses = creature
@@ -2720,12 +2789,17 @@ mod tests {
         creature.skills.value = FactValue::Value(vec![atlas_record::CreatureSkill {
             id: atlas_record::CreatureComponentId::new("athletics").expect("skill id"),
             authored_order: 0,
+            source_entries: vec![atlas_record::CreatureSkillSourceEntry {
+                authored_key: "athletics".to_string(),
+                modifier: FactValue::Missing,
+            }],
             kind: atlas_record::CreatureSkillKind::Athletics,
             label: "Athletics".to_string(),
             modifier: FactValue::Missing,
             note: FactValue::Missing,
             variants: FactValue::Value(Vec::new()),
             source_item_id: FactValue::Missing,
+            unmodeled: FactValue::Missing,
         }]);
         let mut abilities = creature
             .legacy_abilities
