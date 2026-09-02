@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import type { CreatureSurfaceSpellView } from "../../generated/atlas";
 import { PreviewPopover, usePreviewPopoverClose } from "../ui/overlays/PreviewPopover";
 import { RecordPreviewActions } from "./RecordPreviewActions";
+import { RecordPreviewContext } from "./RecordPreviewContext";
 import { RichContent, type ReferenceHandler } from "./RecordRichContent";
 import { formatRank, formatSlug } from "./recordFormatting";
 
@@ -37,18 +38,20 @@ export function SpellOccurrencePreviewPopover({
       }
       ariaLabel={`${spell.label} spell details`}
       content={
-        <div className="creature-sheet__standalone-spell">
-          <span className="creature-sheet__spell-heading">
-            <small>{metadata}</small>
-          </span>
-          {content.map((document) => (
-            <RichContent
-              content={document}
-              key={document.content_key}
-              onReference={onReference}
-            />
-          ))}
-        </div>
+        <RecordPreviewContext.Provider value={null}>
+          <div className="creature-sheet__standalone-spell">
+            <span className="creature-sheet__spell-heading">
+              <small>{metadata}</small>
+            </span>
+            {content.map((document) => (
+              <RichContent
+                content={document}
+                key={document.content_key}
+                onReference={onReference}
+              />
+            ))}
+          </div>
+        </RecordPreviewContext.Provider>
       }
       title={spell.label}
     >

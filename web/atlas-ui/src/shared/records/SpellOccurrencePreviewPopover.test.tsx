@@ -1,5 +1,8 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import type { CreatureSurfaceSpellView } from "../../generated/atlas";
+import { RecordPreviewScope } from "./RecordPreviewScope";
 import { SpellOccurrencePreviewPopover } from "./SpellOccurrencePreviewPopover";
 
 describe("SpellOccurrencePreviewPopover", () => {
@@ -80,7 +83,80 @@ describe("SpellOccurrencePreviewPopover", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close spell preview" }));
     expect(onOpenSpellRecord).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["targeted", "link"],
+    ["targetless", "button"],
+  ] as const)(
+    "keeps typed references inside an open %s spell preview in the existing dialog",
+    async (kind, triggerRole) => {
+      const spell = spellFixture();
+      if (kind === "targetless") {
+        spell.target_record_key = undefined;
+      }
+      spell.content![0]!.blocks = [
+        {
+          block_type: "paragraph",
+          spans: [
+            { span_type: "text", text: "See " },
+            {
+              span_type: "reference",
+              label: "Weather domain",
+              record_key: "rules:weather-domain",
+              embedded: false,
+            },
+            { span_type: "text", text: " for details." },
+          ],
+        },
+      ];
+      const onOpenFullPage = vi.fn();
+      const onReference = vi.fn();
+      render(
+        <RecordPreviewScope onOpenFullPage={onOpenFullPage}>
+          <SpellOccurrencePreviewPopover
+            onOpenSpellRecord={vi.fn()}
+            onReference={onReference}
+            spell={spell}
+          />
+        </RecordPreviewScope>,
+        { wrapper: queryClientWrapper() },
+      );
+
+      const trigger = screen.getByRole(triggerRole, { name: "Control Weather" });
+      fireEvent.click(trigger);
+      const dialog = screen.getByRole("dialog", {
+        name: "Control Weather spell details",
+      });
+      const reference = within(dialog).getByRole("link", {
+        name: "Weather domain",
+      });
+
+      reference.focus();
+      expect(reference).toHaveFocus();
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      expect(onReference).not.toHaveBeenCalled();
+
+      fireEvent.click(reference);
+      expect(onReference).toHaveBeenCalledTimes(1);
+      expect(onReference).toHaveBeenCalledWith("rules:weather-domain");
+      expect(onOpenFullPage).not.toHaveBeenCalled();
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      await waitFor(() => expect(trigger).toHaveFocus());
+    },
+  );
 });
+
+function queryClientWrapper() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return function QueryClientWrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
 
 function spellFixture(): CreatureSurfaceSpellView {
   return {
