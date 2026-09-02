@@ -1,8 +1,8 @@
 use atlas_record::{
-    CreatureContentJson, CreatureContentOwnerJson, CreatureContentProvenanceJson,
-    CreatureFactProvenanceJson, CreatureOccurrenceProvenanceJson, CreatureProvenanceJson,
-    RecordEditionContextJson, RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson,
-    RecordEditionStatusJson, RecordJson, RecordPresentationJson,
+    CreatureAvailabilityEvidenceJson, CreatureContentJson, CreatureContentOwnerJson,
+    CreatureContentProvenanceJson, CreatureFactProvenanceJson, CreatureOccurrenceProvenanceJson,
+    CreatureProvenanceJson, RecordEditionContextJson, RecordEditionCounterpartLookupJson,
+    RecordEditionCounterpartRoleJson, RecordEditionStatusJson, RecordJson, RecordPresentationJson,
 };
 use atlas_search::GraphContextResult;
 use serde::Serialize;
@@ -24,6 +24,8 @@ pub(super) struct RecordProvenanceData {
     pub content: Vec<ContentOwnershipProvenance>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub embedded_relationships: Vec<atlas_record::CreatureRelationshipJson>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub availability_evidence: Vec<CreatureAvailabilityEvidenceJson>,
     pub references: ReferenceProvenance,
 }
 
@@ -108,6 +110,7 @@ pub(super) fn provenance_data(
         unmodeled_skills: Vec::new(),
         content: Vec::new(),
         embedded_relationships: Vec::new(),
+        availability_evidence: Vec::new(),
         references: reference_provenance(graph),
     };
     let RecordPresentationJson::Creature {
@@ -121,6 +124,7 @@ pub(super) fn provenance_data(
         relationships,
         provenance,
         edition,
+        availability_evidence,
         ..
     } = &record.presentation
     else {
@@ -128,6 +132,7 @@ pub(super) fn provenance_data(
     };
     data.record_provenance = provenance.clone();
     data.edition = edition.clone();
+    data.availability_evidence = availability_evidence.clone().unwrap_or_default();
     data.embedded_relationships = relationships.clone().unwrap_or_default();
     data.content
         .extend(content.iter().flatten().map(content_provenance));
@@ -457,6 +462,31 @@ pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
             lines.push(format!("    Source path: {}", row.source_path));
         }
     }
+    if !data.availability_evidence.is_empty() {
+        lines.extend([String::new(), "Availability evidence".to_string()]);
+        for row in &data.availability_evidence {
+            lines.push(format!("  {}: {:?}", row.field.as_str(), row.state).to_lowercase());
+            if let Some(component_id) = &row.component_id {
+                lines.push(format!("    Component ID: {component_id}"));
+            }
+            if let Some(authored_key) = &row.authored_key {
+                lines.push(format!("    Authored key: {authored_key}"));
+            }
+            if let Some(source_value) = &row.source_value {
+                lines.push(format!("    Source value: {source_value}"));
+            }
+            if let Some(source_shape) = row.source_shape {
+                lines.push(format!("    Source shape: {source_shape}"));
+            }
+            if let Some(source_reason) = row.source_reason {
+                lines.push(format!("    Source reason: {source_reason}"));
+            }
+            if let Some(source_path) = &row.source_path {
+                lines.push(format!("    Source path: {source_path}"));
+            }
+            lines.push(format!("    Message: {}", row.message));
+        }
+    }
     lines.extend([String::new(), "References".to_string()]);
     if !data.references.lookup_performed {
         lines.push("  Lookup not performed".to_string());
@@ -585,6 +615,9 @@ mod tests {
         assert!(text.contains("Unmodeled skills"));
         assert!(text.contains("synthetic-review-skill"));
         assert!(text.contains("Base: value +17"));
+        assert!(text.contains("Availability evidence"));
+        assert!(text.contains("Component ID: focus-resource"));
+        assert!(text.contains("Source value: {\"value\":0}"));
         assert!(!text.contains("source_json"));
         write_review_sample("night-hag-injected-provenance.txt", &text);
     }
@@ -615,6 +648,18 @@ mod tests {
         );
         assert_eq!(json["unmodeled_skills"][0]["base"]["state"], "value");
         assert_eq!(json["unmodeled_skills"][0]["base"]["value"], 17);
+        assert_eq!(
+            json["availability_evidence"][0]["field"],
+            "resource_serialized_value"
+        );
+        assert_eq!(
+            json["availability_evidence"][0]["component_id"],
+            "focus-resource"
+        );
+        assert_eq!(
+            json["availability_evidence"][0]["source_value"],
+            "{\"value\":0}"
+        );
         assert!(json.get("source_json").is_none());
         let envelope = serde_json::json!({"status": "ok", "data": &data});
         write_review_sample(

@@ -12,12 +12,12 @@ Classification
           House Down
 
 Defenses
-  AC: 43;
+  AC: 43
   HP: current 280; maximum 280;
       temporary 0; void healing
-  Fortitude: 28;
-  Reflex: 37;
-  Will: 34;
+  Fortitude: 28
+  Reflex: 37
+  Will: 34
   Immunities: bleed, confused,
               death-effects, disease,
               paralyzed, poison,

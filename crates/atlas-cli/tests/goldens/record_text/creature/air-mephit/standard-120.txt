@@ -10,11 +10,11 @@ Classification
   Source: Pathfinder Bestiary
 
 Defenses
-  AC: 16;
+  AC: 16
   HP: current 12; maximum 12; temporary 0; fast healing 2 (in open air)
-  Fortitude: 3;
-  Reflex: 19;
-  Will: 7;
+  Fortitude: 3
+  Reflex: 19
+  Will: 7
   Immunities: bleed, paralyzed, poison, sleep
 
 Awareness and abilities
@@ -59,105 +59,3 @@ Spellcasting
       - Gust of Wind — [2 actions]
         Traits: air, concentrate, manipulate
         Time: 2
-
-Data availability
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:5Rd1LNWiczurzj0C
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:5Rd1LNWiczurzj0C
-    Source value: "OGL"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:5Rd1LNWiczurzj0C
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:OG9zHmjCiir50sUt
-    Source value: "OGL"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:OG9zHmjCiir50sUt
-    Source value: "Pathfinder Bestiary"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:OG9zHmjCiir50sUt
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:OG9zHmjCiir50sUt
-    Source value: []
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:action:OG9zHmjCiir50sUt
-    Source value: {"key":"FastHealing","type":"fast-healing","value":2}
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spell:4wYhc5wemRSq5zYN
-    Source value: "OGL"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spell:4wYhc5wemRSq5zYN
-    Source value: "Pathfinder Core Rulebook"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spell:4wYhc5wemRSq5zYN
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spell:IJfc0yjvz9bWboon
-    Source value: "OGL"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spell:IJfc0yjvz9bWboon
-    Source value: "Pathfinder Core Rulebook"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spell:IJfc0yjvz9bWboon
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spellcasting-entry:UsE3E2jD964UvWQw
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spellcasting-entry:UsE3E2jD964UvWQw
-    Source value: "OGL"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spellcasting-entry:UsE3E2jD964UvWQw
-    Source value: 0
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spellcasting-entry:UsE3E2jD964UvWQw
-    Source value: 0
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spellcasting-entry:UsE3E2jD964UvWQw
-    Source value: false
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:spellcasting-entry:UsE3E2jD964UvWQw
-    Source value: false
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:strike:Bie1u5IuxXpAhbC7
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:strike:Bie1u5IuxXpAhbC7
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:strike:Bie1u5IuxXpAhbC7
-    Source value: "OGL"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:strike:Bie1u5IuxXpAhbC7
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-bestiary:KDRlxdIUADWHI6Vr:strike:Bie1u5IuxXpAhbC7
-    Source value: null
-    The source supplied an unsupported mechanic.

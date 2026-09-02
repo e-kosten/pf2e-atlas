@@ -10,11 +10,11 @@ Classification
   Source: Pathfinder Monster Core
 
 Defenses
-  AC: 15;
-  HP: current 8; maximum 8; temporary 0;
-  Fortitude: 6;
-  Reflex: 7;
-  Will: 3;
+  AC: 15
+  HP: current 8; maximum 8; temporary 0
+  Fortitude: 6
+  Reflex: 7
+  Will: 3
 
 Awareness and abilities
   Perception: +5; low-light-vision; scent (imprecise) 30 feet
@@ -80,45 +80,3 @@ Provenance and edition
   Contract: pf2e-serialized-source/v1
   System: 6.12.4
   Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
-
-Data availability
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:action:Mjlek9OZ25Tga7Cg
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:action:Mjlek9OZ25Tga7Cg
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:action:Mjlek9OZ25Tga7Cg
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:strike:yLnwKltbJHYpn8qC
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:strike:yLnwKltbJHYpn8qC
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:strike:yLnwKltbJHYpn8qC
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:strike:yLnwKltbJHYpn8qC
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component:
-               occurrence:pathfinder-monster-core:iIJPJcDT8wlJ8z5M:strike:yLnwKltbJHYpn8qC
-    Source value: null
-    The source supplied an unsupported mechanic.

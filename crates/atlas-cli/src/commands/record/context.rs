@@ -26,6 +26,23 @@ pub(crate) fn project_record_with_remaster(
     options: RecordJsonOptions,
     remaster: &RemasterLinksResult,
 ) -> Result<RecordJson, AppError> {
+    project_record_with_remaster_context(retrieved, options, remaster, false)
+}
+
+pub(crate) fn project_record_provenance_with_remaster(
+    retrieved: &RetrievedRecord,
+    options: RecordJsonOptions,
+    remaster: &RemasterLinksResult,
+) -> Result<RecordJson, AppError> {
+    project_record_with_remaster_context(retrieved, options, remaster, true)
+}
+
+fn project_record_with_remaster_context(
+    retrieved: &RetrievedRecord,
+    options: RecordJsonOptions,
+    remaster: &RemasterLinksResult,
+    include_availability_evidence: bool,
+) -> Result<RecordJson, AppError> {
     let record_key = &retrieved.record.identity.key;
     let edition = remaster.record_edition_lookup().map_err(|error| {
         AppError::new(
@@ -33,8 +50,11 @@ pub(crate) fn project_record_with_remaster(
             format!("edition lookup failed for `{record_key}`: {error}"),
         )
     })?;
-    let context =
+    let mut context =
         RecordJsonContext::without_lookups(&retrieved.record).with_edition_lookup(edition);
+    if include_availability_evidence {
+        context = context.with_availability_evidence();
+    }
     record_json_with_context(retrieved, options, context).map_err(|error| {
         AppError::new(
             AppErrorCode::QueryFailed,

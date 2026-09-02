@@ -189,6 +189,17 @@ pub struct CreatureAvailabilityJson {
     pub state: CreatureAvailabilityStateJson,
     pub field: CreatureAvailabilityFieldJson,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub authored_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_value: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CreatureAvailabilityEvidenceJson {
+    pub state: CreatureAvailabilityStateJson,
+    pub field: CreatureAvailabilityFieldJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub component_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authored_key: Option<String>,
@@ -242,6 +253,41 @@ pub enum CreatureAvailabilityFieldJson {
     UnmodeledSkill,
     UnsupportedCapability,
     ContentAssociation,
+}
+
+impl CreatureAvailabilityFieldJson {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Size => "size",
+            Self::Defenses => "defenses",
+            Self::Perception => "perception",
+            Self::EmbeddedEntities => "embedded_entities",
+            Self::Adjustment => "adjustment",
+            Self::InitiativeStatistic => "initiative_statistic",
+            Self::SourceAlliance => "source_alliance",
+            Self::HitPointsValue => "hit_points_value",
+            Self::SenseAcuity => "sense_acuity",
+            Self::SkillPredicate => "skill_predicate",
+            Self::MovementMode => "movement_mode",
+            Self::ResourceMaximum => "resource_maximum",
+            Self::ResourceSerializedValue => "resource_serialized_value",
+            Self::ResourceSourceDrift => "resource_source_drift",
+            Self::RitualDifficultyClass => "ritual_difficulty_class",
+            Self::ActionCost => "action_cost",
+            Self::SpellPreparation => "spell_preparation",
+            Self::SpellSlotMaximum => "spell_slot_maximum",
+            Self::SpellSlotSerializedValue => "spell_slot_serialized_value",
+            Self::PreparedSpellSlot => "prepared_spell_slot",
+            Self::SpellRitualSecondaryCasters => "spell_ritual_secondary_casters",
+            Self::SpellDefenseSave => "spell_defense_save",
+            Self::DamageKind => "damage_kind",
+            Self::DamageApplyModifier => "damage_apply_modifier",
+            Self::UnsupportedMechanic => "unsupported_mechanic",
+            Self::UnmodeledSkill => "unmodeled_skill",
+            Self::UnsupportedCapability => "unsupported_capability",
+            Self::ContentAssociation => "content_association",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -707,6 +753,7 @@ pub(super) fn creature_presentation(
     detail: DetailLevel,
     edition: Option<RecordEditionContextJson>,
     record_relationships: Option<RecordRelationshipLookupJson>,
+    include_availability_evidence: bool,
     teaser: Option<String>,
 ) -> RecordPresentationJson {
     let include_scan = matches!(
@@ -741,6 +788,7 @@ pub(super) fn creature_presentation(
             edition: None,
             record_relationships: None,
             availability: Vec::new(),
+            availability_evidence: None,
         };
     }
 
@@ -942,6 +990,8 @@ pub(super) fn creature_presentation(
         }
     }
 
+    let availability_evidence = availability_evidence(creature, &placement, detail);
+    let availability = product_availability(&availability_evidence);
     RecordPresentationJson::Creature {
         teaser,
         size: include_scan
@@ -1050,7 +1100,10 @@ pub(super) fn creature_presentation(
         }),
         edition,
         record_relationships,
-        availability: availability(creature, &placement, detail),
+        availability,
+        availability_evidence: include_availability_evidence
+            .then_some(availability_evidence)
+            .filter(|evidence| !evidence.is_empty()),
     }
 }
 
@@ -1361,11 +1414,11 @@ fn relationships(placement: &CreatureContentPlacement) -> Option<Vec<CreatureRel
     (!values.is_empty()).then_some(values)
 }
 
-fn availability(
+fn availability_evidence(
     creature: &CreatureRecord,
     placement: &CreatureContentPlacement,
     detail: DetailLevel,
-) -> Vec<CreatureAvailabilityJson> {
+) -> Vec<CreatureAvailabilityEvidenceJson> {
     if detail == DetailLevel::Summary {
         return Vec::new();
     }
@@ -1375,7 +1428,7 @@ fn availability(
     {
         for skill in skills {
             if let Some(unmodeled) = skill.unmodeled.as_value() {
-                values.push(CreatureAvailabilityJson {
+                values.push(CreatureAvailabilityEvidenceJson {
                     state: CreatureAvailabilityStateJson::Unsupported,
                     field: CreatureAvailabilityFieldJson::UnmodeledSkill,
                     component_id: Some(skill.id.as_str().to_string()),
@@ -1420,7 +1473,7 @@ fn availability(
             ),
         ] {
             if let Some(state) = value {
-                values.push(CreatureAvailabilityJson {
+                values.push(CreatureAvailabilityEvidenceJson {
                     state,
                     field,
                     component_id: None,
@@ -1437,7 +1490,7 @@ fn availability(
     if let Some(embedded) = creature.embedded_entities.value.as_value() {
         for occurrence in &embedded.occurrences {
             if let Some(failure) = placement.failure(&occurrence.id) {
-                values.push(CreatureAvailabilityJson {
+                values.push(CreatureAvailabilityEvidenceJson {
                     state: CreatureAvailabilityStateJson::Unsupported,
                     field: CreatureAvailabilityFieldJson::ContentAssociation,
                     component_id: Some(occurrence.id.as_str().to_string()),
@@ -1459,20 +1512,62 @@ fn availability(
     values.sort_by(|left, right| {
         left.field
             .cmp(&right.field)
+            .then_with(|| left.state.cmp(&right.state))
             .then_with(|| left.component_id.cmp(&right.component_id))
             .then_with(|| left.authored_key.cmp(&right.authored_key))
             .then_with(|| left.source_value.cmp(&right.source_value))
             .then_with(|| left.source_shape.cmp(&right.source_shape))
             .then_with(|| left.source_reason.cmp(&right.source_reason))
             .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.message.cmp(&right.message))
     });
     values
+}
+
+fn product_availability(
+    evidence: &[CreatureAvailabilityEvidenceJson],
+) -> Vec<CreatureAvailabilityJson> {
+    let mut values = evidence
+        .iter()
+        .filter(|cause| {
+            !matches!(
+                cause.field,
+                CreatureAvailabilityFieldJson::ResourceSerializedValue
+                    | CreatureAvailabilityFieldJson::ResourceSourceDrift
+                    | CreatureAvailabilityFieldJson::SpellSlotSerializedValue
+                    | CreatureAvailabilityFieldJson::UnsupportedMechanic
+            )
+        })
+        .map(|cause| CreatureAvailabilityJson {
+            state: cause.state,
+            field: cause.field,
+            authored_key: cause.authored_key.clone(),
+            source_value: product_source_value(cause),
+            message: cause.message.clone(),
+        })
+        .collect::<Vec<_>>();
+    values.sort_by(|left, right| {
+        left.field
+            .cmp(&right.field)
+            .then_with(|| left.state.cmp(&right.state))
+            .then_with(|| left.authored_key.cmp(&right.authored_key))
+            .then_with(|| left.source_value.cmp(&right.source_value))
+            .then_with(|| left.message.cmp(&right.message))
+    });
+    values.dedup();
+    values
+}
+
+fn product_source_value(cause: &CreatureAvailabilityEvidenceJson) -> Option<String> {
+    let value = cause.source_value.as_deref()?;
+    (cause.source_shape == Some("string") && !matches!(value, "" | "false" | "null" | "0"))
+        .then(|| value.to_string())
 }
 
 fn collect_unsupported_availability(
     creature: &CreatureRecord,
     include_details: bool,
-    values: &mut Vec<CreatureAvailabilityJson>,
+    values: &mut Vec<CreatureAvailabilityEvidenceJson>,
 ) {
     if let Some(CreatureAdjustment::Unsupported(source)) = creature.adjustment.value.as_value() {
         push_unsupported(
@@ -1706,24 +1801,26 @@ fn collect_unsupported_availability(
                     collect_damage(values, occurrence_id, &capability.damage);
                 }
             }
-            CreatureCapability::Unsupported(capability) => values.push(CreatureAvailabilityJson {
-                state: CreatureAvailabilityStateJson::Unsupported,
-                field: CreatureAvailabilityFieldJson::UnsupportedCapability,
-                component_id: Some(occurrence_id.to_string()),
-                authored_key: Some(capability.source_item_type.clone()),
-                source_value: None,
-                source_shape: None,
-                source_reason: None,
-                source_path: None,
-                message: "The source supplied an unsupported creature capability.".to_string(),
-            }),
+            CreatureCapability::Unsupported(capability) => {
+                values.push(CreatureAvailabilityEvidenceJson {
+                    state: CreatureAvailabilityStateJson::Unsupported,
+                    field: CreatureAvailabilityFieldJson::UnsupportedCapability,
+                    component_id: Some(occurrence_id.to_string()),
+                    authored_key: Some(capability.source_item_type.clone()),
+                    source_value: None,
+                    source_shape: None,
+                    source_reason: None,
+                    source_path: None,
+                    message: "The source supplied an unsupported creature capability.".to_string(),
+                })
+            }
             CreatureCapability::Equipment(_) | CreatureCapability::Lore(_) => {}
         }
     }
 }
 
 fn collect_action_cost(
-    values: &mut Vec<CreatureAvailabilityJson>,
+    values: &mut Vec<CreatureAvailabilityEvidenceJson>,
     occurrence_id: &str,
     action_cost: &CreatureActionCost,
 ) {
@@ -1740,7 +1837,7 @@ fn collect_action_cost(
 }
 
 fn collect_spell_slots(
-    values: &mut Vec<CreatureAvailabilityJson>,
+    values: &mut Vec<CreatureAvailabilityEvidenceJson>,
     occurrence_id: &str,
     slots: &FactValue<Vec<CreatureSpellSlot>>,
 ) {
@@ -1787,7 +1884,7 @@ fn collect_spell_slots(
 }
 
 fn collect_damage(
-    values: &mut Vec<CreatureAvailabilityJson>,
+    values: &mut Vec<CreatureAvailabilityEvidenceJson>,
     occurrence_id: &str,
     damage: &FactValue<Vec<CreatureDamage>>,
 ) {
@@ -1836,7 +1933,7 @@ fn capability_unsupported_notes(capability: &CreatureCapability) -> &[Unsupporte
 }
 
 fn push_unsupported_notes(
-    values: &mut Vec<CreatureAvailabilityJson>,
+    values: &mut Vec<CreatureAvailabilityEvidenceJson>,
     component_id: &str,
     notes: &[UnsupportedMechanicNote],
 ) {
@@ -1853,14 +1950,14 @@ fn push_unsupported_notes(
 }
 
 fn push_unsupported(
-    values: &mut Vec<CreatureAvailabilityJson>,
+    values: &mut Vec<CreatureAvailabilityEvidenceJson>,
     field: CreatureAvailabilityFieldJson,
     component_id: Option<String>,
     source: &UnsupportedSourceValue,
     source_path: Option<String>,
     message: &str,
 ) {
-    values.push(CreatureAvailabilityJson {
+    values.push(CreatureAvailabilityEvidenceJson {
         state: CreatureAvailabilityStateJson::Unsupported,
         field,
         component_id,

@@ -13,12 +13,12 @@ Classification
           Hardcover Compilation
 
 Defenses
-  AC: 31;
+  AC: 31
   HP: current 175; maximum 175;
       temporary 0; (void healing)
-  Fortitude: 20;
-  Reflex: 18;
-  Will: 24;
+  Fortitude: 20
+  Reflex: 18
+  Will: 24
   All saves: +1 status to all saves vs.
              magic
   Immunities: bleed, death-effects,

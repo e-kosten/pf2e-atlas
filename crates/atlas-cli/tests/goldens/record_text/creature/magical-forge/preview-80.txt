@@ -12,11 +12,11 @@ Classification
 
 Defenses
   AC: 30; (24 when broken); construct armor
-  HP: current 115; maximum 135; temporary 0;
+  HP: current 115; maximum 135; temporary 0
   Hardness: 8
-  Fortitude: 21;
-  Reflex: 11;
-  Will: 13;
+  Fortitude: 21
+  Reflex: 11
+  Will: 13
 
 Awareness and abilities
   Perception: +15; darkvision
