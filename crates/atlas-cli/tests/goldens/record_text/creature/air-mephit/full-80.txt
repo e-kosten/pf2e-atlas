@@ -99,14 +99,9 @@ Breath Weapon
   damage to each creature within the area (Reflex DC 17 save).
   The air mephit can't use Breath Weapon again for 1d4 rounds.
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder Bestiary
   Pack: Bestiary 1 (pathfinder-bestiary)
-  Source path: packs/pathfinder-bestiary/air-mephit.json
-  Foundry: Actor / npc
   Edition: legacy
   Counterpart: remastered counterpart: Air Scamp
                (pathfinder-monster-core:MSm1im7lZA5i82rz)
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce

@@ -4,7 +4,7 @@ set -eu
 repo_root=$(git rev-parse --show-toplevel)
 evidence_path="$repo_root/crates/atlas-cli/tests/goldens/record_text/snapshot-evidence.json"
 output_path=${1:-"$repo_root/scratch/b5-cli-b-final/manifest.json"}
-expected_parent=a124c37179ffd15698485cd530307b1a5af33406
+expected_parent=d595966a11502f6eca0d4580a500e003619f1613
 
 candidate_commit=$(git rev-parse HEAD)
 candidate_tree=$(git rev-parse HEAD^{tree})

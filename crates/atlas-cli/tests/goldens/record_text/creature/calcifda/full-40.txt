@@ -378,20 +378,13 @@ Steady Spellcasting
   Flat DC 15. On a success, the action
   isn't disrupted.
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder #177: Burning
                Tundra
   Pack: Quest for the Frozen Flame
         (quest-for-the-frozen-flame-bestiary)
-  Source path:
-               packs/quest-for-the-frozen-flame-bestiary/book-3-burning-tundra/calcifda.json
-  Foundry: Actor / npc
   Edition: legacy
   Counterparts: verified: none
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit:
-                   4cbdaa37d6c33e9519561bae2c59a23e0288cbce
 
 Data availability
   Unsupported capability

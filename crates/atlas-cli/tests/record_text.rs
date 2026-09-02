@@ -13,7 +13,7 @@ use support::path::temp_source_root;
 
 const SOURCE_ROOT_ENV: &str = "PF2E_ATLAS_B5_SOURCE_ROOT";
 const UPDATE_ENV: &str = "PF2E_ATLAS_UPDATE_RECORD_TEXT_GOLDENS";
-const REMEDIATION_BASE: &str = "a124c37179ffd15698485cd530307b1a5af33406";
+const REMEDIATION_BASE: &str = "d595966a11502f6eca0d4580a500e003619f1613";
 const CLARIFICATION_NOTE_PATH: &str = "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/cli-presentation-audit/2026-09-02-stage-h-b5-cli-product-decision-clarification-note.md";
 const CLARIFICATION_NOTE_SHA256: &str =
     "91ab3f81f6716e3c4a0b8a921baf508b78d564e7e6453ea1ebee1d6dc77ca5d2";
@@ -72,7 +72,7 @@ fn snapshot_evidence_manifest_is_complete_and_honest() -> Result<(), Box<dyn std
     assert_eq!(evidence["remediation_base"], REMEDIATION_BASE);
     assert_eq!(
         evidence["base_tree"],
-        "b9be7ea2e23053f7776fc7b59fe1232a16474628"
+        "c215416437d52ad0ad3bf85a8affa391c8f1d2c9"
     );
     assert_eq!(evidence["settings"]["matrix_cells"], 135);
     assert_eq!(
@@ -122,23 +122,53 @@ fn snapshot_evidence_manifest_is_complete_and_honest() -> Result<(), Box<dyn std
     let captures = evidence["captures"]
         .as_array()
         .ok_or("captures must be an array")?;
-    assert_eq!(captures.len(), 137);
-    assert!(captures.iter().all(|capture| {
-        capture["exit_status"] == 0
-            && capture["stderr_bytes"] == 0
-            && capture["stderr_sha256"]
-                == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-            && capture["stdout_bytes"]
-                .as_u64()
-                .is_some_and(|value| value > 0)
-            && capture["stdout_sha256"]
-                .as_str()
-                .is_some_and(|value| value.len() == 64)
-    }));
+    assert_eq!(captures.len(), 138);
+    for capture in captures {
+        assert_eq!(capture["exit_status"], 0);
+        assert_eq!(capture["stderr_bytes"], 0);
+        assert_eq!(
+            capture["stderr_sha256"],
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        retained_capture_matches(&root, capture)?;
+    }
     assert!(captures.iter().any(|capture| {
         capture["stdout_path"] == "authentic-unmodeled/areelu-vorlesh-provenance.json"
     }));
+    assert!(captures.iter().any(|capture| {
+        capture["stdout_path"] == "authentic-unmodeled/areelu-vorlesh-full-80.txt"
+    }));
+
+    let first = captures.first().ok_or("at least one retained capture")?;
+    let mut bad_bytes = first.clone();
+    bad_bytes["stdout_bytes"] =
+        Value::from(first["stdout_bytes"].as_u64().ok_or("stdout byte count")? + 1);
+    assert!(retained_capture_matches(&root, &bad_bytes).is_err());
+    let mut bad_hash = first.clone();
+    bad_hash["stdout_sha256"] = Value::String("0".repeat(64));
+    assert!(retained_capture_matches(&root, &bad_hash).is_err());
     assert!(evidence.get("candidate_commit").is_none());
+    Ok(())
+}
+
+fn retained_capture_matches(root: &Path, capture: &Value) -> Result<(), String> {
+    let relative = capture["stdout_path"]
+        .as_str()
+        .ok_or_else(|| "retained capture needs stdout_path".to_string())?;
+    let bytes = fs::read(root.join(relative))
+        .map_err(|error| format!("failed to read retained capture {relative}: {error}"))?;
+    let expected_bytes = capture["stdout_bytes"]
+        .as_u64()
+        .ok_or_else(|| format!("retained capture {relative} needs stdout_bytes"))?;
+    if bytes.len() as u64 != expected_bytes {
+        return Err(format!("retained capture {relative} byte count differs"));
+    }
+    let expected_hash = capture["stdout_sha256"]
+        .as_str()
+        .ok_or_else(|| format!("retained capture {relative} needs stdout_sha256"))?;
+    if sha256_bytes(&bytes) != expected_hash {
+        return Err(format!("retained capture {relative} hash differs"));
+    }
     Ok(())
 }
 
@@ -609,6 +639,33 @@ fn assert_authentic_unmodeled(
     assert!(!text_value.contains("Modifier: +0"));
     assert_authentic_golden("areelu-vorlesh-standard-80.txt", &text.stdout, update)?;
 
+    let full = capture_record(artifact, AUTHENTIC_UNMODELED.key, "full", 80)?;
+    let full_value = String::from_utf8(full.stdout.clone())?;
+    assert!(full_value.contains("Key: craft"));
+    assert!(full_value.contains("Modifier: +36"));
+    assert!(full_value.contains("The source supplied an unrecognized skill key."));
+    assert_eq!(full_value.matches("Key: craft").count(), 1);
+    assert_eq!(full_value.matches("Modifier: +36").count(), 1);
+    assert_eq!(
+        full_value
+            .matches("The source supplied an unrecognized skill key.")
+            .count(),
+        1
+    );
+    for forbidden in [
+        "Source path:",
+        "Foundry:",
+        "Contract:",
+        "System:",
+        "Upstream commit:",
+    ] {
+        assert!(
+            !full_value.contains(forbidden),
+            "ordinary Full leaked {forbidden}"
+        );
+    }
+    assert_authentic_golden("areelu-vorlesh-full-80.txt", &full.stdout, update)?;
+
     let provenance = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "--progress",
@@ -658,6 +715,16 @@ fn assert_authentic_unmodeled(
             Some(80),
             Some("standard"),
             Some("authentic-unmodeled/areelu-vorlesh-standard-80.txt".into()),
+        ),
+        capture_evidence(
+            &full,
+            format!(
+                "atlas --progress never record get {} --detail full --index $BOUNDED_ARTIFACT",
+                AUTHENTIC_UNMODELED.key
+            ),
+            Some(80),
+            Some("full"),
+            Some("authentic-unmodeled/areelu-vorlesh-full-80.txt".into()),
         ),
         capture_evidence(
             &provenance,
@@ -784,12 +851,13 @@ fn assert_snapshot_evidence(
     let evidence = serde_json::json!({
         "format": "pf2e-atlas-cli-text-snapshot-evidence/v1",
         "remediation_base": REMEDIATION_BASE,
-        "base_tree": "b9be7ea2e23053f7776fc7b59fe1232a16474628",
+        "base_tree": "c215416437d52ad0ad3bf85a8affa391c8f1d2c9",
         "accepted_first_parent_ancestry": [
             "142b4eba993fcf34750d7b8a4b601586a1bf63bd",
             "329125b414a592d60c5e0bb742e8954b11d7bab1",
             "fe97ea0c52697c2c3f863746bb24a7d3d0f98afa",
             "2485a21d60d78a39928ea4f64dccaf2b579d1235",
+            "a124c37179ffd15698485cd530307b1a5af33406",
             REMEDIATION_BASE,
         ],
         "controlling_clarification": {
@@ -983,6 +1051,11 @@ fn assert_detail_contract(
             "Source value: null",
             "Source value: 0",
             "actor-owned:",
+            "Source path:",
+            "Foundry:",
+            "Contract:",
+            "System:",
+            "Upstream commit:",
         ] {
             if ordinary.contains(forbidden) {
                 return Err(
@@ -994,7 +1067,7 @@ fn assert_detail_contract(
     if preview.contains("Data availability") || preview.contains("Relationships") {
         return Err(format!("preview is too noisy for {}", creature.name).into());
     }
-    if !standard.contains("Defenses") || !full.contains("Provenance and edition") {
+    if !standard.contains("Defenses") || !full.contains("Source and edition") {
         return Err(format!("mechanics/provenance profile gap for {}", creature.name).into());
     }
     if creature.slug == "night-hag"

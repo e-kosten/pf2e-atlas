@@ -70,13 +70,8 @@ Swallow Whole
 Improved Grab
   PF2E.NPC.Abilities.Glossary.ImprovedGrab
 
-Provenance and edition
+Source and edition
   Publication: Pathfinder #208: Hoof, Cinder, and Storm
   Pack: Triumph of the Tusk (triumph-of-the-tusk-bestiary)
-  Source path: packs/triumph-of-the-tusk-bestiary/book-2-hoof-cinder-and-storm/magical-forge.json
-  Foundry: Actor / npc
   Edition: remaster
   Counterparts: verified: none
-  Contract: pf2e-serialized-source/v1
-  System: 6.12.4
-  Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce

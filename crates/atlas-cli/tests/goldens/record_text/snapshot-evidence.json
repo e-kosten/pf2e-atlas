@@ -4,13 +4,14 @@
     "329125b414a592d60c5e0bb742e8954b11d7bab1",
     "fe97ea0c52697c2c3f863746bb24a7d3d0f98afa",
     "2485a21d60d78a39928ea4f64dccaf2b579d1235",
-    "a124c37179ffd15698485cd530307b1a5af33406"
+    "a124c37179ffd15698485cd530307b1a5af33406",
+    "d595966a11502f6eca0d4580a500e003619f1613"
   ],
-  "base_tree": "b9be7ea2e23053f7776fc7b59fe1232a16474628",
+  "base_tree": "c215416437d52ad0ad3bf85a8affa391c8f1d2c9",
   "bounded_artifact": {
     "artifact_contract": "pf2e-atlas-artifact/v4",
     "artifact_schema": "2",
-    "artifact_sha256": "ed171ec4ea55608eb596e8c70d20d24e0c4cba7d147e34e97bdca296c6f92b54",
+    "artifact_sha256": "4984df8c4f4c2ede4f4a97d76e690c77a50c6c8218ce2464783405a27c746287",
     "build_capture": {
       "color": "NO_COLOR=1",
       "command": "atlas --progress never index build --source $BOUNDED_SOURCE --output $BOUNDED_ARTIFACT --no-embeddings --json",
@@ -19,8 +20,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2318,
-      "stdout_sha256": "289368adba9a55e4b48fdc24f1e925c954bcde98de9bfe7f2438e5e4625e6f56",
+      "stdout_bytes": 2319,
+      "stdout_sha256": "b4947f7acaf94657ec96dbb03b481c45a786fff8aa9b22e5b27c575bd4e623c5",
       "width": null
     },
     "embeddings": false,
@@ -29,7 +30,7 @@
       "artifact_contract_version": "pf2e-atlas-artifact/v4",
       "build": {
         "artifact_record_count": 15,
-        "artifact_sha256": "ed171ec4ea55608eb596e8c70d20d24e0c4cba7d147e34e97bdca296c6f92b54",
+        "artifact_sha256": "4984df8c4f4c2ede4f4a97d76e690c77a50c6c8218ce2464783405a27c746287",
         "document_embedding_count": 0,
         "embedding_model": "bge-small-en-v1.5",
         "generated_record_count": 4
@@ -47,7 +48,7 @@
         "signature": "foundry-pf2e:sha256:f42b47dd2332bbd687281ce2f1b2e6a15dda37314236ee362184375d158c91bd"
       }
     },
-    "manifest_sha256": "fa47960a643c88090589aebd7125d246cf8b6e4f7cbe709ed0871863d56c7bb7"
+    "manifest_sha256": "c8e6e67b2a942cd42a5de48aec89cc491888f3fd36b0e1bfedaea2d2a6f3d4bf"
   },
   "captures": [
     {
@@ -214,9 +215,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 34202,
+      "stdout_bytes": 33970,
       "stdout_path": "creature/night-hag/full-40.txt",
-      "stdout_sha256": "d914017815253d8c4bde212c408341c28c850b5f20044d7c3e29d39d17c947ae",
+      "stdout_sha256": "9fe3e0881ca3f314b4efef6c18fc10a249ffac2564bee06df3907ca23e0a5810",
       "width": 40
     },
     {
@@ -227,9 +228,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 32604,
+      "stdout_bytes": 32406,
       "stdout_path": "creature/night-hag/full-80.txt",
-      "stdout_sha256": "333ba8f302eca78544b68b38fbfd6888026ccc6ceb8e542ade7ab22b38d4fed4",
+      "stdout_sha256": "810ba0ada4abbcf78aa754c05580e72ffbce10440c00048bb9cb3d3466d4b970",
       "width": 80
     },
     {
@@ -240,9 +241,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 32367,
+      "stdout_bytes": 32169,
       "stdout_path": "creature/night-hag/full-120.txt",
-      "stdout_sha256": "f59cafe469591ad8ec7faee011b393b775796d720f287b6d76c4661c82872172",
+      "stdout_sha256": "3561bb656f6e0496e3cd1414f2396a55515814b9050786f7bc8d817051d98392",
       "width": 120
     },
     {
@@ -409,9 +410,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2761,
+      "stdout_bytes": 2525,
       "stdout_path": "creature/giant-rat/full-40.txt",
-      "stdout_sha256": "170d77c88286b1bd8efba27a95dcfed00f203e99512582f51aaa34774352000b",
+      "stdout_sha256": "cc4ee27fa38820ca532e6d546ec416d0ba5571d1777daeb7d1267645117866a9",
       "width": 40
     },
     {
@@ -422,9 +423,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2641,
+      "stdout_bytes": 2439,
       "stdout_path": "creature/giant-rat/full-80.txt",
-      "stdout_sha256": "f17f551509f073b8a152c9e410adbad806a04695d62dce52f31ab69c401c2fd6",
+      "stdout_sha256": "6692d75e2bc80d481afa2f31257dea5fd8eaaafaae62f60bb84c9292ca740df0",
       "width": 80
     },
     {
@@ -435,9 +436,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2629,
+      "stdout_bytes": 2427,
       "stdout_path": "creature/giant-rat/full-120.txt",
-      "stdout_sha256": "6f27706250ea26ef0e700ca55ac0ec34a3b772ac8325d48643f2a7e639fbaa83",
+      "stdout_sha256": "4235a5a82dd6b48df0a2aed71902100dbbdf6d550e2e9a62e68a577bb6ce800f",
       "width": 120
     },
     {
@@ -604,9 +605,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 10970,
+      "stdout_bytes": 10701,
       "stdout_path": "creature/calcifda/full-40.txt",
-      "stdout_sha256": "a14b67295f3c78eaadb17368c2b07b6ef4cc81fc960674d6e6ba74040170e254",
+      "stdout_sha256": "524e8f693b32a9b87c25f837bc95e111d14c5524be2d2d4cabadfc17ef55e938",
       "width": 40
     },
     {
@@ -617,9 +618,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 10476,
+      "stdout_bytes": 10226,
       "stdout_path": "creature/calcifda/full-80.txt",
-      "stdout_sha256": "f152b81796ed632d79198010f46b098b4d3c362c98c8914dc212365093aafe59",
+      "stdout_sha256": "6a3350193c52aefa95e39f48deb67977719680574cf38ff4fc307bcf9d1ff9e7",
       "width": 80
     },
     {
@@ -630,9 +631,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 10423,
+      "stdout_bytes": 10188,
       "stdout_path": "creature/calcifda/full-120.txt",
-      "stdout_sha256": "c2155cc7e8e6a88b47ee40a9cc8d2ce2cf2992cec75c2bb80e1fb33101d75715",
+      "stdout_sha256": "ccddcb1e61fd10679654486db4cb3f1efd2a7eb60d6f455ffc475b6f90f7ffe1",
       "width": 120
     },
     {
@@ -799,9 +800,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2527,
+      "stdout_bytes": 2253,
       "stdout_path": "creature/magical-forge/full-40.txt",
-      "stdout_sha256": "11f78f2509194ee1021f6cf23369b64b603660eba05eaeeef5988255f07f9a77",
+      "stdout_sha256": "c11436f1edf5efa1144514ab2913902194ea27fae9302b929e4748c6d87140b3",
       "width": 40
     },
     {
@@ -812,9 +813,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2419,
+      "stdout_bytes": 2164,
       "stdout_path": "creature/magical-forge/full-80.txt",
-      "stdout_sha256": "c1a564e8a8af2901e6d510e95a8284fad20a24a248e862d160252deac9a430a6",
+      "stdout_sha256": "53aca6fafd293ef26824c6c36f3470511ca9fec9ac893ffdd5708da49e4d1c72",
       "width": 80
     },
     {
@@ -825,9 +826,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2394,
+      "stdout_bytes": 2154,
       "stdout_path": "creature/magical-forge/full-120.txt",
-      "stdout_sha256": "37868182449c12c3a69d5bc03dd34a34648642cf4d68d69ca80e16070ad29a34",
+      "stdout_sha256": "0ae8dfc266695e6b280f129744708a47b954b49d5d473e2c099be3e26aaa17a6",
       "width": 120
     },
     {
@@ -994,9 +995,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13706,
+      "stdout_bytes": 13478,
       "stdout_path": "creature/balor/full-40.txt",
-      "stdout_sha256": "b337c675ceb5a59d5a457f62918ce15e3a050f2b70ac3defae70ebc16eb228c4",
+      "stdout_sha256": "0c01305512324f40341a8632058926f0c9f7253d302df810630c4c7655140406",
       "width": 40
     },
     {
@@ -1007,9 +1008,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13122,
+      "stdout_bytes": 12928,
       "stdout_path": "creature/balor/full-80.txt",
-      "stdout_sha256": "b69ca272b23b3637e43990a6322a875898f29b95890883f5409675d31864d0d9",
+      "stdout_sha256": "888cc263259be7cbcf5b825711ce77e1ad51df42584d05a508c788761746029a",
       "width": 80
     },
     {
@@ -1020,9 +1021,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13040,
+      "stdout_bytes": 12846,
       "stdout_path": "creature/balor/full-120.txt",
-      "stdout_sha256": "96afd3a98c6bbd3a4447f0c22c072b00f34088892ebe5b77ba931a04d84dcbac",
+      "stdout_sha256": "1d7a63ef604fc5aa76e248ebda638e45f0f7fdc3c42752cfd46d750f01d484c8",
       "width": 120
     },
     {
@@ -1189,9 +1190,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 12502,
+      "stdout_bytes": 12238,
       "stdout_path": "creature/gray-master/full-40.txt",
-      "stdout_sha256": "431e987486c9efc498279706675e0ec7a88a8a81db3ddab1c292f3c4632b686a",
+      "stdout_sha256": "89f3402e6dcbe9475f3e68eb5270741bdd7edcfbc34dfc4e73149c76eb521f46",
       "width": 40
     },
     {
@@ -1202,9 +1203,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 11954,
+      "stdout_bytes": 11709,
       "stdout_path": "creature/gray-master/full-80.txt",
-      "stdout_sha256": "2508842ac5f51ce260c0c2ed8eaa5c3fe5280850dce09b6d2e7416917eacbb3f",
+      "stdout_sha256": "4cf41b3b857bdc3f48255acd5c1eb57bca1a9d960b65769d3759889aa8a7b3cd",
       "width": 80
     },
     {
@@ -1215,9 +1216,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 11857,
+      "stdout_bytes": 11627,
       "stdout_path": "creature/gray-master/full-120.txt",
-      "stdout_sha256": "99f7cf316211d57834cc1470386347e12b9e5959f3b694c878547a25b120b7fa",
+      "stdout_sha256": "9c42675e93d0035f255c2f5e0da292a81367eb4633c8631603e7a1f97b2f5af5",
       "width": 120
     },
     {
@@ -1384,9 +1385,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 14572,
+      "stdout_bytes": 14292,
       "stdout_path": "creature/beluthus/full-40.txt",
-      "stdout_sha256": "7c846849e966b6eb41c10ae3253266268ceb7fb16a54effad7921e378eed6b9a",
+      "stdout_sha256": "ad3111ed6948ff31740c29b9eeb6d66281b7fccea18eddd4565364ad8b994ea1",
       "width": 40
     },
     {
@@ -1397,9 +1398,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13930,
+      "stdout_bytes": 13669,
       "stdout_path": "creature/beluthus/full-80.txt",
-      "stdout_sha256": "ff1e5b7f12035807e01fd9f5598d12534bcca77cb7d09ad2e10f9d5e96b04acf",
+      "stdout_sha256": "465027eb57a298e54c2d7fba327ed5af5286e4ad2f6c1625b4d719ae0ae14ef3",
       "width": 80
     },
     {
@@ -1410,9 +1411,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13821,
+      "stdout_bytes": 13575,
       "stdout_path": "creature/beluthus/full-120.txt",
-      "stdout_sha256": "fa4ce98bbcc51d4ce92a33bcf8c00d95c523fa03105294945a9de311ca66061f",
+      "stdout_sha256": "1b5d4ac91ee4859c72ddebb05b892226352e8c0e512439e6aac01aa1c2839e61",
       "width": 120
     },
     {
@@ -1579,9 +1580,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3760,
+      "stdout_bytes": 3527,
       "stdout_path": "creature/air-mephit/full-40.txt",
-      "stdout_sha256": "8b99859c7cbe5947716537148fc5687590652ac16174c5e8f80f5e0ca1ec41ad",
+      "stdout_sha256": "9ff5dcf55ab429578e07fe1c6e3a8ca9336fb335f06b00f7503ea78f2fb3309b",
       "width": 40
     },
     {
@@ -1592,9 +1593,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3581,
+      "stdout_bytes": 3382,
       "stdout_path": "creature/air-mephit/full-80.txt",
-      "stdout_sha256": "9bd66a380e492f6d4925e22cbd95f745f3a971d1b6887ca4ddc0bbc07d8f83f8",
+      "stdout_sha256": "0aba66b8a262b4e06ea4eb9bf4ee2fc42387a56dbb905f7ad59da6f952bbf0e7",
       "width": 80
     },
     {
@@ -1605,9 +1606,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3554,
+      "stdout_bytes": 3355,
       "stdout_path": "creature/air-mephit/full-120.txt",
-      "stdout_sha256": "4d5161b4ea4f6f1cc0ddc838e4ef790c25709a1855e96c3cdd9d2c7524110776",
+      "stdout_sha256": "a3ea24c13df76a33eed1d2d3b21085c4ae8ac8605b2482905c6d96e7df518faa",
       "width": 120
     },
     {
@@ -1774,9 +1775,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 4336,
+      "stdout_bytes": 4100,
       "stdout_path": "creature/air-scamp/full-40.txt",
-      "stdout_sha256": "3133eea162e4bb68c7d452407193fb448153e432d46e6c08fb483221b30d615c",
+      "stdout_sha256": "65fde9a56da0145211256a101fc25e63e8f06383cf62a1216c33261505539a9f",
       "width": 40
     },
     {
@@ -1787,9 +1788,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 4137,
+      "stdout_bytes": 3935,
       "stdout_path": "creature/air-scamp/full-80.txt",
-      "stdout_sha256": "0dce2649329a5a91f7016741f5848d0133bfd40f57275a5b40e5d61ecb5a278a",
+      "stdout_sha256": "8d2ebe041aca559b83c3467572ef01ccfcb3e7c0adfea9d062343d888bb0a3af",
       "width": 80
     },
     {
@@ -1800,9 +1801,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 4104,
+      "stdout_bytes": 3902,
       "stdout_path": "creature/air-scamp/full-120.txt",
-      "stdout_sha256": "fb6389ad84c360a21662fd376f2aef00554d5e4542770bb5b8ff22638251061b",
+      "stdout_sha256": "d8bd237247da0cd84d9f626173c6a271a466e3190e0589c8fa94ebd7fa4734ad",
       "width": 120
     },
     {
@@ -1816,6 +1817,19 @@
       "stdout_bytes": 4490,
       "stdout_path": "authentic-unmodeled/areelu-vorlesh-standard-80.txt",
       "stdout_sha256": "267952cb60b32ca229767934965b50b14c79d5e473c50f506b76d1cc8fd5e9ea",
+      "width": 80
+    },
+    {
+      "color": "NO_COLOR=1",
+      "command": "atlas --progress never record get revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ --detail full --index $BOUNDED_ARTIFACT",
+      "exit_status": 0,
+      "profile": "full",
+      "progress": "never",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 13640,
+      "stdout_path": "authentic-unmodeled/areelu-vorlesh-full-80.txt",
+      "stdout_sha256": "7890f9c12c6250c2d0d84ff66c4554d807f412bef8c3b6de9210e32121da9ffe",
       "width": 80
     },
     {
@@ -1869,8 +1883,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 231759,
-      "stdout_sha256": "e5ee592b7710a6b70f9334d61522e9a4d9274702bf525c403913846ac4d9104e",
+      "stdout_bytes": 201774,
+      "stdout_sha256": "7f499520d9d7fe9e9f4677ff2bc4c6a57e79f55b1a3117e398ce291fd56e33be",
       "width": 80
     },
     {
@@ -1881,8 +1895,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 17557,
-      "stdout_sha256": "d9dcc65d6a6d0499c6c2980a8d3387374f5477548249e545868707c704413ff3",
+      "stdout_bytes": 14529,
+      "stdout_sha256": "5d15f4edc38e882091da87d386f6f57c12c1d09f1c0b72ec4232fccc9b07c5af",
       "width": 80
     },
     {
@@ -1893,8 +1907,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 89937,
-      "stdout_sha256": "ceea2e6ee92c47884b801bde2f48a235b96068ae337308cc20a745d9a0d81b78",
+      "stdout_bytes": 74210,
+      "stdout_sha256": "ff262068a2ae1ba2ec000a308a9327bcb0c459bce30c3962b93b92ec2e75224d",
       "width": 80
     },
     {
@@ -1905,8 +1919,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 19679,
-      "stdout_sha256": "59bcbec8ed2a7cc9ca80ceec4e555d318c4218d6d1ceb0b0ea2e9763e1dded8a",
+      "stdout_bytes": 14048,
+      "stdout_sha256": "dc1f1eef6e705232663b81b0e59faa9892756dca64dc43f2dcc9ebb0a7cf1396",
       "width": 80
     },
     {
@@ -1917,8 +1931,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 97658,
-      "stdout_sha256": "ea5ad51bab59f373e655c5cb02f22289915f4f8a00e80d3c312544528004bf20",
+      "stdout_bytes": 81022,
+      "stdout_sha256": "39c23c003052e422fab085f1420accee21a405a73af097bd6c8f0c1ae09dc9ad",
       "width": 80
     },
     {
@@ -1929,8 +1943,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 81784,
-      "stdout_sha256": "88848880189d58d2727fcbe55036ec91c02083b3b8f09b5960407e2d9503ed65",
+      "stdout_bytes": 68420,
+      "stdout_sha256": "1995e59f9d4c7dfb22756d5ad6a018f076960ee54cfd859d62ee1ea702c000d5",
       "width": 80
     },
     {
@@ -1941,8 +1955,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 126301,
-      "stdout_sha256": "a77a3f530a91516c7ceaf4eebb74562619e21edce22daa45cb06119fe8213017",
+      "stdout_bytes": 112200,
+      "stdout_sha256": "5e56548b68f0848de0b1e01abd5f36816083253930c61ab6edfed707e0aed2ce",
       "width": 80
     },
     {
@@ -1953,8 +1967,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 27173,
-      "stdout_sha256": "2ffe443ccc28b61400ba6487108a14baf9724561f575624d5795a927daa9ae44",
+      "stdout_bytes": 21679,
+      "stdout_sha256": "bbcb0e71c74adcf0b8b3c37ed318364d0ca4d9dc88bcff56a524636be8888707",
       "width": 80
     },
     {
@@ -1965,8 +1979,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 30327,
-      "stdout_sha256": "0eff3d22e1bad012bd9139abdf1be58c3c7abaee9ff508344655fb240dc6481f",
+      "stdout_bytes": 24280,
+      "stdout_sha256": "31dbd8ce74dceb7351924a47a7f69ad26dc435884ddad261656f8802cede9fb1",
       "width": 80
     }
   ],
@@ -2033,7 +2047,7 @@
     "upstream_commit": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce",
     "upstream_signature": "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
   },
-  "remediation_base": "a124c37179ffd15698485cd530307b1a5af33406",
+  "remediation_base": "d595966a11502f6eca0d4580a500e003619f1613",
   "settings": {
     "color": "NO_COLOR=1",
     "matrix_cells": 135,
@@ -2053,8 +2067,8 @@
     ]
   },
   "snapshot_hashes": {
-    "authentic_unmodeled_manifest_sha256": "b9ecf863264627349c58cb3ce0dcfda44f6376603c2955686190c572f024c607",
-    "matrix_manifest_sha256": "49c33dfa91508f29a4ece4ee8365ec7ca3c910280446346fed79b5e8666079a1"
+    "authentic_unmodeled_manifest_sha256": "dcd034ef4ef767d3cb3e45bdc3aad33f1366455c5bf9ac6a5694d07824484016",
+    "matrix_manifest_sha256": "cbcbb52a3a85babaa7c591238ff8e7d56d2f707c5ec9db349dfd924a35387fd0"
   },
   "verified_edition_lookups": [
     {
