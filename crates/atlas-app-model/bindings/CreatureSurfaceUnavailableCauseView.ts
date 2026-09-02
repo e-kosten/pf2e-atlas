@@ -2,5 +2,6 @@
 import type { CreatureSurfaceFactProvenanceView } from "./CreatureSurfaceFactProvenanceView";
 import type { CreatureSurfaceUnavailableFieldView } from "./CreatureSurfaceUnavailableFieldView";
 import type { CreatureSurfaceUnavailableStateView } from "./CreatureSurfaceUnavailableStateView";
+import type { CreatureSurfaceUnmodeledSkillView } from "./CreatureSurfaceUnmodeledSkillView";
 
-export type CreatureSurfaceUnavailableCauseView = { state: CreatureSurfaceUnavailableStateView, field: CreatureSurfaceUnavailableFieldView, component_id?: string, provenance: CreatureSurfaceFactProvenanceView, message: string, };
+export type CreatureSurfaceUnavailableCauseView = { state: CreatureSurfaceUnavailableStateView, field: CreatureSurfaceUnavailableFieldView, component_id?: string, provenance: CreatureSurfaceFactProvenanceView, unmodeled_skill?: CreatureSurfaceUnmodeledSkillView, message: string, };

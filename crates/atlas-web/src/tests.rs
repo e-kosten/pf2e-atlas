@@ -6,31 +6,32 @@ use atlas_app_model::{
     CreatureSurfaceContentInlineView, CreatureSurfaceContentProvenanceView,
     CreatureSurfaceContentRoleView, CreatureSurfaceContentView,
     CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
-    CreatureSurfaceFactProvenanceView, CreatureSurfaceProvenanceView,
-    CreatureSurfaceSourceFieldView, CreatureSurfaceSpellView, CreatureSurfaceSpellcastingView,
-    CreatureSurfaceUnavailableCauseView, CreatureSurfaceUnavailableDomainsView,
-    CreatureSurfaceUnavailableFieldView, CreatureSurfaceUnavailableStateView, CreatureSurfaceView,
-    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
-    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
-    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
-    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterParticipantView, EncounterRuntimeAutomationLimitationCodeView,
-    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
-    EncounterRuntimeConditionView, EncounterRuntimeView, EncounterRuntimeVitalsView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
-    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
-    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RecordSurfaceMetadataView,
-    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
-    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
-    RuntimeCanonicalTargetView, RuntimeFactProvenanceView, RuntimeFactSourceView,
-    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
-    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
-    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    CreatureSurfaceFactProvenanceView, CreatureSurfaceIntegerPresenceView,
+    CreatureSurfaceProvenanceView, CreatureSurfaceSourceFieldView, CreatureSurfaceSpellView,
+    CreatureSurfaceSpellcastingView, CreatureSurfaceUnavailableCauseView,
+    CreatureSurfaceUnavailableDomainsView, CreatureSurfaceUnavailableFieldView,
+    CreatureSurfaceUnavailableStateView, CreatureSurfaceUnmodeledSkillReasonView,
+    CreatureSurfaceUnmodeledSkillView, CreatureSurfaceView, DeleteEncounterView,
+    DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
+    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
+    EncounterConditionCatalogView, EncounterConditionCategoryView,
+    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
+    EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
+    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
+    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
+    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
+    RecordSurfaceSourceView, RecordSurfaceView, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    ResultWindowModeSummary, ResultWindowPage, RuntimeCanonicalTargetView,
+    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    SearchPageView, SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
@@ -401,6 +402,21 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
             .get("source_path")
             .is_none()
     );
+    let unmodeled = &creature["unavailable_domains"]["skills"]["causes"][0];
+    assert_eq!(unmodeled["state"], "unsupported");
+    assert_eq!(unmodeled["field"], "unmodeled_skill");
+    assert_eq!(
+        unmodeled["unmodeled_skill"]["authored_key"],
+        "acrobatics+13"
+    );
+    assert_eq!(unmodeled["unmodeled_skill"]["base"]["state"], "null");
+    assert_eq!(
+        unmodeled["unmodeled_skill"]["reason"],
+        "unknown_authored_key"
+    );
+    assert!(unmodeled.get("source_path").is_none());
+    assert!(unmodeled.get("raw_json").is_none());
+    assert!(unmodeled.get("diagnostic").is_none());
 }
 
 #[tokio::test]
@@ -1412,6 +1428,10 @@ fn activity_content_surface() -> RecordSurfaceView {
         profile: RecordSurfaceProfileView::RecordDetail,
         presentation: RecordSurfacePresentationView::Creature {
             body: Box::new(CreatureSurfaceView {
+                teaser: None,
+                size: None,
+                adjustment: None,
+                initiative: None,
                 vitals: None,
                 defenses: None,
                 saves: None,
@@ -1428,12 +1448,14 @@ fn activity_content_surface() -> RecordSurfaceView {
                     tradition: Some("occult".to_string()),
                     attack_modifier: Some(20),
                     difficulty_class: Some(28),
+                    slots: None,
                     spells: vec![CreatureSurfaceSpellView {
                         occurrence_id: "bind-soul".to_string(),
                         authored_order: 1,
                         label: "Bind Soul".to_string(),
                         target_record_key: None,
                         rank: Some(9),
+                        context: None,
                         traits: vec!["spell".to_string()],
                         content: Some(vec![content("bind-soul", "Bind Soul")]),
                     }],
@@ -1444,6 +1466,7 @@ fn activity_content_surface() -> RecordSurfaceView {
                     label: "Control Weather".to_string(),
                     target_record_key: Some("spells:control-weather".to_string()),
                     rank: Some(8),
+                    context: None,
                     traits: vec!["spell".to_string()],
                     content: Some(vec![content("control-weather", "Control Weather")]),
                 }]),
@@ -1454,10 +1477,20 @@ fn activity_content_surface() -> RecordSurfaceView {
                     label: "Abyssal Plague".to_string(),
                     traits: Vec::new(),
                     action_cost: None,
+                    attack_effects: None,
+                    category: None,
+                    frequency: None,
+                    requirements: None,
+                    cost: None,
+                    uses: None,
+                    self_effect: None,
                     rolls: Vec::new(),
                     damage: Vec::new(),
                     content: Some(vec![content("item:plague:description", "Abyssal Plague")]),
                 }]),
+                rituals: None,
+                equipment: None,
+                lore: None,
                 content: Some(vec![content("heartstone", "Heartstone")]),
                 relationships: None,
                 unavailable_domains: None,
@@ -1483,6 +1516,10 @@ fn typed_failure_surface() -> RecordSurfaceView {
         profile: RecordSurfaceProfileView::RecordDetail,
         presentation: RecordSurfacePresentationView::Creature {
             body: Box::new(CreatureSurfaceView {
+                teaser: None,
+                size: None,
+                adjustment: None,
+                initiative: None,
                 vitals: None,
                 defenses: None,
                 saves: None,
@@ -1494,15 +1531,36 @@ fn typed_failure_surface() -> RecordSurfaceView {
                 spellcasting: None,
                 standalone_spells: None,
                 activities: None,
+                rituals: None,
+                equipment: None,
+                lore: None,
                 content: None,
                 relationships: None,
                 unavailable_domains: Some(CreatureSurfaceUnavailableDomainsView {
+                    classification: None,
+                    initiative: None,
                     vitals: None,
                     defenses: None,
                     saves: None,
                     awareness: None,
                     abilities: None,
-                    skills: None,
+                    skills: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Unsupported,
+                            field: CreatureSurfaceUnavailableFieldView::UnmodeledSkill,
+                            component_id: Some("unmodeled-skill-1".to_string()),
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::Skills,
+                            },
+                            unmodeled_skill: Some(CreatureSurfaceUnmodeledSkillView {
+                                authored_key: "acrobatics+13".to_string(),
+                                base: CreatureSurfaceIntegerPresenceView::Null,
+                                reason: CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey,
+                            }),
+                            message: "The source supplied an unrecognized skill key.".to_string(),
+                        }],
+                    }),
                     movement: Some(CreatureSurfaceDomainUnavailableView {
                         causes: vec![CreatureSurfaceUnavailableCauseView {
                             state: CreatureSurfaceUnavailableStateView::Unsupported,
@@ -1512,12 +1570,15 @@ fn typed_failure_surface() -> RecordSurfaceView {
                                 owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
                                 field: CreatureSurfaceSourceFieldView::Movement,
                             },
+                            unmodeled_skill: None,
                             message: "Display only.".to_string(),
                         }],
                     }),
                     resources: None,
                     spellcasting: None,
                     activities: None,
+                    equipment: None,
+                    lore: None,
                     relationships: None,
                 }),
                 provenance: Some(CreatureSurfaceProvenanceView {

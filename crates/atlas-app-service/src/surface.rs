@@ -2,20 +2,28 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_app_model::{
     CreatureSurfaceAbilitiesView, CreatureSurfaceActionCostView, CreatureSurfaceActivityTypeView,
-    CreatureSurfaceActivityView, CreatureSurfaceAwarenessView, CreatureSurfaceContentBlockView,
+    CreatureSurfaceActivityView, CreatureSurfaceAdjustmentValueView, CreatureSurfaceAdjustmentView,
+    CreatureSurfaceAwarenessView, CreatureSurfaceContentBlockView,
     CreatureSurfaceContentInlineView, CreatureSurfaceContentListItemView,
     CreatureSurfaceContentProvenanceView, CreatureSurfaceContentRoleView,
     CreatureSurfaceContentTableRowView, CreatureSurfaceContentView, CreatureSurfaceDamageView,
     CreatureSurfaceDefensesView, CreatureSurfaceDomainUnavailableView,
-    CreatureSurfaceFactOwnerView, CreatureSurfaceFactProvenanceView, CreatureSurfaceIwrView,
+    CreatureSurfaceEquipmentView, CreatureSurfaceFactOwnerView, CreatureSurfaceFactProvenanceView,
+    CreatureSurfaceFrequencyView, CreatureSurfaceInitiativeView,
+    CreatureSurfaceIntegerPresenceView, CreatureSurfaceIwrView, CreatureSurfaceLoreView,
     CreatureSurfaceMovementView, CreatureSurfaceProvenanceView,
     CreatureSurfaceRelationshipKindView, CreatureSurfaceRelationshipTargetView,
-    CreatureSurfaceRelationshipView, CreatureSurfaceResourceView, CreatureSurfaceRollView,
-    CreatureSurfaceSaveView, CreatureSurfaceSavesView, CreatureSurfaceSenseView,
-    CreatureSurfaceSkillView, CreatureSurfaceSourceFieldView, CreatureSurfaceSpellView,
-    CreatureSurfaceSpellcastingView, CreatureSurfaceUnavailableCauseView,
-    CreatureSurfaceUnavailableDomainsView, CreatureSurfaceUnavailableFieldView,
-    CreatureSurfaceUnavailableStateView, CreatureSurfaceView, CreatureSurfaceVitalsView,
+    CreatureSurfaceRelationshipView, CreatureSurfaceResourceView, CreatureSurfaceRitualsView,
+    CreatureSurfaceRollView, CreatureSurfaceSaveView, CreatureSurfaceSavesView,
+    CreatureSurfaceSelfEffectView, CreatureSurfaceSenseView, CreatureSurfaceShieldView,
+    CreatureSurfaceSizeValueView, CreatureSurfaceSizeView, CreatureSurfaceSkillPredicateView,
+    CreatureSurfaceSkillSourceEntryView, CreatureSurfaceSkillVariantView, CreatureSurfaceSkillView,
+    CreatureSurfaceSourceFieldView, CreatureSurfaceSpellOccurrenceContextView,
+    CreatureSurfaceSpellSlotView, CreatureSurfaceSpellView, CreatureSurfaceSpellcastingView,
+    CreatureSurfaceUnavailableCauseView, CreatureSurfaceUnavailableDomainsView,
+    CreatureSurfaceUnavailableFieldView, CreatureSurfaceUnavailableStateView,
+    CreatureSurfaceUnmodeledSkillReasonView, CreatureSurfaceUnmodeledSkillView,
+    CreatureSurfaceUsesView, CreatureSurfaceView, CreatureSurfaceVitalsView,
     EncounterRuntimeActivityKindView, EncounterRuntimeActivityView,
     EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
     EncounterRuntimeAutomationLimitationView, EncounterRuntimeSpellView,
@@ -25,16 +33,19 @@ use atlas_app_model::{
     SurfaceUnavailableReasonView, SurfaceUnavailableView,
 };
 use atlas_record::{
-    ContentOwner, ContentRole, CreatureActionCost, CreatureCapability, CreatureDamage,
-    CreatureDefenses, CreatureEmbeddedEntities, CreatureEntityOccurrence,
+    ContentOwner, ContentRole, CreatureActionCost, CreatureAdjustment, CreatureCapability,
+    CreatureDamage, CreatureDefenses, CreatureEmbeddedEntities, CreatureEntityOccurrence,
     CreatureEntityRelationshipKind, CreatureEntityTarget, CreatureIwr, CreatureMovementMode,
-    CreatureOccurrenceParent, CreatureRecord, CreatureRelationshipTarget, CreatureResourceAmount,
-    CreatureRoll, CreatureRollKind, CreatureSpellPreparation, FactValue, PresentationContent,
-    PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord, SenseAcuity,
-    project_presentation_content,
+    CreatureOccurrenceParent, CreaturePredicate, CreatureRecord, CreatureRelationshipTarget,
+    CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSize, CreatureSourceScalar,
+    CreatureSpellPreparation, CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue,
+    PresentationContent, PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord,
+    SenseAcuity, project_presentation_content, render_plain_text,
 };
 
 use crate::projection::kind_label;
+
+const SEARCH_TEASER_WORDS: usize = 50;
 
 pub(crate) fn record_surface(
     retrieved: &RetrievedRecord,
@@ -53,6 +64,9 @@ pub(crate) fn record_surface(
                     creature,
                     profile,
                     &content_placement,
+                    (profile == RecordSurfaceProfileView::SearchCompact)
+                        .then(|| search_teaser(retrieved))
+                        .flatten(),
                 )),
             }
         }
@@ -119,6 +133,25 @@ fn unavailable_presentation(
     }
 }
 
+fn search_teaser(retrieved: &RetrievedRecord) -> Option<String> {
+    let text = retrieved
+        .record
+        .content
+        .primary_body()
+        .map(render_plain_text)?;
+    teaser_from_text(&text)
+}
+
+fn teaser_from_text(text: &str) -> Option<String> {
+    let mut words = text.split_whitespace();
+    let teaser = words
+        .by_ref()
+        .take(SEARCH_TEASER_WORDS)
+        .collect::<Vec<_>>()
+        .join(" ");
+    (!teaser.is_empty()).then_some(teaser)
+}
+
 fn record_metadata(retrieved: &RetrievedRecord) -> RecordSurfaceMetadataView {
     let record = &retrieved.record;
     let creature_provenance = retrieved
@@ -158,16 +191,18 @@ fn creature_surface(
     profile: RecordSurfaceProfileView,
 ) -> CreatureSurfaceView {
     let activity_content = activity_content_placement(creature);
-    creature_surface_with_placement(creature, profile, &activity_content)
+    creature_surface_with_placement(creature, profile, &activity_content, None)
 }
 
 fn creature_surface_with_placement(
     creature: &CreatureRecord,
     profile: RecordSurfaceProfileView,
     activity_content: &ActivityContentPlacement,
+    teaser: Option<String>,
 ) -> CreatureSurfaceView {
     let detail = profile == RecordSurfaceProfileView::RecordDetail;
     let encounter = profile == RecordSurfaceProfileView::EncounterParticipant;
+    let compact = profile == RecordSurfaceProfileView::SearchCompact;
     let mut unavailable = SurfaceUnavailableDomains::default();
     let defenses = match &creature.defenses.value {
         FactValue::Value(defenses) => Some(defenses),
@@ -189,6 +224,8 @@ fn creature_surface_with_placement(
     };
     let defenses_view = if detail {
         defenses.map(|defenses| defenses_view(defenses, &mut unavailable))
+    } else if compact {
+        defenses.map(|defenses| compact_defenses_view(defenses, &mut unavailable))
     } else if encounter {
         defenses.and_then(|defenses| encounter_defenses_view(defenses, &mut unavailable))
     } else {
@@ -196,6 +233,8 @@ fn creature_surface_with_placement(
     };
     let saves = if detail {
         defenses.and_then(|defenses| saves_view(defenses, &mut unavailable))
+    } else if compact {
+        defenses.and_then(|defenses| compact_saves_view(defenses, &mut unavailable))
     } else if encounter {
         defenses.and_then(|defenses| encounter_saves_view(defenses, &mut unavailable))
     } else {
@@ -203,6 +242,8 @@ fn creature_surface_with_placement(
     };
     let awareness = if detail {
         awareness(creature, &mut unavailable, true)
+    } else if compact {
+        compact_awareness(creature, &mut unavailable)
     } else if encounter {
         awareness(creature, &mut unavailable, false)
     } else {
@@ -218,6 +259,13 @@ fn creature_surface_with_placement(
     let resources = detail
         .then(|| resources(creature, &mut unavailable))
         .flatten();
+    let rituals = detail
+        .then(|| rituals(creature, &mut unavailable))
+        .flatten();
+    let equipment = detail
+        .then(|| equipment(creature, &mut unavailable))
+        .flatten();
+    let lore = detail.then(|| lore(creature, &mut unavailable)).flatten();
     let (spellcasting, standalone_spells) = if detail {
         spellcasting(creature, activity_content, &mut unavailable)
     } else {
@@ -236,6 +284,14 @@ fn creature_surface_with_placement(
         .flatten();
 
     CreatureSurfaceView {
+        teaser,
+        size: detail.then(|| size(creature, &mut unavailable)).flatten(),
+        adjustment: detail
+            .then(|| adjustment(creature, &mut unavailable))
+            .flatten(),
+        initiative: detail
+            .then(|| initiative(creature, &mut unavailable))
+            .flatten(),
         vitals,
         defenses: defenses_view,
         saves,
@@ -244,6 +300,9 @@ fn creature_surface_with_placement(
         skills,
         movement,
         resources,
+        rituals,
+        equipment,
+        lore,
         spellcasting,
         standalone_spells,
         activities,
@@ -263,6 +322,8 @@ fn creature_surface_with_placement(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum SurfaceDomain {
+    Classification,
+    Initiative,
     Vitals,
     Defenses,
     Saves,
@@ -271,6 +332,8 @@ enum SurfaceDomain {
     Skills,
     Movement,
     Resources,
+    Equipment,
+    Lore,
     Spellcasting,
     Activities,
     Relationships,
@@ -295,10 +358,31 @@ impl SurfaceUnavailableDomains {
             field,
             component_id,
             provenance: fact_provenance(source_field),
+            unmodeled_skill: None,
             message: "This canonical field could not be projected safely; state and field are authoritative."
                 .to_string(),
         };
         let causes = self.causes.entry(domain).or_default();
+        if !causes.contains(&cause) {
+            causes.push(cause);
+            causes.sort();
+        }
+    }
+
+    fn add_unmodeled_skill(
+        &mut self,
+        component_id: String,
+        value: CreatureSurfaceUnmodeledSkillView,
+    ) {
+        let cause = CreatureSurfaceUnavailableCauseView {
+            state: CreatureSurfaceUnavailableStateView::Unsupported,
+            field: CreatureSurfaceUnavailableFieldView::UnmodeledSkill,
+            component_id: Some(component_id),
+            provenance: fact_provenance(CreatureSurfaceSourceFieldView::Skills),
+            unmodeled_skill: Some(value),
+            message: "The source supplied an unrecognized skill key.".to_string(),
+        };
+        let causes = self.causes.entry(SurfaceDomain::Skills).or_default();
         if !causes.contains(&cause) {
             causes.push(cause);
             causes.sort();
@@ -341,7 +425,7 @@ impl SurfaceUnavailableDomains {
                 None,
             );
         }
-        if profile == RecordSurfaceProfileView::RecordDetail {
+        if profile != RecordSurfaceProfileView::EncounterParticipant {
             self.add(
                 SurfaceDomain::Saves,
                 state,
@@ -362,6 +446,8 @@ impl SurfaceUnavailableDomains {
                 .map(|causes| CreatureSurfaceDomainUnavailableView { causes })
         };
         Some(CreatureSurfaceUnavailableDomainsView {
+            classification: take(SurfaceDomain::Classification),
+            initiative: take(SurfaceDomain::Initiative),
             vitals: take(SurfaceDomain::Vitals),
             defenses: take(SurfaceDomain::Defenses),
             saves: take(SurfaceDomain::Saves),
@@ -370,11 +456,17 @@ impl SurfaceUnavailableDomains {
             skills: take(SurfaceDomain::Skills),
             movement: take(SurfaceDomain::Movement),
             resources: take(SurfaceDomain::Resources),
+            equipment: take(SurfaceDomain::Equipment),
+            lore: take(SurfaceDomain::Lore),
             spellcasting: take(SurfaceDomain::Spellcasting),
             activities: take(SurfaceDomain::Activities),
             relationships: take(SurfaceDomain::Relationships),
         })
     }
+}
+
+fn optional_fact<T>(value: &FactValue<T>) -> Option<&T> {
+    value.as_value()
 }
 
 fn fact_provenance(field: CreatureSurfaceSourceFieldView) -> CreatureSurfaceFactProvenanceView {
@@ -433,6 +525,84 @@ fn unsupported(
     );
 }
 
+fn size(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceSizeView> {
+    required_fact(
+        &creature.size.value,
+        unavailable,
+        SurfaceDomain::Classification,
+        CreatureSurfaceUnavailableFieldView::Size,
+        CreatureSurfaceSourceFieldView::Size,
+        None,
+    )
+    .map(|size| CreatureSurfaceSizeView {
+        value: match size {
+            CreatureSize::Tiny => CreatureSurfaceSizeValueView::Tiny,
+            CreatureSize::Small => CreatureSurfaceSizeValueView::Small,
+            CreatureSize::Medium => CreatureSurfaceSizeValueView::Medium,
+            CreatureSize::Large => CreatureSurfaceSizeValueView::Large,
+            CreatureSize::Huge => CreatureSurfaceSizeValueView::Huge,
+            CreatureSize::Gargantuan => CreatureSurfaceSizeValueView::Gargantuan,
+        },
+        provenance: fact_provenance(CreatureSurfaceSourceFieldView::Size),
+    })
+}
+
+fn adjustment(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceAdjustmentView> {
+    match optional_fact(&creature.adjustment.value) {
+        Some(CreatureAdjustment::Elite) => Some(CreatureSurfaceAdjustmentView {
+            value: CreatureSurfaceAdjustmentValueView::Elite,
+            provenance: fact_provenance(CreatureSurfaceSourceFieldView::Adjustment),
+        }),
+        Some(CreatureAdjustment::Weak) => Some(CreatureSurfaceAdjustmentView {
+            value: CreatureSurfaceAdjustmentValueView::Weak,
+            provenance: fact_provenance(CreatureSurfaceSourceFieldView::Adjustment),
+        }),
+        Some(CreatureAdjustment::Unsupported(_)) => {
+            unsupported(
+                unavailable,
+                SurfaceDomain::Classification,
+                CreatureSurfaceUnavailableFieldView::Adjustment,
+                CreatureSurfaceSourceFieldView::Adjustment,
+                None,
+            );
+            None
+        }
+        None => None,
+    }
+}
+
+fn initiative(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceInitiativeView> {
+    let initiative = optional_fact(&creature.initiative.value)?;
+    match optional_fact(&initiative.statistic) {
+        Some(atlas_record::CreatureInitiativeStatistic::Named(statistic)) => {
+            Some(CreatureSurfaceInitiativeView {
+                statistic: statistic.as_str().to_string(),
+                provenance: fact_provenance(CreatureSurfaceSourceFieldView::Initiative),
+            })
+        }
+        Some(atlas_record::CreatureInitiativeStatistic::Unsupported(_)) => {
+            unsupported(
+                unavailable,
+                SurfaceDomain::Initiative,
+                CreatureSurfaceUnavailableFieldView::InitiativeStatistic,
+                CreatureSurfaceSourceFieldView::Initiative,
+                None,
+            );
+            None
+        }
+        None => None,
+    }
+}
+
 fn vitals(
     defenses: &CreatureDefenses,
     unavailable: &mut SurfaceUnavailableDomains,
@@ -487,6 +657,7 @@ fn defenses_view(
         }),
         armor_class_details: armor_class.and_then(|value| note(&value.details)),
         hardness: integer(&defenses.hardness),
+        shield: shield(&defenses.shield, unavailable),
         immunities: iwr(
             &defenses.immunities,
             unavailable,
@@ -506,6 +677,89 @@ fn defenses_view(
     }
 }
 
+fn compact_defenses_view(
+    defenses: &CreatureDefenses,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> CreatureSurfaceDefensesView {
+    let armor_class = required_fact(
+        &defenses.armor_class,
+        unavailable,
+        SurfaceDomain::Defenses,
+        CreatureSurfaceUnavailableFieldView::ArmorClass,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    );
+    CreatureSurfaceDefensesView {
+        armor_class: armor_class.and_then(|value| {
+            required_fact(
+                &value.value,
+                unavailable,
+                SurfaceDomain::Defenses,
+                CreatureSurfaceUnavailableFieldView::ArmorClass,
+                CreatureSurfaceSourceFieldView::Defenses,
+                None,
+            )
+            .copied()
+        }),
+        armor_class_details: None,
+        hardness: None,
+        shield: None,
+        immunities: Vec::new(),
+        resistances: Vec::new(),
+        weaknesses: Vec::new(),
+        provenance: fact_provenance(CreatureSurfaceSourceFieldView::Defenses),
+    }
+}
+
+fn shield(
+    value: &FactValue<atlas_record::CreatureShield>,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceShieldView> {
+    let shield = optional_fact(value)?;
+    let armor_class_bonus = required_fact(
+        &shield.armor_class_bonus,
+        unavailable,
+        SurfaceDomain::Defenses,
+        CreatureSurfaceUnavailableFieldView::ShieldArmorClassBonus,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    )
+    .copied();
+    let broken_threshold = required_fact(
+        &shield.broken_threshold,
+        unavailable,
+        SurfaceDomain::Defenses,
+        CreatureSurfaceUnavailableFieldView::ShieldBrokenThreshold,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    )
+    .copied();
+    let hardness = required_fact(
+        &shield.hardness,
+        unavailable,
+        SurfaceDomain::Defenses,
+        CreatureSurfaceUnavailableFieldView::ShieldHardness,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    )
+    .copied();
+    let maximum_hit_points = required_fact(
+        &shield.maximum_hit_points,
+        unavailable,
+        SurfaceDomain::Defenses,
+        CreatureSurfaceUnavailableFieldView::ShieldMaximumHitPoints,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    )
+    .copied();
+    Some(CreatureSurfaceShieldView {
+        armor_class_bonus: Some(armor_class_bonus?),
+        broken_threshold: Some(broken_threshold?),
+        hardness: Some(hardness?),
+        maximum_hit_points: Some(maximum_hit_points?),
+    })
+}
+
 fn encounter_defenses_view(
     defenses: &CreatureDefenses,
     unavailable: &mut SurfaceUnavailableDomains,
@@ -517,6 +771,7 @@ fn encounter_defenses_view(
             .as_value()
             .and_then(|armor_class| note(&armor_class.details)),
         hardness: integer(&defenses.hardness),
+        shield: None,
         immunities: iwr(
             &defenses.immunities,
             unavailable,
@@ -639,6 +894,57 @@ fn saves_view(
     })
 }
 
+fn compact_saves_view(
+    defenses: &CreatureDefenses,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceSavesView> {
+    let saves = required_fact(
+        &defenses.saves,
+        unavailable,
+        SurfaceDomain::Saves,
+        CreatureSurfaceUnavailableFieldView::Saves,
+        CreatureSurfaceSourceFieldView::Defenses,
+        None,
+    )?;
+    Some(CreatureSurfaceSavesView {
+        fortitude: compact_save_fact(&saves.fortitude, unavailable, "fortitude"),
+        reflex: compact_save_fact(&saves.reflex, unavailable, "reflex"),
+        will: compact_save_fact(&saves.will, unavailable, "will"),
+        all_saves_note: None,
+        provenance: fact_provenance(CreatureSurfaceSourceFieldView::Defenses),
+    })
+}
+
+fn compact_save_fact(
+    value: &FactValue<atlas_record::CreatureSave>,
+    unavailable: &mut SurfaceUnavailableDomains,
+    destination: &str,
+) -> Option<CreatureSurfaceSaveView> {
+    let value = required_fact(
+        value,
+        unavailable,
+        SurfaceDomain::Saves,
+        CreatureSurfaceUnavailableFieldView::Saves,
+        CreatureSurfaceSourceFieldView::Defenses,
+        Some(destination.to_string()),
+    )?;
+    let component_id = value.id.as_str().to_string();
+    let modifier = required_fact(
+        &value.value,
+        unavailable,
+        SurfaceDomain::Saves,
+        CreatureSurfaceUnavailableFieldView::Saves,
+        CreatureSurfaceSourceFieldView::Defenses,
+        Some(component_id.clone()),
+    )
+    .copied();
+    Some(CreatureSurfaceSaveView {
+        component_id,
+        modifier,
+        details: None,
+    })
+}
+
 fn encounter_saves_view(
     defenses: &CreatureDefenses,
     unavailable: &mut SurfaceUnavailableDomains,
@@ -722,24 +1028,8 @@ fn awareness(
     unavailable: &mut SurfaceUnavailableDomains,
     include_perception_modifier: bool,
 ) -> Option<CreatureSurfaceAwarenessView> {
-    let languages = required_fact(
-        &creature.languages.value,
-        unavailable,
-        SurfaceDomain::Awareness,
-        CreatureSurfaceUnavailableFieldView::Languages,
-        CreatureSurfaceSourceFieldView::Languages,
-        None,
-    );
-    let language_values = languages.and_then(|value| {
-        required_fact(
-            &value.values,
-            unavailable,
-            SurfaceDomain::Awareness,
-            CreatureSurfaceUnavailableFieldView::Languages,
-            CreatureSurfaceSourceFieldView::Languages,
-            None,
-        )
-    });
+    let languages = optional_fact(&creature.languages.value);
+    let language_values = languages.and_then(|value| optional_fact(&value.values));
     let perception = required_fact(
         &creature.perception.value,
         unavailable,
@@ -749,16 +1039,7 @@ fn awareness(
         None,
     );
     let mut senses = perception
-        .and_then(|value| {
-            required_fact(
-                &value.senses,
-                unavailable,
-                SurfaceDomain::Awareness,
-                CreatureSurfaceUnavailableFieldView::Senses,
-                CreatureSurfaceSourceFieldView::Perception,
-                None,
-            )
-        })
+        .and_then(|value| optional_fact(&value.senses))
         .map(|values| {
             values
                 .iter()
@@ -842,6 +1123,38 @@ fn awareness(
     }
 }
 
+fn compact_awareness(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceAwarenessView> {
+    let perception = required_fact(
+        &creature.perception.value,
+        unavailable,
+        SurfaceDomain::Awareness,
+        CreatureSurfaceUnavailableFieldView::Perception,
+        CreatureSurfaceSourceFieldView::Perception,
+        None,
+    )?;
+    let modifier = required_fact(
+        &perception.modifier,
+        unavailable,
+        SurfaceDomain::Awareness,
+        CreatureSurfaceUnavailableFieldView::Perception,
+        CreatureSurfaceSourceFieldView::Perception,
+        None,
+    )
+    .copied();
+    Some(CreatureSurfaceAwarenessView {
+        perception: modifier,
+        details: None,
+        has_vision: None,
+        senses: Vec::new(),
+        languages: Vec::new(),
+        language_details: None,
+        provenance: fact_provenance(CreatureSurfaceSourceFieldView::Perception),
+    })
+}
+
 fn abilities(
     creature: &CreatureRecord,
     unavailable: &mut SurfaceUnavailableDomains,
@@ -893,31 +1206,144 @@ fn skills(
         CreatureSurfaceSourceFieldView::Skills,
         None,
     )?;
-    let mut projected = values
-        .iter()
-        .filter(|value| value.kind != atlas_record::CreatureSkillKind::Unmodeled)
-        .map(|value| {
-            let component_id = value.id.as_str().to_string();
-            CreatureSurfaceSkillView {
-                component_id: component_id.clone(),
-                authored_order: value.authored_order,
-                kind: value.kind.source_slug().to_string(),
-                label: value.label.clone(),
-                modifier: required_fact(
-                    &value.modifier,
-                    unavailable,
+    let mut projected = Vec::new();
+    for value in values {
+        let component_id = value.id.as_str().to_string();
+        if value.kind == atlas_record::CreatureSkillKind::Unmodeled {
+            match &value.unmodeled {
+                FactValue::Value(unmodeled) => unavailable.add_unmodeled_skill(
+                    component_id,
+                    CreatureSurfaceUnmodeledSkillView {
+                        authored_key: unmodeled.authored_key.clone(),
+                        base: integer_presence(&unmodeled.base),
+                        reason: match unmodeled.reason {
+                            CreatureUnmodeledSkillReason::UnknownAuthoredKey => {
+                                CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey
+                            }
+                        },
+                    },
+                ),
+                FactValue::Missing => unavailable.add(
                     SurfaceDomain::Skills,
-                    CreatureSurfaceUnavailableFieldView::SkillModifier,
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::UnmodeledSkill,
                     CreatureSurfaceSourceFieldView::Skills,
                     Some(component_id),
-                )
-                .copied(),
-                note: note(&value.note),
+                ),
+                FactValue::Null => unavailable.add(
+                    SurfaceDomain::Skills,
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::UnmodeledSkill,
+                    CreatureSurfaceSourceFieldView::Skills,
+                    Some(component_id),
+                ),
             }
-        })
-        .collect::<Vec<_>>();
+            continue;
+        }
+        let variants = optional_fact(&value.variants).and_then(|variants| {
+            let mut variants = variants
+                .iter()
+                .map(|variant| skill_variant(variant, unavailable, &component_id))
+                .collect::<Vec<_>>();
+            variants.sort_by_key(|variant| variant.authored_order);
+            non_empty(variants)
+        });
+        projected.push(CreatureSurfaceSkillView {
+            component_id: component_id.clone(),
+            authored_order: value.authored_order,
+            kind: value.kind.source_slug().to_string(),
+            label: value.label.clone(),
+            source_entries: non_empty(
+                value
+                    .source_entries
+                    .iter()
+                    .enumerate()
+                    .map(|(index, entry)| CreatureSurfaceSkillSourceEntryView {
+                        authored_order: index as u32,
+                        authored_key: entry.authored_key.clone(),
+                        modifier: integer_presence(&entry.modifier),
+                    })
+                    .collect(),
+            ),
+            modifier: required_fact(
+                &value.modifier,
+                unavailable,
+                SurfaceDomain::Skills,
+                CreatureSurfaceUnavailableFieldView::SkillModifier,
+                CreatureSurfaceSourceFieldView::Skills,
+                Some(component_id),
+            )
+            .copied(),
+            note: note(&value.note),
+            variants,
+        });
+    }
     projected.sort_by_key(|value| value.authored_order);
     non_empty(projected)
+}
+
+fn integer_presence(value: &FactValue<i64>) -> CreatureSurfaceIntegerPresenceView {
+    match value {
+        FactValue::Missing => CreatureSurfaceIntegerPresenceView::Missing,
+        FactValue::Null => CreatureSurfaceIntegerPresenceView::Null,
+        FactValue::Value(value) => CreatureSurfaceIntegerPresenceView::Value { value: *value },
+    }
+}
+
+fn skill_variant(
+    value: &atlas_record::CreatureSkillVariant,
+    unavailable: &mut SurfaceUnavailableDomains,
+    skill_id: &str,
+) -> CreatureSurfaceSkillVariantView {
+    let component_id = format!("{skill_id}/{}", value.id.as_str());
+    let predicates = optional_fact(&value.predicate).and_then(|predicates| {
+        let projected = predicates
+            .iter()
+            .filter_map(|predicate| match predicate {
+                CreaturePredicate::Term(term) => Some(CreatureSurfaceSkillPredicateView::Term {
+                    term: term.as_str().to_string(),
+                }),
+                CreaturePredicate::Not(term) => Some(CreatureSurfaceSkillPredicateView::Not {
+                    term: term.as_str().to_string(),
+                }),
+                CreaturePredicate::Any(terms) => Some(CreatureSurfaceSkillPredicateView::Any {
+                    terms: terms.iter().map(|term| term.as_str().to_string()).collect(),
+                }),
+                CreaturePredicate::AtLeast { term, minimum } => {
+                    Some(CreatureSurfaceSkillPredicateView::AtLeast {
+                        term: term.as_str().to_string(),
+                        minimum: *minimum,
+                    })
+                }
+                CreaturePredicate::Unsupported(_) => {
+                    unsupported(
+                        unavailable,
+                        SurfaceDomain::Skills,
+                        CreatureSurfaceUnavailableFieldView::SkillVariantPredicate,
+                        CreatureSurfaceSourceFieldView::Skills,
+                        Some(component_id.clone()),
+                    );
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        non_empty(projected)
+    });
+    CreatureSurfaceSkillVariantView {
+        component_id: value.id.as_str().to_string(),
+        authored_order: value.authored_order,
+        modifier: required_fact(
+            &value.modifier,
+            unavailable,
+            SurfaceDomain::Skills,
+            CreatureSurfaceUnavailableFieldView::SkillVariantModifier,
+            CreatureSurfaceSourceFieldView::Skills,
+            Some(component_id),
+        )
+        .copied(),
+        label: text(&value.label),
+        predicates,
+    }
 }
 
 fn movement(
@@ -1026,6 +1452,159 @@ fn resources(
     non_empty(projected)
 }
 
+fn rituals(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceRitualsView> {
+    let embedded = required_fact(
+        &creature.embedded_entities.value,
+        unavailable,
+        SurfaceDomain::Spellcasting,
+        CreatureSurfaceUnavailableFieldView::EmbeddedEntities,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        None,
+    )?;
+    let context = optional_fact(&embedded.actor_spellcasting)?;
+    let difficulty_class = match required_fact(
+        &context.rituals_dc,
+        unavailable,
+        SurfaceDomain::Spellcasting,
+        CreatureSurfaceUnavailableFieldView::RitualDifficultyClass,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        None,
+    )? {
+        CreatureSourceScalar::Value(value) => *value,
+        CreatureSourceScalar::Unsupported(_) => {
+            unsupported(
+                unavailable,
+                SurfaceDomain::Spellcasting,
+                CreatureSurfaceUnavailableFieldView::RitualDifficultyClass,
+                CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                None,
+            );
+            return None;
+        }
+    };
+    Some(CreatureSurfaceRitualsView {
+        difficulty_class,
+        provenance: fact_provenance(CreatureSurfaceSourceFieldView::EmbeddedEntities),
+    })
+}
+
+fn equipment(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<Vec<CreatureSurfaceEquipmentView>> {
+    let embedded = required_fact(
+        &creature.embedded_entities.value,
+        unavailable,
+        SurfaceDomain::Equipment,
+        CreatureSurfaceUnavailableFieldView::Equipment,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        None,
+    )?;
+    let mut projected = embedded
+        .occurrences
+        .iter()
+        .filter_map(|occurrence| {
+            let CreatureCapability::Equipment(capability) = &occurrence.capability else {
+                return None;
+            };
+            let occurrence_id = occurrence.id.as_str().to_string();
+            Some(CreatureSurfaceEquipmentView {
+                occurrence_id: occurrence_id.clone(),
+                authored_order: occurrence.authored_order,
+                label: occurrence_label(occurrence, embedded),
+                source_item_id: source_item_id(occurrence),
+                traits: optional_fact(&capability.traits)
+                    .cloned()
+                    .and_then(non_empty),
+                level: optional_fact(&capability.level).copied(),
+                usage: optional_fact(&capability.usage).cloned(),
+                quantity: optional_fact(&capability.quantity).copied(),
+                uses: optional_fact(&capability.uses).and_then(|uses| {
+                    uses_view(
+                        uses,
+                        unavailable,
+                        SurfaceDomain::Equipment,
+                        CreatureSurfaceUnavailableFieldView::EquipmentUsesMaximum,
+                        &occurrence_id,
+                    )
+                }),
+            })
+        })
+        .collect::<Vec<_>>();
+    projected.sort_by_key(|value| value.authored_order);
+    non_empty(projected)
+}
+
+fn lore(
+    creature: &CreatureRecord,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<Vec<CreatureSurfaceLoreView>> {
+    let embedded = required_fact(
+        &creature.embedded_entities.value,
+        unavailable,
+        SurfaceDomain::Lore,
+        CreatureSurfaceUnavailableFieldView::Lore,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        None,
+    )?;
+    let mut projected = embedded
+        .occurrences
+        .iter()
+        .filter_map(|occurrence| {
+            let CreatureCapability::Lore(capability) = &occurrence.capability else {
+                return None;
+            };
+            let occurrence_id = occurrence.id.as_str().to_string();
+            Some(CreatureSurfaceLoreView {
+                occurrence_id: occurrence_id.clone(),
+                authored_order: occurrence.authored_order,
+                label: occurrence_label(occurrence, embedded),
+                source_item_id: source_item_id(occurrence),
+                modifier: required_fact(
+                    &capability.modifier,
+                    unavailable,
+                    SurfaceDomain::Lore,
+                    CreatureSurfaceUnavailableFieldView::LoreModifier,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                    Some(occurrence_id),
+                )
+                .copied(),
+            })
+        })
+        .collect::<Vec<_>>();
+    projected.sort_by_key(|value| value.authored_order);
+    non_empty(projected)
+}
+
+fn source_item_id(occurrence: &CreatureEntityOccurrence) -> Option<String> {
+    optional_fact(&occurrence.source_identity.nested_source_id)
+        .map(|value| value.as_str().to_string())
+}
+
+fn uses_view(
+    value: &CreatureUseLimit,
+    unavailable: &mut SurfaceUnavailableDomains,
+    domain: SurfaceDomain,
+    field: CreatureSurfaceUnavailableFieldView,
+    component_id: &str,
+) -> Option<CreatureSurfaceUsesView> {
+    let maximum = required_fact(
+        &value.maximum,
+        unavailable,
+        domain,
+        field,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        Some(component_id.to_string()),
+    )
+    .copied()?;
+    Some(CreatureSurfaceUsesView {
+        maximum: Some(maximum),
+    })
+}
+
 fn activities(
     creature: &CreatureRecord,
     activity_content: &ActivityContentPlacement,
@@ -1073,6 +1652,13 @@ fn activities(
                         activity_type: CreatureSurfaceActivityTypeView::Strike,
                         traits: &capability.traits,
                         action_cost: &capability.action_cost,
+                        attack_effects: Some(&capability.attack_effects),
+                        category: None,
+                        frequency: None,
+                        requirements: None,
+                        cost: None,
+                        self_effect: None,
+                        self_effect_label: None,
                         rolls: &capability.rolls,
                         damage: &capability.damage,
                     },
@@ -1086,6 +1672,13 @@ fn activities(
                         activity_type: CreatureSurfaceActivityTypeView::Action,
                         traits: &capability.traits,
                         action_cost: &capability.action_cost,
+                        attack_effects: None,
+                        category: Some(&capability.category),
+                        frequency: Some(&capability.frequency),
+                        requirements: Some(&capability.requirements),
+                        cost: Some(&capability.cost),
+                        self_effect: Some(&capability.self_effect),
+                        self_effect_label: Some(&capability.self_effect_label),
                         rolls: &capability.rolls,
                         damage: &capability.damage,
                     },
@@ -1141,6 +1734,13 @@ struct ActivityProjection<'a> {
     activity_type: CreatureSurfaceActivityTypeView,
     traits: &'a FactValue<Vec<String>>,
     action_cost: &'a CreatureActionCost,
+    attack_effects: Option<&'a FactValue<Vec<String>>>,
+    category: Option<&'a FactValue<String>>,
+    frequency: Option<&'a FactValue<atlas_record::CreatureFrequency>>,
+    requirements: Option<&'a FactValue<String>>,
+    cost: Option<&'a FactValue<String>>,
+    self_effect: Option<&'a FactValue<String>>,
+    self_effect_label: Option<&'a FactValue<String>>,
     rolls: &'a [CreatureRoll],
     damage: &'a FactValue<Vec<CreatureDamage>>,
 }
@@ -1170,10 +1770,69 @@ fn activity(
         label: occurrence_label(occurrence, embedded),
         traits,
         action_cost: action_cost(projection.action_cost, unavailable, &component_id),
+        attack_effects: projection
+            .attack_effects
+            .and_then(optional_fact)
+            .cloned()
+            .and_then(non_empty),
+        category: projection.category.and_then(optional_fact).cloned(),
+        frequency: projection
+            .frequency
+            .and_then(optional_fact)
+            .and_then(|frequency| frequency_view(frequency, unavailable, &component_id)),
+        requirements: projection.requirements.and_then(optional_fact).cloned(),
+        cost: projection.cost.and_then(optional_fact).cloned(),
+        uses: optional_fact(&occurrence.context.uses).and_then(|uses| {
+            uses_view(
+                uses,
+                unavailable,
+                SurfaceDomain::Activities,
+                CreatureSurfaceUnavailableFieldView::ActionUsesMaximum,
+                &component_id,
+            )
+        }),
+        self_effect: {
+            let value = projection.self_effect.and_then(optional_fact).cloned();
+            let label = projection
+                .self_effect_label
+                .and_then(optional_fact)
+                .cloned();
+            (value.is_some() || label.is_some())
+                .then_some(CreatureSurfaceSelfEffectView { value, label })
+        },
         rolls: rolls(projection.rolls, unavailable, &component_id),
         damage: damage(projection.damage, unavailable, &component_id),
         content,
     }
+}
+
+fn frequency_view(
+    value: &atlas_record::CreatureFrequency,
+    unavailable: &mut SurfaceUnavailableDomains,
+    component_id: &str,
+) -> Option<CreatureSurfaceFrequencyView> {
+    let maximum = required_fact(
+        &value.maximum,
+        unavailable,
+        SurfaceDomain::Activities,
+        CreatureSurfaceUnavailableFieldView::ActionFrequencyMaximum,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        Some(component_id.to_string()),
+    )
+    .copied();
+    let period = required_fact(
+        &value.period,
+        unavailable,
+        SurfaceDomain::Activities,
+        CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod,
+        CreatureSurfaceSourceFieldView::EmbeddedEntities,
+        Some(component_id.to_string()),
+    )
+    .cloned();
+    Some(CreatureSurfaceFrequencyView {
+        maximum: Some(maximum?),
+        period: Some(period?),
+    })
 }
 
 fn spellcasting(
@@ -1267,6 +1926,7 @@ fn spellcasting(
                     Some(entry.id.as_str().to_string()),
                 )
                 .copied(),
+                slots: spell_slots(&capability.slots, unavailable, entry.id.as_str()),
                 spells,
             })
         })
@@ -1341,6 +2001,7 @@ fn surface_spell_view(
             CreatureEntityTarget::ActorOwned(_) => None,
         },
         rank,
+        context: spell_context(spell, unavailable),
         traits,
         content: content_for_occurrence(
             creature,
@@ -1348,6 +2009,75 @@ fn surface_spell_view(
             &component_id,
         ),
     })
+}
+
+fn spell_slots(
+    values: &FactValue<Vec<atlas_record::CreatureSpellSlot>>,
+    unavailable: &mut SurfaceUnavailableDomains,
+    entry_id: &str,
+) -> Option<Vec<CreatureSurfaceSpellSlotView>> {
+    let slots = optional_fact(values)?;
+    non_empty(
+        slots
+            .iter()
+            .map(|slot| {
+                let component_id = format!("{entry_id}/rank-{}", slot.rank);
+                let maximum = match required_fact(
+                    &slot.maximum,
+                    unavailable,
+                    SurfaceDomain::Spellcasting,
+                    CreatureSurfaceUnavailableFieldView::SpellSlotMaximum,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                    Some(component_id.clone()),
+                ) {
+                    Some(CreatureSourceScalar::Value(value)) => Some(*value),
+                    Some(CreatureSourceScalar::Unsupported(_)) => {
+                        unsupported(
+                            unavailable,
+                            SurfaceDomain::Spellcasting,
+                            CreatureSurfaceUnavailableFieldView::SpellSlotMaximum,
+                            CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                            Some(component_id),
+                        );
+                        None
+                    }
+                    None => None,
+                };
+                CreatureSurfaceSpellSlotView {
+                    rank: slot.rank,
+                    maximum,
+                }
+            })
+            .collect(),
+    )
+}
+
+fn spell_context(
+    spell: &CreatureEntityOccurrence,
+    unavailable: &mut SurfaceUnavailableDomains,
+) -> Option<CreatureSurfaceSpellOccurrenceContextView> {
+    let component_id = spell.id.as_str();
+    let context = CreatureSurfaceSpellOccurrenceContextView {
+        group: text(&spell.context.group),
+        location: text(&spell.context.location),
+        slot: text(&spell.context.slot),
+        uses: optional_fact(&spell.context.uses).and_then(|uses| {
+            uses_view(
+                uses,
+                unavailable,
+                SurfaceDomain::Spellcasting,
+                CreatureSurfaceUnavailableFieldView::SpellUsesMaximum,
+                component_id,
+            )
+        }),
+        contextual_label: text(&spell.context.contextual_label),
+    };
+    (context.group.is_some()
+        || context.location.is_some()
+        || context.slot.is_some()
+        || context.uses.is_some()
+        || context.contextual_label.is_some())
+    .then_some(context)
 }
 
 #[derive(Default)]
@@ -2220,7 +2950,7 @@ fn non_empty<T>(values: Vec<T>) -> Option<Vec<T>> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use atlas_domain::{PackName, RecordId, RecordKey};
+    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind};
     use atlas_record::{
         ContentId, ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner,
         ContentProvenance, ContentRole, ContentSourceKind, ContentVisibility,
@@ -2236,6 +2966,7 @@ mod tests {
 
     use super::{
         activity_content_placement, compose_encounter_payload, creature_surface, non_empty,
+        teaser_from_text,
     };
     use atlas_app_model::{
         CreatureSurfaceContentBlockView, CreatureSurfaceContentInlineView,
@@ -2277,6 +3008,453 @@ mod tests {
         assert!(surface.activities.is_none());
         assert!(surface.relationships.is_none());
         assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
+    fn giant_rat_search_compact_projects_only_the_approved_static_summary_and_teaser_limit() {
+        let mut giant_rat = known_empty_creature();
+        giant_rat.identity.name = "Giant Rat".to_string();
+        set_hit_points(&mut giant_rat, 3, 8);
+
+        let surface = creature_surface(&giant_rat, RecordSurfaceProfileView::SearchCompact);
+        assert_eq!(
+            surface.vitals.as_ref().and_then(|value| value.hit_points),
+            Some(8)
+        );
+        assert_eq!(
+            surface
+                .defenses
+                .as_ref()
+                .and_then(|value| value.armor_class),
+            Some(20)
+        );
+        let saves = surface.saves.expect("compact saves");
+        assert_eq!(saves.fortitude.and_then(|value| value.modifier), Some(10));
+        assert_eq!(saves.reflex.and_then(|value| value.modifier), Some(10));
+        assert_eq!(saves.will.and_then(|value| value.modifier), Some(10));
+        assert_eq!(
+            surface
+                .awareness
+                .as_ref()
+                .and_then(|value| value.perception),
+            Some(10)
+        );
+        assert!(surface.size.is_none());
+        assert!(surface.skills.is_none());
+        assert!(surface.activities.is_none());
+        assert!(surface.unavailable_domains.is_none());
+
+        let text = (1..=55)
+            .map(|index| format!("word{index}"))
+            .collect::<Vec<_>>()
+            .join(" \n");
+        let teaser = teaser_from_text(&text).expect("non-empty teaser");
+        assert_eq!(teaser.split_whitespace().count(), 50);
+        assert!(teaser.ends_with("word50"));
+        assert_eq!(teaser_from_text(" \n\t "), None);
+    }
+
+    #[test]
+    fn night_hag_search_compact_wires_teaser_and_dense_scan_facts_through_record_surface() {
+        let creature = spell_payload_fixture();
+        let record_key = creature.identity.record_key.clone();
+        let mut record = atlas_record::AtlasRecord::new(
+            atlas_record::RecordIdentity::new(record_key, "Night Hag"),
+            atlas_record::RecordClassification::new(RecordKind::Creature),
+            atlas_record::FoundryRecordInfo::new(
+                "Bestiary",
+                atlas_record::FoundryDocumentType::Actor,
+                atlas_record::FoundryRecordType::Npc,
+            ),
+            atlas_record::RecordProvenance::new("packs/creatures/night-hag.json"),
+        );
+        record
+            .content
+            .documents
+            .push(atlas_record::RecordContentDocument {
+                source_kind: ContentSourceKind::Description,
+                label: Some("Description".to_string()),
+                document: RichDocument::new(vec![RichNode::Text {
+                    text: (1..=55)
+                        .map(|index| format!("hag{index}"))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                }]),
+            });
+        let retrieved = atlas_record::RetrievedRecord {
+            record,
+            body: Some(atlas_record::RecordBody::Creature(creature)),
+        };
+
+        let surface =
+            super::record_surface(&retrieved, RecordSurfaceProfileView::SearchCompact, None);
+        let atlas_app_model::RecordSurfacePresentationView::Creature { body } =
+            surface.presentation
+        else {
+            panic!("creature surface");
+        };
+        assert_eq!(
+            body.teaser.as_deref(),
+            Some(
+                (1..=50)
+                    .map(|index| format!("hag{index}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .as_str()
+            )
+        );
+        assert_eq!(
+            body.awareness.as_ref().and_then(|value| value.perception),
+            Some(10)
+        );
+        assert_eq!(
+            body.defenses.as_ref().and_then(|value| value.armor_class),
+            Some(20)
+        );
+        assert_eq!(
+            body.vitals.as_ref().and_then(|value| value.hit_points),
+            Some(50)
+        );
+        assert!(body.saves.as_ref().is_some_and(|saves| {
+            saves.fortitude.as_ref().and_then(|value| value.modifier) == Some(10)
+                && saves.reflex.as_ref().and_then(|value| value.modifier) == Some(10)
+                && saves.will.as_ref().and_then(|value| value.modifier) == Some(10)
+        }));
+        assert!(body.spellcasting.is_none());
+    }
+
+    #[test]
+    fn calcifda_dense_detail_projects_the_minimum_typed_profile_in_authored_order() {
+        let mut calcifda = known_empty_creature();
+        calcifda.identity.name = "Calcifda".to_string();
+        calcifda.size.value = FactValue::Value(atlas_record::CreatureSize::Large);
+        calcifda.adjustment.value = FactValue::Value(atlas_record::CreatureAdjustment::Elite);
+        calcifda.initiative.value = FactValue::Value(atlas_record::CreatureInitiative {
+            statistic: FactValue::Value(atlas_record::CreatureInitiativeStatistic::Named(
+                atlas_record::CreatureStatistic::new("stealth").expect("statistic"),
+            )),
+        });
+        if let FactValue::Value(defenses) = &mut calcifda.defenses.value {
+            defenses.shield = FactValue::Value(atlas_record::CreatureShield {
+                armor_class_bonus: FactValue::Value(2),
+                broken_threshold: FactValue::Value(10),
+                hardness: FactValue::Value(5),
+                maximum_hit_points: FactValue::Value(20),
+                serialized_hit_points: FactValue::Value(17),
+                current_policy:
+                    atlas_record::ShieldCurrentPolicy::SerializedHitPointsAreProvenanceOnly,
+            });
+        }
+        calcifda.skills.value = FactValue::Value(vec![atlas_record::CreatureSkill {
+            id: atlas_record::CreatureComponentId::new("stealth").expect("skill id"),
+            authored_order: 0,
+            source_entries: vec![atlas_record::CreatureSkillSourceEntry {
+                authored_key: "stealth".to_string(),
+                modifier: FactValue::Value(21),
+            }],
+            kind: atlas_record::CreatureSkillKind::Stealth,
+            label: "Stealth".to_string(),
+            modifier: FactValue::Value(21),
+            note: FactValue::Missing,
+            variants: FactValue::Value(vec![atlas_record::CreatureSkillVariant {
+                id: atlas_record::CreatureComponentId::new("stealth-in-stone").expect("variant id"),
+                authored_order: 0,
+                modifier: FactValue::Value(23),
+                label: FactValue::Value("in stone".to_string()),
+                predicate: FactValue::Value(vec![atlas_record::CreaturePredicate::Term(
+                    atlas_record::PredicateTerm::new("terrain:stone").expect("predicate"),
+                )]),
+            }]),
+            source_item_id: FactValue::Missing,
+            unmodeled: FactValue::Missing,
+        }]);
+
+        let owner = calcifda.identity.record_key.clone();
+        let mut action = action_occurrence(&owner, "eruption", "eruption", 3);
+        action.context.uses = FactValue::Value(atlas_record::CreatureUseLimit {
+            maximum: FactValue::Value(2),
+            serialized_value: FactValue::Value(1),
+        });
+        let atlas_record::CreatureCapability::Action(action_capability) = &mut action.capability
+        else {
+            panic!("action fixture");
+        };
+        action_capability.category = FactValue::Value("offensive".to_string());
+        action_capability.frequency = FactValue::Value(atlas_record::CreatureFrequency {
+            maximum: FactValue::Value(1),
+            period: FactValue::Value("day".to_string()),
+            serialized_value: FactValue::Value(1),
+        });
+        action_capability.requirements = FactValue::Value("standing on stone".to_string());
+        action_capability.cost = FactValue::Value("one ember".to_string());
+        action_capability.self_effect = FactValue::Value("heated".to_string());
+        action_capability.self_effect_label = FactValue::Value("Heated".to_string());
+
+        let strike = occurrence(
+            &owner,
+            "claw",
+            1,
+            CreatureEntityFamily::Strike,
+            CreatureOccurrenceParent::Creature,
+            atlas_record::CreatureCapability::Strike(atlas_record::CreatureStrikeCapability {
+                traits: FactValue::Value(vec!["agile".to_string()]),
+                attack_effects: FactValue::Value(vec!["grab".to_string()]),
+                rolls: Vec::new(),
+                damage: FactValue::Value(Vec::new()),
+                action_cost: atlas_record::CreatureActionCost::Actions(1),
+                unsupported_notes: Vec::new(),
+            }),
+        );
+        let mut equipment = occurrence(
+            &owner,
+            "gear-obsidian-key",
+            5,
+            CreatureEntityFamily::Equipment,
+            CreatureOccurrenceParent::Creature,
+            atlas_record::CreatureCapability::Equipment(
+                atlas_record::CreatureEquipmentCapability {
+                    traits: FactValue::Value(vec!["magical".to_string()]),
+                    level: FactValue::Value(12),
+                    usage: FactValue::Value("held-in-one-hand".to_string()),
+                    quantity: FactValue::Value(1),
+                    uses: FactValue::Value(atlas_record::CreatureUseLimit {
+                        maximum: FactValue::Value(3),
+                        serialized_value: FactValue::Value(2),
+                    }),
+                    unsupported_notes: Vec::new(),
+                },
+            ),
+        );
+        equipment.source_identity.nested_source_id = FactValue::Value(
+            atlas_record::CreatureSourceId::new("source-gear-key").expect("source id"),
+        );
+        let mut lore = occurrence(
+            &owner,
+            "lore-volcanic",
+            2,
+            CreatureEntityFamily::Lore,
+            CreatureOccurrenceParent::Creature,
+            atlas_record::CreatureCapability::Lore(atlas_record::CreatureLoreCapability {
+                modifier: FactValue::Value(19),
+                unsupported_notes: Vec::new(),
+            }),
+        );
+        lore.source_identity.nested_source_id = FactValue::Value(
+            atlas_record::CreatureSourceId::new("source-lore-volcanic").expect("source id"),
+        );
+        calcifda.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+            entities: vec![
+                entity(&owner, "eruption", CreatureEntityFamily::Action),
+                entity(&owner, "claw", CreatureEntityFamily::Strike),
+                entity(&owner, "gear-obsidian-key", CreatureEntityFamily::Equipment),
+                entity(&owner, "lore-volcanic", CreatureEntityFamily::Lore),
+            ],
+            occurrences: vec![equipment, action, lore, strike],
+            relationships: Vec::new(),
+            actor_spellcasting: FactValue::Missing,
+        });
+
+        let surface = creature_surface(&calcifda, RecordSurfaceProfileView::RecordDetail);
+        assert_eq!(
+            surface.size.as_ref().map(|value| value.value),
+            Some(atlas_app_model::CreatureSurfaceSizeValueView::Large)
+        );
+        assert_eq!(
+            surface.adjustment.as_ref().map(|value| value.value),
+            Some(atlas_app_model::CreatureSurfaceAdjustmentValueView::Elite)
+        );
+        assert_eq!(
+            surface
+                .initiative
+                .as_ref()
+                .map(|value| value.statistic.as_str()),
+            Some("stealth")
+        );
+        let shield = surface
+            .defenses
+            .as_ref()
+            .and_then(|value| value.shield.as_ref())
+            .expect("shield");
+        assert_eq!(
+            (
+                shield.armor_class_bonus,
+                shield.broken_threshold,
+                shield.hardness,
+                shield.maximum_hit_points
+            ),
+            (Some(2), Some(10), Some(5), Some(20))
+        );
+        let skill = &surface.skills.as_ref().expect("skill")[0];
+        assert_eq!(
+            skill.source_entries.as_ref().unwrap()[0].authored_key,
+            "stealth"
+        );
+        assert_eq!(
+            skill.variants.as_ref().unwrap()[0].component_id,
+            "stealth-in-stone"
+        );
+        assert_eq!(
+            surface
+                .activities
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|value| value.occurrence_id.as_str())
+                .collect::<Vec<_>>(),
+            ["claw", "eruption"]
+        );
+        let strike = &surface.activities.as_ref().unwrap()[0];
+        assert_eq!(
+            strike.attack_effects.as_deref(),
+            Some(["grab".to_string()].as_slice())
+        );
+        let action = &surface.activities.as_ref().unwrap()[1];
+        assert_eq!(action.category.as_deref(), Some("offensive"));
+        assert_eq!(
+            action.frequency.as_ref().and_then(|value| value.maximum),
+            Some(1)
+        );
+        assert_eq!(action.requirements.as_deref(), Some("standing on stone"));
+        assert_eq!(action.cost.as_deref(), Some("one ember"));
+        assert_eq!(
+            action.uses.as_ref().and_then(|value| value.maximum),
+            Some(2)
+        );
+        assert_eq!(
+            action
+                .self_effect
+                .as_ref()
+                .and_then(|value| value.value.as_deref()),
+            Some("heated")
+        );
+        let equipment = &surface.equipment.as_ref().expect("equipment")[0];
+        assert_eq!(equipment.occurrence_id, "gear-obsidian-key");
+        assert_eq!(equipment.source_item_id.as_deref(), Some("source-gear-key"));
+        assert_eq!(
+            equipment.uses.as_ref().and_then(|value| value.maximum),
+            Some(3)
+        );
+        let lore = &surface.lore.as_ref().expect("lore")[0];
+        assert_eq!(
+            (
+                lore.occurrence_id.as_str(),
+                lore.authored_order,
+                lore.modifier
+            ),
+            ("lore-volcanic", 2, Some(19))
+        );
+        assert_eq!(lore.source_item_id.as_deref(), Some("source-lore-volcanic"));
+        assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
+    fn beluthus_actor_ritual_dc_31_projects_as_a_named_optional_domain() {
+        let mut beluthus = known_empty_creature();
+        beluthus.identity.name = "Beluthus".to_string();
+        let embedded = beluthus
+            .embedded_entities
+            .value
+            .as_value()
+            .expect("embedded")
+            .clone();
+        beluthus.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+            actor_spellcasting: FactValue::Value(atlas_record::CreatureActorSpellcastingContext {
+                rituals_dc: FactValue::Value(atlas_record::CreatureSourceScalar::Value(31)),
+                unsupported_notes: Vec::new(),
+            }),
+            ..embedded
+        });
+
+        let surface = creature_surface(&beluthus, RecordSurfaceProfileView::RecordDetail);
+        assert_eq!(
+            surface.rituals.as_ref().map(|value| value.difficulty_class),
+            Some(31)
+        );
+        assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
+    fn optional_missing_and_null_are_silent_while_populated_required_shield_failures_are_typed() {
+        for optional_state in [
+            CreatureSurfaceUnavailableStateView::Missing,
+            CreatureSurfaceUnavailableStateView::Null,
+        ] {
+            let mut creature = known_empty_creature();
+            creature.adjustment.value = non_value(optional_state);
+            creature.initiative.value = FactValue::Value(atlas_record::CreatureInitiative {
+                statistic: non_value(optional_state),
+            });
+            if let FactValue::Value(defenses) = &mut creature.defenses.value {
+                defenses.shield = non_value(optional_state);
+            }
+            if let FactValue::Value(embedded) = &mut creature.embedded_entities.value {
+                embedded.actor_spellcasting = non_value(optional_state);
+            }
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            assert!(surface.adjustment.is_none());
+            assert!(surface.initiative.is_none());
+            assert!(
+                surface
+                    .defenses
+                    .as_ref()
+                    .is_some_and(|value| value.shield.is_none())
+            );
+            assert!(surface.rituals.is_none());
+            assert!(surface.unavailable_domains.is_none());
+        }
+
+        let mut creature = known_empty_creature();
+        if let FactValue::Value(defenses) = &mut creature.defenses.value {
+            defenses.shield = FactValue::Value(atlas_record::CreatureShield {
+                armor_class_bonus: FactValue::Missing,
+                broken_threshold: FactValue::Null,
+                hardness: FactValue::Missing,
+                maximum_hit_points: FactValue::Null,
+                serialized_hit_points: FactValue::Value(17),
+                current_policy:
+                    atlas_record::ShieldCurrentPolicy::SerializedHitPointsAreProvenanceOnly,
+            });
+        }
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        assert!(
+            surface
+                .defenses
+                .as_ref()
+                .is_some_and(|value| value.shield.is_none())
+        );
+        assert_causes(
+            &surface
+                .unavailable_domains
+                .expect("required shield causes")
+                .defenses,
+            vec![
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::ShieldArmorClassBonus,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::ShieldBrokenThreshold,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::ShieldHardness,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::ShieldMaximumHitPoints,
+                    None,
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+            ],
+        );
     }
 
     #[test]
@@ -2366,7 +3544,7 @@ mod tests {
     }
 
     #[test]
-    fn b1_abilities_project_exact_canonical_modifiers_without_exposing_unmodeled_skills() {
+    fn gray_master_alias_and_exact_unmodeled_skill_evidence_project_without_inference() {
         let mut creature = known_empty_creature();
         creature.legacy_abilities.value = FactValue::Value(CreatureLegacyAbilities {
             strength: FactValue::Value(5),
@@ -2430,7 +3608,39 @@ mod tests {
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].kind, "intimidation");
         assert_eq!(skills[0].modifier, Some(38));
-        assert!(surface.unavailable_domains.is_none());
+        assert_eq!(skills[0].source_entries.as_ref().map(Vec::len), Some(1));
+        assert_eq!(
+            skills[0].source_entries.as_ref().unwrap()[0].authored_key,
+            "intimidate"
+        );
+        let causes = &surface
+            .unavailable_domains
+            .expect("unmodeled authored key is populated unsupported evidence")
+            .skills
+            .expect("skills availability domain")
+            .causes;
+        assert_eq!(causes.len(), 1);
+        assert_eq!(
+            causes[0].state,
+            CreatureSurfaceUnavailableStateView::Unsupported
+        );
+        assert_eq!(
+            causes[0].field,
+            CreatureSurfaceUnavailableFieldView::UnmodeledSkill
+        );
+        let detail = causes[0]
+            .unmodeled_skill
+            .as_ref()
+            .expect("typed unmodeled skill detail");
+        assert_eq!(detail.authored_key, "acrobatics+13");
+        assert!(matches!(
+            detail.base,
+            atlas_app_model::CreatureSurfaceIntegerPresenceView::Null
+        ));
+        assert_eq!(
+            causes[0].message,
+            "The source supplied an unrecognized skill key."
+        );
     }
 
     #[test]
@@ -2639,20 +3849,12 @@ mod tests {
             );
             assert_causes(
                 &unavailable.awareness,
-                vec![
-                    cause(
-                        state,
-                        CreatureSurfaceUnavailableFieldView::Perception,
-                        None,
-                        CreatureSurfaceSourceFieldView::Perception,
-                    ),
-                    cause(
-                        state,
-                        CreatureSurfaceUnavailableFieldView::Languages,
-                        None,
-                        CreatureSurfaceSourceFieldView::Languages,
-                    ),
-                ],
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Perception,
+                    None,
+                    CreatureSurfaceSourceFieldView::Perception,
+                )],
             );
             assert_causes(
                 &unavailable.abilities,
@@ -2688,6 +3890,24 @@ mod tests {
                     CreatureSurfaceUnavailableFieldView::Resources,
                     None,
                     CreatureSurfaceSourceFieldView::Resources,
+                )],
+            );
+            assert_causes(
+                &unavailable.equipment,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Equipment,
+                    None,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                )],
+            );
+            assert_causes(
+                &unavailable.lore,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::Lore,
+                    None,
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
                 )],
             );
             assert_causes(
@@ -2742,39 +3962,23 @@ mod tests {
             (
                 CreatureSurfaceUnavailableStateView::Null,
                 FactValue::Missing,
-                vec![
-                    cause(
-                        CreatureSurfaceUnavailableStateView::Null,
-                        CreatureSurfaceUnavailableFieldView::Perception,
-                        None,
-                        CreatureSurfaceSourceFieldView::Perception,
-                    ),
-                    cause(
-                        CreatureSurfaceUnavailableStateView::Missing,
-                        CreatureSurfaceUnavailableFieldView::Languages,
-                        None,
-                        CreatureSurfaceSourceFieldView::Languages,
-                    ),
-                ],
+                vec![cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::Perception,
+                    None,
+                    CreatureSurfaceSourceFieldView::Perception,
+                )],
                 Vec::new(),
             ),
             (
                 CreatureSurfaceUnavailableStateView::Missing,
                 FactValue::Null,
-                vec![
-                    cause(
-                        CreatureSurfaceUnavailableStateView::Missing,
-                        CreatureSurfaceUnavailableFieldView::Perception,
-                        None,
-                        CreatureSurfaceSourceFieldView::Perception,
-                    ),
-                    cause(
-                        CreatureSurfaceUnavailableStateView::Null,
-                        CreatureSurfaceUnavailableFieldView::Languages,
-                        None,
-                        CreatureSurfaceSourceFieldView::Languages,
-                    ),
-                ],
+                vec![cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::Perception,
+                    None,
+                    CreatureSurfaceSourceFieldView::Perception,
+                )],
                 Vec::new(),
             ),
         ];
@@ -3473,6 +4677,16 @@ mod tests {
         assert_eq!(spellcasting.len(), 2);
         assert_eq!(spellcasting[0].label, "Occult Innate Spells");
         assert_eq!(spellcasting[1].label, "Coven Spells");
+        assert_eq!(
+            spellcasting[0]
+                .slots
+                .as_ref()
+                .expect("slot maxima")
+                .iter()
+                .map(|slot| (slot.rank, slot.maximum))
+                .collect::<Vec<_>>(),
+            [(3, Some(4))]
+        );
         let spells = spellcasting
             .iter()
             .flat_map(|entry| entry.spells.iter())
@@ -3494,6 +4708,11 @@ mod tests {
             Some(3)
         );
         assert!(magic_missile_payload.get("base_rank").is_none());
+        let context = magic_missile.context.as_ref().expect("occurrence context");
+        assert_eq!(context.group.as_deref(), Some("at-will"));
+        assert_eq!(context.location.as_deref(), Some("innate"));
+        assert_eq!(context.slot.as_deref(), Some("3"));
+        assert_eq!(context.uses.as_ref().and_then(|uses| uses.maximum), Some(3));
 
         let bind_soul = spells
             .iter()
@@ -3957,13 +5176,24 @@ mod tests {
         let mut creature = known_empty_creature();
         let owner = creature.identity.record_key.clone();
         creature.identity.name = "Night Hag".to_string();
-        let occult = spellcasting_entry_occurrence(
+        let mut occult = spellcasting_entry_occurrence(
             &owner,
             "entry-occult",
             "Occult Innate Spells",
             0,
             "occult",
         );
+        let atlas_record::CreatureCapability::SpellcastingEntry(occult_capability) =
+            &mut occult.capability
+        else {
+            panic!("spellcasting entry fixture");
+        };
+        occult_capability.slots = FactValue::Value(vec![atlas_record::CreatureSpellSlot {
+            rank: 3,
+            maximum: FactValue::Value(atlas_record::CreatureSourceScalar::Value(4)),
+            serialized_value: FactValue::Value(atlas_record::CreatureSourceScalar::Value(2)),
+            prepared: FactValue::Missing,
+        }]);
         let coven =
             spellcasting_entry_occurrence(&owner, "entry-coven", "Coven Spells", 1, "occult");
         let occult_parent =
@@ -3992,6 +5222,25 @@ mod tests {
         dream_council.target = CreatureEntityTarget::ActorOwned(
             atlas_record::CreatureEntityId::new("dream-council-entity").expect("entity id"),
         );
+        let mut magic_missile = with_spell_ranks(
+            spell_occurrence(
+                &owner,
+                "magic-missile",
+                "Magic Missile (At Will)",
+                8,
+                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                "spells:magic-missile",
+            ),
+            1,
+            3,
+        );
+        magic_missile.context.group = FactValue::Value("at-will".to_string());
+        magic_missile.context.location = FactValue::Value("innate".to_string());
+        magic_missile.context.slot = FactValue::Value("3".to_string());
+        magic_missile.context.uses = FactValue::Value(atlas_record::CreatureUseLimit {
+            maximum: FactValue::Value(3),
+            serialized_value: FactValue::Value(2),
+        });
         let mut grouped = vec![
             bind_soul,
             dream_council,
@@ -4043,18 +5292,7 @@ mod tests {
                 3,
                 3,
             ),
-            with_spell_ranks(
-                spell_occurrence(
-                    &owner,
-                    "magic-missile",
-                    "Magic Missile (At Will)",
-                    8,
-                    CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
-                    "spells:magic-missile",
-                ),
-                1,
-                3,
-            ),
+            magic_missile,
         ];
         for index in 0..19 {
             let parent = if index < 7 {
@@ -4318,7 +5556,10 @@ mod tests {
             level: missing(CreatureSourceField::Level),
             rarity: missing(CreatureSourceField::Rarity),
             traits: missing(CreatureSourceField::Traits),
-            size: missing(CreatureSourceField::Size),
+            size: CreatureFact::source(
+                FactValue::Value(atlas_record::CreatureSize::Medium),
+                CreatureSourceField::Size,
+            ),
             publication: missing(CreatureSourceField::Publication),
             adjustment: missing(CreatureSourceField::Adjustment),
             source_alliance: missing(CreatureSourceField::SourceAlliance),
