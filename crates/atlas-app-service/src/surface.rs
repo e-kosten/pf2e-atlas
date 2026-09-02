@@ -38,14 +38,15 @@ use atlas_app_model::{
     SurfaceUnavailableReasonView, SurfaceUnavailableView,
 };
 use atlas_record::{
-    ContentOwner, ContentRole, CreatureActionCost, CreatureAdjustment, CreatureCapability,
-    CreatureDamage, CreatureDefenses, CreatureEmbeddedEntities, CreatureEntityOccurrence,
-    CreatureEntityRelationshipKind, CreatureEntityTarget, CreatureIwr, CreatureMovementMode,
-    CreatureOccurrenceParent, CreaturePredicate, CreatureRecord, CreatureRelationshipTarget,
-    CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSize, CreatureSourceScalar,
-    CreatureSpellPreparation, CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue,
-    PresentationContent, PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord,
-    SenseAcuity, format_creature_frequency, project_presentation_content, render_plain_text,
+    ContentRole, CreatureActionCost, CreatureAdjustment, CreatureCapability,
+    CreatureContentPlacement, CreatureDamage, CreatureDefenses, CreatureEmbeddedEntities,
+    CreatureEntityOccurrence, CreatureEntityRelationshipKind, CreatureEntityTarget, CreatureIwr,
+    CreatureMovementMode, CreatureOccurrenceParent, CreaturePredicate, CreatureRecord,
+    CreatureRelationshipTarget, CreatureResourceAmount, CreatureRoll, CreatureRollKind,
+    CreatureSize, CreatureSourceScalar, CreatureSpellPreparation, CreatureUnmodeledSkillReason,
+    CreatureUseLimit, FactValue, PresentationContent, PresentationContentBlock, PresentationInline,
+    RecordBody, RetrievedRecord, SenseAcuity, format_creature_frequency,
+    place_creature_content_for_families, project_presentation_content, render_plain_text,
 };
 
 const SEARCH_TEASER_WORDS: usize = 50;
@@ -268,7 +269,7 @@ fn creature_surface(
 fn creature_surface_with_placement(
     creature: &CreatureRecord,
     profile: RecordSurfaceProfileView,
-    activity_content: &ActivityContentPlacement,
+    activity_content: &CreatureContentPlacement,
     teaser: Option<String>,
 ) -> CreatureSurfaceView {
     let detail = profile == RecordSurfaceProfileView::RecordDetail;
@@ -1702,7 +1703,7 @@ fn uses_view(
 
 fn activities(
     creature: &CreatureRecord,
-    activity_content: &ActivityContentPlacement,
+    activity_content: &CreatureContentPlacement,
     unavailable: &mut SurfaceUnavailableDomains,
 ) -> Option<Vec<CreatureSurfaceActivityView>> {
     let embedded = required_fact(
@@ -1718,7 +1719,7 @@ fn activities(
         .iter()
         .filter_map(|occurrence| {
             let component_id = occurrence.id.as_str();
-            if activity_content.failed_occurrences.contains(component_id) {
+            if activity_content.failure(&occurrence.id).is_some() {
                 unsupported(
                     unavailable,
                     SurfaceDomain::Activities,
@@ -1728,17 +1729,12 @@ fn activities(
                 );
                 return None;
             }
-            let content = activity_content
-                .by_occurrence
-                .get(component_id)
-                .and_then(|indices| {
-                    non_empty(
-                        indices
-                            .iter()
-                            .filter_map(|index| content_view(&creature.content.documents[*index]))
-                            .collect(),
-                    )
-                });
+            let content = non_empty(
+                activity_content
+                    .documents_for_occurrence(creature, &occurrence.id)
+                    .filter_map(content_view)
+                    .collect(),
+            );
             match &occurrence.capability {
                 CreatureCapability::Strike(capability) => Some(activity(
                     occurrence,
@@ -1955,7 +1951,7 @@ fn frequency_view(
 
 fn spellcasting(
     creature: &CreatureRecord,
-    content_placement: &ActivityContentPlacement,
+    content_placement: &CreatureContentPlacement,
     unavailable: &mut SurfaceUnavailableDomains,
 ) -> (
     Option<Vec<CreatureSurfaceSpellcastingView>>,
@@ -2078,11 +2074,11 @@ fn surface_spell_view(
     capability: &atlas_record::CreatureSpellCapability,
     creature: &CreatureRecord,
     embedded: &CreatureEmbeddedEntities,
-    content_placement: &ActivityContentPlacement,
+    content_placement: &CreatureContentPlacement,
     unavailable: &mut SurfaceUnavailableDomains,
 ) -> Option<CreatureSurfaceSpellView> {
     let component_id = spell.id.as_str().to_string();
-    if content_placement.failed_spells.contains(&component_id) {
+    if content_placement.failure(&spell.id).is_some() {
         unsupported(
             unavailable,
             SurfaceDomain::Spellcasting,
@@ -2123,11 +2119,7 @@ fn surface_spell_view(
         rank,
         context: spell_context(spell, unavailable),
         traits,
-        content: content_for_occurrence(
-            creature,
-            &content_placement.spell_by_occurrence,
-            &component_id,
-        ),
+        content: content_for_occurrence(creature, content_placement, &spell.id),
     })
 }
 
@@ -2200,184 +2192,20 @@ fn spell_context(
     .then_some(context)
 }
 
-#[derive(Default)]
-struct ActivityContentPlacement {
-    by_occurrence: BTreeMap<String, Vec<usize>>,
-    spell_by_occurrence: BTreeMap<String, Vec<usize>>,
-    withheld_activity_documents: BTreeSet<usize>,
-    withheld_spell_documents: BTreeSet<usize>,
-    failed_occurrences: BTreeSet<String>,
-    failed_spells: BTreeSet<String>,
-}
-
-fn activity_content_placement(creature: &CreatureRecord) -> ActivityContentPlacement {
-    let Some(embedded) = creature.embedded_entities.value.as_value() else {
-        return ActivityContentPlacement {
-            withheld_activity_documents: creature
-                .content
-                .documents
-                .iter()
-                .enumerate()
-                .filter_map(|(index, document)| {
-                    (!matches!(document.owner, ContentOwner::Record(_))).then_some(index)
-                })
-                .collect(),
-            withheld_spell_documents: creature
-                .content
-                .documents
-                .iter()
-                .enumerate()
-                .filter_map(|(index, document)| {
-                    (!matches!(document.owner, ContentOwner::Record(_))).then_some(index)
-                })
-                .collect(),
-            ..ActivityContentPlacement::default()
-        };
-    };
-    let capabilities = embedded
-        .occurrences
-        .iter()
-        .filter(|occurrence| {
-            matches!(
-                occurrence.capability,
-                CreatureCapability::Action(_)
-                    | CreatureCapability::Strike(_)
-                    | CreatureCapability::Spell(_)
-            )
-        })
-        .collect::<Vec<_>>();
-    let mut placement = ActivityContentPlacement::default();
-    let occurrence_counts = embedded.occurrences.iter().fold(
-        BTreeMap::<&str, usize>::new(),
-        |mut counts, occurrence| {
-            *counts.entry(occurrence.id.as_str()).or_default() += 1;
-            counts
-        },
-    );
-    let entity_counts =
-        embedded
-            .entities
-            .iter()
-            .fold(BTreeMap::<&str, usize>::new(), |mut counts, entity| {
-                *counts.entry(entity.id.as_str()).or_default() += 1;
-                counts
-            });
-    let content_counts = creature.content.documents.iter().fold(
-        BTreeMap::<(String, String), usize>::new(),
-        |mut counts, document| {
-            *counts
-                .entry((
-                    document.id.parent_record_key.to_string(),
-                    document.id.content_key.as_str().to_string(),
-                ))
-                .or_default() += 1;
-            counts
-        },
-    );
-
-    for occurrence in &capabilities {
-        let occurrence_id = occurrence.id.as_str();
-        let failed = match occurrence.capability {
-            CreatureCapability::Spell(_) => &mut placement.failed_spells,
-            CreatureCapability::Action(_) | CreatureCapability::Strike(_) => {
-                &mut placement.failed_occurrences
-            }
-            _ => continue,
-        };
-        if occurrence_counts.get(occurrence_id) != Some(&1) {
-            failed.insert(occurrence_id.to_string());
-        }
-        if let CreatureEntityTarget::ActorOwned(entity_id) = &occurrence.target
-            && entity_counts.get(entity_id.as_str()) != Some(&1)
-        {
-            failed.insert(occurrence_id.to_string());
-        }
-    }
-
-    for (document_index, document) in creature.content.documents.iter().enumerate() {
-        let matches = capabilities
-            .iter()
-            .filter(|occurrence| match &document.owner {
-                ContentOwner::Record(_) => false,
-                ContentOwner::CreatureOccurrence(owner) => owner == &occurrence.id,
-                ContentOwner::CreatureEntity(owner) => {
-                    matches!(&occurrence.target, CreatureEntityTarget::ActorOwned(target) if target == owner)
-                }
-            })
-            .collect::<Vec<_>>();
-        if matches.is_empty() {
-            continue;
-        }
-        for occurrence in &matches {
-            match occurrence.capability {
-                CreatureCapability::Spell(_) => {
-                    placement.withheld_spell_documents.insert(document_index);
-                }
-                CreatureCapability::Action(_) | CreatureCapability::Strike(_) => {
-                    placement.withheld_activity_documents.insert(document_index);
-                }
-                _ => {}
-            }
-        }
-        if matches.len() != 1
-            || content_counts.get(&(
-                document.id.parent_record_key.to_string(),
-                document.id.content_key.as_str().to_string(),
-            )) != Some(&1)
-        {
-            for occurrence in matches {
-                match occurrence.capability {
-                    CreatureCapability::Spell(_) => {
-                        placement
-                            .failed_spells
-                            .insert(occurrence.id.as_str().to_string());
-                    }
-                    CreatureCapability::Action(_) | CreatureCapability::Strike(_) => {
-                        placement
-                            .failed_occurrences
-                            .insert(occurrence.id.as_str().to_string());
-                    }
-                    _ => {}
-                }
-            }
-            continue;
-        }
-        let occurrence = matches[0];
-        let target = match occurrence.capability {
-            CreatureCapability::Spell(_) => &mut placement.spell_by_occurrence,
-            CreatureCapability::Action(_) | CreatureCapability::Strike(_) => {
-                &mut placement.by_occurrence
-            }
-            _ => continue,
-        };
-        target
-            .entry(occurrence.id.as_str().to_string())
-            .or_default()
-            .push(document_index);
-    }
-
-    for indices in placement
-        .by_occurrence
-        .values_mut()
-        .chain(placement.spell_by_occurrence.values_mut())
-    {
-        indices.sort_by_key(|index| {
-            let document = &creature.content.documents[*index];
-            (document.authored_order, document.id.content_key.as_str())
-        });
-    }
-    for failed in &placement.failed_occurrences {
-        placement.by_occurrence.remove(failed);
-    }
-    for failed in &placement.failed_spells {
-        placement.spell_by_occurrence.remove(failed);
-    }
-    placement
+fn activity_content_placement(creature: &CreatureRecord) -> CreatureContentPlacement {
+    place_creature_content_for_families(
+        creature,
+        &[
+            atlas_record::CreatureEntityFamily::Action,
+            atlas_record::CreatureEntityFamily::Strike,
+            atlas_record::CreatureEntityFamily::Spell,
+        ],
+    )
 }
 
 fn compose_encounter_payload(
     creature: &CreatureRecord,
-    placement: &ActivityContentPlacement,
+    placement: &CreatureContentPlacement,
     runtime: &mut EncounterRuntimeView,
 ) {
     let Some(embedded) = creature.embedded_entities.value.as_value() else {
@@ -2437,7 +2265,7 @@ fn compose_encounter_payload(
         let mut matches = runtime_activities.remove(occurrence_id).unwrap_or_default();
         let safe = occurrence_counts.get(occurrence_id) == Some(&1)
             && actor_owned_target_is_unique(occurrence, &entity_counts)
-            && !placement.failed_occurrences.contains(occurrence_id)
+            && placement.failure(&occurrence.id).is_none()
             && matches.len() == 1;
         if !safe {
             push_payload_limitation(
@@ -2455,8 +2283,7 @@ fn compose_encounter_payload(
             .and_then(FactValue::as_value)
             .cloned()
             .unwrap_or_default();
-        activity.content =
-            content_for_occurrence(creature, &placement.by_occurrence, occurrence_id);
+        activity.content = content_for_occurrence(creature, placement, &occurrence.id);
         retained_activities.push(activity);
     }
     runtime.activities = retained_activities;
@@ -2604,7 +2431,7 @@ fn encounter_spell_view(
     spell: &CreatureEntityOccurrence,
     creature: &CreatureRecord,
     embedded: &CreatureEmbeddedEntities,
-    placement: &ActivityContentPlacement,
+    placement: &CreatureContentPlacement,
     occurrence_counts: &BTreeMap<&str, usize>,
     entity_counts: &BTreeMap<&str, usize>,
     runtime_activities: &mut BTreeMap<String, Vec<EncounterRuntimeActivityView>>,
@@ -2614,7 +2441,7 @@ fn encounter_spell_view(
     let mut activities = runtime_activities.remove(occurrence_id).unwrap_or_default();
     let safe = occurrence_counts.get(occurrence_id) == Some(&1)
         && actor_owned_target_is_unique(spell, entity_counts)
-        && !placement.failed_spells.contains(occurrence_id)
+        && placement.failure(&spell.id).is_none()
         && activities.len() <= 1;
     if !safe {
         push_payload_limitation(
@@ -2648,7 +2475,7 @@ fn encounter_spell_view(
         },
         rank: spell.context.rank.as_value().copied(),
         traits: capability.traits.as_value().cloned().unwrap_or_default(),
-        content: content_for_occurrence(creature, &placement.spell_by_occurrence, occurrence_id),
+        content: content_for_occurrence(creature, placement, &spell.id),
         activity,
         provenance,
     })
@@ -2701,39 +2528,25 @@ fn push_payload_limitation(
 
 fn content_for_occurrence(
     creature: &CreatureRecord,
-    placement: &BTreeMap<String, Vec<usize>>,
-    occurrence_id: &str,
+    placement: &CreatureContentPlacement,
+    occurrence_id: &atlas_record::CreatureOccurrenceId,
 ) -> Option<Vec<CreatureSurfaceContentView>> {
-    placement.get(occurrence_id).and_then(|indices| {
-        non_empty(
-            indices
-                .iter()
-                .filter_map(|index| content_view(&creature.content.documents[*index]))
-                .collect(),
-        )
-    })
+    non_empty(
+        placement
+            .documents_for_occurrence(creature, occurrence_id)
+            .filter_map(content_view)
+            .collect(),
+    )
 }
 
 fn content(
     creature: &CreatureRecord,
-    activity_content: &ActivityContentPlacement,
+    activity_content: &CreatureContentPlacement,
 ) -> Option<Vec<CreatureSurfaceContentView>> {
-    let mut documents = creature
-        .content
-        .documents
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| {
-            !activity_content.withheld_activity_documents.contains(index)
-                && !activity_content.withheld_spell_documents.contains(index)
-        })
-        .collect::<Vec<_>>();
-    documents
-        .sort_by_key(|(_, document)| (document.authored_order, document.id.content_key.as_str()));
     non_empty(
-        documents
-            .into_iter()
-            .filter_map(|(_, document)| content_view(document))
+        activity_content
+            .general_documents(creature)
+            .filter_map(content_view)
             .collect(),
     )
 }
