@@ -28,10 +28,10 @@ use atlas_record::{
     ContentOwner, ContentRole, CreatureActionCost, CreatureCapability, CreatureDamage,
     CreatureDefenses, CreatureEmbeddedEntities, CreatureEntityOccurrence,
     CreatureEntityRelationshipKind, CreatureEntityTarget, CreatureIwr, CreatureMovementMode,
-    CreatureNumber, CreatureOccurrenceParent, CreatureRecord, CreatureRelationshipTarget,
-    CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSpellPreparation, FactValue,
-    PresentationContent, PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord,
-    SenseAcuity, project_presentation_content,
+    CreatureOccurrenceParent, CreatureRecord, CreatureRelationshipTarget, CreatureResourceAmount,
+    CreatureRoll, CreatureRollKind, CreatureSpellPreparation, FactValue, PresentationContent,
+    PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord, SenseAcuity,
+    project_presentation_content,
 };
 
 use crate::projection::kind_label;
@@ -445,27 +445,15 @@ fn vitals(
         CreatureSurfaceSourceFieldView::Defenses,
         None,
     )?;
-    let hit_points = match required_fact(
-        &hp.value,
+    let hit_points = required_fact(
+        &hp.maximum,
         unavailable,
         SurfaceDomain::Vitals,
         CreatureSurfaceUnavailableFieldView::HitPoints,
         CreatureSurfaceSourceFieldView::Defenses,
         None,
-    ) {
-        Some(CreatureNumber::Integer(value)) => Some(*value),
-        Some(CreatureNumber::Unsupported(_)) => {
-            unsupported(
-                unavailable,
-                SurfaceDomain::Vitals,
-                CreatureSurfaceUnavailableFieldView::HitPoints,
-                CreatureSurfaceSourceFieldView::Defenses,
-                None,
-            );
-            None
-        }
-        None => None,
-    };
+    )
+    .copied();
     Some(CreatureSurfaceVitalsView {
         hit_points,
         details: note(&hp.details),
@@ -1326,7 +1314,7 @@ fn surface_spell_view(
         return None;
     }
     let rank = required_fact(
-        &capability.base_rank,
+        &spell.context.rank,
         unavailable,
         SurfaceDomain::Spellcasting,
         CreatureSurfaceUnavailableFieldView::SpellRank,
@@ -1808,7 +1796,7 @@ fn encounter_spell_view(
             CreatureEntityTarget::CanonicalRecord(key) => Some(key.to_string()),
             CreatureEntityTarget::ActorOwned(_) => None,
         },
-        rank: capability.base_rank.as_value().copied(),
+        rank: spell.context.rank.as_value().copied(),
         traits: capability.traits.as_value().cloned().unwrap_or_default(),
         content: content_for_occurrence(creature, &placement.spell_by_occurrence, occurrence_id),
         activity,
@@ -2256,8 +2244,8 @@ mod tests {
         CreatureSurfaceUnavailableStateView, EncounterRuntimeActivityKindView,
         EncounterRuntimeActivityUsageView, EncounterRuntimeActivityView,
         EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeSpellcastingView,
-        EncounterRuntimeView, RecordSurfaceProfileView, RuntimeFactProvenanceView,
-        RuntimeFactSourceView,
+        EncounterRuntimeView, EncounterRuntimeVitalsView, RecordSurfaceProfileView,
+        RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView,
     };
 
     type CauseTuple = (
@@ -2289,6 +2277,92 @@ mod tests {
         assert!(surface.activities.is_none());
         assert!(surface.relationships.is_none());
         assert!(surface.unavailable_domains.is_none());
+    }
+
+    #[test]
+    fn magical_forge_static_profiles_project_maximum_hp_and_equal_hp_guard() {
+        let mut magical_forge = known_empty_creature();
+        magical_forge.identity.name = "Magical Forge".to_string();
+        set_hit_points(&mut magical_forge, 115, 135);
+
+        for profile in [
+            RecordSurfaceProfileView::SearchCompact,
+            RecordSurfaceProfileView::RecordDetail,
+        ] {
+            let surface = creature_surface(&magical_forge, profile);
+            let vitals = surface.vitals.expect("static vitals");
+            assert_eq!(vitals.hit_points, Some(135), "profile {profile:?}");
+            let payload = serde_json::to_value(&vitals).expect("static vitals payload");
+            assert_eq!(
+                payload.get("hit_points").and_then(|value| value.as_i64()),
+                Some(135)
+            );
+            assert!(payload.get("current_hp").is_none());
+            assert!(payload.get("maximum").is_none());
+            assert!(payload.get("value").is_none());
+        }
+
+        set_hit_points(&mut magical_forge, 50, 50);
+        assert_eq!(
+            creature_surface(&magical_forge, RecordSurfaceProfileView::RecordDetail)
+                .vitals
+                .expect("equal HP vitals")
+                .hit_points,
+            Some(50)
+        );
+    }
+
+    #[test]
+    fn encounter_profile_omits_static_hp_and_preserves_runtime_vitals() {
+        let mut magical_forge = known_empty_creature();
+        magical_forge.identity.name = "Magical Forge".to_string();
+        set_hit_points(&mut magical_forge, 115, 135);
+
+        let mut runtime = empty_runtime();
+        runtime.vitals = Some(EncounterRuntimeVitalsView {
+            maximum_hp: Some(RuntimeNumberView {
+                label: "Maximum HP".to_string(),
+                base_value: 135,
+                adjusted_value: 135,
+                modifiers: Vec::new(),
+                suppressed_modifiers: Vec::new(),
+                provenance: RuntimeFactProvenanceView {
+                    source: RuntimeFactSourceView::CanonicalRecord,
+                    canonical_target: None,
+                },
+            }),
+            current_hp: Some(115),
+            temporary_hp: 7,
+        });
+        let expected_runtime_vitals = runtime.vitals.clone();
+
+        compose_encounter_payload(
+            &magical_forge,
+            &activity_content_placement(&magical_forge),
+            &mut runtime,
+        );
+
+        assert_eq!(runtime.vitals, expected_runtime_vitals);
+        let surface = creature_surface(
+            &magical_forge,
+            RecordSurfaceProfileView::EncounterParticipant,
+        );
+        assert!(surface.vitals.is_none());
+        let payload = serde_json::to_value(&surface).expect("encounter creature payload");
+        assert!(payload.get("vitals").is_none());
+        let runtime_payload = serde_json::to_value(&runtime).expect("runtime payload");
+        assert_eq!(
+            runtime_payload
+                .pointer("/vitals/maximum_hp/adjusted_value")
+                .and_then(|value| value.as_i64()),
+            Some(135)
+        );
+        assert_eq!(
+            runtime_payload
+                .pointer("/vitals/current_hp")
+                .and_then(|value| value.as_i64()),
+            Some(115)
+        );
     }
 
     #[test]
@@ -2737,7 +2811,7 @@ mod tests {
         defenses.hit_points.as_value().expect("hp");
         defenses.hit_points = FactValue::Value(CreatureHitPoints {
             value: FactValue::Value(CreatureNumber::Unsupported(unsupported_value())),
-            maximum: FactValue::Value(50),
+            maximum: FactValue::Null,
             temporary: FactValue::Missing,
             temporary_maximum: FactValue::Missing,
             details: FactValue::Missing,
@@ -2891,7 +2965,7 @@ mod tests {
             atlas_record::CreatureOccurrenceParent::SpellcastingEntry(entry_id),
             atlas_record::CreatureCapability::Spell(atlas_record::CreatureSpellCapability {
                 traits: FactValue::Missing,
-                base_rank: FactValue::Null,
+                base_rank: FactValue::Value(9),
                 signature: FactValue::Missing,
                 traditions: FactValue::Missing,
                 requirements: FactValue::Missing,
@@ -2909,6 +2983,7 @@ mod tests {
                 unsupported_notes: Vec::new(),
             }),
         );
+        spell.context.rank = FactValue::Null;
         spell.target = CreatureEntityTarget::CanonicalRecord(
             RecordKey::parse("spells:unsupported-fixture").expect("spell key"),
         );
@@ -2939,7 +3014,7 @@ mod tests {
         assert_causes(
             &unavailable.vitals,
             vec![cause(
-                CreatureSurfaceUnavailableStateView::Unsupported,
+                CreatureSurfaceUnavailableStateView::Null,
                 CreatureSurfaceUnavailableFieldView::HitPoints,
                 None,
                 CreatureSurfaceSourceFieldView::Defenses,
@@ -3404,6 +3479,22 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(spells.len(), 26);
 
+        let magic_missile = spells
+            .iter()
+            .find(|spell| spell.occurrence_id == "magic-missile")
+            .expect("Magic Missile occurrence");
+        assert_eq!(magic_missile.rank, Some(3));
+        assert_eq!(spell_base_rank(&creature, "magic-missile"), Some(1));
+        let magic_missile_payload =
+            serde_json::to_value(magic_missile).expect("static Magic Missile payload");
+        assert_eq!(
+            magic_missile_payload
+                .get("rank")
+                .and_then(|value| value.as_i64()),
+            Some(3)
+        );
+        assert!(magic_missile_payload.get("base_rank").is_none());
+
         let bind_soul = spells
             .iter()
             .find(|spell| spell.occurrence_id == "bind-soul")
@@ -3426,9 +3517,14 @@ mod tests {
         assert!(dream_council.target_record_key.is_none());
         assert!(dream_council.content.is_some());
 
-        for (label, expected_occurrences) in [
-            ("Nightmare", ["nightmare-1", "nightmare-2"]),
-            ("Dream Message", ["dream-message-1", "dream-message-2"]),
+        for (label, expected_occurrences, expected_rank, expected_base_rank) in [
+            ("Nightmare", ["nightmare-1", "nightmare-2"], 5, 4),
+            (
+                "Dream Message",
+                ["dream-message-1", "dream-message-2"],
+                3,
+                3,
+            ),
         ] {
             let repeated = spells
                 .iter()
@@ -3443,6 +3539,14 @@ mod tests {
                     .collect::<Vec<_>>(),
                 expected_occurrences
             );
+            assert!(
+                repeated
+                    .iter()
+                    .all(|spell| spell.rank == Some(expected_rank))
+            );
+            assert!(expected_occurrences.iter().all(|occurrence_id| {
+                spell_base_rank(&creature, occurrence_id) == Some(expected_base_rank)
+            }));
             assert_eq!(repeated[0].target_record_key, repeated[1].target_record_key);
             assert_ne!(repeated[0].content, repeated[1].content);
         }
@@ -3453,6 +3557,7 @@ mod tests {
             .expect("standalone spells");
         assert_eq!(standalone.len(), 1);
         assert_eq!(standalone[0].label, "Control Weather");
+        assert_eq!(standalone[0].rank, Some(6));
         assert!(standalone[0].content.is_some());
         let general = forward
             .content
@@ -3510,6 +3615,42 @@ mod tests {
             .iter()
             .flat_map(|entry| entry.spells.iter())
             .collect::<Vec<_>>();
+        let magic_missile = spells
+            .iter()
+            .find(|spell| spell.occurrence_id == "magic-missile")
+            .expect("runtime Magic Missile occurrence");
+        assert_eq!(magic_missile.rank, Some(3));
+        let magic_missile_payload =
+            serde_json::to_value(magic_missile).expect("runtime Magic Missile payload");
+        assert_eq!(
+            magic_missile_payload
+                .get("rank")
+                .and_then(|value| value.as_i64()),
+            Some(3)
+        );
+        assert!(magic_missile_payload.get("base_rank").is_none());
+        for (label, expected_occurrences, expected_rank) in [
+            ("Nightmare", ["nightmare-1", "nightmare-2"], 5),
+            ("Dream Message", ["dream-message-1", "dream-message-2"], 3),
+        ] {
+            let repeated = spells
+                .iter()
+                .filter(|spell| spell.label == label)
+                .copied()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                repeated
+                    .iter()
+                    .map(|spell| spell.occurrence_id.as_str())
+                    .collect::<Vec<_>>(),
+                expected_occurrences
+            );
+            assert!(
+                repeated
+                    .iter()
+                    .all(|spell| spell.rank == Some(expected_rank))
+            );
+        }
         for id in [
             "bind-soul",
             "dream-council",
@@ -3527,6 +3668,7 @@ mod tests {
         }
         assert_eq!(forward.standalone_spells.len(), 1);
         assert_eq!(forward.standalone_spells[0].label, "Control Weather");
+        assert_eq!(forward.standalone_spells[0].rank, Some(6));
         assert!(forward.standalone_spells[0].content.is_some());
         assert!(
             forward
@@ -3794,6 +3936,7 @@ mod tests {
             "nightmare-2",
             "dream-message-1",
             "dream-message-2",
+            "magic-missile",
             "control-weather",
         ] {
             runtime.activities.push(runtime_activity(
@@ -3801,7 +3944,7 @@ mod tests {
                 EncounterRuntimeActivityKindView::Spell,
             ));
         }
-        for index in 0..20 {
+        for index in 0..19 {
             runtime.activities.push(runtime_activity(
                 &format!("grouped-spell-{index:02}"),
                 EncounterRuntimeActivityKindView::Spell,
@@ -3852,40 +3995,68 @@ mod tests {
         let mut grouped = vec![
             bind_soul,
             dream_council,
-            spell_occurrence(
-                &owner,
-                "nightmare-1",
-                "Nightmare",
+            with_spell_ranks(
+                spell_occurrence(
+                    &owner,
+                    "nightmare-1",
+                    "Nightmare",
+                    4,
+                    CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                    "spells:nightmare",
+                ),
                 4,
-                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
-                "spells:nightmare",
-            ),
-            spell_occurrence(
-                &owner,
-                "nightmare-2",
-                "Nightmare",
                 5,
-                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
-                "spells:nightmare",
             ),
-            spell_occurrence(
-                &owner,
-                "dream-message-1",
-                "Dream Message",
-                6,
-                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
-                "spells:dream-message",
+            with_spell_ranks(
+                spell_occurrence(
+                    &owner,
+                    "nightmare-2",
+                    "Nightmare",
+                    5,
+                    CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                    "spells:nightmare",
+                ),
+                4,
+                5,
             ),
-            spell_occurrence(
-                &owner,
-                "dream-message-2",
-                "Dream Message",
-                7,
-                CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
-                "spells:dream-message",
+            with_spell_ranks(
+                spell_occurrence(
+                    &owner,
+                    "dream-message-1",
+                    "Dream Message",
+                    6,
+                    CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                    "spells:dream-message",
+                ),
+                3,
+                3,
+            ),
+            with_spell_ranks(
+                spell_occurrence(
+                    &owner,
+                    "dream-message-2",
+                    "Dream Message",
+                    7,
+                    CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                    "spells:dream-message",
+                ),
+                3,
+                3,
+            ),
+            with_spell_ranks(
+                spell_occurrence(
+                    &owner,
+                    "magic-missile",
+                    "Magic Missile (At Will)",
+                    8,
+                    CreatureOccurrenceParent::SpellcastingEntry(occult_parent.clone()),
+                    "spells:magic-missile",
+                ),
+                1,
+                3,
             ),
         ];
-        for index in 0..20 {
+        for index in 0..19 {
             let parent = if index < 7 {
                 occult_parent.clone()
             } else {
@@ -3895,7 +4066,7 @@ mod tests {
                 &owner,
                 &format!("grouped-spell-{index:02}"),
                 &format!("Grouped Spell {index:02}"),
-                8 + index,
+                9 + index,
                 CreatureOccurrenceParent::SpellcastingEntry(parent),
                 &format!("spells:grouped-spell-{index:02}"),
             ));
@@ -4072,11 +4243,57 @@ mod tests {
                 unsupported_notes: Vec::new(),
             }),
         );
+        occurrence.context.rank = FactValue::Value(6);
         occurrence.context.contextual_label = FactValue::Value(label.to_string());
         occurrence.target = CreatureEntityTarget::CanonicalRecord(
             RecordKey::parse(target).expect("target key should parse"),
         );
         occurrence
+    }
+
+    fn with_spell_ranks(
+        mut occurrence: atlas_record::CreatureEntityOccurrence,
+        base_rank: i64,
+        occurrence_rank: i64,
+    ) -> atlas_record::CreatureEntityOccurrence {
+        let atlas_record::CreatureCapability::Spell(capability) = &mut occurrence.capability else {
+            panic!("spell occurrence should carry a spell capability");
+        };
+        capability.base_rank = FactValue::Value(base_rank);
+        occurrence.context.rank = FactValue::Value(occurrence_rank);
+        occurrence
+    }
+
+    fn spell_base_rank(
+        creature: &atlas_record::CreatureRecord,
+        occurrence_id: &str,
+    ) -> Option<i64> {
+        creature
+            .embedded_entities
+            .value
+            .as_value()
+            .expect("embedded entities")
+            .occurrences
+            .iter()
+            .find(|occurrence| occurrence.id.as_str() == occurrence_id)
+            .and_then(|occurrence| {
+                let atlas_record::CreatureCapability::Spell(capability) = &occurrence.capability
+                else {
+                    return None;
+                };
+                capability.base_rank.as_value().copied()
+            })
+    }
+
+    fn set_hit_points(creature: &mut atlas_record::CreatureRecord, value: i64, maximum: i64) {
+        let FactValue::Value(defenses) = &mut creature.defenses.value else {
+            panic!("creature defenses should be present");
+        };
+        let FactValue::Value(hit_points) = &mut defenses.hit_points else {
+            panic!("creature hit points should be present");
+        };
+        hit_points.value = FactValue::Value(CreatureNumber::Integer(value));
+        hit_points.maximum = FactValue::Value(maximum);
     }
 
     fn known_empty_creature() -> atlas_record::CreatureRecord {
