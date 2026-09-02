@@ -1,0 +1,24 @@
+{
+  "_id": "1eX4Csnv3psAsfLf",
+  "name": "Gray Master",
+  "type": "npc",
+  "system": {
+    "abilities": {
+      "cha": { "mod": 7 },
+      "con": { "mod": 0 },
+      "dex": { "mod": 7 },
+      "int": { "mod": 6 },
+      "str": { "mod": -5 },
+      "wis": { "mod": 6 }
+    },
+    "skills": {
+      "acrobatics": { "base": 35, "special": [] },
+      "deception": { "base": 36, "special": [] },
+      "intimidate": { "base": 38 },
+      "intimidation": { "base": 38, "special": [] },
+      "society": { "base": 34, "special": [] },
+      "stealth": { "base": 37, "special": [] },
+      "thievery": { "base": 35, "special": [] }
+    }
+  }
+}

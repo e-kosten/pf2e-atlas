@@ -1802,4 +1802,120 @@ mod tests {
             assert_eq!(observation.value(), divergent.source());
         }
     }
+
+    #[test]
+    fn removing_exact_intimidate_alias_fails_canonical_hydrated_and_public_parity() {
+        let repository = require_pinned_repository();
+        let ledger = parse_source_leaf_ledger(include_str!(
+            "../../../../contracts/source-leaf-coverage/v1/actor-npc.yaml"
+        ))
+        .expect("Actor NPC ledger");
+        let identity = ledger.identity_for(&ledger.leaves[6]);
+        let fixture = ResolvedFixture::load(
+            &ledger.leaves[6].fixtures[0],
+            &repository,
+            &identity.selector,
+        )
+        .expect("Gray Master pinned fixture");
+        let skill_key = unsupported_skill_key(&fixture.raw).expect("exact raw alias");
+        assert_eq!(skill_key, "intimidate");
+        let source = shadow_skill_from_raw(&fixture.raw, &skill_key).expect("authored alias base");
+        let mut alias_removed = fixture.raw.clone();
+        assert!(
+            alias_removed
+                .pointer_mut("/system/skills")
+                .and_then(Value::as_object_mut)
+                .expect("Gray Master skills")
+                .remove("intimidate")
+                .is_some()
+        );
+        let source_mutation = SourcePresence::Missing;
+        assert!(matches!(source_mutation, SourcePresence::Missing));
+        let removed = run_npc_pipeline(&fixture, alias_removed).expect("alias-removed pipeline");
+        let observations = vec![
+            presence_stage(
+                FinalOwnerStage::SourceDto,
+                "NpcCoreSource.skills[*].base",
+                "source::dto::parse_npc_source",
+                dto_shadow_skill_value(&removed.source_dto, &skill_key),
+                &source_mutation,
+            ),
+            presence_stage(
+                FinalOwnerStage::Canonical,
+                "CreatureRecord.skills[*].source_entries[*].modifier",
+                "source::npc_core::convert_npc_core",
+                creature_skill_value(&removed.canonical, &skill_key),
+                &source_mutation,
+            ),
+            presence_stage(
+                FinalOwnerStage::PostProjection,
+                "IndexBuildInput.canonical_bodies[].skills[*].source_entries[*].modifier",
+                "index_build_input::index_build_input",
+                creature_skill_value(&removed.post_projection, &skill_key),
+                &source_mutation,
+            ),
+            presence_stage(
+                FinalOwnerStage::ArtifactHydration,
+                "RetrievedRecord.body.skills[*].source_entries[*].modifier",
+                "atlas_index::hydrate_record_parts",
+                creature_skill_value(&removed.hydration, &skill_key),
+                &source_mutation,
+            ),
+            presence_stage(
+                FinalOwnerStage::PublicSurface,
+                "RecordPresentationJson.creature.skills[*].source_entries[*].modifier",
+                "atlas_record::record_json",
+                public_skill_value(&removed.public_surface, &skill_key),
+                &source_mutation,
+            ),
+        ];
+        let broken_gray = sealed_receipt(
+            identity,
+            fixture.reference,
+            source,
+            source_mutation,
+            NPC_SKILLS_READER,
+            "sealed::ActorNpcExactAliasRemovalNegative",
+            observations,
+        )
+        .expect("sealed alias-removal negative receipt");
+
+        let mut receipts = Vec::new();
+        for (leaf_index, leaf) in ledger.leaves.iter().enumerate() {
+            for fixture_index in 0..leaf.fixtures.len() {
+                if leaf_index == 6 && fixture_index == 0 {
+                    receipts.push(broken_gray.clone());
+                } else {
+                    receipts.push(
+                        capture_registered_source_leaf_receipt(
+                            &ledger,
+                            leaf_index,
+                            fixture_index,
+                            &repository,
+                        )
+                        .expect("authenticated sibling receipt"),
+                    );
+                }
+            }
+        }
+        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
+        assert!(!report.passed);
+        let codes = report
+            .failures
+            .iter()
+            .map(|failure| failure.code)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            codes,
+            [
+                CoverageFailureCode::DtoMismatch,
+                CoverageFailureCode::CanonicalMismatch,
+                CoverageFailureCode::PostProjectionMismatch,
+                CoverageFailureCode::ArtifactHydrationMismatch,
+                CoverageFailureCode::PublicSurfaceMismatch,
+            ]
+            .into_iter()
+            .collect()
+        );
+    }
 }

@@ -1,7 +1,10 @@
-use atlas_domain::MetricDomain;
+use atlas_domain::{MetricDomain, RecordKey};
 use atlas_record::metrics as metric_definitions;
-use atlas_record::{MetricRow, MetricValue};
+use atlas_record::{MetricRow, MetricValue, RecordBody, project_creature_facts};
 use serde_json::Value;
+
+use crate::source::dto::{SourceIdentity, parse_npc_source, pinned_source_version_metadata};
+use crate::source::npc_core::convert_npc_core;
 
 use super::actor::extract_actor_metrics;
 use super::specs::{
@@ -144,6 +147,33 @@ fn source_specs_reference_the_definitions_they_emit() {
 
 #[test]
 fn canonical_creature_metrics_replace_migrated_raw_pointer_families() {
+    let canonical_source = parse_npc_source(
+        pinned_source_version_metadata(),
+        SourceIdentity::new(
+            "metric-fixtures:ability-owner",
+            "packs/metric-fixtures/ability-owner.json",
+        ),
+        serde_json::json!({
+            "_id": "ability-owner",
+            "name": "Canonical Ability Owner",
+            "type": "npc",
+            "system": {
+                "abilities": {
+                    "str": {"mod": 14, "value": 18, "modifier": 4}
+                }
+            }
+        }),
+    )
+    .expect("canonical ability source DTO");
+    let converted = convert_npc_core(
+        RecordKey::parse("metric-fixtures:ability-owner").expect("record key"),
+        "packs/metric-fixtures/ability-owner.json",
+        &canonical_source,
+    )
+    .expect("canonical ability conversion");
+    let RecordBody::Creature(creature) = &converted.body;
+    let mut canonical = project_creature_facts(creature).metrics;
+
     let raw = serde_json::json!({
         "system": {
             "attributes": {
@@ -151,13 +181,13 @@ fn canonical_creature_metrics_replace_migrated_raw_pointer_families() {
                 "hp": {"value": 999, "max": 999, "broken": 7},
                 "speed": {"value": "90 feet"}
             },
-            "abilities": {"str": {"modifier": 4}},
+            "abilities": {"str": {"mod": 94, "value": 96, "modifier": 98}},
             "perception": {"mod": 88},
             "saves": {"fortitude": {"value": 77}},
             "skills": {"arcana": {"value": 66, "rank": 2}}
         }
     });
-    let canonical = vec![
+    canonical.extend([
         number_metric(
             exact_metric_key(metric_definitions::actor::ARMOR_CLASS),
             28.0,
@@ -171,7 +201,7 @@ fn canonical_creature_metrics_replace_migrated_raw_pointer_families() {
         number_metric(&metric_definitions::actor::save::mod_key("fort"), 19.0),
         number_metric(&metric_definitions::actor::skill::mod_key("arcana"), 18.0),
         number_metric(&metric_definitions::actor::speed::value_key("land"), 25.0),
-    ];
+    ]);
 
     let metrics = extract_actor_metrics(&raw, Some(&canonical)).expect("actor metrics extract");
 
@@ -208,7 +238,15 @@ fn canonical_creature_metrics_replace_migrated_raw_pointer_families() {
     assert_number_metric(
         &metrics,
         &metric_definitions::actor::ability::mod_key("str"),
-        4.0,
+        14.0,
+    );
+    assert_eq!(
+        metrics
+            .iter()
+            .filter(|metric| metric.key == metric_definitions::actor::ability::mod_key("str"))
+            .count(),
+        1,
+        "only the canonical CreatureRecord ability projection may emit strength.mod"
     );
     assert_number_metric(
         &metrics,

@@ -1,0 +1,13 @@
+{
+  "_id": "b1SkillStates001",
+  "name": "B1 Skill Presence States",
+  "type": "npc",
+  "items": [],
+  "system": {
+    "skills": {
+      "missing-base": {},
+      "null-base": { "base": null },
+      "value-base": { "base": 27 }
+    }
+  }
+}
