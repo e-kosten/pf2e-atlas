@@ -17,7 +17,8 @@ pub(crate) fn run_graph_variants(options: GraphVariantsOptions) -> Result<ExitCo
         GraphCommandOutcome::Value(result) => result,
         GraphCommandOutcome::Exit(code) => return Ok(code),
     };
-    let data = graph_variants_data(&result, options.detail).map_err(|error| error.to_string())?;
+    let data =
+        graph_variants_data(&service, &result, options.detail).map_err(|error| error.message)?;
     if options.json {
         write_json_data(data)?;
     } else {

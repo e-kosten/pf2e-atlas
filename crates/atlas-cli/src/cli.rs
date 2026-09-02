@@ -110,6 +110,7 @@ impl Command {
             },
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
+                RecordCommand::Provenance(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
@@ -167,6 +168,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(options),
+            RecordCommand::Provenance(options) => commands::record::run_record_provenance(options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
         Command::Graph(graph) => match graph.command {

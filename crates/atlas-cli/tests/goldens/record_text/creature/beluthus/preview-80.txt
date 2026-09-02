@@ -1,0 +1,66 @@
+Beluthus
+  Type: creature · Pack: Abomination Vaults
+  Key: abomination-vaults-bestiary:3ry9WSvMMXHUe3kE
+
+Classification
+  Level: 11
+  Rarity: unique
+  Traits: evil, undead, unholy
+  Size: sm
+  Source: Pathfinder Abomination Vaults Hardcover Compilation
+
+Defenses
+  AC: 31;
+  HP: current 175; maximum 175; temporary 0; (void healing)
+  Fortitude: 20;
+  Reflex: 18;
+  Will: 24;
+  All saves: +1 status to all saves vs. magic
+  Immunities: bleed, death-effects, disease, paralyzed, poison,
+              spell-deflection, unconscious
+
+Awareness and abilities
+  Perception: +22; darkvision
+  Initiative: perception
+  Languages: chthonian, common, diabolic, empyrean, necril
+  Abilities: Str +7, Dex +3, Con +5, Int +5, Wis +4, Cha +5
+  Arcana: +21
+  Deception: +21
+  Intimidation: +23
+  Occultism: +23
+  Stealth: +19
+
+Movement
+  land: 30 feet
+  fly: 30 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Claw — [1 action]
+
+Activities
+  - +1 Status to All Saves vs. Magic — passive
+  - Spell Deflection — passive
+  - Void Healing — passive
+  - Devour Soul — [2 actions]
+  - Drain Life — passive
+  - Soul Spells — passive
+
+Spellcasting
+  - Occult Innate Spells — innate · occult
+    Rank 6
+      - Feeblemind — [2 actions]
+      - True Seeing — [2 actions]
+    Rank 4
+      - Confusion — [2 actions]
+      - Suggestion — [2 actions]
+    Rank 3
+      - Bind Undead — [2 actions]
+      - Paralyze — [2 actions]
+    Rank 2
+      - Death Knell — [2 actions]
+    Rank 1
+      - Harm — 1 to 3
+  - Create Undead — 1 day

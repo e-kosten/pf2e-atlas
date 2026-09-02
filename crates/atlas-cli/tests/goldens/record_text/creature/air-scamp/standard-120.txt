@@ -1,0 +1,163 @@
+Air Scamp
+  Type: creature · Pack: Monster Core
+  Key: pathfinder-monster-core:MSm1im7lZA5i82rz
+
+Classification
+  Level: 1
+  Rarity: common
+  Traits: air, elemental
+  Size: sm
+  Source: Pathfinder Monster Core
+
+Defenses
+  AC: 16;
+  HP: current 12; maximum 12; temporary 0; fast healing 2 (in open air)
+  Fortitude: 3;
+  Reflex: 9;
+  Will: 7;
+  Immunities: bleed, paralyzed, poison, sleep
+
+Awareness and abilities
+  Perception: +3; fog vision; darkvision
+  Initiative: perception
+  Languages: sussuran
+  Abilities: Str +1, Dex +4, Con +0, Int -2, Wis +0, Cha +0
+  Acrobatics: +7
+  Stealth: +7
+
+Movement
+  land: 20 feet
+  fly: 40 feet
+
+Strikes
+  - Jaws — [1 action]
+    Traits: finesse, unarmed
+    Attack: attack +9
+    Damage: 1d6+1 piercing
+
+Activities
+  - Fog Vision — passive
+    Category: interaction
+  - Fast Healing 2 (In Open Air) — passive
+    Category: defensive
+  - Sirocco Breath — [2 actions]
+    Traits: air, arcane
+    Category: offensive
+
+Spellcasting
+  - Arcane Innate Spells — innate · arcane
+    Attack: +9
+    DC: 17
+    Rank 2
+      - Blur — [2 actions]
+        Traits: concentrate, illusion, manipulate, visual
+        Target: 1 creature
+        Range: touch
+        Time: 2
+    Rank 1
+      - Gust of Wind — [2 actions]
+        Traits: air, concentrate, manipulate
+        Time: 2
+    Damage: 2d6 bludgeoning damage
+
+Data availability
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: "Pathfinder Monster Core"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: "common"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
+    Source value: {"details":"In Open Air","key":"FastHealing","value":2}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:yC1vWH3Q9V6GoICd
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:yC1vWH3Q9V6GoICd
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
+    Source value: "Pathfinder Player Core"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
+    Source value: "common"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
+    Source value: "Pathfinder Player Core"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
+    Source value: "common"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: 1
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: false
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
+    Source value: {}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: "ORC"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
+    Source value: null
+    The source supplied an unsupported mechanic.

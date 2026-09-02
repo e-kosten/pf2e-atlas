@@ -1,5 +1,5 @@
 use atlas_domain::{DetailLevel, SearchFilterNode};
-use atlas_record::{RecordJsonOptions, record_json};
+use atlas_record::RecordJsonOptions;
 use atlas_search::{
     RecordListSort, RetrievalMode, SearchErrorKind, SearchPage, SearchPageInfo, TextSearchMatch,
     TextSearchTuning, expert::DEFAULT_FTS_FUSION_POLICY_NAME,
@@ -23,7 +23,7 @@ pub(crate) mod args;
 use args::{CliRetrievalMode, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
-use super::record::{detail_outputs_description, print_record_for_detail};
+use super::record::{context::project_record, detail_outputs_description, print_record_for_detail};
 
 #[derive(Debug, Serialize)]
 struct SearchData {
@@ -227,7 +227,8 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         .filter_map(|key| by_key.get(&key.to_string()))
         .map(|record| {
             Ok(SearchResultItem {
-                record: record_json(record, record_options).map_err(|error| error.to_string())?,
+                record: project_record(&client, record, record_options)
+                    .map_err(|error| error.message)?,
                 r#match: SearchMatchJson {
                     kind: "filter",
                     retrieval: None,
@@ -333,8 +334,8 @@ fn run_ranked_search_text(
         .into_iter()
         .map(|item| {
             Ok(SearchResultItem {
-                record: record_json(&item.record, record_options)
-                    .map_err(|error| error.to_string())?,
+                record: project_record(&client, &item.record, record_options)
+                    .map_err(|error| error.message)?,
                 r#match: search_match_json(item.match_info),
             })
         })

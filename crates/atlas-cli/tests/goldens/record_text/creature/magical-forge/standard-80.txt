@@ -1,0 +1,137 @@
+Magical Forge
+  Type: creature · Pack: Triumph of the Tusk
+  Key: triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n
+
+Classification
+  Level: 9
+  Rarity: common
+  Traits: construct, mindless
+  Size: huge
+  Adjustment: weak
+  Source: Pathfinder #208: Hoof, Cinder, and Storm
+
+Defenses
+  AC: 30; (24 when broken); construct armor
+  HP: current 115; maximum 135; temporary 0;
+  Hardness: 8
+  Fortitude: 21;
+  Reflex: 11;
+  Will: 13;
+
+Awareness and abilities
+  Perception: +15; darkvision
+  Initiative: perception
+  Abilities: Str +7, Dex -2, Con +6, Int -5, Wis +0, Cha -5
+  Athletics: +22
+
+Movement
+  land: 15 feet
+
+Strikes
+  - Door — [1 action]
+    Traits: magical
+    Attack effects: improved-grab
+    Attack: attack +21
+    Damage: 2d12+9 bludgeoning
+    Damage: 1d8 fire
+
+Activities
+  - Construct Armor (Hardness 8) — passive
+    Category: defensive
+  - Fan the Flames — [2 actions]
+    Category: offensive
+  - Swallow Whole — [1 action]
+    Traits: attack
+    Category: offensive
+  - Improved Grab — [free action]
+    Category: offensive
+
+Data availability
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:0BvqGo4aw3xH9SrP
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:0BvqGo4aw3xH9SrP
+    Source value: "OGL"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:0BvqGo4aw3xH9SrP
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:dXTDQTPpz6jKxLYH
+    Source value: "OGL"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:dXTDQTPpz6jKxLYH
+    Source value: "Pathfinder Bestiary"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:dXTDQTPpz6jKxLYH
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:iuA961D6giH9Ci1G
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:iuA961D6giH9Ci1G
+    Source value: "OGL"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:iuA961D6giH9Ci1G
+    Source value: []
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:iuA961D6giH9Ci1G
+    Source value:
+                  {"key":"ActiveEffectLike","mode":"override","path":"system.attributes.hardness.value","phase":"afterDerived","predicate":[{"or":["construct-armor",{"lt":["hp-percent",50]}]}],"value":0}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:iuA961D6giH9Ci1G
+    Source value:
+                  {"key":"FlatModifier","predicate":[{"or":["construct-armor",{"lt":["hp-percent",50]}]}],"selector":"ac","value":-4}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:iuA961D6giH9Ci1G
+    Source value:
+                  {"key":"RollOption","label":"PF2E.NPCAbility.ConstructArmor.CriticalHit","option":"construct-armor","toggleable":true}
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:veXylj85GdkPPrim
+    Source value: "OGL"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:action:veXylj85GdkPPrim
+    Source value: "Pathfinder Bestiary"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:strike:bJUdfd279JTmWONI
+    Source value: ""
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:strike:bJUdfd279JTmWONI
+    Source value: "OGL"
+    The source supplied an unsupported mechanic.
+  Unsupported mechanic
+    Component:
+               occurrence:triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n:strike:bJUdfd279JTmWONI
+    Source value: null
+    The source supplied an unsupported mechanic.
