@@ -36,6 +36,12 @@ pub(crate) struct RegistryEntry {
     pub type_discriminator: String,
     pub role: SourceDocumentRole,
     pub parent_context: SourceParentContextSelector,
+    pub corpus: RegistryCorpus,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct RegistryCorpus {
+    pub count: usize,
 }
 
 #[derive(Debug)]
@@ -95,6 +101,7 @@ mod tests {
                 && entry.type_discriminator == "npc"
                 && entry.role == SourceDocumentRole::TopLevel
                 && entry.parent_context == SourceParentContextSelector::root()
+                && entry.corpus.count > 0
         }));
     }
 }

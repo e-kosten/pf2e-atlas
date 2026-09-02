@@ -7,6 +7,9 @@ use crate::source::dto::{
     PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE,
 };
 
+use super::prevalence::{
+    PF2E_SOURCE_LEAF_PREVALENCE_SHA256, PF2E_SOURCE_LEAF_PREVALENCE_VERSION, accepted_prevalence,
+};
 use super::registry::{PF2E_TYPE_REGISTRY_SHA256, accepted_registry};
 use super::{CoverageFailure, CoverageFailureCode};
 
@@ -124,6 +127,9 @@ pub struct SourcePrevalence {
     pub source_commit: String,
     pub source_signature: String,
     pub registry_sha256: String,
+    pub inventory_version: String,
+    pub inventory_sha256: String,
+    pub entry_id: String,
     pub record_count: usize,
     pub occurrence_count: usize,
 }
@@ -532,12 +538,36 @@ fn lint_leaf(
         || leaf.source_prevalence.source_commit != PF2E_SOURCE_PINNED_COMMIT
         || leaf.source_prevalence.source_signature != PF2E_SOURCE_PINNED_SIGNATURE
         || leaf.source_prevalence.registry_sha256 != PF2E_TYPE_REGISTRY_SHA256
+        || leaf.source_prevalence.inventory_version != PF2E_SOURCE_LEAF_PREVALENCE_VERSION
+        || leaf.source_prevalence.inventory_sha256 != PF2E_SOURCE_LEAF_PREVALENCE_SHA256
     {
         failures.push(CoverageFailure::for_identity(
             CoverageFailureCode::SourcePrevalenceMismatch,
             identity.clone(),
             "global source prevalence must bind the accepted source contract, pin, signature, and registry digest",
         ));
+    }
+    match accepted_prevalence() {
+        Ok(entries) => {
+            let exact = entries.iter().find(|entry| {
+                entry.entry_id == leaf.source_prevalence.entry_id && entry.identity() == identity
+            });
+            if exact.is_none_or(|entry| {
+                entry.record_count != leaf.source_prevalence.record_count
+                    || entry.occurrence_count != leaf.source_prevalence.occurrence_count
+            }) {
+                failures.push(CoverageFailure::for_identity(
+                    CoverageFailureCode::SourcePrevalenceMismatch,
+                    identity.clone(),
+                    "source prevalence counts must exactly match the digest-authenticated leaf inventory entry and registry corpus count",
+                ));
+            }
+        }
+        Err(message) => failures.push(CoverageFailure::for_identity(
+            CoverageFailureCode::SourcePrevalenceMismatch,
+            identity.clone(),
+            message,
+        )),
     }
     if leaf.source_prevalence.occurrence_count < leaf.source_prevalence.record_count {
         failures.push(CoverageFailure::for_identity(
@@ -756,45 +786,45 @@ mod tests {
 
     const LEDGER: &str = r#"
 contract_version: atlas-source-leaf-coverage/v1
-type_id: actor--npc--top-level--root--root--root
+type_id: item--action--top-level--root--root--root
 source_pin:
   upstream_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
   source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
 selector:
   source_contract_version: pf2e-serialized-source/v1
-  document_class: Actor
-  type_discriminator: npc
+  document_class: Item
+  type_discriminator: action
   role: top_level
   parent_context: {}
 leaves:
-  - normalized_path: $.system.abilities.*.mod
-    leaf_kind: map_member
-    expected_shapes: [missing, null, number]
+  - normalized_path: $.name
+    leaf_kind: scalar
+    expected_shapes: [string]
     source_prevalence:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f
-      record_count: 100
-      occurrence_count: 600
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 22c74832840c1016ac81f79599ee29768a483b9dd6bb03503503b15958e41e32
+      entry_id: item-action-top-level-name@4cbdaa37
+      record_count: 1169
+      occurrence_count: 1169
     fixture_prevalence: { record_count: 1, occurrence_count: 1 }
-    map_key_policy:
-      kind: closed_vocabulary
-      keys: [str, dex, con, int, wis, cha]
     disposition: promoted
     reader:
-      reader_id: source::dto::NpcLegacyAbilitySource::mod
-      parity_case_ids: [dense-npc]
+      reader_id: source::dto::FullItemSource::name
+      parity_case_ids: [action-name]
     fixtures:
-      - case_id: dense-npc
-        record_key: pf2e.pathfinder-bestiary:fixture
-        source_path: packs/pathfinder-bestiary/fixture.json
-        source_file_digest: sha256:14191cbe7fa302bf633734290cbb660ae8e955bef24d587cc909533ad6bf68c5
-        excerpt_digest: sha256:14191cbe7fa302bf633734290cbb660ae8e955bef24d587cc909533ad6bf68c5
+      - case_id: action-name
+        record_key: actionspf2e:c40APnn4a7bWhtcZ
+        source_path: packs/actions/a-challenge-for-heroes.json
+        source_file_digest: sha256:b71bc2d31b2a10c232a01ef57b5943b60e4747770b7f35d8ebeb27bf4b281d43
+        excerpt_digest: sha256:d3c3aced9d8c6e0b39d40df1f17917eac5f850a34abf4b2a76915d0bd2c4140c
         provenance: pinned_source
     final_owners:
-      - { stage: source_dto, destination: NpcLegacyAbilitySource.mod }
-      - { stage: canonical, destination: CreatureRecord.legacy_abilities }
+      - { stage: source_dto, destination: FullItemSource.name }
+      - { stage: canonical, destination: AtlasRecord.identity.name }
     surfaces:
       artifact: { disposition: not_applicable, rationale: canonical-only fixture }
       search: { disposition: not_applicable, rationale: not selected }
@@ -802,13 +832,13 @@ leaves:
       app: { disposition: not_applicable, rationale: not selected }
       ui: { disposition: not_applicable, rationale: not selected }
       runtime: { disposition: not_applicable, rationale: not selected }
-    rationale: canonical creature ability modifiers
-    owner: atlas-ingest::source::npc_core
+    rationale: canonical source record identity
+    owner: atlas-ingest::source::normalize
     acceptance_checkpoint: A1
 "#;
 
     #[test]
-    fn parser_accepts_exact_selector_and_governed_true_map() {
+    fn parser_accepts_exact_selector_and_authenticated_prevalence() {
         let ledger = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
         assert_eq!(ledger.leaves.len(), 1);
         let failures = lint_source_leaf_ledger(&ledger);
@@ -859,8 +889,8 @@ leaves:
     #[test]
     fn parser_rejects_unknown_fields_with_exact_code() {
         let error = parse_source_leaf_ledger(&LEDGER.replace(
-            "type_id: actor--npc--top-level--root--root--root",
-            "type_id: actor--npc--top-level--root--root--root\npath_family: $.system.**",
+            "type_id: item--action--top-level--root--root--root",
+            "type_id: item--action--top-level--root--root--root\npath_family: $.system.**",
         ))
         .expect_err("unknown broad field");
         assert_eq!(error.code, CoverageFailureCode::InvalidContract);
@@ -925,6 +955,33 @@ leaves:
             lint_source_leaf_ledger(&wrong_prevalence)
                 .iter()
                 .any(|failure| { failure.code == CoverageFailureCode::SourcePrevalenceMismatch })
+        );
+    }
+
+    #[test]
+    fn arbitrary_prevalence_counts_cannot_replace_authenticated_metadata() {
+        let mut wrong_record_count = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        wrong_record_count.leaves[0].source_prevalence.record_count -= 1;
+        let failures = lint_source_leaf_ledger(&wrong_record_count);
+        assert_eq!(
+            failures
+                .iter()
+                .map(|failure| failure.code)
+                .collect::<Vec<_>>(),
+            vec![CoverageFailureCode::SourcePrevalenceMismatch]
+        );
+
+        let mut wrong_occurrence_count = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
+        wrong_occurrence_count.leaves[0]
+            .source_prevalence
+            .occurrence_count += 1;
+        let failures = lint_source_leaf_ledger(&wrong_occurrence_count);
+        assert_eq!(
+            failures
+                .iter()
+                .map(|failure| failure.code)
+                .collect::<Vec<_>>(),
+            vec![CoverageFailureCode::SourcePrevalenceMismatch]
         );
     }
 

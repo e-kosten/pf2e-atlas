@@ -56,6 +56,7 @@ pub use source_coverage::{
     ATLAS_SOURCE_LEAF_COVERAGE_VERSION, CoverageContractError, CoverageFailure,
     CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerContract, FinalOwnerStage,
     FixtureContract, FixturePrevalence, FixtureProvenance, MapKeyPolicy,
+    PF2E_SOURCE_LEAF_PREVALENCE_SHA256, PF2E_SOURCE_LEAF_PREVALENCE_VERSION,
     PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256, PF2E_TYPE_REGISTRY_VERSION,
     ReaderContract, SourceDocumentRole, SourceLeafContract, SourceLeafCoverageLedger,
     SourceLeafDisposition, SourceLeafIdentity, SourceLeafKind, SourceLeafReceipt,

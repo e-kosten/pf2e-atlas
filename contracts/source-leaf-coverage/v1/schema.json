@@ -60,12 +60,15 @@
         "source_prevalence": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["source_contract_version", "source_commit", "source_signature", "registry_sha256", "record_count", "occurrence_count"],
+          "required": ["source_contract_version", "source_commit", "source_signature", "registry_sha256", "inventory_version", "inventory_sha256", "entry_id", "record_count", "occurrence_count"],
           "properties": {
             "source_contract_version": { "const": "pf2e-serialized-source/v1" },
             "source_commit": { "const": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce" },
             "source_signature": { "const": "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a" },
             "registry_sha256": { "const": "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f" },
+            "inventory_version": { "const": "pf2e-source-leaf-prevalence/v1" },
+            "inventory_sha256": { "const": "22c74832840c1016ac81f79599ee29768a483b9dd6bb03503503b15958e41e32" },
+            "entry_id": { "$ref": "#/$defs/nonEmptyString" },
             "record_count": { "type": "integer", "minimum": 0 },
             "occurrence_count": { "type": "integer", "minimum": 0 }
           }
