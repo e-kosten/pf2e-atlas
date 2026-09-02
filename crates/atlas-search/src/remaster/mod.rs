@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
 use atlas_index::{IndexRemasterLinks, RemasterReadIndex};
-use atlas_record::RetrievedRecord;
+use atlas_record::{RecordEditionLookup, RecordEditionLookupError, RetrievedRecord};
 
 use crate::{AtlasRetrievalService, GetRecordsRequest, RecordRetrieval, SearchError};
 
@@ -23,6 +23,17 @@ pub struct RemasterLinkResult {
     pub legacy_record: RetrievedRecord,
     pub source: RemasterLinkSource,
     pub source_ref: String,
+}
+
+impl RemasterLinksResult {
+    pub fn record_edition_lookup(&self) -> Result<RecordEditionLookup, RecordEditionLookupError> {
+        RecordEditionLookup::verified(
+            &self.seed,
+            self.links
+                .iter()
+                .map(|link| (&link.remaster_record, &link.legacy_record)),
+        )
+    }
 }
 
 pub trait RemasterRetrieval {
@@ -152,6 +163,35 @@ mod tests {
             hydrated[0].legacy_record.record.identity.key,
             legacy.record.identity.key
         );
+    }
+
+    #[test]
+    fn b4_result_builds_the_seed_bound_record_edition_lookup() {
+        let legacy = record("legacy-pack:seed", "Legacy Seed");
+        let mut remaster = record("remaster-pack:counterpart", "Remaster Counterpart");
+        remaster.record.publication.remaster = true;
+        let link = RemasterLinkResult {
+            remaster_record: remaster.clone(),
+            legacy_record: legacy.clone(),
+            source: RemasterLinkSource::Migration,
+            source_ref: "migration".to_string(),
+        };
+        let result = RemasterLinksResult {
+            seed: legacy.clone(),
+            links: vec![link.clone(), link],
+        };
+        assert_eq!(
+            result.record_edition_lookup().expect("B4 lookup"),
+            RecordEditionLookup::verified(&legacy, [(&remaster, &legacy), (&remaster, &legacy)])
+                .expect("expected lookup")
+        );
+
+        let mut contradictory = result;
+        contradictory.seed.record.publication.remaster = true;
+        assert!(matches!(
+            contradictory.record_edition_lookup(),
+            Err(RecordEditionLookupError::InvalidLink { .. })
+        ));
     }
 
     fn record(record_key: &str, title: &str) -> RetrievedRecord {
