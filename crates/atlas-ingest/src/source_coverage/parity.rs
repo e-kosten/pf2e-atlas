@@ -480,6 +480,7 @@ fn shape_is_allowed(
                 SourceJsonType::Boolean => ExpectedSourceShape::Boolean,
                 SourceJsonType::Number => ExpectedSourceShape::Number,
                 SourceJsonType::String => ExpectedSourceShape::String,
+                SourceJsonType::Null => ExpectedSourceShape::Null,
                 SourceJsonType::Array => ExpectedSourceShape::Array,
                 SourceJsonType::Object => ExpectedSourceShape::Object,
             };

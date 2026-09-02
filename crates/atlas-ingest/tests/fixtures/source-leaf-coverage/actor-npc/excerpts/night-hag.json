@@ -1,0 +1,23 @@
+{
+  "_id": "WQy7HBUcgDLsfVJd",
+  "name": "Night Hag",
+  "type": "npc",
+  "system": {
+    "abilities": {
+      "cha": { "mod": 3 },
+      "con": { "mod": 6 },
+      "dex": { "mod": 4 },
+      "int": { "mod": 4 },
+      "str": { "mod": 5 },
+      "wis": { "mod": 5 }
+    },
+    "skills": {
+      "arcana": { "base": 18 },
+      "deception": { "base": 18 },
+      "diplomacy": { "base": 18 },
+      "intimidation": { "base": 14 },
+      "occultism": { "base": 20 },
+      "religion": { "base": 20 }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "_id": "WQy7HBUcgDLsfVJd",
+  "name": "Night Hag",
+  "type": "npc",
+  "items": [],
+  "system": {
+    "abilities": {
+      "cha": { "mod": 3 },
+      "con": { "mod": 6 },
+      "dex": { "mod": 4 },
+      "int": { "mod": 4 },
+      "str": { "mod": 5 },
+      "wis": { "mod": 5 }
+    },
+    "attributes": {
+      "ac": { "value": 30 },
+      "hp": { "max": 165, "value": 165 },
+      "speed": { "value": 25 }
+    },
+    "details": {
+      "level": { "value": 9 },
+      "languages": { "value": ["abyssal", "aklo", "celestial", "common", "infernal"] }
+    },
+    "perception": { "mod": 19 },
+    "saves": {
+      "fortitude": { "value": 17 },
+      "reflex": { "value": 16 },
+      "will": { "value": 20 }
+    },
+    "skills": {
+      "arcana": { "base": 18 },
+      "deception": { "base": 18 },
+      "diplomacy": { "base": 18 },
+      "intimidation": { "base": 14 },
+      "occultism": { "base": 20 },
+      "religion": { "base": 20 }
+    },
+    "traits": {
+      "rarity": "common",
+      "size": { "value": "med" },
+      "value": ["fiend", "hag", "unholy"]
+    }
+  }
+}

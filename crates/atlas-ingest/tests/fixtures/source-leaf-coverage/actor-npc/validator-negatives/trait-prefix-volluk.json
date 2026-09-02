@@ -1,0 +1,12 @@
+{
+  "_id": "ZAXuvUW6kl6v3SuW",
+  "name": "Volluk Azrinae",
+  "type": "npc",
+  "system": {
+    "traits": {
+      "rarity": "unique",
+      "size": { "value": "med" },
+      "value": ["aberration", "chaotic", "evil", "swarm"]
+    }
+  }
+}

@@ -13,7 +13,7 @@ use super::{SourceLeafIdentity, SourceLeafSelector};
 
 pub const PF2E_SOURCE_LEAF_PREVALENCE_VERSION: &str = "pf2e-source-leaf-prevalence/v1";
 pub const PF2E_SOURCE_LEAF_PREVALENCE_SHA256: &str =
-    "22c74832840c1016ac81f79599ee29768a483b9dd6bb03503503b15958e41e32";
+    "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf";
 
 const PREVALENCE_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),

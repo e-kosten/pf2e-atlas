@@ -3,7 +3,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use atlas_domain::{DetailLevel, PackName};
-use atlas_record::{RecordBody, RecordJsonOptions, record_json};
+use atlas_record::{
+    CreatureRecord, CreatureSkillKind, FactValue, RecordBody, RecordJson, RecordJsonOptions,
+    RecordPresentationJson, record_json,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -13,7 +16,8 @@ use crate::diagnostics::IngestDiagnostics;
 use crate::index_build_input::index_build_input;
 use crate::source::dto::{
     PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE,
-    SourceIdentity, parse_item_source, pinned_source_version_metadata,
+    SourceIdentity, VersionedNpcSource, parse_item_source, parse_npc_source,
+    pinned_source_version_metadata,
 };
 use crate::source::normalize::normalize_record;
 use crate::source::{LoadedPack, ManifestPack, SourceLoad};
@@ -25,6 +29,8 @@ use super::{
 };
 
 const ITEM_NAME_READER: &str = "source::dto::FullItemSource::name";
+const NPC_ABILITY_MOD_READER: &str = "source::dto::NpcLegacyAbilitySource::mod";
+const NPC_SKILLS_READER: &str = "source::dto::NpcCoreSource::skills";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -152,6 +158,18 @@ pub fn capture_registered_source_leaf_receipt(
 #[derive(Debug, Clone, Copy)]
 enum RegisteredAccessor {
     ItemActionName,
+    ActorNpcAbilityMod(AbilitySlot),
+    ActorNpcShadowSkillBase,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum AbilitySlot {
+    Strength,
+    Dexterity,
+    Constitution,
+    Intelligence,
+    Wisdom,
+    Charisma,
 }
 
 fn registration_for(
@@ -165,6 +183,22 @@ fn registration_for(
         && reader_id == Some(ITEM_NAME_READER)
     {
         Ok(RegisteredAccessor::ItemActionName)
+    } else if identity.type_id == "actor--npc--top-level--root--root--root"
+        && identity.selector.document_class == "Actor"
+        && identity.selector.type_discriminator == "npc"
+        && reader_id == Some(NPC_ABILITY_MOD_READER)
+        && ability_slot(&identity.normalized_path).is_some()
+    {
+        Ok(RegisteredAccessor::ActorNpcAbilityMod(
+            ability_slot(&identity.normalized_path).expect("checked above"),
+        ))
+    } else if identity.type_id == "actor--npc--top-level--root--root--root"
+        && identity.selector.document_class == "Actor"
+        && identity.selector.type_discriminator == "npc"
+        && identity.normalized_path == "$.system.skills.*.base"
+        && reader_id == Some(NPC_SKILLS_READER)
+    {
+        Ok(RegisteredAccessor::ActorNpcShadowSkillBase)
     } else {
         Err(error(
             CoverageFailureCode::ReaderNotObserved,
@@ -185,7 +219,21 @@ impl RegisteredAccessor {
     ) -> Result<SourceLeafReceipt, CoverageContractError> {
         match self {
             Self::ItemActionName => capture_item_name(identity, fixture),
+            Self::ActorNpcAbilityMod(slot) => capture_actor_npc_ability(identity, fixture, slot),
+            Self::ActorNpcShadowSkillBase => capture_actor_npc_shadow_skill(identity, fixture),
         }
+    }
+}
+
+fn ability_slot(path: &str) -> Option<AbilitySlot> {
+    match path {
+        "$.system.abilities.str.mod" => Some(AbilitySlot::Strength),
+        "$.system.abilities.dex.mod" => Some(AbilitySlot::Dexterity),
+        "$.system.abilities.con.mod" => Some(AbilitySlot::Constitution),
+        "$.system.abilities.int.mod" => Some(AbilitySlot::Intelligence),
+        "$.system.abilities.wis.mod" => Some(AbilitySlot::Wisdom),
+        "$.system.abilities.cha.mod" => Some(AbilitySlot::Charisma),
+        _ => None,
     }
 }
 
@@ -284,6 +332,647 @@ fn capture_item_name(
         semantic_output,
         evidence_digest,
     })
+}
+
+fn capture_actor_npc_ability(
+    identity: SourceLeafIdentity,
+    fixture: ResolvedFixture,
+    slot: AbilitySlot,
+) -> Result<SourceLeafReceipt, CoverageContractError> {
+    validate_actor_excerpt(&fixture)?;
+    let source = ability_mod_from_raw(&fixture.raw, slot)?;
+    let mut mutated_raw = fixture.raw.clone();
+    let mutation_value = match mutated_raw.pointer(slot.mod_pointer()) {
+        Some(Value::Number(number)) => Value::from(number.as_i64().unwrap_or_default() + 101),
+        Some(Value::Null) => Value::from(101),
+        _ => {
+            return Err(error(
+                CoverageFailureCode::ReaderNotObserved,
+                format!("{} is not a number or explicit null", slot.mod_pointer()),
+            ));
+        }
+    };
+    *mutated_raw
+        .pointer_mut(slot.mod_pointer())
+        .expect("the source leaf was checked above") = mutation_value;
+    let source_mutation = ability_mod_from_raw(&mutated_raw, slot)?;
+    let actual = run_npc_pipeline(&fixture, fixture.raw.clone())?;
+    let mutation = run_npc_pipeline(&fixture, mutated_raw)?;
+    let canonical_destination =
+        format!("CreatureRecord.legacy_abilities.{}", slot.canonical_name());
+    let post_destination = format!(
+        "IndexBuildInput.canonical_bodies[].legacy_abilities.{}",
+        slot.canonical_name()
+    );
+    let hydration_destination = format!(
+        "RetrievedRecord.body.legacy_abilities.{}",
+        slot.canonical_name()
+    );
+    let observations = vec![
+        presence_stage(
+            FinalOwnerStage::SourceDto,
+            "NpcLegacyAbilitySource.value",
+            "source::dto::parse_npc_source",
+            dto_ability_value(&actual.source_dto, slot),
+            &dto_ability_value(&mutation.source_dto, slot),
+        ),
+        presence_stage(
+            FinalOwnerStage::Canonical,
+            &canonical_destination,
+            "source::npc_core::convert_npc_core",
+            creature_ability_value(&actual.canonical, slot),
+            &creature_ability_value(&mutation.canonical, slot),
+        ),
+        presence_stage(
+            FinalOwnerStage::PostProjection,
+            &post_destination,
+            "index_build_input::index_build_input",
+            creature_ability_value(&actual.post_projection, slot),
+            &creature_ability_value(&mutation.post_projection, slot),
+        ),
+        presence_stage(
+            FinalOwnerStage::ArtifactHydration,
+            &hydration_destination,
+            "atlas_index::hydrate_record_parts",
+            creature_ability_value(&actual.hydration, slot),
+            &creature_ability_value(&mutation.hydration, slot),
+        ),
+    ];
+    sealed_receipt(
+        identity,
+        fixture.reference,
+        source,
+        source_mutation,
+        NPC_ABILITY_MOD_READER,
+        "sealed::ActorNpcAbilityModProbe",
+        observations,
+    )
+}
+
+fn capture_actor_npc_shadow_skill(
+    identity: SourceLeafIdentity,
+    fixture: ResolvedFixture,
+) -> Result<SourceLeafReceipt, CoverageContractError> {
+    validate_actor_excerpt(&fixture)?;
+    let skill_key = unsupported_skill_key(&fixture.raw)?;
+    let source = shadow_skill_from_raw(&fixture.raw, &skill_key)?;
+    let mut mutated_raw = fixture.raw.clone();
+    let base_pointer = format!("/system/skills/{}/base", escape_json_pointer(&skill_key));
+    let mutation_value = match mutated_raw.pointer(&base_pointer) {
+        Some(Value::Number(number)) => Value::from(number.as_i64().unwrap_or_default() + 101),
+        Some(Value::Null) => Value::from(101),
+        _ => {
+            return Err(error(
+                CoverageFailureCode::ReaderNotObserved,
+                format!("shadow skill {skill_key:?} has no number or explicit null base"),
+            ));
+        }
+    };
+    *mutated_raw
+        .pointer_mut(&base_pointer)
+        .expect("the shadow-skill base was checked above") = mutation_value;
+    let source_mutation = shadow_skill_from_raw(&mutated_raw, &skill_key)?;
+    let actual = run_npc_pipeline(&fixture, fixture.raw.clone())?;
+    let mutation = run_npc_pipeline(&fixture, mutated_raw)?;
+    let observations = vec![
+        presence_stage(
+            FinalOwnerStage::SourceDto,
+            "NpcCoreSource.skills[*].base",
+            "source::dto::parse_npc_source",
+            dto_shadow_skill_value(&actual.source_dto, &skill_key),
+            &dto_shadow_skill_value(&mutation.source_dto, &skill_key),
+        ),
+        presence_stage(
+            FinalOwnerStage::Canonical,
+            "CreatureRecord.skills.by_authored_key[*]",
+            "source::npc_core::convert_npc_core",
+            creature_skill_value(&actual.canonical, &skill_key),
+            &creature_skill_value(&mutation.canonical, &skill_key),
+        ),
+        presence_stage(
+            FinalOwnerStage::PostProjection,
+            "IndexBuildInput.canonical_bodies[].skills.by_authored_key[*]",
+            "index_build_input::index_build_input",
+            creature_skill_value(&actual.post_projection, &skill_key),
+            &creature_skill_value(&mutation.post_projection, &skill_key),
+        ),
+        presence_stage(
+            FinalOwnerStage::ArtifactHydration,
+            "RetrievedRecord.body.skills.by_authored_key[*]",
+            "atlas_index::hydrate_record_parts",
+            creature_skill_value(&actual.hydration, &skill_key),
+            &creature_skill_value(&mutation.hydration, &skill_key),
+        ),
+        presence_stage(
+            FinalOwnerStage::PublicSurface,
+            "RecordPresentationJson.creature.skills.by_authored_key[*]",
+            "atlas_record::record_json",
+            public_skill_value(&actual.public_surface, &skill_key),
+            &public_skill_value(&mutation.public_surface, &skill_key),
+        ),
+    ];
+    sealed_receipt(
+        identity,
+        fixture.reference,
+        source,
+        source_mutation,
+        NPC_SKILLS_READER,
+        "sealed::ActorNpcShadowSkillBase",
+        observations,
+    )
+}
+
+fn sealed_receipt(
+    identity: SourceLeafIdentity,
+    fixture: FixtureReference,
+    source: SourcePresence<SourceLeafValue>,
+    source_mutation: SourcePresence<SourceLeafValue>,
+    reader_id: &str,
+    accessor_binding: &str,
+    observations: Vec<StageObservation>,
+) -> Result<SourceLeafReceipt, CoverageContractError> {
+    if source == source_mutation {
+        return Err(error(
+            CoverageFailureCode::ReaderNotObserved,
+            "registered adversarial source accessor did not observe its internal mutation",
+        ));
+    }
+    let reader = ActualReadEvidence {
+        reader_id: reader_id.to_string(),
+        accessor_binding: accessor_binding.to_string(),
+        purpose: SourceAccessorPurpose::Parser,
+        mutation_digest: digest_serializable(&source_mutation),
+    };
+    let semantic_output = None;
+    let evidence_digest = evidence_digest(
+        &identity,
+        &fixture,
+        &source,
+        &reader,
+        &observations,
+        &semantic_output,
+    );
+    Ok(SourceLeafReceipt {
+        identity,
+        fixture,
+        source,
+        reader,
+        observations,
+        semantic_output,
+        evidence_digest,
+    })
+}
+
+impl AbilitySlot {
+    const fn canonical_name(self) -> &'static str {
+        match self {
+            Self::Strength => "strength",
+            Self::Dexterity => "dexterity",
+            Self::Constitution => "constitution",
+            Self::Intelligence => "intelligence",
+            Self::Wisdom => "wisdom",
+            Self::Charisma => "charisma",
+        }
+    }
+
+    const fn mod_pointer(self) -> &'static str {
+        match self {
+            Self::Strength => "/system/abilities/str/mod",
+            Self::Dexterity => "/system/abilities/dex/mod",
+            Self::Constitution => "/system/abilities/con/mod",
+            Self::Intelligence => "/system/abilities/int/mod",
+            Self::Wisdom => "/system/abilities/wis/mod",
+            Self::Charisma => "/system/abilities/cha/mod",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct NpcPipeline {
+    source_dto: VersionedNpcSource,
+    canonical: CreatureRecord,
+    post_projection: CreatureRecord,
+    hydration: CreatureRecord,
+    public_surface: RecordJson,
+    #[cfg(test)]
+    diagnostic_source_fields: Vec<String>,
+}
+
+fn run_npc_pipeline(
+    fixture: &ResolvedFixture,
+    raw: Value,
+) -> Result<NpcPipeline, CoverageContractError> {
+    let pack = fixture
+        .reference
+        .record_key
+        .split_once(':')
+        .map(|(pack, _)| pack)
+        .ok_or_else(|| {
+            error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                "invalid record key",
+            )
+        })?;
+    let pack_name = PackName::new(pack.to_string()).map_err(|message| {
+        error(
+            CoverageFailureCode::FixtureNotSourceGrounded,
+            message.to_string(),
+        )
+    })?;
+    let manifest_pack = ManifestPack {
+        name: pack.strip_prefix("pf2e.").unwrap_or(pack).to_string(),
+        label: "source-leaf fixture".to_string(),
+        document_type: "Actor".to_string(),
+        path: fixture
+            .reference
+            .source_path
+            .rsplit_once('/')
+            .map_or("packs", |(parent, _)| parent)
+            .to_string(),
+    };
+    let source_dto = parse_npc_source(
+        pinned_source_version_metadata(),
+        SourceIdentity::new(
+            fixture.reference.record_key.clone(),
+            fixture.reference.source_path.clone(),
+        ),
+        raw.clone(),
+    )
+    .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+    let loaded = normalize_record(
+        &manifest_pack,
+        &pack_name,
+        Path::new(&fixture.reference.source_path),
+        Path::new("."),
+        raw,
+        None,
+    )
+    .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+    let canonical = creature_body(loaded.facts.canonical_body.as_ref())?.clone();
+    #[cfg(test)]
+    let diagnostic_source_fields = loaded
+        .facts
+        .npc_core_diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.source_field.clone())
+        .collect();
+    let source_load = SourceLoad {
+        manifest_path: PathBuf::from("static/system.json"),
+        source_signature: PF2E_SOURCE_PINNED_SIGNATURE.to_string(),
+        source_record_count: 1,
+        packs: vec![LoadedPack {
+            name: pack_name,
+            label: manifest_pack.label,
+            document_type: manifest_pack.document_type,
+            declared_path: manifest_pack.path.clone(),
+            resolved_path: PathBuf::from(manifest_pack.path),
+            record_count: 1,
+        }],
+        records: vec![loaded],
+        references: Vec::new(),
+        aliases: Vec::new(),
+        remaster_links: Vec::new(),
+        pending_document_embeddings: Vec::new(),
+        document_embeddings: Vec::new(),
+        document_embedding_tokenization: Default::default(),
+        diagnostics: IngestDiagnostics::default(),
+        skipped_records: Vec::new(),
+        warnings: Vec::new(),
+    };
+    let input = index_build_input(source_load);
+    let post_projection = creature_body(input.canonical_bodies.first())?.clone();
+    let bodies = input
+        .canonical_bodies
+        .into_iter()
+        .map(|body| {
+            let RecordBody::Creature(creature) = &body;
+            (creature.identity.record_key.clone(), body)
+        })
+        .collect::<BTreeMap<_, _>>();
+    let hydrated = atlas_index::hydrate_record_parts(input.records, bodies)
+        .map_err(|message| error(CoverageFailureCode::ArtifactHydrationMismatch, message))?;
+    let hydration = creature_body(hydrated[0].body.as_ref())?.clone();
+    let public_surface = record_json(
+        &hydrated[0],
+        RecordJsonOptions {
+            detail: DetailLevel::Full,
+            include_source_json: true,
+        },
+    )
+    .map_err(|message| error(CoverageFailureCode::PublicSurfaceMismatch, message))?;
+    Ok(NpcPipeline {
+        source_dto,
+        canonical,
+        post_projection,
+        hydration,
+        public_surface,
+        #[cfg(test)]
+        diagnostic_source_fields,
+    })
+}
+
+fn creature_body(body: Option<&RecordBody>) -> Result<&CreatureRecord, CoverageContractError> {
+    match body {
+        Some(RecordBody::Creature(creature)) => Ok(creature),
+        None => Err(error(
+            CoverageFailureCode::CanonicalMismatch,
+            "NPC pipeline produced no canonical creature body",
+        )),
+    }
+}
+
+fn validate_actor_excerpt(fixture: &ResolvedFixture) -> Result<(), CoverageContractError> {
+    let excerpt = actor_excerpt(&fixture.raw)?;
+    if digest_serializable(&excerpt) != fixture.reference.excerpt_digest {
+        return Err(error(
+            CoverageFailureCode::ReceiptProvenanceInvalid,
+            "registered Actor NPC excerpt does not match its declaration digest",
+        ));
+    }
+    Ok(())
+}
+
+fn actor_excerpt(raw: &Value) -> Result<Value, CoverageContractError> {
+    let required = |pointer: &str| {
+        raw.pointer(pointer).cloned().ok_or_else(|| {
+            error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                format!("pinned Actor NPC fixture lacks {pointer}"),
+            )
+        })
+    };
+    Ok(serde_json::json!({
+        "_id": required("/_id")?,
+        "name": required("/name")?,
+        "type": required("/type")?,
+        "system": {
+            "abilities": required("/system/abilities")?,
+            "skills": required("/system/skills")?,
+        }
+    }))
+}
+
+fn ability_mod_from_raw(
+    raw: &Value,
+    slot: AbilitySlot,
+) -> Result<SourcePresence<SourceLeafValue>, CoverageContractError> {
+    match raw.pointer(slot.mod_pointer()) {
+        Some(Value::Null) => Ok(SourcePresence::Null),
+        Some(Value::Number(number)) => number.as_i64().map(number_leaf).ok_or_else(|| {
+            error(
+                CoverageFailureCode::ReaderNotObserved,
+                format!("{} is not an integer", slot.mod_pointer()),
+            )
+        }),
+        Some(other) => Err(error(
+            CoverageFailureCode::ReaderNotObserved,
+            format!(
+                "{} has unsupported source shape {other:?}",
+                slot.mod_pointer()
+            ),
+        )),
+        None => Ok(SourcePresence::Missing),
+    }
+}
+
+fn dto_ability_value(
+    source: &VersionedNpcSource,
+    slot: AbilitySlot,
+) -> SourcePresence<SourceLeafValue> {
+    let SourcePresence::Value(abilities) = &source.source.core.abilities else {
+        return match &source.source.core.abilities {
+            SourcePresence::Missing => SourcePresence::Missing,
+            SourcePresence::Null => SourcePresence::Null,
+            SourcePresence::Value(_) => unreachable!(),
+        };
+    };
+    let ability = match slot {
+        AbilitySlot::Strength => &abilities.strength,
+        AbilitySlot::Dexterity => &abilities.dexterity,
+        AbilitySlot::Constitution => &abilities.constitution,
+        AbilitySlot::Intelligence => &abilities.intelligence,
+        AbilitySlot::Wisdom => &abilities.wisdom,
+        AbilitySlot::Charisma => &abilities.charisma,
+    };
+    match ability {
+        SourcePresence::Missing => SourcePresence::Missing,
+        SourcePresence::Null => SourcePresence::Null,
+        SourcePresence::Value(ability) => source_number(&ability.value),
+    }
+}
+
+fn creature_ability_value(
+    creature: &CreatureRecord,
+    slot: AbilitySlot,
+) -> SourcePresence<SourceLeafValue> {
+    let FactValue::Value(abilities) = &creature.legacy_abilities.value else {
+        return fact_presence(&creature.legacy_abilities.value);
+    };
+    let ability = match slot {
+        AbilitySlot::Strength => &abilities.strength,
+        AbilitySlot::Dexterity => &abilities.dexterity,
+        AbilitySlot::Constitution => &abilities.constitution,
+        AbilitySlot::Intelligence => &abilities.intelligence,
+        AbilitySlot::Wisdom => &abilities.wisdom,
+        AbilitySlot::Charisma => &abilities.charisma,
+    };
+    fact_number(ability)
+}
+
+fn unsupported_skill_key(raw: &Value) -> Result<String, CoverageContractError> {
+    let skills = raw
+        .pointer("/system/skills")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                "pinned Actor NPC fixture has no skills map",
+            )
+        })?;
+    let keys = skills
+        .keys()
+        .filter(|key| CreatureSkillKind::from_source_slug(key).is_none())
+        .cloned()
+        .collect::<Vec<_>>();
+    if keys.len() != 1 {
+        return Err(error(
+            CoverageFailureCode::FixtureNotSourceGrounded,
+            format!(
+                "adversarial shadow-skill fixture requires exactly one unsupported key, found {keys:?}"
+            ),
+        ));
+    }
+    Ok(keys[0].clone())
+}
+
+fn shadow_skill_from_raw(
+    raw: &Value,
+    key: &str,
+) -> Result<SourcePresence<SourceLeafValue>, CoverageContractError> {
+    let pointer = format!("/system/skills/{}/base", escape_json_pointer(key));
+    match raw.pointer(&pointer) {
+        Some(Value::Null) => Ok(unsupported_map_leaf(key, Value::Null, SourceJsonType::Null)),
+        Some(Value::Number(number)) => number
+            .as_i64()
+            .map(|value| unsupported_map_leaf(key, Value::from(value), SourceJsonType::Number))
+            .ok_or_else(|| {
+                error(
+                    CoverageFailureCode::ReaderNotObserved,
+                    format!("shadow skill {key:?} base is not an integer"),
+                )
+            }),
+        Some(other) => Err(error(
+            CoverageFailureCode::ReaderNotObserved,
+            format!("shadow skill {key:?} has unsupported base {other:?}"),
+        )),
+        None => Err(error(
+            CoverageFailureCode::ReaderNotObserved,
+            format!("shadow skill {key:?} has no authored base member"),
+        )),
+    }
+}
+
+fn dto_shadow_skill_value(
+    source: &VersionedNpcSource,
+    key: &str,
+) -> SourcePresence<SourceLeafValue> {
+    let SourcePresence::Value(skills) = &source.source.core.skills else {
+        return match &source.source.core.skills {
+            SourcePresence::Missing => SourcePresence::Missing,
+            SourcePresence::Null => SourcePresence::Null,
+            SourcePresence::Value(_) => unreachable!(),
+        };
+    };
+    let Some(skill) = skills.get(key) else {
+        return SourcePresence::Missing;
+    };
+    match &skill.base {
+        SourcePresence::Value(value) => {
+            unsupported_map_leaf(key, Value::from(*value), SourceJsonType::Number)
+        }
+        SourcePresence::Null => unsupported_map_leaf(key, Value::Null, SourceJsonType::Null),
+        SourcePresence::Missing => SourcePresence::Missing,
+    }
+}
+
+fn creature_skill_value(creature: &CreatureRecord, key: &str) -> SourcePresence<SourceLeafValue> {
+    let FactValue::Value(skills) = &creature.skills.value else {
+        return fact_presence(&creature.skills.value);
+    };
+    let Some(skill) = skills.iter().find(|skill| skill.kind.source_slug() == key) else {
+        return SourcePresence::Missing;
+    };
+    match &skill.modifier {
+        FactValue::Value(value) => map_number_leaf(key, *value),
+        FactValue::Null => SourcePresence::Null,
+        FactValue::Missing => SourcePresence::Missing,
+    }
+}
+
+fn public_skill_value(record: &RecordJson, key: &str) -> SourcePresence<SourceLeafValue> {
+    let RecordPresentationJson::Creature { skills, .. } = &record.presentation else {
+        return SourcePresence::Missing;
+    };
+    let Some(skill) = skills
+        .as_ref()
+        .and_then(|skills| skills.iter().find(|skill| skill.slug == key))
+    else {
+        return SourcePresence::Missing;
+    };
+    match skill.modifier {
+        Some(value) => map_number_leaf(key, value),
+        None => SourcePresence::Missing,
+    }
+}
+
+fn escape_json_pointer(value: &str) -> String {
+    value.replace('~', "~0").replace('/', "~1")
+}
+
+fn source_number(source: &SourcePresence<i64>) -> SourcePresence<SourceLeafValue> {
+    match source {
+        SourcePresence::Missing => SourcePresence::Missing,
+        SourcePresence::Null => SourcePresence::Null,
+        SourcePresence::Value(value) => number_leaf(*value),
+    }
+}
+
+fn fact_number(source: &FactValue<i64>) -> SourcePresence<SourceLeafValue> {
+    match source {
+        FactValue::Missing => SourcePresence::Missing,
+        FactValue::Null => SourcePresence::Null,
+        FactValue::Value(value) => number_leaf(*value),
+    }
+}
+
+fn fact_presence<T>(source: &FactValue<T>) -> SourcePresence<SourceLeafValue> {
+    match source {
+        FactValue::Missing => SourcePresence::Missing,
+        FactValue::Null => SourcePresence::Null,
+        FactValue::Value(_) => SourcePresence::Missing,
+    }
+}
+
+fn number_leaf(value: i64) -> SourcePresence<SourceLeafValue> {
+    SourcePresence::Value(SourceLeafValue {
+        json_type: SourceJsonType::Number,
+        value: Some(Value::from(value)),
+        stable_digest: None,
+        member_kind: None,
+        member_identity: None,
+        ordinal: None,
+        multiplicity: 1,
+        unsupported: None,
+    })
+}
+
+fn map_number_leaf(key: &str, value: i64) -> SourcePresence<SourceLeafValue> {
+    SourcePresence::Value(SourceLeafValue {
+        json_type: SourceJsonType::Number,
+        value: Some(Value::from(value)),
+        stable_digest: None,
+        member_kind: Some(SourceMemberKind::Map),
+        member_identity: Some(key.to_string()),
+        ordinal: None,
+        multiplicity: 1,
+        unsupported: None,
+    })
+}
+
+fn unsupported_map_leaf(
+    key: &str,
+    value: Value,
+    json_type: SourceJsonType,
+) -> SourcePresence<SourceLeafValue> {
+    SourcePresence::Value(SourceLeafValue {
+        json_type,
+        value: Some(value.clone()),
+        stable_digest: None,
+        member_kind: Some(SourceMemberKind::Map),
+        member_identity: Some(key.to_string()),
+        ordinal: None,
+        multiplicity: 1,
+        unsupported: Some(TypedUnsupportedValue {
+            value,
+            reason: "authored noncanonical skill-map key".to_string(),
+        }),
+    })
+}
+
+fn presence_stage(
+    stage: FinalOwnerStage,
+    destination: &str,
+    accessor_binding: &str,
+    value: SourcePresence<SourceLeafValue>,
+    mutation: &SourcePresence<SourceLeafValue>,
+) -> StageObservation {
+    StageObservation {
+        stage,
+        destination: destination.to_string(),
+        accessor_binding: accessor_binding.to_string(),
+        mutation_digest: digest_serializable(mutation),
+        value,
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -694,6 +1383,7 @@ pub(crate) enum SourceJsonType {
     Boolean,
     Number,
     String,
+    Null,
     Array,
     Object,
 }
@@ -782,6 +1472,7 @@ mod tests {
         SourceDocumentRole, SourceLeafContract, SourceLeafDisposition, SourceLeafKind,
         SourceLeafSelector, SourceParentContextSelector, SourcePin, SourcePrevalence,
         SurfaceContract, SurfaceDecision, SurfaceDisposition, evaluate_source_leaf_coverage,
+        parse_source_leaf_ledger,
     };
 
     fn promoted() -> SurfaceDecision {
@@ -964,5 +1655,67 @@ mod tests {
         let error = capture_registered_source_leaf_receipt(&ledger, 0, 0, Path::new("."))
             .expect_err("unregistered caller accessors are rejected before source loading");
         assert_eq!(error.code, CoverageFailureCode::ReaderNotObserved);
+    }
+
+    #[test]
+    fn actor_adversaries_keep_exact_authored_null_identity_distinct_from_optional_null() {
+        let repository = require_pinned_repository();
+        let ledger = parse_source_leaf_ledger(include_str!(
+            "../../../../contracts/source-leaf-coverage/v1/actor-npc.yaml"
+        ))
+        .expect("Actor NPC ledger");
+
+        let malformed = capture_registered_source_leaf_receipt(&ledger, 6, 1, &repository)
+            .expect("malformed shadow-skill receipt");
+        let SourcePresence::Value(value) = malformed.source() else {
+            panic!("authored malformed key with null base is populated unsupported evidence");
+        };
+        assert_eq!(value.member_identity.as_deref(), Some("acrobatics+13"));
+        assert_eq!(value.json_type, SourceJsonType::Null);
+        assert_eq!(value.value, Some(Value::Null));
+        assert_eq!(
+            value
+                .unsupported
+                .as_ref()
+                .map(|unsupported| &unsupported.value),
+            Some(&Value::Null)
+        );
+        assert_eq!(
+            malformed.observations()[0].value(),
+            malformed.source(),
+            "the DTO reader must retain the exact unknown authored key"
+        );
+        assert!(matches!(
+            malformed.observations()[1].value(),
+            SourcePresence::Missing
+        ));
+
+        let malformed_identity = ledger.identity_for(&ledger.leaves[6]);
+        let malformed_fixture = ResolvedFixture::load(
+            &ledger.leaves[6].fixtures[1],
+            &repository,
+            &malformed_identity.selector,
+        )
+        .expect("malformed pinned fixture");
+        let malformed_pipeline =
+            run_npc_pipeline(&malformed_fixture, malformed_fixture.raw.clone())
+                .expect("malformed production pipeline");
+        assert!(
+            malformed_pipeline
+                .diagnostic_source_fields
+                .iter()
+                .any(|field| field == "$.system.skills.acrobatics+13"),
+            "the current diagnostic exists but cannot satisfy canonical or public ownership"
+        );
+
+        let known_optional_null =
+            capture_registered_source_leaf_receipt(&ledger, 4, 3, &repository)
+                .expect("Inkdrop explicit-null wisdom receipt");
+        assert!(matches!(known_optional_null.source(), SourcePresence::Null));
+
+        let divergent = capture_registered_source_leaf_receipt(&ledger, 0, 2, &repository)
+            .expect("Karumzek divergent mod/value receipt");
+        assert_eq!(divergent.source(), &number_leaf(6));
+        assert_eq!(divergent.observations()[0].value(), &number_leaf(16));
     }
 }
