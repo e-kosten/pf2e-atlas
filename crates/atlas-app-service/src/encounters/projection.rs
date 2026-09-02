@@ -32,7 +32,7 @@ pub(super) fn encounter_detail_view(
         participants: participants
             .into_iter()
             .map(|participant| participant_view(participant, &hydrated_records))
-            .collect(),
+            .collect::<AppServiceResult<Vec<_>>>()?,
     })
 }
 
@@ -56,7 +56,7 @@ pub(super) fn encounter_summary(
 pub(super) fn participant_view(
     participant: EncounterParticipant,
     hydrated_records: &HydratedParticipantRecords,
-) -> EncounterParticipantView {
+) -> AppServiceResult<EncounterParticipantView> {
     let retrieved = participant
         .record_key
         .as_ref()
@@ -76,13 +76,23 @@ pub(super) fn participant_view(
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
     let surface = if let Some(retrieved) = retrieved {
+        let remaster_lookup = hydrated_records
+            .remaster_lookups_by_key
+            .get(&retrieved.record.identity.key.to_string())
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::InternalError,
+                    format!(
+                        "canonical encounter record `{}` is missing its authenticated remaster lookup",
+                        retrieved.record.identity.key
+                    ),
+                )
+            })?;
         record_surface(
             retrieved,
             RecordSurfaceProfileView::EncounterParticipant,
             Some(encounter_runtime),
-            hydrated_records
-                .remaster_links_by_key
-                .get(&retrieved.record.identity.key.to_string()),
+            remaster_lookup,
         )
     } else {
         let reason = if participant.participant_kind == ParticipantKind::Pc {
@@ -105,7 +115,7 @@ pub(super) fn participant_view(
             encounter_runtime,
         )
     };
-    EncounterParticipantView {
+    Ok(EncounterParticipantView {
         participant_key: participant.participant_key,
         record_key: participant.record_key,
         participant_kind: participant_kind(participant.participant_kind),
@@ -121,7 +131,7 @@ pub(super) fn participant_view(
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
         record_view: surface,
-    }
+    })
 }
 
 pub(super) fn encounter_not_found(encounter_ref: &str) -> AppServiceError {

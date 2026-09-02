@@ -2,12 +2,12 @@ use atlas_app_model::{AppErrorCode, RecordDetailView};
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_search::{
     GetRecordRequest, GetRecordsRequest, RecordRefResolutionResult, RecordResolutionResult,
-    RecordRetrieval, RemasterLinksRequest, RemasterRetrieval, ResolveRecordRefRequest,
-    ResolveRecordRequest,
+    RecordRetrieval, ResolveRecordRefRequest, ResolveRecordRequest,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::projection::record_detail;
+use crate::retrieval::verified_remaster_lookup;
 use crate::service::AtlasAppService;
 
 impl AtlasAppService {
@@ -63,10 +63,8 @@ impl AtlasAppService {
                         format!("record `{record_key}` was not found"),
                     )
                 })?;
-            let remaster_links = retrieval.remaster_links(RemasterLinksRequest {
-                record_key: &record_key,
-            })?;
-            record_detail(&record, remaster_links.as_ref())
+            let remaster_lookup = verified_remaster_lookup(retrieval, &record)?;
+            record_detail(&record, &remaster_lookup)
         })
     }
 }

@@ -7,14 +7,14 @@ use atlas_app_model::{
     ResultWindowRow,
 };
 use atlas_search::{
-    AtlasRetrievalService, ListRecordsRequest, RecordListSort, RecordRetrieval,
-    RemasterLinksRequest, RemasterRetrieval, SearchPage, TextRetrieval, TextSearchMatch,
-    TextSearchRequest,
+    AtlasRetrievalService, ListRecordsRequest, RecordListSort, RecordRetrieval, SearchPage,
+    TextRetrieval, TextSearchMatch, TextSearchRequest,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::lower_basic_filter;
 use crate::projection::{record_summary, search_page_view, text_match_summary};
+use crate::retrieval::verified_remaster_lookup;
 use crate::service::AtlasAppService;
 
 pub(super) const MAX_RESULT_WINDOWS: usize = 64;
@@ -196,10 +196,8 @@ fn record_summary_with_edition(
     retrieval: &AtlasRetrievalService,
     record: &atlas_record::RetrievedRecord,
 ) -> AppServiceResult<atlas_app_model::RecordSummaryView> {
-    let remaster_links = retrieval.remaster_links(RemasterLinksRequest {
-        record_key: &record.record.identity.key,
-    })?;
-    Ok(record_summary(record, remaster_links.as_ref()))
+    let remaster_lookup = verified_remaster_lookup(retrieval, record)?;
+    Ok(record_summary(record, &remaster_lookup))
 }
 
 fn record_list_sort(value: RecordListSortView) -> RecordListSort {
