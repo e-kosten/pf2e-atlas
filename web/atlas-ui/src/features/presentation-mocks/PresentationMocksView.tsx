@@ -283,7 +283,7 @@ const conceptSurface: RecordSurfaceView = {
           label: "Dream Bargain",
           traits: ["curse", "occult"],
           action_cost: { cost_type: "actions", count: 2 },
-          frequency: { maximum: 1, period: "day" },
+          frequency: { maximum: 1, period: "PT1M", display: "1 per minute" },
           requirements: "The envoy can see the target.",
           cost: "One dream token",
           uses: { maximum: 3 },
