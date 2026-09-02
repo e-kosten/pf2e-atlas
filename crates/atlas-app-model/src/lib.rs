@@ -136,6 +136,10 @@ mod tests {
             .get("CreatureSurfaceView.ts")
             .expect("CreatureSurfaceView binding should exist");
         for named_domain in [
+            "teaser?: string",
+            "size?: CreatureSurfaceSizeView",
+            "adjustment?: CreatureSurfaceAdjustmentView",
+            "initiative?: CreatureSurfaceInitiativeView",
             "vitals?: CreatureSurfaceVitalsView",
             "defenses?: CreatureSurfaceDefensesView",
             "saves?: CreatureSurfaceSavesView",
@@ -143,6 +147,9 @@ mod tests {
             "abilities?: CreatureSurfaceAbilitiesView",
             "skills?: Array<CreatureSurfaceSkillView>",
             "movement?: Array<CreatureSurfaceMovementView>",
+            "rituals?: CreatureSurfaceRitualsView",
+            "equipment?: Array<CreatureSurfaceEquipmentView>",
+            "lore?: Array<CreatureSurfaceLoreView>",
             "spellcasting?: Array<CreatureSurfaceSpellcastingView>",
             "standalone_spells?: Array<CreatureSurfaceSpellView>",
             "activities?: Array<CreatureSurfaceActivityView>",
@@ -155,15 +162,41 @@ mod tests {
                 "generated creature surface should expose `{named_domain}`"
             );
         }
+        let size = actual
+            .get("CreatureSurfaceSizeView.ts")
+            .expect("size binding should exist");
+        assert!(size.contains("value: CreatureSurfaceSizeValueView"));
+        assert!(size.contains("provenance: CreatureSurfaceFactProvenanceView"));
+        let adjustment = actual
+            .get("CreatureSurfaceAdjustmentView.ts")
+            .expect("adjustment binding should exist");
+        assert!(adjustment.contains("value: CreatureSurfaceAdjustmentValueView"));
+        assert!(adjustment.contains("provenance: CreatureSurfaceFactProvenanceView"));
         assert!(!creature.contains(&["sec", "tions"].concat()));
         let activity = actual
             .get("CreatureSurfaceActivityView.ts")
             .expect("activity binding should exist");
         assert!(activity.contains("content?: Array<CreatureSurfaceContentView>"));
+        for field in [
+            "attack_effects?: Array<string>",
+            "category?: string",
+            "frequency?: CreatureSurfaceFrequencyView",
+            "requirements?: string",
+            "cost?: string",
+            "uses?: CreatureSurfaceUsesView",
+            "self_effect?: CreatureSurfaceSelfEffectView",
+        ] {
+            assert!(activity.contains(field), "missing `{field}`");
+        }
         let spell = actual
             .get("CreatureSurfaceSpellView.ts")
             .expect("spell binding should exist");
         assert!(spell.contains("content?: Array<CreatureSurfaceContentView>"));
+        assert!(spell.contains("context?: CreatureSurfaceSpellOccurrenceContextView"));
+        let spellcasting = actual
+            .get("CreatureSurfaceSpellcastingView.ts")
+            .expect("spellcasting binding should exist");
+        assert!(spellcasting.contains("slots?: Array<CreatureSurfaceSpellSlotView>"));
         let content = actual
             .get("CreatureSurfaceContentView.ts")
             .expect("content binding should exist");
@@ -237,6 +270,8 @@ mod tests {
             .get("CreatureSurfaceUnavailableDomainsView.ts")
             .expect("typed unavailable-domain binding should exist");
         for domain in [
+            "classification?",
+            "initiative?",
             "vitals?",
             "defenses?",
             "saves?",
@@ -245,6 +280,8 @@ mod tests {
             "skills?",
             "movement?",
             "resources?",
+            "equipment?",
+            "lore?",
             "spellcasting?",
             "activities?",
             "relationships?",
@@ -259,6 +296,7 @@ mod tests {
             .expect("typed unavailable cause binding should exist");
         assert!(cause.contains("state: CreatureSurfaceUnavailableStateView"));
         assert!(cause.contains("field: CreatureSurfaceUnavailableFieldView"));
+        assert!(cause.contains("unmodeled_skill?: CreatureSurfaceUnmodeledSkillView"));
         assert!(!cause.contains("source_path"));
 
         for (binding, optional_collections) in [
@@ -272,9 +310,16 @@ mod tests {
             ),
             (
                 "CreatureSurfaceActivityView.ts",
-                &["traits?", "rolls?", "damage?"][..],
+                &["traits?", "attack_effects?", "rolls?", "damage?"][..],
             ),
-            ("CreatureSurfaceSpellcastingView.ts", &["spells?"][..]),
+            (
+                "CreatureSurfaceSkillView.ts",
+                &["source_entries?", "variants?"][..],
+            ),
+            (
+                "CreatureSurfaceSpellcastingView.ts",
+                &["slots?", "spells?"][..],
+            ),
             (
                 "EncounterRuntimeView.ts",
                 &[
@@ -360,11 +405,16 @@ mod tests {
             profile: RecordSurfaceProfileView::RecordDetail,
             presentation: RecordSurfacePresentationView::Creature {
                 body: Box::new(CreatureSurfaceView {
+                    teaser: None,
+                    size: None,
+                    adjustment: None,
+                    initiative: None,
                     vitals: None,
                     defenses: Some(CreatureSurfaceDefensesView {
                         armor_class: Some(15),
                         armor_class_details: None,
                         hardness: None,
+                        shield: None,
                         immunities: Vec::new(),
                         resistances: vec![CreatureSurfaceIwrView {
                             component_id: "resistance-fire".to_string(),
@@ -391,6 +441,9 @@ mod tests {
                     skills: Some(Vec::new()),
                     movement: None,
                     resources: None,
+                    rituals: None,
+                    equipment: None,
+                    lore: None,
                     spellcasting: None,
                     standalone_spells: Some(Vec::new()),
                     activities: Some(vec![CreatureSurfaceActivityView {
@@ -400,6 +453,13 @@ mod tests {
                         label: "Bite".to_string(),
                         traits: Vec::new(),
                         action_cost: Some(CreatureSurfaceActionCostView::Actions { count: 1 }),
+                        attack_effects: None,
+                        category: None,
+                        frequency: None,
+                        requirements: None,
+                        cost: None,
+                        uses: None,
+                        self_effect: None,
                         rolls: Vec::new(),
                         damage: Vec::new(),
                         content: None,
@@ -442,6 +502,8 @@ mod tests {
     #[test]
     fn typed_domain_failure_is_distinct_from_known_empty_omission() {
         let unavailable = CreatureSurfaceUnavailableDomainsView {
+            classification: None,
+            initiative: None,
             vitals: None,
             defenses: None,
             saves: None,
@@ -454,6 +516,7 @@ mod tests {
                         owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
                         field: CreatureSurfaceSourceFieldView::Perception,
                     },
+                    unmodeled_skill: None,
                     message: "Display-only context.".to_string(),
                 }],
             }),
@@ -461,6 +524,8 @@ mod tests {
             skills: None,
             movement: None,
             resources: None,
+            equipment: None,
+            lore: None,
             spellcasting: None,
             activities: None,
             relationships: None,
@@ -475,6 +540,39 @@ mod tests {
                 .get("source_path")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn unmodeled_skill_serialization_preserves_the_exact_authored_key_without_raw_diagnostics() {
+        let authored_key = " Acrobatics +13\n{\"source_path\":\"private\"} ".to_string();
+        let cause = CreatureSurfaceUnavailableCauseView {
+            state: CreatureSurfaceUnavailableStateView::Unsupported,
+            field: CreatureSurfaceUnavailableFieldView::UnmodeledSkill,
+            component_id: Some("skill-source-7".to_string()),
+            provenance: CreatureSurfaceFactProvenanceView {
+                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                field: CreatureSurfaceSourceFieldView::Skills,
+            },
+            unmodeled_skill: Some(CreatureSurfaceUnmodeledSkillView {
+                authored_key: authored_key.clone(),
+                base: CreatureSurfaceIntegerPresenceView::Null,
+                reason: CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey,
+            }),
+            message: "The source supplied an unrecognized skill key.".to_string(),
+        };
+
+        let serialized = serde_json::to_value(cause).expect("unmodeled skill should serialize");
+        assert_eq!(serialized["state"], "unsupported");
+        assert_eq!(serialized["field"], "unmodeled_skill");
+        assert_eq!(serialized["unmodeled_skill"]["authored_key"], authored_key);
+        assert_eq!(serialized["unmodeled_skill"]["base"]["state"], "null");
+        assert_eq!(
+            serialized["unmodeled_skill"]["reason"],
+            "unknown_authored_key"
+        );
+        assert!(serialized.get("source_path").is_none());
+        assert!(serialized.get("diagnostic").is_none());
+        assert!(serialized.get("raw_json").is_none());
     }
 
     #[test]
@@ -517,6 +615,13 @@ mod tests {
             label: "Abyssal Plague".to_string(),
             traits: Vec::new(),
             action_cost: None,
+            attack_effects: None,
+            category: None,
+            frequency: None,
+            requirements: None,
+            cost: None,
+            uses: None,
+            self_effect: None,
             rolls: Vec::new(),
             damage: Vec::new(),
             content: Some(vec![content.clone()]),
@@ -527,6 +632,7 @@ mod tests {
             label: "Bind Soul".to_string(),
             target_record_key: None,
             rank: Some(9),
+            context: None,
             traits: vec!["spell".to_string()],
             content: Some(vec![content]),
         };

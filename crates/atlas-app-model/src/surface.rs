@@ -99,6 +99,18 @@ pub enum SurfaceUnavailableReasonView {
 pub struct CreatureSurfaceView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub teaser: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub size: Option<CreatureSurfaceSizeView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub adjustment: Option<CreatureSurfaceAdjustmentView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initiative: Option<CreatureSurfaceInitiativeView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub vitals: Option<CreatureSurfaceVitalsView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -121,6 +133,15 @@ pub struct CreatureSurfaceView {
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub resources: Option<Vec<CreatureSurfaceResourceView>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rituals: Option<CreatureSurfaceRitualsView>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub equipment: Option<Vec<CreatureSurfaceEquipmentView>>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub lore: Option<Vec<CreatureSurfaceLoreView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub spellcasting: Option<Vec<CreatureSurfaceSpellcastingView>>,
@@ -149,6 +170,12 @@ pub struct CreatureSurfaceView {
 pub struct CreatureSurfaceUnavailableDomainsView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub classification: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initiative: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub vitals: Option<CreatureSurfaceDomainUnavailableView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -171,6 +198,12 @@ pub struct CreatureSurfaceUnavailableDomainsView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub resources: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub equipment: Option<CreatureSurfaceDomainUnavailableView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub lore: Option<CreatureSurfaceDomainUnavailableView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub spellcasting: Option<CreatureSurfaceDomainUnavailableView>,
@@ -197,6 +230,9 @@ pub struct CreatureSurfaceUnavailableCauseView {
     #[ts(optional)]
     pub component_id: Option<String>,
     pub provenance: CreatureSurfaceFactProvenanceView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unmodeled_skill: Option<CreatureSurfaceUnmodeledSkillView>,
     pub message: String,
 }
 
@@ -213,9 +249,16 @@ pub enum CreatureSurfaceUnavailableStateView {
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum CreatureSurfaceUnavailableFieldView {
+    Size,
+    Adjustment,
+    InitiativeStatistic,
     Defenses,
     HitPoints,
     ArmorClass,
+    ShieldArmorClassBonus,
+    ShieldBrokenThreshold,
+    ShieldHardness,
+    ShieldMaximumHitPoints,
     Saves,
     Immunities,
     Resistances,
@@ -229,6 +272,9 @@ pub enum CreatureSurfaceUnavailableFieldView {
     Languages,
     Skills,
     SkillModifier,
+    SkillVariantModifier,
+    SkillVariantPredicate,
+    UnmodeledSkill,
     LegacyAbilities,
     Movement,
     MovementMode,
@@ -238,6 +284,9 @@ pub enum CreatureSurfaceUnavailableFieldView {
     EmbeddedEntities,
     ActivityTraits,
     ActivityActionCost,
+    ActionFrequencyMaximum,
+    ActionFrequencyPeriod,
+    ActionUsesMaximum,
     ActivityRoll,
     ActivityDamage,
     ActivityContent,
@@ -249,8 +298,56 @@ pub enum CreatureSurfaceUnavailableFieldView {
     SpellDifficultyClass,
     SpellTraits,
     SpellRank,
+    SpellUsesMaximum,
+    SpellSlotMaximum,
+    RitualDifficultyClass,
     SpellContent,
+    Equipment,
+    EquipmentUsesMaximum,
+    Lore,
+    LoreModifier,
     Relationships,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSizeView {
+    pub value: CreatureSurfaceSizeValueView,
+    pub provenance: CreatureSurfaceFactProvenanceView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CreatureSurfaceSizeValueView {
+    Tiny,
+    Small,
+    Medium,
+    Large,
+    Huge,
+    Gargantuan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceAdjustmentView {
+    pub value: CreatureSurfaceAdjustmentValueView,
+    pub provenance: CreatureSurfaceFactProvenanceView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CreatureSurfaceAdjustmentValueView {
+    Elite,
+    Weak,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceInitiativeView {
+    pub statistic: String,
+    pub provenance: CreatureSurfaceFactProvenanceView,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -280,6 +377,9 @@ pub struct CreatureSurfaceDefensesView {
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub hardness: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub shield: Option<CreatureSurfaceShieldView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub immunities: Vec<CreatureSurfaceIwrView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -287,6 +387,27 @@ pub struct CreatureSurfaceDefensesView {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub weaknesses: Vec<CreatureSurfaceIwrView>,
     pub provenance: CreatureSurfaceFactProvenanceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceShieldView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub armor_class_bonus: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub broken_threshold: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub hardness: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub maximum_hit_points: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -411,6 +532,9 @@ pub struct CreatureSurfaceSkillView {
     pub authored_order: u32,
     pub kind: String,
     pub label: String,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub source_entries: Option<Vec<CreatureSurfaceSkillSourceEntryView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
@@ -418,6 +542,83 @@ pub struct CreatureSurfaceSkillView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub note: Option<String>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub variants: Option<Vec<CreatureSurfaceSkillVariantView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSkillSourceEntryView {
+    pub authored_order: u32,
+    pub authored_key: String,
+    pub modifier: CreatureSurfaceIntegerPresenceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(tag = "state", rename_all = "snake_case")]
+pub enum CreatureSurfaceIntegerPresenceView {
+    Missing,
+    Null,
+    Value {
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        value: i64,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceUnmodeledSkillView {
+    pub authored_key: String,
+    pub base: CreatureSurfaceIntegerPresenceView,
+    pub reason: CreatureSurfaceUnmodeledSkillReasonView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CreatureSurfaceUnmodeledSkillReasonView {
+    UnknownAuthoredKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSkillVariantView {
+    pub component_id: String,
+    pub authored_order: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub modifier: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub predicates: Option<Vec<CreatureSurfaceSkillPredicateView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "predicate_type", rename_all = "snake_case")]
+#[ts(tag = "predicate_type", rename_all = "snake_case")]
+pub enum CreatureSurfaceSkillPredicateView {
+    Term {
+        term: String,
+    },
+    Not {
+        term: String,
+    },
+    Any {
+        terms: Vec<String>,
+    },
+    AtLeast {
+        term: String,
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        minimum: i64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -463,6 +664,27 @@ pub struct CreatureSurfaceActivityView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub action_cost: Option<CreatureSurfaceActionCostView>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub attack_effects: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub frequency: Option<CreatureSurfaceFrequencyView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub requirements: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cost: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub uses: Option<CreatureSurfaceUsesView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub self_effect: Option<CreatureSurfaceSelfEffectView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rolls: Vec<CreatureSurfaceRollView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -470,6 +692,38 @@ pub struct CreatureSurfaceActivityView {
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub content: Option<Vec<CreatureSurfaceContentView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceFrequencyView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub maximum: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub period: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceUsesView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub maximum: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSelfEffectView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -538,8 +792,23 @@ pub struct CreatureSurfaceSpellcastingView {
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub difficulty_class: Option<i64>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub slots: Option<Vec<CreatureSurfaceSpellSlotView>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub spells: Vec<CreatureSurfaceSpellView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSpellSlotView {
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
+    pub rank: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub maximum: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -555,11 +824,86 @@ pub struct CreatureSurfaceSpellView {
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub rank: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub context: Option<CreatureSurfaceSpellOccurrenceContextView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<String>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub content: Option<Vec<CreatureSurfaceContentView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSpellOccurrenceContextView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub group: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub slot: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub uses: Option<CreatureSurfaceUsesView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub contextual_label: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceRitualsView {
+    #[serde(with = "crate::json_integer")]
+    #[ts(type = "number")]
+    pub difficulty_class: i64,
+    pub provenance: CreatureSurfaceFactProvenanceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceEquipmentView {
+    pub occurrence_id: String,
+    pub authored_order: u32,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_item_id: Option<String>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub traits: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub level: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub usage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub quantity: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub uses: Option<CreatureSurfaceUsesView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceLoreView {
+    pub occurrence_id: String,
+    pub authored_order: u32,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_item_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "crate::json_integer::optional")]
+    #[ts(optional, type = "number")]
+    pub modifier: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -731,6 +1075,9 @@ pub enum CreatureSurfaceFactOwnerView {
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum CreatureSurfaceSourceFieldView {
+    Size,
+    Adjustment,
+    Initiative,
     Defenses,
     Perception,
     Languages,
