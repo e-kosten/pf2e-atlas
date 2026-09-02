@@ -422,7 +422,7 @@ describe("RecordSurface", () => {
       .closest<HTMLElement>(".creature-sheet__activity")!;
     for (const value of [
       "Two actions",
-      "1 per day",
+      "1 per minute",
       "The envoy can see the target.",
       "One dream token",
       "3 maximum",
@@ -431,6 +431,7 @@ describe("RecordSurface", () => {
     ]) {
       expect(within(bargain).getByText(value)).toBeInTheDocument();
     }
+    expect(within(bargain).queryByText("PT1M")).not.toBeInTheDocument();
     expect(actions).toContainElement(bargain);
     for (const label of ["Dream Haunting", "Spell Ambush"]) {
       const ability = screen
@@ -837,7 +838,7 @@ function detailedSurfaceFixture(): RecordSurfaceView {
         label: "Dream Bargain",
         action_cost: { cost_type: "actions", count: 2 },
         category: "offensive",
-        frequency: { maximum: 1, period: "day" },
+        frequency: { maximum: 1, period: "PT1M", display: "1 per minute" },
         requirements: "The envoy can see the target.",
         cost: "One dream token",
         uses: { maximum: 3 },

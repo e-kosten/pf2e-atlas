@@ -711,11 +711,7 @@ function ActivitySummary({ activity }: { activity: CreatureSurfaceActivityView }
 }
 
 function formatFrequency(frequency: CreatureSurfaceActivityView["frequency"]) {
-  if (!frequency) return undefined;
-  if (frequency.maximum !== undefined && frequency.period) {
-    return `${frequency.maximum} per ${frequency.period}`;
-  }
-  return frequency.maximum ?? frequency.period;
+  return frequency?.display;
 }
 
 function formatUses(uses: CreatureSurfaceActivityView["uses"]) {
