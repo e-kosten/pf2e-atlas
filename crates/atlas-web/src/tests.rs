@@ -4,34 +4,37 @@ use atlas_app_model::{
     AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
     CreatureSurfaceActivityTypeView, CreatureSurfaceActivityView, CreatureSurfaceContentBlockView,
     CreatureSurfaceContentInlineView, CreatureSurfaceContentProvenanceView,
-    CreatureSurfaceContentRoleView, CreatureSurfaceContentView,
+    CreatureSurfaceContentRoleView, CreatureSurfaceContentView, CreatureSurfaceDefensesView,
     CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
-    CreatureSurfaceFactProvenanceView, CreatureSurfaceIntegerPresenceView,
-    CreatureSurfaceProvenanceView, CreatureSurfaceSourceFieldView, CreatureSurfaceSpellView,
-    CreatureSurfaceSpellcastingView, CreatureSurfaceUnavailableCauseView,
-    CreatureSurfaceUnavailableDomainsView, CreatureSurfaceUnavailableFieldView,
-    CreatureSurfaceUnavailableStateView, CreatureSurfaceUnmodeledSkillReasonView,
-    CreatureSurfaceUnmodeledSkillView, CreatureSurfaceView, DeleteEncounterView,
-    DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
-    EncounterConditionCatalogView, EncounterConditionCategoryView,
-    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
-    EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
-    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
-    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
-    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
-    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
-    RecordSurfaceSourceView, RecordSurfaceView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, RuntimeCanonicalTargetView,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchPageView, SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    CreatureSurfaceFactProvenanceView, CreatureSurfaceFrequencyView,
+    CreatureSurfaceIntegerPresenceView, CreatureSurfaceOccurrenceIdentityStabilityView,
+    CreatureSurfaceOccurrenceProvenanceView, CreatureSurfaceProvenanceView,
+    CreatureSurfaceShieldView, CreatureSurfaceSkillSourceEntryView, CreatureSurfaceSourceFieldView,
+    CreatureSurfaceSourceLocatorView, CreatureSurfaceSpellView, CreatureSurfaceSpellcastingView,
+    CreatureSurfaceUnavailableCauseView, CreatureSurfaceUnavailableDomainsView,
+    CreatureSurfaceUnavailableFieldView, CreatureSurfaceUnavailableStateView,
+    CreatureSurfaceUnmodeledSkillReasonView, CreatureSurfaceUnmodeledSkillView,
+    CreatureSurfaceView, DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
+    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
+    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterRuntimeAutomationLimitationCodeView,
+    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
+    EncounterRuntimeConditionView, EncounterRuntimeView, EncounterRuntimeVitalsView,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
+    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
+    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView, RecordSurfaceMetadataView,
+    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
+    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
+    RuntimeCanonicalTargetView, RuntimeFactProvenanceView, RuntimeFactSourceView,
+    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
@@ -389,6 +392,26 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
     assert_eq!(status, StatusCode::OK);
     let creature = &body["surface"]["presentation"]["body"];
     assert!(creature.get("movement").is_none());
+    let shield = &creature["defenses"]["shield"];
+    assert_eq!(shield["armor_class_bonus"], 2);
+    assert!(shield.get("broken_threshold").is_none());
+    assert_eq!(shield["hardness"], 5);
+    assert_eq!(shield["maximum_hit_points"], 20);
+    assert_eq!(
+        creature["unavailable_domains"]["defenses"]["causes"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    let frequency = &creature["activities"][0]["frequency"];
+    assert_eq!(frequency["maximum"], 1);
+    assert!(frequency.get("period").is_none());
+    assert_eq!(
+        creature["unavailable_domains"]["activities"]["causes"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
     assert_eq!(
         creature["unavailable_domains"]["movement"]["causes"][0]["state"],
         "unsupported"
@@ -405,9 +428,12 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
     let unmodeled = &creature["unavailable_domains"]["skills"]["causes"][0];
     assert_eq!(unmodeled["state"], "unsupported");
     assert_eq!(unmodeled["field"], "unmodeled_skill");
+    let hostile_key = "<img src=x onerror=alert(1)> ../../etc/passwd\nskill";
+    assert_eq!(unmodeled["unmodeled_skill"]["authored_key"], hostile_key);
+    assert_eq!(unmodeled["unmodeled_skill"]["authored_order"], 3);
     assert_eq!(
-        unmodeled["unmodeled_skill"]["authored_key"],
-        "acrobatics+13"
+        unmodeled["unmodeled_skill"]["source_entries"][0]["authored_key"],
+        hostile_key
     );
     assert_eq!(unmodeled["unmodeled_skill"]["base"]["state"], "null");
     assert_eq!(
@@ -417,6 +443,12 @@ async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omissio
     assert!(unmodeled.get("source_path").is_none());
     assert!(unmodeled.get("raw_json").is_none());
     assert!(unmodeled.get("diagnostic").is_none());
+    assert_eq!(creature["unmodeled_skills"][0]["authored_key"], hostile_key);
+    assert_eq!(
+        creature["unmodeled_skills"][0]["component_id"],
+        "unmodeled-skill-1"
+    );
+    assert!(creature["unmodeled_skills"][0].get("source_path").is_none());
 }
 
 #[tokio::test]
@@ -425,6 +457,23 @@ async fn record_route_serializes_owned_activity_and_spell_content_without_flatte
         route_json(Method::GET, "/api/records/creatures:activityContent", None).await;
     assert_eq!(status, StatusCode::OK);
     let creature = &body["surface"]["presentation"]["body"];
+    assert_eq!(
+        creature["activities"][0]["provenance"]["nested_source_id"],
+        "source-occurrence-plague"
+    );
+    assert_eq!(
+        creature["spellcasting"][0]["provenance"]["stable_source_locator"],
+        "items/entry-occult"
+    );
+    assert_eq!(
+        creature["spellcasting"][0]["spells"][0]["provenance"]["nested_source_id"],
+        "source-bind-soul"
+    );
+    assert!(
+        creature["activities"][0]["provenance"]
+            .get("source_path")
+            .is_none()
+    );
     let activity_content = &creature["activities"][0]["content"][0];
     assert_eq!(activity_content["content_key"], "item:plague:description");
     assert_eq!(
@@ -1438,11 +1487,13 @@ fn activity_content_surface() -> RecordSurfaceView {
                 awareness: None,
                 abilities: None,
                 skills: None,
+                unmodeled_skills: None,
                 movement: None,
                 resources: None,
                 spellcasting: Some(vec![CreatureSurfaceSpellcastingView {
                     occurrence_id: "entry-occult".to_string(),
                     authored_order: 0,
+                    provenance: occurrence_provenance("entry-occult"),
                     label: "Occult Innate Spells".to_string(),
                     preparation: Some("innate".to_string()),
                     tradition: Some("occult".to_string()),
@@ -1452,6 +1503,7 @@ fn activity_content_surface() -> RecordSurfaceView {
                     spells: vec![CreatureSurfaceSpellView {
                         occurrence_id: "bind-soul".to_string(),
                         authored_order: 1,
+                        provenance: occurrence_provenance("bind-soul"),
                         label: "Bind Soul".to_string(),
                         target_record_key: None,
                         rank: Some(9),
@@ -1463,6 +1515,7 @@ fn activity_content_surface() -> RecordSurfaceView {
                 standalone_spells: Some(vec![CreatureSurfaceSpellView {
                     occurrence_id: "control-weather".to_string(),
                     authored_order: 2,
+                    provenance: occurrence_provenance("control-weather"),
                     label: "Control Weather".to_string(),
                     target_record_key: Some("spells:control-weather".to_string()),
                     rank: Some(8),
@@ -1473,6 +1526,7 @@ fn activity_content_surface() -> RecordSurfaceView {
                 activities: Some(vec![CreatureSurfaceActivityView {
                     occurrence_id: "occurrence:plague".to_string(),
                     authored_order: 0,
+                    provenance: occurrence_provenance("occurrence-plague"),
                     activity_type: CreatureSurfaceActivityTypeView::Action,
                     label: "Abyssal Plague".to_string(),
                     traits: Vec::new(),
@@ -1501,6 +1555,35 @@ fn activity_content_surface() -> RecordSurfaceView {
     }
 }
 
+fn occurrence_provenance(id: &str) -> CreatureSurfaceOccurrenceProvenanceView {
+    CreatureSurfaceOccurrenceProvenanceView {
+        identity_stability: CreatureSurfaceOccurrenceIdentityStabilityView::StableNestedSourceId,
+        nested_source_id: Some(format!("source-{id}")),
+        stable_source_locator: Some(format!("items/{id}")),
+        source_locators: Some(vec![CreatureSurfaceSourceLocatorView {
+            locator: format!("items/{id}"),
+            precedence: 0,
+        }]),
+    }
+}
+
+fn hostile_unmodeled_skill() -> CreatureSurfaceUnmodeledSkillView {
+    let authored_key = "<img src=x onerror=alert(1)> ../../etc/passwd\nskill".to_string();
+    CreatureSurfaceUnmodeledSkillView {
+        component_id: "unmodeled-skill-1".to_string(),
+        authored_order: 3,
+        source_entries: Some(vec![CreatureSurfaceSkillSourceEntryView {
+            authored_order: 0,
+            authored_key: authored_key.clone(),
+            modifier: CreatureSurfaceIntegerPresenceView::Null,
+        }]),
+        source_item_id: Some("source-unmodeled-skill-1".to_string()),
+        authored_key,
+        base: CreatureSurfaceIntegerPresenceView::Null,
+        reason: CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey,
+    }
+}
+
 fn typed_failure_surface() -> RecordSurfaceView {
     RecordSurfaceView {
         metadata: RecordSurfaceMetadataView {
@@ -1521,16 +1604,55 @@ fn typed_failure_surface() -> RecordSurfaceView {
                 adjustment: None,
                 initiative: None,
                 vitals: None,
-                defenses: None,
+                defenses: Some(CreatureSurfaceDefensesView {
+                    armor_class: None,
+                    armor_class_details: None,
+                    hardness: None,
+                    shield: Some(CreatureSurfaceShieldView {
+                        armor_class_bonus: Some(2),
+                        broken_threshold: None,
+                        hardness: Some(5),
+                        maximum_hit_points: Some(20),
+                    }),
+                    immunities: Vec::new(),
+                    resistances: Vec::new(),
+                    weaknesses: Vec::new(),
+                    provenance: CreatureSurfaceFactProvenanceView {
+                        owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                        field: CreatureSurfaceSourceFieldView::Defenses,
+                    },
+                }),
                 saves: None,
                 awareness: None,
                 abilities: None,
                 skills: None,
+                unmodeled_skills: Some(vec![hostile_unmodeled_skill()]),
                 movement: None,
                 resources: None,
                 spellcasting: None,
                 standalone_spells: None,
-                activities: None,
+                activities: Some(vec![CreatureSurfaceActivityView {
+                    occurrence_id: "partial-frequency".to_string(),
+                    authored_order: 0,
+                    provenance: occurrence_provenance("partial-frequency"),
+                    activity_type: CreatureSurfaceActivityTypeView::Action,
+                    label: "Partial Frequency".to_string(),
+                    traits: Vec::new(),
+                    action_cost: None,
+                    attack_effects: None,
+                    category: None,
+                    frequency: Some(CreatureSurfaceFrequencyView {
+                        maximum: Some(1),
+                        period: None,
+                    }),
+                    requirements: None,
+                    cost: None,
+                    uses: None,
+                    self_effect: None,
+                    rolls: Vec::new(),
+                    damage: Vec::new(),
+                    content: None,
+                }]),
                 rituals: None,
                 equipment: None,
                 lore: None,
@@ -1540,7 +1662,19 @@ fn typed_failure_surface() -> RecordSurfaceView {
                     classification: None,
                     initiative: None,
                     vitals: None,
-                    defenses: None,
+                    defenses: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Null,
+                            field: CreatureSurfaceUnavailableFieldView::ShieldBrokenThreshold,
+                            component_id: None,
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::Defenses,
+                            },
+                            unmodeled_skill: None,
+                            message: "Display only.".to_string(),
+                        }],
+                    }),
                     saves: None,
                     awareness: None,
                     abilities: None,
@@ -1553,11 +1687,7 @@ fn typed_failure_surface() -> RecordSurfaceView {
                                 owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
                                 field: CreatureSurfaceSourceFieldView::Skills,
                             },
-                            unmodeled_skill: Some(CreatureSurfaceUnmodeledSkillView {
-                                authored_key: "acrobatics+13".to_string(),
-                                base: CreatureSurfaceIntegerPresenceView::Null,
-                                reason: CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey,
-                            }),
+                            unmodeled_skill: Some(hostile_unmodeled_skill()),
                             message: "The source supplied an unrecognized skill key.".to_string(),
                         }],
                     }),
@@ -1576,7 +1706,19 @@ fn typed_failure_surface() -> RecordSurfaceView {
                     }),
                     resources: None,
                     spellcasting: None,
-                    activities: None,
+                    activities: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Missing,
+                            field: CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod,
+                            component_id: Some("partial-frequency".to_string()),
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                            },
+                            unmodeled_skill: None,
+                            message: "Display only.".to_string(),
+                        }],
+                    }),
                     equipment: None,
                     lore: None,
                     relationships: None,

@@ -129,6 +129,9 @@ pub struct CreatureSurfaceView {
     pub skills: Option<Vec<CreatureSurfaceSkillView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
+    pub unmodeled_skills: Option<Vec<CreatureSurfaceUnmodeledSkillView>>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
     pub movement: Option<Vec<CreatureSurfaceMovementView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
@@ -571,6 +574,14 @@ pub enum CreatureSurfaceIntegerPresenceView {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct CreatureSurfaceUnmodeledSkillView {
+    pub component_id: String,
+    pub authored_order: u32,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub source_entries: Option<Vec<CreatureSurfaceSkillSourceEntryView>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_item_id: Option<String>,
     pub authored_key: String,
     pub base: CreatureSurfaceIntegerPresenceView,
     pub reason: CreatureSurfaceUnmodeledSkillReasonView,
@@ -657,6 +668,7 @@ pub struct CreatureSurfaceResourceView {
 pub struct CreatureSurfaceActivityView {
     pub occurrence_id: String,
     pub authored_order: u32,
+    pub provenance: CreatureSurfaceOccurrenceProvenanceView,
     pub activity_type: CreatureSurfaceActivityTypeView,
     pub label: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -777,6 +789,7 @@ pub struct CreatureSurfaceDamageView {
 pub struct CreatureSurfaceSpellcastingView {
     pub occurrence_id: String,
     pub authored_order: u32,
+    pub provenance: CreatureSurfaceOccurrenceProvenanceView,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -816,6 +829,7 @@ pub struct CreatureSurfaceSpellSlotView {
 pub struct CreatureSurfaceSpellView {
     pub occurrence_id: String,
     pub authored_order: u32,
+    pub provenance: CreatureSurfaceOccurrenceProvenanceView,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -868,10 +882,8 @@ pub struct CreatureSurfaceRitualsView {
 pub struct CreatureSurfaceEquipmentView {
     pub occurrence_id: String,
     pub authored_order: u32,
+    pub provenance: CreatureSurfaceOccurrenceProvenanceView,
     pub label: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub source_item_id: Option<String>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub traits: Option<Vec<String>>,
@@ -896,14 +908,42 @@ pub struct CreatureSurfaceEquipmentView {
 pub struct CreatureSurfaceLoreView {
     pub occurrence_id: String,
     pub authored_order: u32,
+    pub provenance: CreatureSurfaceOccurrenceProvenanceView,
     pub label: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub source_item_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub modifier: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceOccurrenceProvenanceView {
+    pub identity_stability: CreatureSurfaceOccurrenceIdentityStabilityView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub nested_source_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub stable_source_locator: Option<String>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub source_locators: Option<Vec<CreatureSurfaceSourceLocatorView>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum CreatureSurfaceOccurrenceIdentityStabilityView {
+    StableNestedSourceId,
+    UnstableOwnerFamilyOrdinal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct CreatureSurfaceSourceLocatorView {
+    pub locator: String,
+    pub precedence: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
