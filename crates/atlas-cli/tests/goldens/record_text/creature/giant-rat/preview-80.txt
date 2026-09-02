@@ -10,11 +10,11 @@ Classification
   Source: Pathfinder Monster Core
 
 Defenses
-  AC: 15;
-  HP: current 8; maximum 8; temporary 0;
-  Fortitude: 6;
-  Reflex: 7;
-  Will: 3;
+  AC: 15
+  HP: current 8; maximum 8; temporary 0
+  Fortitude: 6
+  Reflex: 7
+  Will: 3
 
 Awareness and abilities
   Perception: +5; low-light-vision; scent (imprecise) 30 feet

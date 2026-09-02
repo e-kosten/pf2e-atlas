@@ -10,12 +10,12 @@ Classification
   Source: Pathfinder #177: Burning Tundra
 
 Defenses
-  AC: 31;
-  HP: current 140; maximum 140; temporary 0;
+  AC: 31
+  HP: current 140; maximum 140; temporary 0
   Shield: Hardness 0; BT 0; HP 0; AC bonus +2
-  Fortitude: 19;
-  Reflex: 17;
-  Will: 23;
+  Fortitude: 19
+  Reflex: 17
+  Will: 23
   Immunities: paralyzed, petrified, visual
   Resistances: physical 10 (except adamantine)
   Weaknesses: cold-iron 5

@@ -12,12 +12,12 @@ Classification
   Source: Pathfinder Bestiary
 
 Defenses
-  AC: 28;
+  AC: 28
   HP: current 170; maximum 170;
-      temporary 0;
-  Fortitude: 19;
-  Reflex: 17;
-  Will: 18;
+      temporary 0
+  Fortitude: 19
+  Reflex: 17
+  Will: 18
   All saves: +2 status to all saves vs.
              magic, -2 to all saves (if
              heartstone is lost)

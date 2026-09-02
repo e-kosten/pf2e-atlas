@@ -7,17 +7,18 @@ use serde::Serialize;
 
 pub use creature::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
-    CreatureAvailabilityFieldJson, CreatureAvailabilityJson, CreatureAvailabilityStateJson,
-    CreatureContentJson, CreatureContentOwnerJson, CreatureContentProvenanceJson,
-    CreatureDamageJson, CreatureDefensesJson, CreatureEquipmentJson, CreatureFactProvenanceJson,
-    CreatureFactProvenanceSetJson, CreatureFrequencyJson, CreatureHitPointsJson,
-    CreatureInitiativeJson, CreatureIntegerPresenceJson, CreatureIwrJson, CreatureLoreJson,
-    CreatureMovementJson, CreatureMovementModeJson, CreatureOccurrenceContextJson,
-    CreatureOccurrenceProvenanceJson, CreaturePreparedSpellJson, CreatureProvenanceJson,
-    CreatureRelationshipJson, CreatureRelationshipTargetJson, CreatureResourceJson,
-    CreatureRitualsJson, CreatureRollJson, CreatureSaveJson, CreatureSavesJson, CreatureSenseJson,
-    CreatureShieldJson, CreatureSkillJson, CreatureSkillSourceEntryJson, CreatureSkillVariantJson,
-    CreatureSpellAreaJson, CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
+    CreatureAvailabilityEvidenceJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
+    CreatureAvailabilityStateJson, CreatureContentJson, CreatureContentOwnerJson,
+    CreatureContentProvenanceJson, CreatureDamageJson, CreatureDefensesJson, CreatureEquipmentJson,
+    CreatureFactProvenanceJson, CreatureFactProvenanceSetJson, CreatureFrequencyJson,
+    CreatureHitPointsJson, CreatureInitiativeJson, CreatureIntegerPresenceJson, CreatureIwrJson,
+    CreatureLoreJson, CreatureMovementJson, CreatureMovementModeJson,
+    CreatureOccurrenceContextJson, CreatureOccurrenceProvenanceJson, CreaturePreparedSpellJson,
+    CreatureProvenanceJson, CreatureRelationshipJson, CreatureRelationshipTargetJson,
+    CreatureResourceJson, CreatureRitualsJson, CreatureRollJson, CreatureSaveJson,
+    CreatureSavesJson, CreatureSenseJson, CreatureShieldJson, CreatureSkillJson,
+    CreatureSkillSourceEntryJson, CreatureSkillVariantJson, CreatureSpellAreaJson,
+    CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
 };
@@ -238,6 +239,7 @@ impl std::error::Error for RecordEditionLookupError {}
 pub struct RecordJsonContext {
     edition: RecordEditionLookup,
     relationships: RecordRelationshipLookupJson,
+    include_availability_evidence: bool,
 }
 
 impl RecordJsonContext {
@@ -245,6 +247,7 @@ impl RecordJsonContext {
         Self {
             edition: RecordEditionLookup::NotPerformed,
             relationships: RecordRelationshipLookupJson::NotPerformed,
+            include_availability_evidence: false,
         }
     }
 
@@ -255,6 +258,11 @@ impl RecordJsonContext {
 
     pub fn with_relationships(mut self, relationships: RecordRelationshipLookupJson) -> Self {
         self.relationships = relationships;
+        self
+    }
+
+    pub fn with_availability_evidence(mut self) -> Self {
+        self.include_availability_evidence = true;
         self
     }
 }
@@ -544,6 +552,8 @@ pub enum RecordPresentationJson {
         record_relationships: Option<RecordRelationshipLookupJson>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         availability: Vec<CreatureAvailabilityJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        availability_evidence: Option<Vec<CreatureAvailabilityEvidenceJson>>,
     },
     Unmigrated {
         migration: UnmigratedRegistryJson,
@@ -659,6 +669,7 @@ pub fn record_json_with_context(
     let RecordJsonContext {
         edition,
         relationships,
+        include_availability_evidence,
     } = context;
     let document = build_record_presentation_document(record);
     let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
@@ -669,6 +680,7 @@ pub fn record_json_with_context(
                 options.detail,
                 Some(edition.context_for(record)?),
                 Some(relationships),
+                include_availability_evidence,
                 matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
                     .then(|| record.content.description())
                     .flatten()
@@ -1883,10 +1895,13 @@ mod tests {
                 .as_array()
                 .expect("availability")
                 .iter()
-                .any(|cause| {
-                    cause["component_id"] == "jaws" && cause["field"] == "content_association"
-                })
+                .any(|cause| cause["field"] == "content_association")
         );
+        assert!(standard["availability"].as_array().is_some_and(|causes| {
+            causes
+                .iter()
+                .all(|cause| cause.get("component_id").is_none())
+        }));
         assert_eq!(placement_state, (0, 2, false, false));
         let full = serde_json::to_value(
             record_json(
@@ -2012,9 +2027,7 @@ mod tests {
                     .as_array()
                     .expect("availability")
                     .iter()
-                    .any(|cause| {
-                        cause["component_id"] == "jaws" && cause["field"] == "content_association"
-                    }),
+                    .any(|cause| cause["field"] == "content_association"),
                 "{case}"
             );
         }
@@ -2240,23 +2253,86 @@ mod tests {
             ))),
             basic: FactValue::Missing,
         });
-        spell.unsupported_notes = vec![unsupported_note("spell.path", "spell-note-source")];
+        spell.unsupported_notes = vec![
+            unsupported_note("spell.path", "spell-note-source"),
+            unsupported_note_with_shape("spell.empty", crate::UnsupportedSourceShape::String, ""),
+            unsupported_note_with_shape(
+                "spell.false",
+                crate::UnsupportedSourceShape::Boolean,
+                "false",
+            ),
+            unsupported_note_with_shape("spell.zero", crate::UnsupportedSourceShape::Number, "0"),
+            unsupported_note_with_shape("spell.null", crate::UnsupportedSourceShape::Null, "null"),
+            unsupported_note_with_shape(
+                "spell.object",
+                crate::UnsupportedSourceShape::Object,
+                "{\"value\":0}",
+            ),
+        ];
+
+        let ordinary = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+            )
+            .expect("ordinary full projection"),
+        )
+        .expect("ordinary JSON");
+        assert!(ordinary.get("availability_evidence").is_none());
+        assert!(ordinary["availability"].as_array().is_some_and(|causes| {
+            causes.iter().all(|cause| {
+                cause.get("component_id").is_none()
+                    && cause.get("source_shape").is_none()
+                    && cause.get("source_reason").is_none()
+                    && cause.get("source_path").is_none()
+                    && !matches!(
+                        cause["field"].as_str(),
+                        Some(
+                            "resource_serialized_value"
+                                | "resource_source_drift"
+                                | "spell_slot_serialized_value"
+                                | "unsupported_mechanic"
+                        )
+                    )
+            })
+        }));
 
         let project_availability = |record: &RetrievedRecord| {
             let value = serde_json::to_value(
-                record_json(
+                record_json_with_context(
                     record,
                     RecordJsonOptions {
                         detail: DetailLevel::Full,
                         include_source_json: false,
                     },
+                    RecordJsonContext::without_lookups(&record.record).with_availability_evidence(),
                 )
                 .expect("full projection"),
             )
             .expect("json");
-            value["availability"]
+            let product = value["availability"]
                 .as_array()
-                .expect("availability")
+                .expect("product availability");
+            assert!(product.iter().all(|cause| {
+                cause.get("component_id").is_none()
+                    && cause.get("source_shape").is_none()
+                    && cause.get("source_reason").is_none()
+                    && cause.get("source_path").is_none()
+                    && cause["field"] != "unsupported_mechanic"
+            }));
+            assert!(product.iter().all(|cause| {
+                cause["source_value"] != ""
+                    && cause["source_value"] != "false"
+                    && cause["source_value"] != "0"
+                    && cause["source_value"] != "null"
+                    && !cause["source_value"].is_object()
+            }));
+            value["availability_evidence"]
+                .as_array()
+                .expect("availability evidence")
                 .clone()
         };
         let forward = project_availability(&retrieved);
@@ -2309,6 +2385,19 @@ mod tests {
                 && cause["source_path"] == "spell.path"
                 && cause["source_value"] == "spell-note-source"
         }));
+        for (path, shape, value) in [
+            ("spell.empty", "string", ""),
+            ("spell.false", "boolean", "false"),
+            ("spell.zero", "number", "0"),
+            ("spell.null", "null", "null"),
+            ("spell.object", "object", "{\"value\":0}"),
+        ] {
+            assert!(forward.iter().any(|cause| {
+                cause["source_path"] == path
+                    && cause["source_shape"] == shape
+                    && cause["source_value"] == value
+            }));
+        }
 
         let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
         if let FactValue::Value(embedded) = &mut creature.embedded_entities.value {
@@ -2317,7 +2406,7 @@ mod tests {
         let reverse = project_availability(&retrieved);
         assert_eq!(
             forward, reverse,
-            "availability order must be mutation-stable"
+            "availability evidence order must be mutation-stable"
         );
     }
 
@@ -2333,6 +2422,21 @@ mod tests {
         crate::UnsupportedMechanicNote {
             source_path: source_path.to_string(),
             value: unsupported_value(value),
+        }
+    }
+
+    fn unsupported_note_with_shape(
+        source_path: &str,
+        shape: crate::UnsupportedSourceShape,
+        value: &str,
+    ) -> crate::UnsupportedMechanicNote {
+        crate::UnsupportedMechanicNote {
+            source_path: source_path.to_string(),
+            value: crate::UnsupportedSourceValue {
+                shape,
+                value: value.to_string(),
+                reason: crate::UnsupportedSourceReason::SourceFieldDrift,
+            },
         }
     }
 

@@ -10,11 +10,11 @@ Classification
   Source: Pathfinder Monster Core
 
 Defenses
-  AC: 16;
+  AC: 16
   HP: current 12; maximum 12; temporary 0; fast healing 2 (in open air)
-  Fortitude: 3;
-  Reflex: 9;
-  Will: 7;
+  Fortitude: 3
+  Reflex: 9
+  Will: 7
   Immunities: bleed, paralyzed, poison, sleep
 
 Awareness and abilities
@@ -58,7 +58,7 @@ Spellcasting
       - Gust of Wind — [2 actions]
         Traits: air, concentrate, manipulate
         Time: 2
-    Damage: 2d6 bludgeoning damage
+        Damage: 2d6 bludgeoning damage
 
 Public Notes
   A pale blue head and paper-thin wings peek out from the cloud that clings to the air scamp. Air scamps are
@@ -109,105 +109,3 @@ Provenance and edition
   Contract: pf2e-serialized-source/v1
   System: 6.12.4
   Upstream commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
-
-Data availability
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:1CENtBTrhih9EKVU
-    Source value: []
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
-    Source value: "Pathfinder Monster Core"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
-    Source value: []
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:sh5CdmNRuEnm3Trx
-    Source value: {"details":"In Open Air","key":"FastHealing","value":2}
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:yC1vWH3Q9V6GoICd
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:action:yC1vWH3Q9V6GoICd
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
-    Source value: "Pathfinder Player Core"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:lB8ogfWSKxbKbYS1
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
-    Source value: "Pathfinder Player Core"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spell:yTMfK57lVPwaYPar
-    Source value: "common"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
-    Source value: 1
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
-    Source value: false
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:spellcasting-entry:qqFbimQkMmmxBV9V
-    Source value: {}
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
-    Source value: ""
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
-    Source value: "ORC"
-    The source supplied an unsupported mechanic.
-  Unsupported mechanic
-    Component: occurrence:pathfinder-monster-core:MSm1im7lZA5i82rz:strike:E9s0EguOmTjyEDD4
-    Source value: null
-    The source supplied an unsupported mechanic.

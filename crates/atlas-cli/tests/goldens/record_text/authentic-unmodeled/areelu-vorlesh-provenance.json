@@ -1,0 +1,2246 @@
+{
+  "status": "ok",
+  "data": {
+    "key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+    "name": "Areelu Vorlesh",
+    "kind": "creature",
+    "record_provenance": {
+      "source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+      "source_contract_version": "pf2e-serialized-source/v1",
+      "source_system_version": "6.12.4",
+      "source_upstream_commit": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce",
+      "facts": {
+        "level": {
+          "kind": "source",
+          "field": "level"
+        },
+        "rarity": {
+          "kind": "source",
+          "field": "rarity"
+        },
+        "traits": {
+          "kind": "source",
+          "field": "traits"
+        },
+        "size": {
+          "kind": "source",
+          "field": "size"
+        },
+        "publication": {
+          "kind": "source",
+          "field": "publication"
+        },
+        "adjustment": {
+          "kind": "source",
+          "field": "adjustment"
+        },
+        "source_alliance": {
+          "kind": "source",
+          "field": "source_alliance"
+        },
+        "perception": {
+          "kind": "source",
+          "field": "perception"
+        },
+        "initiative": {
+          "kind": "source",
+          "field": "initiative"
+        },
+        "languages": {
+          "kind": "source",
+          "field": "languages"
+        },
+        "skills": {
+          "kind": "source",
+          "field": "skills"
+        },
+        "abilities": {
+          "kind": "source",
+          "field": "legacy_abilities"
+        },
+        "defenses": {
+          "kind": "source",
+          "field": "defenses"
+        },
+        "movement": {
+          "kind": "source",
+          "field": "movement"
+        },
+        "resources": {
+          "kind": "source",
+          "field": "resources"
+        },
+        "embedded_entities": {
+          "kind": "source",
+          "field": "embedded_entities"
+        }
+      }
+    },
+    "edition": {
+      "status": "remaster",
+      "counterpart_lookup": {
+        "state": "verified",
+        "counterparts": []
+      }
+    },
+    "occurrences": [
+      {
+        "family": "spellcasting_entry",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "order": 0,
+        "label": "Divine Innate Spells",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "owr7cmiGPVPEuEqF"
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Z5sKQ51eXguBUhFm",
+        "order": 1,
+        "label": "Overwhelming Presence",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Z5sKQ51eXguBUhFm",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "Z5sKQ51eXguBUhFm",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.fkDeKktdmbeplYRY",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.fkDeKktdmbeplYRY"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:8HkvaC7Y1iMQbWq4",
+        "order": 2,
+        "label": "Wails of the Damned",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:8HkvaC7Y1iMQbWq4",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "8HkvaC7Y1iMQbWq4",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.FEsuyf203wTNE2et",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.FEsuyf203wTNE2et"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "order": 3,
+        "label": "Execute",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "wmLtDVy1brEH22nZ",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.Z9OrRXKgAPv6Hn5l",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.Z9OrRXKgAPv6Hn5l"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:MrpUoBsSx0H1oYYQ",
+        "order": 4,
+        "label": "Warp Mind",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:MrpUoBsSx0H1oYYQ",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "MrpUoBsSx0H1oYYQ",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.8kJbiBEjMWG4VUjs",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.8kJbiBEjMWG4VUjs"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:4h2WlFzkjC7QRK7g",
+        "order": 5,
+        "label": "Dominate",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:4h2WlFzkjC7QRK7g",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "4h2WlFzkjC7QRK7g",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.OsOhx3TGIZ7AhD0P",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.OsOhx3TGIZ7AhD0P"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:FdLVtwbtDsrkOnm0",
+        "order": 6,
+        "label": "Truesight (Constant)",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:FdLVtwbtDsrkOnm0",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "FdLVtwbtDsrkOnm0",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "order": 7,
+        "label": "Vampiric Exsanguination",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "Eanwm6RfRttJusQS",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.fd31tAHSSGXyOxW6",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.fd31tAHSSGXyOxW6"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "order": 8,
+        "label": "Divine Immolation",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "T0gw5iOcjmhCwfj2",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.A16eFTRh82xIjMu8",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.A16eFTRh82xIjMu8"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "order": 9,
+        "label": "Divine Wrath",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "0T2geIgk5VnvbsP4",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.hVU9msO9yGkxKZ3J",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.hVU9msO9yGkxKZ3J"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:9uIFwNHYNIiVOjNH",
+        "order": 10,
+        "label": "Dispel Magic",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:9uIFwNHYNIiVOjNH",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "9uIFwNHYNIiVOjNH",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.9HpwDN4MYQJnW0LG",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.9HpwDN4MYQJnW0LG"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "order": 11,
+        "label": "Divine Lance",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "b2CBUFSrrQQw5EQI",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.qwZBXN6zBoB9BHXE",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.qwZBXN6zBoB9BHXE"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:93x6aHgapxZQlICD",
+        "order": 12,
+        "label": "Shield",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:93x6aHgapxZQlICD",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "93x6aHgapxZQlICD",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.TVKNbcgTee19PXZR",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.TVKNbcgTee19PXZR"
+          ]
+        }
+      },
+      {
+        "family": "spell",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "order": 13,
+        "label": "Void Warp",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "parent_entry_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "UyQGTtaItWFFzeSc",
+          "stable_source_locator": "Compendium.pf2e.spells-srd.Item.mAMEt4FFbdqoRnkN",
+          "source_locators": [
+            "Compendium.pf2e.spells-srd.Item.mAMEt4FFbdqoRnkN"
+          ]
+        }
+      },
+      {
+        "family": "strike",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qrcYRtchLEJYQ5Mx",
+        "order": 15,
+        "label": "Dagger",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qrcYRtchLEJYQ5Mx",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "qrcYRtchLEJYQ5Mx"
+        }
+      },
+      {
+        "family": "strike",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qnQBJl8tccyLpQtN",
+        "order": 16,
+        "label": "Claw",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qnQBJl8tccyLpQtN",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "qnQBJl8tccyLpQtN"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:hI4wwfshEfm6Azmi",
+        "order": 17,
+        "label": "Remove a Condition",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:hI4wwfshEfm6Azmi",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "hI4wwfshEfm6Azmi"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:UjWm3LfKdlX8dzGb",
+        "order": 18,
+        "label": "Constant Spells",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:UjWm3LfKdlX8dzGb",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "UjWm3LfKdlX8dzGb"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "order": 19,
+        "label": "Mythic Resilience (Fortitude and Will)",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "RvfwtSnkEp32kjlQ"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:SgChpso6dVmgp5Xl",
+        "order": 20,
+        "label": "Rejection Vulnerability",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:SgChpso6dVmgp5Xl",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "SgChpso6dVmgp5Xl"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:drwtv7iolRzQtwXr",
+        "order": 21,
+        "label": "Undying Myth",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:drwtv7iolRzQtwXr",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "drwtv7iolRzQtwXr"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RP6a6mqRkK2PV9dj",
+        "order": 22,
+        "label": "Embrace",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RP6a6mqRkK2PV9dj",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "RP6a6mqRkK2PV9dj"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:9ZexU5G8vR01fndt",
+        "order": 23,
+        "label": "Kiss of Locusts",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:9ZexU5G8vR01fndt",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "9ZexU5G8vR01fndt"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:fQXLv7ASwrte0IvJ",
+        "order": 24,
+        "label": "Recharge",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:fQXLv7ASwrte0IvJ",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "fQXLv7ASwrte0IvJ"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:BZDOjgPsiEVD7Wrw",
+        "order": 25,
+        "label": "Reroll",
+        "target_entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:BZDOjgPsiEVD7Wrw",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "BZDOjgPsiEVD7Wrw"
+        }
+      }
+    ],
+    "unmodeled_skills": [
+      {
+        "component_id": "skill:unmodeled:355543f790a3b210ecf36c82a2738896d9574c17e963a63633febac1f2386737",
+        "authored_order": 9,
+        "authored_key": "craft",
+        "base": {
+          "state": "value",
+          "value": 36
+        },
+        "reason": "unknown_authored_key",
+        "source_entries": [
+          {
+            "authored_key": "craft",
+            "modifier": {
+              "state": "value",
+              "value": 36
+            }
+          }
+        ]
+      }
+    ],
+    "content": [
+      {
+        "content_key": "item:Z5sKQ51eXguBUhFm:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Z5sKQ51eXguBUhFm"
+        },
+        "role": "embedded_capability",
+        "authored_order": 0,
+        "label": "Overwhelming Presence",
+        "content_hash": "5938c5930a27ab827d492947b0e30d833c290c7fc301995903dcec0dc5547703",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=Z5sKQ51eXguBUhFm].system.description.value",
+          "nested_source_id": "Z5sKQ51eXguBUhFm"
+        }
+      },
+      {
+        "content_key": "blurb",
+        "owner": {
+          "owner_type": "record",
+          "record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ"
+        },
+        "role": "summary",
+        "authored_order": 1,
+        "content_hash": "4ded6fac166ba49ba7280ec985b1067d91854e779792992d92ac2d07e6bd78c6",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.system.details.blurb"
+        }
+      },
+      {
+        "content_key": "item:8HkvaC7Y1iMQbWq4:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:8HkvaC7Y1iMQbWq4"
+        },
+        "role": "embedded_capability",
+        "authored_order": 2,
+        "label": "Wails of the Damned",
+        "content_hash": "12e1b794c3fde2c9525f736afe60b7b05b46696aa90076a4da476cbfe792f9c8",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=8HkvaC7Y1iMQbWq4].system.description.value",
+          "nested_source_id": "8HkvaC7Y1iMQbWq4"
+        }
+      },
+      {
+        "content_key": "item:wmLtDVy1brEH22nZ:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ"
+        },
+        "role": "embedded_capability",
+        "authored_order": 3,
+        "label": "Execute",
+        "content_hash": "9ca893313b501a07ab3e1993d9f44ed254df286193d57232d32f8b4842606fe8",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=wmLtDVy1brEH22nZ].system.description.value",
+          "nested_source_id": "wmLtDVy1brEH22nZ"
+        }
+      },
+      {
+        "content_key": "item:MrpUoBsSx0H1oYYQ:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:MrpUoBsSx0H1oYYQ"
+        },
+        "role": "embedded_capability",
+        "authored_order": 4,
+        "label": "Warp Mind",
+        "content_hash": "860f9870433a0f96623d3544644faf5db1b448ae2a44a63402f1e1496bba2ad4",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=MrpUoBsSx0H1oYYQ].system.description.value",
+          "nested_source_id": "MrpUoBsSx0H1oYYQ"
+        }
+      },
+      {
+        "content_key": "item:4h2WlFzkjC7QRK7g:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:4h2WlFzkjC7QRK7g"
+        },
+        "role": "embedded_capability",
+        "authored_order": 5,
+        "label": "Dominate",
+        "content_hash": "5b13e581cf48f37271fe92ac82d5c562ef913ccbdae3cee7c50ff92c40921750",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=4h2WlFzkjC7QRK7g].system.description.value",
+          "nested_source_id": "4h2WlFzkjC7QRK7g"
+        }
+      },
+      {
+        "content_key": "item:FdLVtwbtDsrkOnm0:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:FdLVtwbtDsrkOnm0"
+        },
+        "role": "embedded_capability",
+        "authored_order": 6,
+        "label": "Truesight (Constant)",
+        "content_hash": "5f449701b6553a666c787f571c6455e089b02d09968d823b121c319bf559fdf9",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=FdLVtwbtDsrkOnm0].system.description.value",
+          "nested_source_id": "FdLVtwbtDsrkOnm0"
+        }
+      },
+      {
+        "content_key": "item:Eanwm6RfRttJusQS:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS"
+        },
+        "role": "embedded_capability",
+        "authored_order": 7,
+        "label": "Vampiric Exsanguination",
+        "content_hash": "0d01695f337ef22993206c2a1085b12481c1feb5fa3f93099ba466f149d7a36c",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=Eanwm6RfRttJusQS].system.description.value",
+          "nested_source_id": "Eanwm6RfRttJusQS"
+        }
+      },
+      {
+        "content_key": "item:T0gw5iOcjmhCwfj2:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2"
+        },
+        "role": "embedded_capability",
+        "authored_order": 8,
+        "label": "Divine Immolation",
+        "content_hash": "a234f2221982a765d68b644ae024056b3391ebc9ad166069b9f050b114d6f19a",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=T0gw5iOcjmhCwfj2].system.description.value",
+          "nested_source_id": "T0gw5iOcjmhCwfj2"
+        }
+      },
+      {
+        "content_key": "item:0T2geIgk5VnvbsP4:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4"
+        },
+        "role": "embedded_capability",
+        "authored_order": 9,
+        "label": "Divine Wrath",
+        "content_hash": "e9836377a3e4586fb9ca236bc9a50ba9557193f59b032241f52618e681f7ba65",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=0T2geIgk5VnvbsP4].system.description.value",
+          "nested_source_id": "0T2geIgk5VnvbsP4"
+        }
+      },
+      {
+        "content_key": "item:9uIFwNHYNIiVOjNH:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:9uIFwNHYNIiVOjNH"
+        },
+        "role": "embedded_capability",
+        "authored_order": 10,
+        "label": "Dispel Magic",
+        "content_hash": "7606dec5304a7bb8a551194589ae50b8acbd02aebe279f601cdd9abca1f52746",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=9uIFwNHYNIiVOjNH].system.description.value",
+          "nested_source_id": "9uIFwNHYNIiVOjNH"
+        }
+      },
+      {
+        "content_key": "item:b2CBUFSrrQQw5EQI:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI"
+        },
+        "role": "embedded_capability",
+        "authored_order": 11,
+        "label": "Divine Lance",
+        "content_hash": "cd7dcb7a25c6beb3c4fe43b51f7a485a44032db4ea6550e7736d47116723c810",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=b2CBUFSrrQQw5EQI].system.description.value",
+          "nested_source_id": "b2CBUFSrrQQw5EQI"
+        }
+      },
+      {
+        "content_key": "item:93x6aHgapxZQlICD:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:93x6aHgapxZQlICD"
+        },
+        "role": "embedded_capability",
+        "authored_order": 12,
+        "label": "Shield",
+        "content_hash": "6045c47d56f060200cffb82c5e39a0e1bb14df6e3472d6f370131d874df8fda6",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=93x6aHgapxZQlICD].system.description.value",
+          "nested_source_id": "93x6aHgapxZQlICD"
+        }
+      },
+      {
+        "content_key": "item:UyQGTtaItWFFzeSc:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc"
+        },
+        "role": "embedded_capability",
+        "authored_order": 13,
+        "label": "Void Warp",
+        "content_hash": "91d3f9075395bbad43fdf60434a9f97ebaf6291fe4b52dd966fff13e08fe59d1",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=UyQGTtaItWFFzeSc].system.description.value",
+          "nested_source_id": "UyQGTtaItWFFzeSc"
+        }
+      },
+      {
+        "content_key": "item:gxgMzS0OpHykS2q3:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3"
+        },
+        "role": "embedded_capability",
+        "authored_order": 14,
+        "label": "Dagger",
+        "content_hash": "6f25a461ced7ad89b04692c20d608056dd55fce1f14d593ac6e55203edb33be2",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=gxgMzS0OpHykS2q3].system.description.value",
+          "nested_source_id": "gxgMzS0OpHykS2q3"
+        }
+      },
+      {
+        "content_key": "item:hI4wwfshEfm6Azmi:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:hI4wwfshEfm6Azmi"
+        },
+        "role": "embedded_capability",
+        "authored_order": 15,
+        "label": "Remove a Condition",
+        "content_hash": "1e09a7da15183bd777cdca6ab9fd58a5d31c70af35efb5713063f81e08d4f8ca",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=hI4wwfshEfm6Azmi].system.description.value",
+          "nested_source_id": "hI4wwfshEfm6Azmi"
+        }
+      },
+      {
+        "content_key": "item:UjWm3LfKdlX8dzGb:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:UjWm3LfKdlX8dzGb"
+        },
+        "role": "embedded_capability",
+        "authored_order": 16,
+        "label": "Constant Spells",
+        "content_hash": "279389217d2faa579fd0af81d73feec47d630e8864a550365705b8d191ced323",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=UjWm3LfKdlX8dzGb].system.description.value",
+          "nested_source_id": "UjWm3LfKdlX8dzGb"
+        }
+      },
+      {
+        "content_key": "item:RvfwtSnkEp32kjlQ:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ"
+        },
+        "role": "embedded_capability",
+        "authored_order": 17,
+        "label": "Mythic Resilience (Fortitude and Will)",
+        "content_hash": "f0e17df80141d9df2bc4c98bfcb4c6e95ff7c6ded1c8cb3e35d0c768152c597c",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=RvfwtSnkEp32kjlQ].system.description.value",
+          "nested_source_id": "RvfwtSnkEp32kjlQ"
+        }
+      },
+      {
+        "content_key": "item:SgChpso6dVmgp5Xl:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:SgChpso6dVmgp5Xl"
+        },
+        "role": "embedded_capability",
+        "authored_order": 18,
+        "label": "Rejection Vulnerability",
+        "content_hash": "9c01f421cc877494a11f7ae23af4d301dce942f9dcf57205a93fd8d7d43f8db6",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=SgChpso6dVmgp5Xl].system.description.value",
+          "nested_source_id": "SgChpso6dVmgp5Xl"
+        }
+      },
+      {
+        "content_key": "item:drwtv7iolRzQtwXr:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:drwtv7iolRzQtwXr"
+        },
+        "role": "embedded_capability",
+        "authored_order": 19,
+        "label": "Undying Myth",
+        "content_hash": "5327583fb137252430cb92c8b38c30ad246dcdfe62993aba9de1e8e4e6dc4164",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=drwtv7iolRzQtwXr].system.description.value",
+          "nested_source_id": "drwtv7iolRzQtwXr"
+        }
+      },
+      {
+        "content_key": "item:RP6a6mqRkK2PV9dj:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RP6a6mqRkK2PV9dj"
+        },
+        "role": "embedded_capability",
+        "authored_order": 20,
+        "label": "Embrace",
+        "content_hash": "2a646349aef80c547a709551611c2c68a1a2f37e564af8f22cd3b07c6f9848a3",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=RP6a6mqRkK2PV9dj].system.description.value",
+          "nested_source_id": "RP6a6mqRkK2PV9dj"
+        }
+      },
+      {
+        "content_key": "item:9ZexU5G8vR01fndt:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:9ZexU5G8vR01fndt"
+        },
+        "role": "embedded_capability",
+        "authored_order": 21,
+        "label": "Kiss of Locusts",
+        "content_hash": "0cb05644b7b5537aeea174e8bd3e34aa1018fbc95657fa1d91c929324beb43ec",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=9ZexU5G8vR01fndt].system.description.value",
+          "nested_source_id": "9ZexU5G8vR01fndt"
+        }
+      },
+      {
+        "content_key": "item:fQXLv7ASwrte0IvJ:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:fQXLv7ASwrte0IvJ"
+        },
+        "role": "embedded_capability",
+        "authored_order": 22,
+        "label": "Recharge",
+        "content_hash": "d694e863a10b18568ca1f76986f0cbb13080326ca2ce369c483373e7a7bc163d",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=fQXLv7ASwrte0IvJ].system.description.value",
+          "nested_source_id": "fQXLv7ASwrte0IvJ"
+        }
+      },
+      {
+        "content_key": "item:BZDOjgPsiEVD7Wrw:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:BZDOjgPsiEVD7Wrw"
+        },
+        "role": "embedded_capability",
+        "authored_order": 23,
+        "label": "Reroll",
+        "content_hash": "37cb230b504a075d7a8ebe735022a2b8cc8a5c90d841600057937e6ba73ce6b4",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
+          "relative_source_path": "packs/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
+          "field_family": "$.items[_id=BZDOjgPsiEVD7Wrw].system.description.value",
+          "nested_source_id": "BZDOjgPsiEVD7Wrw"
+        }
+      }
+    ],
+    "embedded_relationships": [
+      {
+        "source_occurrence_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qrcYRtchLEJYQ5Mx",
+        "kind": "linked_weapon",
+        "target": {
+          "target_type": "occurrence",
+          "occurrence_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3"
+        },
+        "source_path": "$.flags.pf2e.linkedWeapon"
+      }
+    ],
+    "availability_evidence": [
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:9ZexU5G8vR01fndt",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[23].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:9ZexU5G8vR01fndt",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[23].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:BZDOjgPsiEVD7Wrw",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[25].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:BZDOjgPsiEVD7Wrw",
+        "source_value": "\"Pathfinder War of Immortals\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[25].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RP6a6mqRkK2PV9dj",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[22].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RP6a6mqRkK2PV9dj",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[22].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RP6a6mqRkK2PV9dj",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[22].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[19].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "source_value": "\"Pathfinder War of Immortals\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[19].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[19].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "source_value": "{\"adjustment\":{\"all\":\"one-degree-better\"},\"key\":\"AdjustDegreeOfSuccess\",\"selector\":\"fortitude\"}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[19].system.rules[0]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:RvfwtSnkEp32kjlQ",
+        "source_value": "{\"adjustment\":{\"all\":\"one-degree-better\"},\"key\":\"AdjustDegreeOfSuccess\",\"selector\":\"will\"}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[19].system.rules[1]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:SgChpso6dVmgp5Xl",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[20].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:SgChpso6dVmgp5Xl",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[20].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:SgChpso6dVmgp5Xl",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[20].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:UjWm3LfKdlX8dzGb",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[18].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:UjWm3LfKdlX8dzGb",
+        "source_value": "\"Pathfinder Monster Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[18].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:UjWm3LfKdlX8dzGb",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[18].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:drwtv7iolRzQtwXr",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[21].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:drwtv7iolRzQtwXr",
+        "source_value": "\"Pathfinder War of Immortals\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[21].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:drwtv7iolRzQtwXr",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[21].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:fQXLv7ASwrte0IvJ",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[24].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:fQXLv7ASwrte0IvJ",
+        "source_value": "\"Pathfinder War of Immortals\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[24].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:hI4wwfshEfm6Azmi",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[17].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:action:hI4wwfshEfm6Azmi",
+        "source_value": "\"Pathfinder War of Immortals\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[17].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "\"1d10\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.heightening.damage.0",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "\"interval\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.heightening.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.heightening.area",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:0T2geIgk5VnvbsP4",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.heightening.interval",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:4h2WlFzkjC7QRK7g",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[5].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:4h2WlFzkjC7QRK7g",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[5].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:4h2WlFzkjC7QRK7g",
+        "source_value": "\"uncommon\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[5].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:8HkvaC7Y1iMQbWq4",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:8HkvaC7Y1iMQbWq4",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:8HkvaC7Y1iMQbWq4",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:93x6aHgapxZQlICD",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[12].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:93x6aHgapxZQlICD",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[12].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:93x6aHgapxZQlICD",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[12].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:9uIFwNHYNIiVOjNH",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:9uIFwNHYNIiVOjNH",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:9uIFwNHYNIiVOjNH",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "\"2d6\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.heightening.damage.0",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "\"interval\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.heightening.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.heightening.area",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Eanwm6RfRttJusQS",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.heightening.interval",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:FdLVtwbtDsrkOnm0",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[6].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:FdLVtwbtDsrkOnm0",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[6].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:FdLVtwbtDsrkOnm0",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[6].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:MrpUoBsSx0H1oYYQ",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:MrpUoBsSx0H1oYYQ",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:MrpUoBsSx0H1oYYQ",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "\"1d6\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.heightening.damage.b9dAiWfV57lyCWpP",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "\"interval\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.heightening.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.heightening.area",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:T0gw5iOcjmhCwfj2",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.heightening.interval",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "source_value": "\"1d4\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[13].system.heightening.damage.0",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[13].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[13].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[13].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "source_value": "\"interval\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[13].system.heightening.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:UyQGTtaItWFFzeSc",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[13].system.heightening.interval",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Z5sKQ51eXguBUhFm",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Z5sKQ51eXguBUhFm",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:Z5sKQ51eXguBUhFm",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "source_value": "\"1d4\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[11].system.heightening.damage.0",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[11].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[11].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[11].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "source_value": "\"interval\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[11].system.heightening.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:b2CBUFSrrQQw5EQI",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[11].system.heightening.interval",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "\"10\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.heightening.damage.0",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "\"interval\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.heightening.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.heightening.interval",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "{\"_id\":\"WTeek6DuuUC5uXiv\",\"name\":\"Execute (Void)\",\"overlayType\":\"override\",\"sort\":1,\"system\":{}}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.overlays.WTeek6DuuUC5uXiv",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spell:wmLtDVy1brEH22nZ",
+        "source_value": "{\"_id\":\"rZUgF7LFHu7N5MFK\",\"name\":\"Execute (Vitality)\",\"overlayType\":\"override\",\"sort\":2,\"system\":{\"damage\":{\"0\":{\"category\":null,\"type\":\"vitality\"}},\"traits\":{\"value\":[\"concentrate\",\"manipulate\",\"vitality\"]}}}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.overlays.rZUgF7LFHu7N5MFK",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.proficiency.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "source_value": "false",
+        "source_shape": "boolean",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.showSlotlessLevels.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:spellcasting-entry:owr7cmiGPVPEuEqF",
+        "source_value": "{}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.traits",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qnQBJl8tccyLpQtN",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[16].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qnQBJl8tccyLpQtN",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[16].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qrcYRtchLEJYQ5Mx",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[15].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:strike:qrcYRtchLEJYQ5Mx",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[15].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"-\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.reload.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"d4\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.damage.die",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"dagger\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.baseItem",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"greaterAstral\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.runes.property[]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"held-in-one-hand\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.usage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"knife\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.group",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"med\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.size",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"piercing\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.damage.damageType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"simple\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.category",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"unholy\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.runes.property[]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "\"worn\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.equipped.carryType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.bonus.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.bonusDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.equipped.handsHeld",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.hardness",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.hp.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.hp.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.level.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.splashDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "0.1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.bulk.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.damage.dice",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.quantity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "2",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.price.value.sp",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "3",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.runes.potency",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "3",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.runes.striking",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "false",
+        "source_shape": "boolean",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.usage.canBeAmmo",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.ammo",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.containerId",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.equipped.invested",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.expend",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.material.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.material.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[14].system.range",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unmodeled_skill",
+        "component_id": "skill:unmodeled:355543f790a3b210ecf36c82a2738896d9574c17e963a63633febac1f2386737",
+        "authored_key": "craft",
+        "message": "The source supplied an unrecognized skill key."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_capability",
+        "component_id": "occurrence:revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ:weapon:gxgMzS0OpHykS2q3",
+        "authored_key": "weapon",
+        "message": "The source supplied an unsupported creature capability."
+      }
+    ],
+    "references": {
+      "lookup_performed": true,
+      "outgoing_truncated": false,
+      "backlinks_truncated": false,
+      "outgoing_total": 0,
+      "backlinks_total": 0
+    }
+  }
+}

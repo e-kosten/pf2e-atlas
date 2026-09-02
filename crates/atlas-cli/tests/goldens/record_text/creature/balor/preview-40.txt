@@ -12,12 +12,12 @@ Classification
   Source: Pathfinder Bestiary
 
 Defenses
-  AC: 45;
+  AC: 45
   HP: current 480; maximum 480;
-      temporary 0;
-  Fortitude: 39;
-  Reflex: 35;
-  Will: 34;
+      temporary 0
+  Fortitude: 39
+  Reflex: 35
+  Will: 34
   All saves: +1 status to all saves vs.
              magic
   Immunities: fire

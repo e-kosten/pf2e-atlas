@@ -58,6 +58,7 @@ pub(super) fn render_record(
             edition,
             record_relationships,
             availability,
+            availability_evidence: _,
         } => {
             if detail != DetailLevel::Description {
                 out.classification(record, size.as_deref(), adjustment.as_deref());
@@ -289,7 +290,7 @@ impl Writer {
                 if let Some(value) = hp.temporary_maximum {
                     values.push(format!("temporary maximum {value}"));
                 }
-                if let Some(details) = &hp.details {
+                if let Some(details) = hp.details.as_ref().filter(|value| !value.is_empty()) {
                     values.push(details.clone());
                 }
                 self.field("HP", values.join("; "), 2);
@@ -324,7 +325,11 @@ impl Writer {
                     }
                 }
             }
-            if let Some(note) = &defenses.all_saves_note {
+            if let Some(note) = defenses
+                .all_saves_note
+                .as_ref()
+                .filter(|value| !value.is_empty())
+            {
                 self.field("All saves", note, 2);
             }
             for (label, values) in [
@@ -418,7 +423,7 @@ impl Writer {
                     .modifier
                     .map(|modifier| format!("{modifier:+}"))
                     .unwrap_or_default();
-                if let Some(note) = &skill.note {
+                if let Some(note) = skill.note.as_ref().filter(|value| !value.is_empty()) {
                     value.push_str(&format!("; {note}"));
                 }
                 self.field(&skill.label, &value, 2);
@@ -442,7 +447,7 @@ impl Writer {
                     .value_feet
                     .map(|feet| format!("{feet} feet"))
                     .unwrap_or_default();
-                if let Some(details) = &mode.details {
+                if let Some(details) = mode.details.as_ref().filter(|value| !value.is_empty()) {
                     value.push_str(&format!("; {details}"));
                 }
                 self.field(mode.label.as_deref().unwrap_or(&mode.mode), value, 2);
@@ -469,7 +474,7 @@ impl Writer {
         let mut values = value
             .map(|value| vec![value.to_string()])
             .unwrap_or_default();
-        if let Some(detail) = detail {
+        if let Some(detail) = detail.filter(|value| !value.is_empty()) {
             values.push(detail.to_string());
         }
         self.field(label, values.join("; "), 2);
@@ -499,7 +504,7 @@ impl Writer {
                     self.list_field("Traits", &strike.traits, 4);
                     self.list_field("Attack effects", &strike.attack_effects, 4);
                     self.rolls(strike.rolls.as_deref());
-                    self.damage(strike.damage.as_deref());
+                    self.damage(strike.damage.as_deref(), 4);
                 }
             }
         }
@@ -537,7 +542,7 @@ impl Writer {
                         self.field("Frequency", display, 4);
                     }
                     self.rolls(action.rolls.as_deref());
-                    self.damage(action.damage.as_deref());
+                    self.damage(action.damage.as_deref(), 4);
                 }
             }
         }
@@ -659,7 +664,7 @@ impl Writer {
                     self.field(label, value, indent + 2);
                 }
             }
-            self.damage(spell.damage.as_deref());
+            self.damage(spell.damage.as_deref(), indent + 2);
         }
     }
 
@@ -681,7 +686,7 @@ impl Writer {
         }
     }
 
-    fn damage(&mut self, damage: Option<&[CreatureDamageJson]>) {
+    fn damage(&mut self, damage: Option<&[CreatureDamageJson]>, indent: usize) {
         if let Some(damage) = damage.filter(|values| !values.is_empty()) {
             for row in damage {
                 let mut values = Vec::new();
@@ -695,7 +700,7 @@ impl Writer {
                     values.push(category.clone());
                 }
                 values.extend(row.kinds.iter().map(|value| (*value).to_string()));
-                self.field("Damage", values.join(" "), 4);
+                self.field("Damage", values.join(" "), indent);
             }
         }
     }
@@ -945,12 +950,8 @@ impl Writer {
         let rows = availability
             .iter()
             .filter(|row| {
-                !matches!(
-                    row.state,
-                    atlas_record::CreatureAvailabilityStateJson::Missing
-                        | atlas_record::CreatureAvailabilityStateJson::Null
-                ) && (detail != DetailLevel::Description
-                    || row.field == CreatureAvailabilityFieldJson::ContentAssociation)
+                detail != DetailLevel::Description
+                    || row.field == CreatureAvailabilityFieldJson::ContentAssociation
             })
             .collect::<Vec<_>>();
         if rows.is_empty() {
@@ -959,12 +960,13 @@ impl Writer {
         self.section("Data availability");
         for row in rows {
             if row.field == CreatureAvailabilityFieldJson::UnmodeledSkill {
-                let unmodeled = row.component_id.as_deref().and_then(|component_id| {
-                    skills
-                        .into_iter()
-                        .flatten()
-                        .find(|skill| skill.id == component_id)
-                        .and_then(|skill| skill.unmodeled.as_ref())
+                let unmodeled = row.authored_key.as_deref().and_then(|authored_key| {
+                    skills.into_iter().flatten().find_map(|skill| {
+                        skill
+                            .unmodeled
+                            .as_ref()
+                            .filter(|value| value.authored_key == authored_key)
+                    })
                 });
                 self.lines
                     .push(format!("  {}", self.style.label("Unmodeled skill entry")));
@@ -986,8 +988,8 @@ impl Writer {
                 "  {}",
                 self.style.label(availability_label(row.field))
             ));
-            if let Some(component) = &row.component_id {
-                self.field("Component", component, 4);
+            if let Some(key) = &row.authored_key {
+                self.field("Key", key, 4);
             }
             if let Some(value) = &row.source_value {
                 self.field("Source value", value, 4);
@@ -1201,19 +1203,19 @@ pub(super) mod tests {
     use super::*;
     use atlas_record::{
         AtlasRecord, ContentSourceKind, ContentVisibility, CreatureAbilitiesJson,
-        CreatureActionJson, CreatureArmorClassJson, CreatureAvailabilityStateJson,
-        CreatureContentOwnerJson, CreatureContentProvenanceJson, CreatureDefensesJson,
-        CreatureFactProvenanceJson, CreatureFactProvenanceSetJson, CreatureFrequencyJson,
-        CreatureHitPointsJson, CreatureIntegerPresenceJson, CreatureOccurrenceContextJson,
-        CreaturePerceptionJson, CreatureProvenanceJson, CreatureRelationshipJson,
-        CreatureRelationshipTargetJson, CreatureResourceJson, CreatureRitualsJson,
-        CreatureSkillJson, CreatureSkillSourceEntryJson, CreatureSpellSlotJson,
-        CreatureSpellcastingEntryJson, CreatureSpellcastingJson, CreatureStrikeJson,
-        CreatureUnmodeledSkillJson, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-        RecordCanonicalRelationshipJson, RecordClassification, RecordEditionContextJson,
-        RecordEditionCounterpartJson, RecordIdentity, RecordJsonBase, RecordJsonOptions,
-        RecordProvenance, RecordRelationshipProvenanceJson, ReferenceRelationKind, RetrievedRecord,
-        record_json,
+        CreatureActionJson, CreatureArmorClassJson, CreatureAvailabilityEvidenceJson,
+        CreatureAvailabilityStateJson, CreatureContentOwnerJson, CreatureContentProvenanceJson,
+        CreatureDefensesJson, CreatureFactProvenanceJson, CreatureFactProvenanceSetJson,
+        CreatureFrequencyJson, CreatureHitPointsJson, CreatureIntegerPresenceJson,
+        CreatureOccurrenceContextJson, CreaturePerceptionJson, CreatureProvenanceJson,
+        CreatureRelationshipJson, CreatureRelationshipTargetJson, CreatureResourceJson,
+        CreatureRitualsJson, CreatureSkillJson, CreatureSkillSourceEntryJson,
+        CreatureSpellSlotJson, CreatureSpellcastingEntryJson, CreatureSpellcastingJson,
+        CreatureStrikeJson, CreatureUnmodeledSkillJson, FoundryDocumentType, FoundryRecordInfo,
+        FoundryRecordType, RecordCanonicalRelationshipJson, RecordClassification,
+        RecordEditionContextJson, RecordEditionCounterpartJson, RecordIdentity, RecordJsonBase,
+        RecordJsonOptions, RecordProvenance, RecordRelationshipProvenanceJson,
+        ReferenceRelationKind, RetrievedRecord, record_json,
     };
 
     #[test]
@@ -1352,6 +1354,78 @@ pub(super) mod tests {
     }
 
     #[test]
+    fn exact_empty_optional_compound_details_never_add_punctuation() {
+        let mut record = review_fixture(DetailLevel::Standard);
+        let RecordPresentationJson::Creature {
+            defenses,
+            perception,
+            skills,
+            movement,
+            ..
+        } = &mut record.presentation
+        else {
+            panic!("creature fixture");
+        };
+        let defenses = defenses.as_mut().expect("defenses");
+        defenses.ac.as_mut().expect("AC").details = Some(String::new());
+        defenses.hp.as_mut().expect("HP").details = Some(String::new());
+        defenses.saves = Some(atlas_record::CreatureSavesJson {
+            fortitude: Some(atlas_record::CreatureSaveJson {
+                id: "fortitude".into(),
+                value: Some(18),
+                details: Some(String::new()),
+            }),
+            reflex: Some(atlas_record::CreatureSaveJson {
+                id: "reflex".into(),
+                value: Some(17),
+                details: Some("against exact authored hazards ".into()),
+            }),
+            will: None,
+        });
+        defenses.all_saves_note = Some(String::new());
+        perception.as_mut().expect("perception").details = Some(String::new());
+        skills.as_mut().expect("skills").push(CreatureSkillJson {
+            id: "athletics".into(),
+            order: 1,
+            source_entries: Vec::new(),
+            slug: "athletics".into(),
+            label: "Athletics".into(),
+            modifier: Some(20),
+            note: Some(String::new()),
+            variants: Vec::new(),
+            source_item_id: None,
+            unmodeled: None,
+        });
+        *movement = Some(atlas_record::CreatureMovementJson {
+            modes: vec![atlas_record::CreatureMovementModeJson {
+                id: "land".into(),
+                order: 0,
+                mode: "land".into(),
+                label: Some("Speed".into()),
+                value_feet: Some(25),
+                details: Some(String::new()),
+            }],
+        });
+
+        let rendered = render_record(&record, DetailLevel::Standard, 120, TerminalStyle::plain());
+        for exact in [
+            "AC: 28\n",
+            "HP: current 170; maximum 170\n",
+            "Fortitude: 18\n",
+            "Perception: +19\n",
+            "Athletics: +20\n",
+            "Speed: 25 feet\n",
+        ] {
+            assert!(
+                rendered.contains(exact),
+                "missing clean line {exact:?}: {rendered}"
+            );
+        }
+        assert!(rendered.contains("Reflex: 17; against exact authored hazards"));
+        assert!(!rendered.contains("All saves:"));
+    }
+
+    #[test]
     fn candidate_review_samples_are_rendered_from_the_typed_contract() {
         let cells = [
             ("summary", DetailLevel::Summary, 80),
@@ -1462,6 +1536,41 @@ pub(super) mod tests {
     }
 
     #[test]
+    fn spell_damage_is_nested_beneath_its_spell_at_every_width() {
+        for width in [40, 80, 120] {
+            let mut record = review_fixture(DetailLevel::Standard);
+            let RecordPresentationJson::Creature { spellcasting, .. } = &mut record.presentation
+            else {
+                panic!("creature fixture");
+            };
+            spellcasting
+                .as_mut()
+                .and_then(|spellcasting| spellcasting.entries.first_mut())
+                .and_then(|entry| entry.spells.first_mut())
+                .expect("ranked spell")
+                .damage = Some(vec![CreatureDamageJson {
+                id: "mental".into(),
+                formula: Some("2d6".into()),
+                damage_type: Some("mental".into()),
+                category: None,
+                kinds: Vec::new(),
+                apply_modifier: None,
+            }]);
+            let rendered = render_record(
+                &record,
+                DetailLevel::Standard,
+                width,
+                TerminalStyle::plain(),
+            );
+            let line = rendered
+                .lines()
+                .find(|line| line.contains("Damage: 2d6"))
+                .expect("spell damage line");
+            assert_eq!(line.len() - line.trim_start().len(), 8, "width {width}");
+        }
+    }
+
+    #[test]
     fn unmodeled_skill_modifier_uses_typed_presence_without_parsing_the_key() {
         let mut record = review_fixture(DetailLevel::Standard);
         let RecordPresentationJson::Creature {
@@ -1531,12 +1640,8 @@ pub(super) mod tests {
         availability.push(CreatureAvailabilityJson {
             state: CreatureAvailabilityStateJson::Unsupported,
             field: CreatureAvailabilityFieldJson::Adjustment,
-            component_id: None,
             authored_key: None,
             source_value: Some("safe opaque +23".into()),
-            source_shape: Some("string"),
-            source_reason: Some("unsupported_open_value"),
-            source_path: None,
             message: "The source supplied an unsupported adjustment.".into(),
         });
         let rendered = render_record(&record, DetailLevel::Standard, 80, TerminalStyle::plain());
@@ -1785,7 +1890,18 @@ pub(super) mod tests {
                 provenance: (detail == DetailLevel::Full).then_some(provenance),
                 edition: (detail == DetailLevel::Full).then(|| RecordEditionContextJson { status: RecordEditionStatusJson::Legacy, counterpart_lookup: RecordEditionCounterpartLookupJson::Verified { counterparts: vec![RecordEditionCounterpartJson { role: RecordEditionCounterpartRoleJson::RemasteredCounterpart, record_key: "bestiary:Dream-Hag".into(), title: "Dream Hag".into() }] } }),
                 record_relationships: scan.then(|| RecordRelationshipLookupJson::Verified { relationships: vec![RecordCanonicalRelationshipJson { direction: RecordRelationshipDirectionJson::Reference, kind: ReferenceRelationKind::Reference, label: "Dream Message".into(), target_record_key: "spells:Dream-Message".into(), provenance: RecordRelationshipProvenanceJson { from_record_key: "bestiary:Night-Hag".into(), to_record_key: "spells:Dream-Message".into(), source_kind: ContentSourceKind::Description, visibility: ContentVisibility::Public } }] }),
-                availability: if scan { vec![CreatureAvailabilityJson { state: CreatureAvailabilityStateJson::Unsupported, field: CreatureAvailabilityFieldJson::UnmodeledSkill, component_id: Some("synthetic-unmodeled-skill".into()), authored_key: Some("synthetic-review-skill".into()), source_value: None, source_shape: None, source_reason: Some("unknown_authored_key"), source_path: None, message: "The source supplied an unrecognized skill key.".into() }] } else { Vec::new() },
+                availability: if scan { vec![CreatureAvailabilityJson { state: CreatureAvailabilityStateJson::Unsupported, field: CreatureAvailabilityFieldJson::UnmodeledSkill, authored_key: Some("synthetic-review-skill".into()), source_value: None, message: "The source supplied an unrecognized skill key.".into() }] } else { Vec::new() },
+                availability_evidence: full.then(|| vec![CreatureAvailabilityEvidenceJson {
+                    state: CreatureAvailabilityStateJson::Unsupported,
+                    field: CreatureAvailabilityFieldJson::ResourceSerializedValue,
+                    component_id: Some("focus-resource".into()),
+                    authored_key: None,
+                    source_value: Some("{\"value\":0}".into()),
+                    source_shape: Some("object"),
+                    source_reason: Some("unsupported_shape"),
+                    source_path: Some("system.resources.focus.value".into()),
+                    message: "The source supplied an unsupported serialized resource value.".into(),
+                }]),
             },
         }
     }

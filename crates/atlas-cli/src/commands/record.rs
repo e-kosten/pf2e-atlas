@@ -19,7 +19,7 @@ mod provenance;
 mod render;
 
 use args::{RecordGetOptions, RecordProvenanceOptions, RecordResolveOptions};
-use context::{project_record, project_record_with_remaster};
+use context::{project_record, project_record_provenance_with_remaster};
 
 use super::filters::build_filter;
 
@@ -356,7 +356,7 @@ pub(crate) fn run_record_provenance(options: RecordProvenanceOptions) -> Result<
         }
         Err(error) => return app_error(error, options.json),
     };
-    let record = match project_record_with_remaster(
+    let record = match project_record_provenance_with_remaster(
         &remaster.seed,
         RecordJsonOptions {
             detail: DetailLevel::Full,
