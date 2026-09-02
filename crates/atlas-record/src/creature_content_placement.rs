@@ -273,7 +273,13 @@ pub fn place_creature_content_for_families(
             }
             continue;
         }
-        let failure = if content_counts.get(&document.id) != Some(&1) {
+        let preexisting_failure = matches
+            .iter()
+            .find_map(|occurrence| placement.failures.get(&occurrence.id))
+            .copied();
+        let failure = if preexisting_failure.is_some() {
+            preexisting_failure
+        } else if content_counts.get(&document.id) != Some(&1) {
             Some(CreatureContentAssociationFailure::DuplicateContentIdentity)
         } else if matches.len() != 1 {
             Some(CreatureContentAssociationFailure::AmbiguousOwnerAssociation)

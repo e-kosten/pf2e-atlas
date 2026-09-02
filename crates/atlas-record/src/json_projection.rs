@@ -1,6 +1,6 @@
 mod creature;
 
-use std::ops::Deref;
+use std::{collections::BTreeMap, ops::Deref};
 
 use atlas_domain::{DetailLevel, RecordKind};
 use serde::Serialize;
@@ -44,14 +44,14 @@ pub struct RecordEditionContextJson {
 }
 
 impl RecordEditionContextJson {
-    pub const fn lookup_not_performed(status: RecordEditionStatusJson) -> Self {
+    const fn lookup_not_performed(status: RecordEditionStatusJson) -> Self {
         Self {
             status,
             counterpart_lookup: RecordEditionCounterpartLookupJson::NotPerformed,
         }
     }
 
-    pub fn verified(
+    fn verified(
         status: RecordEditionStatusJson,
         counterparts: Vec<RecordEditionCounterpartJson>,
     ) -> Self {
@@ -93,19 +93,169 @@ pub enum RecordEditionCounterpartRoleJson {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordEditionLookup {
+    NotPerformed,
+    Verified(VerifiedRecordEditionLookup),
+}
+
+impl RecordEditionLookup {
+    pub fn verified<'a>(
+        seed: &RetrievedRecord,
+        links: impl IntoIterator<Item = (&'a RetrievedRecord, &'a RetrievedRecord)>,
+    ) -> Result<Self, RecordEditionLookupError> {
+        VerifiedRecordEditionLookup::new(seed, links).map(Self::Verified)
+    }
+
+    fn context_for(
+        self,
+        record: &AtlasRecord,
+    ) -> Result<RecordEditionContextJson, RecordJsonError> {
+        let status = RecordEditionStatusJson::from_remaster(record.publication.remaster);
+        match self {
+            Self::NotPerformed => Ok(RecordEditionContextJson::lookup_not_performed(status)),
+            Self::Verified(lookup) => {
+                if lookup.seed_record_key != record.identity.key
+                    || lookup.seed_remaster != record.publication.remaster
+                {
+                    return Err(RecordJsonError::EditionLookupSeedMismatch {
+                        record_key: record.identity.key.to_string(),
+                        record_remaster: record.publication.remaster,
+                        lookup_record_key: lookup.seed_record_key.to_string(),
+                        lookup_remaster: lookup.seed_remaster,
+                    });
+                }
+                Ok(RecordEditionContextJson::verified(
+                    status,
+                    lookup.counterparts,
+                ))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedRecordEditionLookup {
+    seed_record_key: atlas_domain::RecordKey,
+    seed_remaster: bool,
+    counterparts: Vec<RecordEditionCounterpartJson>,
+}
+
+impl VerifiedRecordEditionLookup {
+    fn new<'a>(
+        seed: &RetrievedRecord,
+        links: impl IntoIterator<Item = (&'a RetrievedRecord, &'a RetrievedRecord)>,
+    ) -> Result<Self, RecordEditionLookupError> {
+        let seed_key = &seed.record.identity.key;
+        let seed_remaster = seed.record.publication.remaster;
+        let mut counterparts = BTreeMap::new();
+        for (remaster, legacy) in links {
+            let (seed_side, counterpart, role) = if seed_remaster {
+                (
+                    remaster,
+                    legacy,
+                    RecordEditionCounterpartRoleJson::LegacyCounterpart,
+                )
+            } else {
+                (
+                    legacy,
+                    remaster,
+                    RecordEditionCounterpartRoleJson::RemasteredCounterpart,
+                )
+            };
+            if seed_side.record.identity.key != *seed_key
+                || seed_side.record.publication.remaster != seed_remaster
+                || !remaster.record.publication.remaster
+                || legacy.record.publication.remaster
+                || counterpart.record.identity.key == *seed_key
+            {
+                return Err(RecordEditionLookupError::InvalidLink {
+                    seed_record_key: seed_key.to_string(),
+                    remaster_record_key: remaster.record.identity.key.to_string(),
+                    legacy_record_key: legacy.record.identity.key.to_string(),
+                });
+            }
+            let counterpart_key = counterpart.record.identity.key.clone();
+            let counterpart_value = (role, counterpart.record.identity.name.clone());
+            if let Some(existing) = counterparts.get(&counterpart_key) {
+                if existing != &counterpart_value {
+                    return Err(RecordEditionLookupError::ConflictingCounterpart {
+                        record_key: counterpart_key.to_string(),
+                    });
+                }
+            } else {
+                counterparts.insert(counterpart_key, counterpart_value);
+            }
+        }
+        Ok(Self {
+            seed_record_key: seed_key.clone(),
+            seed_remaster,
+            counterparts: counterparts
+                .into_iter()
+                .map(|(record_key, (role, title))| RecordEditionCounterpartJson {
+                    role,
+                    record_key: record_key.to_string(),
+                    title,
+                })
+                .collect(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordEditionLookupError {
+    InvalidLink {
+        seed_record_key: String,
+        remaster_record_key: String,
+        legacy_record_key: String,
+    },
+    ConflictingCounterpart {
+        record_key: String,
+    },
+}
+
+impl std::fmt::Display for RecordEditionLookupError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidLink {
+                seed_record_key,
+                remaster_record_key,
+                legacy_record_key,
+            } => write!(
+                formatter,
+                "edition link {legacy_record_key} -> {remaster_record_key} is invalid for seed `{seed_record_key}`"
+            ),
+            Self::ConflictingCounterpart { record_key } => write!(
+                formatter,
+                "edition lookup returned conflicting identity for counterpart `{record_key}`"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for RecordEditionLookupError {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordJsonContext {
-    pub edition: RecordEditionContextJson,
-    pub relationships: RecordRelationshipLookupJson,
+    edition: RecordEditionLookup,
+    relationships: RecordRelationshipLookupJson,
 }
 
 impl RecordJsonContext {
-    pub fn without_lookups(record: &AtlasRecord) -> Self {
+    pub fn without_lookups(_record: &AtlasRecord) -> Self {
         Self {
-            edition: RecordEditionContextJson::lookup_not_performed(
-                RecordEditionStatusJson::from_remaster(record.publication.remaster),
-            ),
+            edition: RecordEditionLookup::NotPerformed,
             relationships: RecordRelationshipLookupJson::NotPerformed,
         }
+    }
+
+    pub fn with_edition_lookup(mut self, edition: RecordEditionLookup) -> Self {
+        self.edition = edition;
+        self
+    }
+
+    pub fn with_relationships(mut self, relationships: RecordRelationshipLookupJson) -> Self {
+        self.relationships = relationships;
+        self
     }
 }
 
@@ -258,8 +408,18 @@ impl std::error::Error for RecordRelationshipContextError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordJsonError {
-    MissingCreatureBody { record_key: String },
-    UnexpectedCreatureBody { record_key: String },
+    MissingCreatureBody {
+        record_key: String,
+    },
+    UnexpectedCreatureBody {
+        record_key: String,
+    },
+    EditionLookupSeedMismatch {
+        record_key: String,
+        record_remaster: bool,
+        lookup_record_key: String,
+        lookup_remaster: bool,
+    },
 }
 
 impl std::fmt::Display for RecordJsonError {
@@ -272,6 +432,15 @@ impl std::fmt::Display for RecordJsonError {
             Self::UnexpectedCreatureBody { record_key } => write!(
                 formatter,
                 "retrieved non-creature record `{record_key}` has an unexpected canonical creature body"
+            ),
+            Self::EditionLookupSeedMismatch {
+                record_key,
+                record_remaster,
+                lookup_record_key,
+                lookup_remaster,
+            } => write!(
+                formatter,
+                "verified edition lookup seed `{lookup_record_key}` (remaster={lookup_remaster}) does not match projected record `{record_key}` (remaster={record_remaster})"
             ),
         }
     }
@@ -487,6 +656,10 @@ pub fn record_json_with_context(
     context: RecordJsonContext,
 ) -> Result<RecordJson, RecordJsonError> {
     let record = &retrieved.record;
+    let RecordJsonContext {
+        edition,
+        relationships,
+    } = context;
     let document = build_record_presentation_document(record);
     let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
     let presentation = match (record.classification.kind, &retrieved.body) {
@@ -494,8 +667,8 @@ pub fn record_json_with_context(
             creature::creature_presentation(
                 creature,
                 options.detail,
-                Some(context.edition),
-                Some(context.relationships),
+                Some(edition.context_for(record)?),
+                Some(relationships),
                 matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
                     .then(|| record.content.description())
                     .flatten()
@@ -1085,44 +1258,75 @@ mod tests {
     }
 
     #[test]
-    fn typed_edition_context_serializes_exact_counterpart_identity() {
-        let record = fixture_creature_record();
+    fn verified_edition_lookup_derives_status_roles_order_and_deduplicates() {
+        let legacy = edition_creature_record("legacy-pack:seed", "Legacy Seed", false);
+        let remaster_z = edition_creature_record("remaster-pack:zeta", "Zeta Remaster", true);
+        let remaster_a = edition_creature_record("remaster-pack:alpha", "Alpha Remaster", true);
+        let lookup = RecordEditionLookup::verified(
+            &legacy,
+            [
+                (&remaster_z, &legacy),
+                (&remaster_a, &legacy),
+                (&remaster_a, &legacy),
+            ],
+        )
+        .expect("verified B4 lookup");
         let value = serde_json::to_value(
             record_json_with_context(
-                &record,
+                &legacy,
                 RecordJsonOptions {
                     detail: DetailLevel::Full,
                     include_source_json: false,
                 },
-                RecordJsonContext {
-                    edition: RecordEditionContextJson::verified(
-                        RecordEditionStatusJson::Legacy,
-                        vec![RecordEditionCounterpartJson {
-                            role: RecordEditionCounterpartRoleJson::RemasteredCounterpart,
-                            record_key: "monster-core:counterpart".to_string(),
-                            title: "Test Guardian Remastered".to_string(),
-                        }],
-                    ),
-                    relationships: RecordRelationshipLookupJson::NotPerformed,
-                },
+                RecordJsonContext::without_lookups(&legacy.record).with_edition_lookup(lookup),
             )
             .expect("edition projection"),
         )
         .expect("json");
         assert_eq!(value["edition"]["status"], "legacy");
-        assert_eq!(
-            value["edition"]["counterpart_lookup"]["counterparts"][0]["record_key"],
-            "monster-core:counterpart"
+        let counterparts = value["edition"]["counterpart_lookup"]["counterparts"]
+            .as_array()
+            .expect("counterparts");
+        assert_eq!(counterparts.len(), 2);
+        assert_eq!(counterparts[0]["record_key"], "remaster-pack:alpha");
+        assert_eq!(counterparts[1]["record_key"], "remaster-pack:zeta");
+        assert!(
+            counterparts
+                .iter()
+                .all(|counterpart| counterpart["role"] == "remastered_counterpart")
         );
+
+        let remaster_lookup =
+            RecordEditionLookup::verified(&remaster_a, std::iter::once((&remaster_a, &legacy)))
+                .expect("remaster seed lookup");
+        let remaster_value = serde_json::to_value(
+            record_json_with_context(
+                &remaster_a,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                },
+                RecordJsonContext::without_lookups(&remaster_a.record)
+                    .with_edition_lookup(remaster_lookup),
+            )
+            .expect("remaster projection"),
+        )
+        .expect("json");
+        assert_eq!(remaster_value["edition"]["status"], "remaster");
         assert_eq!(
-            value["edition"]["counterpart_lookup"]["counterparts"][0]["role"],
-            "remastered_counterpart"
+            remaster_value["edition"]["counterpart_lookup"]["counterparts"][0]["role"],
+            "legacy_counterpart"
         );
     }
 
     #[test]
     fn verified_zero_counterparts_is_distinct_from_lookup_not_performed() {
         let record = fixture_creature_record();
+        let lookup = RecordEditionLookup::verified(
+            &record,
+            std::iter::empty::<(&RetrievedRecord, &RetrievedRecord)>(),
+        )
+        .expect("verified empty B4 lookup");
         let value = serde_json::to_value(
             record_json_with_context(
                 &record,
@@ -1130,13 +1334,7 @@ mod tests {
                     detail: DetailLevel::Standard,
                     include_source_json: false,
                 },
-                RecordJsonContext {
-                    edition: RecordEditionContextJson::verified(
-                        RecordEditionStatusJson::Remaster,
-                        Vec::new(),
-                    ),
-                    relationships: RecordRelationshipLookupJson::NotPerformed,
-                },
+                RecordJsonContext::without_lookups(&record.record).with_edition_lookup(lookup),
             )
             .expect("verified empty edition projection"),
         )
@@ -1149,6 +1347,45 @@ mod tests {
                 .len(),
             0
         );
+    }
+
+    #[test]
+    fn verified_edition_lookup_rejects_seed_status_contradiction_and_invalid_pairs() {
+        let remaster = edition_creature_record("shared-pack:seed", "Remaster Seed", true);
+        let legacy = edition_creature_record("legacy-pack:counterpart", "Legacy", false);
+        let lookup =
+            RecordEditionLookup::verified(&remaster, std::iter::once((&remaster, &legacy)))
+                .expect("verified lookup");
+        let contradictory_seed = edition_creature_record("shared-pack:seed", "Legacy Seed", false);
+        assert!(matches!(
+            record_json_with_context(
+                &contradictory_seed,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                },
+                RecordJsonContext::without_lookups(&contradictory_seed.record)
+                    .with_edition_lookup(lookup),
+            ),
+            Err(RecordJsonError::EditionLookupSeedMismatch { .. })
+        ));
+
+        let invalid_remaster = edition_creature_record("remaster-pack:invalid", "Invalid", false);
+        assert!(matches!(
+            RecordEditionLookup::verified(&legacy, std::iter::once((&invalid_remaster, &legacy)),),
+            Err(RecordEditionLookupError::InvalidLink { .. })
+        ));
+
+        let remaster_one = edition_creature_record("remaster-pack:same", "First Title", true);
+        let remaster_conflict =
+            edition_creature_record("remaster-pack:same", "Conflicting Title", true);
+        assert!(matches!(
+            RecordEditionLookup::verified(
+                &legacy,
+                [(&remaster_one, &legacy), (&remaster_conflict, &legacy)],
+            ),
+            Err(RecordEditionLookupError::ConflictingCounterpart { .. })
+        ));
     }
 
     #[test]
@@ -1187,17 +1424,14 @@ mod tests {
                         detail,
                         include_source_json: false,
                     },
-                    RecordJsonContext {
-                        edition: RecordEditionContextJson::lookup_not_performed(
-                            RecordEditionStatusJson::Remaster,
-                        ),
-                        relationships: RecordRelationshipLookupJson::verified(
+                    RecordJsonContext::without_lookups(&record.record).with_relationships(
+                        RecordRelationshipLookupJson::verified(
                             &record_key,
                             std::slice::from_ref(&outgoing),
                             std::slice::from_ref(&backlink),
                         )
                         .expect("verified relationships"),
-                    },
+                    ),
                 )
                 .expect("relationship projection"),
             )
@@ -1678,6 +1912,115 @@ mod tests {
     }
 
     #[test]
+    fn prefailed_occurrence_content_remains_reachable_once_in_full() {
+        for case in ["missing-entity", "duplicate-entity", "duplicate-occurrence"] {
+            let mut retrieved = fixture_creature_record();
+            let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+            let owner = creature.identity.record_key.clone();
+            let jaws = crate::CreatureEntityId::new("jaws").expect("entity");
+            creature.content.documents = vec![owned_document(
+                &owner,
+                "prefailed-content",
+                ContentOwner::CreatureEntity(jaws.clone()),
+                1,
+            )];
+            let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
+                panic!("embedded entities")
+            };
+            match case {
+                "missing-entity" => embedded.entities.retain(|entity| entity.id != jaws),
+                "duplicate-entity" => {
+                    let duplicate = embedded
+                        .entities
+                        .iter()
+                        .find(|entity| entity.id == jaws)
+                        .expect("jaws entity")
+                        .clone();
+                    embedded.entities.push(duplicate);
+                }
+                "duplicate-occurrence" => {
+                    let other_id = crate::CreatureEntityId::new("other-jaws").expect("entity");
+                    let mut other_entity = embedded
+                        .entities
+                        .iter()
+                        .find(|entity| entity.id == jaws)
+                        .expect("jaws entity")
+                        .clone();
+                    other_entity.id = other_id.clone();
+                    embedded.entities.push(other_entity);
+                    let mut duplicate = embedded
+                        .occurrences
+                        .iter()
+                        .find(|occurrence| occurrence.id.as_str() == "jaws")
+                        .expect("jaws occurrence")
+                        .clone();
+                    duplicate.target = crate::CreatureEntityTarget::ActorOwned(other_id);
+                    duplicate.authored_order += 20;
+                    embedded.occurrences.push(duplicate);
+                }
+                _ => unreachable!(),
+            }
+            let placement = crate::place_creature_content(creature);
+            assert_eq!(placement.all_documents(creature).count(), 1, "{case}");
+            assert_eq!(
+                placement.association_failed_documents(creature).count(),
+                1,
+                "{case}"
+            );
+            assert_eq!(placement.general_documents(creature).count(), 1, "{case}");
+            assert_eq!(
+                placement
+                    .association_safe_general_documents(creature)
+                    .count(),
+                0,
+                "{case}"
+            );
+            assert!(!placement.is_claimed(0), "{case}");
+
+            let full = serde_json::to_value(
+                record_json(
+                    &retrieved,
+                    RecordJsonOptions {
+                        detail: DetailLevel::Full,
+                        include_source_json: false,
+                    },
+                )
+                .expect("full projection"),
+            )
+            .expect("json");
+            assert_eq!(
+                full["content"]
+                    .as_array()
+                    .expect("prefailed content remains general")
+                    .iter()
+                    .filter(|document| document["content_key"] == "prefailed-content")
+                    .count(),
+                1,
+                "{case}"
+            );
+            assert!(
+                full["strikes"]
+                    .as_array()
+                    .expect("strikes")
+                    .iter()
+                    .filter(|strike| strike["id"] == "jaws")
+                    .all(|strike| strike.get("content").is_none()),
+                "{case}"
+            );
+            assert!(
+                full["availability"]
+                    .as_array()
+                    .expect("availability")
+                    .iter()
+                    .any(|cause| {
+                        cause["component_id"] == "jaws" && cause["field"] == "content_association"
+                    }),
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
     fn availability_distinguishes_required_absence_and_malformed_values() {
         let mut retrieved = fixture_creature_record();
         let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
@@ -2088,6 +2431,24 @@ mod tests {
             variant: None,
             visibility: RecordVisibility::default(),
         }
+    }
+
+    fn edition_creature_record(record_key: &str, title: &str, remaster: bool) -> RetrievedRecord {
+        let mut retrieved = fixture_creature_record();
+        let record_key = RecordKey::parse(record_key).expect("edition fixture key");
+        retrieved.record.identity.key = record_key.clone();
+        retrieved.record.identity.name = title.to_string();
+        retrieved.record.publication.remaster = remaster;
+        if let Some(RecordBody::Creature(creature)) = &mut retrieved.body {
+            creature.identity.record_key = record_key;
+            creature.identity.name = title.to_string();
+            creature.publication.value = FactValue::Value(crate::CreaturePublication {
+                title: FactValue::Value("Fixture Publication".to_string()),
+                remaster: FactValue::Value(remaster),
+                license: FactValue::Missing,
+            });
+        }
+        retrieved
     }
 
     fn fixture_creature_record() -> RetrievedRecord {

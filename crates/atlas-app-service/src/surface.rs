@@ -5539,7 +5539,15 @@ mod tests {
             ("duplicate-occurrence", {
                 let mut creature = base.clone();
                 if let FactValue::Value(embedded) = &mut creature.embedded_entities.value {
-                    embedded.occurrences.push(embedded.occurrences[0].clone());
+                    let other_id =
+                        atlas_record::CreatureEntityId::new("other-entity").expect("other entity");
+                    let mut other_entity = embedded.entities[0].clone();
+                    other_entity.id = other_id.clone();
+                    embedded.entities.push(other_entity);
+                    let mut duplicate = embedded.occurrences[0].clone();
+                    duplicate.target = CreatureEntityTarget::ActorOwned(other_id);
+                    duplicate.authored_order += 1;
+                    embedded.occurrences.push(duplicate);
                 }
                 creature
             }),

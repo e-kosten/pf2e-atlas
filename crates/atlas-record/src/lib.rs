@@ -90,11 +90,12 @@ pub use json_projection::{
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
     RecordBlockJson, RecordCanonicalRelationshipJson, RecordEditionContextJson,
     RecordEditionCounterpartJson, RecordEditionCounterpartLookupJson,
-    RecordEditionCounterpartRoleJson, RecordEditionStatusJson, RecordJson, RecordJsonBase,
-    RecordJsonContext, RecordJsonError, RecordJsonOptions, RecordPresentationJson,
-    RecordRelationshipContextError, RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
-    RecordRelationshipProvenanceJson, RecordSectionJson, UnmigratedRegistryJson, record_json,
-    record_json_with_context,
+    RecordEditionCounterpartRoleJson, RecordEditionLookup, RecordEditionLookupError,
+    RecordEditionStatusJson, RecordJson, RecordJsonBase, RecordJsonContext, RecordJsonError,
+    RecordJsonOptions, RecordPresentationJson, RecordRelationshipContextError,
+    RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
+    RecordRelationshipProvenanceJson, RecordSectionJson, UnmigratedRegistryJson,
+    VerifiedRecordEditionLookup, record_json, record_json_with_context,
 };
 pub use mechanics::{
     AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,
