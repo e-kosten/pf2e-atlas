@@ -435,8 +435,14 @@ impl SurfaceUnavailableDomains {
             component_id,
             provenance: fact_provenance(source_field),
             unmodeled_skill: None,
-            message: "This canonical field could not be projected safely; state and field are authoritative."
-                .to_string(),
+            message: match state {
+                CreatureSurfaceUnavailableStateView::Missing
+                | CreatureSurfaceUnavailableStateView::Null => "A value is required here.",
+                CreatureSurfaceUnavailableStateView::Unsupported => {
+                    "The authored value is not supported."
+                }
+            }
+            .to_string(),
         };
         let causes = self.causes.entry(domain).or_default();
         if !causes.contains(&cause) {
@@ -734,21 +740,9 @@ fn defenses_view(
         armor_class_details: armor_class.and_then(|value| note(&value.details)),
         hardness: integer(&defenses.hardness),
         shield: shield(&defenses.shield, unavailable),
-        immunities: iwr(
-            &defenses.immunities,
-            unavailable,
-            CreatureSurfaceUnavailableFieldView::Immunities,
-        ),
-        resistances: iwr(
-            &defenses.resistances,
-            unavailable,
-            CreatureSurfaceUnavailableFieldView::Resistances,
-        ),
-        weaknesses: iwr(
-            &defenses.weaknesses,
-            unavailable,
-            CreatureSurfaceUnavailableFieldView::Weaknesses,
-        ),
+        immunities: iwr(&defenses.immunities, unavailable),
+        resistances: iwr(&defenses.resistances, unavailable),
+        weaknesses: iwr(&defenses.weaknesses, unavailable),
         provenance: fact_provenance(CreatureSurfaceSourceFieldView::Defenses),
     }
 }
@@ -848,21 +842,9 @@ fn encounter_defenses_view(
             .and_then(|armor_class| note(&armor_class.details)),
         hardness: integer(&defenses.hardness),
         shield: None,
-        immunities: iwr(
-            &defenses.immunities,
-            unavailable,
-            CreatureSurfaceUnavailableFieldView::Immunities,
-        ),
-        resistances: iwr(
-            &defenses.resistances,
-            unavailable,
-            CreatureSurfaceUnavailableFieldView::Resistances,
-        ),
-        weaknesses: iwr(
-            &defenses.weaknesses,
-            unavailable,
-            CreatureSurfaceUnavailableFieldView::Weaknesses,
-        ),
+        immunities: iwr(&defenses.immunities, unavailable),
+        resistances: iwr(&defenses.resistances, unavailable),
+        weaknesses: iwr(&defenses.weaknesses, unavailable),
         provenance: fact_provenance(CreatureSurfaceSourceFieldView::Defenses),
     };
     (view.armor_class_details.is_some()
@@ -876,16 +858,8 @@ fn encounter_defenses_view(
 fn iwr(
     values: &FactValue<Vec<CreatureIwr>>,
     unavailable: &mut SurfaceUnavailableDomains,
-    field: CreatureSurfaceUnavailableFieldView,
 ) -> Vec<CreatureSurfaceIwrView> {
-    let Some(values) = required_fact(
-        values,
-        unavailable,
-        SurfaceDomain::Defenses,
-        field,
-        CreatureSurfaceSourceFieldView::Defenses,
-        None,
-    ) else {
+    let Some(values) = optional_fact(values) else {
         return Vec::new();
     };
     let mut projected = values
@@ -905,36 +879,22 @@ fn iwr(
                 )
                 .copied(),
             };
-            let exceptions = required_fact(
-                &value.exceptions,
-                unavailable,
-                SurfaceDomain::Defenses,
-                CreatureSurfaceUnavailableFieldView::IwrExceptions,
-                CreatureSurfaceSourceFieldView::Defenses,
-                Some(component_id.clone()),
-            )
-            .map(|values| {
-                values
-                    .iter()
-                    .map(|value| value.as_str().to_string())
-                    .collect()
-            })
-            .unwrap_or_else(Vec::new);
-            let double_vs = required_fact(
-                &value.double_vs,
-                unavailable,
-                SurfaceDomain::Defenses,
-                CreatureSurfaceUnavailableFieldView::IwrDoubleVs,
-                CreatureSurfaceSourceFieldView::Defenses,
-                Some(component_id.clone()),
-            )
-            .map(|values| {
-                values
-                    .iter()
-                    .map(|value| value.as_str().to_string())
-                    .collect()
-            })
-            .unwrap_or_else(Vec::new);
+            let exceptions = optional_fact(&value.exceptions)
+                .map(|values| {
+                    values
+                        .iter()
+                        .map(|value| value.as_str().to_string())
+                        .collect()
+                })
+                .unwrap_or_else(Vec::new);
+            let double_vs = optional_fact(&value.double_vs)
+                .map(|values| {
+                    values
+                        .iter()
+                        .map(|value| value.as_str().to_string())
+                        .collect()
+                })
+                .unwrap_or_else(Vec::new);
             CreatureSurfaceIwrView {
                 component_id,
                 authored_order: value.authored_order,
@@ -1121,14 +1081,7 @@ fn awareness(
                 .iter()
                 .map(|value| {
                     let component_id = value.id.as_str().to_string();
-                    let acuity = match required_fact(
-                        &value.acuity,
-                        unavailable,
-                        SurfaceDomain::Awareness,
-                        CreatureSurfaceUnavailableFieldView::SenseAcuity,
-                        CreatureSurfaceSourceFieldView::Perception,
-                        Some(component_id.clone()),
-                    ) {
+                    let acuity = match sense_acuity(value, unavailable, &component_id) {
                         Some(SenseAcuity::Precise) => Some("precise".to_string()),
                         Some(SenseAcuity::Imprecise) => Some("imprecise".to_string()),
                         Some(SenseAcuity::Vague) => Some("vague".to_string()),
@@ -1197,6 +1150,29 @@ fn awareness(
     } else {
         None
     }
+}
+
+fn sense_acuity<'a>(
+    value: &'a atlas_record::CreatureSense,
+    unavailable: &mut SurfaceUnavailableDomains,
+    component_id: &str,
+) -> Option<&'a SenseAcuity> {
+    if matches!(value.acuity, FactValue::Missing)
+        && matches!(
+            value.sense_type.as_str(),
+            "low-light-vision" | "darkvision" | "greater-darkvision" | "see-invisibility"
+        )
+    {
+        return None;
+    }
+    required_fact(
+        &value.acuity,
+        unavailable,
+        SurfaceDomain::Awareness,
+        CreatureSurfaceUnavailableFieldView::SenseAcuity,
+        CreatureSurfaceSourceFieldView::Perception,
+        Some(component_id.to_string()),
+    )
 }
 
 fn compact_awareness(
@@ -1779,7 +1755,7 @@ fn activities(
                         self_effect: None,
                         self_effect_label: None,
                         rolls: &capability.rolls,
-                        damage: &capability.damage,
+                        damage: ActivityDamageProjection::RequiredStrike(&capability.damage),
                     },
                     content,
                     unavailable,
@@ -1799,7 +1775,7 @@ fn activities(
                         self_effect: Some(&capability.self_effect),
                         self_effect_label: Some(&capability.self_effect_label),
                         rolls: &capability.rolls,
-                        damage: &capability.damage,
+                        damage: ActivityDamageProjection::OptionalAction(&capability.damage),
                     },
                     content,
                     unavailable,
@@ -1861,7 +1837,12 @@ struct ActivityProjection<'a> {
     self_effect: Option<&'a FactValue<String>>,
     self_effect_label: Option<&'a FactValue<String>>,
     rolls: &'a [CreatureRoll],
-    damage: &'a FactValue<Vec<CreatureDamage>>,
+    damage: ActivityDamageProjection<'a>,
+}
+
+enum ActivityDamageProjection<'a> {
+    RequiredStrike(&'a FactValue<Vec<CreatureDamage>>),
+    OptionalAction(&'a FactValue<Vec<CreatureDamage>>),
 }
 
 fn activity(
@@ -2977,18 +2958,22 @@ fn rolls(
 }
 
 fn damage(
-    values: &FactValue<Vec<CreatureDamage>>,
+    projection: ActivityDamageProjection<'_>,
     unavailable: &mut SurfaceUnavailableDomains,
     activity_id: &str,
 ) -> Vec<CreatureSurfaceDamageView> {
-    let Some(values) = required_fact(
-        values,
-        unavailable,
-        SurfaceDomain::Activities,
-        CreatureSurfaceUnavailableFieldView::ActivityDamage,
-        CreatureSurfaceSourceFieldView::EmbeddedEntities,
-        Some(activity_id.to_string()),
-    ) else {
+    let values = match projection {
+        ActivityDamageProjection::RequiredStrike(values) => required_fact(
+            values,
+            unavailable,
+            SurfaceDomain::Activities,
+            CreatureSurfaceUnavailableFieldView::ActivityDamage,
+            CreatureSurfaceSourceFieldView::EmbeddedEntities,
+            Some(activity_id.to_string()),
+        ),
+        ActivityDamageProjection::OptionalAction(values) => optional_fact(values),
+    };
+    let Some(values) = values else {
         return Vec::new();
     };
     values
@@ -3967,6 +3952,289 @@ mod tests {
     }
 
     #[test]
+    fn optional_iwr_absence_is_silent_while_populated_amounts_remain_required() {
+        for values in [
+            FactValue::Missing,
+            FactValue::Null,
+            FactValue::Value(Vec::new()),
+        ] {
+            let mut creature = known_empty_creature();
+            let FactValue::Value(defenses) = &mut creature.defenses.value else {
+                panic!("defenses");
+            };
+            defenses.immunities = values.clone();
+            defenses.resistances = values.clone();
+            defenses.weaknesses = values;
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            assert!(surface.unavailable_domains.is_none());
+            let payload = serde_json::to_value(&surface).expect("optional IWR payload");
+            let defenses = &payload["defenses"];
+            assert!(defenses.get("immunities").is_none());
+            assert!(defenses.get("resistances").is_none());
+            assert!(defenses.get("weaknesses").is_none());
+        }
+
+        for qualifiers in [
+            FactValue::Missing,
+            FactValue::Null,
+            FactValue::Value(Vec::new()),
+        ] {
+            let mut creature = known_empty_creature();
+            let FactValue::Value(defenses) = &mut creature.defenses.value else {
+                panic!("defenses");
+            };
+            defenses.resistances = FactValue::Value(vec![CreatureIwr {
+                id: atlas_record::CreatureComponentId::new("fire").expect("iwr id"),
+                authored_order: 0,
+                kind: CreatureIwrKind::Resistance,
+                iwr_type: atlas_record::IwrType::new("fire").expect("iwr type"),
+                value: FactValue::Value(10),
+                exceptions: qualifiers.clone(),
+                double_vs: qualifiers,
+                apply_once: FactValue::Missing,
+            }]);
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            let resistance = &surface.defenses.as_ref().expect("defenses").resistances[0];
+            assert_eq!(resistance.amount, Some(10));
+            assert!(resistance.exceptions.is_empty());
+            assert!(resistance.double_vs.is_empty());
+            assert!(surface.unavailable_domains.is_none());
+            let payload = serde_json::to_value(&surface).expect("IWR qualifier payload");
+            let resistance = &payload["defenses"]["resistances"][0];
+            assert!(resistance.get("exceptions").is_none());
+            assert!(resistance.get("double_vs").is_none());
+        }
+
+        let mut creature = known_empty_creature();
+        let FactValue::Value(defenses) = &mut creature.defenses.value else {
+            panic!("defenses");
+        };
+        let iwr = |id: &str, kind, value| CreatureIwr {
+            id: atlas_record::CreatureComponentId::new(id).expect("iwr id"),
+            authored_order: 0,
+            kind,
+            iwr_type: atlas_record::IwrType::new(id).expect("iwr type"),
+            value,
+            exceptions: FactValue::Value(Vec::new()),
+            double_vs: FactValue::Value(Vec::new()),
+            apply_once: FactValue::Missing,
+        };
+        defenses.resistances = FactValue::Value(vec![iwr(
+            "fire",
+            CreatureIwrKind::Resistance,
+            FactValue::Missing,
+        )]);
+        defenses.weaknesses = FactValue::Value(vec![iwr(
+            "cold",
+            CreatureIwrKind::Weakness,
+            FactValue::Null,
+        )]);
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let causes = &surface
+            .unavailable_domains
+            .as_ref()
+            .expect("required IWR amounts")
+            .defenses;
+        assert_causes(
+            causes,
+            vec![
+                cause(
+                    CreatureSurfaceUnavailableStateView::Missing,
+                    CreatureSurfaceUnavailableFieldView::IwrAmount,
+                    Some("fire"),
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+                cause(
+                    CreatureSurfaceUnavailableStateView::Null,
+                    CreatureSurfaceUnavailableFieldView::IwrAmount,
+                    Some("cold"),
+                    CreatureSurfaceSourceFieldView::Defenses,
+                ),
+            ],
+        );
+        assert!(
+            causes
+                .as_ref()
+                .expect("defense causes")
+                .causes
+                .iter()
+                .all(|cause| cause.message == "A value is required here.")
+        );
+    }
+
+    #[test]
+    fn action_damage_absence_is_silent_while_strike_damage_remains_required() {
+        for damage in [
+            FactValue::Missing,
+            FactValue::Null,
+            FactValue::Value(Vec::new()),
+        ] {
+            let mut creature = known_empty_creature();
+            let owner = creature.identity.record_key.clone();
+            let mut action = action_occurrence(&owner, "action", "action", 0);
+            let atlas_record::CreatureCapability::Action(capability) = &mut action.capability
+            else {
+                panic!("action fixture");
+            };
+            capability.damage = damage;
+            creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+                entities: vec![entity(&owner, "action", CreatureEntityFamily::Action)],
+                occurrences: vec![action],
+                relationships: Vec::new(),
+                actor_spellcasting: FactValue::Missing,
+            });
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            assert!(
+                surface.activities.as_ref().expect("action")[0]
+                    .damage
+                    .is_empty()
+            );
+            assert!(surface.unavailable_domains.is_none());
+            let payload = serde_json::to_value(&surface).expect("optional action damage payload");
+            assert!(payload["activities"][0].get("damage").is_none());
+        }
+
+        for (damage, state) in [
+            (
+                FactValue::Missing,
+                CreatureSurfaceUnavailableStateView::Missing,
+            ),
+            (FactValue::Null, CreatureSurfaceUnavailableStateView::Null),
+        ] {
+            let mut creature = known_empty_creature();
+            let owner = creature.identity.record_key.clone();
+            let strike = occurrence(
+                &owner,
+                "strike",
+                0,
+                CreatureEntityFamily::Strike,
+                atlas_record::CreatureOccurrenceParent::Creature,
+                atlas_record::CreatureCapability::Strike(atlas_record::CreatureStrikeCapability {
+                    traits: FactValue::Value(Vec::new()),
+                    attack_effects: FactValue::Value(Vec::new()),
+                    rolls: Vec::new(),
+                    damage,
+                    action_cost: atlas_record::CreatureActionCost::Actions(1),
+                    unsupported_notes: Vec::new(),
+                }),
+            );
+            creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+                entities: vec![entity(&owner, "strike", CreatureEntityFamily::Strike)],
+                occurrences: vec![strike],
+                relationships: Vec::new(),
+                actor_spellcasting: FactValue::Missing,
+            });
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            let causes = &surface
+                .unavailable_domains
+                .as_ref()
+                .expect("required strike damage")
+                .activities;
+            assert_causes(
+                causes,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::ActivityDamage,
+                    Some("strike"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                )],
+            );
+            assert_eq!(
+                causes.as_ref().expect("activity cause").causes[0].message,
+                "A value is required here."
+            );
+        }
+    }
+
+    #[test]
+    fn implicit_precise_special_vision_omits_missing_acuity_without_hiding_other_failures() {
+        let mut creature = known_empty_creature();
+        creature.perception.value = FactValue::Value(CreaturePerception {
+            modifier: FactValue::Value(10),
+            details: FactValue::Missing,
+            has_vision: FactValue::Value(true),
+            senses: FactValue::Value(vec![
+                CreatureSense {
+                    id: atlas_record::CreatureComponentId::new("darkvision").expect("sense id"),
+                    authored_order: 0,
+                    sense_type: atlas_record::SenseType::new("darkvision").expect("sense type"),
+                    acuity: FactValue::Missing,
+                    range: FactValue::Missing,
+                },
+                CreatureSense {
+                    id: atlas_record::CreatureComponentId::new("low-light-vision")
+                        .expect("sense id"),
+                    authored_order: 1,
+                    sense_type: atlas_record::SenseType::new("low-light-vision")
+                        .expect("sense type"),
+                    acuity: FactValue::Missing,
+                    range: FactValue::Missing,
+                },
+                CreatureSense {
+                    id: atlas_record::CreatureComponentId::new("scent").expect("sense id"),
+                    authored_order: 2,
+                    sense_type: atlas_record::SenseType::new("scent").expect("sense type"),
+                    acuity: FactValue::Value(atlas_record::SenseAcuity::Imprecise),
+                    range: FactValue::Value(30),
+                },
+            ]),
+        });
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let senses = &surface.awareness.as_ref().expect("awareness").senses;
+        assert_eq!(senses[0].acuity, None);
+        assert_eq!(senses[1].acuity, None);
+        assert_eq!(senses[2].acuity.as_deref(), Some("imprecise"));
+        assert!(surface.unavailable_domains.is_none());
+
+        for (sense_type, acuity, state) in [
+            (
+                "scent",
+                FactValue::Missing,
+                CreatureSurfaceUnavailableStateView::Missing,
+            ),
+            (
+                "darkvision",
+                FactValue::Null,
+                CreatureSurfaceUnavailableStateView::Null,
+            ),
+        ] {
+            let mut creature = known_empty_creature();
+            creature.perception.value = FactValue::Value(CreaturePerception {
+                modifier: FactValue::Value(10),
+                details: FactValue::Missing,
+                has_vision: FactValue::Value(true),
+                senses: FactValue::Value(vec![CreatureSense {
+                    id: atlas_record::CreatureComponentId::new(sense_type).expect("sense id"),
+                    authored_order: 0,
+                    sense_type: atlas_record::SenseType::new(sense_type).expect("sense type"),
+                    acuity,
+                    range: FactValue::Missing,
+                }]),
+            });
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            assert_causes(
+                &surface
+                    .unavailable_domains
+                    .as_ref()
+                    .expect("expected acuity failure")
+                    .awareness,
+                vec![cause(
+                    state,
+                    CreatureSurfaceUnavailableFieldView::SenseAcuity,
+                    Some(sense_type),
+                    CreatureSurfaceSourceFieldView::Perception,
+                )],
+            );
+        }
+    }
+
+    #[test]
     fn magical_forge_static_profiles_project_maximum_hp_and_equal_hp_guard() {
         let mut magical_forge = known_empty_creature();
         magical_forge.identity.name = "Magical Forge".to_string();
@@ -4804,26 +5072,12 @@ mod tests {
         );
         assert_causes(
             &unavailable.defenses,
-            vec![
-                cause(
-                    CreatureSurfaceUnavailableStateView::Missing,
-                    CreatureSurfaceUnavailableFieldView::IwrAmount,
-                    Some("fire"),
-                    CreatureSurfaceSourceFieldView::Defenses,
-                ),
-                cause(
-                    CreatureSurfaceUnavailableStateView::Null,
-                    CreatureSurfaceUnavailableFieldView::IwrExceptions,
-                    Some("fire"),
-                    CreatureSurfaceSourceFieldView::Defenses,
-                ),
-                cause(
-                    CreatureSurfaceUnavailableStateView::Missing,
-                    CreatureSurfaceUnavailableFieldView::IwrDoubleVs,
-                    Some("fire"),
-                    CreatureSurfaceSourceFieldView::Defenses,
-                ),
-            ],
+            vec![cause(
+                CreatureSurfaceUnavailableStateView::Missing,
+                CreatureSurfaceUnavailableFieldView::IwrAmount,
+                Some("fire"),
+                CreatureSurfaceSourceFieldView::Defenses,
+            )],
         );
         assert_causes(
             &unavailable.saves,
@@ -4974,6 +5228,24 @@ mod tests {
                     CreatureSurfaceSourceFieldView::EmbeddedEntities,
                 ),
             ],
+        );
+        assert_eq!(
+            unavailable
+                .vitals
+                .as_ref()
+                .expect("required null cause")
+                .causes[0]
+                .message,
+            "A value is required here."
+        );
+        assert_eq!(
+            unavailable
+                .awareness
+                .as_ref()
+                .expect("unsupported cause")
+                .causes[0]
+                .message,
+            "The authored value is not supported."
         );
 
         creature.movement.value.as_value().expect("movement");
