@@ -7,8 +7,9 @@ use atlas_app_model::{
     ResultWindowRow,
 };
 use atlas_search::{
-    AtlasRetrievalService, ListRecordsRequest, RecordListSort, RecordRetrieval, SearchPage,
-    TextRetrieval, TextSearchMatch, TextSearchRequest,
+    AtlasRetrievalService, ListRecordsRequest, RecordListSort, RecordRetrieval,
+    RemasterLinksRequest, RemasterRetrieval, SearchPage, TextRetrieval, TextSearchMatch,
+    TextSearchRequest,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -151,11 +152,13 @@ fn render_result_window_page(
                 rows: result
                     .records
                     .iter()
-                    .map(|record| ResultWindowRow {
-                        record: record_summary(record),
-                        match_summary: None,
+                    .map(|record| {
+                        Ok(ResultWindowRow {
+                            record: record_summary_with_edition(retrieval, record)?,
+                            match_summary: None,
+                        })
                     })
-                    .collect(),
+                    .collect::<AppServiceResult<Vec<_>>>()?,
             })
         }
         ResultWindowMode::TextSearch { query, exclude, .. } => {
@@ -177,14 +180,26 @@ fn render_result_window_page(
                 rows: result
                     .records
                     .iter()
-                    .map(|record| ResultWindowRow {
-                        record: record_summary(&record.record),
-                        match_summary: Some(match_summary(&record.match_info)),
+                    .map(|record| {
+                        Ok(ResultWindowRow {
+                            record: record_summary_with_edition(retrieval, &record.record)?,
+                            match_summary: Some(match_summary(&record.match_info)),
+                        })
                     })
-                    .collect(),
+                    .collect::<AppServiceResult<Vec<_>>>()?,
             })
         }
     }
+}
+
+fn record_summary_with_edition(
+    retrieval: &AtlasRetrievalService,
+    record: &atlas_record::RetrievedRecord,
+) -> AppServiceResult<atlas_app_model::RecordSummaryView> {
+    let remaster_links = retrieval.remaster_links(RemasterLinksRequest {
+        record_key: &record.record.identity.key,
+    })?;
+    Ok(record_summary(record, remaster_links.as_ref()))
 }
 
 fn record_list_sort(value: RecordListSortView) -> RecordListSort {
@@ -217,7 +232,7 @@ mod tests {
 
     use atlas_app_model::{
         BasicSearchFilter, OpenResultWindowRequest, ReadResultWindowPageRequest,
-        RecordListSortView, ResultWindowMode, SearchPageRequest,
+        RecordListSortView, RecordSurfaceEditionStatusView, ResultWindowMode, SearchPageRequest,
     };
 
     use super::*;
@@ -359,6 +374,15 @@ mod tests {
                 .map(|source| source.pack_label.as_str()),
             Some("Actions")
         );
+        let edition = first_page.rows[0]
+            .record
+            .surface
+            .metadata
+            .edition
+            .as_ref()
+            .expect("search compact record should expose edition metadata");
+        assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
+        assert!(edition.counterparts.is_empty());
 
         let second_page = worker
             .read_result_window_page(

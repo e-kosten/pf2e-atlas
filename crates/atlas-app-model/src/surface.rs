@@ -43,7 +43,41 @@ pub struct RecordSurfaceMetadataView {
     pub traits: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub edition: Option<RecordSurfaceEditionView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub source: Option<RecordSurfaceSourceView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceEditionView {
+    pub status: RecordSurfaceEditionStatusView,
+    pub counterparts: Vec<RecordSurfaceEditionCounterpartView>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum RecordSurfaceEditionStatusView {
+    Legacy,
+    Remaster,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceEditionCounterpartView {
+    pub role: RecordSurfaceEditionCounterpartRoleView,
+    pub record_key: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum RecordSurfaceEditionCounterpartRoleView {
+    LegacyCounterpart,
+    RemasteredCounterpart,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

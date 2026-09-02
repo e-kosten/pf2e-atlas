@@ -3,10 +3,11 @@ use atlas_app_model::{
     CreateEncounterRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCategoryView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterRuntimeView, EncounterStatusView, RecordSurfacePresentationView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+    EncounterRuntimeView, EncounterStatusView, RecordSurfaceEditionStatusView,
+    RecordSurfacePresentationView, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -507,6 +508,14 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
             participant.record_view.presentation,
             RecordSurfacePresentationView::Creature { .. }
         ));
+        let edition = participant
+            .record_view
+            .metadata
+            .edition
+            .as_ref()
+            .expect("encounter record should expose edition metadata");
+        assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
+        assert!(edition.counterparts.is_empty());
         assert!(runtime(participant).defenses.is_some());
         assert!(runtime(participant).vitals.is_some());
     }

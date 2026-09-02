@@ -19,8 +19,8 @@ use atlas_local_state::{
 };
 use atlas_search::{
     GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordRetrieval, RecordScope,
-    ResolveRecordRefRequest, RetrievalMode, SearchPage, TextRetrieval, TextSearchRequest,
-    TextSearchTuning,
+    RemasterLinksResult, ResolveRecordRefRequest, RetrievalMode, SearchPage, TextRetrieval,
+    TextSearchRequest, TextSearchTuning,
 };
 use serde_json::json;
 use time::OffsetDateTime;
@@ -29,7 +29,13 @@ use time::format_description::well_known::Rfc3339;
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::lower_basic_filter;
 use crate::projection::record_summary;
+use crate::retrieval::remaster_links_for_records;
 use crate::service::AtlasAppService;
+
+struct HydratedSavedListRecords {
+    records_by_key: BTreeMap<String, atlas_record::RetrievedRecord>,
+    remaster_links_by_key: BTreeMap<String, RemasterLinksResult>,
+}
 
 impl AtlasAppService {
     pub fn saved_lists(&self) -> AppServiceResult<SavedListIndexView> {
@@ -51,13 +57,13 @@ impl AtlasAppService {
                     format!("saved list `{list_ref}` was not found"),
                 )
             })?;
-        let records_by_key = hydrate_saved_list_records(self, &list.items)?;
+        let hydrated_records = hydrate_saved_list_records(self, &list.items)?;
         Ok(SavedListDetailView {
             list: saved_list_summary(list.list),
             items: list
                 .items
                 .into_iter()
-                .map(|item| saved_list_item_view(item, &records_by_key))
+                .map(|item| saved_list_item_view(item, &hydrated_records))
                 .collect(),
         })
     }
@@ -335,11 +341,14 @@ impl AtlasAppService {
             items: imported,
             replace: request.replace,
         })?;
-        let records_by_key = hydrate_saved_list_records(self, &imported.items)?;
+        let hydrated_records = hydrate_saved_list_records(self, &imported.items)?;
         let mut active_count = 0;
         let mut unresolved_count = 0;
         for item in &imported.items {
-            if records_by_key.contains_key(&item.record_key) {
+            if hydrated_records
+                .records_by_key
+                .contains_key(&item.record_key)
+            {
                 active_count += 1;
             } else {
                 unresolved_count += 1;
@@ -385,7 +394,7 @@ impl AtlasAppService {
             .iter()
             .filter_map(|item| RecordKey::parse(&item.record_key).ok())
             .collect::<Vec<_>>();
-        let records_by_key = if let Some(query) = query {
+        let hydrated_records = if let Some(query) = query {
             searched_saved_list_records(self, &active_keys, filter, query)?
         } else if has_match_scope {
             filtered_saved_list_records(self, &active_keys, filter)?
@@ -397,8 +406,13 @@ impl AtlasAppService {
             items: list
                 .items
                 .into_iter()
-                .filter(|item| !has_match_scope || records_by_key.contains_key(&item.record_key))
-                .map(|item| saved_list_item_view(item, &records_by_key))
+                .filter(|item| {
+                    !has_match_scope
+                        || hydrated_records
+                            .records_by_key
+                            .contains_key(&item.record_key)
+                })
+                .map(|item| saved_list_item_view(item, &hydrated_records))
                 .collect(),
         })
     }
@@ -411,22 +425,30 @@ impl AtlasAppService {
 fn hydrate_saved_list_records(
     service: &AtlasAppService,
     items: &[SavedListItem],
-) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
+) -> AppServiceResult<HydratedSavedListRecords> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
         .collect::<Vec<_>>();
     if record_keys.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(HydratedSavedListRecords {
+            records_by_key: BTreeMap::new(),
+            remaster_links_by_key: BTreeMap::new(),
+        });
     }
     service.submit_retrieval(move |retrieval| {
-        Ok(retrieval
+        let records_by_key = retrieval
             .get_records(GetRecordsRequest {
                 record_keys: &record_keys,
             })?
             .into_iter()
             .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
-            .collect())
+            .collect::<BTreeMap<_, _>>();
+        let remaster_links_by_key = remaster_links_for_records(retrieval, records_by_key.values())?;
+        Ok(HydratedSavedListRecords {
+            records_by_key,
+            remaster_links_by_key,
+        })
     })
 }
 
@@ -486,9 +508,12 @@ fn filtered_saved_list_records(
     service: &AtlasAppService,
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::SearchFilterNode>,
-) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
+) -> AppServiceResult<HydratedSavedListRecords> {
     if record_keys.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(HydratedSavedListRecords {
+            records_by_key: BTreeMap::new(),
+            remaster_links_by_key: BTreeMap::new(),
+        });
     }
     let record_keys = record_keys.to_vec();
     let filter = filter.cloned();
@@ -510,7 +535,11 @@ fn filtered_saved_list_records(
             }
             page_number += 1;
         }
-        Ok(records)
+        let remaster_links_by_key = remaster_links_for_records(retrieval, records.values())?;
+        Ok(HydratedSavedListRecords {
+            records_by_key: records,
+            remaster_links_by_key,
+        })
     })
 }
 
@@ -519,9 +548,12 @@ fn searched_saved_list_records(
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::SearchFilterNode>,
     query: &str,
-) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
+) -> AppServiceResult<HydratedSavedListRecords> {
     if record_keys.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(HydratedSavedListRecords {
+            records_by_key: BTreeMap::new(),
+            remaster_links_by_key: BTreeMap::new(),
+        });
     }
     let record_keys = record_keys.to_vec();
     let scoped_keys = record_keys.iter().cloned().collect::<BTreeSet<_>>();
@@ -560,7 +592,11 @@ fn searched_saved_list_records(
             }
             page_number += 1;
         }
-        Ok(records)
+        let remaster_links_by_key = remaster_links_for_records(retrieval, records.values())?;
+        Ok(HydratedSavedListRecords {
+            records_by_key: records,
+            remaster_links_by_key,
+        })
     })
 }
 
@@ -632,7 +668,7 @@ fn record_resolution_candidate_view(
     resolution: atlas_search::RecordResolutionResult,
 ) -> RecordResolutionCandidateView {
     RecordResolutionCandidateView {
-        record: record_summary(&resolution.record),
+        record: record_summary(&resolution.record, None),
         query: resolution.query,
         normalized_query: resolution.normalized_query,
         match_kind: resolution.match_kind.as_str().to_string(),
@@ -662,15 +698,17 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
 
 fn saved_list_item_view(
     item: SavedListItem,
-    records_by_key: &BTreeMap<String, atlas_record::RetrievedRecord>,
+    hydrated_records: &HydratedSavedListRecords,
 ) -> SavedListItemView {
-    let record = records_by_key.get(&item.record_key);
+    let record = hydrated_records.records_by_key.get(&item.record_key);
+    let remaster_links = hydrated_records.remaster_links_by_key.get(&item.record_key);
     let hydrated = hydrate_saved_list_item(item, record);
-    saved_list_item_from_hydrated(hydrated)
+    saved_list_item_from_hydrated(hydrated, remaster_links)
 }
 
 fn saved_list_item_from_hydrated(
     item: HydratedSavedListItem<&atlas_record::RetrievedRecord>,
+    remaster_links: Option<&RemasterLinksResult>,
 ) -> SavedListItemView {
     SavedListItemView {
         record_key: item.record_key,
@@ -681,7 +719,9 @@ fn saved_list_item_from_hydrated(
             title: item.snapshot.title,
             kind: item.snapshot.kind,
         },
-        record: item.record.map(record_summary),
+        record: item
+            .record
+            .map(|record| record_summary(record, remaster_links)),
     }
 }
 

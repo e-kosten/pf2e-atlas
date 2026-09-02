@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use atlas_app_model::{
     AppErrorCode, EncounterDetailView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
@@ -15,7 +13,7 @@ use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
 use crate::surface::{record_surface, unavailable_participant_surface};
 
-use super::hydration::hydrate_participant_records;
+use super::hydration::{HydratedParticipantRecords, hydrate_participant_records};
 use super::mechanics::{manual_encounter_runtime, participant_encounter_runtime};
 
 pub(super) fn encounter_detail_view(
@@ -23,7 +21,7 @@ pub(super) fn encounter_detail_view(
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
 ) -> AppServiceResult<EncounterDetailView> {
-    let records_by_key = hydrate_participant_records(service, &participants)?;
+    let hydrated_records = hydrate_participant_records(service, &participants)?;
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
@@ -33,7 +31,7 @@ pub(super) fn encounter_detail_view(
         current_turn_participant_key,
         participants: participants
             .into_iter()
-            .map(|participant| participant_view(participant, &records_by_key))
+            .map(|participant| participant_view(participant, &hydrated_records))
             .collect(),
     })
 }
@@ -57,12 +55,12 @@ pub(super) fn encounter_summary(
 
 pub(super) fn participant_view(
     participant: EncounterParticipant,
-    records_by_key: &BTreeMap<String, atlas_record::RetrievedRecord>,
+    hydrated_records: &HydratedParticipantRecords,
 ) -> EncounterParticipantView {
     let retrieved = participant
         .record_key
         .as_ref()
-        .and_then(|key| records_by_key.get(key));
+        .and_then(|key| hydrated_records.records_by_key.get(key));
     let encounter_runtime = retrieved
         .and_then(|retrieved| participant_encounter_runtime(&participant, retrieved))
         .unwrap_or_else(|| manual_encounter_runtime(&participant));
@@ -82,6 +80,9 @@ pub(super) fn participant_view(
             retrieved,
             RecordSurfaceProfileView::EncounterParticipant,
             Some(encounter_runtime),
+            hydrated_records
+                .remaster_links_by_key
+                .get(&retrieved.record.identity.key.to_string()),
         )
     } else {
         let reason = if participant.participant_kind == ParticipantKind::Pc {

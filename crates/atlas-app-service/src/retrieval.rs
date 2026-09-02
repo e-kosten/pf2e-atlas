@@ -1,10 +1,14 @@
+use std::collections::BTreeMap;
+
 use atlas_domain::{RecordKey, SearchFilterNode};
+use atlas_record::RetrievedRecord;
 use atlas_search::{
-    GraphContextRequest, GraphContextResult, GraphRetrieval, ListRecordsRequest, ListRecordsResult,
-    RecordListSort, RecordRetrieval, RemasterLinksRequest, RemasterLinksResult, RemasterRetrieval,
-    ResolveVariantGroupRefRequest, SearchPage, SimilarRecordRefRequest, SimilarRecordRefResult,
-    SimilarRetrieval, SimilarScoreWeights, TextRetrieval, TextSearchRequest, TextSearchResult,
-    TextSearchTuning, VariantGroupRefResolutionResult, VariantRetrieval,
+    AtlasRetrievalService, GraphContextRequest, GraphContextResult, GraphRetrieval,
+    ListRecordsRequest, ListRecordsResult, RecordListSort, RecordRetrieval, RemasterLinksRequest,
+    RemasterLinksResult, RemasterRetrieval, ResolveVariantGroupRefRequest, SearchError, SearchPage,
+    SimilarRecordRefRequest, SimilarRecordRefResult, SimilarRetrieval, SimilarScoreWeights,
+    TextRetrieval, TextSearchRequest, TextSearchResult, TextSearchTuning,
+    VariantGroupRefResolutionResult, VariantRetrieval,
 };
 
 use crate::error::AppServiceResult;
@@ -94,4 +98,23 @@ impl AtlasAppService {
             })?)
         })
     }
+}
+
+pub(crate) fn remaster_links_for_records<'a>(
+    retrieval: &AtlasRetrievalService,
+    records: impl IntoIterator<Item = &'a RetrievedRecord>,
+) -> Result<BTreeMap<String, RemasterLinksResult>, SearchError> {
+    let mut links_by_key = BTreeMap::new();
+    for record in records {
+        let key = record.record.identity.key.to_string();
+        if links_by_key.contains_key(&key) {
+            continue;
+        }
+        if let Some(links) = retrieval.remaster_links(RemasterLinksRequest {
+            record_key: &record.record.identity.key,
+        })? {
+            links_by_key.insert(key, links);
+        }
+    }
+    Ok(links_by_key)
 }
