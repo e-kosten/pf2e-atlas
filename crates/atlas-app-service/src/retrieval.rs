@@ -14,6 +14,22 @@ use atlas_search::{
 use crate::error::AppServiceResult;
 use crate::service::AtlasAppService;
 
+#[derive(Debug, Clone)]
+pub(crate) struct VerifiedRemasterLookup {
+    links: RemasterLinksResult,
+}
+
+impl VerifiedRemasterLookup {
+    pub(crate) fn links(&self) -> &RemasterLinksResult {
+        &self.links
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_test_result(links: RemasterLinksResult) -> Self {
+        Self { links }
+    }
+}
+
 impl AtlasAppService {
     pub fn list_records(
         &self,
@@ -100,21 +116,34 @@ impl AtlasAppService {
     }
 }
 
-pub(crate) fn remaster_links_for_records<'a>(
+pub(crate) fn verified_remaster_lookup(
+    retrieval: &AtlasRetrievalService,
+    record: &RetrievedRecord,
+) -> Result<VerifiedRemasterLookup, SearchError> {
+    let links = retrieval
+        .remaster_links(RemasterLinksRequest {
+            record_key: &record.record.identity.key,
+        })?
+        .ok_or_else(|| {
+            SearchError::query_failed(format!(
+                "canonical record `{}` disappeared during remaster lookup",
+                record.record.identity.key
+            ))
+        })?;
+    Ok(VerifiedRemasterLookup { links })
+}
+
+pub(crate) fn verified_remaster_lookups_for_records<'a>(
     retrieval: &AtlasRetrievalService,
     records: impl IntoIterator<Item = &'a RetrievedRecord>,
-) -> Result<BTreeMap<String, RemasterLinksResult>, SearchError> {
-    let mut links_by_key = BTreeMap::new();
+) -> Result<BTreeMap<String, VerifiedRemasterLookup>, SearchError> {
+    let mut lookups_by_key = BTreeMap::new();
     for record in records {
         let key = record.record.identity.key.to_string();
-        if links_by_key.contains_key(&key) {
+        if lookups_by_key.contains_key(&key) {
             continue;
         }
-        if let Some(links) = retrieval.remaster_links(RemasterLinksRequest {
-            record_key: &record.record.identity.key,
-        })? {
-            links_by_key.insert(key, links);
-        }
+        lookups_by_key.insert(key, verified_remaster_lookup(retrieval, record)?);
     }
-    Ok(links_by_key)
+    Ok(lookups_by_key)
 }

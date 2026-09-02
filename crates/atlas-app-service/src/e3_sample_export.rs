@@ -19,6 +19,7 @@ use serde_json::{Value, json};
 use crate::executor::{
     RetrievalExecutor, no_embedding_acquisition_count, reset_no_embedding_acquisition_count,
 };
+use crate::retrieval::verified_remaster_lookup;
 use crate::service::{AtlasAppService, RetrievalBackend};
 use crate::surface::record_surface;
 
@@ -258,17 +259,27 @@ fn export_e3_record_surface_final_samples() {
     assert!(matches!(night_hag.body, Some(RecordBody::Creature(_))));
     assert!(matches!(giant_rat.body, Some(RecordBody::Creature(_))));
 
+    let lookup_records = (night_hag.clone(), giant_rat.clone());
+    let (night_hag_remaster_lookup, giant_rat_remaster_lookup) = service
+        .submit_retrieval(move |retrieval| {
+            Ok((
+                verified_remaster_lookup(retrieval, &lookup_records.0)?,
+                verified_remaster_lookup(retrieval, &lookup_records.1)?,
+            ))
+        })
+        .expect("real compact records should authenticate remaster lookups");
+
     let night_hag_compact = record_surface(
         night_hag,
         RecordSurfaceProfileView::SearchCompact,
         None,
-        None,
+        &night_hag_remaster_lookup,
     );
     let giant_rat_compact = record_surface(
         giant_rat,
         RecordSurfaceProfileView::SearchCompact,
         None,
-        None,
+        &giant_rat_remaster_lookup,
     );
     assert_compact_surface(&night_hag_compact);
     assert_compact_surface(&giant_rat_compact);

@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::projection::kind_label;
+use crate::retrieval::VerifiedRemasterLookup;
 use atlas_app_model::{
     CreatureSurfaceAbilitiesView, CreatureSurfaceActionCostView, CreatureSurfaceActivityTypeView,
     CreatureSurfaceActivityView, CreatureSurfaceAdjustmentValueView, CreatureSurfaceAdjustmentView,
@@ -45,9 +47,6 @@ use atlas_record::{
     PresentationContent, PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord,
     SenseAcuity, project_presentation_content, render_plain_text,
 };
-use atlas_search::RemasterLinksResult;
-
-use crate::projection::kind_label;
 
 const SEARCH_TEASER_WORDS: usize = 50;
 
@@ -55,9 +54,9 @@ pub(crate) fn record_surface(
     retrieved: &RetrievedRecord,
     profile: RecordSurfaceProfileView,
     mut encounter: Option<EncounterRuntimeView>,
-    remaster_links: Option<&RemasterLinksResult>,
+    remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceView {
-    let metadata = record_metadata(retrieved, remaster_links);
+    let metadata = record_metadata(retrieved, remaster_lookup);
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
         (atlas_domain::RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
             let content_placement = activity_content_placement(creature);
@@ -160,7 +159,7 @@ fn teaser_from_text(text: &str) -> Option<String> {
 
 fn record_metadata(
     retrieved: &RetrievedRecord,
-    remaster_links: Option<&RemasterLinksResult>,
+    remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceMetadataView {
     let record = &retrieved.record;
     let creature_provenance = retrieved
@@ -178,7 +177,7 @@ fn record_metadata(
             .rarity
             .map(|rarity| rarity.as_str().to_string()),
         traits: record.classification.traits.clone(),
-        edition: Some(record_edition(retrieved, remaster_links)),
+        edition: Some(record_edition(retrieved, remaster_lookup)),
         source: Some(RecordSurfaceSourceView {
             publication_title: record.publication.title.clone(),
             pack_label: record.foundry.pack_label.clone(),
@@ -197,18 +196,17 @@ fn record_metadata(
 
 fn record_edition(
     retrieved: &RetrievedRecord,
-    remaster_links: Option<&RemasterLinksResult>,
+    remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceEditionView {
     let status = if retrieved.record.publication.remaster {
         RecordSurfaceEditionStatusView::Remaster
     } else {
         RecordSurfaceEditionStatusView::Legacy
     };
-    let counterparts = remaster_links
-        .filter(|links| {
-            links.seed.record.identity.key == retrieved.record.identity.key
-                && links.seed.record.publication.remaster == retrieved.record.publication.remaster
-        })
+    let links = remaster_lookup.links();
+    let counterparts = (links.seed.record.identity.key == retrieved.record.identity.key
+        && links.seed.record.publication.remaster == retrieved.record.publication.remaster)
+        .then_some(links)
         .into_iter()
         .flat_map(|links| &links.links)
         .filter_map(|link| verified_edition_counterpart(retrieved, link))
@@ -3287,7 +3285,12 @@ mod tests {
         remaster_links: Option<&RemasterLinksResult>,
         profile: RecordSurfaceProfileView,
     ) -> atlas_app_model::RecordSurfaceEditionView {
-        super::record_surface(record, profile, None, remaster_links)
+        let remaster_lookup = crate::retrieval::VerifiedRemasterLookup::from_test_result(
+            remaster_links
+                .cloned()
+                .unwrap_or_else(|| remaster_result(record, Vec::new())),
+        );
+        super::record_surface(record, profile, None, &remaster_lookup)
             .metadata
             .edition
             .expect("canonical fixture record should expose edition metadata")
@@ -3392,11 +3395,16 @@ mod tests {
             body: Some(atlas_record::RecordBody::Creature(creature)),
         };
 
+        let remaster_lookup =
+            crate::retrieval::VerifiedRemasterLookup::from_test_result(RemasterLinksResult {
+                seed: retrieved.clone(),
+                links: Vec::new(),
+            });
         let surface = super::record_surface(
             &retrieved,
             RecordSurfaceProfileView::SearchCompact,
             None,
-            None,
+            &remaster_lookup,
         );
         let atlas_app_model::RecordSurfacePresentationView::Creature { body } =
             surface.presentation

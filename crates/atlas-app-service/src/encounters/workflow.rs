@@ -266,7 +266,7 @@ impl AtlasAppService {
                 )
             })?;
         let records_by_key = hydrate_participant_records(self, std::slice::from_ref(&participant))?;
-        Ok(participant_view(participant, &records_by_key))
+        participant_view(participant, &records_by_key)
     }
 
     pub fn reorder_encounter_participant(

@@ -9,12 +9,12 @@ use atlas_search::{
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::retrieval::remaster_links_for_records;
+use crate::retrieval::{VerifiedRemasterLookup, verified_remaster_lookups_for_records};
 use crate::service::AtlasAppService;
 
 pub(super) struct HydratedParticipantRecords {
     pub(super) records_by_key: BTreeMap<String, atlas_record::RetrievedRecord>,
-    pub(super) remaster_links_by_key: BTreeMap<String, atlas_search::RemasterLinksResult>,
+    pub(super) remaster_lookups_by_key: BTreeMap<String, VerifiedRemasterLookup>,
 }
 
 pub(super) fn hydrate_participant_records(
@@ -33,7 +33,7 @@ pub(super) fn hydrate_participant_records(
     if record_keys.is_empty() {
         return Ok(HydratedParticipantRecords {
             records_by_key: BTreeMap::new(),
-            remaster_links_by_key: BTreeMap::new(),
+            remaster_lookups_by_key: BTreeMap::new(),
         });
     }
     service.submit_retrieval(move |retrieval| {
@@ -44,10 +44,11 @@ pub(super) fn hydrate_participant_records(
             .into_iter()
             .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
             .collect::<BTreeMap<_, _>>();
-        let remaster_links_by_key = remaster_links_for_records(retrieval, records_by_key.values())?;
+        let remaster_lookups_by_key =
+            verified_remaster_lookups_for_records(retrieval, records_by_key.values())?;
         Ok(HydratedParticipantRecords {
             records_by_key,
-            remaster_links_by_key,
+            remaster_lookups_by_key,
         })
     })
 }

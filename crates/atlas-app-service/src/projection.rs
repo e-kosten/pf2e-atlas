@@ -3,9 +3,10 @@ use atlas_app_model::{
     SearchPageView,
 };
 use atlas_record::RetrievedRecord;
-use atlas_search::{RemasterLinksResult, SearchPageInfo};
+use atlas_search::SearchPageInfo;
 
 use crate::AppServiceResult;
+use crate::retrieval::VerifiedRemasterLookup;
 
 pub(crate) fn search_page_view(page: SearchPageInfo) -> SearchPageView {
     SearchPageView {
@@ -20,28 +21,28 @@ pub(crate) fn search_page_view(page: SearchPageInfo) -> SearchPageView {
 
 pub(crate) fn record_summary(
     record: &RetrievedRecord,
-    remaster_links: Option<&RemasterLinksResult>,
+    remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSummaryView {
     RecordSummaryView {
         surface: crate::surface::record_surface(
             record,
             RecordSurfaceProfileView::SearchCompact,
             None,
-            remaster_links,
+            remaster_lookup,
         ),
     }
 }
 
 pub(crate) fn record_detail(
     record: &RetrievedRecord,
-    remaster_links: Option<&RemasterLinksResult>,
+    remaster_lookup: &VerifiedRemasterLookup,
 ) -> AppServiceResult<RecordDetailView> {
     Ok(RecordDetailView {
         surface: crate::surface::record_surface(
             record,
             RecordSurfaceProfileView::RecordDetail,
             None,
-            remaster_links,
+            remaster_lookup,
         ),
     })
 }
