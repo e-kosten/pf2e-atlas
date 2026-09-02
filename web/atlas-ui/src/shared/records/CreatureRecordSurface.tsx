@@ -845,7 +845,6 @@ function SpellOccurrenceContext({ spell }: { spell: CreatureSurfaceSpellView }) 
     context.contextual_label,
     context.group ? `Group ${context.group}` : undefined,
     context.location ? `Location ${context.location}` : undefined,
-    context.slot ? `Slot ${context.slot}` : undefined,
     context.uses?.maximum === undefined
       ? undefined
       : `${context.uses.maximum} ${context.uses.maximum === 1 ? "use" : "uses"}`,

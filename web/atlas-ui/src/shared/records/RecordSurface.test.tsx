@@ -406,9 +406,8 @@ describe("RecordSurface", () => {
     renderSurface();
 
     expect(screen.getByText("2 slots")).toBeInTheDocument();
-    expect(
-      screen.getByText("At will · Group innate · Slot 5 · 1 use"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("At will · Group innate · 1 use")).toBeInTheDocument();
+    expect(screen.queryByText(/slot5:0/)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Rituals" })).toBeInTheDocument();
     expect(screen.getByText("Ritual DC")).toBeInTheDocument();
     expect(screen.getByText("31")).toBeInTheDocument();
@@ -823,7 +822,7 @@ function detailedSurfaceFixture(): RecordSurfaceView {
             context: {
               contextual_label: "At will",
               group: "innate",
-              slot: "5",
+              slot: "slot5:0",
               uses: { maximum: 1 },
             },
             content: [
