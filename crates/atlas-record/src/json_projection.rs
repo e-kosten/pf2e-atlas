@@ -6,14 +6,20 @@ use atlas_domain::{DetailLevel, RecordKind};
 use serde::Serialize;
 
 pub use creature::{
-    CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson, CreatureDamageJson,
-    CreatureDefensesJson, CreatureFrequencyJson, CreatureHitPointsJson,
-    CreatureIntegerPresenceJson, CreatureIwrJson, CreatureMovementJson, CreatureMovementModeJson,
-    CreatureOccurrenceContextJson, CreaturePreparedSpellJson, CreatureResourceJson,
-    CreatureRollJson, CreatureSaveJson, CreatureSavesJson, CreatureSenseJson, CreatureSkillJson,
-    CreatureSkillSourceEntryJson, CreatureSkillVariantJson, CreatureSpellJson,
-    CreatureSpellSlotJson, CreatureSpellcastingEntryJson, CreatureSpellcastingJson,
-    CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
+    CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
+    CreatureAvailabilityFieldJson, CreatureAvailabilityJson, CreatureAvailabilityStateJson,
+    CreatureContentJson, CreatureContentOwnerJson, CreatureContentProvenanceJson,
+    CreatureDamageJson, CreatureDefensesJson, CreatureEquipmentJson, CreatureFactProvenanceJson,
+    CreatureFactProvenanceSetJson, CreatureFrequencyJson, CreatureHitPointsJson,
+    CreatureInitiativeJson, CreatureIntegerPresenceJson, CreatureIwrJson, CreatureLoreJson,
+    CreatureMovementJson, CreatureMovementModeJson, CreatureOccurrenceContextJson,
+    CreatureOccurrenceProvenanceJson, CreaturePreparedSpellJson, CreatureProvenanceJson,
+    CreatureRelationshipJson, CreatureRelationshipTargetJson, CreatureResourceJson,
+    CreatureRitualsJson, CreatureRollJson, CreatureSaveJson, CreatureSavesJson, CreatureSenseJson,
+    CreatureShieldJson, CreatureSkillJson, CreatureSkillSourceEntryJson, CreatureSkillVariantJson,
+    CreatureSpellAreaJson, CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
+    CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
+    CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
 };
 
 use crate::{
@@ -29,6 +35,34 @@ const DESCRIPTION_PREVIEW_WORDS: usize = 50;
 pub struct RecordJsonOptions {
     pub detail: DetailLevel,
     pub include_source_json: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecordEditionContextJson {
+    pub status: RecordEditionStatusJson,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub counterparts: Vec<RecordEditionCounterpartJson>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecordEditionCounterpartJson {
+    pub role: RecordEditionCounterpartRoleJson,
+    pub record_key: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordEditionStatusJson {
+    Legacy,
+    Remaster,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordEditionCounterpartRoleJson {
+    LegacyCounterpart,
+    RemasteredCounterpart,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,6 +139,16 @@ pub struct RecordJsonBase {
 pub enum RecordPresentationJson {
     Creature {
         #[serde(skip_serializing_if = "Option::is_none")]
+        teaser: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        size: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        adjustment: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        initiative: Option<CreatureInitiativeJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        abilities: Option<CreatureAbilitiesJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         defenses: Option<CreatureDefensesJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         perception: Option<CreaturePerceptionJson>,
@@ -122,6 +166,22 @@ pub enum RecordPresentationJson {
         actions: Option<Vec<CreatureActionJson>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         spellcasting: Option<CreatureSpellcastingJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rituals: Option<CreatureRitualsJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        equipment: Option<Vec<CreatureEquipmentJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        lore: Option<Vec<CreatureLoreJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        content: Option<Vec<CreatureContentJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        relationships: Option<Vec<CreatureRelationshipJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        provenance: Option<CreatureProvenanceJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        availability: Vec<CreatureAvailabilityJson>,
     },
     Unmigrated {
         migration: UnmigratedRegistryJson,
@@ -221,12 +281,42 @@ pub fn record_json(
     retrieved: &RetrievedRecord,
     options: RecordJsonOptions,
 ) -> Result<RecordJson, RecordJsonError> {
+    let status = if retrieved.record.publication.remaster {
+        RecordEditionStatusJson::Remaster
+    } else {
+        RecordEditionStatusJson::Legacy
+    };
+    record_json_with_edition_context(
+        retrieved,
+        options,
+        RecordEditionContextJson {
+            status,
+            counterparts: Vec::new(),
+        },
+    )
+}
+
+pub fn record_json_with_edition_context(
+    retrieved: &RetrievedRecord,
+    options: RecordJsonOptions,
+    edition: RecordEditionContextJson,
+) -> Result<RecordJson, RecordJsonError> {
     let record = &retrieved.record;
     let document = build_record_presentation_document(record);
     let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
     let presentation = match (record.classification.kind, &retrieved.body) {
         (RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
-            creature::creature_presentation(creature, options.detail)
+            creature::creature_presentation(
+                creature,
+                options.detail,
+                Some(edition),
+                matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
+                    .then(|| record.content.description())
+                    .flatten()
+                    .and_then(|document| {
+                        truncate_words(&render_plain_text(document), DESCRIPTION_PREVIEW_WORDS)
+                    }),
+            )
         }
         (RecordKind::Creature, None) => {
             return Err(RecordJsonError::MissingCreatureBody {
@@ -249,14 +339,30 @@ pub fn record_json(
             key: record.identity.key.to_string(),
             name: record.identity.name.clone(),
             kind: record.classification.kind.as_str(),
-            level: record.classification.level,
-            rarity: record
-                .classification
-                .rarity
-                .map(|rarity| rarity.as_str().to_string()),
-            traits: record.classification.traits.clone(),
-            source: source_json(record, options.detail),
-            supplementary_sections: supplementary_sections(&detailed_sections),
+            level: (options.detail != DetailLevel::Summary)
+                .then_some(record.classification.level)
+                .flatten(),
+            rarity: (options.detail != DetailLevel::Summary)
+                .then(|| {
+                    record
+                        .classification
+                        .rarity
+                        .map(|rarity| rarity.as_str().to_string())
+                })
+                .flatten(),
+            traits: if options.detail != DetailLevel::Summary {
+                record.classification.traits.clone()
+            } else {
+                Vec::new()
+            },
+            source: (options.detail != DetailLevel::Summary)
+                .then(|| source_json(record, options.detail))
+                .flatten(),
+            supplementary_sections: if record.classification.kind == RecordKind::Creature {
+                Vec::new()
+            } else {
+                supplementary_sections(&detailed_sections)
+            },
             source_json: options
                 .include_source_json
                 .then(|| record.provenance.raw_json.clone())
@@ -496,10 +602,13 @@ mod tests {
 
     use super::*;
     use crate::{
-        ContentSourceKind, FactValue, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-        RecordClassification, RecordContent, RecordContentDocument, RecordIdentity,
-        RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
-        RecordTiming, RecordVisibility, RichDocument, RichNode,
+        ContentId, ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner,
+        ContentProvenance, ContentRole, ContentSourceKind, ContentVisibility,
+        DuplicateContentStatus, FactValue, FoundryDocumentType, FoundryRecordInfo,
+        FoundryRecordType, OwnedRichContentDocument, RecordClassification, RecordContent,
+        RecordContentDocument, RecordIdentity, RecordMechanics, RecordProvenance,
+        RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+        RichDocument, RichNode,
     };
 
     #[test]
@@ -650,6 +759,14 @@ mod tests {
             },
         )
         .expect("standard projection");
+        let full = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Full,
+                include_source_json: false,
+            },
+        )
+        .expect("full projection");
 
         let summary_value = serde_json::to_value(&summary).expect("summary json");
         let description_value = serde_json::to_value(&description).expect("description json");
@@ -673,6 +790,9 @@ mod tests {
                 "description omitted {field}"
             );
         }
+        assert!(summary_value.get("level").is_none());
+        assert!(summary_value.get("source").is_none());
+        assert!(summary_value.get("edition").is_none());
         let RecordPresentationJson::Creature { defenses, .. } = preview.presentation else {
             panic!("preview creature")
         };
@@ -730,25 +850,402 @@ mod tests {
             standard_value["spellcasting"]["entries"][0]["slots"][0]["maximum"],
             1
         );
-        assert_eq!(standard_value["spellcasting"]["spells"][0]["order"], 2);
         assert_eq!(
-            standard_value["spellcasting"]["spells"][0]["context"]["rank"],
+            standard_value["spellcasting"]["entries"][0]["spells"][0]["order"],
+            2
+        );
+        assert_eq!(
+            standard_value["spellcasting"]["entries"][0]["spells"][0]["context"]["rank"],
             1
         );
         assert_eq!(
-            standard_value["spellcasting"]["spells"][0]["context"]["uses"]["maximum"],
+            standard_value["spellcasting"]["entries"][0]["spells"][0]["context"]["uses"]["maximum"],
             1
         );
         assert_eq!(
-            standard_value["spellcasting"]["spells"][0]["parent_entry_id"],
+            standard_value["spellcasting"]["entries"][0]["spells"][0]["parent_entry_id"],
             "occult-innate"
         );
-        assert!(
-            description
-                .supplementary_sections
-                .iter()
-                .any(|section| section.kind == "description")
+        let full_value = serde_json::to_value(full).expect("full json");
+        assert_eq!(full_value["provenance"]["source_contract_version"], "test");
+        assert_eq!(
+            full_value["provenance"]["facts"]["defenses"]["kind"],
+            "source"
         );
+        assert_eq!(
+            full_value["provenance"]["facts"]["defenses"]["field"],
+            "defenses"
+        );
+        assert_eq!(full_value["edition"]["status"], "remaster");
+        assert!(description.supplementary_sections.is_empty());
+        assert!(description_value.get("content").is_none());
+    }
+
+    #[test]
+    fn typed_edition_context_serializes_exact_counterpart_identity() {
+        let record = fixture_creature_record();
+        let value = serde_json::to_value(
+            record_json_with_edition_context(
+                &record,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+                RecordEditionContextJson {
+                    status: RecordEditionStatusJson::Legacy,
+                    counterparts: vec![RecordEditionCounterpartJson {
+                        role: RecordEditionCounterpartRoleJson::RemasteredCounterpart,
+                        record_key: "monster-core:counterpart".to_string(),
+                        title: "Test Guardian Remastered".to_string(),
+                    }],
+                },
+            )
+            .expect("edition projection"),
+        )
+        .expect("json");
+        assert_eq!(value["edition"]["status"], "legacy");
+        assert_eq!(
+            value["edition"]["counterparts"][0]["record_key"],
+            "monster-core:counterpart"
+        );
+        assert_eq!(
+            value["edition"]["counterparts"][0]["role"],
+            "remastered_counterpart"
+        );
+    }
+
+    #[test]
+    fn creature_content_placement_claims_once_and_preserves_owner_identity() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let owner = creature.identity.record_key.clone();
+        creature.content.documents = vec![
+            owned_document(&owner, "general", ContentOwner::Record(owner.clone()), 0),
+            owned_document(
+                &owner,
+                "jaws-content",
+                ContentOwner::CreatureOccurrence(
+                    crate::CreatureOccurrenceId::new("jaws").expect("occurrence"),
+                ),
+                1,
+            ),
+            owned_document(
+                &owner,
+                "jaws-entity-content",
+                ContentOwner::CreatureEntity(crate::CreatureEntityId::new("jaws").expect("entity")),
+                2,
+            ),
+            owned_document(
+                &owner,
+                "unclaimed-content",
+                ContentOwner::CreatureEntity(
+                    crate::CreatureEntityId::new("absent-entity").expect("entity"),
+                ),
+                3,
+            ),
+            owned_document(
+                &owner,
+                "entry-content",
+                ContentOwner::CreatureOccurrence(
+                    crate::CreatureOccurrenceId::new("occult-innate").expect("occurrence"),
+                ),
+                4,
+            ),
+        ];
+        let placement = crate::place_creature_content(creature);
+        assert_eq!(placement.record_owned_documents(creature).count(), 1);
+        assert_eq!(placement.unclaimed_documents(creature).count(), 1);
+        assert_eq!(
+            placement
+                .entity_documents(
+                    creature,
+                    &crate::CreatureEntityId::new("jaws").expect("entity"),
+                )
+                .count(),
+            1
+        );
+        assert_eq!(
+            placement
+                .occurrence_documents(
+                    creature,
+                    &crate::CreatureOccurrenceId::new("jaws").expect("occurrence"),
+                )
+                .count(),
+            1
+        );
+        assert_eq!(
+            placement
+                .standalone_documents(
+                    creature,
+                    &crate::CreatureOccurrenceId::new("jaws").expect("occurrence"),
+                )
+                .count(),
+            2
+        );
+        assert!(placement.is_claimed(1));
+        assert!(placement.is_claimed(2));
+        assert!(!placement.is_claimed(3));
+        assert!(placement.is_claimed(4));
+        let full = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+            )
+            .expect("full projection"),
+        )
+        .expect("json");
+        assert_eq!(
+            full["content"].as_array().expect("general content").len(),
+            2
+        );
+        assert_eq!(full["content"][0]["content_key"], "general");
+        assert_eq!(full["content"][1]["content_key"], "unclaimed-content");
+        assert_eq!(
+            full["strikes"][0]["content"][0]["content_key"],
+            "jaws-content"
+        );
+        assert_eq!(
+            full["strikes"][0]["content"][1]["content_key"],
+            "jaws-entity-content"
+        );
+        assert_eq!(
+            full["spellcasting"]["entries"][0]["content"][0]["content_key"],
+            "entry-content"
+        );
+        assert_eq!(
+            full["strikes"][0]["content"][0]["owner"]["owner_type"],
+            "occurrence"
+        );
+        let description = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Description,
+                    include_source_json: false,
+                },
+            )
+            .expect("description projection"),
+        )
+        .expect("json");
+        assert_eq!(description["content"].as_array().expect("content").len(), 5);
+        assert!(description.get("strikes").is_none());
+    }
+
+    #[test]
+    fn repeated_same_target_occurrences_keep_identity_multiplicity_and_content() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let owner = creature.identity.record_key.clone();
+        let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
+            panic!("embedded entities")
+        };
+        let mut repeated = embedded.occurrences[1].clone();
+        repeated.id = crate::CreatureOccurrenceId::new("second-jaws").expect("occurrence");
+        repeated.authored_order = 4;
+        embedded.occurrences.push(repeated);
+        creature.content.documents = vec![
+            owned_document(
+                &owner,
+                "first-jaws",
+                ContentOwner::CreatureOccurrence(
+                    crate::CreatureOccurrenceId::new("jaws").expect("occurrence"),
+                ),
+                1,
+            ),
+            owned_document(
+                &owner,
+                "second-jaws",
+                ContentOwner::CreatureOccurrence(
+                    crate::CreatureOccurrenceId::new("second-jaws").expect("occurrence"),
+                ),
+                2,
+            ),
+        ];
+        let full = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+            )
+            .expect("full projection"),
+        )
+        .expect("json");
+        let strikes = full["strikes"].as_array().expect("strikes");
+        assert_eq!(strikes.len(), 2);
+        assert_eq!(strikes[0]["id"], "jaws");
+        assert_eq!(strikes[1]["id"], "second-jaws");
+        assert_eq!(strikes[0]["target_entity_id"], "jaws");
+        assert_eq!(strikes[1]["target_entity_id"], "jaws");
+        assert_eq!(strikes[0]["content"][0]["content_key"], "first-jaws");
+        assert_eq!(strikes[1]["content"][0]["content_key"], "second-jaws");
+    }
+
+    #[test]
+    fn association_mutation_fails_only_the_ambiguous_row() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let owner = creature.identity.record_key.clone();
+        let duplicate = owned_document(
+            &owner,
+            "jaws-content",
+            ContentOwner::CreatureOccurrence(
+                crate::CreatureOccurrenceId::new("jaws").expect("occurrence"),
+            ),
+            1,
+        );
+        creature.content.documents = vec![duplicate.clone(), duplicate];
+        let standard = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                },
+            )
+            .expect("standard projection"),
+        )
+        .expect("json");
+        assert_eq!(standard["strikes"].as_array().expect("strikes").len(), 1);
+        assert_eq!(standard["actions"].as_array().expect("actions").len(), 1);
+        assert!(
+            standard["availability"]
+                .as_array()
+                .expect("availability")
+                .iter()
+                .any(|cause| {
+                    cause["component_id"] == "jaws" && cause["field"] == "content_association"
+                })
+        );
+    }
+
+    #[test]
+    fn availability_distinguishes_required_absence_and_malformed_values() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        creature.perception.value = FactValue::Null;
+        creature.adjustment.value = FactValue::Null;
+        creature.languages.value = FactValue::Value(crate::CreatureLanguages {
+            values: FactValue::Value(Vec::new()),
+            details: FactValue::Missing,
+        });
+        creature.skills.value = FactValue::Value(vec![crate::CreatureSkill {
+            id: crate::CreatureComponentId::new("malformed-skill").expect("skill id"),
+            authored_order: 0,
+            source_entries: vec![crate::CreatureSkillSourceEntry {
+                authored_key: "acrobatics+13".to_string(),
+                modifier: FactValue::Null,
+            }],
+            kind: crate::CreatureSkillKind::Unmodeled,
+            label: "acrobatics+13".to_string(),
+            modifier: FactValue::Null,
+            note: FactValue::Missing,
+            variants: FactValue::Value(Vec::new()),
+            source_item_id: FactValue::Missing,
+            unmodeled: FactValue::Value(crate::CreatureUnmodeledSkill {
+                authored_key: "acrobatics+13".to_string(),
+                base: FactValue::Null,
+                reason: crate::CreatureUnmodeledSkillReason::UnknownAuthoredKey,
+            }),
+        }]);
+        let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
+            panic!("embedded entities")
+        };
+        embedded.occurrences[3].capability =
+            crate::CreatureCapability::Unsupported(crate::CreatureUnsupportedCapability {
+                source_item_type: "effect".to_string(),
+                source_slug: FactValue::Null,
+                traits: FactValue::Value(Vec::new()),
+                unsupported_notes: Vec::new(),
+            });
+        let standard = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                },
+            )
+            .expect("standard projection"),
+        )
+        .expect("json");
+        let availability = standard["availability"].as_array().expect("availability");
+        assert!(
+            availability
+                .iter()
+                .any(|cause| { cause["field"] == "size" && cause["state"] == "missing" })
+        );
+        assert!(
+            availability
+                .iter()
+                .any(|cause| { cause["field"] == "perception" && cause["state"] == "null" })
+        );
+        let unmodeled = availability
+            .iter()
+            .find(|cause| cause["field"] == "unmodeled_skill")
+            .expect("unmodeled availability");
+        assert_eq!(unmodeled["authored_key"], "acrobatics+13");
+        assert_eq!(
+            unmodeled["message"],
+            "The source supplied an unrecognized skill key."
+        );
+        let unsupported = availability
+            .iter()
+            .find(|cause| cause["field"] == "unsupported_capability")
+            .expect("unsupported capability availability");
+        assert_eq!(unsupported["authored_key"], "effect");
+        assert!(
+            !availability.iter().any(|cause| {
+                matches!(cause["field"].as_str(), Some("adjustment" | "languages"))
+            })
+        );
+        assert_eq!(
+            standard["languages"].as_array().expect("languages").len(),
+            0
+        );
+        assert!(standard.get("relationships").is_none());
+    }
+
+    fn owned_document(
+        owner_key: &RecordKey,
+        content_key: &str,
+        owner: ContentOwner,
+        order: u32,
+    ) -> OwnedRichContentDocument {
+        OwnedRichContentDocument::new(
+            ContentId::new(
+                owner_key.clone(),
+                ContentKey::new(content_key).expect("content key"),
+            ),
+            ContentIdentityStability::StableSourceIdentity,
+            owner,
+            ContentRole::EmbeddedCapability,
+            ContentOrigin::RecordField {
+                source_kind: ContentSourceKind::Description,
+                relative_source_path: format!("content.{content_key}"),
+            },
+            ContentVisibility::Public,
+            ContentProvenance {
+                source_record_key: owner_key.clone(),
+                relative_source_path: format!("content.{content_key}"),
+                field_or_pointer_family: "content".to_string(),
+                nested_source_id: None,
+                authored_ordinal_or_range: Some(order.to_string()),
+                authored_label: None,
+            },
+            ContentSourceKind::Description,
+            order,
+            Some(content_key.to_string()),
+            RichDocument::new(vec![RichNode::Text {
+                text: content_key.to_string(),
+            }]),
+            DuplicateContentStatus::Unique,
+            Vec::new(),
+        )
     }
 
     fn fixture_record() -> RetrievedRecord {

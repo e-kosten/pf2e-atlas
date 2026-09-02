@@ -2,6 +2,7 @@
 
 mod content;
 mod creature;
+mod creature_content_placement;
 mod creature_entities;
 mod creature_projection;
 mod json_projection;
@@ -49,6 +50,10 @@ pub use creature::{
     SenseAcuity, SenseType, ShieldCurrentPolicy, UnsupportedSourceReason, UnsupportedSourceShape,
     UnsupportedSourceValue,
 };
+pub use creature_content_placement::{
+    CreatureContentAssociationFailure, CreatureContentPlacement, place_creature_content,
+    place_creature_content_for_families,
+};
 pub use creature_entities::{
     CreatureActionCapability, CreatureActionCost, CreatureActorSpellcastingContext,
     CreatureCapability, CreatureDamage, CreatureDamageKind, CreatureDeltaDisposition,
@@ -68,16 +73,25 @@ pub use creature_entities::{
 };
 pub use creature_projection::{CreatureFactProjection, project_creature_facts};
 pub use json_projection::{
-    CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson, CreatureDamageJson,
-    CreatureDefensesJson, CreatureFrequencyJson, CreatureHitPointsJson,
-    CreatureIntegerPresenceJson, CreatureIwrJson, CreatureMovementJson, CreatureMovementModeJson,
-    CreatureOccurrenceContextJson, CreaturePerceptionJson, CreaturePreparedSpellJson,
-    CreatureResourceJson, CreatureRollJson, CreatureSaveJson, CreatureSavesJson, CreatureSenseJson,
-    CreatureSkillJson, CreatureSkillSourceEntryJson, CreatureSkillVariantJson, CreatureSpellJson,
-    CreatureSpellSlotJson, CreatureSpellcastingEntryJson, CreatureSpellcastingJson,
-    CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson, RecordBlockJson,
-    RecordJson, RecordJsonBase, RecordJsonError, RecordJsonOptions, RecordPresentationJson,
-    RecordSectionJson, UnmigratedRegistryJson, record_json,
+    CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
+    CreatureAvailabilityFieldJson, CreatureAvailabilityJson, CreatureAvailabilityStateJson,
+    CreatureContentJson, CreatureContentOwnerJson, CreatureContentProvenanceJson,
+    CreatureDamageJson, CreatureDefensesJson, CreatureEquipmentJson, CreatureFactProvenanceJson,
+    CreatureFactProvenanceSetJson, CreatureFrequencyJson, CreatureHitPointsJson,
+    CreatureInitiativeJson, CreatureIntegerPresenceJson, CreatureIwrJson, CreatureLoreJson,
+    CreatureMovementJson, CreatureMovementModeJson, CreatureOccurrenceContextJson,
+    CreatureOccurrenceProvenanceJson, CreaturePerceptionJson, CreaturePreparedSpellJson,
+    CreatureProvenanceJson, CreatureRelationshipJson, CreatureRelationshipTargetJson,
+    CreatureResourceJson, CreatureRitualsJson, CreatureRollJson, CreatureSaveJson,
+    CreatureSavesJson, CreatureSenseJson, CreatureShieldJson, CreatureSkillJson,
+    CreatureSkillSourceEntryJson, CreatureSkillVariantJson, CreatureSpellAreaJson,
+    CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
+    CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
+    CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillJson, CreatureUseLimitJson,
+    RecordBlockJson, RecordEditionContextJson, RecordEditionCounterpartJson,
+    RecordEditionCounterpartRoleJson, RecordEditionStatusJson, RecordJson, RecordJsonBase,
+    RecordJsonError, RecordJsonOptions, RecordPresentationJson, RecordSectionJson,
+    UnmigratedRegistryJson, record_json, record_json_with_edition_context,
 };
 pub use mechanics::{
     AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,
