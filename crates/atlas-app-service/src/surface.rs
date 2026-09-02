@@ -2545,7 +2545,7 @@ fn content(
 ) -> Option<Vec<CreatureSurfaceContentView>> {
     non_empty(
         activity_content
-            .general_documents(creature)
+            .association_safe_general_documents(creature)
             .filter_map(content_view)
             .collect(),
     )
@@ -5634,6 +5634,51 @@ mod tests {
         );
         assert!(super::content(&creature, &placement).is_none());
         assert!(runtime.automation_limitations.is_empty());
+    }
+
+    #[test]
+    fn shared_placement_preserves_pre_extraction_app_content_semantics() {
+        let mut creature = activity_content_fixture();
+        let owner = creature.identity.record_key.clone();
+        creature.content.documents.push(content_document(
+            &owner,
+            "public-notes",
+            ContentOwner::Record(owner.clone()),
+            1,
+            "Public Notes",
+            vec![paragraph(vec![RichNode::Text {
+                text: "General content.".to_string(),
+            }])],
+        ));
+        let resolved = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        assert_eq!(
+            resolved.activities.as_ref().expect("activity")[0]
+                .content
+                .as_ref()
+                .expect("attached content")[0]
+                .content_key,
+            "item:activity:description"
+        );
+        assert_eq!(
+            resolved.content.as_ref().expect("general content")[0].content_key,
+            "public-notes"
+        );
+
+        for state in ["missing", "null"] {
+            let mut unavailable = creature.clone();
+            unavailable.embedded_entities.value = if state == "missing" {
+                FactValue::Missing
+            } else {
+                FactValue::Null
+            };
+            let surface = creature_surface(&unavailable, RecordSurfaceProfileView::RecordDetail);
+            assert!(surface.activities.is_none());
+            assert_eq!(
+                surface.content.as_ref().expect("record-owned content")[0].content_key,
+                "public-notes"
+            );
+            assert_eq!(surface.content.as_ref().expect("content").len(), 1);
+        }
     }
 
     #[test]

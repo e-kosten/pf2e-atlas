@@ -16,9 +16,11 @@ pub enum CreatureContentAssociationFailure {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CreatureContentPlacement {
+    all: Vec<usize>,
     general: Vec<usize>,
     record_owned: Vec<usize>,
     unclaimed: Vec<usize>,
+    association_failed: Vec<usize>,
     entity_owned: BTreeMap<CreatureEntityId, Vec<usize>>,
     occurrence_owned: BTreeMap<CreatureOccurrenceId, Vec<usize>>,
     by_occurrence: BTreeMap<CreatureOccurrenceId, Vec<usize>>,
@@ -26,6 +28,7 @@ pub struct CreatureContentPlacement {
     claimed: BTreeSet<usize>,
     failures: BTreeMap<CreatureOccurrenceId, CreatureContentAssociationFailure>,
     relationships: Vec<CreatureEntityRelationship>,
+    associations_available: bool,
 }
 
 impl CreatureContentPlacement {
@@ -34,6 +37,15 @@ impl CreatureContentPlacement {
         creature: &'a CreatureRecord,
     ) -> impl Iterator<Item = &'a OwnedRichContentDocument> + 'a {
         self.record_owned
+            .iter()
+            .map(|index| &creature.content.documents[*index])
+    }
+
+    pub fn all_documents<'a>(
+        &'a self,
+        creature: &'a CreatureRecord,
+    ) -> impl Iterator<Item = &'a OwnedRichContentDocument> + 'a {
+        self.all
             .iter()
             .map(|index| &creature.content.documents[*index])
     }
@@ -68,6 +80,32 @@ impl CreatureContentPlacement {
         creature: &'a CreatureRecord,
     ) -> impl Iterator<Item = &'a OwnedRichContentDocument> + 'a {
         self.general
+            .iter()
+            .map(|index| &creature.content.documents[*index])
+    }
+
+    pub fn association_safe_general_documents<'a>(
+        &'a self,
+        creature: &'a CreatureRecord,
+    ) -> impl Iterator<Item = &'a OwnedRichContentDocument> + 'a {
+        self.general
+            .iter()
+            .filter(move |index| {
+                !self.association_failed.contains(index)
+                    && (self.associations_available
+                        || matches!(
+                            creature.content.documents[**index].owner,
+                            ContentOwner::Record(_)
+                        ))
+            })
+            .map(|index| &creature.content.documents[*index])
+    }
+
+    pub fn association_failed_documents<'a>(
+        &'a self,
+        creature: &'a CreatureRecord,
+    ) -> impl Iterator<Item = &'a OwnedRichContentDocument> + 'a {
+        self.association_failed
             .iter()
             .map(|index| &creature.content.documents[*index])
     }
@@ -141,15 +179,18 @@ pub fn place_creature_content_for_families(
     let mut placement = CreatureContentPlacement::default();
     let Some(embedded) = creature.embedded_entities.value.as_value() else {
         for (index, document) in creature.content.documents.iter().enumerate() {
+            placement.all.push(index);
             if matches!(document.owner, ContentOwner::Record(_)) {
                 placement.record_owned.push(index);
-                placement.general.push(index);
             } else {
                 placement.unclaimed.push(index);
             }
+            placement.general.push(index);
         }
+        sort_placement_indices(&mut placement, creature);
         return placement;
     };
+    placement.associations_available = true;
     placement.relationships = embedded.relationships.clone();
     let candidates = embedded
         .occurrences
@@ -197,6 +238,7 @@ pub fn place_creature_content_for_families(
     }
 
     for (index, document) in creature.content.documents.iter().enumerate() {
+        placement.all.push(index);
         match &document.owner {
             ContentOwner::Record(_) => {
                 placement.record_owned.push(index);
@@ -231,7 +273,6 @@ pub fn place_creature_content_for_families(
             }
             continue;
         }
-        placement.claimed.insert(index);
         let failure = if content_counts.get(&document.id) != Some(&1) {
             Some(CreatureContentAssociationFailure::DuplicateContentIdentity)
         } else if matches.len() != 1 {
@@ -241,10 +282,16 @@ pub fn place_creature_content_for_families(
         };
         if let Some(failure) = failure {
             for occurrence in matches {
-                placement.failures.insert(occurrence.id.clone(), failure);
+                placement
+                    .failures
+                    .entry(occurrence.id.clone())
+                    .or_insert(failure);
             }
+            placement.association_failed.push(index);
+            placement.general.push(index);
             continue;
         }
+        placement.claimed.insert(index);
         let occurrence = matches[0];
         placement
             .by_occurrence
@@ -273,17 +320,31 @@ pub fn place_creature_content_for_families(
         placement.by_occurrence.remove(failed);
         placement.standalone.remove(failed);
     }
-    placement.record_owned.sort_by_key(|index| {
-        let document = &creature.content.documents[*index];
-        (document.authored_order, document.id.content_key.as_str())
-    });
-    placement.unclaimed.sort_by_key(|index| {
-        let document = &creature.content.documents[*index];
-        (document.authored_order, document.id.content_key.as_str())
-    });
-    placement.general.sort_by_key(|index| {
-        let document = &creature.content.documents[*index];
-        (document.authored_order, document.id.content_key.as_str())
-    });
+    sort_placement_indices(&mut placement, creature);
     placement
+}
+
+fn sort_placement_indices(placement: &mut CreatureContentPlacement, creature: &CreatureRecord) {
+    let sort = |indices: &mut Vec<usize>| {
+        indices.sort_by_key(|index| {
+            let document = &creature.content.documents[*index];
+            (document.authored_order, document.id.content_key.as_str())
+        });
+    };
+    for indices in [
+        &mut placement.all,
+        &mut placement.record_owned,
+        &mut placement.unclaimed,
+        &mut placement.association_failed,
+        &mut placement.general,
+    ] {
+        sort(indices);
+    }
+    for indices in placement
+        .entity_owned
+        .values_mut()
+        .chain(placement.occurrence_owned.values_mut())
+    {
+        sort(indices);
+    }
 }

@@ -11,10 +11,14 @@ use crate::{
     CreatureRoll, CreatureRollKind, CreatureSave, CreatureSkill, CreatureSkillVariant,
     CreatureSourceScalar, CreatureSpellPreparation, CreatureSpellSlot,
     CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue, PresentationContent,
-    ResourceCurrentPolicy, place_creature_content, project_presentation_content,
+    ResourceCurrentPolicy, UnsupportedMechanicNote, UnsupportedSourceValue, place_creature_content,
+    project_presentation_content,
 };
 
-use super::{CreaturePerceptionJson, RecordEditionContextJson, RecordPresentationJson};
+use super::{
+    CreaturePerceptionJson, RecordEditionContextJson, RecordPresentationJson,
+    RecordRelationshipLookupJson,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct CreatureDefensesJson {
@@ -188,10 +192,18 @@ pub struct CreatureAvailabilityJson {
     pub component_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authored_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_shape: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_reason: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_path: Option<String>,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CreatureAvailabilityStateJson {
     Missing,
@@ -199,13 +211,34 @@ pub enum CreatureAvailabilityStateJson {
     Unsupported,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CreatureAvailabilityFieldJson {
     Size,
     Defenses,
     Perception,
     EmbeddedEntities,
+    Adjustment,
+    InitiativeStatistic,
+    SourceAlliance,
+    HitPointsValue,
+    SenseAcuity,
+    SkillPredicate,
+    MovementMode,
+    ResourceMaximum,
+    ResourceSerializedValue,
+    ResourceSourceDrift,
+    RitualDifficultyClass,
+    ActionCost,
+    SpellPreparation,
+    SpellSlotMaximum,
+    SpellSlotSerializedValue,
+    PreparedSpellSlot,
+    SpellRitualSecondaryCasters,
+    SpellDefenseSave,
+    DamageKind,
+    DamageApplyModifier,
+    UnsupportedMechanic,
     UnmodeledSkill,
     UnsupportedCapability,
     ContentAssociation,
@@ -673,6 +706,7 @@ pub(super) fn creature_presentation(
     creature: &CreatureRecord,
     detail: DetailLevel,
     edition: Option<RecordEditionContextJson>,
+    record_relationships: Option<RecordRelationshipLookupJson>,
     teaser: Option<String>,
 ) -> RecordPresentationJson {
     let include_scan = matches!(
@@ -705,6 +739,7 @@ pub(super) fn creature_presentation(
             relationships: None,
             provenance: None,
             edition: None,
+            record_relationships: None,
             availability: Vec::new(),
         };
     }
@@ -1014,6 +1049,7 @@ pub(super) fn creature_presentation(
             facts: fact_provenance_set(creature),
         }),
         edition,
+        record_relationships,
         availability: availability(creature, &placement, detail),
     }
 }
@@ -1241,7 +1277,7 @@ fn all_content(
     detail: DetailLevel,
 ) -> Option<Vec<CreatureContentJson>> {
     let mut documents = if detail == DetailLevel::Description {
-        creature.content.documents.iter().collect::<Vec<_>>()
+        placement.all_documents(creature).collect::<Vec<_>>()
     } else {
         placement.general_documents(creature).collect::<Vec<_>>()
     };
@@ -1344,25 +1380,21 @@ fn availability(
                     field: CreatureAvailabilityFieldJson::UnmodeledSkill,
                     component_id: Some(skill.id.as_str().to_string()),
                     authored_key: Some(unmodeled.authored_key.clone()),
+                    source_value: None,
+                    source_shape: None,
+                    source_reason: None,
+                    source_path: None,
                     message: "The source supplied an unrecognized skill key.".to_string(),
                 });
             }
         }
     }
-    if detail != DetailLevel::Description
-        && let Some(embedded) = creature.embedded_entities.value.as_value()
-    {
-        for occurrence in &embedded.occurrences {
-            if let CreatureCapability::Unsupported(capability) = &occurrence.capability {
-                values.push(CreatureAvailabilityJson {
-                    state: CreatureAvailabilityStateJson::Unsupported,
-                    field: CreatureAvailabilityFieldJson::UnsupportedCapability,
-                    component_id: Some(occurrence.id.as_str().to_string()),
-                    authored_key: Some(capability.source_item_type.clone()),
-                    message: "The source supplied an unsupported creature capability.".to_string(),
-                });
-            }
-        }
+    if detail != DetailLevel::Description {
+        collect_unsupported_availability(
+            creature,
+            matches!(detail, DetailLevel::Standard | DetailLevel::Full),
+            &mut values,
+        );
     }
     if detail != DetailLevel::Description {
         for (field, label, value) in [
@@ -1393,6 +1425,10 @@ fn availability(
                     field,
                     component_id: None,
                     authored_key: None,
+                    source_value: None,
+                    source_shape: None,
+                    source_reason: None,
+                    source_path: None,
                     message: format!("{label} data is unavailable."),
                 });
             }
@@ -1406,6 +1442,10 @@ fn availability(
                     field: CreatureAvailabilityFieldJson::ContentAssociation,
                     component_id: Some(occurrence.id.as_str().to_string()),
                     authored_key: None,
+                    source_value: None,
+                    source_shape: None,
+                    source_reason: None,
+                    source_path: None,
                     message: match failure {
                         CreatureContentAssociationFailure::DuplicateOccurrenceIdentity => "Content is unavailable because the occurrence identity is duplicated.",
                         CreatureContentAssociationFailure::AmbiguousEntityTarget => "Content is unavailable because the entity target is ambiguous.",
@@ -1416,7 +1456,443 @@ fn availability(
             }
         }
     }
+    values.sort_by(|left, right| {
+        left.field
+            .cmp(&right.field)
+            .then_with(|| left.component_id.cmp(&right.component_id))
+            .then_with(|| left.authored_key.cmp(&right.authored_key))
+            .then_with(|| left.source_value.cmp(&right.source_value))
+            .then_with(|| left.source_shape.cmp(&right.source_shape))
+            .then_with(|| left.source_reason.cmp(&right.source_reason))
+            .then_with(|| left.source_path.cmp(&right.source_path))
+    });
     values
+}
+
+fn collect_unsupported_availability(
+    creature: &CreatureRecord,
+    include_details: bool,
+    values: &mut Vec<CreatureAvailabilityJson>,
+) {
+    if let Some(CreatureAdjustment::Unsupported(source)) = creature.adjustment.value.as_value() {
+        push_unsupported(
+            values,
+            CreatureAvailabilityFieldJson::Adjustment,
+            None,
+            source,
+            None,
+            "The source supplied an unsupported creature adjustment.",
+        );
+    }
+    if let Some(crate::CreatureInitiative {
+        statistic: FactValue::Value(crate::CreatureInitiativeStatistic::Unsupported(source)),
+    }) = creature.initiative.value.as_value()
+    {
+        push_unsupported(
+            values,
+            CreatureAvailabilityFieldJson::InitiativeStatistic,
+            None,
+            source,
+            None,
+            "The source supplied an unsupported initiative statistic.",
+        );
+    }
+    if let Some(crate::CreatureSourceAlliance::Unsupported(source)) =
+        creature.source_alliance.value.as_value()
+    {
+        push_unsupported(
+            values,
+            CreatureAvailabilityFieldJson::SourceAlliance,
+            None,
+            source,
+            None,
+            "The source supplied an unsupported alliance value.",
+        );
+    }
+    if let Some(defenses) = creature.defenses.value.as_value()
+        && let Some(hit_points) = defenses.hit_points.as_value()
+        && let Some(CreatureNumber::Unsupported(source)) = hit_points.value.as_value()
+    {
+        push_unsupported(
+            values,
+            CreatureAvailabilityFieldJson::HitPointsValue,
+            Some("hit_points".to_string()),
+            source,
+            None,
+            "The source supplied an unsupported hit point value.",
+        );
+    }
+    if let Some(perception) = creature.perception.value.as_value()
+        && let Some(senses) = perception.senses.as_value()
+    {
+        for sense in senses {
+            if let Some(crate::SenseAcuity::Unsupported(source)) = sense.acuity.as_value() {
+                push_unsupported(
+                    values,
+                    CreatureAvailabilityFieldJson::SenseAcuity,
+                    Some(sense.id.as_str().to_string()),
+                    source,
+                    None,
+                    "The source supplied an unsupported sense acuity.",
+                );
+            }
+        }
+    }
+    if let Some(skills) = creature.skills.value.as_value() {
+        for skill in skills {
+            if let Some(variants) = skill.variants.as_value() {
+                for variant in variants {
+                    if let Some(predicates) = variant.predicate.as_value() {
+                        for predicate in predicates {
+                            if let crate::CreaturePredicate::Unsupported(source) = predicate {
+                                push_unsupported(
+                                    values,
+                                    CreatureAvailabilityFieldJson::SkillPredicate,
+                                    Some(format!("{}/{}", skill.id.as_str(), variant.id.as_str())),
+                                    source,
+                                    None,
+                                    "The source supplied an unsupported skill predicate.",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(movement) = creature.movement.value.as_value() {
+        for mode in movement {
+            if let CreatureMovementMode::Unsupported(source) = &mode.mode {
+                push_unsupported(
+                    values,
+                    CreatureAvailabilityFieldJson::MovementMode,
+                    Some(mode.id.as_str().to_string()),
+                    source,
+                    None,
+                    "The source supplied an unsupported movement mode.",
+                );
+            }
+        }
+    }
+    if let Some(resources) = creature.resources.value.as_value() {
+        for resource in resources {
+            if let Some(CreatureResourceAmount::Unsupported(source)) = resource.maximum.as_value() {
+                push_unsupported(
+                    values,
+                    CreatureAvailabilityFieldJson::ResourceMaximum,
+                    Some(resource.id.as_str().to_string()),
+                    source,
+                    None,
+                    "The source supplied an unsupported resource maximum.",
+                );
+            }
+            if let Some(CreatureResourceAmount::Unsupported(source)) =
+                resource.serialized_value.as_value()
+            {
+                push_unsupported(
+                    values,
+                    CreatureAvailabilityFieldJson::ResourceSerializedValue,
+                    Some(resource.id.as_str().to_string()),
+                    source,
+                    None,
+                    "The source supplied an unsupported serialized resource value.",
+                );
+            }
+            if let Some(drift) = resource.source_drift.as_value() {
+                for fact in drift {
+                    push_unsupported(
+                        values,
+                        CreatureAvailabilityFieldJson::ResourceSourceDrift,
+                        Some(resource.id.as_str().to_string()),
+                        &fact.value,
+                        None,
+                        "The source supplied a drifting resource value.",
+                    );
+                }
+            }
+        }
+    }
+    let Some(embedded) = creature.embedded_entities.value.as_value() else {
+        return;
+    };
+    if let Some(actor_spellcasting) = embedded.actor_spellcasting.as_value() {
+        if include_details
+            && let Some(CreatureSourceScalar::Unsupported(source)) =
+                actor_spellcasting.rituals_dc.as_value()
+        {
+            push_unsupported(
+                values,
+                CreatureAvailabilityFieldJson::RitualDifficultyClass,
+                Some("actor_spellcasting".to_string()),
+                source,
+                None,
+                "The source supplied an unsupported ritual difficulty class.",
+            );
+        }
+        push_unsupported_notes(
+            values,
+            "actor_spellcasting",
+            &actor_spellcasting.unsupported_notes,
+        );
+    }
+    for occurrence in &embedded.occurrences {
+        let occurrence_id = occurrence.id.as_str();
+        push_unsupported_notes(
+            values,
+            occurrence_id,
+            capability_unsupported_notes(&occurrence.capability),
+        );
+        match &occurrence.capability {
+            CreatureCapability::Strike(capability) => {
+                collect_action_cost(values, occurrence_id, &capability.action_cost);
+                if include_details {
+                    collect_damage(values, occurrence_id, &capability.damage);
+                }
+            }
+            CreatureCapability::Action(capability) => {
+                collect_action_cost(values, occurrence_id, &capability.action_cost);
+                if include_details {
+                    collect_damage(values, occurrence_id, &capability.damage);
+                }
+            }
+            CreatureCapability::SpellcastingEntry(capability) => {
+                if let Some(CreatureSpellPreparation::Unsupported(source)) =
+                    capability.preparation.as_value()
+                {
+                    push_unsupported(
+                        values,
+                        CreatureAvailabilityFieldJson::SpellPreparation,
+                        Some(occurrence_id.to_string()),
+                        source,
+                        None,
+                        "The source supplied an unsupported spell preparation.",
+                    );
+                }
+                if include_details {
+                    collect_spell_slots(values, occurrence_id, &capability.slots);
+                }
+            }
+            CreatureCapability::Spell(capability) => {
+                collect_action_cost(values, occurrence_id, &capability.action_cost);
+                if include_details
+                    && let Some(ritual) = capability.ritual.as_value()
+                    && let Some(CreatureSourceScalar::Unsupported(source)) =
+                        ritual.secondary_casters.as_value()
+                {
+                    push_unsupported(
+                        values,
+                        CreatureAvailabilityFieldJson::SpellRitualSecondaryCasters,
+                        Some(occurrence_id.to_string()),
+                        source,
+                        None,
+                        "The source supplied an unsupported ritual secondary-caster value.",
+                    );
+                }
+                if include_details
+                    && let Some(defense) = capability.defense.as_value()
+                    && let Some(crate::CreatureSpellSave::Unsupported(source)) =
+                        defense.save.as_value()
+                {
+                    push_unsupported(
+                        values,
+                        CreatureAvailabilityFieldJson::SpellDefenseSave,
+                        Some(occurrence_id.to_string()),
+                        source,
+                        None,
+                        "The source supplied an unsupported spell defense save.",
+                    );
+                }
+                if include_details {
+                    collect_damage(values, occurrence_id, &capability.damage);
+                }
+            }
+            CreatureCapability::Unsupported(capability) => values.push(CreatureAvailabilityJson {
+                state: CreatureAvailabilityStateJson::Unsupported,
+                field: CreatureAvailabilityFieldJson::UnsupportedCapability,
+                component_id: Some(occurrence_id.to_string()),
+                authored_key: Some(capability.source_item_type.clone()),
+                source_value: None,
+                source_shape: None,
+                source_reason: None,
+                source_path: None,
+                message: "The source supplied an unsupported creature capability.".to_string(),
+            }),
+            CreatureCapability::Equipment(_) | CreatureCapability::Lore(_) => {}
+        }
+    }
+}
+
+fn collect_action_cost(
+    values: &mut Vec<CreatureAvailabilityJson>,
+    occurrence_id: &str,
+    action_cost: &CreatureActionCost,
+) {
+    if let CreatureActionCost::Unsupported(source) = action_cost {
+        push_unsupported(
+            values,
+            CreatureAvailabilityFieldJson::ActionCost,
+            Some(occurrence_id.to_string()),
+            source,
+            None,
+            "The source supplied an unsupported action cost.",
+        );
+    }
+}
+
+fn collect_spell_slots(
+    values: &mut Vec<CreatureAvailabilityJson>,
+    occurrence_id: &str,
+    slots: &FactValue<Vec<CreatureSpellSlot>>,
+) {
+    let Some(slots) = slots.as_value() else {
+        return;
+    };
+    for slot in slots {
+        let component_id = format!("{occurrence_id}/rank-{}", slot.rank);
+        if let Some(CreatureSourceScalar::Unsupported(source)) = slot.maximum.as_value() {
+            push_unsupported(
+                values,
+                CreatureAvailabilityFieldJson::SpellSlotMaximum,
+                Some(component_id.clone()),
+                source,
+                None,
+                "The source supplied an unsupported spell slot maximum.",
+            );
+        }
+        if let Some(CreatureSourceScalar::Unsupported(source)) = slot.serialized_value.as_value() {
+            push_unsupported(
+                values,
+                CreatureAvailabilityFieldJson::SpellSlotSerializedValue,
+                Some(component_id.clone()),
+                source,
+                None,
+                "The source supplied an unsupported serialized spell slot value.",
+            );
+        }
+        if let Some(prepared) = slot.prepared.as_value() {
+            for (index, prepared) in prepared.iter().enumerate() {
+                if let CreaturePreparedSpellSlot::Unsupported(source) = prepared {
+                    push_unsupported(
+                        values,
+                        CreatureAvailabilityFieldJson::PreparedSpellSlot,
+                        Some(format!("{component_id}/prepared-{index}")),
+                        source,
+                        None,
+                        "The source supplied an unsupported prepared spell slot.",
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn collect_damage(
+    values: &mut Vec<CreatureAvailabilityJson>,
+    occurrence_id: &str,
+    damage: &FactValue<Vec<CreatureDamage>>,
+) {
+    let Some(damage) = damage.as_value() else {
+        return;
+    };
+    for part in damage {
+        let component_id = format!("{occurrence_id}/{}", part.id);
+        if let Some(kinds) = part.kinds.as_value() {
+            for kind in kinds {
+                if let CreatureDamageKind::Unsupported(source) = kind {
+                    push_unsupported(
+                        values,
+                        CreatureAvailabilityFieldJson::DamageKind,
+                        Some(component_id.clone()),
+                        source,
+                        None,
+                        "The source supplied an unsupported damage kind.",
+                    );
+                }
+            }
+        }
+        if let Some(CreatureSourceScalar::Unsupported(source)) = part.apply_modifier.as_value() {
+            push_unsupported(
+                values,
+                CreatureAvailabilityFieldJson::DamageApplyModifier,
+                Some(component_id),
+                source,
+                None,
+                "The source supplied an unsupported damage modifier policy.",
+            );
+        }
+    }
+}
+
+fn capability_unsupported_notes(capability: &CreatureCapability) -> &[UnsupportedMechanicNote] {
+    match capability {
+        CreatureCapability::Strike(value) => &value.unsupported_notes,
+        CreatureCapability::Action(value) => &value.unsupported_notes,
+        CreatureCapability::SpellcastingEntry(value) => &value.unsupported_notes,
+        CreatureCapability::Spell(value) => &value.unsupported_notes,
+        CreatureCapability::Equipment(value) => &value.unsupported_notes,
+        CreatureCapability::Lore(value) => &value.unsupported_notes,
+        CreatureCapability::Unsupported(value) => &value.unsupported_notes,
+    }
+}
+
+fn push_unsupported_notes(
+    values: &mut Vec<CreatureAvailabilityJson>,
+    component_id: &str,
+    notes: &[UnsupportedMechanicNote],
+) {
+    for note in notes {
+        push_unsupported(
+            values,
+            CreatureAvailabilityFieldJson::UnsupportedMechanic,
+            Some(component_id.to_string()),
+            &note.value,
+            Some(note.source_path.clone()),
+            "The source supplied an unsupported mechanic.",
+        );
+    }
+}
+
+fn push_unsupported(
+    values: &mut Vec<CreatureAvailabilityJson>,
+    field: CreatureAvailabilityFieldJson,
+    component_id: Option<String>,
+    source: &UnsupportedSourceValue,
+    source_path: Option<String>,
+    message: &str,
+) {
+    values.push(CreatureAvailabilityJson {
+        state: CreatureAvailabilityStateJson::Unsupported,
+        field,
+        component_id,
+        authored_key: None,
+        source_value: Some(source.value.clone()),
+        source_shape: Some(unsupported_shape(source.shape)),
+        source_reason: Some(unsupported_reason(source.reason)),
+        source_path,
+        message: message.to_string(),
+    });
+}
+
+fn unsupported_shape(value: crate::UnsupportedSourceShape) -> &'static str {
+    match value {
+        crate::UnsupportedSourceShape::Missing => "missing",
+        crate::UnsupportedSourceShape::Null => "null",
+        crate::UnsupportedSourceShape::String => "string",
+        crate::UnsupportedSourceShape::Number => "number",
+        crate::UnsupportedSourceShape::Boolean => "boolean",
+        crate::UnsupportedSourceShape::Array => "array",
+        crate::UnsupportedSourceShape::Object => "object",
+    }
+}
+
+fn unsupported_reason(value: crate::UnsupportedSourceReason) -> &'static str {
+    match value {
+        crate::UnsupportedSourceReason::OpenVocabulary => "open_vocabulary",
+        crate::UnsupportedSourceReason::AmbiguousLegacyShape => "ambiguous_legacy_shape",
+        crate::UnsupportedSourceReason::InvalidPredicate => "invalid_predicate",
+        crate::UnsupportedSourceReason::NonCanonicalRuntimeValue => "non_canonical_runtime_value",
+        crate::UnsupportedSourceReason::SourceFieldDrift => "source_field_drift",
+    }
 }
 
 fn fact_state<T>(value: &FactValue<T>) -> Option<CreatureAvailabilityStateJson> {
