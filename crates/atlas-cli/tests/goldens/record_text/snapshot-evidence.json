@@ -5,9 +5,10 @@
     "fe97ea0c52697c2c3f863746bb24a7d3d0f98afa",
     "2485a21d60d78a39928ea4f64dccaf2b579d1235",
     "a124c37179ffd15698485cd530307b1a5af33406",
-    "d595966a11502f6eca0d4580a500e003619f1613"
+    "d595966a11502f6eca0d4580a500e003619f1613",
+    "f6a2dd92baea814135c74668eea69d32e11e29d2"
   ],
-  "base_tree": "c215416437d52ad0ad3bf85a8affa391c8f1d2c9",
+  "base_tree": "c0e52555441cbf15eae9a8395a0c3319cd36fad3",
   "bounded_artifact": {
     "artifact_contract": "pf2e-atlas-artifact/v4",
     "artifact_schema": "2",
@@ -2047,7 +2048,7 @@
     "upstream_commit": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce",
     "upstream_signature": "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
   },
-  "remediation_base": "d595966a11502f6eca0d4580a500e003619f1613",
+  "remediation_base": "f6a2dd92baea814135c74668eea69d32e11e29d2",
   "settings": {
     "color": "NO_COLOR=1",
     "matrix_cells": 135,

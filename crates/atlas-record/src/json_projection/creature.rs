@@ -80,6 +80,7 @@ pub struct CreatureAbilitiesJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureEquipmentJson {
+    #[serde(skip)]
     pub id: String,
     pub order: u32,
     pub label: String,
@@ -95,7 +96,7 @@ pub struct CreatureEquipmentJson {
     pub uses: Option<CreatureUseLimitJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_record_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub target_entity_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<CreatureOccurrenceProvenanceJson>,
@@ -105,6 +106,7 @@ pub struct CreatureEquipmentJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureLoreJson {
+    #[serde(skip)]
     pub id: String,
     pub order: u32,
     pub label: String,
@@ -112,7 +114,7 @@ pub struct CreatureLoreJson {
     pub modifier: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_record_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub target_entity_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<CreatureOccurrenceProvenanceJson>,
@@ -140,6 +142,7 @@ pub struct CreatureRitualsJson {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureContentJson {
     pub content_key: String,
+    #[serde(skip)]
     pub owner: CreatureContentOwnerJson,
     pub role: &'static str,
     pub authored_order: u32,
@@ -511,6 +514,7 @@ pub struct CreatureFrequencyJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureStrikeJson {
+    #[serde(skip)]
     pub id: String,
     pub order: u32,
     pub label: String,
@@ -526,7 +530,7 @@ pub struct CreatureStrikeJson {
     pub content: Option<Vec<CreatureContentJson>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_record_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub target_entity_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<CreatureOccurrenceProvenanceJson>,
@@ -534,6 +538,7 @@ pub struct CreatureStrikeJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureActionJson {
+    #[serde(skip)]
     pub id: String,
     pub order: u32,
     pub label: String,
@@ -561,7 +566,7 @@ pub struct CreatureActionJson {
     pub content: Option<Vec<CreatureContentJson>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_record_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub target_entity_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<CreatureOccurrenceProvenanceJson>,
@@ -576,6 +581,7 @@ pub struct CreatureSpellcastingJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSpellcastingEntryJson {
+    #[serde(skip)]
     pub id: String,
     pub order: u32,
     pub label: String,
@@ -593,7 +599,7 @@ pub struct CreatureSpellcastingEntryJson {
     pub spells: Vec<CreatureSpellJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_record_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub target_entity_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<CreatureOccurrenceProvenanceJson>,
@@ -615,7 +621,7 @@ pub struct CreatureSpellSlotJson {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreaturePreparedSpellJson {
     pub order: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -641,7 +647,7 @@ pub struct CreatureOccurrenceContextJson {
     pub rank: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub slot: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uses: Option<CreatureUseLimitJson>,
@@ -651,6 +657,7 @@ pub struct CreatureOccurrenceContextJson {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CreatureSpellJson {
+    #[serde(skip)]
     pub id: String,
     pub order: u32,
     pub label: String,
@@ -658,9 +665,9 @@ pub struct CreatureSpellJson {
     pub action_cost: CreatureActionCostJson,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_record_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub target_entity_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub parent_entry_id: Option<String>,
     pub context: CreatureOccurrenceContextJson,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -371,6 +371,7 @@ pub struct RecordCanonicalRelationshipJson {
     pub kind: crate::ReferenceRelationKind,
     pub label: String,
     pub target_record_key: String,
+    #[serde(skip)]
     pub provenance: RecordRelationshipProvenanceJson,
 }
 
@@ -1256,10 +1257,34 @@ mod tests {
             standard_value["spellcasting"]["entries"][0]["spells"][0]["context"]["uses"]["maximum"],
             1
         );
-        assert_eq!(
-            standard_value["spellcasting"]["entries"][0]["spells"][0]["parent_entry_id"],
-            "occult-innate"
+        assert!(
+            standard_value["spellcasting"]["entries"][0]
+                .get("id")
+                .is_none()
         );
+        assert!(
+            standard_value["spellcasting"]["entries"][0]
+                .get("target_entity_id")
+                .is_none()
+        );
+        assert!(
+            standard_value["spellcasting"]["entries"][0]["spells"][0]
+                .get("id")
+                .is_none()
+        );
+        assert!(
+            standard_value["spellcasting"]["entries"][0]["spells"][0]["context"]
+                .get("slot")
+                .is_none()
+        );
+        assert!(
+            standard_value["spellcasting"]["entries"][0]["spells"][0]
+                .get("parent_entry_id")
+                .is_none()
+        );
+        let prepared = &standard_value["spellcasting"]["entries"][0]["slots"][0]["prepared"][0];
+        assert!(prepared.get("id").is_none());
+        assert_eq!(prepared["name"], "Magic Missile");
         let full_value = serde_json::to_value(full).expect("full json");
         assert!(full_value.get("provenance").is_none());
         assert!(full_value.get("relationships").is_none());
@@ -1439,7 +1464,7 @@ mod tests {
     }
 
     #[test]
-    fn canonical_reference_and_backlink_context_preserves_identity_and_provenance_by_level() {
+    fn canonical_reference_and_backlink_context_preserves_identity_without_ordinary_debug_data() {
         let record = fixture_creature_record();
         let record_key = record.record.identity.key.clone();
         let outgoing = crate::ReferenceEdge {
@@ -1460,6 +1485,24 @@ mod tests {
             source_kind: ContentSourceKind::PublicNotes,
             visibility: ContentVisibility::GmOnly,
         };
+        let verified = RecordRelationshipLookupJson::verified(
+            &record_key,
+            std::slice::from_ref(&outgoing),
+            std::slice::from_ref(&backlink),
+        )
+        .expect("verified relationships");
+        let RecordRelationshipLookupJson::Verified { relationships } = &verified else {
+            unreachable!()
+        };
+        assert_eq!(
+            relationships[0].provenance.source_kind,
+            ContentSourceKind::Description
+        );
+        assert_eq!(
+            relationships[1].provenance.visibility,
+            ContentVisibility::GmOnly
+        );
+
         for detail in [
             DetailLevel::Summary,
             DetailLevel::Preview,
@@ -1474,14 +1517,8 @@ mod tests {
                         detail,
                         include_source_json: false,
                     },
-                    RecordJsonContext::without_lookups(&record.record).with_relationships(
-                        RecordRelationshipLookupJson::verified(
-                            &record_key,
-                            std::slice::from_ref(&outgoing),
-                            std::slice::from_ref(&backlink),
-                        )
-                        .expect("verified relationships"),
-                    ),
+                    RecordJsonContext::without_lookups(&record.record)
+                        .with_relationships(verified.clone()),
                 )
                 .expect("relationship projection"),
             )
@@ -1501,12 +1538,8 @@ mod tests {
                 .expect("reference");
             assert_eq!(reference["label"], "Exact Target");
             assert_eq!(reference["target_record_key"], "rules:target");
-            assert_eq!(
-                reference["provenance"]["from_record_key"],
-                record_key.to_string()
-            );
             assert_eq!(reference["kind"], "reference");
-            assert_eq!(reference["provenance"]["source_kind"], "description");
+            assert!(reference.get("provenance").is_none());
             let backlink = relationships
                 .iter()
                 .find(|relationship| relationship["direction"] == "backlink")
@@ -1514,7 +1547,7 @@ mod tests {
             assert_eq!(backlink["label"], "Exact Caller");
             assert_eq!(backlink["target_record_key"], "creatures:caller");
             assert_eq!(backlink["kind"], "embed");
-            assert_eq!(backlink["provenance"]["visibility"], "gm_only");
+            assert!(backlink.get("provenance").is_none());
         }
     }
 
@@ -1642,10 +1675,7 @@ mod tests {
             full["spellcasting"]["entries"][0]["content"][0]["content_key"],
             "entry-content"
         );
-        assert_eq!(
-            full["strikes"][0]["content"][0]["owner"]["owner_type"],
-            "occurrence"
-        );
+        assert!(full["strikes"][0]["content"][0].get("owner").is_none());
         let description = serde_json::to_value(
             record_json(
                 &retrieved,
@@ -1873,23 +1903,31 @@ mod tests {
                 2,
             ),
         ];
-        let full = serde_json::to_value(
-            record_json(
-                &retrieved,
-                RecordJsonOptions {
-                    detail: DetailLevel::Full,
-                    include_source_json: false,
-                },
-            )
-            .expect("full projection"),
+        let full = record_json(
+            &retrieved,
+            RecordJsonOptions {
+                detail: DetailLevel::Full,
+                include_source_json: false,
+            },
         )
-        .expect("json");
+        .expect("full projection");
+        let RecordPresentationJson::Creature { strikes, .. } = &full.presentation else {
+            panic!("creature presentation")
+        };
+        let typed_strikes = strikes.as_ref().expect("typed strikes");
+        assert_eq!(typed_strikes[0].id, "jaws");
+        assert_eq!(typed_strikes[1].id, "second-jaws");
+        assert_eq!(typed_strikes[0].target_entity_id.as_deref(), Some("jaws"));
+        assert_eq!(typed_strikes[1].target_entity_id.as_deref(), Some("jaws"));
+        let full = serde_json::to_value(full).expect("json");
         let strikes = full["strikes"].as_array().expect("strikes");
         assert_eq!(strikes.len(), 2);
-        assert_eq!(strikes[0]["id"], "jaws");
-        assert_eq!(strikes[1]["id"], "second-jaws");
-        assert_eq!(strikes[0]["target_entity_id"], "jaws");
-        assert_eq!(strikes[1]["target_entity_id"], "jaws");
+        assert!(strikes.iter().all(|strike| strike.get("id").is_none()));
+        assert!(
+            strikes
+                .iter()
+                .all(|strike| strike.get("target_entity_id").is_none())
+        );
         assert_eq!(strikes[0]["content"][0]["content_key"], "first-jaws");
         assert_eq!(strikes[1]["content"][0]["content_key"], "second-jaws");
     }
@@ -2056,7 +2094,7 @@ mod tests {
                     .as_array()
                     .expect("strikes")
                     .iter()
-                    .filter(|strike| strike["id"] == "jaws")
+                    .filter(|strike| strike["label"] == "Jaws")
                     .all(|strike| strike.get("content").is_none()),
                 "{case}"
             );
@@ -2735,7 +2773,18 @@ mod tests {
                             serialized_value: FactValue::Value(crate::CreatureSourceScalar::Value(
                                 1,
                             )),
-                            prepared: FactValue::Value(Vec::new()),
+                            prepared: FactValue::Value(vec![
+                                crate::CreaturePreparedSpellSlot::Spell {
+                                    id: FactValue::Value(
+                                        crate::CreatureSourceId::new("prepared-magic-missile")
+                                            .expect("prepared spell id"),
+                                    ),
+                                    name: FactValue::Value("Magic Missile".to_string()),
+                                    expended: FactValue::Value(false),
+                                    prepared: FactValue::Value(true),
+                                    authored_order: 0,
+                                },
+                            ]),
                         }]),
                         unsupported_notes: Vec::new(),
                     },
@@ -2778,6 +2827,7 @@ mod tests {
                 crate::CreatureOccurrenceParent::SpellcastingEntry(entry_id),
                 crate::CreatureOccurrenceContext {
                     rank: FactValue::Value(1),
+                    slot: FactValue::Value("slot1:0".to_string()),
                     uses: FactValue::Value(crate::CreatureUseLimit {
                         maximum: FactValue::Value(1),
                         serialized_value: FactValue::Value(1),

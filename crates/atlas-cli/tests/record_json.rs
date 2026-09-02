@@ -12,6 +12,66 @@ use support::source::{
     write_tooling_collision_source,
 };
 
+fn assert_no_internal_creature_locators(record: &Value) {
+    fn reject_named_debug_fields(value: &Value) {
+        match value {
+            Value::Object(object) => {
+                for forbidden in [
+                    "target_entity_id",
+                    "parent_entry_id",
+                    "slot",
+                    "owner",
+                    "provenance",
+                ] {
+                    assert!(
+                        !object.contains_key(forbidden),
+                        "ordinary creature JSON exposed {forbidden}"
+                    );
+                }
+                object.values().for_each(reject_named_debug_fields);
+            }
+            Value::Array(values) => values.iter().for_each(reject_named_debug_fields),
+            _ => {}
+        }
+    }
+
+    reject_named_debug_fields(record);
+    for family in ["strikes", "actions", "equipment", "lore"] {
+        for row in record[family].as_array().into_iter().flatten() {
+            assert!(row.get("id").is_none(), "ordinary {family} row exposed id");
+        }
+    }
+    if let Some(spellcasting) = record.get("spellcasting") {
+        for entry in spellcasting["entries"].as_array().into_iter().flatten() {
+            assert!(
+                entry.get("id").is_none(),
+                "ordinary spellcasting entry exposed id"
+            );
+            for spell in entry["spells"].as_array().into_iter().flatten() {
+                assert!(spell.get("id").is_none(), "ordinary spell row exposed id");
+            }
+            for slot in entry["slots"].as_array().into_iter().flatten() {
+                for prepared in slot["prepared"].as_array().into_iter().flatten() {
+                    assert!(
+                        prepared.get("id").is_none(),
+                        "ordinary prepared spell exposed item id"
+                    );
+                }
+            }
+        }
+        for spell in spellcasting["standalone_spells"]
+            .as_array()
+            .into_iter()
+            .flatten()
+        {
+            assert!(
+                spell.get("id").is_none(),
+                "ordinary standalone spell exposed id"
+            );
+        }
+    }
+}
+
 #[test]
 fn record_get_resolve_and_filter_search_use_shared_record_shape()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -545,6 +605,7 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
         let json: Value = serde_json::from_slice(&output.stdout)?;
         let record = &ok_data(&json)["record"];
         assert_eq!(record["presentation_type"], "creature");
+        assert_no_internal_creature_locators(record);
         assert!(record.get("sections").is_none());
         let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
         for field in ["defenses", "perception", "languages", "movement"] {
@@ -606,6 +667,7 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
         let json: Value = serde_json::from_slice(&output.stdout)?;
         let record = &ok_data(&json)["record"];
         assert_eq!(record["presentation_type"], "creature");
+        assert_no_internal_creature_locators(record);
         let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
         assert_eq!(record.get("defenses").is_some(), includes_scan_fields);
         assert_eq!(record.get("strikes").is_some(), includes_scan_fields);
@@ -668,7 +730,7 @@ fn creature_record_uses_direct_tagged_fields_at_each_detail()
             assert!(record["actions"][0]["rolls"].is_array());
             assert!(spells[0]["damage"].is_array());
             assert_eq!(spells[0]["context"]["rank"], 3);
-            assert!(spells[0]["parent_entry_id"].is_string());
+            assert!(spells[0].get("parent_entry_id").is_none());
             if detail == "full" {
                 assert!(serde_json::to_string(record)?.contains("Heartstones"));
             }

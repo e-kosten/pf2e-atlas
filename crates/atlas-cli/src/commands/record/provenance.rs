@@ -19,6 +19,8 @@ pub(super) struct RecordProvenanceData {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub occurrences: Vec<OccurrenceProvenance>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub prepared_spells: Vec<PreparedSpellProvenance>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub unmodeled_skills: Vec<UnmodeledSkillProvenance>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<ContentOwnershipProvenance>,
@@ -56,6 +58,21 @@ pub(super) struct OccurrenceProvenance {
     pub prepared_slot_locator: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provenance: Option<CreatureOccurrenceProvenanceJson>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct PreparedSpellProvenance {
+    pub entry_occurrence_id: String,
+    pub rank: i64,
+    pub authored_order: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_item_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expended: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prepared: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -107,6 +124,7 @@ pub(super) fn provenance_data(
         record_provenance: None,
         edition: None,
         occurrences: Vec::new(),
+        prepared_spells: Vec::new(),
         unmodeled_skills: Vec::new(),
         content: Vec::new(),
         embedded_relationships: Vec::new(),
@@ -194,6 +212,19 @@ pub(super) fn provenance_data(
             ));
             data.content
                 .extend(entry.content.iter().flatten().map(content_provenance));
+            for slot in entry.slots.iter().flatten() {
+                for prepared in slot.prepared.iter().flatten() {
+                    data.prepared_spells.push(PreparedSpellProvenance {
+                        entry_occurrence_id: entry.id.clone(),
+                        rank: slot.rank,
+                        authored_order: prepared.order,
+                        source_item_id: prepared.id.clone(),
+                        name: prepared.name.clone(),
+                        expended: prepared.expended,
+                        prepared: prepared.prepared,
+                    });
+                }
+            }
             for spell in &entry.spells {
                 push_spell(&mut data, spell);
             }
@@ -236,6 +267,14 @@ pub(super) fn provenance_data(
         .sort_by_key(|row| (row.order, row.family, row.id.clone()));
     data.unmodeled_skills
         .sort_by_key(|row| (row.authored_order, row.component_id.clone()));
+    data.prepared_spells.sort_by_key(|row| {
+        (
+            row.entry_occurrence_id.clone(),
+            row.rank,
+            row.authored_order,
+            row.source_item_id.clone(),
+        )
+    });
     data.content
         .sort_by_key(|row| (row.authored_order, row.content_key.clone()));
     data
@@ -424,6 +463,29 @@ pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
             }
         }
     }
+    if !data.prepared_spells.is_empty() {
+        lines.extend([String::new(), "Prepared spell slots".to_string()]);
+        for row in &data.prepared_spells {
+            lines.push(format!(
+                "  Entry occurrence ID: {}",
+                row.entry_occurrence_id
+            ));
+            lines.push(format!("    Rank: {}", row.rank));
+            lines.push(format!("    Authored order: {}", row.authored_order));
+            if let Some(id) = &row.source_item_id {
+                lines.push(format!("    Source item ID: {id}"));
+            }
+            if let Some(name) = &row.name {
+                lines.push(format!("    Name: {name}"));
+            }
+            if let Some(expended) = row.expended {
+                lines.push(format!("    Expended: {expended}"));
+            }
+            if let Some(prepared) = row.prepared {
+                lines.push(format!("    Prepared: {prepared}"));
+            }
+        }
+    }
     if !data.content.is_empty() {
         lines.extend([String::new(), "Content ownership".to_string()]);
         for row in &data.content {
@@ -607,6 +669,8 @@ mod tests {
         assert!(text.contains("Fact sources"));
         assert!(text.contains("ID: dream-message-rank-5-first"));
         assert!(text.contains("Prepared slot locator: slot5:0"));
+        assert!(text.contains("Entry occurrence ID: innate-spells"));
+        assert!(text.contains("Source item ID: dream-message-source-item"));
         assert!(text.contains("Owner: occurrence change-shape"));
         assert!(text.contains("Counterpart lookup: verified"));
         assert!(text.contains("outgoing: bestiary:Night-Hag -> spells:Dream-Message"));
@@ -629,12 +693,34 @@ mod tests {
         let data = provenance_data(&record, Some(&graph));
         let json = serde_json::to_value(&data).expect("provenance JSON");
         assert_eq!(json["occurrences"][0]["order"], 0);
+        assert!(json["occurrences"].as_array().is_some_and(|rows| {
+            rows.iter().any(|row| {
+                row["id"] == "dream-message-rank-5-first"
+                    && row["target_entity_id"] == "dream-message-entity"
+                    && row["parent_entry_id"] == "innate-spells"
+                    && row["prepared_slot_locator"] == "slot5:0"
+            })
+        }));
+        assert_eq!(
+            json["prepared_spells"][0]["entry_occurrence_id"],
+            "innate-spells"
+        );
+        assert_eq!(
+            json["prepared_spells"][0]["source_item_id"],
+            "dream-message-source-item"
+        );
         assert!(json["record_provenance"]["facts"].is_object());
         assert_eq!(json["references"]["lookup_performed"], true);
         assert_eq!(
             json["references"]["edges"][0]["to_record_key"],
             "spells:Dream-Message"
         );
+        assert_eq!(
+            json["references"]["edges"][0]["from_record_key"],
+            "bestiary:Night-Hag"
+        );
+        assert_eq!(json["references"]["edges"][0]["source_kind"], "description");
+        assert_eq!(json["references"]["edges"][0]["visibility"], "public");
         assert!(json["content"].as_array().is_some_and(|rows| {
             rows.iter().any(|row| {
                 row["owner"]["owner_type"] == "occurrence"
