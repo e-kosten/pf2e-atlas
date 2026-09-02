@@ -8,6 +8,7 @@ use atlas_ingest::{
     evaluate_source_leaf_coverage, lint_source_leaf_ledger, parse_source_leaf_ledger,
 };
 use serde::Deserialize;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 const LEDGER: &str = include_str!("../../../contracts/source-leaf-coverage/v1/actor-npc.yaml");
@@ -85,6 +86,97 @@ fn git_show(repository: &Path, path: &str) -> Vec<u8> {
     output.stdout
 }
 
+fn required_pinned_value(source: &Value, pointer: &str, case_id: &str) -> Result<Value, String> {
+    source
+        .pointer(pointer)
+        .cloned()
+        .ok_or_else(|| format!("{case_id} pinned source is missing {pointer}"))
+}
+
+fn derive_validator_negative_projection(
+    fixture: &ValidatorNegativeFixture,
+    source: &Value,
+) -> Result<Value, String> {
+    let id = required_pinned_value(source, "/_id", &fixture.case_id)?;
+    let name = required_pinned_value(source, "/name", &fixture.case_id)?;
+    let record_type = required_pinned_value(source, "/type", &fixture.case_id)?;
+
+    match fixture.source_path.as_str() {
+        "packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json" => {
+            let traits = required_pinned_value(source, "/system/traits", &fixture.case_id)?;
+            Ok(json!({
+                "_id": id,
+                "name": name,
+                "type": record_type,
+                "system": { "traits": traits }
+            }))
+        }
+        "packs/feats/ancestry/anadi/anadi-lore.json" => {
+            let level = required_pinned_value(source, "/system/level", &fixture.case_id)?;
+            Ok(json!({
+                "_id": id,
+                "name": name,
+                "type": record_type,
+                "system": { "level": level }
+            }))
+        }
+        other => Err(format!(
+            "{} has unrecognized validator-negative source path {other}",
+            fixture.case_id
+        )),
+    }
+}
+
+fn verify_validator_negative_excerpt_binding(
+    fixture: &ValidatorNegativeFixture,
+    source: &Value,
+    excerpt: &Value,
+    declared_digest: &str,
+) -> Result<Value, String> {
+    let projection = derive_validator_negative_projection(fixture, source)?;
+    let projection_bytes = serde_json::to_vec(&projection)
+        .map_err(|error| format!("{} projection serialization: {error}", fixture.case_id))?;
+    let excerpt_bytes = serde_json::to_vec(excerpt)
+        .map_err(|error| format!("{} excerpt serialization: {error}", fixture.case_id))?;
+    if projection_bytes != excerpt_bytes {
+        return Err(format!(
+            "{} checked-in excerpt differs from its pinned source projection",
+            fixture.case_id
+        ));
+    }
+
+    let projection_digest = format!("{:x}", Sha256::digest(&projection_bytes));
+    if projection_digest != declared_digest {
+        return Err(format!(
+            "{} pinned source projection digest mismatch: expected {declared_digest}, got {projection_digest}",
+            fixture.case_id
+        ));
+    }
+
+    let attempted_parent = fixture
+        .attempted_path
+        .strip_prefix("$.")
+        .and_then(|path| path.strip_suffix(".*"))
+        .ok_or_else(|| {
+            format!(
+                "{} attempted path is not an exact wildcard child path: {}",
+                fixture.case_id, fixture.attempted_path
+            )
+        })?;
+    let attempted_parent_pointer = format!("/{}", attempted_parent.replace('.', "/"));
+    match projection.pointer(&attempted_parent_pointer) {
+        Some(Value::Object(values)) if !values.is_empty() => {}
+        _ => {
+            return Err(format!(
+                "{} attempted path parent {} is absent or empty in the pinned source projection",
+                fixture.case_id, attempted_parent_pointer
+            ));
+        }
+    }
+
+    Ok(projection)
+}
+
 fn authenticate_validator_negative(
     repository: &Path,
     system_manifest: &PinnedSystemManifest,
@@ -98,7 +190,7 @@ fn authenticate_validator_negative(
         "{} source blob digest",
         fixture.case_id
     );
-    let source: serde_json::Value =
+    let source: Value =
         serde_json::from_slice(&source_bytes).expect("pinned negative source is JSON");
     let pack = system_manifest
         .packs
@@ -117,17 +209,9 @@ fn authenticate_validator_negative(
 
     let excerpt_bytes =
         std::fs::read(fixture_root.join(&fixture.excerpt_path)).expect("negative excerpt exists");
-    let excerpt: serde_json::Value =
-        serde_json::from_slice(&excerpt_bytes).expect("negative excerpt is JSON");
-    let canonical_excerpt = serde_json::to_vec(&excerpt).expect("canonical negative excerpt");
-    assert_eq!(
-        format!("{:x}", Sha256::digest(canonical_excerpt)),
-        fixture.excerpt_sha256,
-        "{} excerpt digest",
-        fixture.case_id
-    );
-    assert_eq!(excerpt["_id"], source["_id"]);
-    assert_eq!(excerpt["type"], source["type"]);
+    let excerpt: Value = serde_json::from_slice(&excerpt_bytes).expect("negative excerpt is JSON");
+    verify_validator_negative_excerpt_binding(fixture, &source, &excerpt, &fixture.excerpt_sha256)
+        .unwrap_or_else(|error| panic!("{error}"));
 
     AuthenticatedNegative {
         document_class: pack.document_class.clone(),
@@ -348,6 +432,53 @@ fn validator_negatives_authenticate_and_execute_expected_typed_failures() {
         assert!(
             failures.iter().any(|failure| failure.code == expected),
             "{} must execute {expected:?}: {failures:#?}",
+            fixture.case_id
+        );
+    }
+}
+
+#[test]
+fn validator_negative_source_binding_rejects_coordinated_excerpt_and_digest_mutation() {
+    let repository = require_pinned_repository();
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_ROOT);
+    let fixture_manifest: ActorFixtureManifest = yaml_serde::from_str(
+        &std::fs::read_to_string(fixture_root.join("manifest.yaml"))
+            .expect("Actor fixture manifest exists"),
+    )
+    .expect("Actor fixture manifest parses");
+
+    for fixture in &fixture_manifest.validator_negatives {
+        let source_bytes = git_show(&repository, &fixture.source_path);
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&source_bytes)),
+            fixture.source_file_sha256,
+            "{} source blob digest",
+            fixture.case_id
+        );
+        let source: Value =
+            serde_json::from_slice(&source_bytes).expect("pinned negative source is JSON");
+        let excerpt_bytes = std::fs::read(fixture_root.join(&fixture.excerpt_path))
+            .expect("negative excerpt exists");
+        let mut mutated_excerpt: Value =
+            serde_json::from_slice(&excerpt_bytes).expect("negative excerpt is JSON");
+        mutated_excerpt["name"] = Value::String("coordinated candidate mutation".to_string());
+        let mutated_digest = format!(
+            "{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&mutated_excerpt).expect("mutated excerpt serialization")
+            )
+        );
+
+        let error = verify_validator_negative_excerpt_binding(
+            fixture,
+            &source,
+            &mutated_excerpt,
+            &mutated_digest,
+        )
+        .expect_err("coordinated excerpt and manifest digest mutation must fail");
+        assert!(
+            error.contains("differs from its pinned source projection"),
+            "{} must reject against pinned source before trusting the coordinated digest: {error}",
             fixture.case_id
         );
     }
