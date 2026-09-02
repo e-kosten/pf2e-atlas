@@ -84,11 +84,15 @@ case "${1:-}" in
       cargo test -p atlas-ingest --lib \
         source_coverage::receipt::tests::actor_adversaries_keep_exact_authored_null_identity_distinct_from_optional_null \
         -- --exact
+    PF2E_SOURCE_REPOSITORY="$source_repository" \
+      cargo test -p atlas-ingest --lib \
+        source_coverage::receipt::tests::removing_exact_intimidate_alias_fails_canonical_hydrated_and_public_parity \
+        -- --exact
     ;;
   persistence)
     [ "$#" -eq 1 ] || { usage >&2; exit 2; }
     cargo test -p atlas-ingest --test source_leaf_persistence \
-      single_actor_npc_no_embedding_persistence_proves_b1_ability_ownership -- --exact
+      single_b1_no_embedding_sqlite_build_proves_ability_and_skill_ownership -- --exact
     ;;
   -h | --help)
     usage

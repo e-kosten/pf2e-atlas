@@ -5,6 +5,12 @@
       "label": "Pathfinder Bestiary",
       "type": "Actor",
       "path": "packs/pathfinder-bestiary"
+    },
+    {
+      "name": "curtain-call-bestiary",
+      "label": "Curtain Call Bestiary",
+      "type": "Actor",
+      "path": "packs/curtain-call-bestiary"
     }
   ]
 }

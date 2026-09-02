@@ -19,7 +19,25 @@ struct ActorFixtureManifest {
     source_contract_version: String,
     source_commit: String,
     source_signature: String,
+    intimidate_inventory: IntimidateInventory,
     validator_negatives: Vec<ValidatorNegativeFixture>,
+}
+
+#[derive(Debug, Deserialize)]
+struct IntimidateInventory {
+    raw_key: String,
+    populated_record_count: usize,
+    records: Vec<IntimidateInventoryRecord>,
+}
+
+#[derive(Debug, Deserialize)]
+struct IntimidateInventoryRecord {
+    case_id: String,
+    name: String,
+    record_key: String,
+    source_path: String,
+    source_file_sha256: String,
+    base: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,6 +102,37 @@ fn git_show(repository: &Path, path: &str) -> Vec<u8> {
         String::from_utf8_lossy(&output.stderr)
     );
     output.stdout
+}
+
+fn git_grep_paths(repository: &Path, pattern: &str) -> BTreeSet<String> {
+    let output = Command::new("git")
+        .args(["-C"])
+        .arg(repository)
+        .args([
+            "grep",
+            "-l",
+            pattern,
+            PF2E_SOURCE_PINNED_COMMIT,
+            "--",
+            "packs",
+        ])
+        .output()
+        .expect("git must search the accepted pinned source tree");
+    assert!(
+        output.status.success(),
+        "pinned exact-key inventory grep must succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let prefix = format!("{PF2E_SOURCE_PINNED_COMMIT}:");
+    String::from_utf8(output.stdout)
+        .expect("pinned paths are UTF-8")
+        .lines()
+        .map(|line| {
+            line.strip_prefix(&prefix)
+                .unwrap_or_else(|| panic!("pinned grep path lacks commit prefix: {line}"))
+                .to_string()
+        })
+        .collect()
 }
 
 fn required_pinned_value(source: &Value, pointer: &str, case_id: &str) -> Result<Value, String> {
@@ -307,6 +356,82 @@ fn actor_npc_ledger_is_exact_and_source_grounded() {
             .any(|path| path.contains("volluk-azrinae"))
     );
     assert!(!ledger_paths.iter().any(|path| path.contains("anadi-lore")));
+}
+
+#[test]
+fn populated_intimidate_inventory_is_exactly_five_and_pin_digest_bound() {
+    let repository = require_pinned_repository();
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_ROOT);
+    let fixture_manifest: ActorFixtureManifest = yaml_serde::from_str(
+        &std::fs::read_to_string(fixture_root.join("manifest.yaml"))
+            .expect("Actor fixture manifest exists"),
+    )
+    .expect("Actor fixture manifest parses");
+    assert_eq!(fixture_manifest.source_commit, PF2E_SOURCE_PINNED_COMMIT);
+    assert_eq!(
+        fixture_manifest.source_signature,
+        PF2E_SOURCE_PINNED_SIGNATURE
+    );
+
+    let inventory = &fixture_manifest.intimidate_inventory;
+    assert_eq!(inventory.raw_key, "intimidate");
+    assert_eq!(inventory.populated_record_count, 5);
+    assert_eq!(inventory.records.len(), 5);
+    let pinned_paths = git_grep_paths(&repository, "\"intimidate\"");
+    let declared_paths = inventory
+        .records
+        .iter()
+        .map(|record| record.source_path.clone())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(pinned_paths, declared_paths);
+
+    for record in &inventory.records {
+        let bytes = git_show(&repository, &record.source_path);
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&bytes)),
+            record.source_file_sha256,
+            "{} pinned source digest",
+            record.case_id
+        );
+        let source: Value = serde_json::from_slice(&bytes).expect("pinned Actor source is JSON");
+        assert_eq!(source["type"], "npc", "{} record type", record.case_id);
+        assert_eq!(source["name"], record.name, "{} name", record.case_id);
+        assert_eq!(
+            source.pointer("/system/skills/intimidate/base"),
+            Some(&Value::from(record.base)),
+            "{} exact populated raw key",
+            record.case_id
+        );
+        let pack = record
+            .source_path
+            .split('/')
+            .nth(1)
+            .expect("pack path segment");
+        assert_eq!(
+            record.record_key,
+            format!("{pack}:{}", source["_id"].as_str().expect("Actor id")),
+            "{} record identity",
+            record.case_id
+        );
+    }
+
+    let ledger = parse_source_leaf_ledger(LEDGER).expect("Actor NPC ledger parses");
+    let gray = inventory
+        .records
+        .iter()
+        .find(|record| record.case_id == "gray-master-populated-intimidate")
+        .expect("Gray Master inventory row");
+    let gray_fixture = ledger.leaves[6]
+        .fixtures
+        .iter()
+        .find(|fixture| fixture.case_id == gray.case_id)
+        .expect("Gray Master source-grounded receipt fixture");
+    assert_eq!(gray_fixture.record_key, gray.record_key);
+    assert_eq!(gray_fixture.source_path, gray.source_path);
+    assert_eq!(
+        gray_fixture.source_file_digest,
+        format!("sha256:{}", gray.source_file_sha256)
+    );
 }
 
 #[test]
