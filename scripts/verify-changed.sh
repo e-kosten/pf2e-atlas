@@ -78,10 +78,10 @@ cd "$REPO_ROOT"
 
 case "$mode" in
   staged)
-    git diff --cached --name-only --relative --diff-filter=ACDMRTUXB >"$paths_file"
+    git diff --cached --no-renames --name-only --relative --diff-filter=ACDMRTUXB >"$paths_file"
     ;;
   range)
-    git diff --name-only --relative "$range" >"$paths_file"
+    git diff --no-renames --name-only --relative --diff-filter=ACDMRTUXB "$range" >"$paths_file"
     ;;
   all)
     : >"$paths_file"

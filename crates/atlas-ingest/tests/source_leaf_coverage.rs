@@ -3,13 +3,53 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use atlas_ingest::{
-    CoverageFailureCode, capture_registered_source_leaf_receipt, evaluate_source_leaf_coverage,
-    lint_source_leaf_ledger, parse_source_leaf_ledger,
+    CoverageFailureCode, PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT,
+    PF2E_SOURCE_PINNED_SIGNATURE, capture_registered_source_leaf_receipt,
+    evaluate_source_leaf_coverage, lint_source_leaf_ledger, parse_source_leaf_ledger,
 };
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 const LEDGER: &str = include_str!("../../../contracts/source-leaf-coverage/v1/actor-npc.yaml");
 const FIXTURE_ROOT: &str = "tests/fixtures/source-leaf-coverage/actor-npc";
+
+#[derive(Debug, Deserialize)]
+struct ActorFixtureManifest {
+    source_contract_version: String,
+    source_commit: String,
+    source_signature: String,
+    validator_negatives: Vec<ValidatorNegativeFixture>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ValidatorNegativeFixture {
+    case_id: String,
+    record_key: String,
+    source_path: String,
+    source_file_sha256: String,
+    excerpt_path: String,
+    excerpt_sha256: String,
+    attempted_path: String,
+    expected_failure: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PinnedSystemManifest {
+    packs: Vec<PinnedManifestPack>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PinnedManifestPack {
+    name: String,
+    path: String,
+    #[serde(rename = "type")]
+    document_class: String,
+}
+
+struct AuthenticatedNegative {
+    document_class: String,
+    type_discriminator: String,
+}
 
 fn require_pinned_repository() -> PathBuf {
     let repository = std::env::var_os("PF2E_SOURCE_REPOSITORY")
@@ -28,6 +68,74 @@ fn require_pinned_repository() -> PathBuf {
         String::from_utf8_lossy(&output.stderr)
     );
     repository
+}
+
+fn git_show(repository: &Path, path: &str) -> Vec<u8> {
+    let output = Command::new("git")
+        .args(["-C"])
+        .arg(repository)
+        .args(["show", &format!("{PF2E_SOURCE_PINNED_COMMIT}:{path}")])
+        .output()
+        .expect("git must read the accepted pinned source tree");
+    assert!(
+        output.status.success(),
+        "pinned source path {path} must resolve: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    output.stdout
+}
+
+fn authenticate_validator_negative(
+    repository: &Path,
+    system_manifest: &PinnedSystemManifest,
+    fixture_root: &Path,
+    fixture: &ValidatorNegativeFixture,
+) -> AuthenticatedNegative {
+    let source_bytes = git_show(repository, &fixture.source_path);
+    assert_eq!(
+        format!("{:x}", Sha256::digest(&source_bytes)),
+        fixture.source_file_sha256,
+        "{} source blob digest",
+        fixture.case_id
+    );
+    let source: serde_json::Value =
+        serde_json::from_slice(&source_bytes).expect("pinned negative source is JSON");
+    let pack = system_manifest
+        .packs
+        .iter()
+        .find(|pack| {
+            fixture
+                .source_path
+                .strip_prefix(&format!("{}/", pack.path.trim_end_matches('/')))
+                .is_some_and(|relative| !relative.is_empty())
+        })
+        .expect("negative source path belongs to a pinned manifest pack");
+    let source_id = source["_id"]
+        .as_str()
+        .expect("negative source has a string _id");
+    assert_eq!(fixture.record_key, format!("{}:{source_id}", pack.name));
+
+    let excerpt_bytes =
+        std::fs::read(fixture_root.join(&fixture.excerpt_path)).expect("negative excerpt exists");
+    let excerpt: serde_json::Value =
+        serde_json::from_slice(&excerpt_bytes).expect("negative excerpt is JSON");
+    let canonical_excerpt = serde_json::to_vec(&excerpt).expect("canonical negative excerpt");
+    assert_eq!(
+        format!("{:x}", Sha256::digest(canonical_excerpt)),
+        fixture.excerpt_sha256,
+        "{} excerpt digest",
+        fixture.case_id
+    );
+    assert_eq!(excerpt["_id"], source["_id"]);
+    assert_eq!(excerpt["type"], source["type"]);
+
+    AuthenticatedNegative {
+        document_class: pack.document_class.clone(),
+        type_discriminator: source["type"]
+            .as_str()
+            .expect("negative source has a string type")
+            .to_string(),
+    }
 }
 
 #[test]
@@ -196,4 +304,51 @@ fn current_creature_pipeline_fails_exact_promoted_owners() {
             .any(|failure| failure.code == CoverageFailureCode::BroadDeclaration),
         "a broad parent must not close the exact .mod leaf"
     );
+}
+
+#[test]
+fn validator_negatives_authenticate_and_execute_expected_typed_failures() {
+    let repository = require_pinned_repository();
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_ROOT);
+    let fixture_manifest: ActorFixtureManifest = yaml_serde::from_str(
+        &std::fs::read_to_string(fixture_root.join("manifest.yaml"))
+            .expect("Actor fixture manifest exists"),
+    )
+    .expect("Actor fixture manifest parses");
+    assert_eq!(
+        fixture_manifest.source_contract_version,
+        PF2E_SOURCE_CONTRACT_VERSION
+    );
+    assert_eq!(fixture_manifest.source_commit, PF2E_SOURCE_PINNED_COMMIT);
+    assert_eq!(
+        fixture_manifest.source_signature,
+        PF2E_SOURCE_PINNED_SIGNATURE
+    );
+    assert_eq!(fixture_manifest.validator_negatives.len(), 2);
+
+    let system_manifest: PinnedSystemManifest =
+        serde_json::from_slice(&git_show(&repository, "static/system.json"))
+            .expect("pinned system manifest parses");
+    let base_ledger = parse_source_leaf_ledger(LEDGER).expect("Actor NPC A2 ledger parses");
+
+    for fixture in &fixture_manifest.validator_negatives {
+        let identity =
+            authenticate_validator_negative(&repository, &system_manifest, &fixture_root, fixture);
+        let mut negative = base_ledger.clone();
+        negative.leaves.truncate(1);
+        negative.leaves[0].normalized_path = fixture.attempted_path.clone();
+        negative.selector.document_class = identity.document_class;
+        negative.selector.type_discriminator = identity.type_discriminator;
+        let failures = lint_source_leaf_ledger(&negative);
+        let expected = match fixture.expected_failure.as_str() {
+            "broad_declaration" => CoverageFailureCode::BroadDeclaration,
+            "registry_binding_mismatch" => CoverageFailureCode::RegistryBindingMismatch,
+            other => panic!("unrecognized validator-negative failure {other}"),
+        };
+        assert!(
+            failures.iter().any(|failure| failure.code == expected),
+            "{} must execute {expected:?}: {failures:#?}",
+            fixture.case_id
+        );
+    }
 }
