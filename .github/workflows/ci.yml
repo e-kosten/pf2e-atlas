@@ -35,7 +35,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          git diff --name-only "$BASE_SHA...HEAD" > "$RUNNER_TEMP/source-leaf-paths"
+          scripts/validation/source-leaf-coverage.sh diff-paths "$BASE_SHA" HEAD > "$RUNNER_TEMP/source-leaf-paths"
           scripts/validation/source-leaf-coverage.sh route "$RUNNER_TEMP/source-leaf-paths" >> "$GITHUB_OUTPUT"
 
   source-leaf:
@@ -63,6 +63,8 @@ jobs:
             packs/lost-omens-bestiary/tian-xia-world-guide/inkdrop.json
             packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json
             packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
+            packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
+            packs/feats/ancestry/anadi/anadi-lore.json
       - name: Run source-leaf lint and adversarial fixtures
         if: needs.source-leaf-route.outputs.lint == 'true'
         env:
@@ -105,10 +107,65 @@ jobs:
         run: |
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
+      - name: Preserve web bundle for exhaustive validation
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-web-bundle
+          path: web/atlas-ui/dist
+          retention-days: 1
       - name: Rust verification
         run: scripts/validation/fast.sh
       - name: Focused ingest and artifact validation
         run: scripts/validation/focused.sh
+
+  source-leaf-exhaustive:
+    name: source leaf exhaustive
+    needs: [source-leaf-route, rust]
+    if: needs.source-leaf-route.outputs.exhaustive == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Restore web bundle required by atlas-cli
+        uses: actions/download-artifact@v4
+        with:
+          name: atlas-web-bundle
+          path: web/atlas-ui/dist
+      - name: Check out accepted PF2e source
+        uses: actions/checkout@v5
+        with:
+          repository: foundryvtt/pf2e
+          ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          path: .source-leaf-exhaustive-pf2e
+          fetch-depth: 1
+      - name: Relocate accepted source outside candidate checkout
+        run: mv .source-leaf-exhaustive-pf2e "$RUNNER_TEMP/source-leaf-exhaustive-pf2e"
+      - name: Restore exhaustive embedding model
+        id: exhaustive-model-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/source-leaf-hf-models
+          key: source-leaf-bge-small-en-v1.5-main-v1
+      - name: Prepare exhaustive embedding model
+        if: steps.exhaustive-model-cache.outputs.cache-hit != 'true'
+        env:
+          MODEL_ROOT: ${{ runner.temp }}/source-leaf-hf-models/BAAI/bge-small-en-v1.5
+        run: |
+          mkdir -p "$MODEL_ROOT/onnx"
+          curl --fail --location --retry 3 --output "$MODEL_ROOT/tokenizer.json" \
+            https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json
+          curl --fail --location --retry 3 --output "$MODEL_ROOT/onnx/model.onnx" \
+            https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx
+      - name: Run exhaustive source validation
+        run: |
+          scripts/validation/exhaustive.sh \
+            --source "$RUNNER_TEMP/source-leaf-exhaustive-pf2e" \
+            --candidate-head "$GITHUB_SHA" \
+            --snapshot-root "$RUNNER_TEMP/source-leaf-exhaustive-snapshot" \
+            --report "$RUNNER_TEMP/source-leaf-exhaustive-report.json" \
+            --embedding-cache-path "$RUNNER_TEMP/source-leaf-hf-models"
 
   web-ui:
     name: web ui
