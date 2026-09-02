@@ -1,0 +1,17 @@
+schema_version: "pf2e-source-leaf-prevalence/v1"
+source_contract_version: "pf2e-serialized-source/v1"
+source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+entries:
+  - entry_id: "item-action-top-level-name@4cbdaa37"
+    type_id: "item--action--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "Item"
+      type_discriminator: "action"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.name"
+    record_count: 1169
+    occurrence_count: 1169

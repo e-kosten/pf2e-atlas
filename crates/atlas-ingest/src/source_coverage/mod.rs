@@ -1,11 +1,11 @@
 //! Exact source-leaf coverage contracts and test-owned parity evidence.
 //!
-//! This module deliberately does not trace production ingest. Coverage is
-//! established by source-grounded focused tests that submit actual-read
-//! receipts for exact selectors and final owners.
+//! Coverage is established by sealed, source-grounded focused witnesses that
+//! execute registered production readers and final-owner stages.
 
 mod contract;
 mod parity;
+mod prevalence;
 mod receipt;
 mod registry;
 
@@ -21,6 +21,7 @@ pub use contract::{
 pub use parity::{
     CoverageFailure, CoverageFailureCode, CoverageReport, evaluate_source_leaf_coverage,
 };
+pub use prevalence::{PF2E_SOURCE_LEAF_PREVALENCE_SHA256, PF2E_SOURCE_LEAF_PREVALENCE_VERSION};
 pub(crate) use receipt::{
     SourceAccessorPurpose, SourceJsonType, SourceLeafValue, SourceMemberKind,
 };

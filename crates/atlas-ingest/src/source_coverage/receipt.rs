@@ -4,7 +4,7 @@ use std::process::Command;
 
 use atlas_domain::{DetailLevel, PackName};
 use atlas_record::{RecordBody, RecordJsonOptions, record_json};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -20,8 +20,8 @@ use crate::source::{LoadedPack, ManifestPack, SourceLoad};
 
 use super::{
     CoverageContractError, CoverageFailureCode, FinalOwnerStage, FixtureContract,
-    FixtureProvenance, PF2E_TYPE_REGISTRY_SHA256, SourceLeafCoverageLedger, SourceLeafIdentity,
-    lint_source_leaf_ledger,
+    FixtureProvenance, PF2E_TYPE_REGISTRY_SHA256, SourceDocumentRole, SourceLeafCoverageLedger,
+    SourceLeafIdentity, SourceLeafSelector, SourceParentContextSelector, lint_source_leaf_ledger,
 };
 
 const ITEM_NAME_READER: &str = "source::dto::FullItemSource::name";
@@ -143,7 +143,10 @@ pub fn capture_registered_source_leaf_receipt(
     })?;
     let identity = ledger.identity_for(leaf);
     let registration = registration_for(&identity, leaf.reader.reader_id.as_deref())?;
-    registration.capture(identity, ResolvedFixture::load(fixture, source_repository)?)
+    registration.capture(
+        identity.clone(),
+        ResolvedFixture::load(fixture, source_repository, &identity.selector)?,
+    )
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -407,10 +410,24 @@ struct ResolvedFixture {
     raw: Value,
 }
 
+#[derive(Debug, Deserialize)]
+struct PinnedSystemManifest {
+    packs: Vec<PinnedManifestPack>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PinnedManifestPack {
+    name: String,
+    path: String,
+    #[serde(rename = "type")]
+    document_class: String,
+}
+
 impl ResolvedFixture {
     fn load(
         contract: &FixtureContract,
         source_repository: &Path,
+        expected_selector: &SourceLeafSelector,
     ) -> Result<Self, CoverageContractError> {
         if contract.provenance != FixtureProvenance::PinnedSource
             || Path::new(&contract.source_path).is_absolute()
@@ -447,23 +464,62 @@ impl ResolvedFixture {
         }
         let raw: Value = serde_json::from_slice(&bytes)
             .map_err(|message| error(CoverageFailureCode::FixtureNotSourceGrounded, message))?;
+        let manifest_bytes = git_output(
+            source_repository,
+            &[
+                "show",
+                &format!("{PF2E_SOURCE_PINNED_COMMIT}:static/system.json"),
+            ],
+        )?;
+        let manifest: PinnedSystemManifest = serde_json::from_slice(&manifest_bytes)
+            .map_err(|message| error(CoverageFailureCode::ReceiptProvenanceInvalid, message))?;
+        let manifest_pack = manifest
+            .packs
+            .iter()
+            .find(|pack| {
+                contract
+                    .source_path
+                    .strip_prefix(&format!("{}/", pack.path.trim_end_matches('/')))
+                    .is_some_and(|relative| !relative.is_empty())
+            })
+            .ok_or_else(|| {
+                error(
+                    CoverageFailureCode::FixtureNotSourceGrounded,
+                    "source_path is not a top-level document in a pinned manifest pack",
+                )
+            })?;
+        let raw_discriminator = raw.get("type").and_then(Value::as_str).ok_or_else(|| {
+            error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                "pinned fixture has no string type discriminator",
+            )
+        })?;
+        let actual_selector = SourceLeafSelector {
+            source_contract_version: PF2E_SOURCE_CONTRACT_VERSION.to_string(),
+            document_class: manifest_pack.document_class.clone(),
+            type_discriminator: raw_discriminator.to_string(),
+            role: SourceDocumentRole::TopLevel,
+            parent_context: SourceParentContextSelector::root(),
+        };
+        if &actual_selector != expected_selector {
+            return Err(error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                format!(
+                    "pinned fixture selector {:?}/{:?}/{:?}/{:?} does not match ledger selector",
+                    actual_selector.document_class,
+                    actual_selector.type_discriminator,
+                    actual_selector.role,
+                    actual_selector.parent_context
+                ),
+            ));
+        }
         let source_id = raw.get("_id").and_then(Value::as_str).ok_or_else(|| {
             error(
                 CoverageFailureCode::FixtureNotSourceGrounded,
                 "pinned fixture has no string _id",
             )
         })?;
-        let pack = contract
-            .source_path
-            .strip_prefix("packs/")
-            .and_then(|path| path.split('/').next())
-            .ok_or_else(|| {
-                error(
-                    CoverageFailureCode::FixtureNotSourceGrounded,
-                    "source_path must identify a pinned PF2e pack record",
-                )
-            })?;
-        let resolved_record_key = format!("pf2e.{pack}:{source_id}");
+        let resolved_record_key = format!("{}:{source_id}", manifest_pack.name);
         if resolved_record_key != contract.record_key {
             return Err(error(
                 CoverageFailureCode::FixtureNotSourceGrounded,
@@ -756,6 +812,9 @@ mod tests {
                     source_commit: PF2E_SOURCE_PINNED_COMMIT.to_string(),
                     source_signature: PF2E_SOURCE_PINNED_SIGNATURE.to_string(),
                     registry_sha256: PF2E_TYPE_REGISTRY_SHA256.to_string(),
+                    inventory_version: crate::PF2E_SOURCE_LEAF_PREVALENCE_VERSION.to_string(),
+                    inventory_sha256: crate::PF2E_SOURCE_LEAF_PREVALENCE_SHA256.to_string(),
+                    entry_id: "item-action-top-level-name@4cbdaa37".to_string(),
                     // The authenticated registry reports 1,169 top-level action Items;
                     // required `name` occurs exactly once per record at this pin.
                     record_count: 1_169,
@@ -773,7 +832,7 @@ mod tests {
                 },
                 fixtures: vec![FixtureContract {
                     case_id: "registered-item-name".to_string(),
-                    record_key: "pf2e.actions:c40APnn4a7bWhtcZ".to_string(),
+                    record_key: "actionspf2e:c40APnn4a7bWhtcZ".to_string(),
                     source_path: "packs/actions/a-challenge-for-heroes.json".to_string(),
                     source_file_digest:
                         "sha256:b71bc2d31b2a10c232a01ef57b5943b60e4747770b7f35d8ebeb27bf4b281d43"
@@ -818,30 +877,44 @@ mod tests {
         }
     }
 
-    fn pinned_repository() -> Option<PathBuf> {
-        if let Some(path) = std::env::var_os("PF2E_SOURCE_REPOSITORY").map(PathBuf::from) {
-            return Some(path);
-        }
+    fn require_pinned_repository() -> PathBuf {
+        let repository = if let Some(path) =
+            std::env::var_os("PF2E_SOURCE_REPOSITORY").map(PathBuf::from)
+        {
+            path
+        } else {
+            let output = Command::new("git")
+                .args(["worktree", "list", "--porcelain"])
+                .output()
+                .expect("TEST PREREQUISITE: git must locate the Atlas worktree list");
+            String::from_utf8(output.stdout)
+                .expect("TEST PREREQUISITE: git worktree output must be UTF-8")
+                .lines()
+                .filter_map(|line| line.strip_prefix("worktree "))
+                .map(|root| Path::new(root).join("vendor/pf2e"))
+                .find(|candidate| candidate.is_dir())
+                .expect(
+                    "TEST PREREQUISITE: set PF2E_SOURCE_REPOSITORY to a Git repository containing the accepted PF2E commit",
+                )
+        };
+        let accepted_commit = format!("{PF2E_SOURCE_PINNED_COMMIT}^{{commit}}");
         let output = Command::new("git")
-            .args(["worktree", "list", "--porcelain"])
+            .args(["-C"])
+            .arg(&repository)
+            .args(["cat-file", "-e", &accepted_commit])
             .output()
-            .ok()?;
-        String::from_utf8(output.stdout)
-            .ok()?
-            .lines()
-            .filter_map(|line| line.strip_prefix("worktree "))
-            .map(|root| Path::new(root).join("vendor/pf2e"))
-            .find(|candidate| candidate.is_dir())
+            .expect("TEST PREREQUISITE: git must inspect the PF2E source repository");
+        assert!(
+            output.status.success(),
+            "TEST PREREQUISITE: PF2E_SOURCE_REPOSITORY must contain accepted commit {PF2E_SOURCE_PINNED_COMMIT}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        repository
     }
 
     #[test]
     fn registered_receipt_executes_real_pipeline_and_does_not_equate_global_prevalence() {
-        let Some(repository) = pinned_repository() else {
-            eprintln!(
-                "pinned source repository unavailable; fixture authentication tested separately"
-            );
-            return;
-        };
+        let repository = require_pinned_repository();
         let ledger = ledger();
         let receipt = capture_registered_source_leaf_receipt(&ledger, 0, 0, &repository)
             .expect("sealed registered receipt");
@@ -852,7 +925,7 @@ mod tests {
     }
 
     #[test]
-    fn fake_repository_and_self_stamped_fixture_cannot_authenticate() {
+    fn missing_pin_and_wrong_digest_fail_at_distinct_authentication_steps() {
         let ledger = ledger();
         let error = capture_registered_source_leaf_receipt(&ledger, 0, 0, Path::new("."))
             .expect_err("Atlas repository is not the pinned PF2e source repository");
@@ -860,9 +933,28 @@ mod tests {
 
         let mut fake = ledger.clone();
         fake.leaves[0].fixtures[0].source_file_digest = format!("sha256:{}", "0".repeat(64));
-        let error = capture_registered_source_leaf_receipt(&fake, 0, 0, Path::new("."))
-            .expect_err("caller digest cannot self-stamp source identity");
+        let repository = require_pinned_repository();
+        let error = capture_registered_source_leaf_receipt(&fake, 0, 0, &repository)
+            .expect_err("wrong digest must fail after the pinned commit resolves");
         assert_eq!(error.code, CoverageFailureCode::ReceiptProvenanceInvalid);
+        assert!(error.message.contains("source digest"));
+    }
+
+    #[test]
+    fn pinned_wrong_type_item_cannot_satisfy_action_selector() {
+        let repository = require_pinned_repository();
+        let mut wrong_type = ledger();
+        let fixture = &mut wrong_type.leaves[0].fixtures[0];
+        fixture.record_key = "feats-srd:j54VJmwwAQZBlS6J".to_string();
+        fixture.source_path = "packs/feats/ancestry/anadi/anadi-lore.json".to_string();
+        fixture.source_file_digest =
+            "sha256:eb780ea7b02cf283631785e2cacd4228c8b78e8b76d08777b4eaba376f339300".to_string();
+        fixture.excerpt_digest =
+            "sha256:f9523b02833f49a7bc12cb863e0c1ab0519253b62cd34182a0ea8beeb7d7d287".to_string();
+        let error = capture_registered_source_leaf_receipt(&wrong_type, 0, 0, &repository)
+            .expect_err("pinned Item/feat fixture cannot satisfy Item/action selector");
+        assert_eq!(error.code, CoverageFailureCode::FixtureNotSourceGrounded);
+        assert!(error.message.contains("does not match ledger selector"));
     }
 
     #[test]
