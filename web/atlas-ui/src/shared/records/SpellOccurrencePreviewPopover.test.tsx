@@ -27,12 +27,66 @@ describe("SpellOccurrencePreviewPopover", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open spell record" }));
     expect(onOpenSpellRecord).toHaveBeenCalledWith("spells:control-weather");
   });
+
+  it("shows actor-owned targetless spell content without inventing navigation", () => {
+    const spell = spellFixture();
+    spell.occurrence_id = "bind-soul-heartstone";
+    spell.label = "Bind Soul (At Will) (Heartstone)";
+    spell.target_record_key = undefined;
+    spell.context = {
+      contextual_label: "At will",
+      group: "heartstone",
+      uses: { maximum: 1 },
+    };
+    spell.content![0]!.blocks = [
+      {
+        block_type: "paragraph",
+        spans: [
+          {
+            span_type: "text",
+            text: "The heartstone binds a soul without a canonical spell target.",
+          },
+        ],
+      },
+    ];
+    const onOpenSpellRecord = vi.fn();
+    render(
+      <SpellOccurrencePreviewPopover
+        onOpenSpellRecord={onOpenSpellRecord}
+        onReference={vi.fn()}
+        spell={spell}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: "Bind Soul (At Will) (Heartstone)",
+    });
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", {
+      name: "Bind Soul (At Will) (Heartstone) spell details",
+    });
+    expect(
+      within(dialog).getByText(
+        "The heartstone binds a soul without a canonical spell target.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/At will · Group heartstone · 1 use/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open spell record" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close spell preview" }));
+    expect(onOpenSpellRecord).not.toHaveBeenCalled();
+  });
 });
 
 function spellFixture(): CreatureSurfaceSpellView {
   return {
     occurrence_id: "control-weather",
     authored_order: 0,
+    provenance: { identity_stability: "stable_nested_source_id" },
     label: "Control Weather",
     target_record_key: "spells:control-weather",
     rank: 8,

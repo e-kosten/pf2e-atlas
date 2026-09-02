@@ -6,6 +6,7 @@
 @import "./styles/ui/tables.css";
 @import "./styles/ui/search-picker.css";
 @import "./styles/ui/preview-popover.css";
+@import "./styles/ui/action-glyph.css";
 @import "./styles/ant-overrides.css";
 @import "./styles/results.css";
 @import "./styles/presentation-mocks.css";

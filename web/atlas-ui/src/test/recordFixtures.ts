@@ -12,6 +12,10 @@ const canonicalProvenance = {
   field: "defenses" as const,
 };
 
+export const occurrenceProvenance = {
+  identity_stability: "stable_nested_source_id" as const,
+};
+
 const runtimeProvenance = {
   source: { source_type: "canonical_record" as const },
 };
@@ -80,6 +84,7 @@ export function creatureSurfaceFixture({
           {
             occurrence_id: "claw",
             authored_order: 0,
+            provenance: occurrenceProvenance,
             activity_type: "strike",
             label: "Claw",
             action_cost: { cost_type: "actions", count: 1 },
@@ -127,11 +132,13 @@ export function creatureSurfaceFixture({
                 {
                   occurrence_id: "innate",
                   authored_order: 0,
+                  provenance: occurrenceProvenance,
                   label: "Innate Spells",
                   spells: [
                     {
                       occurrence_id: "linked-spell",
                       authored_order: 0,
+                      provenance: occurrenceProvenance,
                       label: referenceLabel,
                       target_record_key: referenceRecordKey,
                     },

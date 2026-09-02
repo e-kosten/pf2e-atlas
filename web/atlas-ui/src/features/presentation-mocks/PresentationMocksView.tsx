@@ -109,6 +109,10 @@ const factProvenance = {
   field: "defenses" as const,
 };
 
+const occurrenceProvenance = {
+  identity_stability: "stable_nested_source_id" as const,
+};
+
 const conceptSurface: RecordSurfaceView = {
   metadata: {
     record_key: "concept:f1-dream-coven-envoy",
@@ -118,6 +122,16 @@ const conceptSurface: RecordSurfaceView = {
     level: 9,
     rarity: "uncommon",
     traits: ["fiend", "hag", "humanoid", "unholy"],
+    edition: {
+      status: "legacy",
+      counterparts: [
+        {
+          role: "remastered_counterpart",
+          record_key: "concept:f1-remastered-envoy",
+          title: "Dream-Coven Emissary",
+        },
+      ],
+    },
     source: {
       publication_title: "F1 concept evidence",
       pack_label: "Concept mock",
@@ -129,9 +143,21 @@ const conceptSurface: RecordSurfaceView = {
   presentation: {
     presentation_type: "creature",
     body: {
+      teaser: "A dream-stalking emissary who turns bargains into occult leverage.",
+      size: { value: "medium", provenance: factProvenance },
+      adjustment: { value: "elite", provenance: factProvenance },
+      initiative: { statistic: "perception", provenance: factProvenance },
       vitals: { hit_points: 170, provenance: factProvenance },
       defenses: {
         armor_class: 28,
+        armor_class_details: "+1 against dream effects",
+        hardness: 8,
+        shield: {
+          armor_class_bonus: 2,
+          broken_threshold: 10,
+          hardness: 5,
+          maximum_hit_points: 20,
+        },
         immunities: [{ component_id: "sleep", authored_order: 0, kind: "sleep" }],
         weaknesses: [
           {
@@ -144,7 +170,11 @@ const conceptSurface: RecordSurfaceView = {
         provenance: factProvenance,
       },
       saves: {
-        fortitude: { component_id: "fortitude", modifier: 19 },
+        fortitude: {
+          component_id: "fortitude",
+          modifier: 19,
+          details: "+1 against curses",
+        },
         reflex: { component_id: "reflex", modifier: 17 },
         will: { component_id: "will", modifier: 20 },
         provenance: factProvenance,
@@ -191,6 +221,22 @@ const conceptSurface: RecordSurfaceView = {
           kind: "occultism",
           label: "Occultism",
           modifier: 22,
+          variants: [
+            {
+              component_id: "dreams",
+              authored_order: 0,
+              modifier: 24,
+              label: "Dreams",
+              predicates: [{ predicate_type: "term", term: "dreams" }],
+            },
+          ],
+          source_entries: [
+            {
+              authored_order: 0,
+              authored_key: "occultism",
+              modifier: { state: "value", value: 22 },
+            },
+          ],
         },
       ],
       movement: [
@@ -213,6 +259,7 @@ const conceptSurface: RecordSurfaceView = {
         {
           occurrence_id: "claw",
           authored_order: 0,
+          provenance: occurrenceProvenance,
           activity_type: "strike",
           label: "Claw",
           traits: ["agile", "magical"],
@@ -225,14 +272,23 @@ const conceptSurface: RecordSurfaceView = {
               damage_type: "slashing",
             },
           ],
+          attack_effects: ["Grab"],
+          category: "offensive",
         },
         {
           occurrence_id: "dream-bargain",
           authored_order: 1,
+          provenance: occurrenceProvenance,
           activity_type: "action",
           label: "Dream Bargain",
           traits: ["curse", "occult"],
           action_cost: { cost_type: "actions", count: 2 },
+          frequency: { maximum: 1, period: "day" },
+          requirements: "The envoy can see the target.",
+          cost: "One dream token",
+          uses: { maximum: 3 },
+          self_effect: { label: "Effect", value: "Dream veil" },
+          category: "offensive",
           content: [
             {
               content_key: "concept:dream-bargain",
@@ -281,18 +337,30 @@ const conceptSurface: RecordSurfaceView = {
         {
           occurrence_id: "innate-occult",
           authored_order: 0,
+          provenance: occurrenceProvenance,
           label: "Occult Innate Spells",
           tradition: "occult",
           preparation: "innate",
           difficulty_class: 28,
           attack_modifier: 20,
+          slots: [
+            { rank: 5, maximum: 2 },
+            { rank: 4, maximum: 3 },
+          ],
           spells: [
             {
               occurrence_id: "dream-message",
               authored_order: 0,
+              provenance: occurrenceProvenance,
               label: "Dream Message",
               rank: 5,
               target_record_key: "spells:dream-message",
+              context: {
+                group: "innate",
+                slot: "5",
+                uses: { maximum: 1 },
+                contextual_label: "Dream message",
+              },
               content: [
                 {
                   content_key: "concept:dream-message",
@@ -323,6 +391,7 @@ const conceptSurface: RecordSurfaceView = {
             {
               occurrence_id: "nightmare",
               authored_order: 1,
+              provenance: occurrenceProvenance,
               label: "Nightmare",
               rank: 4,
             },
@@ -333,6 +402,7 @@ const conceptSurface: RecordSurfaceView = {
         {
           occurrence_id: "control-weather",
           authored_order: 0,
+          provenance: occurrenceProvenance,
           label: "Control Weather",
           target_record_key: "spells:control-weather",
           rank: 8,
@@ -373,6 +443,29 @@ const conceptSurface: RecordSurfaceView = {
           maximum: 3,
         },
       ],
+      rituals: { difficulty_class: 31, provenance: factProvenance },
+      equipment: [
+        {
+          occurrence_id: "heartstone",
+          authored_order: 0,
+          provenance: occurrenceProvenance,
+          label: "Heartstone",
+          traits: ["magical"],
+          level: 9,
+          usage: "held",
+          quantity: 1,
+          uses: { maximum: 1 },
+        },
+      ],
+      lore: [
+        {
+          occurrence_id: "dream-lore",
+          authored_order: 0,
+          provenance: occurrenceProvenance,
+          label: "Dream Lore",
+          modifier: 20,
+        },
+      ],
       content: [
         {
           content_key: "concept:description",
@@ -406,6 +499,30 @@ const conceptSurface: RecordSurfaceView = {
             source_record_key: "concept:f1-dream-coven-envoy",
             relative_source_path: "F1 concept mock",
             field_family: "concept.description",
+          },
+        },
+        {
+          content_key: "concept:heartstone",
+          role: "embedded_capability",
+          authored_order: 1,
+          label: "Heartstone",
+          blocks: [
+            {
+              block_type: "paragraph",
+              spans: [
+                {
+                  span_type: "text",
+                  text: "The heartstone lets the envoy use ethereal jaunt.",
+                },
+              ],
+            },
+          ],
+          content_hash: "concept-heartstone-not-source-authentic",
+          visibility: "public",
+          provenance: {
+            source_record_key: "concept:f1-dream-coven-envoy",
+            relative_source_path: "F1 concept mock",
+            field_family: "concept.heartstone",
           },
         },
       ],

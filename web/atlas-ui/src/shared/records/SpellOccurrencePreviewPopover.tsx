@@ -1,4 +1,5 @@
-import { Typography } from "antd";
+import { Button, Typography } from "antd";
+import { X } from "lucide-react";
 import type { CreatureSurfaceSpellView } from "../../generated/atlas";
 import { PreviewPopover, usePreviewPopoverClose } from "../ui/overlays/PreviewPopover";
 import { RecordPreviewActions } from "./RecordPreviewActions";
@@ -15,18 +16,24 @@ export function SpellOccurrencePreviewPopover({
   spell: CreatureSurfaceSpellView;
 }) {
   const target = spell.target_record_key;
-  if (!target) {
+  const content = spell.content ?? [];
+  if (!target && !content.length) {
     return <span>{spell.label}</span>;
   }
   const metadata = [
     formatRank(spell.rank),
     ...(spell.traits ?? []).map(formatSlug),
+    ...spellContext(spell),
   ].join(" · ");
 
   return (
     <PreviewPopover
       actions={
-        <SpellPopoverActions onOpenSpellRecord={() => onOpenSpellRecord(target)} />
+        target ? (
+          <SpellPopoverActions onOpenSpellRecord={() => onOpenSpellRecord(target)} />
+        ) : (
+          <TargetlessSpellPopoverActions />
+        )
       }
       ariaLabel={`${spell.label} spell details`}
       content={
@@ -34,7 +41,7 @@ export function SpellOccurrencePreviewPopover({
           <span className="creature-sheet__spell-heading">
             <small>{metadata}</small>
           </span>
-          {(spell.content ?? []).map((document) => (
+          {content.map((document) => (
             <RichContent
               content={document}
               key={document.content_key}
@@ -45,17 +52,55 @@ export function SpellOccurrencePreviewPopover({
       }
       title={spell.label}
     >
-      {(open) => (
-        <Typography.Link
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          href={`/records/${encodeURIComponent(target)}`}
-        >
-          {spell.label}
-        </Typography.Link>
-      )}
+      {(open) =>
+        target ? (
+          <Typography.Link
+            aria-expanded={open}
+            aria-haspopup="dialog"
+            href={`/records/${encodeURIComponent(target)}`}
+          >
+            {spell.label}
+          </Typography.Link>
+        ) : (
+          <Button
+            aria-expanded={open}
+            aria-haspopup="dialog"
+            className="creature-sheet__spell-trigger"
+            size="small"
+            type="link"
+          >
+            {spell.label}
+          </Button>
+        )
+      }
     </PreviewPopover>
   );
+}
+
+function TargetlessSpellPopoverActions() {
+  const close = usePreviewPopoverClose();
+  return (
+    <Button
+      aria-label="Close spell preview"
+      icon={<X size={14} />}
+      onClick={close}
+      size="small"
+    />
+  );
+}
+
+function spellContext(spell: CreatureSurfaceSpellView) {
+  const context = spell.context;
+  if (!context) return [];
+  return [
+    context.contextual_label,
+    context.group ? `Group ${context.group}` : undefined,
+    context.location ? `Location ${context.location}` : undefined,
+    context.slot ? `Slot ${context.slot}` : undefined,
+    context.uses?.maximum === undefined
+      ? undefined
+      : `${context.uses.maximum} ${context.uses.maximum === 1 ? "use" : "uses"}`,
+  ].filter((detail): detail is string => Boolean(detail));
 }
 
 function SpellPopoverActions({ onOpenSpellRecord }: { onOpenSpellRecord: () => void }) {

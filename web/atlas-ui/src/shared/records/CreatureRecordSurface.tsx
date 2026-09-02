@@ -1,24 +1,24 @@
-import { Collapse, Empty, Space, Tag } from "antd";
+import { RightOutlined } from "@ant-design/icons";
+import { Alert, Button, Collapse, Empty, Space, Tag } from "antd";
 import type React from "react";
 import type {
-  CreatureSurfaceActionCostView,
   CreatureSurfaceActivityView,
   CreatureSurfaceContentView,
   CreatureSurfaceIwrView,
   CreatureSurfaceMovementView,
   CreatureSurfaceRelationshipView,
+  CreatureSurfaceShieldView,
+  CreatureSurfaceSkillPredicateView,
   CreatureSurfaceSpellView,
   CreatureSurfaceSpellcastingView,
   CreatureSurfaceView,
+  RecordSurfaceEditionCounterpartView,
   RecordSurfaceMetadataView,
   RuntimeNumberView,
 } from "../../generated/atlas";
-import {
-  contentLabel,
-  narrativeContent,
-  RichContent,
-  type ReferenceHandler,
-} from "./RecordRichContent";
+import { ActionGlyph } from "./ActionGlyph";
+import { DataAvailabilityDisclosure } from "./CreatureDataAvailability";
+import { contentLabel, RichContent, type ReferenceHandler } from "./RecordRichContent";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
 import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
 import { SpellOccurrencePreviewPopover } from "./SpellOccurrencePreviewPopover";
@@ -34,12 +34,14 @@ export function CreatureDetailSurface({
   onReference: ReferenceHandler;
   showTitle: boolean;
 }) {
-  const narrative = narrativeContent(body.content);
+  const overview = overviewContent(body.content);
   const standalone = body.standalone_spells ?? [];
   return (
     <article className="record-surface record-surface--record-detail">
       <RecordHeader metadata={metadata} showTitle={showTitle} />
-      <NarrativeSection content={narrative} onReference={onReference} />
+      <EditionNotice metadata={metadata} onReference={onReference} />
+      <CreatureProfileFacts body={body} />
+      <OverviewSection content={overview} onReference={onReference} />
       <div className="creature-sheet__facts-grid">
         <DefensePanel body={body} />
         <SensesLanguagesPanel body={body} />
@@ -57,9 +59,13 @@ export function CreatureDetailSurface({
             onReference={onReference}
             standalone={standalone}
           />
+          <RitualsSection rituals={body.rituals} />
+          <EquipmentSection equipment={body.equipment} />
+          <LoreSection lore={body.lore} />
           <ResourcesSection resources={body.resources} />
         </aside>
       </div>
+      <DataAvailabilityDisclosure unavailable={body.unavailable_domains} />
       <ReferenceAndSourceDisclosure
         body={body}
         metadata={metadata}
@@ -72,13 +78,10 @@ export function CreatureDetailSurface({
 export function SearchCompactSurface({
   body,
   metadata,
-  onReference,
 }: {
   body: CreatureSurfaceView;
   metadata: RecordSurfaceMetadataView;
-  onReference: ReferenceHandler;
 }) {
-  const description = narrativeContent(body.content)[0];
   return (
     <article className="record-surface record-surface--search-compact">
       <div className="record-surface-search__identity">
@@ -86,10 +89,11 @@ export function SearchCompactSurface({
           <h2>{metadata.title}</h2>
         </div>
         <IdentityMetadata compact metadata={metadata} />
+        <EditionTag metadata={metadata} />
         <TraitRow compact metadata={metadata} />
-        {description && (
-          <RichContent compact content={description} onReference={onReference} />
-        )}
+        {body.teaser ? (
+          <p className="record-surface-search__teaser">{body.teaser}</p>
+        ) : null}
       </div>
       <CompactCreatureFacts body={body} />
       <div className="record-surface-search__meta">
@@ -101,6 +105,80 @@ export function SearchCompactSurface({
       </div>
     </article>
   );
+}
+
+function CreatureProfileFacts({ body }: { body: CreatureSurfaceView }) {
+  const facts = [
+    body.size ? { label: "Size", value: formatSlug(body.size.value) } : null,
+    body.adjustment
+      ? { label: "Adjustment", value: formatSlug(body.adjustment.value) }
+      : null,
+    body.initiative
+      ? { label: "Initiative", value: formatSlug(body.initiative.statistic) }
+      : null,
+  ].filter((fact): fact is { label: string; value: string } => fact !== null);
+  if (!facts.length) return null;
+  return (
+    <dl aria-label="Creature profile" className="creature-sheet__profile-facts">
+      {facts.map((fact) => (
+        <Fact key={fact.label} label={fact.label} value={fact.value} />
+      ))}
+    </dl>
+  );
+}
+
+function EditionTag({ metadata }: { metadata: RecordSurfaceMetadataView }) {
+  if (!metadata.edition) return null;
+  return (
+    <div className="creature-sheet__edition-tag">
+      <Tag>{metadata.edition.status === "legacy" ? "Legacy" : "Remastered"}</Tag>
+    </div>
+  );
+}
+
+function EditionNotice({
+  metadata,
+  onReference,
+}: {
+  metadata: RecordSurfaceMetadataView;
+  onReference: ReferenceHandler;
+}) {
+  const edition = metadata.edition;
+  if (!edition) return null;
+  return (
+    <Alert
+      action={
+        edition.counterparts.length ? (
+          <Space size="small" wrap>
+            {edition.counterparts.map((counterpart) => (
+              <Button
+                key={`${counterpart.role}:${counterpart.record_key}`}
+                onClick={() => onReference(counterpart.record_key)}
+                size="small"
+                type="link"
+              >
+                {counterpartActionLabel(counterpart)}
+              </Button>
+            ))}
+          </Space>
+        ) : undefined
+      }
+      className="creature-sheet__edition-notice"
+      message={
+        edition.status === "legacy"
+          ? "This record uses legacy rules."
+          : "This record uses remastered rules."
+      }
+      showIcon
+      type={edition.status === "legacy" ? "warning" : "info"}
+    />
+  );
+}
+
+function counterpartActionLabel(counterpart: RecordSurfaceEditionCounterpartView) {
+  return counterpart.role === "remastered_counterpart"
+    ? `View remastered ${counterpart.title}`
+    : `View legacy ${counterpart.title}`;
 }
 
 export function RecordHeader({
@@ -177,7 +255,7 @@ export function TraitRow({
   );
 }
 
-function NarrativeSection({
+function OverviewSection({
   content,
   onReference,
 }: {
@@ -187,17 +265,15 @@ function NarrativeSection({
   if (!content.length) return null;
   const [primary, ...additional] = content;
   return (
-    <section className="creature-sheet__narrative" aria-labelledby="record-description">
+    <section className="creature-sheet__narrative" aria-labelledby="record-overview">
       <div className="creature-sheet__section-heading">
-        <div>
-          <p className="eyebrow">About this creature</p>
-          <h3 id="record-description">Description & Lore</h3>
-        </div>
+        <h3 id="record-overview">Overview</h3>
       </div>
       <RichContent content={primary} onReference={onReference} />
       {additional.length > 0 && (
         <Collapse
           className="record-surface__inline-disclosure"
+          expandIcon={disclosureExpandIcon}
           ghost
           items={additional.map((document) => ({
             key: document.content_key,
@@ -234,6 +310,7 @@ function DefensePanel({ body }: { body: CreatureSurfaceView }) {
   const stats = [
     compactFact("AC", defenses?.armor_class),
     compactFact("HP", vitals?.hit_points),
+    compactFact("Hardness", defenses?.hardness),
     compactFact("Fortitude", saves?.fortitude?.modifier, true),
     compactFact("Reflex", saves?.reflex?.modifier, true),
     compactFact("Will", saves?.will?.modifier, true),
@@ -244,7 +321,13 @@ function DefensePanel({ body }: { body: CreatureSurfaceView }) {
     iwrKeyValue("resistances", "Resistances", defenses?.resistances),
   ].filter(isRecordKeyValueItem);
   const hasDetails = Boolean(
-    defenses?.armor_class_details || vitals?.details || saves?.all_saves_note,
+    defenses?.armor_class_details ||
+    vitals?.details ||
+    saves?.all_saves_note ||
+    saves?.fortitude?.details ||
+    saves?.reflex?.details ||
+    saves?.will?.details ||
+    defenses?.shield,
   );
   if (!stats.length && !iwr.length && !hasDetails) return null;
   return (
@@ -268,11 +351,47 @@ function DefensePanel({ body }: { body: CreatureSurfaceView }) {
       {saves?.all_saves_note && (
         <p className="creature-sheet__detail-note">{saves.all_saves_note}</p>
       )}
+      <SaveDetails saves={saves} />
+      <ShieldDetails shield={defenses?.shield} />
       <RecordKeyValueList
         ariaLabel="Immunities, weaknesses, and resistances"
         items={iwr}
       />
     </SurfaceSection>
+  );
+}
+
+function SaveDetails({ saves }: { saves: CreatureSurfaceView["saves"] }) {
+  const items = [
+    recordKeyValue("fortitude-details", "Fortitude details", saves?.fortitude?.details),
+    recordKeyValue("reflex-details", "Reflex details", saves?.reflex?.details),
+    recordKeyValue("will-details", "Will details", saves?.will?.details),
+  ].filter(isRecordKeyValueItem);
+  return items.length ? (
+    <RecordKeyValueList ariaLabel="Save details" items={items} />
+  ) : null;
+}
+
+function ShieldDetails({ shield }: { shield: CreatureSurfaceShieldView | undefined }) {
+  if (!shield) return null;
+  const items = [
+    recordKeyValue(
+      "shield-ac",
+      "AC bonus",
+      shield.armor_class_bonus === undefined
+        ? undefined
+        : formatSigned(shield.armor_class_bonus),
+    ),
+    recordKeyValue("shield-hardness", "Hardness", shield.hardness),
+    recordKeyValue("shield-hp", "Maximum HP", shield.maximum_hit_points),
+    recordKeyValue("shield-bt", "Broken threshold", shield.broken_threshold),
+  ].filter(isRecordKeyValueItem);
+  if (!items.length) return null;
+  return (
+    <div className="creature-sheet__shield">
+      <h4>Shield</h4>
+      <RecordKeyValueList ariaLabel="Shield details" items={items} />
+    </div>
   );
 }
 
@@ -351,19 +470,73 @@ function SkillsPanel({ body }: { body: CreatureSurfaceView }) {
   if (!body.skills?.length) return null;
   return (
     <SurfaceSection className="creature-sheet__panel--skills" title="Skills">
-      <div className="creature-sheet__chip-list">
-        {body.skills.map((skill) => (
-          <span className="creature-sheet__skill" key={skill.component_id}>
-            <span>{skill.label}</span>
-            {skill.modifier !== undefined && (
-              <strong>{formatSigned(skill.modifier)}</strong>
-            )}
-            {skill.note && <small>{skill.note}</small>}
-          </span>
-        ))}
+      <div className="creature-sheet__skill-list">
+        {body.skills
+          .slice()
+          .sort((left, right) => left.authored_order - right.authored_order)
+          .map((skill) => (
+            <article
+              className="creature-sheet__skill"
+              key={`${skill.component_id}:${skill.authored_order}`}
+            >
+              <div className="creature-sheet__skill-heading">
+                <span>{skill.label}</span>
+                {skill.modifier !== undefined ? (
+                  <strong>{formatSigned(skill.modifier)}</strong>
+                ) : null}
+              </div>
+              {skill.note ? <small>{skill.note}</small> : null}
+              {skill.variants?.length ? (
+                <ul className="creature-sheet__skill-variants">
+                  {skill.variants
+                    .slice()
+                    .sort((left, right) => left.authored_order - right.authored_order)
+                    .map((variant) => (
+                      <li key={`${variant.component_id}:${variant.authored_order}`}>
+                        <span>{variant.label ?? "Variant"}</span>
+                        {variant.modifier === undefined ? null : (
+                          <strong>{formatSigned(variant.modifier)}</strong>
+                        )}
+                        {variant.predicates?.length ? (
+                          <small>
+                            {variant.predicates.map(formatSkillPredicate).join("; ")}
+                          </small>
+                        ) : null}
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+              {skill.source_entries?.length ? (
+                <div className="creature-sheet__skill-source">
+                  <span>Source key</span>
+                  {skill.source_entries
+                    .slice()
+                    .sort((left, right) => left.authored_order - right.authored_order)
+                    .map((entry) => (
+                      <code key={`${entry.authored_order}:${entry.authored_key}`}>
+                        {entry.authored_key}
+                      </code>
+                    ))}
+                </div>
+              ) : null}
+            </article>
+          ))}
       </div>
     </SurfaceSection>
   );
+}
+
+function formatSkillPredicate(predicate: CreatureSurfaceSkillPredicateView) {
+  switch (predicate.predicate_type) {
+    case "term":
+      return predicate.term;
+    case "not":
+      return `not ${predicate.term}`;
+    case "any":
+      return `any of ${predicate.terms.join(", ")}`;
+    case "at_least":
+      return `at least ${predicate.minimum} ${predicate.term}`;
+  }
 }
 
 function AbilitiesPanel({ body }: { body: CreatureSurfaceView }) {
@@ -429,6 +602,7 @@ function StaticActivity({
   return content.length ? (
     <Collapse
       className="creature-sheet__activity creature-sheet__activity--expandable"
+      expandIcon={disclosureExpandIcon}
       ghost
       items={[
         {
@@ -451,11 +625,28 @@ function StaticActivity({
 }
 
 function ActivitySummary({ activity }: { activity: CreatureSurfaceActivityView }) {
+  const details = [
+    recordKeyValue("category", "Category", activity.category),
+    recordKeyValue("frequency", "Frequency", formatFrequency(activity.frequency)),
+    recordKeyValue("requirements", "Requirements", activity.requirements),
+    recordKeyValue("cost", "Cost", activity.cost),
+    recordKeyValue("uses", "Uses", formatUses(activity.uses)),
+    recordKeyValue(
+      "self-effect",
+      "Self effect",
+      formatSelfEffect(activity.self_effect),
+    ),
+    recordKeyValue(
+      "attack-effects",
+      "Attack effects",
+      activity.attack_effects?.join(", "),
+    ),
+  ].filter(isRecordKeyValueItem);
   return (
     <div className="creature-sheet__activity-summary">
       <div className="creature-sheet__activity-heading">
         <strong>{activity.label}</strong>
-        <ActionCost cost={activity.action_cost} />
+        <ActionGlyph cost={activity.action_cost} />
       </div>
       {activity.traits?.length ? (
         <Space className="creature-sheet__activity-traits" size={[4, 4]} wrap>
@@ -481,21 +672,28 @@ function ActivitySummary({ activity }: { activity: CreatureSurfaceActivityView }
           ))}
         </div>
       )}
+      {details.length ? (
+        <RecordKeyValueList ariaLabel={`${activity.label} details`} items={details} />
+      ) : null}
     </div>
   );
 }
 
-function ActionCost({ cost }: { cost: CreatureSurfaceActionCostView | undefined }) {
-  if (!cost || cost.cost_type === "passive") return null;
-  const label =
-    cost.cost_type === "actions"
-      ? `${cost.count} action${cost.count === 1 ? "" : "s"}`
-      : cost.cost_type === "free_action"
-        ? "Free action"
-        : cost.cost_type === "reaction"
-          ? "Reaction"
-          : cost.value;
-  return <span className="creature-sheet__action-cost">{label}</span>;
+function formatFrequency(frequency: CreatureSurfaceActivityView["frequency"]) {
+  if (!frequency) return undefined;
+  if (frequency.maximum !== undefined && frequency.period) {
+    return `${frequency.maximum} per ${frequency.period}`;
+  }
+  return frequency.maximum ?? frequency.period;
+}
+
+function formatUses(uses: CreatureSurfaceActivityView["uses"]) {
+  return uses?.maximum === undefined ? undefined : `${uses.maximum} maximum`;
+}
+
+function formatSelfEffect(effect: CreatureSurfaceActivityView["self_effect"]) {
+  if (!effect) return undefined;
+  return [effect.label, effect.value].filter(Boolean).join(": ") || undefined;
 }
 
 function SpellcastingSection({
@@ -515,7 +713,13 @@ function SpellcastingSection({
       .map((entry) => ({
         key: entry.occurrence_id,
         label: <SpellcastingHeading entry={entry} />,
-        children: <SpellRoster onReference={onReference} spells={entry.spells} />,
+        children: (
+          <SpellRoster
+            onReference={onReference}
+            slots={entry.slots}
+            spells={entry.spells}
+          />
+        ),
       }));
   const orderedStandalone = standalone
     .slice()
@@ -547,6 +751,7 @@ function SpellcastingSection({
         <Collapse
           className="record-surface__inline-disclosure"
           defaultActiveKey={defaultActiveKey}
+          expandIcon={disclosureExpandIcon}
           ghost
           items={spellGroups}
           size="small"
@@ -575,40 +780,142 @@ function SpellcastingHeading({ entry }: { entry: CreatureSurfaceSpellcastingView
 
 function SpellRoster({
   onReference,
+  slots,
   spells,
 }: {
   onReference: ReferenceHandler;
+  slots?: CreatureSurfaceSpellcastingView["slots"];
   spells: CreatureSurfaceSpellView[] | undefined;
 }) {
   if (!spells?.length) {
     return (
-      <Empty description="No spells listed" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      <Empty description="No spells are listed." image={Empty.PRESENTED_IMAGE_SIMPLE} />
     );
   }
   return (
     <div className="creature-sheet__spell-roster">
       {groupSpells(spells).map(([rank, ranked]) => (
         <div className="creature-sheet__spell-rank" key={rank}>
-          <strong>{rank}</strong>
+          <div className="creature-sheet__spell-rank-heading">
+            <strong>{rank}</strong>
+            <SpellSlotMaximum rank={ranked[0]?.rank} slots={slots} />
+          </div>
           <div className="creature-sheet__spell-links">
-            {ranked.map((spell, index) => (
-              <span className="creature-sheet__spell-link" key={spell.occurrence_id}>
-                {index > 0 ? (
-                  <span aria-hidden="true" className="creature-sheet__spell-separator">
-                    {", "}
-                  </span>
-                ) : null}
+            {ranked.map((spell) => (
+              <span
+                className="creature-sheet__spell-link"
+                key={`${spell.occurrence_id}:${spell.authored_order}`}
+              >
                 <SpellOccurrencePreviewPopover
                   onOpenSpellRecord={onReference}
                   onReference={onReference}
                   spell={spell}
                 />
+                <SpellOccurrenceContext spell={spell} />
               </span>
             ))}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function SpellSlotMaximum({
+  rank,
+  slots,
+}: {
+  rank: number | undefined;
+  slots: CreatureSurfaceSpellcastingView["slots"];
+}) {
+  if (rank === undefined) return null;
+  const slot = slots?.find((candidate) => candidate.rank === rank);
+  if (slot?.maximum === undefined) return null;
+  return (
+    <span className="creature-sheet__spell-slots">
+      {slot.maximum} {slot.maximum === 1 ? "slot" : "slots"}
+    </span>
+  );
+}
+
+function SpellOccurrenceContext({ spell }: { spell: CreatureSurfaceSpellView }) {
+  const context = spell.context;
+  if (!context) return null;
+  const details = [
+    context.contextual_label,
+    context.group ? `Group ${context.group}` : undefined,
+    context.location ? `Location ${context.location}` : undefined,
+    context.slot ? `Slot ${context.slot}` : undefined,
+    context.uses?.maximum === undefined
+      ? undefined
+      : `${context.uses.maximum} ${context.uses.maximum === 1 ? "use" : "uses"}`,
+  ].filter((detail): detail is string => Boolean(detail));
+  return details.length ? <small>{details.join(" · ")}</small> : null;
+}
+
+function RitualsSection({ rituals }: { rituals: CreatureSurfaceView["rituals"] }) {
+  if (!rituals) return null;
+  return (
+    <SurfaceSection title="Rituals">
+      <dl className="creature-sheet__stat-list">
+        <Fact label="Ritual DC" value={rituals.difficulty_class} />
+      </dl>
+    </SurfaceSection>
+  );
+}
+
+function EquipmentSection({
+  equipment,
+}: {
+  equipment: CreatureSurfaceView["equipment"];
+}) {
+  if (!equipment?.length) return null;
+  return (
+    <SurfaceSection title="Equipment & Gear">
+      <ul className="creature-sheet__equipment-list">
+        {equipment
+          .slice()
+          .sort((left, right) => left.authored_order - right.authored_order)
+          .map((item) => {
+            const details = [
+              item.quantity === undefined ? undefined : `Quantity ${item.quantity}`,
+              item.level === undefined ? undefined : `Level ${item.level}`,
+              item.usage ? `Usage ${item.usage}` : undefined,
+              item.uses?.maximum === undefined
+                ? undefined
+                : `${item.uses.maximum} maximum uses`,
+            ].filter((detail): detail is string => Boolean(detail));
+            return (
+              <li key={`${item.occurrence_id}:${item.authored_order}`}>
+                <strong>{item.label}</strong>
+                {details.length ? <small>{details.join(" · ")}</small> : null}
+                {item.traits?.length ? (
+                  <span className="creature-sheet__equipment-traits">
+                    {item.traits.map(formatSlug).join(", ")}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+      </ul>
+    </SurfaceSection>
+  );
+}
+
+function LoreSection({ lore }: { lore: CreatureSurfaceView["lore"] }) {
+  if (!lore?.length) return null;
+  const items = lore
+    .slice()
+    .sort((left, right) => left.authored_order - right.authored_order)
+    .map((entry) => ({
+      key: `${entry.occurrence_id}:${entry.authored_order}`,
+      label: entry.label,
+      value: entry.modifier === undefined ? "—" : formatSigned(entry.modifier),
+    }));
+  return (
+    <SurfaceSection title="Lore">
+      <RecordKeyValueList ariaLabel="Lore skills" items={items} />
+    </SurfaceSection>
   );
 }
 
@@ -642,6 +949,7 @@ export function ReferenceAndSourceDisclosure({
   return (
     <Collapse
       className="record-surface__secondary"
+      expandIcon={disclosureExpandIcon}
       ghost
       items={[
         {
@@ -875,3 +1183,22 @@ function rankSortValue(rank: string) {
   if (rank === "Unranked") return -1;
   return Number.parseInt(rank, 10);
 }
+
+function overviewContent(content: CreatureSurfaceContentView[] | undefined) {
+  return (content ?? [])
+    .filter(
+      (document) =>
+        document.role === "primary_description" ||
+        document.role === "summary" ||
+        document.role === "supplemental_rules" ||
+        document.role === "embedded_capability" ||
+        document.role === "generated_narrative" ||
+        document.role === "journal_page",
+    )
+    .slice()
+    .sort((left, right) => left.authored_order - right.authored_order);
+}
+
+const disclosureExpandIcon: NonNullable<
+  React.ComponentProps<typeof Collapse>["expandIcon"]
+> = ({ isActive }) => <RightOutlined aria-hidden="true" rotate={isActive ? 90 : 0} />;

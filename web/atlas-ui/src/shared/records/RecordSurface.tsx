@@ -38,13 +38,7 @@ export const RecordSurface = memo(function RecordSurface({
 
   const body = surface.presentation.body;
   if (surface.profile === "search_compact") {
-    return (
-      <SearchCompactSurface
-        body={body}
-        metadata={surface.metadata}
-        onReference={onReference}
-      />
-    );
+    return <SearchCompactSurface body={body} metadata={surface.metadata} />;
   }
 
   if (surface.profile === "encounter_participant") {
