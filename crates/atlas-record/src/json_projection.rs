@@ -40,8 +40,35 @@ pub struct RecordJsonOptions {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RecordEditionContextJson {
     pub status: RecordEditionStatusJson,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub counterparts: Vec<RecordEditionCounterpartJson>,
+    pub counterpart_lookup: RecordEditionCounterpartLookupJson,
+}
+
+impl RecordEditionContextJson {
+    pub const fn lookup_not_performed(status: RecordEditionStatusJson) -> Self {
+        Self {
+            status,
+            counterpart_lookup: RecordEditionCounterpartLookupJson::NotPerformed,
+        }
+    }
+
+    pub fn verified(
+        status: RecordEditionStatusJson,
+        counterparts: Vec<RecordEditionCounterpartJson>,
+    ) -> Self {
+        Self {
+            status,
+            counterpart_lookup: RecordEditionCounterpartLookupJson::Verified { counterparts },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum RecordEditionCounterpartLookupJson {
+    NotPerformed,
+    Verified {
+        counterparts: Vec<RecordEditionCounterpartJson>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -64,6 +91,170 @@ pub enum RecordEditionCounterpartRoleJson {
     LegacyCounterpart,
     RemasteredCounterpart,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordJsonContext {
+    pub edition: RecordEditionContextJson,
+    pub relationships: RecordRelationshipLookupJson,
+}
+
+impl RecordJsonContext {
+    pub fn without_lookups(record: &AtlasRecord) -> Self {
+        Self {
+            edition: RecordEditionContextJson::lookup_not_performed(
+                RecordEditionStatusJson::from_remaster(record.publication.remaster),
+            ),
+            relationships: RecordRelationshipLookupJson::NotPerformed,
+        }
+    }
+}
+
+impl RecordRelationshipLookupJson {
+    pub fn verified(
+        record_key: &atlas_domain::RecordKey,
+        outgoing: &[crate::ReferenceEdge],
+        backlinks: &[crate::ReferenceEdge],
+    ) -> Result<Self, RecordRelationshipContextError> {
+        let mut relationships = outgoing
+            .iter()
+            .map(|edge| {
+                RecordCanonicalRelationshipJson::from_edge(
+                    record_key,
+                    RecordRelationshipDirectionJson::Reference,
+                    edge,
+                )
+            })
+            .chain(backlinks.iter().map(|edge| {
+                RecordCanonicalRelationshipJson::from_edge(
+                    record_key,
+                    RecordRelationshipDirectionJson::Backlink,
+                    edge,
+                )
+            }))
+            .collect::<Result<Vec<_>, _>>()?;
+        relationships.sort_by(|left, right| {
+            left.direction
+                .cmp(&right.direction)
+                .then_with(|| left.target_record_key.cmp(&right.target_record_key))
+                .then_with(|| left.label.cmp(&right.label))
+                .then_with(|| {
+                    left.provenance
+                        .source_kind
+                        .cmp(&right.provenance.source_kind)
+                })
+        });
+        Ok(Self::Verified { relationships })
+    }
+}
+
+impl RecordCanonicalRelationshipJson {
+    fn from_edge(
+        record_key: &atlas_domain::RecordKey,
+        direction: RecordRelationshipDirectionJson,
+        edge: &crate::ReferenceEdge,
+    ) -> Result<Self, RecordRelationshipContextError> {
+        let matches_seed = match direction {
+            RecordRelationshipDirectionJson::Reference => &edge.from_record_key == record_key,
+            RecordRelationshipDirectionJson::Backlink => &edge.to_record_key == record_key,
+        };
+        if !matches_seed {
+            return Err(RecordRelationshipContextError {
+                record_key: record_key.to_string(),
+                direction,
+                from_record_key: edge.from_record_key.to_string(),
+                to_record_key: edge.to_record_key.to_string(),
+            });
+        }
+        let target_record_key = match direction {
+            RecordRelationshipDirectionJson::Reference => &edge.to_record_key,
+            RecordRelationshipDirectionJson::Backlink => &edge.from_record_key,
+        };
+        Ok(Self {
+            direction,
+            kind: edge.relation_kind,
+            label: edge
+                .display_text
+                .clone()
+                .unwrap_or_else(|| edge.reference_text.clone()),
+            target_record_key: target_record_key.to_string(),
+            provenance: RecordRelationshipProvenanceJson {
+                from_record_key: edge.from_record_key.to_string(),
+                to_record_key: edge.to_record_key.to_string(),
+                source_kind: edge.source_kind,
+                visibility: edge.visibility,
+            },
+        })
+    }
+}
+
+impl RecordEditionStatusJson {
+    const fn from_remaster(remaster: bool) -> Self {
+        if remaster {
+            Self::Remaster
+        } else {
+            Self::Legacy
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum RecordRelationshipLookupJson {
+    NotPerformed,
+    Verified {
+        relationships: Vec<RecordCanonicalRelationshipJson>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecordCanonicalRelationshipJson {
+    pub direction: RecordRelationshipDirectionJson,
+    pub kind: crate::ReferenceRelationKind,
+    pub label: String,
+    pub target_record_key: String,
+    pub provenance: RecordRelationshipProvenanceJson,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordRelationshipDirectionJson {
+    Reference,
+    Backlink,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecordRelationshipProvenanceJson {
+    pub from_record_key: String,
+    pub to_record_key: String,
+    pub source_kind: crate::ContentSourceKind,
+    pub visibility: crate::ContentVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordRelationshipContextError {
+    pub record_key: String,
+    pub direction: RecordRelationshipDirectionJson,
+    pub from_record_key: String,
+    pub to_record_key: String,
+}
+
+impl std::fmt::Display for RecordRelationshipContextError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{} relationship {} -> {} does not belong to record `{}`",
+            match self.direction {
+                RecordRelationshipDirectionJson::Reference => "outgoing",
+                RecordRelationshipDirectionJson::Backlink => "backlink",
+            },
+            self.from_record_key,
+            self.to_record_key,
+            self.record_key
+        )
+    }
+}
+
+impl std::error::Error for RecordRelationshipContextError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordJsonError {
@@ -180,6 +371,8 @@ pub enum RecordPresentationJson {
         provenance: Option<CreatureProvenanceJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_relationships: Option<RecordRelationshipLookupJson>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         availability: Vec<CreatureAvailabilityJson>,
     },
@@ -281,25 +474,17 @@ pub fn record_json(
     retrieved: &RetrievedRecord,
     options: RecordJsonOptions,
 ) -> Result<RecordJson, RecordJsonError> {
-    let status = if retrieved.record.publication.remaster {
-        RecordEditionStatusJson::Remaster
-    } else {
-        RecordEditionStatusJson::Legacy
-    };
-    record_json_with_edition_context(
+    record_json_with_context(
         retrieved,
         options,
-        RecordEditionContextJson {
-            status,
-            counterparts: Vec::new(),
-        },
+        RecordJsonContext::without_lookups(&retrieved.record),
     )
 }
 
-pub fn record_json_with_edition_context(
+pub fn record_json_with_context(
     retrieved: &RetrievedRecord,
     options: RecordJsonOptions,
-    edition: RecordEditionContextJson,
+    context: RecordJsonContext,
 ) -> Result<RecordJson, RecordJsonError> {
     let record = &retrieved.record;
     let document = build_record_presentation_document(record);
@@ -309,7 +494,8 @@ pub fn record_json_with_edition_context(
             creature::creature_presentation(
                 creature,
                 options.detail,
-                Some(edition),
+                Some(context.edition),
+                Some(context.relationships),
                 matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
                     .then(|| record.content.description())
                     .flatten()
@@ -359,7 +545,7 @@ pub fn record_json_with_edition_context(
                 .then(|| source_json(record, options.detail))
                 .flatten(),
             supplementary_sections: if record.classification.kind == RecordKind::Creature {
-                Vec::new()
+                creature_supplementary_sections(&detailed_sections)
             } else {
                 supplementary_sections(&detailed_sections)
             },
@@ -511,6 +697,14 @@ fn truncate_words(text: &str, max_words: usize) -> Option<String> {
 fn supplementary_sections(sections: &[RecordSectionJson]) -> Vec<RecordSectionJson> {
     sections
         .iter()
+        .filter_map(|section| section_with_blocks(section, false))
+        .collect()
+}
+
+fn creature_supplementary_sections(sections: &[RecordSectionJson]) -> Vec<RecordSectionJson> {
+    sections
+        .iter()
+        .filter(|section| matches!(section.kind, "references" | "backlinks"))
         .filter_map(|section| section_with_blocks(section, false))
         .collect()
 }
@@ -877,6 +1071,15 @@ mod tests {
             "defenses"
         );
         assert_eq!(full_value["edition"]["status"], "remaster");
+        assert_eq!(
+            full_value["edition"]["counterpart_lookup"]["state"],
+            "not_performed"
+        );
+        assert!(
+            full_value["edition"]["counterpart_lookup"]
+                .get("counterparts")
+                .is_none()
+        );
         assert!(description.supplementary_sections.is_empty());
         assert!(description_value.get("content").is_none());
     }
@@ -885,19 +1088,22 @@ mod tests {
     fn typed_edition_context_serializes_exact_counterpart_identity() {
         let record = fixture_creature_record();
         let value = serde_json::to_value(
-            record_json_with_edition_context(
+            record_json_with_context(
                 &record,
                 RecordJsonOptions {
                     detail: DetailLevel::Full,
                     include_source_json: false,
                 },
-                RecordEditionContextJson {
-                    status: RecordEditionStatusJson::Legacy,
-                    counterparts: vec![RecordEditionCounterpartJson {
-                        role: RecordEditionCounterpartRoleJson::RemasteredCounterpart,
-                        record_key: "monster-core:counterpart".to_string(),
-                        title: "Test Guardian Remastered".to_string(),
-                    }],
+                RecordJsonContext {
+                    edition: RecordEditionContextJson::verified(
+                        RecordEditionStatusJson::Legacy,
+                        vec![RecordEditionCounterpartJson {
+                            role: RecordEditionCounterpartRoleJson::RemasteredCounterpart,
+                            record_key: "monster-core:counterpart".to_string(),
+                            title: "Test Guardian Remastered".to_string(),
+                        }],
+                    ),
+                    relationships: RecordRelationshipLookupJson::NotPerformed,
                 },
             )
             .expect("edition projection"),
@@ -905,13 +1111,150 @@ mod tests {
         .expect("json");
         assert_eq!(value["edition"]["status"], "legacy");
         assert_eq!(
-            value["edition"]["counterparts"][0]["record_key"],
+            value["edition"]["counterpart_lookup"]["counterparts"][0]["record_key"],
             "monster-core:counterpart"
         );
         assert_eq!(
-            value["edition"]["counterparts"][0]["role"],
+            value["edition"]["counterpart_lookup"]["counterparts"][0]["role"],
             "remastered_counterpart"
         );
+    }
+
+    #[test]
+    fn verified_zero_counterparts_is_distinct_from_lookup_not_performed() {
+        let record = fixture_creature_record();
+        let value = serde_json::to_value(
+            record_json_with_context(
+                &record,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                },
+                RecordJsonContext {
+                    edition: RecordEditionContextJson::verified(
+                        RecordEditionStatusJson::Remaster,
+                        Vec::new(),
+                    ),
+                    relationships: RecordRelationshipLookupJson::NotPerformed,
+                },
+            )
+            .expect("verified empty edition projection"),
+        )
+        .expect("json");
+        assert_eq!(value["edition"]["counterpart_lookup"]["state"], "verified");
+        assert_eq!(
+            value["edition"]["counterpart_lookup"]["counterparts"]
+                .as_array()
+                .expect("verified counterparts")
+                .len(),
+            0
+        );
+    }
+
+    #[test]
+    fn canonical_reference_and_backlink_context_preserves_identity_and_provenance_by_level() {
+        let record = fixture_creature_record();
+        let record_key = record.record.identity.key.clone();
+        let outgoing = crate::ReferenceEdge {
+            from_record_key: record_key.clone(),
+            to_record_key: RecordKey::parse("rules:target").expect("target key"),
+            display_text: Some("Exact Target".to_string()),
+            reference_text: "@UUID[target]".to_string(),
+            relation_kind: crate::ReferenceRelationKind::Reference,
+            source_kind: ContentSourceKind::Description,
+            visibility: ContentVisibility::Public,
+        };
+        let backlink = crate::ReferenceEdge {
+            from_record_key: RecordKey::parse("creatures:caller").expect("caller key"),
+            to_record_key: record_key.clone(),
+            display_text: Some("Exact Caller".to_string()),
+            reference_text: "@UUID[caller]".to_string(),
+            relation_kind: crate::ReferenceRelationKind::Embed,
+            source_kind: ContentSourceKind::PublicNotes,
+            visibility: ContentVisibility::GmOnly,
+        };
+        for detail in [
+            DetailLevel::Summary,
+            DetailLevel::Preview,
+            DetailLevel::Description,
+            DetailLevel::Standard,
+            DetailLevel::Full,
+        ] {
+            let value = serde_json::to_value(
+                record_json_with_context(
+                    &record,
+                    RecordJsonOptions {
+                        detail,
+                        include_source_json: false,
+                    },
+                    RecordJsonContext {
+                        edition: RecordEditionContextJson::lookup_not_performed(
+                            RecordEditionStatusJson::Remaster,
+                        ),
+                        relationships: RecordRelationshipLookupJson::verified(
+                            &record_key,
+                            std::slice::from_ref(&outgoing),
+                            std::slice::from_ref(&backlink),
+                        )
+                        .expect("verified relationships"),
+                    },
+                )
+                .expect("relationship projection"),
+            )
+            .expect("json");
+            if detail == DetailLevel::Summary {
+                assert!(value.get("record_relationships").is_none());
+                continue;
+            }
+            assert_eq!(value["record_relationships"]["state"], "verified");
+            let relationships = value["record_relationships"]["relationships"]
+                .as_array()
+                .expect("relationships");
+            assert_eq!(relationships.len(), 2);
+            let reference = relationships
+                .iter()
+                .find(|relationship| relationship["direction"] == "reference")
+                .expect("reference");
+            assert_eq!(reference["label"], "Exact Target");
+            assert_eq!(reference["target_record_key"], "rules:target");
+            assert_eq!(
+                reference["provenance"]["from_record_key"],
+                record_key.to_string()
+            );
+            assert_eq!(reference["kind"], "reference");
+            assert_eq!(reference["provenance"]["source_kind"], "description");
+            let backlink = relationships
+                .iter()
+                .find(|relationship| relationship["direction"] == "backlink")
+                .expect("backlink");
+            assert_eq!(backlink["label"], "Exact Caller");
+            assert_eq!(backlink["target_record_key"], "creatures:caller");
+            assert_eq!(backlink["kind"], "embed");
+            assert_eq!(backlink["provenance"]["visibility"], "gm_only");
+        }
+    }
+
+    #[test]
+    fn canonical_relationship_context_rejects_edges_for_another_seed() {
+        let record_key = RecordKey::parse("creatures:seed").expect("seed key");
+        let unrelated = crate::ReferenceEdge {
+            from_record_key: RecordKey::parse("creatures:other").expect("other key"),
+            to_record_key: RecordKey::parse("rules:target").expect("target key"),
+            display_text: None,
+            reference_text: "target".to_string(),
+            relation_kind: crate::ReferenceRelationKind::Reference,
+            source_kind: ContentSourceKind::Description,
+            visibility: ContentVisibility::Public,
+        };
+        let error = RecordRelationshipLookupJson::verified(
+            &record_key,
+            std::slice::from_ref(&unrelated),
+            &[],
+        )
+        .expect_err("unrelated edge must fail");
+        assert_eq!(error.record_key, "creatures:seed");
+        assert_eq!(error.from_record_key, "creatures:other");
+        assert_eq!(error.to_record_key, "rules:target");
     }
 
     #[test]
@@ -1035,6 +1378,188 @@ mod tests {
     }
 
     #[test]
+    fn missing_or_null_embedded_entities_keep_unclaimed_content_reachable_in_global_order() {
+        for embedded_state in ["missing", "null"] {
+            let mut retrieved = fixture_creature_record();
+            let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+            creature.embedded_entities.value = if embedded_state == "missing" {
+                FactValue::Missing
+            } else {
+                FactValue::Null
+            };
+            let owner = creature.identity.record_key.clone();
+            creature.content.documents = vec![
+                owned_document(
+                    &owner,
+                    "record-third",
+                    ContentOwner::Record(owner.clone()),
+                    3,
+                ),
+                owned_document(
+                    &owner,
+                    "occurrence-first",
+                    ContentOwner::CreatureOccurrence(
+                        crate::CreatureOccurrenceId::new("absent-occurrence").expect("occurrence"),
+                    ),
+                    1,
+                ),
+                owned_document(
+                    &owner,
+                    "entity-second",
+                    ContentOwner::CreatureEntity(
+                        crate::CreatureEntityId::new("absent-entity").expect("entity"),
+                    ),
+                    2,
+                ),
+            ];
+            let placement = crate::place_creature_content(creature);
+            assert_eq!(
+                placement
+                    .all_documents(creature)
+                    .map(|document| document.id.content_key.as_str())
+                    .collect::<Vec<_>>(),
+                ["occurrence-first", "entity-second", "record-third"]
+            );
+            assert_eq!(
+                placement
+                    .unclaimed_documents(creature)
+                    .map(|document| document.id.content_key.as_str())
+                    .collect::<Vec<_>>(),
+                ["occurrence-first", "entity-second"]
+            );
+            assert_eq!(
+                placement
+                    .general_documents(creature)
+                    .map(|document| document.id.content_key.as_str())
+                    .collect::<Vec<_>>(),
+                ["occurrence-first", "entity-second", "record-third"]
+            );
+            let full = serde_json::to_value(
+                record_json(
+                    &retrieved,
+                    RecordJsonOptions {
+                        detail: DetailLevel::Full,
+                        include_source_json: false,
+                    },
+                )
+                .expect("full projection"),
+            )
+            .expect("json");
+            assert_eq!(
+                full["content"]
+                    .as_array()
+                    .expect("unclaimed full content")
+                    .iter()
+                    .map(|document| document["content_key"].as_str().expect("content key"))
+                    .collect::<Vec<_>>(),
+                ["occurrence-first", "entity-second", "record-third"]
+            );
+            assert!(full["availability"].as_array().is_some_and(|causes| {
+                causes.iter().any(|cause| {
+                    cause["field"] == "embedded_entities" && cause["state"] == embedded_state
+                })
+            }));
+        }
+    }
+
+    #[test]
+    fn every_content_bucket_uses_one_global_deterministic_order() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let owner = creature.identity.record_key.clone();
+        let jaws_entity = crate::CreatureEntityId::new("jaws").expect("entity");
+        let jaws_occurrence = crate::CreatureOccurrenceId::new("jaws").expect("occurrence");
+        creature.content.documents = vec![
+            owned_document(
+                &owner,
+                "entity-third",
+                ContentOwner::CreatureEntity(jaws_entity.clone()),
+                3,
+            ),
+            owned_document(
+                &owner,
+                "occurrence-second",
+                ContentOwner::CreatureOccurrence(jaws_occurrence.clone()),
+                2,
+            ),
+            owned_document(
+                &owner,
+                "record-fourth",
+                ContentOwner::Record(owner.clone()),
+                4,
+            ),
+            owned_document(
+                &owner,
+                "occurrence-first",
+                ContentOwner::CreatureOccurrence(jaws_occurrence.clone()),
+                0,
+            ),
+            owned_document(
+                &owner,
+                "unclaimed-fifth",
+                ContentOwner::CreatureEntity(
+                    crate::CreatureEntityId::new("absent").expect("entity"),
+                ),
+                5,
+            ),
+            owned_document(
+                &owner,
+                "entity-first",
+                ContentOwner::CreatureEntity(jaws_entity.clone()),
+                1,
+            ),
+        ];
+        let placement = crate::place_creature_content(creature);
+        assert_eq!(
+            placement
+                .all_documents(creature)
+                .map(|document| document.id.content_key.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "occurrence-first",
+                "entity-first",
+                "occurrence-second",
+                "entity-third",
+                "record-fourth",
+                "unclaimed-fifth",
+            ]
+        );
+        assert_eq!(
+            placement
+                .entity_documents(creature, &jaws_entity)
+                .map(|document| document.id.content_key.as_str())
+                .collect::<Vec<_>>(),
+            ["entity-first", "entity-third"]
+        );
+        assert_eq!(
+            placement
+                .occurrence_documents(creature, &jaws_occurrence)
+                .map(|document| document.id.content_key.as_str())
+                .collect::<Vec<_>>(),
+            ["occurrence-first", "occurrence-second"]
+        );
+        assert_eq!(
+            placement
+                .documents_for_occurrence(creature, &jaws_occurrence)
+                .map(|document| document.id.content_key.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "occurrence-first",
+                "entity-first",
+                "occurrence-second",
+                "entity-third",
+            ]
+        );
+        assert_eq!(
+            placement
+                .general_documents(creature)
+                .map(|document| document.id.content_key.as_str())
+                .collect::<Vec<_>>(),
+            ["record-fourth", "unclaimed-fifth"]
+        );
+    }
+
+    #[test]
     fn repeated_same_target_occurrences_keep_identity_multiplicity_and_content() {
         let mut retrieved = fixture_creature_record();
         let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
@@ -1099,6 +1624,13 @@ mod tests {
             1,
         );
         creature.content.documents = vec![duplicate.clone(), duplicate];
+        let placement = crate::place_creature_content(creature);
+        let placement_state = (
+            placement.unclaimed_documents(creature).count(),
+            placement.association_failed_documents(creature).count(),
+            placement.is_claimed(0),
+            placement.is_claimed(1),
+        );
         let standard = serde_json::to_value(
             record_json(
                 &retrieved,
@@ -1121,6 +1653,28 @@ mod tests {
                     cause["component_id"] == "jaws" && cause["field"] == "content_association"
                 })
         );
+        assert_eq!(placement_state, (0, 2, false, false));
+        let full = serde_json::to_value(
+            record_json(
+                &retrieved,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+            )
+            .expect("full projection"),
+        )
+        .expect("json");
+        assert_eq!(
+            full["content"]
+                .as_array()
+                .expect("failed association remains reachable")
+                .iter()
+                .map(|document| document["content_key"].as_str().expect("content key"))
+                .collect::<Vec<_>>(),
+            ["jaws-content", "jaws-content"]
+        );
+        assert!(full["strikes"][0].get("content").is_none());
     }
 
     #[test]
@@ -1208,6 +1762,235 @@ mod tests {
             0
         );
         assert!(standard.get("relationships").is_none());
+    }
+
+    #[test]
+    fn populated_unsupported_values_survive_as_complete_typed_causes() {
+        let mut retrieved = fixture_creature_record();
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        creature.adjustment.value = FactValue::Value(crate::CreatureAdjustment::Unsupported(
+            unsupported_value("mythic"),
+        ));
+        creature.initiative.value = FactValue::Value(crate::CreatureInitiative {
+            statistic: FactValue::Value(crate::CreatureInitiativeStatistic::Unsupported(
+                unsupported_value("initiative-source"),
+            )),
+        });
+        creature.source_alliance.value = FactValue::Value(
+            crate::CreatureSourceAlliance::Unsupported(unsupported_value("alliance-source")),
+        );
+        let defenses = creature.defenses.value.as_value().expect("defenses");
+        let mut defenses = defenses.clone();
+        let hit_points = defenses.hit_points.as_value().expect("hit points");
+        let mut hit_points = hit_points.clone();
+        hit_points.value = FactValue::Value(crate::CreatureNumber::Unsupported(unsupported_value(
+            "hp-source",
+        )));
+        defenses.hit_points = FactValue::Value(hit_points);
+        creature.defenses.value = FactValue::Value(defenses);
+        let perception = creature.perception.value.as_value().expect("perception");
+        let mut perception = perception.clone();
+        perception.senses = FactValue::Value(vec![crate::CreatureSense {
+            id: crate::CreatureComponentId::new("odd-sense").expect("sense id"),
+            authored_order: 0,
+            sense_type: crate::SenseType::new("odd-sense").expect("sense type"),
+            acuity: FactValue::Value(crate::SenseAcuity::Unsupported(unsupported_value(
+                "acuity-source",
+            ))),
+            range: FactValue::Value(30),
+        }]);
+        creature.perception.value = FactValue::Value(perception);
+        let skills = creature.skills.value.as_value().expect("skills");
+        let mut skills = skills.clone();
+        skills[0].variants = FactValue::Value(vec![crate::CreatureSkillVariant {
+            id: crate::CreatureComponentId::new("odd-variant").expect("variant id"),
+            authored_order: 0,
+            modifier: FactValue::Missing,
+            label: FactValue::Missing,
+            predicate: FactValue::Value(vec![crate::CreaturePredicate::Unsupported(
+                unsupported_value("predicate-source"),
+            )]),
+        }]);
+        creature.skills.value = FactValue::Value(skills);
+        let movement = creature.movement.value.as_value().expect("movement");
+        let mut movement = movement.clone();
+        movement[0].mode =
+            crate::CreatureMovementMode::Unsupported(unsupported_value("movement-source"));
+        creature.movement.value = FactValue::Value(movement);
+        let resources = creature.resources.value.as_value().expect("resources");
+        let mut resources = resources.clone();
+        resources[0].maximum = FactValue::Value(crate::CreatureResourceAmount::Unsupported(
+            unsupported_value("resource-maximum-source"),
+        ));
+        resources[0].serialized_value =
+            FactValue::Value(crate::CreatureResourceAmount::Unsupported(
+                unsupported_value("resource-serialized-source"),
+            ));
+        resources[0].source_drift = FactValue::Value(vec![crate::CreatureUnsupportedSourceFact {
+            field: crate::CreatureUnsupportedSourceField::ResourceMaximumDrift,
+            value: unsupported_value("resource-drift-source"),
+        }]);
+        creature.resources.value = FactValue::Value(resources);
+
+        let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
+            panic!("embedded entities")
+        };
+        embedded.actor_spellcasting = FactValue::Value(crate::CreatureActorSpellcastingContext {
+            rituals_dc: FactValue::Value(crate::CreatureSourceScalar::Unsupported(
+                unsupported_value("ritual-dc-source"),
+            )),
+            unsupported_notes: vec![unsupported_note("actor.spellcasting", "actor-note-source")],
+        });
+        let crate::CreatureCapability::SpellcastingEntry(entry) =
+            &mut embedded.occurrences[0].capability
+        else {
+            panic!("spellcasting entry")
+        };
+        entry.preparation = FactValue::Value(crate::CreatureSpellPreparation::Unsupported(
+            unsupported_value("preparation-source"),
+        ));
+        entry.slots = FactValue::Value(vec![crate::CreatureSpellSlot {
+            rank: 1,
+            maximum: FactValue::Value(crate::CreatureSourceScalar::Unsupported(unsupported_value(
+                "slot-maximum-source",
+            ))),
+            serialized_value: FactValue::Value(crate::CreatureSourceScalar::Unsupported(
+                unsupported_value("slot-serialized-source"),
+            )),
+            prepared: FactValue::Value(vec![crate::CreaturePreparedSpellSlot::Unsupported(
+                unsupported_value("prepared-slot-source"),
+            )]),
+        }]);
+        entry.unsupported_notes = vec![unsupported_note("entry.path", "entry-note-source")];
+
+        let crate::CreatureCapability::Strike(strike) = &mut embedded.occurrences[1].capability
+        else {
+            panic!("strike")
+        };
+        strike.action_cost =
+            crate::CreatureActionCost::Unsupported(unsupported_value("action-cost-source"));
+        let damage = strike.damage.as_value().expect("damage");
+        let mut damage = damage.clone();
+        damage[0].kinds = FactValue::Value(vec![crate::CreatureDamageKind::Unsupported(
+            unsupported_value("damage-kind-source"),
+        )]);
+        damage[0].apply_modifier = FactValue::Value(crate::CreatureSourceScalar::Unsupported(
+            unsupported_value("damage-modifier-source"),
+        ));
+        strike.damage = FactValue::Value(damage);
+        strike.unsupported_notes = vec![unsupported_note("strike.path", "strike-note-source")];
+
+        let crate::CreatureCapability::Spell(spell) = &mut embedded.occurrences[2].capability
+        else {
+            panic!("spell")
+        };
+        spell.ritual = FactValue::Value(crate::CreatureRitualContext {
+            primary_check: FactValue::Missing,
+            secondary_casters: FactValue::Value(crate::CreatureSourceScalar::Unsupported(
+                unsupported_value("ritual-secondary-source"),
+            )),
+            secondary_checks: FactValue::Missing,
+        });
+        spell.defense = FactValue::Value(crate::CreatureSpellDefense {
+            save: FactValue::Value(crate::CreatureSpellSave::Unsupported(unsupported_value(
+                "spell-save-source",
+            ))),
+            basic: FactValue::Missing,
+        });
+        spell.unsupported_notes = vec![unsupported_note("spell.path", "spell-note-source")];
+
+        let project_availability = |record: &RetrievedRecord| {
+            let value = serde_json::to_value(
+                record_json(
+                    record,
+                    RecordJsonOptions {
+                        detail: DetailLevel::Full,
+                        include_source_json: false,
+                    },
+                )
+                .expect("full projection"),
+            )
+            .expect("json");
+            value["availability"]
+                .as_array()
+                .expect("availability")
+                .clone()
+        };
+        let forward = project_availability(&retrieved);
+        let fields = forward
+            .iter()
+            .filter_map(|cause| cause["field"].as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        for expected in [
+            "adjustment",
+            "initiative_statistic",
+            "source_alliance",
+            "hit_points_value",
+            "sense_acuity",
+            "skill_predicate",
+            "movement_mode",
+            "resource_maximum",
+            "resource_serialized_value",
+            "resource_source_drift",
+            "ritual_difficulty_class",
+            "action_cost",
+            "spell_preparation",
+            "spell_slot_maximum",
+            "spell_slot_serialized_value",
+            "prepared_spell_slot",
+            "spell_ritual_secondary_casters",
+            "spell_defense_save",
+            "damage_kind",
+            "damage_apply_modifier",
+            "unsupported_mechanic",
+        ] {
+            assert!(fields.contains(expected), "missing {expected}");
+        }
+        for source in [
+            "mythic",
+            "initiative-source",
+            "resource-maximum-source",
+            "slot-maximum-source",
+            "prepared-slot-source",
+            "damage-kind-source",
+            "damage-modifier-source",
+            "spell-save-source",
+        ] {
+            assert!(
+                forward.iter().any(|cause| cause["source_value"] == source),
+                "missing exact source value {source}"
+            );
+        }
+        assert!(forward.iter().any(|cause| {
+            cause["field"] == "unsupported_mechanic"
+                && cause["source_path"] == "spell.path"
+                && cause["source_value"] == "spell-note-source"
+        }));
+
+        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        if let FactValue::Value(embedded) = &mut creature.embedded_entities.value {
+            embedded.occurrences.reverse();
+        }
+        let reverse = project_availability(&retrieved);
+        assert_eq!(
+            forward, reverse,
+            "availability order must be mutation-stable"
+        );
+    }
+
+    fn unsupported_value(value: &str) -> crate::UnsupportedSourceValue {
+        crate::UnsupportedSourceValue {
+            shape: crate::UnsupportedSourceShape::String,
+            value: value.to_string(),
+            reason: crate::UnsupportedSourceReason::OpenVocabulary,
+        }
+    }
+
+    fn unsupported_note(source_path: &str, value: &str) -> crate::UnsupportedMechanicNote {
+        crate::UnsupportedMechanicNote {
+            source_path: source_path.to_string(),
+            value: unsupported_value(value),
+        }
     }
 
     fn owned_document(
