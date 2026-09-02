@@ -25,11 +25,10 @@ describe("SpellOccurrencePreviewPopover", () => {
     expect(within(header!).getByText("Control Weather")).toBeInTheDocument();
     expect(within(dialog).queryByText("Control Weather")).not.toBeInTheDocument();
     expect(
-      within(dialog).getByText(
-        "8th · Prepared · Group coven · Location spellbook · 1 use",
-      ),
+      within(dialog).getByText("8th · Prepared · Group coven · 1 use"),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/slot5:0/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/qg3r6OKHjX8qHiNS/)).not.toBeInTheDocument();
     expect(within(dialog).getByText("You alter the weather.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open spell record" }));
@@ -174,7 +173,7 @@ function spellFixture(): CreatureSurfaceSpellView {
     context: {
       contextual_label: "Prepared",
       group: "coven",
-      location: "spellbook",
+      location: "qg3r6OKHjX8qHiNS",
       slot: "slot5:0",
       uses: { maximum: 1 },
     },
