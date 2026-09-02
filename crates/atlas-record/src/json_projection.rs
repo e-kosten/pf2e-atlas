@@ -715,6 +715,16 @@ mod tests {
             "actions"
         );
         assert_eq!(standard_value["actions"][0]["action_cost"]["actions"], 1);
+        assert_eq!(standard_value["actions"][0]["frequency"]["maximum"], 1);
+        assert_eq!(standard_value["actions"][0]["frequency"]["period"], "PT1M");
+        assert_eq!(
+            standard_value["actions"][0]["frequency"]["display"],
+            "1 per minute"
+        );
+        assert_eq!(
+            standard_value["actions"][0]["frequency"]["serialized_value"],
+            1
+        );
         assert_eq!(standard_value["spellcasting"]["entries"][0]["order"], 0);
         assert_eq!(
             standard_value["spellcasting"]["entries"][0]["slots"][0]["maximum"],
@@ -945,7 +955,11 @@ mod tests {
                     category: FactValue::Value("offensive".to_string()),
                     traits: FactValue::Value(vec!["polymorph".to_string()]),
                     action_cost: crate::CreatureActionCost::Actions(1),
-                    frequency: FactValue::Missing,
+                    frequency: FactValue::Value(crate::CreatureFrequency {
+                        maximum: FactValue::Value(1),
+                        period: FactValue::Value("PT1M".to_string()),
+                        serialized_value: FactValue::Value(1),
+                    }),
                     self_effect: FactValue::Missing,
                     self_effect_label: FactValue::Missing,
                     requirements: FactValue::Missing,
