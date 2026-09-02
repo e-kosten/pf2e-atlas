@@ -4098,6 +4098,162 @@ mod tests {
             assert!(payload["activities"][0].get("damage").is_none());
         }
 
+        let supported_damage = atlas_record::CreatureDamage {
+            id: "main".to_string(),
+            formula: FactValue::Value("2d6".to_string()),
+            damage_type: FactValue::Value("fire".to_string()),
+            category: FactValue::Missing,
+            kinds: FactValue::Value(Vec::new()),
+            apply_modifier: FactValue::Missing,
+        };
+        let mut creature = known_empty_creature();
+        let owner = creature.identity.record_key.clone();
+        let mut action = action_occurrence(&owner, "action", "action", 0);
+        let atlas_record::CreatureCapability::Action(capability) = &mut action.capability else {
+            panic!("action fixture");
+        };
+        capability.damage = FactValue::Value(vec![supported_damage.clone()]);
+        creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+            entities: vec![entity(&owner, "action", CreatureEntityFamily::Action)],
+            occurrences: vec![action],
+            relationships: Vec::new(),
+            actor_spellcasting: FactValue::Missing,
+        });
+
+        let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+        let damage = &surface.activities.as_ref().expect("action")[0].damage;
+        assert_eq!(damage.len(), 1);
+        assert_eq!(damage[0].damage_id, "main");
+        assert_eq!(damage[0].formula.as_deref(), Some("2d6"));
+        assert_eq!(damage[0].damage_type.as_deref(), Some("fire"));
+        assert!(surface.unavailable_domains.is_none());
+        let payload = serde_json::to_value(&surface).expect("supported action damage payload");
+        assert_eq!(
+            payload["activities"][0]["damage"][0],
+            serde_json::json!({
+                "damage_id": "main",
+                "formula": "2d6",
+                "damage_type": "fire"
+            })
+        );
+
+        for (formula, damage_type, state, state_name, field, field_name) in [
+            (
+                FactValue::Missing,
+                FactValue::Value("fire".to_string()),
+                CreatureSurfaceUnavailableStateView::Missing,
+                "missing",
+                CreatureSurfaceUnavailableFieldView::DamageFormula,
+                "damage_formula",
+            ),
+            (
+                FactValue::Null,
+                FactValue::Value("fire".to_string()),
+                CreatureSurfaceUnavailableStateView::Null,
+                "null",
+                CreatureSurfaceUnavailableFieldView::DamageFormula,
+                "damage_formula",
+            ),
+            (
+                FactValue::Value("2d6".to_string()),
+                FactValue::Missing,
+                CreatureSurfaceUnavailableStateView::Missing,
+                "missing",
+                CreatureSurfaceUnavailableFieldView::DamageType,
+                "damage_type",
+            ),
+            (
+                FactValue::Value("2d6".to_string()),
+                FactValue::Null,
+                CreatureSurfaceUnavailableStateView::Null,
+                "null",
+                CreatureSurfaceUnavailableFieldView::DamageType,
+                "damage_type",
+            ),
+        ] {
+            let mut creature = known_empty_creature();
+            let owner = creature.identity.record_key.clone();
+            let mut action = action_occurrence(&owner, "action", "action", 0);
+            let atlas_record::CreatureCapability::Action(capability) = &mut action.capability
+            else {
+                panic!("action fixture");
+            };
+            capability.damage = FactValue::Value(vec![atlas_record::CreatureDamage {
+                formula,
+                damage_type,
+                ..supported_damage.clone()
+            }]);
+            creature.embedded_entities.value = FactValue::Value(CreatureEmbeddedEntities {
+                entities: vec![entity(&owner, "action", CreatureEntityFamily::Action)],
+                occurrences: vec![action],
+                relationships: Vec::new(),
+                actor_spellcasting: FactValue::Missing,
+            });
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            let damage = &surface.activities.as_ref().expect("action")[0].damage;
+            assert_eq!(damage.len(), 1);
+            assert_eq!(damage[0].damage_id, "main");
+            assert_eq!(
+                damage[0].formula.as_deref(),
+                (field != CreatureSurfaceUnavailableFieldView::DamageFormula).then_some("2d6")
+            );
+            assert_eq!(
+                damage[0].damage_type.as_deref(),
+                (field != CreatureSurfaceUnavailableFieldView::DamageType).then_some("fire")
+            );
+            assert_causes(
+                &surface
+                    .unavailable_domains
+                    .as_ref()
+                    .expect("required damage child")
+                    .activities,
+                vec![cause(
+                    state,
+                    field,
+                    Some("action/main"),
+                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                )],
+            );
+            let payload = serde_json::to_value(&surface).expect("partial action damage payload");
+            assert_eq!(payload["activities"][0]["occurrence_id"], "action");
+            assert_eq!(payload["activities"][0]["damage"][0]["damage_id"], "main");
+            if field == CreatureSurfaceUnavailableFieldView::DamageFormula {
+                assert!(
+                    payload["activities"][0]["damage"][0]
+                        .get("formula")
+                        .is_none()
+                );
+                assert_eq!(payload["activities"][0]["damage"][0]["damage_type"], "fire");
+            } else {
+                assert_eq!(payload["activities"][0]["damage"][0]["formula"], "2d6");
+                assert!(
+                    payload["activities"][0]["damage"][0]
+                        .get("damage_type")
+                        .is_none()
+                );
+            }
+            assert_eq!(
+                payload["unavailable_domains"]["activities"]["causes"]
+                    .as_array()
+                    .expect("activity causes")
+                    .len(),
+                1
+            );
+            assert_eq!(
+                payload["unavailable_domains"]["activities"]["causes"][0]["component_id"],
+                "action/main"
+            );
+            assert_eq!(
+                payload["unavailable_domains"]["activities"]["causes"][0]["state"],
+                state_name
+            );
+            assert_eq!(
+                payload["unavailable_domains"]["activities"]["causes"][0]["field"],
+                field_name
+            );
+        }
+
         for (damage, state) in [
             (
                 FactValue::Missing,
@@ -4153,43 +4309,58 @@ mod tests {
 
     #[test]
     fn implicit_precise_special_vision_omits_missing_acuity_without_hiding_other_failures() {
+        for sense_type in [
+            "low-light-vision",
+            "darkvision",
+            "greater-darkvision",
+            "see-invisibility",
+        ] {
+            let mut creature = known_empty_creature();
+            creature.perception.value = FactValue::Value(CreaturePerception {
+                modifier: FactValue::Value(10),
+                details: FactValue::Missing,
+                has_vision: FactValue::Value(true),
+                senses: FactValue::Value(vec![CreatureSense {
+                    id: atlas_record::CreatureComponentId::new(sense_type).expect("sense id"),
+                    authored_order: 0,
+                    sense_type: atlas_record::SenseType::new(sense_type).expect("sense type"),
+                    acuity: FactValue::Missing,
+                    range: FactValue::Missing,
+                }]),
+            });
+
+            let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
+            let senses = &surface.awareness.as_ref().expect("awareness").senses;
+            assert_eq!(senses.len(), 1);
+            assert_eq!(senses[0].component_id, sense_type);
+            assert_eq!(senses[0].kind, sense_type);
+            assert_eq!(senses[0].acuity, None);
+            assert!(surface.unavailable_domains.is_none());
+            let payload = serde_json::to_value(&surface).expect("special vision payload");
+            assert_eq!(
+                payload["awareness"]["senses"][0]["component_id"],
+                sense_type
+            );
+            assert!(payload["awareness"]["senses"][0].get("acuity").is_none());
+        }
+
         let mut creature = known_empty_creature();
         creature.perception.value = FactValue::Value(CreaturePerception {
             modifier: FactValue::Value(10),
             details: FactValue::Missing,
             has_vision: FactValue::Value(true),
-            senses: FactValue::Value(vec![
-                CreatureSense {
-                    id: atlas_record::CreatureComponentId::new("darkvision").expect("sense id"),
-                    authored_order: 0,
-                    sense_type: atlas_record::SenseType::new("darkvision").expect("sense type"),
-                    acuity: FactValue::Missing,
-                    range: FactValue::Missing,
-                },
-                CreatureSense {
-                    id: atlas_record::CreatureComponentId::new("low-light-vision")
-                        .expect("sense id"),
-                    authored_order: 1,
-                    sense_type: atlas_record::SenseType::new("low-light-vision")
-                        .expect("sense type"),
-                    acuity: FactValue::Missing,
-                    range: FactValue::Missing,
-                },
-                CreatureSense {
-                    id: atlas_record::CreatureComponentId::new("scent").expect("sense id"),
-                    authored_order: 2,
-                    sense_type: atlas_record::SenseType::new("scent").expect("sense type"),
-                    acuity: FactValue::Value(atlas_record::SenseAcuity::Imprecise),
-                    range: FactValue::Value(30),
-                },
-            ]),
+            senses: FactValue::Value(vec![CreatureSense {
+                id: atlas_record::CreatureComponentId::new("scent").expect("sense id"),
+                authored_order: 0,
+                sense_type: atlas_record::SenseType::new("scent").expect("sense type"),
+                acuity: FactValue::Value(atlas_record::SenseAcuity::Imprecise),
+                range: FactValue::Value(30),
+            }]),
         });
-
         let surface = creature_surface(&creature, RecordSurfaceProfileView::RecordDetail);
-        let senses = &surface.awareness.as_ref().expect("awareness").senses;
-        assert_eq!(senses[0].acuity, None);
-        assert_eq!(senses[1].acuity, None);
-        assert_eq!(senses[2].acuity.as_deref(), Some("imprecise"));
+        let scent = &surface.awareness.as_ref().expect("awareness").senses[0];
+        assert_eq!(scent.component_id, "scent");
+        assert_eq!(scent.acuity.as_deref(), Some("imprecise"));
         assert!(surface.unavailable_domains.is_none());
 
         for (sense_type, acuity, state) in [
@@ -4197,6 +4368,11 @@ mod tests {
                 "scent",
                 FactValue::Missing,
                 CreatureSurfaceUnavailableStateView::Missing,
+            ),
+            (
+                "scent",
+                FactValue::Null,
+                CreatureSurfaceUnavailableStateView::Null,
             ),
             (
                 "darkvision",
