@@ -43,15 +43,21 @@ export function CreatureDetailSurface({
       <CreatureProfileFacts body={body} />
       <OverviewSection content={overview} onReference={onReference} />
       <div className="creature-sheet__facts-grid">
-        <DefensePanel body={body} />
-        <SensesLanguagesPanel body={body} />
-        <MovementPanel movement={body.movement} />
-        <SkillsPanel body={body} />
-        <AbilitiesPanel body={body} />
+        <div className="creature-sheet__facts-column creature-sheet__facts-column--primary">
+          <DefensePanel body={body} />
+          <AbilitiesPanel body={body} />
+        </div>
+        <div className="creature-sheet__facts-column creature-sheet__facts-column--secondary">
+          <div className="creature-sheet__facts-summary">
+            <SensesLanguagesPanel body={body} />
+            <MovementPanel movement={body.movement} />
+          </div>
+          <SkillsPanel body={body} />
+        </div>
       </div>
       <div className="creature-sheet__mechanics-grid">
         <div className="creature-sheet__mechanics-main">
-          <ActivitySection activities={body.activities} onReference={onReference} />
+          <ActivitySections activities={body.activities} onReference={onReference} />
         </div>
         <aside className="creature-sheet__mechanics-side">
           <SpellcastingSection
@@ -128,10 +134,10 @@ function CreatureProfileFacts({ body }: { body: CreatureSurfaceView }) {
 }
 
 function EditionTag({ metadata }: { metadata: RecordSurfaceMetadataView }) {
-  if (!metadata.edition) return null;
+  if (metadata.edition?.status !== "legacy") return null;
   return (
     <div className="creature-sheet__edition-tag">
-      <Tag>{metadata.edition.status === "legacy" ? "Legacy" : "Remastered"}</Tag>
+      <Tag>Legacy</Tag>
     </div>
   );
 }
@@ -145,32 +151,28 @@ function EditionNotice({
 }) {
   const edition = metadata.edition;
   if (!edition) return null;
+  const navigation = edition.counterparts.length ? (
+    <Space className="creature-sheet__edition-navigation" size="small" wrap>
+      {edition.counterparts.map((counterpart) => (
+        <Button
+          key={`${counterpart.role}:${counterpart.record_key}`}
+          onClick={() => onReference(counterpart.record_key)}
+          size="small"
+          type="link"
+        >
+          {counterpartActionLabel(counterpart)}
+        </Button>
+      ))}
+    </Space>
+  ) : undefined;
+  if (edition.status !== "legacy") return navigation ?? null;
   return (
     <Alert
-      action={
-        edition.counterparts.length ? (
-          <Space size="small" wrap>
-            {edition.counterparts.map((counterpart) => (
-              <Button
-                key={`${counterpart.role}:${counterpart.record_key}`}
-                onClick={() => onReference(counterpart.record_key)}
-                size="small"
-                type="link"
-              >
-                {counterpartActionLabel(counterpart)}
-              </Button>
-            ))}
-          </Space>
-        ) : undefined
-      }
+      action={navigation}
       className="creature-sheet__edition-notice"
-      message={
-        edition.status === "legacy"
-          ? "This record uses legacy rules."
-          : "This record uses remastered rules."
-      }
+      message="This record uses legacy rules."
       showIcon
-      type={edition.status === "legacy" ? "warning" : "info"}
+      type="warning"
     />
   );
 }
@@ -565,7 +567,7 @@ function AbilitiesPanel({ body }: { body: CreatureSurfaceView }) {
   );
 }
 
-function ActivitySection({
+function ActivitySections({
   activities,
   onReference,
 }: {
@@ -573,21 +575,50 @@ function ActivitySection({
   onReference: ReferenceHandler;
 }) {
   if (!activities?.length) return null;
+  const ordered = [...activities].sort(
+    (left, right) => left.authored_order - right.authored_order,
+  );
+  const actions = ordered.filter(isActiveActivity);
+  const abilities = ordered.filter((activity) => !isActiveActivity(activity));
   return (
-    <SurfaceSection className="creature-sheet__activities" title="Actions & Abilities">
+    <>
+      <ActivityGroup activities={actions} onReference={onReference} title="Actions" />
+      <ActivityGroup
+        activities={abilities}
+        onReference={onReference}
+        title="Abilities"
+      />
+    </>
+  );
+}
+
+function ActivityGroup({
+  activities,
+  onReference,
+  title,
+}: {
+  activities: CreatureSurfaceActivityView[];
+  onReference: ReferenceHandler;
+  title: string;
+}) {
+  if (!activities.length) return null;
+  return (
+    <SurfaceSection className="creature-sheet__activities" title={title}>
       <div className="creature-sheet__activity-list">
-        {[...activities]
-          .sort((left, right) => left.authored_order - right.authored_order)
-          .map((activity) => (
-            <StaticActivity
-              activity={activity}
-              key={activity.occurrence_id}
-              onReference={onReference}
-            />
-          ))}
+        {activities.map((activity) => (
+          <StaticActivity
+            activity={activity}
+            key={activity.occurrence_id}
+            onReference={onReference}
+          />
+        ))}
       </div>
     </SurfaceSection>
   );
+}
+
+function isActiveActivity(activity: CreatureSurfaceActivityView) {
+  return activity.action_cost?.cost_type !== "passive";
 }
 
 function StaticActivity({
@@ -801,7 +832,7 @@ function SpellRoster({
             <SpellSlotMaximum rank={ranked[0]?.rank} slots={slots} />
           </div>
           <div className="creature-sheet__spell-links">
-            {ranked.map((spell) => (
+            {ranked.map((spell, index) => (
               <span
                 className="creature-sheet__spell-link"
                 key={`${spell.occurrence_id}:${spell.authored_order}`}
@@ -812,6 +843,11 @@ function SpellRoster({
                   spell={spell}
                 />
                 <SpellOccurrenceContext spell={spell} />
+                {index < ranked.length - 1 ? (
+                  <span aria-hidden="true" className="creature-sheet__spell-separator">
+                    ,
+                  </span>
+                ) : null}
               </span>
             ))}
           </div>
@@ -840,16 +876,12 @@ function SpellSlotMaximum({
 
 function SpellOccurrenceContext({ spell }: { spell: CreatureSurfaceSpellView }) {
   const context = spell.context;
-  if (!context) return null;
-  const details = [
-    context.contextual_label,
-    context.group ? `Group ${context.group}` : undefined,
-    context.location ? `Location ${context.location}` : undefined,
-    context.uses?.maximum === undefined
-      ? undefined
-      : `${context.uses.maximum} ${context.uses.maximum === 1 ? "use" : "uses"}`,
-  ].filter((detail): detail is string => Boolean(detail));
-  return details.length ? <small>{details.join(" · ")}</small> : null;
+  if (context?.uses?.maximum === undefined) return null;
+  return (
+    <small>
+      {context.uses.maximum} {context.uses.maximum === 1 ? "use" : "uses"}
+    </small>
+  );
 }
 
 function RitualsSection({ rituals }: { rituals: CreatureSurfaceView["rituals"] }) {

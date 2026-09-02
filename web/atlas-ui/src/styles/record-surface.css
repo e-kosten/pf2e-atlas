@@ -207,45 +207,22 @@
 
 .creature-sheet__facts-grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px 40px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
   align-items: start;
 }
 
-.creature-sheet__facts-grid > .creature-sheet__panel {
-  grid-column: span 6;
+.creature-sheet__facts-column,
+.creature-sheet__facts-summary {
+  display: grid;
+  gap: 24px;
+  align-content: start;
+  min-width: 0;
 }
 
-.creature-sheet__facts-grid > .creature-sheet__panel--senses,
-.creature-sheet__facts-grid > .creature-sheet__panel--movement {
-  grid-column: span 3;
-}
-
-.creature-sheet__facts-grid > .creature-sheet__panel--defenses {
-  grid-row: span 2;
-}
-
-.creature-sheet__facts-grid > .creature-sheet__panel:only-child {
-  grid-column: 1 / -1;
-}
-
-.creature-sheet__facts-grid > .creature-sheet__panel:first-child:nth-last-child(2),
-.creature-sheet__facts-grid
-  > .creature-sheet__panel:first-child:nth-last-child(2)
-  ~ .creature-sheet__panel {
-  grid-column: span 6;
-}
-
-.creature-sheet__facts-grid > .creature-sheet__panel:first-child:nth-last-child(3),
-.creature-sheet__facts-grid
-  > .creature-sheet__panel:first-child:nth-last-child(3)
-  ~ .creature-sheet__panel {
-  grid-column: span 4;
-}
-
-.creature-sheet__facts-grid
-  > .creature-sheet__panel--defenses:first-child:nth-last-child(-n + 3) {
-  grid-row: auto;
+.creature-sheet__facts-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
 }
 
 .creature-sheet__panel {
@@ -554,8 +531,9 @@
 }
 
 .creature-sheet__spell-links {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   min-width: 0;
   line-height: 1.7;
 }
@@ -566,9 +544,9 @@
 }
 
 .creature-sheet__spell-link {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 4px 8px;
+  gap: 4px;
   align-items: baseline;
 }
 
@@ -889,12 +867,8 @@
 }
 
 @media (max-width: 1280px) {
-  .creature-sheet__facts-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .creature-sheet__facts-grid > .creature-sheet__panel {
-    grid-column: auto;
+  .creature-sheet__facts-summary {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -910,10 +884,6 @@
 @media (max-width: 880px) {
   .creature-sheet__facts-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .creature-sheet__facts-grid > .creature-sheet__panel--defenses {
-    grid-row: auto;
   }
 
   .creature-sheet__availability-domains {

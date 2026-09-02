@@ -19,7 +19,7 @@ describe("RecordSurface", () => {
     const { container } = renderSurface();
 
     const description = screen.getByRole("heading", { name: "Overview" });
-    const mechanics = screen.getByRole("heading", { name: "Actions & Abilities" });
+    const mechanics = screen.getByRole("heading", { name: "Actions" });
     expect(
       description.compareDocumentPosition(mechanics) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -97,6 +97,13 @@ describe("RecordSurface", () => {
     const abilities = screen.getByRole("heading", {
       name: "Ability Modifiers",
     }).parentElement!;
+    const defenses = screen.getByRole("heading", {
+      name: "Defenses & Vitals",
+    }).parentElement!;
+    expect(abilities.parentElement).toBe(defenses.parentElement);
+    expect(abilities.parentElement).toHaveClass(
+      "creature-sheet__facts-column--primary",
+    );
     for (const [label, value] of [
       ["Str", "+4"],
       ["Dex", "+3"],
@@ -135,7 +142,7 @@ describe("RecordSurface", () => {
     expect(movement?.querySelector(".creature-sheet__movement")).toBeNull();
   });
 
-  it("keeps sparse fact sections ordered for the staggered wide grid", () => {
+  it("keeps sparse fact sections in the natural two-column flow", () => {
     const surface = detailedSurfaceFixture();
     if (surface.presentation.presentation_type !== "creature") {
       throw new Error("Fixture must be a creature surface");
@@ -159,13 +166,20 @@ describe("RecordSurface", () => {
       <RecordSurface onReference={onReference} surface={surface} />,
     );
     const sections = container.querySelectorAll(
-      ".creature-sheet__facts-grid > .creature-sheet__panel",
+      ".creature-sheet__facts-grid .creature-sheet__panel",
     );
     expect(sections).toHaveLength(4);
     expect(sections[0]).toHaveClass("creature-sheet__panel--defenses");
     expect(sections[1]).toHaveClass("creature-sheet__panel--senses");
     expect(sections[2]).toHaveClass("creature-sheet__panel--movement");
     expect(sections[3]).toHaveClass("creature-sheet__panel--skills");
+    expect(sections[0]?.parentElement).toHaveClass(
+      "creature-sheet__facts-column--primary",
+    );
+    expect(sections[1]?.parentElement).toHaveClass("creature-sheet__facts-summary");
+    expect(sections[3]?.parentElement).toHaveClass(
+      "creature-sheet__facts-column--secondary",
+    );
   });
 
   it("expands typed activity content inline with check DC and divider structure", () => {
@@ -203,6 +217,20 @@ describe("RecordSurface", () => {
     expect(standaloneGroup).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(innateGroup);
     expect(innateGroup).toHaveAttribute("aria-expanded", "true");
+    const innateEntry = innateGroup.closest<HTMLElement>(".ant-collapse-item")!;
+    const innateRoster = innateEntry.querySelector<HTMLElement>(
+      ".creature-sheet__spell-links",
+    )!;
+    expect(innateRoster.querySelectorAll(".creature-sheet__spell-link")).toHaveLength(
+      2,
+    );
+    expect(
+      within(innateRoster).getByRole("link", { name: "Dream Message" }),
+    ).toBeVisible();
+    expect(within(innateRoster).getByRole("link", { name: "Nightmare" })).toBeVisible();
+    expect(
+      innateRoster.querySelector(".creature-sheet__spell-separator"),
+    ).toHaveTextContent(",");
     const innateLink = screen.getAllByRole("link", { name: "Dream Message" })[0]!;
     expect(innateLink).toHaveAttribute("aria-haspopup", "dialog");
     expect(innateLink).toHaveAttribute("aria-expanded", "false");
@@ -377,10 +405,14 @@ describe("RecordSurface", () => {
 
   it("renders typed action details and strike effects with the shared action glyph", () => {
     const { container } = renderSurface();
+    const actions = screen.getByRole("heading", { name: "Actions" }).parentElement!;
+    const abilities = screen.getByRole("heading", { name: "Abilities" }).parentElement!;
 
     const claw = screen
       .getByText("Claw")
       .closest<HTMLElement>(".creature-sheet__activity")!;
+    expect(actions).toContainElement(claw);
+    expect(abilities).not.toContainElement(claw);
     expect(within(claw).getByText("One action")).toBeVisible();
     expect(within(claw).getByText("Grab")).toBeInTheDocument();
     expect(within(claw).getByText("offensive")).toBeInTheDocument();
@@ -399,6 +431,15 @@ describe("RecordSurface", () => {
     ]) {
       expect(within(bargain).getByText(value)).toBeInTheDocument();
     }
+    expect(actions).toContainElement(bargain);
+    for (const label of ["Dream Haunting", "Spell Ambush"]) {
+      const ability = screen
+        .getByText(label)
+        .closest<HTMLElement>(".creature-sheet__activity")!;
+      expect(abilities).toContainElement(ability);
+      expect(actions).not.toContainElement(ability);
+      expect(within(ability).getByText("Passive")).toBeVisible();
+    }
     expect(container.querySelectorAll(".action-glyph__mark")).toHaveLength(2);
   });
 
@@ -406,8 +447,9 @@ describe("RecordSurface", () => {
     renderSurface();
 
     expect(screen.getByText("2 slots")).toBeInTheDocument();
-    expect(screen.getByText("At will · Group innate · 1 use")).toBeInTheDocument();
+    expect(screen.getByText("1 use")).toBeInTheDocument();
     expect(screen.queryByText(/slot5:0/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/qg3r6OKHjX8qHiNS/)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Rituals" })).toBeInTheDocument();
     expect(screen.getByText("Ritual DC")).toBeInTheDocument();
     expect(screen.getByText("31")).toBeInTheDocument();
@@ -576,7 +618,10 @@ describe("RecordSurface", () => {
       ],
     };
     rerender(<RecordSurface onReference={onReference} surface={airScamp} />);
-    expect(screen.getByText("This record uses remastered rules.")).toBeVisible();
+    expect(
+      screen.queryByText("This record uses remastered rules."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Remastered")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "View legacy Air Mephit" }));
     expect(onReference).toHaveBeenLastCalledWith("bestiary:air-mephit");
   });
@@ -799,6 +844,24 @@ function detailedSurfaceFixture(): RecordSurfaceView {
         self_effect: { label: "Effect", value: "Dream veil" },
         content: [activityContent()],
       },
+      {
+        occurrence_id: "dream-haunting",
+        authored_order: 2,
+        provenance: occurrenceProvenance,
+        activity_type: "action",
+        label: "Dream Haunting",
+        action_cost: { cost_type: "passive" },
+        category: "offensive",
+      },
+      {
+        occurrence_id: "spell-ambush",
+        authored_order: 3,
+        provenance: occurrenceProvenance,
+        activity_type: "action",
+        label: "Spell Ambush",
+        action_cost: { cost_type: "passive" },
+        category: "offensive",
+      },
     ],
     spellcasting: [
       {
@@ -822,6 +885,7 @@ function detailedSurfaceFixture(): RecordSurfaceView {
             context: {
               contextual_label: "At will",
               group: "innate",
+              location: "qg3r6OKHjX8qHiNS",
               slot: "slot5:0",
               uses: { maximum: 1 },
             },
@@ -830,6 +894,22 @@ function detailedSurfaceFixture(): RecordSurfaceView {
                 "innate-dream-message",
                 "Dream Message",
                 "The innate message reaches a sleeper.",
+              ),
+            ],
+          },
+          {
+            occurrence_id: "nightmare",
+            authored_order: 1,
+            provenance: occurrenceProvenance,
+            label: "Nightmare",
+            target_record_key: "spells:nightmare",
+            rank: 5,
+            context: { location: "qg3r6OKHjX8qHiNS" },
+            content: [
+              spellContent(
+                "innate-nightmare",
+                "Nightmare",
+                "The nightmare follows the target into sleep.",
               ),
             ],
           },
