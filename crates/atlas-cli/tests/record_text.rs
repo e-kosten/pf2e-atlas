@@ -13,7 +13,7 @@ use support::path::temp_source_root;
 
 const SOURCE_ROOT_ENV: &str = "PF2E_ATLAS_B5_SOURCE_ROOT";
 const UPDATE_ENV: &str = "PF2E_ATLAS_UPDATE_RECORD_TEXT_GOLDENS";
-const REMEDIATION_BASE: &str = "d595966a11502f6eca0d4580a500e003619f1613";
+const REMEDIATION_BASE: &str = "f6a2dd92baea814135c74668eea69d32e11e29d2";
 const CLARIFICATION_NOTE_PATH: &str = "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/cli-presentation-audit/2026-09-02-stage-h-b5-cli-product-decision-clarification-note.md";
 const CLARIFICATION_NOTE_SHA256: &str =
     "91ab3f81f6716e3c4a0b8a921baf508b78d564e7e6453ea1ebee1d6dc77ca5d2";
@@ -72,7 +72,7 @@ fn snapshot_evidence_manifest_is_complete_and_honest() -> Result<(), Box<dyn std
     assert_eq!(evidence["remediation_base"], REMEDIATION_BASE);
     assert_eq!(
         evidence["base_tree"],
-        "c215416437d52ad0ad3bf85a8affa391c8f1d2c9"
+        "c0e52555441cbf15eae9a8395a0c3319cd36fad3"
     );
     assert_eq!(evidence["settings"]["matrix_cells"], 135);
     assert_eq!(
@@ -851,13 +851,14 @@ fn assert_snapshot_evidence(
     let evidence = serde_json::json!({
         "format": "pf2e-atlas-cli-text-snapshot-evidence/v1",
         "remediation_base": REMEDIATION_BASE,
-        "base_tree": "c215416437d52ad0ad3bf85a8affa391c8f1d2c9",
+        "base_tree": "c0e52555441cbf15eae9a8395a0c3319cd36fad3",
         "accepted_first_parent_ancestry": [
             "142b4eba993fcf34750d7b8a4b601586a1bf63bd",
             "329125b414a592d60c5e0bb742e8954b11d7bab1",
             "fe97ea0c52697c2c3f863746bb24a7d3d0f98afa",
             "2485a21d60d78a39928ea4f64dccaf2b579d1235",
             "a124c37179ffd15698485cd530307b1a5af33406",
+            "d595966a11502f6eca0d4580a500e003619f1613",
             REMEDIATION_BASE,
         ],
         "controlling_clarification": {

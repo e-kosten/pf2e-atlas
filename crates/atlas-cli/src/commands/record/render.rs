@@ -1910,7 +1910,7 @@ pub(super) mod tests {
                 strikes: scan.then(|| vec![strike]), actions: scan.then(|| vec![action]),
                 spellcasting: scan.then(|| CreatureSpellcastingJson { entries: vec![CreatureSpellcastingEntryJson {
                     id: "innate-spells".into(), order: 0, label: "Occult Innate Spells".into(), preparation: Some("innate".into()), tradition: Some("occult".into()),
-                    attack: Some(19), dc: Some(28), slots: complete.then(|| vec![CreatureSpellSlotJson { rank: 5, maximum: Some(2), serialized_value: Some(2), prepared: None }]), spells: vec![first_spell.clone(), CreatureSpellJson { id: "dream-message-rank-5-second".into(), order: 3, context: CreatureOccurrenceContextJson { slot: Some("slot5:1".into()), ..first_spell.context.clone() }, ..first_spell }],
+                    attack: Some(19), dc: Some(28), slots: complete.then(|| vec![CreatureSpellSlotJson { rank: 5, maximum: Some(2), serialized_value: Some(2), prepared: Some(vec![atlas_record::CreaturePreparedSpellJson { order: 0, id: Some("dream-message-source-item".into()), name: Some("Dream Message".into()), expended: Some(false), prepared: Some(true) }]) }]), spells: vec![first_spell.clone(), CreatureSpellJson { id: "dream-message-rank-5-second".into(), order: 3, context: CreatureOccurrenceContextJson { slot: Some("slot5:1".into()), ..first_spell.context.clone() }, ..first_spell }],
                     target_record_key: None, target_entity_id: Some("innate-spells-entity".into()), provenance: None, content: None,
                 }], standalone_spells: Vec::new() }),
                 rituals: scan.then(|| CreatureRitualsJson { difficulty_class: Some(28) }), equipment: None, lore: None,
