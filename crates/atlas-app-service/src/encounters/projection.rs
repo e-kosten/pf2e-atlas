@@ -64,13 +64,9 @@ pub(super) fn participant_view(
         .record_key
         .as_ref()
         .and_then(|key| hydrated_records.records_by_key.get(key));
-    let mut encounter_runtime = retrieved
+    let encounter_runtime = retrieved
         .and_then(|retrieved| participant_encounter_runtime(&participant, retrieved))
         .unwrap_or_else(|| manual_encounter_runtime(&participant));
-    if let Some(retrieved) = retrieved {
-        let spell_context = participant_spell_cast_context(service, &participant, retrieved)?;
-        attach_spell_cast_availability(&participant, &spell_context, &mut encounter_runtime);
-    }
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
     } else if retrieved.is_some() {
@@ -86,7 +82,7 @@ pub(super) fn participant_view(
         .local_state_store()?
         .encounters()
         .participant_reset_available(&participant.participant_key)?;
-    let surface = if let Some(retrieved) = retrieved {
+    let mut surface = if let Some(retrieved) = retrieved {
         let remaster_lookup = hydrated_records
             .remaster_lookups_by_key
             .get(&retrieved.record.identity.key.to_string())
@@ -126,6 +122,10 @@ pub(super) fn participant_view(
             encounter_runtime,
         )
     };
+    if let (Some(retrieved), Some(runtime)) = (retrieved, surface.encounter.as_mut()) {
+        let spell_context = participant_spell_cast_context(service, &participant, retrieved)?;
+        attach_spell_cast_availability(&participant, &spell_context, runtime);
+    }
     Ok(EncounterParticipantView {
         participant_key: participant.participant_key,
         record_key: participant.record_key,

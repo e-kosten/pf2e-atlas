@@ -102,12 +102,16 @@ version = "0.1.0"
 dependencies = [
  "atlas-app-model",
  "atlas-domain",
+ "atlas-embedding",
+ "atlas-index",
  "atlas-local-state",
  "atlas-record",
  "atlas-runtime",
  "atlas-search",
+ "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "time",
 ]

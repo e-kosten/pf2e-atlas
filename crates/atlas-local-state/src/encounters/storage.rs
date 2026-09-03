@@ -236,6 +236,14 @@ pub(crate) fn reset_participant(
     connection: &Connection,
     participant_key: &str,
 ) -> LocalStateResult<EncounterParticipantReset> {
+    reset_participant_inner(connection, participant_key, false)
+}
+
+fn reset_participant_inner(
+    connection: &Connection,
+    participant_key: &str,
+    #[allow(unused_variables)] fail_after_participant_write: bool,
+) -> LocalStateResult<EncounterParticipantReset> {
     let baseline = connection
         .query_row(
             "SELECT participant.encounter_id, participant.id, participant.initiative,
@@ -308,6 +316,11 @@ pub(crate) fn reset_participant(
         ],
     )?;
 
+    #[cfg(test)]
+    if fail_after_participant_write {
+        return Err(LocalStateError::InjectedResetFailure);
+    }
+
     let mut baseline_bucket = if baseline_initiative.is_some() {
         participant_keys_for_initiative(connection, encounter_id, baseline_initiative)?
     } else {
@@ -359,6 +372,14 @@ pub(crate) fn reset_participant(
             EncounterParticipantResetDomain::SpellResources,
         ],
     })
+}
+
+#[cfg(test)]
+pub(crate) fn reset_participant_with_injected_failure(
+    connection: &Connection,
+    participant_key: &str,
+) -> LocalStateResult<EncounterParticipantReset> {
+    reset_participant_inner(connection, participant_key, true)
 }
 
 pub(crate) fn update_participant(

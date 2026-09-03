@@ -27,12 +27,19 @@ pub(super) fn encounter_fixture_worker() -> FixtureWorker {
     fixture_worker_with_executor(RetrievalExecutor::from_encounter_fixture_workers(1, 16))
 }
 
-fn fixture_worker_with_executor(executor: RetrievalExecutor) -> FixtureWorker {
+pub(super) fn fixture_worker_with_executor(executor: RetrievalExecutor) -> FixtureWorker {
+    fixture_worker_with_executor_and_local_state_path(executor, fixture_local_state_path())
+}
+
+pub(super) fn fixture_worker_with_executor_and_local_state_path(
+    executor: RetrievalExecutor,
+    local_state_path: std::path::PathBuf,
+) -> FixtureWorker {
     FixtureWorker {
         worker: AtlasAppService::new(
             RetrievalBackend::Pooled(executor),
             fixture_runtime_options(),
-            fixture_local_state_path(),
+            local_state_path,
         )
         .expect("fixture service should build"),
     }
