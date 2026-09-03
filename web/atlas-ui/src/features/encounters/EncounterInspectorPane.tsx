@@ -1,5 +1,4 @@
-import { Button, Form, Input, Select } from "antd";
-import { Pencil } from "lucide-react";
+import { Button, Form, Input, Select, Tag } from "antd";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
@@ -29,6 +28,7 @@ export function EncounterInspectorPane({
   participant,
   participants,
   conditionDefinitions,
+  currentTurnParticipantKey,
 }: {
   onOpenRecordFullPage: (recordKey: string) => void;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
@@ -41,6 +41,7 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
+  currentTurnParticipantKey: string | null;
 }) {
   if (!participant) {
     return (
@@ -54,6 +55,7 @@ export function EncounterInspectorPane({
         <RecordPreviewScope onOpenFullPage={onOpenRecordFullPage}>
           <EncounterParticipantSurface
             conditionDefinitions={conditionDefinitions}
+            currentTurnParticipantKey={currentTurnParticipantKey}
             onAddCondition={onAddCondition}
             onReference={onOpenRecordFullPage}
             onRemoveCondition={onRemoveCondition}
@@ -96,6 +98,7 @@ function EncounterParticipantSurface({
   onUpdateCondition,
   participant,
   participants,
+  currentTurnParticipantKey,
 }: {
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
@@ -108,12 +111,12 @@ function EncounterParticipantSurface({
   ) => void;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
+  currentTurnParticipantKey: string | null;
 }) {
   const [projectedCurrent, setProjectedCurrent] = useState<{
     source: EncounterParticipantView | null;
     participant: EncounterParticipantView | null;
   }>({ source: null, participant: null });
-  const [noteOpen, setNoteOpen] = useState(false);
   const activeCurrent =
     projectedCurrent.source === participant &&
     projectedCurrent.participant?.participant_key === participant.participant_key
@@ -138,24 +141,16 @@ function EncounterParticipantSurface({
       slots={{
         header: (
           <ParticipantEditStrip
+            currentTurn={activeCurrent.participant_key === currentTurnParticipantKey}
             participant={activeCurrent}
             onUpdate={updateParticipant}
           />
         ),
         header_actions: (
-          <>
-            <Button
-              aria-label="Participant note"
-              icon={<Pencil size={14} />}
-              onClick={() => setNoteOpen((open) => !open)}
-              size="small"
-              type={noteOpen ? "primary" : "default"}
-            />
-            <ParticipantVariantControl
-              participant={activeCurrent}
-              onUpdate={updateParticipant}
-            />
-          </>
+          <ParticipantVariantControl
+            participant={activeCurrent}
+            onUpdate={updateParticipant}
+          />
         ),
         vitals: (
           <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
@@ -171,16 +166,12 @@ function EncounterParticipantSurface({
             participants={participants}
           />
         ),
-        ...(noteOpen
-          ? {
-              notes: (
-                <ParticipantNoteEditor
-                  participant={activeCurrent}
-                  onUpdate={updateParticipant}
-                />
-              ),
-            }
-          : {}),
+        notes: (
+          <ParticipantNoteEditor
+            participant={activeCurrent}
+            onUpdate={updateParticipant}
+          />
+        ),
       }}
     />
   );
@@ -218,14 +209,20 @@ function ParticipantVariantControl({
 }
 
 function ParticipantEditStrip({
+  currentTurn,
   onUpdate,
   participant,
 }: {
+  currentTurn: boolean;
   onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
   participant: EncounterParticipantView;
 }) {
   return (
     <section className="encounter-participant-strip">
+      <div className="encounter-participant-strip__state">
+        <Tag>{currentTurn ? "Current turn" : "Not current turn"}</Tag>
+        {participant.defeated && <Tag>Defeated</Tag>}
+      </div>
       <Form.Item label="Name" layout="vertical">
         <EditableCommitField
           ariaLabel="Participant name"
@@ -272,6 +269,8 @@ function ParticipantNoteEditor({
 }) {
   return (
     <Input.TextArea
+      aria-label="Participant note"
+      autoSize={{ minRows: 3, maxRows: 10 }}
       key={`note-${participant.participant_key}-${participant.note ?? ""}`}
       defaultValue={participant.note ?? ""}
       onBlur={(event) => {

@@ -702,7 +702,7 @@ describe("RecordSurface", () => {
       "Dream tokens",
     ).parentElement;
     expect(encounterRow).toHaveClass("record-key-value-list__row");
-    expect(within(encounterRow!).getByText("1 / 3")).toBeInTheDocument();
+    expect(encounterRow).toHaveTextContent("Dream tokens1/3");
     expect(
       screen.getByText("+2 temporary").closest(".record-surface__runtime-vitals"),
     ).not.toBeNull();
@@ -1078,6 +1078,32 @@ describe("RecordSurface", () => {
     expect(
       screen.getByRole("heading", { name: "Combat Snapshot" }),
     ).toBeInTheDocument();
+  });
+
+  it("keeps static record profiles free of encounter mutation slots", () => {
+    const surface = detailedSurfaceFixture();
+    surface.encounter = encounterRuntimeFixture();
+
+    render(
+      <RecordSurface
+        onReference={onReference}
+        slots={{
+          conditions: <button>Mutate conditions</button>,
+          header: <button>Mutate participant state</button>,
+          header_actions: <button>Mutate variant</button>,
+          notes: <textarea aria-label="Participant note" />,
+          vitals: <button>Mutate HP</button>,
+        }}
+        surface={surface}
+      />,
+    );
+
+    expect(screen.queryByText("Mutate conditions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mutate participant state")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mutate variant")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mutate HP")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Participant note")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Defenses & Vitals" })).toBeVisible();
   });
 });
 

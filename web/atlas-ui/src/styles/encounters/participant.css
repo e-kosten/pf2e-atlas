@@ -29,6 +29,154 @@
   gap: 12px;
 }
 
+.encounter-participant-strip {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns:
+    minmax(120px, auto) minmax(180px, 1fr) minmax(90px, 0.35fr)
+    minmax(110px, 0.45fr) auto;
+}
+
+.encounter-participant-strip .ant-form-item {
+  margin-bottom: 0;
+}
+
+.encounter-participant-strip__state,
+.encounter-action-capabilities,
+.encounter-runtime-adjustment-links,
+.encounter-runtime-resource-value {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.encounter-participant-strip__state {
+  align-self: end;
+  padding-bottom: 6px;
+}
+
+.encounter-participant-strip__state .ant-tag,
+.encounter-action-capabilities .ant-tag,
+.encounter-runtime-limitations .ant-tag {
+  margin: 0;
+}
+
+.encounter-runtime-value {
+  align-items: baseline;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.encounter-runtime-value > small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.encounter-runtime-value__details.ant-btn {
+  height: 22px;
+  min-width: 22px;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.encounter-runtime-explanation {
+  display: grid;
+  gap: 12px;
+  max-width: min(360px, calc(100vw - 48px));
+}
+
+.encounter-runtime-explanation dl,
+.encounter-runtime-spellcasting-mechanics {
+  display: grid;
+  gap: 6px 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.encounter-runtime-explanation dl > div,
+.encounter-runtime-spellcasting-mechanics > div {
+  display: grid;
+  gap: 2px;
+}
+
+.encounter-runtime-explanation dt,
+.encounter-runtime-spellcasting-mechanics dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.encounter-runtime-explanation dd,
+.encounter-runtime-spellcasting-mechanics dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.encounter-runtime-explanation section,
+.encounter-runtime-explanation ul,
+.encounter-runtime-notes,
+.encounter-runtime-limitations,
+.encounter-runtime-modes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.encounter-runtime-explanation ul,
+.encounter-runtime-notes {
+  padding-inline-start: 18px;
+}
+
+.encounter-runtime-explanation li {
+  display: grid;
+  gap: 2px;
+}
+
+.encounter-runtime-explanation li small,
+.encounter-runtime-notes,
+.encounter-runtime-modes span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.encounter-runtime-activity-details {
+  display: grid;
+  gap: 14px;
+}
+
+.encounter-runtime-adjustment-links {
+  justify-content: flex-start;
+}
+
+.encounter-runtime-adjustment-links::before {
+  color: var(--muted);
+  content: "Adjustments";
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.encounter-runtime-modes,
+.encounter-runtime-limitations {
+  list-style: none;
+  padding: 0;
+}
+
+.encounter-runtime-modes li,
+.encounter-runtime-limitations li {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.encounter-runtime-resource-value > span[aria-hidden="true"] {
+  color: var(--muted);
+}
+
 .encounter-form-grid {
   display: grid;
   gap: 10px;

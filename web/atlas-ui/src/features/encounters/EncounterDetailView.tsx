@@ -214,6 +214,9 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             participant={selected}
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
+            currentTurnParticipantKey={
+              encounter.data?.current_turn_participant_key ?? null
+            }
           />
         }
         labels={{ filter: "Roster", results: "Participant" }}
