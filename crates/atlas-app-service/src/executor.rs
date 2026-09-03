@@ -137,20 +137,18 @@ impl RetrievalExecutor {
     }
 
     #[cfg(test)]
-    fn from_test_fixture_factory(
+    pub(super) fn from_test_fixture_factory<Guard>(
         worker_count: usize,
         queue_capacity: usize,
-        open_fixture: impl Fn() -> Result<
-            (
-                AtlasRetrievalService,
-                atlas_search::test_support::FixtureArtifact,
-            ),
-            Box<dyn std::error::Error>,
-        > + Send
+        open_fixture: impl Fn() -> Result<(AtlasRetrievalService, Guard), Box<dyn std::error::Error>>
+        + Send
         + Sync
         + Copy
         + 'static,
-    ) -> Self {
+    ) -> Self
+    where
+        Guard: Send + 'static,
+    {
         let worker_count = worker_count.max(1);
         let (sender, receiver) = mpsc::sync_channel(queue_capacity);
         let receiver = Arc::new(Mutex::new(receiver));

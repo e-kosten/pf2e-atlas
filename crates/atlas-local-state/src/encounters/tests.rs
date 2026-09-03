@@ -347,6 +347,101 @@ fn participant_reset_restores_creation_mechanics_and_preserves_authored_fields()
 }
 
 #[test]
+fn participant_reset_failure_rolls_back_every_mechanical_domain()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_path("participant-reset-rollback");
+    let store = LocalStateStore::open(&path)?;
+    let encounters = store.encounters();
+    encounters.create(NewEncounter {
+        slug: "reset-rollback".to_string(),
+        name: "Reset Rollback".to_string(),
+        description: None,
+        note: None,
+    })?;
+    let target = EncounterSpellResourceTarget::InnateUse {
+        entry_id: Some("entry-innate".to_string()),
+        spell_occurrence_id: "spell-shadow-blast".to_string(),
+    };
+    let original = encounters.add_participant_with_spell_resources(
+        "reset-rollback",
+        creature("Original Name", Some(18), 30),
+        &[spell_resource(target.clone(), 2, 2)],
+    )?;
+    encounters.add_condition(AddEncounterParticipantCondition {
+        participant_key: original.participant_key.clone(),
+        condition_key: Some("conditions:slowed".to_string()),
+        name: "Slowed".to_string(),
+        value: Some(1),
+        source_participant_key: None,
+        duration_rounds: Some(2),
+        note: Some("Must survive rollback".to_string()),
+    })?;
+    encounters.mutate_spell_resource(
+        &original.participant_key,
+        &target,
+        EncounterSpellResourceOperation::CastOne,
+    )?;
+    encounters.set_current_turn("reset-rollback", Some(&original.participant_key))?;
+    encounters.update_participant(UpdateEncounterParticipant {
+        participant_key: original.participant_key.clone(),
+        display_name: "Preserved Custom Name".to_string(),
+        side: ParticipantSide::Ally,
+        participant_variant: ParticipantVariant::Elite,
+        initiative: Some(12),
+        max_hp: Some(42),
+        current_hp: Some(3),
+        temporary_hp: 7,
+        defeated: true,
+        hidden: true,
+        note: Some("Preserved note".to_string()),
+    })?;
+    {
+        let connection = rusqlite::Connection::open(&path)?;
+        connection.execute(
+            "INSERT INTO encounter_participant_adjustments (
+                 participant_id, adjustment_key, kind, value, created_at, updated_at
+             ) SELECT id, 'fixture-adjustment', 'fixture', 'keep', created_at, updated_at
+               FROM encounter_participants WHERE participant_key = ?1",
+            rusqlite::params![original.participant_key],
+        )?;
+    }
+
+    let before = reset_rollback_snapshot(&path, &store, &original.participant_key)?;
+    assert!(matches!(
+        encounters.reset_participant_with_injected_failure(&original.participant_key),
+        Err(crate::LocalStateError::InjectedResetFailure)
+    ));
+    let after = reset_rollback_snapshot(&path, &store, &original.participant_key)?;
+
+    assert_eq!(
+        after, before,
+        "rollback must preserve the exact state bytes"
+    );
+    Ok(())
+}
+
+fn reset_rollback_snapshot(
+    path: &std::path::Path,
+    store: &LocalStateStore,
+    participant_key: &str,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let detail = store
+        .encounters()
+        .get_with_participants("reset-rollback")?
+        .expect("encounter should exist");
+    let spell_state = store.encounters().spell_state(participant_key)?;
+    let connection = rusqlite::Connection::open(path)?;
+    let adjustment_rows = connection.query_row(
+        "SELECT COUNT(*) FROM encounter_participant_adjustments adjustment
+         JOIN encounter_participants participant ON participant.id = adjustment.participant_id
+         WHERE participant.participant_key = ?1",
+        rusqlite::params![participant_key],
+        |row| row.get::<_, i64>(0),
+    )?;
+    Ok(format!("{detail:?}\n{spell_state:?}\n{adjustment_rows}").into_bytes())
+}
+
+#[test]
 fn participant_creation_rolls_back_when_spell_baseline_is_invalid()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = LocalStateStore::open(temp_path("participant-baseline-atomic"))?;

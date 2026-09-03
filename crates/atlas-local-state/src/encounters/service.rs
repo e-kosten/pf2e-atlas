@@ -254,6 +254,17 @@ impl<'a> Encounters<'a> {
         Ok(reset)
     }
 
+    #[cfg(test)]
+    pub(crate) fn reset_participant_with_injected_failure(
+        &self,
+        participant_key: &str,
+    ) -> LocalStateResult<EncounterParticipantReset> {
+        validate_ref(participant_key)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        storage::reset_participant_with_injected_failure(&transaction, participant_key)
+    }
+
     fn participant(&self, participant_key: &str) -> LocalStateResult<Option<EncounterParticipant>> {
         let connection = self.store.connection()?;
         storage::participant(&connection, participant_key)

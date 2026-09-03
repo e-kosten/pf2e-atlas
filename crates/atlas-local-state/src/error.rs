@@ -44,6 +44,9 @@ pub enum LocalStateError {
     SpellResourceAtBaseline(String),
     #[error("encounter participant `{0}` has no creation baseline and cannot be reset")]
     ParticipantResetBaselineUnavailable(String),
+    #[cfg(test)]
+    #[error("injected reset failure after participant write")]
+    InjectedResetFailure,
     #[error("unsupported local-state metadata `{key}` value `{value}`")]
     UnsupportedMetadata { key: &'static str, value: String },
     #[error("local-state database is incompatible: {0}")]

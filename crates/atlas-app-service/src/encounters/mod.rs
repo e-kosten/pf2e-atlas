@@ -7,3 +7,5 @@ pub(crate) mod spells;
 mod tests;
 mod turns;
 mod workflow;
+#[cfg(test)]
+mod workflow_contract_tests;
