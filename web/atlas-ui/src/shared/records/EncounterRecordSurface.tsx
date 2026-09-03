@@ -1,20 +1,28 @@
-import { Alert, Collapse, Empty, Space, Tag } from "antd";
+import { Alert, Button, Collapse, Empty, Popover, Space, Tag } from "antd";
+import { Info } from "lucide-react";
 import type React from "react";
 import type {
   CreatureSurfaceView,
+  CreatureSurfaceIwrView,
+  CreatureSurfaceSenseView,
+  EncounterRuntimeAutomationLimitationView,
   EncounterRuntimeActionCostKindView,
   EncounterRuntimeActivityView,
   EncounterRuntimeSpellView,
   EncounterRuntimeSpellcastingView,
   EncounterRuntimeView,
   RecordSurfaceMetadataView,
+  RuntimeAdjustmentView,
+  RuntimeCountSegmentView,
+  RuntimeCountView,
+  RuntimeEffectNoteView,
+  RuntimeFactProvenanceView,
+  RuntimeFormulaView,
   RuntimeNumberView,
+  RuntimeRollView,
 } from "../../generated/atlas";
 import {
-  IdentityMetadata,
   ReferenceAndSourceContent,
-  RuntimeAdjustedValue,
-  RuntimeFact,
   SurfaceSection,
   TraitRow,
 } from "./CreatureRecordSurface";
@@ -27,6 +35,14 @@ import {
 } from "./RecordRichContent";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
 
+export type EncounterRecordSurfaceSlots = {
+  conditions?: React.ReactNode;
+  header?: React.ReactNode;
+  header_actions?: React.ReactNode;
+  notes?: React.ReactNode;
+  vitals?: React.ReactNode;
+};
+
 export function EncounterParticipantSurface({
   body,
   metadata,
@@ -38,7 +54,7 @@ export function EncounterParticipantSurface({
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
   runtime: EncounterRuntimeView | undefined;
-  slots: Record<string, React.ReactNode>;
+  slots: EncounterRecordSurfaceSlots;
 }) {
   const narrative = narrativeContent(body.content);
   return (
@@ -47,7 +63,7 @@ export function EncounterParticipantSurface({
         <div>
           <div className="record-surface-structured__title-row">
             <h2>{metadata.title}</h2>
-            <IdentityMetadata compact metadata={metadata} />
+            <RuntimeIdentity metadata={metadata} runtime={runtime} />
           </div>
           <TraitRow compact metadata={metadata} />
         </div>
@@ -68,7 +84,7 @@ export function EncounterParticipantSurface({
       </div>
       <div className="record-surface-structured__grid">
         <div className="record-surface-structured__column">
-          <RuntimeCoreFacts runtime={runtime} />
+          <RuntimeCoreFacts body={body} runtime={runtime} />
           <RuntimeActionBudget runtime={runtime} />
           <RuntimeMovement runtime={runtime} />
           <RuntimeSkills runtime={runtime} />
@@ -80,6 +96,7 @@ export function EncounterParticipantSurface({
           <RuntimeActivities onReference={onReference} runtime={runtime} />
           <RuntimeSpellcasting onReference={onReference} runtime={runtime} />
           <RuntimeResources runtime={runtime} />
+          <RuntimeAutomationLimitations runtime={runtime} />
         </div>
       </div>
       <Collapse
@@ -119,7 +136,39 @@ export function EncounterParticipantSurface({
   );
 }
 
-function RuntimeCoreFacts({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
+function RuntimeIdentity({
+  metadata,
+  runtime,
+}: {
+  metadata: RecordSurfaceMetadataView;
+  runtime: EncounterRuntimeView | undefined;
+}) {
+  return (
+    <div className="creature-sheet__identity-meta creature-sheet__identity-meta--compact">
+      <span className="creature-sheet__kind">
+        {metadata.kind_label || formatSlug(metadata.kind)}
+      </span>
+      {(runtime?.level || metadata.level !== undefined) && (
+        <span className="creature-sheet__level">
+          Level{" "}
+          {runtime?.level ? (
+            <RuntimeNumberValue value={runtime.level} />
+          ) : (
+            metadata.level
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RuntimeCoreFacts({
+  body,
+  runtime,
+}: {
+  body: CreatureSurfaceView;
+  runtime: EncounterRuntimeView | undefined;
+}) {
   if (!runtime) {
     return <Alert message="Runtime facts are unavailable." showIcon type="info" />;
   }
@@ -145,21 +194,17 @@ function RuntimeCoreFacts({ runtime }: { runtime: EncounterRuntimeView | undefin
     <SurfaceSection title="Combat Snapshot">
       <dl className="creature-sheet__stat-list">
         {facts.map(([label, value]) => (
-          <RuntimeFact
-            key={label}
-            label={label}
-            signed={label !== "AC"}
-            value={value}
-          />
+          <RuntimeNumberFact key={label} signed={label !== "AC"} value={value} />
         ))}
       </dl>
       {abilities.length > 0 && (
         <dl className="creature-sheet__ability-grid">
           {abilities.map(([label, value]) => (
-            <RuntimeFact key={label} label={label} signed value={value} />
+            <RuntimeNumberFact key={label} label={label} signed value={value} />
           ))}
         </dl>
       )}
+      <RuntimeCanonicalContext body={body} />
     </SurfaceSection>
   );
 }
@@ -174,9 +219,20 @@ function RuntimeActionBudget({
   return (
     <SurfaceSection title="Turn Economy">
       <dl className="creature-sheet__stat-list">
-        <RuntimeFact label="Actions" value={budget.actions} />
-        <RuntimeFact label="Reactions" value={budget.reactions} />
+        <RuntimeCountFact value={budget.actions} />
+        <RuntimeCountFact value={budget.reactions} />
       </dl>
+      <div className="encounter-action-capabilities">
+        <Tag>{budget.can_act.available ? "Can act" : "Cannot act"}</Tag>
+        <Tag>{budget.can_react.available ? "Can react" : "Cannot react"}</Tag>
+      </div>
+      {(budget.can_act.reason || budget.can_react.reason) && (
+        <ul className="encounter-runtime-notes">
+          {budget.can_act.reason && <li>{budget.can_act.reason}</li>}
+          {budget.can_react.reason && <li>{budget.can_react.reason}</li>}
+        </ul>
+      )}
+      <RuntimeNotes notes={budget.notes} />
     </SurfaceSection>
   );
 }
@@ -220,8 +276,13 @@ function RuntimeMovement({ runtime }: { runtime: EncounterRuntimeView | undefine
           <div className="creature-sheet__movement" key={speed.movement_type}>
             <span>{speed.label}</span>
             <RuntimeAdjustedValue
+              adjustments={speed.adjustments}
               adjusted={speed.adjusted_value_feet}
               base={speed.base_value_feet}
+              label={speed.label}
+              notes={speed.notes}
+              provenance={speed.provenance}
+              suppressedAdjustments={speed.suppressed_adjustments}
               suffix=" ft"
             />
           </div>
@@ -240,9 +301,13 @@ function RuntimeSkills({ runtime }: { runtime: EncounterRuntimeView | undefined 
           <span className="creature-sheet__skill" key={skill.skill_id}>
             <span>{skill.label}</span>
             <RuntimeAdjustedValue
+              adjustments={skill.modifier.modifiers}
               adjusted={skill.modifier.adjusted_value}
               base={skill.modifier.base_value}
+              label={skill.label}
+              provenance={skill.modifier.provenance}
               signed
+              suppressedAdjustments={skill.modifier.suppressed_modifiers}
             />
           </span>
         ))}
@@ -314,7 +379,8 @@ function RuntimeActivity({
       </div>
     </div>
   );
-  return activity.content?.length ? (
+  const details = <RuntimeActivityDetails activity={activity} />;
+  return activity.content?.length || hasRuntimeActivityDetails(activity) ? (
     <Collapse
       className="creature-sheet__activity creature-sheet__activity--expandable"
       ghost
@@ -322,13 +388,18 @@ function RuntimeActivity({
         {
           key: activity.activity_id,
           label: summary,
-          children: activity.content.map((document) => (
-            <RichContent
-              content={document}
-              key={document.content_key}
-              onReference={onReference}
-            />
-          )),
+          children: (
+            <div className="encounter-runtime-activity-details">
+              {details}
+              {activity.content?.map((document) => (
+                <RichContent
+                  content={document}
+                  key={document.content_key}
+                  onReference={onReference}
+                />
+              ))}
+            </div>
+          ),
         },
       ]}
       size="small"
@@ -416,6 +487,7 @@ function RuntimeSpellRoster({
   }
   return (
     <div className="creature-sheet__spell-roster">
+      <RuntimeSpellcastingMechanics entry={entry} />
       {groups.map(([rank, spells]) => {
         const slot = typeof rank === "number" ? slots.get(rank) : undefined;
         return (
@@ -424,7 +496,8 @@ function RuntimeSpellRoster({
             <div>
               {slot && (
                 <span className="creature-sheet__spell-slots">
-                  {slot.adjusted_value} slot{slot.adjusted_value === 1 ? "" : "s"}
+                  <RuntimeCountValue value={slot} /> slot
+                  {slot.adjusted_value === 1 ? "" : "s"}
                 </span>
               )}
               {spells.map((spell, index) => (
@@ -475,11 +548,563 @@ function RuntimeResources({ runtime }: { runtime: EncounterRuntimeView | undefin
   const facts: RecordKeyValueItem[] = runtime.resources.map((resource) => ({
     key: resource.resource_id,
     label: resource.label,
-    value: `${resource.current?.adjusted_value ?? "—"} / ${resource.maximum.adjusted_value}`,
+    value: (
+      <span
+        aria-label={`${resource.current?.adjusted_value ?? "Unavailable"} of ${resource.maximum.adjusted_value} ${resource.label}`}
+        className="encounter-runtime-resource-value"
+      >
+        {resource.current ? (
+          <RuntimeNumberValue
+            label={`${resource.label} current`}
+            value={resource.current}
+          />
+        ) : (
+          "—"
+        )}
+        <span aria-hidden="true">/</span>
+        <RuntimeNumberValue
+          label={`${resource.label} maximum`}
+          value={resource.maximum}
+        />
+      </span>
+    ),
   }));
   return (
     <SurfaceSection title="Resources">
       <RecordKeyValueList ariaLabel="Resources" items={facts} />
+    </SurfaceSection>
+  );
+}
+
+function RuntimeCanonicalContext({ body }: { body: CreatureSurfaceView }) {
+  const defense = body.defenses;
+  const awareness = body.awareness;
+  const saves = body.saves;
+  const shield = defense?.shield;
+  const items = [
+    contextItem("ac-context", "AC context", defense?.armor_class_details),
+    contextItem("hardness", "Hardness", defense?.hardness),
+    contextItem(
+      "shield",
+      "Shield",
+      shield
+        ? [
+            shield.armor_class_bonus === undefined
+              ? undefined
+              : `+${shield.armor_class_bonus} AC`,
+            shield.hardness === undefined ? undefined : `Hardness ${shield.hardness}`,
+            shield.maximum_hit_points === undefined
+              ? undefined
+              : `${shield.maximum_hit_points} HP`,
+            shield.broken_threshold === undefined
+              ? undefined
+              : `BT ${shield.broken_threshold}`,
+          ]
+            .filter(Boolean)
+            .join(" · ")
+        : undefined,
+    ),
+    contextItem("immunities", "Immunities", formatIwrList(defense?.immunities)),
+    contextItem("weaknesses", "Weaknesses", formatIwrList(defense?.weaknesses)),
+    contextItem("resistances", "Resistances", formatIwrList(defense?.resistances)),
+    contextItem("all-saves", "Save notes", saves?.all_saves_note),
+    contextItem("fortitude-note", "Fortitude", saves?.fortitude?.details),
+    contextItem("reflex-note", "Reflex", saves?.reflex?.details),
+    contextItem("will-note", "Will", saves?.will?.details),
+    contextItem("perception-note", "Perception", awareness?.details),
+    contextItem("senses", "Senses", awareness?.senses?.map(formatSense).join(", ")),
+    contextItem("languages", "Languages", awareness?.languages?.join(", ")),
+    contextItem("language-notes", "Language notes", awareness?.language_details),
+  ].filter((item): item is RecordKeyValueItem => item !== null);
+  if (!items.length) return null;
+  return (
+    <RecordKeyValueList
+      ariaLabel="Runtime canonical context"
+      items={items}
+      labelWidth="provenance"
+    />
+  );
+}
+
+function RuntimeNumberFact({
+  label,
+  signed = false,
+  value,
+}: {
+  label?: string;
+  signed?: boolean;
+  value: RuntimeNumberView;
+}) {
+  return (
+    <div>
+      <dt>{label ?? value.label}</dt>
+      <dd>
+        <RuntimeNumberValue label={label} signed={signed} value={value} />
+      </dd>
+    </div>
+  );
+}
+
+function RuntimeCountFact({ value }: { value: RuntimeCountView }) {
+  return (
+    <div>
+      <dt>{value.label}</dt>
+      <dd>
+        <RuntimeCountValue value={value} />
+      </dd>
+    </div>
+  );
+}
+
+function RuntimeNumberValue({
+  label,
+  signed = false,
+  suffix = "",
+  value,
+}: {
+  label?: string;
+  signed?: boolean;
+  suffix?: string;
+  value: RuntimeNumberView;
+}) {
+  return (
+    <RuntimeAdjustedValue
+      adjustments={value.modifiers}
+      adjusted={value.adjusted_value}
+      base={value.base_value}
+      label={label ?? value.label}
+      provenance={value.provenance}
+      signed={signed}
+      suffix={suffix}
+      suppressedAdjustments={value.suppressed_modifiers}
+    />
+  );
+}
+
+function RuntimeCountValue({ value }: { value: RuntimeCountView }) {
+  return (
+    <RuntimeAdjustedValue
+      adjustments={value.adjustments}
+      adjusted={value.adjusted_value}
+      base={value.base_value}
+      label={value.label}
+      provenance={value.provenance}
+      segments={value.segments}
+      suppressedAdjustments={value.suppressed_adjustments}
+    />
+  );
+}
+
+type RuntimeDelta = Pick<RuntimeAdjustmentView, "label" | "provenance" | "value"> & {
+  reason?: string;
+};
+
+function RuntimeAdjustedValue({
+  adjustments,
+  adjusted,
+  base,
+  label,
+  notes,
+  provenance,
+  segments,
+  signed = false,
+  suffix = "",
+  suppressedAdjustments,
+}: {
+  adjustments?: RuntimeDelta[];
+  adjusted: number;
+  base: number;
+  label: string;
+  notes?: RuntimeEffectNoteView[];
+  provenance: RuntimeFactProvenanceView;
+  segments?: RuntimeCountSegmentView[];
+  signed?: boolean;
+  suffix?: string;
+  suppressedAdjustments?: RuntimeDelta[];
+}) {
+  const format = (value: number) => `${signed ? formatSigned(value) : value}${suffix}`;
+  const hasDetails = Boolean(
+    adjusted !== base ||
+    adjustments?.length ||
+    suppressedAdjustments?.length ||
+    segments?.length ||
+    notes?.length,
+  );
+  return (
+    <span
+      className={[
+        "encounter-runtime-value",
+        adjusted === base ? "" : "creature-sheet__adjusted",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span>{format(adjusted)}</span>
+      {adjusted !== base && <small>base {format(base)}</small>}
+      {hasDetails && (
+        <RuntimeDetailsButton
+          adjustments={adjustments}
+          adjusted={format(adjusted)}
+          base={format(base)}
+          label={label}
+          notes={notes}
+          provenance={provenance}
+          segments={segments}
+          suppressedAdjustments={suppressedAdjustments}
+        />
+      )}
+    </span>
+  );
+}
+
+function RuntimeDetailsButton({
+  adjustments,
+  adjusted,
+  base,
+  label,
+  notes,
+  provenance,
+  segments,
+  suppressedAdjustments,
+}: {
+  adjustments?: RuntimeDelta[];
+  adjusted: React.ReactNode;
+  base: React.ReactNode;
+  label: string;
+  notes?: RuntimeEffectNoteView[];
+  provenance: RuntimeFactProvenanceView;
+  segments?: RuntimeCountSegmentView[];
+  suppressedAdjustments?: RuntimeDelta[];
+}) {
+  return (
+    <Popover
+      content={
+        <div className="encounter-runtime-explanation">
+          <dl>
+            <div>
+              <dt>Current</dt>
+              <dd>{adjusted}</dd>
+            </div>
+            <div>
+              <dt>Base</dt>
+              <dd>{base}</dd>
+            </div>
+            <div>
+              <dt>Source</dt>
+              <dd>{runtimeSourceLabel(provenance)}</dd>
+            </div>
+          </dl>
+          <RuntimeDeltaList label="Applied" values={adjustments} />
+          <RuntimeDeltaList label="Suppressed" values={suppressedAdjustments} />
+          {segments?.length ? (
+            <section>
+              <strong>Budget</strong>
+              <ul>
+                {segments.map((segment, index) => (
+                  <li key={`${segment.label}:${index}`}>
+                    <span>
+                      {segment.label}: {segment.value}
+                    </span>
+                    {segment.restricted && (
+                      <small>{segment.reason ?? "Restricted"}</small>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          <RuntimeNotes notes={notes} />
+        </div>
+      }
+      placement="bottom"
+      title={`${label} details`}
+      trigger="click"
+    >
+      <Button
+        aria-label={`${label} adjustment details`}
+        className="encounter-runtime-value__details"
+        icon={<Info size={12} />}
+        size="small"
+        type="text"
+      />
+    </Popover>
+  );
+}
+
+function RuntimeDeltaList({
+  label,
+  values,
+}: {
+  label: string;
+  values?: RuntimeDelta[];
+}) {
+  if (!values?.length) return null;
+  return (
+    <section>
+      <strong>{label}</strong>
+      <ul>
+        {values.map((value, index) => (
+          <li key={`${value.label}:${index}`}>
+            <span>
+              {value.label} {formatSigned(value.value)}
+            </span>
+            <small>
+              {[value.reason, runtimeSourceLabel(value.provenance)]
+                .filter(Boolean)
+                .join(" · ")}
+            </small>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RuntimeNotes({ notes }: { notes: RuntimeEffectNoteView[] | undefined }) {
+  if (!notes?.length) return null;
+  return (
+    <ul className="encounter-runtime-notes">
+      {notes.map((note, index) => (
+        <li key={`${note.label}:${index}`}>
+          <strong>{note.label}</strong> {note.reason}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RuntimeActivityDetails({
+  activity,
+}: {
+  activity: EncounterRuntimeActivityView;
+}) {
+  const facts = [
+    contextItem("frequency", "Frequency", formatRuntimeFrequency(activity.frequency)),
+    contextItem("uses", "Uses", formatRuntimeUses(activity.uses)),
+    contextItem(
+      "usage",
+      "Usage",
+      activity.usage === "ambiguous" ? "Requires adjudication" : undefined,
+    ),
+  ].filter((item): item is RecordKeyValueItem => item !== null);
+  const adjustedRolls = (activity.rolls ?? []).filter(hasRuntimeRollDetails);
+  const adjustedDamage = (activity.damage ?? []).filter(hasRuntimeFormulaDetails);
+  return (
+    <>
+      {facts.length ? (
+        <RecordKeyValueList
+          ariaLabel={`${activity.label} runtime details`}
+          items={facts}
+        />
+      ) : null}
+      {(adjustedRolls.length > 0 || adjustedDamage.length > 0) && (
+        <div className="encounter-runtime-adjustment-links">
+          {adjustedRolls.map((roll) => (
+            <RuntimeRollDetails key={roll.roll_id} roll={roll} />
+          ))}
+          {adjustedDamage.map((damage) => (
+            <RuntimeFormulaDetails damage={damage} key={damage.damage_id} />
+          ))}
+        </div>
+      )}
+      {activity.modes?.length ? (
+        <ul className="encounter-runtime-modes">
+          {activity.modes.map((mode) => (
+            <li key={mode.mode_id}>
+              <strong>{mode.label}</strong>
+              <span>
+                {[mode.target, mode.range, mode.time].filter(Boolean).join(" · ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
+function RuntimeSpellcastingMechanics({
+  entry,
+}: {
+  entry: EncounterRuntimeSpellcastingView;
+}) {
+  if (!entry.attack && !entry.dc) return null;
+  return (
+    <dl className="encounter-runtime-spellcasting-mechanics">
+      {entry.dc && <RuntimeRollFact label="DC" roll={entry.dc} />}
+      {entry.attack && (
+        <RuntimeRollFact label="Spell attack" roll={entry.attack} signed />
+      )}
+    </dl>
+  );
+}
+
+function RuntimeRollFact({
+  label,
+  roll,
+  signed = false,
+}: {
+  label: string;
+  roll: RuntimeRollView;
+  signed?: boolean;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        <RuntimeAdjustedValue
+          adjustments={roll.modifiers}
+          adjusted={roll.adjusted_value}
+          base={roll.base_value}
+          label={roll.label}
+          provenance={roll.provenance}
+          signed={signed}
+          suppressedAdjustments={roll.suppressed_modifiers}
+        />
+      </dd>
+    </div>
+  );
+}
+
+function RuntimeRollDetails({ roll }: { roll: RuntimeRollView }) {
+  const format = (value: number) =>
+    roll.surface === "attack_roll" ? formatSigned(value) : value.toString();
+  return (
+    <RuntimeDetailsButton
+      adjustments={roll.modifiers}
+      adjusted={format(roll.adjusted_value)}
+      base={format(roll.base_value)}
+      label={roll.label}
+      provenance={roll.provenance}
+      suppressedAdjustments={roll.suppressed_modifiers}
+    />
+  );
+}
+
+function RuntimeFormulaDetails({ damage }: { damage: RuntimeFormulaView }) {
+  const label =
+    damage.label ??
+    (damage.damage_type ? `${formatSlug(damage.damage_type)} damage` : "Damage");
+  return (
+    <RuntimeDetailsButton
+      adjustments={damage.modifiers}
+      adjusted={damage.adjusted_formula ?? damage.formula}
+      base={damage.formula}
+      label={label}
+      provenance={damage.provenance}
+    />
+  );
+}
+
+function hasRuntimeActivityDetails(activity: EncounterRuntimeActivityView) {
+  return Boolean(
+    activity.frequency ||
+    activity.uses ||
+    activity.usage === "ambiguous" ||
+    activity.modes?.length ||
+    activity.rolls?.some(hasRuntimeRollDetails) ||
+    activity.damage?.some(hasRuntimeFormulaDetails),
+  );
+}
+
+function hasRuntimeRollDetails(roll: RuntimeRollView) {
+  return Boolean(
+    roll.base_value !== roll.adjusted_value ||
+    roll.modifiers?.length ||
+    roll.suppressed_modifiers?.length,
+  );
+}
+
+function hasRuntimeFormulaDetails(damage: RuntimeFormulaView) {
+  return Boolean(damage.adjusted_formula || damage.modifiers?.length);
+}
+
+function formatRuntimeFrequency(frequency: EncounterRuntimeActivityView["frequency"]) {
+  if (!frequency) return undefined;
+  if (frequency.maximum !== undefined && frequency.period) {
+    return `${frequency.maximum} per ${formatSlug(frequency.period)}`;
+  }
+  if (frequency.maximum !== undefined) return `${frequency.maximum} maximum`;
+  return frequency.period ? formatSlug(frequency.period) : undefined;
+}
+
+function formatRuntimeUses(uses: EncounterRuntimeActivityView["uses"]) {
+  return uses?.maximum === undefined ? undefined : `${uses.maximum} maximum`;
+}
+
+function runtimeSourceLabel(provenance: RuntimeFactProvenanceView) {
+  const source = provenance.source;
+  if (source.source_type === "canonical_record") return "Source record";
+  if (source.source_type === "participant_state") return "Participant state";
+  if (source.source_type === "participant_variant") {
+    return `${formatSlug(source.variant)} variant`;
+  }
+  if (source.source_type === "condition") return source.label;
+  return formatSlug(source.rule);
+}
+
+function limitationTargetLabel(limitation: EncounterRuntimeAutomationLimitationView) {
+  const target = limitation.target;
+  if (target.target_type === "participant") return "Participant";
+  if (target.target_type === "condition") return "Condition";
+  if (target.target_type === "activity") return "Action or ability";
+  if (target.target_type === "spell") return "Spell";
+  return "Spellcasting";
+}
+
+function contextItem(
+  key: React.Key,
+  label: React.ReactNode,
+  value: React.ReactNode | undefined | null,
+): RecordKeyValueItem | null {
+  return value === undefined || value === null || value === ""
+    ? null
+    : { key, label, value };
+}
+
+function formatSense(sense: CreatureSurfaceSenseView) {
+  return [
+    formatSlug(sense.kind),
+    sense.acuity ? formatSlug(sense.acuity) : undefined,
+    sense.range_feet === undefined ? undefined : `${sense.range_feet} ft`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function formatIwrList(values: CreatureSurfaceIwrView[] | undefined) {
+  if (!values?.length) return undefined;
+  return values
+    .map((value) => {
+      const exceptions = value.exceptions?.length
+        ? ` (except ${value.exceptions.join(", ")})`
+        : "";
+      const doubled = value.double_vs?.length
+        ? `; double vs. ${value.double_vs.join(", ")}`
+        : "";
+      return `${formatSlug(value.kind)}${
+        value.amount === undefined ? "" : ` ${value.amount}`
+      }${exceptions}${doubled}`;
+    })
+    .join(", ");
+}
+
+function RuntimeAutomationLimitations({
+  runtime,
+}: {
+  runtime: EncounterRuntimeView | undefined;
+}) {
+  if (!runtime?.automation_limitations?.length) return null;
+  return (
+    <SurfaceSection title="Automation Notes">
+      <ul className="encounter-runtime-limitations">
+        {runtime.automation_limitations.map((limitation, index) => (
+          <li key={`${limitation.code}:${index}`}>
+            <Tag>{limitationTargetLabel(limitation)}</Tag>
+            <span>{limitation.message}</span>
+          </li>
+        ))}
+      </ul>
     </SurfaceSection>
   );
 }

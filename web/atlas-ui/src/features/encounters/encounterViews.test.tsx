@@ -157,6 +157,7 @@ describe("encounter views", () => {
     expect(
       (await screen.findAllByRole("heading", { name: "Kyra" })).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByText("Not current turn")).toBeVisible();
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Set turn to Kyra" }));
@@ -246,6 +247,112 @@ describe("encounter views", () => {
     }
     expect(within(activitiesSection).getByText("Claw")).toBeInTheDocument();
     expect(within(activitiesSection).getByText("1d6+2 slashing")).toBeInTheDocument();
+  });
+
+  it("explains adjusted runtime facts and preserves canonical context", async () => {
+    const surface = recordSurfaceFixture({
+      actions: 2,
+      actionBase: 3,
+      actionAdjustment: -1,
+      speed: 15,
+      speedBase: 25,
+      speedAdjustment: -10,
+    });
+    if (surface.presentation.presentation_type !== "creature" || !surface.encounter) {
+      throw new Error("Expected an encounter creature fixture");
+    }
+    surface.presentation.body.defenses = {
+      ...surface.presentation.body.defenses!,
+      armor_class_details: "+1 circumstance bonus against traps",
+      hardness: 5,
+      resistances: [
+        {
+          component_id: "resistance-fire",
+          authored_order: 0,
+          kind: "fire",
+          amount: 5,
+        },
+      ],
+    };
+    surface.encounter.level = {
+      label: "Level",
+      base_value: 1,
+      adjusted_value: 2,
+      modifiers: [
+        {
+          provenance: {
+            source: { source_type: "participant_variant", variant: "elite" },
+          },
+          label: "Elite level adjustment",
+          modifier_type: "adjustment",
+          value: 1,
+        },
+      ],
+      provenance: runtimeProvenance,
+    };
+    surface.encounter.automation_limitations = [
+      {
+        code: "condition_damage_adjustment_partial",
+        target: { target_type: "activity", activity_id: "claw" },
+        message: "Damage adjustments for this action require adjudication.",
+      },
+    ];
+    apiMocks.getEncounter.mockResolvedValue(
+      encounterDetailFixture("participant_a", {
+        note: "Keep the bridge blocked.",
+        record_view: surface,
+      }),
+    );
+
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    expect(await screen.findByText("Current turn")).toBeInTheDocument();
+    expect(screen.getByLabelText("Participant note")).toHaveValue(
+      "Keep the bridge blocked.",
+    );
+    expect(screen.getByText("+1 circumstance bonus against traps")).toBeVisible();
+    expect(screen.getByText(/fire 5/i)).toBeVisible();
+    expect(screen.getByText("Common")).toBeVisible();
+    expect(
+      screen.getByText("Damage adjustments for this action require adjudication."),
+    ).toBeVisible();
+    expect(screen.getByText("Action or ability")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Level adjustment details" }));
+    expect(await screen.findByText("Level details")).toBeInTheDocument();
+    expect(screen.getByText("Elite level adjustment +1")).toBeInTheDocument();
+    expect(screen.getByText("Elite variant")).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    fireEvent.click(screen.getByRole("button", { name: "Actions adjustment details" }));
+    expect(await screen.findByText("Actions details")).toBeInTheDocument();
+    expect(screen.getByText("Reduced actions regained -1")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Applied to the next action-regain step\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Base: 3")).toBeInTheDocument();
+  }, 15_000);
+
+  it("commits participant notes from the visible semantic note section", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const note = await screen.findByLabelText("Participant note");
+    fireEvent.change(note, { target: { value: "Focus fire on the front line." } });
+    fireEvent.blur(note);
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          note: "Focus fire on the front line.",
+        }),
+      ),
+    );
   });
 
   it("renders manual PC runtime state without inferred speed rows", async () => {
@@ -974,6 +1081,13 @@ function recordSurfaceFixture({
               ...actionBudget.actions,
               base_value: actionBase ?? actions,
               adjusted_value: actions,
+              segments: [
+                {
+                  label: "Base",
+                  value: actionBase ?? actions,
+                  restricted: false,
+                },
+              ],
               ...(actionAdjustment === undefined
                 ? {}
                 : {

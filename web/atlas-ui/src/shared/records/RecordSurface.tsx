@@ -1,19 +1,21 @@
 import { Alert } from "antd";
 import { memo } from "react";
-import type React from "react";
 import type { RecordSurfaceView } from "../../generated/atlas";
 import {
   CreatureDetailSurface,
   RecordHeader,
   SearchCompactSurface,
 } from "./CreatureRecordSurface";
-import { EncounterParticipantSurface } from "./EncounterRecordSurface";
+import {
+  EncounterParticipantSurface,
+  type EncounterRecordSurfaceSlots,
+} from "./EncounterRecordSurface";
 
 type RecordSurfaceProps = {
   onReference: (recordKey: string) => void;
   showTitle?: boolean;
   surface: RecordSurfaceView;
-  slots?: Record<string, React.ReactNode>;
+  slots?: EncounterRecordSurfaceSlots;
 };
 
 export const RecordSurface = memo(function RecordSurface({
