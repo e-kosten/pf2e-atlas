@@ -57,6 +57,13 @@ pub(super) fn resolve_record_ref(
     service: &AtlasAppService,
     record_ref: &str,
 ) -> AppServiceResult<atlas_record::AtlasRecord> {
+    resolve_retrieved_record_ref(service, record_ref).map(|retrieved| retrieved.record)
+}
+
+pub(super) fn resolve_retrieved_record_ref(
+    service: &AtlasAppService,
+    record_ref: &str,
+) -> AppServiceResult<atlas_record::RetrievedRecord> {
     let record_ref = record_ref.to_string();
     service.submit_retrieval(move |retrieval| {
         let resolution = retrieval.resolve_record_ref(ResolveRecordRefRequest {
@@ -81,16 +88,12 @@ pub(super) fn resolve_record_ref(
         let records = retrieval.get_records(GetRecordsRequest {
             record_keys: std::slice::from_ref(&key),
         })?;
-        records
-            .into_iter()
-            .next()
-            .map(|record| record.record)
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::RecordNotFound,
-                    format!("record not found: {key}"),
-                )
-            })
+        records.into_iter().next().ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::RecordNotFound,
+                format!("record not found: {key}"),
+            )
+        })
     })
 }
 

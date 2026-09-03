@@ -1439,6 +1439,7 @@ fn apply_participant_effects(
             .push(EncounterRuntimeSpellSlotView {
                 rank,
                 maximum: runtime_count_from_number(fact),
+                current: None,
             }),
             MechanicTarget::ActivityActionCost { .. }
             | MechanicTarget::ActivityFrequency { .. }

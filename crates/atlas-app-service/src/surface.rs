@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::encounters::spells::unavailable_spell_cast;
 use crate::projection::kind_label;
 use crate::retrieval::VerifiedRemasterLookup;
 use atlas_app_model::{
@@ -2477,6 +2478,7 @@ fn encounter_spell_view(
         traits: capability.traits.as_value().cloned().unwrap_or_default(),
         content: content_for_occurrence(creature, placement, &spell.id),
         activity,
+        cast: unavailable_spell_cast(),
         provenance,
     })
 }

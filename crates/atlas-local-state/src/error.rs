@@ -36,6 +36,14 @@ pub enum LocalStateError {
     EncounterKeyAllocationFailed,
     #[error("could not allocate a unique encounter participant key")]
     ParticipantKeyAllocationFailed,
+    #[error("encounter spell resource was not found for participant `{0}`")]
+    SpellResourceNotFound(String),
+    #[error("encounter spell resource is exhausted for participant `{0}`")]
+    SpellResourceExhausted(String),
+    #[error("encounter spell resource is already at its original value for participant `{0}`")]
+    SpellResourceAtBaseline(String),
+    #[error("encounter participant `{0}` has no creation baseline and cannot be reset")]
+    ParticipantResetBaselineUnavailable(String),
     #[error("unsupported local-state metadata `{key}` value `{value}`")]
     UnsupportedMetadata { key: &'static str, value: String },
     #[error("local-state database is incompatible: {0}")]

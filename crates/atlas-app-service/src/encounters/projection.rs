@@ -1,7 +1,8 @@
 use atlas_app_model::{
-    AppErrorCode, EncounterDetailView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, RecordSurfaceProfileView,
+    AppErrorCode, EncounterDetailView, EncounterParticipantKindView,
+    EncounterParticipantResetAvailabilityView, EncounterParticipantResetUnavailableReasonView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterStatusView, EncounterSummaryView, RecordSurfaceProfileView,
     ReorderEncounterParticipantPlacementView, SurfaceUnavailableReasonView,
 };
 use atlas_local_state::{
@@ -15,6 +16,7 @@ use crate::surface::{record_surface, unavailable_participant_surface};
 
 use super::hydration::{HydratedParticipantRecords, hydrate_participant_records};
 use super::mechanics::{manual_encounter_runtime, participant_encounter_runtime};
+use super::spells::{attach_spell_cast_availability, participant_spell_cast_context};
 
 pub(super) fn encounter_detail_view(
     service: &AtlasAppService,
@@ -31,7 +33,7 @@ pub(super) fn encounter_detail_view(
         current_turn_participant_key,
         participants: participants
             .into_iter()
-            .map(|participant| participant_view(participant, &hydrated_records))
+            .map(|participant| participant_view(service, participant, &hydrated_records))
             .collect::<AppServiceResult<Vec<_>>>()?,
     })
 }
@@ -54,6 +56,7 @@ pub(super) fn encounter_summary(
 }
 
 pub(super) fn participant_view(
+    service: &AtlasAppService,
     participant: EncounterParticipant,
     hydrated_records: &HydratedParticipantRecords,
 ) -> AppServiceResult<EncounterParticipantView> {
@@ -61,9 +64,13 @@ pub(super) fn participant_view(
         .record_key
         .as_ref()
         .and_then(|key| hydrated_records.records_by_key.get(key));
-    let encounter_runtime = retrieved
+    let mut encounter_runtime = retrieved
         .and_then(|retrieved| participant_encounter_runtime(&participant, retrieved))
         .unwrap_or_else(|| manual_encounter_runtime(&participant));
+    if let Some(retrieved) = retrieved {
+        let spell_context = participant_spell_cast_context(service, &participant, retrieved)?;
+        attach_spell_cast_availability(&participant, &spell_context, &mut encounter_runtime);
+    }
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
     } else if retrieved.is_some() {
@@ -75,6 +82,10 @@ pub(super) fn participant_view(
         .note
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
+    let reset_available = service
+        .local_state_store()?
+        .encounters()
+        .participant_reset_available(&participant.participant_key)?;
     let surface = if let Some(retrieved) = retrieved {
         let remaster_lookup = hydrated_records
             .remaster_lookups_by_key
@@ -130,6 +141,11 @@ pub(super) fn participant_view(
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
+        reset: EncounterParticipantResetAvailabilityView {
+            available: reset_available,
+            unavailable_reason: (!reset_available)
+                .then_some(EncounterParticipantResetUnavailableReasonView::MissingCreationBaseline),
+        },
         record_view: surface,
     })
 }

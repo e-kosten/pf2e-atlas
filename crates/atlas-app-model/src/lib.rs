@@ -17,10 +17,15 @@ pub use encounter::{
     EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
     EncounterConditionCatalogView, EncounterConditionCategoryView,
     EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    EncounterParticipantKindView, EncounterParticipantPreservedDomainView,
+    EncounterParticipantResetAvailabilityView, EncounterParticipantResetConfirmationView,
+    EncounterParticipantResetDomainView, EncounterParticipantResetResultView,
+    EncounterParticipantResetUnavailableReasonView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterSpellCastOperationView, EncounterSpellCastRequest, EncounterSpellCastResultView,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    ResetEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
@@ -113,9 +118,34 @@ mod tests {
             "target_record_key?: string",
             "content?: Array<CreatureSurfaceContentView>",
             "activity?: EncounterRuntimeActivityView",
+            "cast: EncounterSpellCastAvailabilityView",
         ] {
             assert!(runtime_spell.contains(field), "missing `{field}`");
         }
+        let spell_cast_request = actual
+            .get("EncounterSpellCastRequest.ts")
+            .expect("spell-cast request binding should exist");
+        for field in [
+            "spell_occurrence_id: string",
+            "spend_target: EncounterSpellSpendTargetView",
+            "operation: EncounterSpellCastOperationView",
+        ] {
+            assert!(spell_cast_request.contains(field), "missing `{field}`");
+        }
+        let spell_cast_state = actual
+            .get("EncounterSpellCastStateView.ts")
+            .expect("spell-cast state binding should exist");
+        for field in [
+            "maximum: number",
+            "initial_remaining: number",
+            "remaining: number",
+        ] {
+            assert!(spell_cast_state.contains(field), "missing `{field}`");
+        }
+        let runtime_spell_slot = actual
+            .get("EncounterRuntimeSpellSlotView.ts")
+            .expect("runtime spell-slot binding should exist");
+        assert!(runtime_spell_slot.contains("current?: RuntimeCountView"));
         let surface = actual
             .get("RecordSurfaceView.ts")
             .expect("RecordSurfaceView binding should exist");
@@ -136,6 +166,7 @@ mod tests {
             .get("EncounterParticipantView.ts")
             .expect("EncounterParticipantView binding should exist");
         assert!(encounter_participant.contains("record_view: RecordSurfaceView"));
+        assert!(encounter_participant.contains("reset: EncounterParticipantResetAvailabilityView"));
         assert!(
             !encounter_participant.contains("surface: RecordSurfaceView"),
             "generated participant binding must not retain the superseded public field"
@@ -283,6 +314,12 @@ mod tests {
             "CreatureSurfaceSpellcastingView.ts",
             "CreatureSurfaceVitalsView.ts",
             "EncounterConditionDefinitionView.ts",
+            "EncounterParticipantPreservedDomainView.ts",
+            "EncounterParticipantResetAvailabilityView.ts",
+            "EncounterParticipantResetConfirmationView.ts",
+            "EncounterParticipantResetDomainView.ts",
+            "EncounterParticipantResetResultView.ts",
+            "EncounterParticipantResetUnavailableReasonView.ts",
             "EncounterParticipantView.ts",
             "EncounterRuntimeActionCostKindView.ts",
             "EncounterRuntimeAutomationLimitationTargetView.ts",
@@ -292,7 +329,12 @@ mod tests {
             "EncounterRuntimeSpellView.ts",
             "EncounterRuntimeUsesView.ts",
             "EncounterRuntimeVitalsView.ts",
+            "EncounterSpellCastRequest.ts",
+            "EncounterSpellCastResultView.ts",
+            "EncounterSpellCastStateView.ts",
+            "EncounterSpellSpendTargetView.ts",
             "EncounterSummaryView.ts",
+            "ResetEncounterParticipantRequest.ts",
             "RecordSurfaceMetadataView.ts",
             "RuntimeAdjustmentView.ts",
             "RuntimeCanonicalTargetView.ts",
@@ -900,6 +942,75 @@ mod tests {
     }
 
     #[test]
+    fn spell_cast_request_round_trips_typed_targets_and_rejects_unsafe_ranks() {
+        let request = serde_json::json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "entry-occult",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "cast_one"
+        });
+        let decoded = serde_json::from_value::<EncounterSpellCastRequest>(request.clone())
+            .expect("typed innate cast request should deserialize");
+        assert_eq!(
+            serde_json::to_value(decoded).expect("cast request should serialize"),
+            request
+        );
+
+        let prepared = serde_json::from_value::<EncounterSpellCastRequest>(serde_json::json!({
+            "spell_occurrence_id": "spell-fireball",
+            "spend_target": {
+                "target_type": "prepared_slot",
+                "entry_id": "entry-arcane",
+                "rank": json_integer::JS_SAFE_INTEGER_MAX,
+                "slot_id": "slot4:0"
+            },
+            "operation": "restore_one"
+        }))
+        .expect("safe prepared rank should deserialize");
+        assert!(matches!(
+            prepared.spend_target,
+            EncounterSpellSpendTargetView::PreparedSlot { rank, .. }
+                if rank == json_integer::JS_SAFE_INTEGER_MAX
+        ));
+
+        let error = serde_json::from_value::<EncounterSpellCastRequest>(serde_json::json!({
+            "spell_occurrence_id": "spell-fireball",
+            "spend_target": {
+                "target_type": "spontaneous_pool",
+                "entry_id": "entry-arcane",
+                "rank": json_integer::JS_SAFE_INTEGER_MAX + 1
+            },
+            "operation": "cast_one"
+        }))
+        .expect_err("unsafe spell rank must be rejected");
+        assert!(error.to_string().contains("JavaScript safe-integer range"));
+    }
+
+    #[test]
+    fn participant_reset_requires_the_typed_destructive_confirmation() {
+        let request = serde_json::json!({ "confirmation": "reset_participant" });
+        let decoded = serde_json::from_value::<ResetEncounterParticipantRequest>(request.clone())
+            .expect("typed reset confirmation should deserialize");
+        assert_eq!(
+            decoded.confirmation,
+            EncounterParticipantResetConfirmationView::ResetParticipant
+        );
+        assert_eq!(
+            serde_json::to_value(decoded).expect("reset request should serialize"),
+            request
+        );
+        assert!(
+            serde_json::from_value::<ResetEncounterParticipantRequest>(serde_json::json!({
+                "confirmation": "confirmed"
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
     fn targeted_automation_limitation_remains_explicit_when_empty_runtime_arrays_are_omitted() {
         let runtime = EncounterRuntimeView {
             level: None,
@@ -1063,6 +1174,10 @@ mod tests {
             hidden: false,
             note: None,
             note_hint: None,
+            reset: EncounterParticipantResetAvailabilityView {
+                available: true,
+                unavailable_reason: None,
+            },
             record_view,
         };
 
@@ -1174,6 +1289,14 @@ mod tests {
         EncounterIndexView::export_all_to(path).expect("EncounterIndexView bindings should export");
         EncounterParticipantVariantView::export_all_to(path)
             .expect("EncounterParticipantVariantView bindings should export");
+        EncounterParticipantResetResultView::export_all_to(path)
+            .expect("EncounterParticipantResetResultView bindings should export");
+        ResetEncounterParticipantRequest::export_all_to(path)
+            .expect("ResetEncounterParticipantRequest bindings should export");
+        EncounterSpellCastRequest::export_all_to(path)
+            .expect("EncounterSpellCastRequest bindings should export");
+        EncounterSpellCastResultView::export_all_to(path)
+            .expect("EncounterSpellCastResultView bindings should export");
         EncounterUpdateView::export_all_to(path)
             .expect("EncounterUpdateView bindings should export");
         ReorderEncounterParticipantRequest::export_all_to(path)

@@ -52,7 +52,13 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::InvalidListRef { .. }
             | LocalStateError::InvalidEncounterRef { .. }
             | LocalStateError::InvalidRecordKey { .. }
-            | LocalStateError::InvalidListImport(_) => AppErrorCode::InvalidRequest,
+            | LocalStateError::InvalidListImport(_)
+            | LocalStateError::SpellResourceNotFound(_)
+            | LocalStateError::SpellResourceExhausted(_)
+            | LocalStateError::SpellResourceAtBaseline(_)
+            | LocalStateError::ParticipantResetBaselineUnavailable(_) => {
+                AppErrorCode::InvalidRequest
+            }
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
             LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,

@@ -100,6 +100,12 @@ export type { EncounterCreateView } from "../../../../crates/atlas-app-model/bin
 export type { EncounterDetailView } from "../../../../crates/atlas-app-model/bindings/EncounterDetailView";
 export type { EncounterIndexView } from "../../../../crates/atlas-app-model/bindings/EncounterIndexView";
 export type { EncounterParticipantKindView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantKindView";
+export type { EncounterParticipantPreservedDomainView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantPreservedDomainView";
+export type { EncounterParticipantResetAvailabilityView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantResetAvailabilityView";
+export type { EncounterParticipantResetConfirmationView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantResetConfirmationView";
+export type { EncounterParticipantResetDomainView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantResetDomainView";
+export type { EncounterParticipantResetResultView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantResetResultView";
+export type { EncounterParticipantResetUnavailableReasonView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantResetUnavailableReasonView";
 export type { EncounterParticipantSideView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantSideView";
 export type { EncounterParticipantStatusView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantStatusView";
 export type { EncounterParticipantVariantView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantVariantView";
@@ -133,6 +139,14 @@ export type { EncounterRuntimeSpellcastingView } from "../../../../crates/atlas-
 export type { EncounterRuntimeUsesView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeUsesView";
 export type { EncounterRuntimeView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeView";
 export type { EncounterRuntimeVitalsView } from "../../../../crates/atlas-app-model/bindings/EncounterRuntimeVitalsView";
+export type { EncounterSpellCastAvailabilityView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastAvailabilityView";
+export type { EncounterSpellCastBlockedReasonView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastBlockedReasonView";
+export type { EncounterSpellCastOperationView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastOperationView";
+export type { EncounterSpellCastRequest } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastRequest";
+export type { EncounterSpellCastResultView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastResultView";
+export type { EncounterSpellCastStateView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastStateView";
+export type { EncounterSpellCastUnavailableReasonView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellCastUnavailableReasonView";
+export type { EncounterSpellSpendTargetView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellSpendTargetView";
 export type { MetricComparison } from "../../../../crates/atlas-app-model/bindings/MetricComparison";
 export type { OpenResultWindowRequest } from "../../../../crates/atlas-app-model/bindings/OpenResultWindowRequest";
 export type { ReadResultWindowPageRequest } from "../../../../crates/atlas-app-model/bindings/ReadResultWindowPageRequest";
@@ -176,6 +190,7 @@ export type { RuntimeSaveKindView } from "../../../../crates/atlas-app-model/bin
 export type { RemoveSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/RemoveSavedListItemRequest";
 export type { ReorderEncounterParticipantPlacementView } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantPlacementView";
 export type { ReorderEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantRequest";
+export type { ResetEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/ResetEncounterParticipantRequest";
 export type { SavedListCreateView } from "../../../../crates/atlas-app-model/bindings/SavedListCreateView";
 export type { SavedListDetailView } from "../../../../crates/atlas-app-model/bindings/SavedListDetailView";
 export type { SavedListIndexView } from "../../../../crates/atlas-app-model/bindings/SavedListIndexView";

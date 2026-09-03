@@ -5,9 +5,11 @@ use time::format_description::well_known::Rfc3339;
 
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
-    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderEncounterParticipant,
-    ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
+    EncounterParticipantCondition, EncounterParticipantReset, EncounterParticipantResetDomain,
+    EncounterParticipantSpellState, EncounterSpellResource, EncounterSpellResourceMutation,
+    EncounterSpellResourceOperation, EncounterSpellResourceTarget, EncounterStatus,
+    EncounterWithParticipants, NewEncounter, ParticipantKind, ParticipantSide, ParticipantVariant,
+    ReorderEncounterParticipant, ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition,
 };
 use crate::slug::validate_slug;
@@ -186,6 +188,177 @@ pub(crate) fn add_participant(
         }
     }
     Err(LocalStateError::ParticipantKeyAllocationFailed)
+}
+
+pub(crate) fn capture_participant_baseline(
+    connection: &Connection,
+    participant_key: &str,
+) -> LocalStateResult<()> {
+    let now = now_rfc3339()?;
+    let inserted = connection.execute(
+        "INSERT INTO encounter_participant_baselines (
+            participant_id, participant_variant, initiative, initiative_order,
+            max_hp, current_hp, temporary_hp, defeated, captured_at
+         )
+         SELECT id, participant_variant, initiative, initiative_order,
+                max_hp, current_hp, temporary_hp, defeated, ?1
+         FROM encounter_participants
+         WHERE participant_key = ?2",
+        params![now, participant_key],
+    )?;
+    if inserted != 1 {
+        return Err(LocalStateError::ParticipantNotFound(
+            participant_key.to_string(),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn has_participant_baseline(
+    connection: &Connection,
+    participant_key: &str,
+) -> LocalStateResult<bool> {
+    connection
+        .query_row(
+            "SELECT 1
+             FROM encounter_participant_baselines baseline
+             JOIN encounter_participants participant ON participant.id = baseline.participant_id
+             WHERE participant.participant_key = ?1",
+            params![participant_key],
+            |_row| Ok(()),
+        )
+        .optional()
+        .map(|value| value.is_some())
+        .map_err(Into::into)
+}
+
+pub(crate) fn reset_participant(
+    connection: &Connection,
+    participant_key: &str,
+) -> LocalStateResult<EncounterParticipantReset> {
+    let baseline = connection
+        .query_row(
+            "SELECT participant.encounter_id, participant.id, participant.initiative,
+                    baseline.participant_variant, baseline.initiative,
+                    baseline.initiative_order, baseline.max_hp, baseline.current_hp,
+                    baseline.temporary_hp, baseline.defeated
+             FROM encounter_participants participant
+             JOIN encounter_participant_baselines baseline
+               ON baseline.participant_id = participant.id
+             WHERE participant.participant_key = ?1",
+            params![participant_key],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, Option<i64>>(6)?,
+                    row.get::<_, Option<i64>>(7)?,
+                    row.get::<_, i64>(8)?,
+                    row.get::<_, bool>(9)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((
+        encounter_id,
+        participant_id,
+        old_initiative,
+        baseline_variant,
+        baseline_initiative,
+        baseline_order,
+        baseline_max_hp,
+        baseline_current_hp,
+        baseline_temporary_hp,
+        baseline_defeated,
+    )) = baseline
+    else {
+        if participant_id(connection, participant_key)?.is_none() {
+            return Err(LocalStateError::ParticipantNotFound(
+                participant_key.to_string(),
+            ));
+        }
+        return Err(LocalStateError::ParticipantResetBaselineUnavailable(
+            participant_key.to_string(),
+        ));
+    };
+
+    let temporary_order = next_initiative_order(connection, encounter_id, baseline_initiative)?
+        .saturating_add(1_000_000);
+    let now = now_rfc3339()?;
+    connection.execute(
+        "UPDATE encounter_participants
+         SET participant_variant = ?1, initiative = ?2, initiative_order = ?3,
+             max_hp = ?4, current_hp = ?5, temporary_hp = ?6, defeated = ?7,
+             updated_at = ?8
+         WHERE id = ?9",
+        params![
+            baseline_variant,
+            baseline_initiative,
+            temporary_order,
+            baseline_max_hp,
+            baseline_current_hp,
+            baseline_temporary_hp,
+            baseline_defeated,
+            now,
+            participant_id,
+        ],
+    )?;
+
+    let mut baseline_bucket = if baseline_initiative.is_some() {
+        participant_keys_for_initiative(connection, encounter_id, baseline_initiative)?
+    } else {
+        participant_keys_for_unset_initiative(connection, encounter_id)?
+    };
+    baseline_bucket.retain(|key| key != participant_key);
+    let insertion_index = usize::try_from(baseline_order.saturating_sub(1))
+        .unwrap_or(usize::MAX)
+        .min(baseline_bucket.len());
+    baseline_bucket.insert(insertion_index, participant_key.to_string());
+    write_initiative_order(connection, &baseline_bucket)?;
+    if old_initiative != baseline_initiative {
+        compact_initiative_order(connection, encounter_id, old_initiative)?;
+    }
+
+    connection.execute(
+        "DELETE FROM encounter_participant_conditions WHERE participant_id = ?1",
+        params![participant_id],
+    )?;
+    connection.execute(
+        "DELETE FROM encounter_participant_adjustments WHERE participant_id = ?1",
+        params![participant_id],
+    )?;
+    connection.execute(
+        "UPDATE encounter_participant_spell_resources
+         SET remaining = initial_remaining, updated_at = ?1
+         WHERE participant_id = ?2",
+        params![now, participant_id],
+    )?;
+    let cleared_current_turn = connection.execute(
+        "UPDATE encounters
+         SET current_turn_participant_key = NULL
+         WHERE id = ?1 AND current_turn_participant_key = ?2",
+        params![encounter_id, participant_key],
+    )? > 0;
+    touch_encounter(connection, encounter_id)?;
+    let participant = participant(connection, participant_key)?
+        .ok_or_else(|| LocalStateError::ParticipantNotFound(participant_key.to_string()))?;
+    Ok(EncounterParticipantReset {
+        participant,
+        cleared_current_turn,
+        reset_domains: vec![
+            EncounterParticipantResetDomain::HitPoints,
+            EncounterParticipantResetDomain::Defeated,
+            EncounterParticipantResetDomain::Conditions,
+            EncounterParticipantResetDomain::InitiativeTurnState,
+            EncounterParticipantResetDomain::VariantAdjustments,
+            EncounterParticipantResetDomain::ActionBudget,
+            EncounterParticipantResetDomain::SpellResources,
+        ],
+    })
 }
 
 pub(crate) fn update_participant(
@@ -584,6 +757,323 @@ fn participant_conditions(
     )?;
     let rows = statement.query_map(params![participant_key], condition_from_row)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+pub(crate) fn initialize_spell_state(
+    connection: &Connection,
+    participant_key: &str,
+    resources: &[EncounterSpellResource],
+) -> LocalStateResult<EncounterParticipantSpellState> {
+    let Some(participant_id) = participant_id(connection, participant_key)? else {
+        return Err(LocalStateError::ParticipantNotFound(
+            participant_key.to_string(),
+        ));
+    };
+    let now = now_rfc3339()?;
+    let inserted = connection.execute(
+        "INSERT OR IGNORE INTO encounter_participant_spell_state (participant_id, initialized_at)
+         VALUES (?1, ?2)",
+        params![participant_id, now],
+    )?;
+    if inserted > 0 {
+        for resource in resources {
+            validate_spell_resource(resource)?;
+            let target_columns = spell_resource_columns(&resource.target);
+            connection.execute(
+                "INSERT INTO encounter_participant_spell_resources (
+                    participant_id, target_kind, entry_occurrence_id, spell_occurrence_id,
+                    rank, slot_id, resource_id, maximum, initial_remaining, remaining,
+                    created_at, updated_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
+                params![
+                    participant_id,
+                    resource.target.kind(),
+                    target_columns.entry_occurrence_id,
+                    target_columns.spell_occurrence_id,
+                    target_columns.rank,
+                    target_columns.slot_id,
+                    target_columns.resource_id,
+                    resource.maximum,
+                    resource.initial_remaining,
+                    resource.remaining,
+                    now,
+                ],
+            )?;
+        }
+    }
+    spell_state(connection, participant_key)
+}
+
+pub(crate) fn spell_state(
+    connection: &Connection,
+    participant_key: &str,
+) -> LocalStateResult<EncounterParticipantSpellState> {
+    let Some(participant_id) = participant_id(connection, participant_key)? else {
+        return Err(LocalStateError::ParticipantNotFound(
+            participant_key.to_string(),
+        ));
+    };
+    let initialized = connection
+        .query_row(
+            "SELECT 1 FROM encounter_participant_spell_state WHERE participant_id = ?1",
+            params![participant_id],
+            |_row| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !initialized {
+        return Ok(EncounterParticipantSpellState {
+            initialized: false,
+            resources: Vec::new(),
+        });
+    }
+    let mut statement = connection.prepare(
+        "SELECT target_kind, entry_occurrence_id, spell_occurrence_id, rank, slot_id,
+                resource_id, maximum, initial_remaining, remaining
+         FROM encounter_participant_spell_resources
+         WHERE participant_id = ?1
+         ORDER BY target_kind, entry_occurrence_id, spell_occurrence_id, rank, slot_id, resource_id",
+    )?;
+    let rows = statement.query_map(params![participant_id], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, i64>(3)?,
+            row.get::<_, String>(4)?,
+            row.get::<_, String>(5)?,
+            row.get::<_, i64>(6)?,
+            row.get::<_, i64>(7)?,
+            row.get::<_, i64>(8)?,
+        ))
+    })?;
+    let mut resources = Vec::new();
+    for row in rows {
+        let (kind, entry_id, spell_id, rank, slot_id, resource_id, maximum, initial, remaining) =
+            row?;
+        let target = match kind.as_str() {
+            "prepared_slot" => EncounterSpellResourceTarget::PreparedSlot {
+                entry_id,
+                spell_occurrence_id: spell_id,
+                rank,
+                slot_id,
+            },
+            "spontaneous_pool" => EncounterSpellResourceTarget::SpontaneousPool { entry_id, rank },
+            "innate_use" => EncounterSpellResourceTarget::InnateUse {
+                entry_id: (!entry_id.is_empty()).then_some(entry_id),
+                spell_occurrence_id: spell_id,
+            },
+            "focus_pool" => EncounterSpellResourceTarget::FocusPool { resource_id },
+            _ => {
+                return Err(LocalStateError::IncompatibleSchema(format!(
+                    "unsupported encounter spell resource kind `{kind}`"
+                )));
+            }
+        };
+        resources.push(EncounterSpellResource {
+            target,
+            maximum,
+            initial_remaining: initial,
+            remaining,
+        });
+    }
+    Ok(EncounterParticipantSpellState {
+        initialized: true,
+        resources,
+    })
+}
+
+pub(crate) fn mutate_spell_resource(
+    connection: &Connection,
+    participant_key: &str,
+    target: &EncounterSpellResourceTarget,
+    operation: EncounterSpellResourceOperation,
+) -> LocalStateResult<EncounterSpellResourceMutation> {
+    let Some(participant_id) = participant_id(connection, participant_key)? else {
+        return Err(LocalStateError::ParticipantNotFound(
+            participant_key.to_string(),
+        ));
+    };
+    let before = spell_resource(connection, participant_id, target)?
+        .ok_or_else(|| LocalStateError::SpellResourceNotFound(participant_key.to_string()))?;
+    match operation {
+        EncounterSpellResourceOperation::CastOne if before.remaining == 0 => {
+            return Err(LocalStateError::SpellResourceExhausted(
+                participant_key.to_string(),
+            ));
+        }
+        EncounterSpellResourceOperation::RestoreOne
+            if before.remaining >= before.initial_remaining =>
+        {
+            return Err(LocalStateError::SpellResourceAtBaseline(
+                participant_key.to_string(),
+            ));
+        }
+        _ => {}
+    }
+    let target_columns = spell_resource_columns(target);
+    let delta = match operation {
+        EncounterSpellResourceOperation::CastOne => -1,
+        EncounterSpellResourceOperation::RestoreOne => 1,
+    };
+    let now = now_rfc3339()?;
+    let updated = connection.execute(
+        "UPDATE encounter_participant_spell_resources
+         SET remaining = remaining + ?1, updated_at = ?2
+         WHERE participant_id = ?3 AND target_kind = ?4
+           AND entry_occurrence_id = ?5 AND spell_occurrence_id = ?6
+           AND rank = ?7 AND slot_id = ?8 AND resource_id = ?9",
+        params![
+            delta,
+            now,
+            participant_id,
+            target.kind(),
+            target_columns.entry_occurrence_id,
+            target_columns.spell_occurrence_id,
+            target_columns.rank,
+            target_columns.slot_id,
+            target_columns.resource_id,
+        ],
+    )?;
+    if updated != 1 {
+        return Err(LocalStateError::SpellResourceNotFound(
+            participant_key.to_string(),
+        ));
+    }
+    touch_encounter_for_participant(connection, participant_id)?;
+    let after = spell_resource(connection, participant_id, target)?
+        .ok_or_else(|| LocalStateError::SpellResourceNotFound(participant_key.to_string()))?;
+    Ok(EncounterSpellResourceMutation { before, after })
+}
+
+fn spell_resource(
+    connection: &Connection,
+    participant_id: i64,
+    target: &EncounterSpellResourceTarget,
+) -> LocalStateResult<Option<EncounterSpellResource>> {
+    let columns = spell_resource_columns(target);
+    connection
+        .query_row(
+            "SELECT maximum, initial_remaining, remaining
+             FROM encounter_participant_spell_resources
+             WHERE participant_id = ?1 AND target_kind = ?2
+               AND entry_occurrence_id = ?3 AND spell_occurrence_id = ?4
+               AND rank = ?5 AND slot_id = ?6 AND resource_id = ?7",
+            params![
+                participant_id,
+                target.kind(),
+                columns.entry_occurrence_id,
+                columns.spell_occurrence_id,
+                columns.rank,
+                columns.slot_id,
+                columns.resource_id,
+            ],
+            |row| {
+                Ok(EncounterSpellResource {
+                    target: target.clone(),
+                    maximum: row.get(0)?,
+                    initial_remaining: row.get(1)?,
+                    remaining: row.get(2)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+struct SpellResourceColumns<'a> {
+    entry_occurrence_id: &'a str,
+    spell_occurrence_id: &'a str,
+    rank: i64,
+    slot_id: &'a str,
+    resource_id: &'a str,
+}
+
+fn spell_resource_columns(target: &EncounterSpellResourceTarget) -> SpellResourceColumns<'_> {
+    match target {
+        EncounterSpellResourceTarget::PreparedSlot {
+            entry_id,
+            spell_occurrence_id,
+            rank,
+            slot_id,
+        } => SpellResourceColumns {
+            entry_occurrence_id: entry_id,
+            spell_occurrence_id,
+            rank: *rank,
+            slot_id,
+            resource_id: "",
+        },
+        EncounterSpellResourceTarget::SpontaneousPool { entry_id, rank } => SpellResourceColumns {
+            entry_occurrence_id: entry_id,
+            spell_occurrence_id: "",
+            rank: *rank,
+            slot_id: "",
+            resource_id: "",
+        },
+        EncounterSpellResourceTarget::InnateUse {
+            entry_id,
+            spell_occurrence_id,
+        } => SpellResourceColumns {
+            entry_occurrence_id: entry_id.as_deref().unwrap_or_default(),
+            spell_occurrence_id,
+            rank: -1,
+            slot_id: "",
+            resource_id: "",
+        },
+        EncounterSpellResourceTarget::FocusPool { resource_id } => SpellResourceColumns {
+            entry_occurrence_id: "",
+            spell_occurrence_id: "",
+            rank: -1,
+            slot_id: "",
+            resource_id,
+        },
+    }
+}
+
+fn validate_spell_resource(resource: &EncounterSpellResource) -> LocalStateResult<()> {
+    if resource.maximum < 0
+        || resource.initial_remaining < 0
+        || resource.initial_remaining > resource.maximum
+        || resource.remaining < 0
+        || resource.remaining > resource.initial_remaining
+    {
+        return Err(LocalStateError::IncompatibleSchema(
+            "encounter spell resource counts violate their bounds".to_string(),
+        ));
+    }
+    let columns = spell_resource_columns(&resource.target);
+    let valid = match &resource.target {
+        EncounterSpellResourceTarget::PreparedSlot { .. } => {
+            !columns.entry_occurrence_id.is_empty()
+                && !columns.spell_occurrence_id.is_empty()
+                && columns.rank >= 0
+                && !columns.slot_id.is_empty()
+        }
+        EncounterSpellResourceTarget::SpontaneousPool { .. } => {
+            !columns.entry_occurrence_id.is_empty() && columns.rank >= 0
+        }
+        EncounterSpellResourceTarget::InnateUse { .. } => !columns.spell_occurrence_id.is_empty(),
+        EncounterSpellResourceTarget::FocusPool { .. } => !columns.resource_id.is_empty(),
+    };
+    if !valid {
+        return Err(LocalStateError::InvalidEncounterRef {
+            encounter_ref: "spell resource target".to_string(),
+            reason: "spell resource target identity must be complete",
+        });
+    }
+    Ok(())
+}
+
+fn touch_encounter_for_participant(
+    connection: &Connection,
+    participant_id: i64,
+) -> LocalStateResult<()> {
+    let encounter_id = connection.query_row(
+        "SELECT encounter_id FROM encounter_participants WHERE id = ?1",
+        params![participant_id],
+        |row| row.get(0),
+    )?;
+    touch_encounter(connection, encounter_id)
 }
 
 fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterParticipantCondition> {
