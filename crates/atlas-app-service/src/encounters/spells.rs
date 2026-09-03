@@ -163,6 +163,14 @@ pub(super) fn attach_spell_cast_availability(
             });
         }
     }
+    runtime.resources.retain(|resource| {
+        resource.current.is_some()
+            || context
+                .catalog
+                .has_typed_consumer(&EncounterSpellResourceTarget::FocusPool {
+                    resource_id: resource.resource_id.clone(),
+                })
+    });
 }
 
 fn runtime_count(label: String, resource: &EncounterSpellResource) -> RuntimeCountView {
@@ -359,6 +367,21 @@ fn unavailable(
         available: false,
         state: EncounterSpellCastStateView::Unavailable { reason },
         blocked_reason: Some(EncounterSpellCastBlockedReasonView::StateUnavailable),
+    }
+}
+
+impl SpellCastCatalog {
+    fn has_typed_consumer(&self, target: &EncounterSpellResourceTarget) -> bool {
+        self.spells.values().any(|spell| match spell {
+            CanonicalSpellCast::Tracked(spell_target)
+            | CanonicalSpellCast::Unavailable {
+                target: Some(spell_target),
+                ..
+            } => spell_target == target,
+            CanonicalSpellCast::AtWill | CanonicalSpellCast::Unavailable { target: None, .. } => {
+                false
+            }
+        })
     }
 }
 
@@ -702,6 +725,7 @@ fn resource_count(value: &FactValue<atlas_record::CreatureResourceAmount>) -> Op
 
 #[cfg(test)]
 mod tests {
+    use atlas_app_model::EncounterRuntimeResourceView;
     use atlas_domain::RecordKey;
     use atlas_local_state::{ParticipantKind, ParticipantSide, ParticipantVariant};
     use atlas_record::{
@@ -769,16 +793,7 @@ mod tests {
         let innate_at_will = spell(&owner, "innate-at-will", "innate-entry", 2);
         let focus_spell = spell(&owner, "focus-spell", "focus-entry", 1);
         creature.resources = CreatureFact::source(
-            FactValue::Value(vec![CreatureResource {
-                id: CreatureComponentId::new("resource:focus").expect("focus id"),
-                authored_order: 0,
-                kind: CreatureResourceKind::new("focus").expect("focus kind"),
-                label: "Focus".to_string(),
-                maximum: FactValue::Value(CreatureResourceAmount::Integer(3)),
-                serialized_value: FactValue::Value(CreatureResourceAmount::Integer(1)),
-                source_drift: FactValue::Missing,
-                current_policy: ResourceCurrentPolicy::SerializedValueIsProvenanceOnly,
-            }]),
+            FactValue::Value(vec![focus_resource(3, 1)]),
             CreatureSourceField::Resources,
         );
         creature.embedded_entities = CreatureFact::source(
@@ -859,6 +874,219 @@ mod tests {
             resource.target,
             EncounterSpellResourceTarget::FocusPool { .. }
         )));
+    }
+
+    #[test]
+    fn night_hag_unattached_focus_is_omitted_without_affecting_shadow_blast_uses() {
+        let mut creature = creature();
+        creature.identity.record_key =
+            RecordKey::parse("pathfinder-bestiary:WQy7HBUcgDLsfVJd").expect("Night Hag key");
+        creature.identity.name = "Night Hag".to_string();
+        let owner = creature.identity.record_key.clone();
+        let occult_entry = entry(
+            &owner,
+            "qg3r6OKHjX8qHiNS",
+            CreatureSpellPreparation::Innate,
+            FactValue::Value(Vec::new()),
+        );
+        let coven_entry = entry(
+            &owner,
+            "DOoR2SsbZF96IxlF",
+            CreatureSpellPreparation::Innate,
+            FactValue::Value(Vec::new()),
+        );
+        let mut shadow_blast = spell(&owner, "3p2JdQQKOnQPCHS8", "qg3r6OKHjX8qHiNS", 5);
+        shadow_blast.context.uses = FactValue::Value(atlas_record::CreatureUseLimit {
+            maximum: FactValue::Value(2),
+            serialized_value: FactValue::Value(2),
+        });
+        let coven_spell = spell(&owner, "coven-spell", "DOoR2SsbZF96IxlF", 5);
+        creature.resources = CreatureFact::source(
+            FactValue::Value(vec![focus_resource(1, 1)]),
+            CreatureSourceField::Resources,
+        );
+        creature.embedded_entities = CreatureFact::source(
+            FactValue::Value(CreatureEmbeddedEntities {
+                entities: Vec::new(),
+                occurrences: vec![occult_entry, coven_entry, shadow_blast, coven_spell],
+                relationships: Vec::new(),
+                actor_spellcasting: FactValue::Missing,
+            }),
+            CreatureSourceField::EmbeddedEntities,
+        );
+
+        let embedded = creature
+            .embedded_entities
+            .value
+            .as_value()
+            .expect("Night Hag embedded fixture");
+        let catalog = build_catalog(&creature, embedded);
+        let focus_target = EncounterSpellResourceTarget::FocusPool {
+            resource_id: "resource:focus".to_string(),
+        };
+        assert!(!catalog.has_typed_consumer(&focus_target));
+        let state = EncounterParticipantSpellState {
+            initialized: true,
+            resources: catalog.resources.values().cloned().collect(),
+        };
+        let context = ParticipantSpellCastContext { catalog, state };
+        let mut runtime = runtime_with_resource("resource:focus", 1);
+
+        attach_spell_cast_availability(&participant(false), &context, &mut runtime);
+
+        assert!(runtime.resources.is_empty());
+        assert!(matches!(
+            context
+                .availability_for_id(&participant(false), "3p2JdQQKOnQPCHS8")
+                .state,
+            EncounterSpellCastStateView::Tracked {
+                maximum: 2,
+                initial_remaining: 2,
+                remaining: 2,
+            }
+        ));
+        assert!(matches!(
+            context
+                .availability_for_id(&participant(false), "coven-spell")
+                .state,
+            EncounterSpellCastStateView::AtWill
+        ));
+    }
+
+    #[test]
+    fn attached_focus_with_missing_current_is_retained_and_typed_unavailable() {
+        let mut creature = creature();
+        let owner = creature.identity.record_key.clone();
+        creature.resources = CreatureFact::source(
+            FactValue::Value(vec![focus_resource(3, 1)]),
+            CreatureSourceField::Resources,
+        );
+        creature.embedded_entities = CreatureFact::source(
+            FactValue::Value(CreatureEmbeddedEntities {
+                entities: Vec::new(),
+                occurrences: vec![
+                    entry(
+                        &owner,
+                        "focus-entry",
+                        CreatureSpellPreparation::Focus,
+                        FactValue::Value(Vec::new()),
+                    ),
+                    spell(&owner, "focus-spell", "focus-entry", 1),
+                ],
+                relationships: Vec::new(),
+                actor_spellcasting: FactValue::Missing,
+            }),
+            CreatureSourceField::EmbeddedEntities,
+        );
+        let catalog = build_catalog(
+            &creature,
+            creature
+                .embedded_entities
+                .value
+                .as_value()
+                .expect("focus embedded fixture"),
+        );
+        let context = ParticipantSpellCastContext {
+            catalog,
+            state: EncounterParticipantSpellState {
+                initialized: true,
+                resources: Vec::new(),
+            },
+        };
+        let mut runtime = runtime_with_resource("resource:focus", 3);
+
+        attach_spell_cast_availability(&participant(false), &context, &mut runtime);
+
+        assert_eq!(runtime.resources.len(), 1);
+        assert!(runtime.resources[0].current.is_none());
+        assert!(matches!(
+            context.availability_for_id(&participant(false), "focus-spell"),
+            EncounterSpellCastAvailabilityView {
+                spend_target: Some(EncounterSpellSpendTargetView::FocusPool { ref resource_id }),
+                state: EncounterSpellCastStateView::Unavailable {
+                    reason: EncounterSpellCastUnavailableReasonView::MissingCurrent,
+                },
+                ..
+            } if resource_id == "resource:focus"
+        ));
+    }
+
+    #[test]
+    fn unattached_resource_with_supported_current_is_retained() {
+        let target = EncounterSpellResourceTarget::FocusPool {
+            resource_id: "resource:focus".to_string(),
+        };
+        let context = ParticipantSpellCastContext {
+            catalog: SpellCastCatalog::default(),
+            state: EncounterParticipantSpellState {
+                initialized: true,
+                resources: vec![EncounterSpellResource {
+                    target,
+                    maximum: 3,
+                    initial_remaining: 2,
+                    remaining: 1,
+                }],
+            },
+        };
+        let mut runtime = runtime_with_resource("resource:focus", 3);
+
+        attach_spell_cast_availability(&participant(false), &context, &mut runtime);
+
+        let resource = runtime
+            .resources
+            .first()
+            .expect("supported current resource");
+        assert_eq!(
+            resource.current.as_ref().map(|value| value.base_value),
+            Some(2)
+        );
+        assert_eq!(
+            resource.current.as_ref().map(|value| value.adjusted_value),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn ordinary_consumed_resource_with_supported_current_is_unchanged() {
+        let target = EncounterSpellResourceTarget::FocusPool {
+            resource_id: "resource:focus".to_string(),
+        };
+        let resource = EncounterSpellResource {
+            target: target.clone(),
+            maximum: 3,
+            initial_remaining: 3,
+            remaining: 2,
+        };
+        let context = ParticipantSpellCastContext {
+            catalog: SpellCastCatalog {
+                spells: BTreeMap::from([(
+                    "focus-spell".to_string(),
+                    CanonicalSpellCast::Tracked(target.clone()),
+                )]),
+                resources: BTreeMap::from([(target, resource.clone())]),
+            },
+            state: EncounterParticipantSpellState {
+                initialized: true,
+                resources: vec![resource],
+            },
+        };
+        let mut runtime = runtime_with_resource("resource:focus", 3);
+
+        attach_spell_cast_availability(&participant(false), &context, &mut runtime);
+
+        let retained = runtime.resources.first().expect("consumed resource");
+        assert_eq!(retained.maximum.adjusted_value, 3);
+        assert_eq!(
+            retained.current.as_ref().map(|value| value.adjusted_value),
+            Some(2)
+        );
+        assert!(
+            context
+                .catalog
+                .has_typed_consumer(&EncounterSpellResourceTarget::FocusPool {
+                    resource_id: "resource:focus".to_string(),
+                })
+        );
     }
 
     #[test]
@@ -1087,6 +1315,54 @@ mod tests {
             created_at: "2026-09-03T00:00:00Z".to_string(),
             updated_at: "2026-09-03T00:00:00Z".to_string(),
             conditions: Vec::new(),
+        }
+    }
+
+    fn runtime_with_resource(resource_id: &str, maximum: i64) -> EncounterRuntimeView {
+        EncounterRuntimeView {
+            level: None,
+            vitals: None,
+            defenses: None,
+            saves: None,
+            awareness: None,
+            abilities: None,
+            skills: Vec::new(),
+            movement: None,
+            resources: vec![EncounterRuntimeResourceView {
+                resource_id: resource_id.to_string(),
+                label: "Focus".to_string(),
+                maximum: RuntimeNumberView {
+                    label: "Focus".to_string(),
+                    base_value: maximum,
+                    adjusted_value: maximum,
+                    modifiers: Vec::new(),
+                    suppressed_modifiers: Vec::new(),
+                    provenance: RuntimeFactProvenanceView {
+                        source: RuntimeFactSourceView::CanonicalRecord,
+                        canonical_target: None,
+                    },
+                },
+                current: None,
+            }],
+            spellcasting: Vec::new(),
+            activities: Vec::new(),
+            standalone_spells: Vec::new(),
+            action_budget: None,
+            conditions: Vec::new(),
+            automation_limitations: Vec::new(),
+        }
+    }
+
+    fn focus_resource(maximum: i64, serialized_value: i64) -> CreatureResource {
+        CreatureResource {
+            id: CreatureComponentId::new("resource:focus").expect("focus id"),
+            authored_order: 0,
+            kind: CreatureResourceKind::new("focus").expect("focus kind"),
+            label: "Focus".to_string(),
+            maximum: FactValue::Value(CreatureResourceAmount::Integer(maximum)),
+            serialized_value: FactValue::Value(CreatureResourceAmount::Integer(serialized_value)),
+            source_drift: FactValue::Missing,
+            current_policy: ResourceCurrentPolicy::SerializedValueIsProvenanceOnly,
         }
     }
 

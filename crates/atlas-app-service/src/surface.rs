@@ -3140,6 +3140,34 @@ mod tests {
     }
 
     #[test]
+    fn static_record_detail_retains_canonical_focus_provenance() {
+        let mut night_hag = known_empty_creature();
+        night_hag.identity.name = "Night Hag".to_string();
+        night_hag.resources.value = FactValue::Value(vec![atlas_record::CreatureResource {
+            id: atlas_record::CreatureComponentId::new("resource:focus")
+                .expect("focus resource id"),
+            authored_order: 0,
+            kind: atlas_record::CreatureResourceKind::new("focus").expect("focus resource kind"),
+            label: "Focus".to_string(),
+            maximum: FactValue::Value(atlas_record::CreatureResourceAmount::Integer(1)),
+            serialized_value: FactValue::Value(atlas_record::CreatureResourceAmount::Integer(1)),
+            source_drift: FactValue::Missing,
+            current_policy: atlas_record::ResourceCurrentPolicy::SerializedValueIsProvenanceOnly,
+        }]);
+
+        let surface = creature_surface(&night_hag, RecordSurfaceProfileView::RecordDetail);
+
+        let resources = surface.resources.expect("static Focus resource");
+        assert_eq!(resources.len(), 1);
+        let focus = &resources[0];
+        assert_eq!(focus.component_id, "resource:focus");
+        assert_eq!(focus.authored_order, 0);
+        assert_eq!(focus.kind, "focus");
+        assert_eq!(focus.label, "Focus");
+        assert_eq!(focus.maximum, Some(1));
+    }
+
+    #[test]
     fn giant_rat_search_compact_projects_only_the_approved_static_summary_and_teaser_limit() {
         let mut giant_rat = known_empty_creature();
         giant_rat.identity.name = "Giant Rat".to_string();

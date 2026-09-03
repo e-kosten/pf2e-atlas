@@ -246,6 +246,13 @@ fn record_backed_v7_spell_cast_reset_and_legacy_dto_workflow()
             reason: EncounterSpellCastUnavailableReasonView::MissingCurrent
         }
     ));
+    let focus_resource = runtime(&created_participant)
+        .resources
+        .iter()
+        .find(|resource| resource.resource_id == "resource:focus")
+        .expect("typed focus consumer retains its runtime resource");
+    assert_eq!(focus_resource.maximum.adjusted_value, 3);
+    assert!(focus_resource.current.is_none());
     let focus_error = cast(
         &fixture.worker,
         &encounter.slug,
