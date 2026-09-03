@@ -28,6 +28,14 @@ Public encounter-runtime incompleteness is limited to concise automation limitat
 - static record detail;
 - encounter participant detail with local participant state and adjusted mechanics.
 
+Participant-local `defeated` state is an authoritative runtime availability gate. A defeated
+participant's composed action budget sets both `can_act` and `can_react` unavailable with
+participant-state provenance and a display-only reason. Numeric action and reaction counts,
+segments, adjustments, suppressed adjustments, and condition notes remain present and unchanged;
+clearing `defeated` therefore restores availability without discarding unrelated action-budget
+facts. Current HP does not independently imply this state because zero-HP participants can be
+explicitly marked active.
+
 `web/atlas-ui` renders composed surfaces and supplies browser interaction slots such as HP controls, condition editors, note editors, and record-preview popovers. Generic surface rendering must not own mutation behavior directly; feature modules provide mutation handlers through explicit slots.
 
 `RecordPresentationDocument` is not an app DTO or an app-service fallback. CLI and storage-neutral presentation contracts remain owned by `atlas-record`; app-service projects `RetrievedRecord` directly into `RecordSurfaceView`. Non-creature kinds remain behind explicit typed unavailable boundaries until their separately approved family cutovers.

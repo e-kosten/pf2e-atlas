@@ -1776,13 +1776,23 @@ fn action_projection(participant: &EncounterParticipant) -> ActionProjection {
         }
     };
 
+    let capability = if participant.defeated {
+        RuntimeCapabilityView {
+            available: false,
+            provenance: Some(participant_state_provenance()),
+            reason: Some("Defeated participants cannot act or react.".to_string()),
+        }
+    } else {
+        stunned_capability
+    };
+
     ActionProjection {
         adjusted_actions,
         action_segments,
         adjustments,
         suppressed_adjustments,
-        can_act: stunned_capability.clone(),
-        can_react: stunned_capability,
+        can_act: capability.clone(),
+        can_react: capability,
         notes,
     }
 }
@@ -5257,6 +5267,41 @@ mod tests {
         assert_eq!(duplicate_budget.actions.adjusted_value, 2);
         assert_eq!(duplicate_budget.actions.adjustments.len(), 2);
         assert_eq!(duplicate_budget.actions.suppressed_adjustments.len(), 2);
+    }
+
+    #[test]
+    fn defeated_state_disables_capabilities_without_erasing_action_budget_facts() {
+        let active_participant = participant(
+            ParticipantVariant::Normal,
+            vec![condition("Quickened", None), condition("Prone", None)],
+        );
+        let active = project_canonical(&active_participant);
+        let active_budget = active.action_budget.as_ref().expect("action budget");
+        assert_eq!(active_budget.actions.adjusted_value, 4);
+        assert_eq!(active_budget.reactions.adjusted_value, 1);
+        assert!(active_budget.can_act.available);
+        assert!(active_budget.can_react.available);
+        assert!(!active_budget.notes.is_empty());
+
+        let mut defeated_participant = active_participant.clone();
+        defeated_participant.defeated = true;
+        let defeated = project_canonical(&defeated_participant);
+        let defeated_budget = defeated.action_budget.as_ref().expect("action budget");
+        assert_eq!(defeated_budget.actions, active_budget.actions);
+        assert_eq!(defeated_budget.reactions, active_budget.reactions);
+        assert_eq!(defeated_budget.notes, active_budget.notes);
+        for capability in [&defeated_budget.can_act, &defeated_budget.can_react] {
+            assert!(!capability.available);
+            assert_eq!(capability.provenance, Some(participant_state_provenance()));
+            assert_eq!(
+                capability.reason.as_deref(),
+                Some("Defeated participants cannot act or react.")
+            );
+        }
+
+        defeated_participant.defeated = false;
+        let reactivated = project_canonical(&defeated_participant);
+        assert_eq!(reactivated.action_budget, active.action_budget);
     }
 
     #[test]

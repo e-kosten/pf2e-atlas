@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::PathBuf;
+
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
@@ -20,25 +23,25 @@ use atlas_app_model::{
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
     EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterParticipantView, EncounterRuntimeAutomationLimitationCodeView,
-    EncounterRuntimeAutomationLimitationTargetView, EncounterRuntimeAutomationLimitationView,
-    EncounterRuntimeConditionView, EncounterRuntimeView, EncounterRuntimeVitalsView,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView, FilterControlView,
-    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
-    FilterSavedListRequest, FilterValueListView, FilterValueOption, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
+    EncounterParticipantView, EncounterRuntimeActionBudgetView,
+    EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
+    EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
+    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
+    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
     RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionCounterpartView,
     RecordSurfaceEditionStatusView, RecordSurfaceEditionView, RecordSurfaceMetadataView,
     RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
     RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
-    RuntimeCanonicalTargetView, RuntimeFactProvenanceView, RuntimeFactSourceView,
-    RuntimeNumberView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
-    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
-    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
-    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListRequest,
+    RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
+    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, RuntimeRuleView,
+    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    SavedListUpdateView, SearchPageView, SetEncounterTurnRequest, SurfaceUnavailableReasonView,
+    SurfaceUnavailableView, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::AppServiceError;
 use axum::Router;
@@ -772,6 +775,51 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["participant_key"], "participant_a");
     assert_eq!(body["display_name"], "Renamed Goblin");
+    assert_eq!(
+        body["record_view"]["encounter"]["action_budget"]["can_act"]["available"],
+        true
+    );
+    assert_eq!(
+        body["record_view"]["encounter"]["action_budget"]["can_react"]["available"],
+        true
+    );
+    write_action_budget_api_sample("api-participant-active.json", &body);
+
+    let (status, defeated_body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a",
+        Some(json!({
+            "participant_key": "ignored",
+            "display_name": "Renamed Goblin",
+            "side": "enemy",
+            "participant_variant": "normal",
+            "initiative": 19,
+            "max_hp": 12,
+            "current_hp": 0,
+            "temporary_hp": 1,
+            "defeated": true,
+            "hidden": false,
+            "note": "wounded"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let defeated_budget = &defeated_body["record_view"]["encounter"]["action_budget"];
+    assert_eq!(defeated_body["defeated"], true);
+    assert_eq!(defeated_budget["actions"]["adjusted_value"], 3);
+    assert_eq!(defeated_budget["reactions"]["adjusted_value"], 1);
+    for capability in ["can_act", "can_react"] {
+        assert_eq!(defeated_budget[capability]["available"], false);
+        assert_eq!(
+            defeated_budget[capability]["provenance"]["source"]["source_type"],
+            "participant_state"
+        );
+        assert_eq!(
+            defeated_budget[capability]["reason"],
+            "Defeated participants cannot act or react."
+        );
+    }
+    write_action_budget_api_sample("api-participant-defeated.json", &defeated_body);
 
     let (status, body) = route_json(
         Method::POST,
@@ -1273,6 +1321,7 @@ impl AtlasWebService for MockService {
                     request.current_hp,
                     request.temporary_hp,
                     false,
+                    request.defeated,
                 )),
             ),
         })
@@ -1851,7 +1900,7 @@ fn encounter_participant(
             Some("actors:testCreature"),
             display_name,
             RecordSurfaceProfileView::EncounterParticipant,
-            Some(test_runtime(Some(12), Some(6), 0, include_condition)),
+            Some(test_runtime(Some(12), Some(6), 0, include_condition, false)),
         ),
     }
 }
@@ -1861,6 +1910,7 @@ fn test_runtime(
     current_hp: Option<i64>,
     temporary_hp: i64,
     include_condition: bool,
+    defeated: bool,
 ) -> EncounterRuntimeView {
     let participant_provenance = || RuntimeFactProvenanceView {
         source: RuntimeFactSourceView::ParticipantState,
@@ -1900,7 +1950,7 @@ fn test_runtime(
         spellcasting: Vec::new(),
         standalone_spells: Vec::new(),
         activities: Vec::new(),
-        action_budget: None,
+        action_budget: Some(test_action_budget(defeated)),
         conditions: include_condition
             .then(|| EncounterRuntimeConditionView {
                 condition_id: 7,
@@ -1937,6 +1987,55 @@ fn test_runtime(
             .into_iter()
             .collect(),
     }
+}
+
+fn test_action_budget(defeated: bool) -> EncounterRuntimeActionBudgetView {
+    let runtime_rule_provenance = || RuntimeFactProvenanceView {
+        source: RuntimeFactSourceView::RuntimeRule {
+            rule: RuntimeRuleView::ActionBudget,
+        },
+        canonical_target: None,
+    };
+    let count = |label: &str, value| RuntimeCountView {
+        label: label.to_string(),
+        base_value: value,
+        adjusted_value: value,
+        segments: vec![RuntimeCountSegmentView {
+            label: "Base".to_string(),
+            value,
+            restricted: false,
+            reason: None,
+        }],
+        adjustments: Vec::new(),
+        suppressed_adjustments: Vec::new(),
+        provenance: runtime_rule_provenance(),
+    };
+    let capability = RuntimeCapabilityView {
+        available: !defeated,
+        provenance: defeated.then_some(RuntimeFactProvenanceView {
+            source: RuntimeFactSourceView::ParticipantState,
+            canonical_target: None,
+        }),
+        reason: defeated.then(|| "Defeated participants cannot act or react.".to_string()),
+    };
+    EncounterRuntimeActionBudgetView {
+        actions: count("Actions", 3),
+        reactions: count("Reactions", 1),
+        can_act: capability.clone(),
+        can_react: capability,
+        notes: Vec::new(),
+    }
+}
+
+fn write_action_budget_api_sample(file_name: &str, value: &Value) {
+    let Ok(root) = std::env::var("F2_ACTION_BUDGET_SAMPLE_ROOT") else {
+        return;
+    };
+    let root = PathBuf::from(root);
+    fs::create_dir_all(&root).expect("action-budget sample root should be creatable");
+    let mut bytes = serde_json::to_vec_pretty(value).expect("API sample should serialize");
+    bytes.push(b'\n');
+    fs::write(root.join(file_name), bytes).expect("API sample should write");
 }
 
 fn saved_list_summary() -> SavedListSummaryView {
