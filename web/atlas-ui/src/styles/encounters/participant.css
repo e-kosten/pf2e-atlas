@@ -52,6 +52,22 @@
   gap: 6px;
 }
 
+.encounter-action-capabilities {
+  align-items: stretch;
+  display: grid;
+}
+
+.encounter-action-capability {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.encounter-action-capability small {
+  color: var(--muted);
+}
+
 .encounter-participant-strip__state {
   align-self: end;
   padding-bottom: 6px;
@@ -149,7 +165,6 @@
 }
 
 .encounter-runtime-spell-rank-content,
-.encounter-runtime-spell-list,
 .encounter-runtime-spell-details {
   display: grid;
   gap: 8px;
@@ -161,23 +176,11 @@
   margin-right: 0;
 }
 
-.encounter-runtime-spell.ant-collapse > .ant-collapse-item > .ant-collapse-header {
-  padding-block: 4px;
-}
-
-.encounter-runtime-spell.ant-collapse
-  > .ant-collapse-item
-  > .ant-collapse-content
-  > .ant-collapse-content-box {
-  padding: 4px 0 10px 28px;
-}
-
-.encounter-runtime-spell-summary {
-  align-items: flex-start;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  padding-block: 4px;
+.encounter-runtime-spell {
+  align-items: baseline;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .encounter-runtime-spell-state,
@@ -186,31 +189,31 @@
 }
 
 .encounter-runtime-spell-controls {
-  align-items: flex-end;
-  display: grid;
-  flex: 0 0 auto;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  justify-items: end;
-  max-width: 240px;
 }
 
 .encounter-runtime-spell-blocked {
   font-size: 11px;
-  text-align: right;
 }
 
 .encounter-runtime-spell-result {
-  max-width: 240px;
-  text-align: left;
+  color: var(--muted);
+  margin: 0;
 }
 
-.encounter-runtime-spell-result .ant-alert-message,
-.encounter-runtime-spell-result .ant-alert-description {
-  font-size: 11px;
+.encounter-runtime-spell-availability {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
 }
 
-.encounter-participant-reset-result {
-  margin-bottom: 10px;
+.encounter-runtime-spell-availability small {
+  color: var(--muted);
 }
 
 .encounter-runtime-adjustment-links {

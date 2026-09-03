@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import { Edit2 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -19,6 +19,8 @@ import {
 } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
+  EncounterParticipantPreservedDomainView,
+  EncounterParticipantResetDomainView,
   EncounterParticipantResetResultView,
   EncounterSpellCastRequest,
   EncounterSpellCastResultView,
@@ -45,14 +47,13 @@ const ENCOUNTER_WIDTH_SPECS = {
 
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   const queryClient = useQueryClient();
+  const [messageApi, messageContext] = message.useMessage();
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
   const [spellCastResult, setSpellCastResult] =
     useState<EncounterSpellCastResultView | null>(null);
-  const [resetResult, setResetResult] =
-    useState<EncounterParticipantResetResultView | null>(null);
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -152,9 +153,18 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         confirmation: "reset_participant",
       }),
     onSuccess: async (result) => {
-      setResetResult(result);
       setSpellCastResult(null);
+      messageApi.success({
+        content: resetResultMessage(result),
+        duration: 4,
+      });
       await invalidateEncounter();
+    },
+    onError: (error) => {
+      messageApi.error({
+        content: `Creature reset failed: ${resetErrorMessage(error)}`,
+        duration: 0,
+      });
     },
   });
   const encounterSummary = encounter.data?.encounter ?? null;
@@ -174,6 +184,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
 
   return (
     <>
+      {messageContext}
       <section className="encounter-detail-header">
         <div>
           <h2>{encounterSummary?.name ?? route.slug}</h2>
@@ -249,11 +260,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
               updateCondition.mutate({ participantKey, condition })
             }
             participant={selected}
-            resetResult={
-              resetResult?.participant_key === selected?.participant_key
-                ? resetResult
-                : null
-            }
             spellCastResult={
               spellCastResult?.participant_key === selected?.participant_key
                 ? spellCastResult
@@ -304,4 +310,48 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       )}
     </>
   );
+}
+
+function resetResultMessage(result: EncounterParticipantResetResultView): string {
+  const reset = result.reset_domains.map(resetDomainLabel).join(", ");
+  const preserved = result.preserved_domains.map(preservedDomainLabel).join(", ");
+  return `Creature reset. Restored ${reset}; preserved ${preserved}.`;
+}
+
+function resetErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "appError" in error) {
+    const appError = error.appError;
+    if (
+      appError &&
+      typeof appError === "object" &&
+      "message" in appError &&
+      typeof appError.message === "string"
+    ) {
+      return appError.message;
+    }
+  }
+  return error instanceof Error ? error.message : "Try again or reload the encounter.";
+}
+
+function resetDomainLabel(domain: EncounterParticipantResetDomainView): string {
+  const labels: Record<EncounterParticipantResetDomainView, string> = {
+    hit_points: "HP",
+    defeated: "defeated state",
+    conditions: "conditions",
+    initiative_turn_state: "turn state",
+    variant_adjustments: "variant",
+    action_budget: "actions",
+    spell_resources: "spell resources",
+  };
+  return labels[domain];
+}
+
+function preservedDomainLabel(domain: EncounterParticipantPreservedDomainView): string {
+  const labels: Record<EncounterParticipantPreservedDomainView, string> = {
+    display_name: "name",
+    notes: "notes",
+    visibility: "visibility",
+    side: "side",
+  };
+  return labels[domain];
 }
