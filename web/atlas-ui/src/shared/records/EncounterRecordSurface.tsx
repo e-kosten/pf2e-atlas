@@ -33,11 +33,11 @@ import {
 import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
 import {
   narrativeContent,
-  RecordReference,
   RichContent,
   type ReferenceHandler,
 } from "./RecordRichContent";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
+import { SpellPreviewPopover } from "./SpellOccurrencePreviewPopover";
 
 export type EncounterRecordSurfaceSlots = {
   conditions?: React.ReactNode;
@@ -86,9 +86,14 @@ export function EncounterParticipantSurface({
         <SurfaceSection className="record-surface-card--vitals" title="Vitals">
           {slots.vitals ?? <RuntimeVitals runtime={runtime} />}
         </SurfaceSection>
-        <SurfaceSection className="record-surface-card--conditions" title="Conditions">
-          {slots.conditions ?? <RuntimeConditions runtime={runtime} />}
-        </SurfaceSection>
+        {slots.conditions ?? (
+          <SurfaceSection
+            className="record-surface-card--conditions"
+            title="Conditions"
+          >
+            <RuntimeConditions runtime={runtime} />
+          </SurfaceSection>
+        )}
       </div>
       <div className="record-surface-structured__grid">
         <div className="record-surface-structured__column">
@@ -96,6 +101,7 @@ export function EncounterParticipantSurface({
           <RuntimeActionBudget runtime={runtime} />
           <RuntimeMovement runtime={runtime} />
           <RuntimeSkills runtime={runtime} />
+          <RuntimeCommunication body={body} />
           {slots.notes && (
             <SurfaceSection title="Participant Note">{slots.notes}</SurfaceSection>
           )}
@@ -232,19 +238,25 @@ function RuntimeActionBudget({
   return (
     <SurfaceSection title="Turn Economy">
       <dl className="creature-sheet__stat-list">
-        <RuntimeCountFact value={budget.actions} />
-        <RuntimeCountFact value={budget.reactions} />
+        <div>
+          <dt>{budget.actions.label}</dt>
+          <dd>{budget.actions.adjusted_value}</dd>
+        </div>
+        <div>
+          <dt>{budget.reactions.label}</dt>
+          <dd>{budget.reactions.adjusted_value}</dd>
+        </div>
       </dl>
       <div className="encounter-action-capabilities">
-        <Tag>{budget.can_act.available ? "Can act" : "Cannot act"}</Tag>
-        <Tag>{budget.can_react.available ? "Can react" : "Cannot react"}</Tag>
+        <div className="encounter-action-capability">
+          <Tag>{budget.can_act.available ? "Can act" : "Cannot act"}</Tag>
+          {budget.can_act.reason ? <small>{budget.can_act.reason}</small> : null}
+        </div>
+        <div className="encounter-action-capability">
+          <Tag>{budget.can_react.available ? "Can react" : "Cannot react"}</Tag>
+          {budget.can_react.reason ? <small>{budget.can_react.reason}</small> : null}
+        </div>
       </div>
-      {(budget.can_act.reason || budget.can_react.reason) && (
-        <ul className="encounter-runtime-notes">
-          {budget.can_act.reason && <li>{budget.can_act.reason}</li>}
-          {budget.can_react.reason && <li>{budget.can_react.reason}</li>}
-        </ul>
-      )}
       <RuntimeNotes notes={budget.notes} />
     </SurfaceSection>
   );
@@ -307,24 +319,70 @@ function RuntimeMovement({ runtime }: { runtime: EncounterRuntimeView | undefine
 
 function RuntimeSkills({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
   if (!runtime?.skills?.length) return null;
-  const items: RecordKeyValueItem[] = runtime.skills.map((skill) => ({
-    key: skill.skill_id,
-    label: skill.label,
-    value: (
-      <RuntimeAdjustedValue
-        adjustments={skill.modifier.modifiers}
-        adjusted={skill.modifier.adjusted_value}
-        base={skill.modifier.base_value}
-        label={skill.label}
-        provenance={skill.modifier.provenance}
-        signed
-        suppressedAdjustments={skill.modifier.suppressed_modifiers}
-      />
-    ),
-  }));
   return (
-    <SurfaceSection title="Skills">
-      <RecordKeyValueList ariaLabel="Skills" items={items} />
+    <SurfaceSection className="creature-sheet__panel--skills" title="Skills">
+      <ul aria-label="Skills" className="creature-sheet__skill-grid">
+        {runtime.skills.map((skill) => (
+          <li className="creature-sheet__skill-cell" key={skill.skill_id}>
+            <div className="creature-sheet__skill-heading">
+              <span>{skill.label}</span>
+              <strong>
+                <RuntimeAdjustedValue
+                  adjustments={skill.modifier.modifiers}
+                  adjusted={skill.modifier.adjusted_value}
+                  base={skill.modifier.base_value}
+                  label={skill.label}
+                  provenance={skill.modifier.provenance}
+                  signed
+                  suppressedAdjustments={skill.modifier.suppressed_modifiers}
+                />
+              </strong>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </SurfaceSection>
+  );
+}
+
+function RuntimeCommunication({ body }: { body: CreatureSurfaceView }) {
+  const awareness = body.awareness;
+  const languages = awareness?.languages ?? [];
+  const items: RecordKeyValueItem[] = [];
+  if (languages.length) {
+    items.push({
+      key: "languages",
+      label: "Languages",
+      value: (
+        <ul aria-label="Languages" className="creature-sheet__compact-multi-value-list">
+          {languages.map((language, index) => (
+            <li
+              className="creature-sheet__compact-multi-value-item"
+              key={`${language}:${index}`}
+            >
+              <span>{formatSlug(language)}</span>
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+  if (awareness?.language_details) {
+    items.push({
+      key: "language-details",
+      label: "Details",
+      rowClassName: "creature-sheet__fact-group-note",
+      value: awareness.language_details,
+    });
+  }
+  if (!items.length) return null;
+  return (
+    <SurfaceSection title="Languages & communication">
+      <RecordKeyValueList
+        ariaLabel="Languages and communication"
+        className="creature-sheet__fact-group-rows"
+        items={items}
+      />
     </SurfaceSection>
   );
 }
@@ -460,15 +518,14 @@ function RuntimeSpellcasting({
                 {
                   key: "standalone",
                   label: <strong>Standalone Spells</strong>,
-                  children: standalone.map((spell) => (
-                    <RuntimeSpell
-                      key={spell.occurrence_id}
+                  children: (
+                    <RuntimeSpellGroup
                       onReference={onReference}
                       onSpellCast={onSpellCast}
-                      spell={spell}
+                      spells={standalone}
                       spellCastResult={spellCastResult}
                     />
-                  )),
+                  ),
                 },
               ]
             : []),
@@ -531,21 +588,51 @@ function RuntimeSpellRoster({
                   {slot.adjusted_value === 1 ? "" : "s"}
                 </span>
               )}
-              <div className="encounter-runtime-spell-list">
-                {spells.map((spell) => (
-                  <RuntimeSpell
-                    key={spell.occurrence_id}
-                    onReference={onReference}
-                    onSpellCast={onSpellCast}
-                    spell={spell}
-                    spellCastResult={spellCastResult}
-                  />
-                ))}
-              </div>
+              <RuntimeSpellGroup
+                onReference={onReference}
+                onSpellCast={onSpellCast}
+                spells={spells}
+                spellCastResult={spellCastResult}
+              />
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function RuntimeSpellGroup({
+  onReference,
+  onSpellCast,
+  spells,
+  spellCastResult,
+}: {
+  onReference: ReferenceHandler;
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
+  spells: EncounterRuntimeSpellView[];
+  spellCastResult?: EncounterSpellCastResultView;
+}) {
+  return (
+    <div className="creature-sheet__spell-links">
+      {spells.map((spell, index) => (
+        <span
+          className="creature-sheet__spell-link encounter-runtime-spell"
+          key={spell.occurrence_id}
+        >
+          <RuntimeSpell
+            onReference={onReference}
+            onSpellCast={onSpellCast}
+            spell={spell}
+            spellCastResult={spellCastResult}
+          />
+          {index < spells.length - 1 ? (
+            <span aria-hidden="true" className="creature-sheet__spell-separator">
+              ,
+            </span>
+          ) : null}
+        </span>
+      ))}
     </div>
   );
 }
@@ -568,77 +655,53 @@ function RuntimeSpell({
       ? formatRuntimeActionCost(spell.activity.action_cost.value)
       : undefined,
   ].filter((value): value is string => Boolean(value));
-  const details = (
-    <div className="encounter-runtime-spell-details">
-      {spell.target_record_key && (
-        <RecordReference
-          label="Open full spell record"
-          onReference={onReference}
-          recordKey={spell.target_record_key}
-        />
-      )}
-      {spell.activity && <RuntimeActivityDetails activity={spell.activity} />}
-      {spell.content?.map((document) => (
-        <RichContent
-          content={document}
-          key={document.content_key}
-          onReference={onReference}
-        />
-      ))}
-    </div>
-  );
-  const heading = (
-    <span className="creature-sheet__spell-heading">
-      <strong>{spell.label}</strong>
-      {metadata.length > 0 && <small>{metadata.join(" · ")}</small>}
+  const result =
+    spellCastResult?.spell_occurrence_id === spell.occurrence_id
+      ? spellCastResult
+      : undefined;
+  return (
+    <>
+      <SpellPreviewPopover
+        actions={<RuntimeSpellControls onSpellCast={onSpellCast} spell={spell} />}
+        label={spell.label}
+        metadata={metadata.join(" · ")}
+        onOpenSpellRecord={onReference}
+        previewContent={
+          <div className="encounter-runtime-spell-details">
+            <p className="encounter-runtime-spell-availability">
+              <strong>{spellCastStateLabel(spell.cast)}</strong>
+            </p>
+            {result ? (
+              <p className="encounter-runtime-spell-result" role="status">
+                {result.operation === "cast_one" ? "Spell cast" : "Use restored"}:{" "}
+                {spellCastStateLabel(result.after)}
+              </p>
+            ) : null}
+            {spell.activity && <RuntimeActivityDetails activity={spell.activity} />}
+            {spell.content?.map((document) => (
+              <RichContent
+                content={document}
+                key={document.content_key}
+                onReference={onReference}
+              />
+            ))}
+          </div>
+        }
+        targetRecordKey={spell.target_record_key}
+      />
       <small className="encounter-runtime-spell-state">
         {spellCastStateLabel(spell.cast)}
       </small>
-    </span>
-  );
-  const controls = (
-    <RuntimeSpellControls
-      onSpellCast={onSpellCast}
-      spell={spell}
-      spellCastResult={spellCastResult}
-    />
-  );
-  if (!spell.target_record_key && !spell.activity && !spell.content?.length) {
-    return (
-      <div className="encounter-runtime-spell">
-        <div className="encounter-runtime-spell-summary">
-          {heading}
-          {controls}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <Collapse
-      className="encounter-runtime-spell"
-      destroyOnHidden
-      ghost
-      items={[
-        {
-          key: spell.occurrence_id,
-          label: heading,
-          extra: controls,
-          children: details,
-        },
-      ]}
-      size="small"
-    />
+    </>
   );
 }
 
 function RuntimeSpellControls({
   onSpellCast,
   spell,
-  spellCastResult,
 }: {
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   spell: EncounterRuntimeSpellView;
-  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const target = spell.cast.spend_target;
   const blockedReason = spell.cast.blocked_reason
@@ -658,10 +721,6 @@ function RuntimeSpellControls({
       : tracked && tracked.remaining >= tracked.initial_remaining
         ? "Already at the creation baseline"
         : undefined;
-  const result =
-    spellCastResult?.spell_occurrence_id === spell.occurrence_id
-      ? spellCastResult
-      : undefined;
   const mutate = (operation: EncounterSpellCastRequest["operation"]) => {
     if (!onSpellCast || !target) return;
     onSpellCast({
@@ -703,15 +762,6 @@ function RuntimeSpellControls({
       </Space>
       {blockedReason && (
         <small className="encounter-runtime-spell-blocked">{blockedReason}</small>
-      )}
-      {result && (
-        <Alert
-          className="encounter-runtime-spell-result"
-          description={spellCastStateLabel(result.after)}
-          message={result.operation === "cast_one" ? "Spell cast" : "Use restored"}
-          showIcon
-          type="success"
-        />
       )}
     </div>
   );
@@ -822,8 +872,6 @@ function RuntimeCanonicalContext({ body }: { body: CreatureSurfaceView }) {
     contextItem("will-note", "Will", saves?.will?.details),
     contextItem("perception-note", "Perception", awareness?.details),
     contextItem("senses", "Senses", awareness?.senses?.map(formatSense).join(", ")),
-    contextItem("languages", "Languages", awareness?.languages?.join(", ")),
-    contextItem("language-notes", "Language notes", awareness?.language_details),
   ].filter((item): item is RecordKeyValueItem => item !== null);
   if (!items.length) return null;
   return (
@@ -849,17 +897,6 @@ function RuntimeNumberFact({
       <dt>{label ?? value.label}</dt>
       <dd>
         <RuntimeNumberValue label={label} signed={signed} value={value} />
-      </dd>
-    </div>
-  );
-}
-
-function RuntimeCountFact({ value }: { value: RuntimeCountView }) {
-  return (
-    <div>
-      <dt>{value.label}</dt>
-      <dd>
-        <RuntimeCountValue value={value} />
       </dd>
     </div>
   );

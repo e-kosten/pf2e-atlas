@@ -76,7 +76,7 @@ export function EncounterConditionControls({
   };
 
   return (
-    <section className="encounter-conditions">
+    <section className="creature-sheet__panel record-surface-card--conditions encounter-conditions">
       <div className="encounter-conditions__header">
         <h3>Conditions</h3>
         <Button

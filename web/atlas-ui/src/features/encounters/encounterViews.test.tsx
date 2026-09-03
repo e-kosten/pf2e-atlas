@@ -261,6 +261,16 @@ describe("encounter views", () => {
     });
 
     await screen.findByText("Turn Economy");
+    expect(screen.getAllByRole("heading", { name: "Conditions" })).toHaveLength(1);
+    const conditionsPanel = screen
+      .getByRole("heading", { name: "Conditions" })
+      .closest(".creature-sheet__panel");
+    if (!(conditionsPanel instanceof HTMLElement)) {
+      throw new Error("Conditions panel was not rendered");
+    }
+    expect(
+      within(conditionsPanel).getByRole("button", { name: "Add Condition" }),
+    ).toBeVisible();
     const runtimeSection = screen
       .getByText("Turn Economy")
       .closest(".creature-sheet__panel");
@@ -270,7 +280,11 @@ describe("encounter views", () => {
 
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("2")).toBeInTheDocument();
-    expect(within(runtimeSection).getByText(/base 3/)).toBeInTheDocument();
+    expect(
+      within(runtimeSection).queryByRole("button", {
+        name: "Actions adjustment details",
+      }),
+    ).not.toBeInTheDocument();
     expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
     const movementSection = screen
       .getByText("Movement")
@@ -370,13 +384,16 @@ describe("encounter views", () => {
     expect(screen.getByText("Elite variant")).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
-    fireEvent.click(screen.getByRole("button", { name: "Actions adjustment details" }));
-    expect(await screen.findByText("Actions details")).toBeInTheDocument();
-    expect(screen.getByText("Reduced actions regained -1")).toBeInTheDocument();
     expect(
-      screen.getByText(/Applied to the next action-regain step\./),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Base: 3")).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Actions adjustment details" }),
+    ).not.toBeInTheDocument();
+    const turnEconomy = screen
+      .getByRole("heading", { name: "Turn Economy" })
+      .closest(".creature-sheet__panel");
+    if (!(turnEconomy instanceof HTMLElement)) {
+      throw new Error("Turn economy panel was not rendered");
+    }
+    expect(within(turnEconomy).getByText("2")).toBeInTheDocument();
   }, 15_000);
 
   it("commits participant notes from the visible semantic note section", async () => {
@@ -482,7 +499,6 @@ describe("encounter views", () => {
         onUpdateCondition={vi.fn()}
         participant={participant}
         participants={detail.participants}
-        resetResult={null}
         spellCastResult={null}
       />,
       { wrapper: queryClientWrapper() },
@@ -510,7 +526,7 @@ describe("encounter views", () => {
     );
   });
 
-  it("keeps legacy participants reset-unavailable without inventing a baseline", () => {
+  it("hides reset for legacy participants without inventing a baseline", () => {
     const detail = encounterDetailFixture();
     const participant = {
       ...detail.participants[0],
@@ -532,19 +548,18 @@ describe("encounter views", () => {
         onUpdateCondition={vi.fn()}
         participant={participant}
         participants={[participant, detail.participants[1]]}
-        resetResult={null}
         spellCastResult={null}
       />,
       { wrapper: queryClientWrapper() },
     );
 
     expect(
-      screen.getByRole("button", { name: `Reset ${participant.display_name}` }),
-    ).toBeDisabled();
-    expect(screen.getByText("Reset unavailable: no creation baseline")).toBeVisible();
+      screen.queryByRole("button", { name: `Reset ${participant.display_name}` }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/creation baseline available/i)).not.toBeInTheDocument();
   });
 
-  it("invokes typed reset and reports restored and preserved domains", async () => {
+  it("invokes typed reset and reports returned domains in a transient message", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -562,23 +577,51 @@ describe("encounter views", () => {
         { confirmation: "reset_participant" },
       ),
     );
+    const resetMessage = await screen.findByText(
+      "Creature reset. Restored HP, defeated state, conditions, turn state, variant, actions, spell resources; preserved name, notes, visibility, side.",
+    );
+    expect(resetMessage).toBeVisible();
+    expect(resetMessage.closest(".ant-message-notice")).not.toBeNull();
+    expect(document.querySelector(".encounter-participant-reset-result")).toBeNull();
+  }, 15_000);
+
+  it("keeps reset failures actionable", async () => {
+    apiMocks.resetEncounterParticipant.mockRejectedValueOnce(
+      new Error("The participant no longer has a creation baseline."),
+    );
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Reset Goblin" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Reset creature",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.resetEncounterParticipant).toHaveBeenCalledTimes(1),
+    );
     expect(
-      await screen.findByText("Creature reset to its creation baseline"),
+      await screen.findByText(
+        "Creature reset failed: The participant no longer has a creation baseline.",
+      ),
     ).toBeVisible();
-    expect(
-      screen.getByText(/Restored: HP, maximum HP, and temporary HP/),
-    ).toHaveTextContent("Preserved: custom name, notes, visibility, side");
-    expect(screen.getByText(/Current turn was cleared/)).toBeVisible();
-  });
+  }, 15_000);
 
   it("casts an encounter spell through its typed occurrence and target", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByText("Spellcasting"));
     fireEvent.click(await screen.findByText("Innate Spells"));
-    fireEvent.click(await screen.findByRole("button", { name: "Cast Linked Rule" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Linked Rule" }));
+    const preview = await screen.findByRole("dialog", {
+      name: "Linked Rule spell details",
+    });
+    expect(within(preview).getByText("1st")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cast Linked Rule" }));
 
     await waitFor(() =>
       expect(apiMocks.mutateEncounterSpellCast).toHaveBeenCalledWith(
@@ -591,69 +634,47 @@ describe("encounter views", () => {
         },
       ),
     );
-    expect(await screen.findByText("Spell cast")).toBeVisible();
     expect(screen.getAllByText("At will")).not.toHaveLength(0);
-  });
+  }, 15_000);
 
-  it("opens and dismisses linked record previews inside the encounter record pane", async () => {
+  it("opens and dismisses the accepted spell preview inside the encounter pane", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
-    expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
-    fireEvent.click(await screen.findByText("Spellcasting"));
     fireEvent.click(await screen.findByText("Innate Spells"));
-    const linkedRuleDisclosure = await screen.findByRole("button", {
-      name: /Linked Rule.*1st/,
+    const linkedRule = await screen.findByRole("link", {
+      name: "Linked Rule",
     });
-    fireEvent.click(linkedRuleDisclosure);
-    const linkedRuleLink = await screen.findByRole("link", {
-      name: "Open full spell record",
+    fireEvent.click(linkedRule);
+    const spellPreview = await screen.findByRole("dialog", {
+      name: "Linked Rule spell details",
     });
-    if (!linkedRuleLink) {
-      throw new Error("Linked Rule link was not rendered");
-    }
-    fireEvent.click(linkedRuleLink);
-
+    expect(within(spellPreview).getByText("1st")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open spell record" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close spell preview" }));
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+      expect(
+        screen.queryByRole("dialog", { name: "Linked Rule spell details" }),
+      ).not.toBeInTheDocument(),
     );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    await waitFor(() => expect(linkedRule).toHaveFocus());
 
+    fireEvent.click(linkedRule);
+    expect(
+      await screen.findByRole("dialog", { name: "Linked Rule spell details" }),
+    ).toBeInTheDocument();
     const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
     if (!kyraRow) {
       throw new Error("Kyra roster row was not rendered");
     }
     fireEvent.click(kyraRow);
     await waitFor(() =>
-      expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
-    );
-
-    fireEvent.click(await screen.findByText("Goblin"));
-    expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
-    fireEvent.click(await screen.findByText("Spellcasting"));
-    fireEvent.click(await screen.findByText("Innate Spells"));
-    const linkedRuleDisclosureAfterReselect = await screen.findByRole("button", {
-      name: /Linked Rule.*1st/,
-    });
-    if (linkedRuleDisclosureAfterReselect.getAttribute("aria-expanded") === "false") {
-      fireEvent.click(linkedRuleDisclosureAfterReselect);
-    }
-    const linkedRuleLinkAfterReselect = await screen.findByRole("link", {
-      name: "Open full spell record",
-    });
-    if (!linkedRuleLinkAfterReselect) {
-      throw new Error("Linked Rule link was not rendered after reselection");
-    }
-    fireEvent.click(linkedRuleLinkAfterReselect);
-    await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
-    );
-
-    fireEvent.mouseDown(document.body);
-
-    await waitFor(() =>
-      expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByRole("dialog", { name: "Linked Rule spell details" }),
+      ).not.toBeInTheDocument(),
     );
   }, 15_000);
 

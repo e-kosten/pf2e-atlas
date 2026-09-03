@@ -1,5 +1,6 @@
 import { Button, Typography } from "antd";
 import { X } from "lucide-react";
+import type React from "react";
 import type { CreatureSurfaceSpellView } from "../../generated/atlas";
 import { PreviewPopover, usePreviewPopoverClose } from "../ui/overlays/PreviewPopover";
 import { RecordPreviewActions } from "./RecordPreviewActions";
@@ -28,41 +29,73 @@ export function SpellOccurrencePreviewPopover({
   ].join(" · ");
 
   return (
+    <SpellPreviewPopover
+      label={spell.label}
+      metadata={metadata}
+      onOpenSpellRecord={onOpenSpellRecord}
+      previewContent={content.map((document) => (
+        <RichContent
+          content={document}
+          key={document.content_key}
+          onReference={onReference}
+        />
+      ))}
+      targetRecordKey={target}
+    />
+  );
+}
+
+export function SpellPreviewPopover({
+  actions,
+  label,
+  metadata,
+  onOpenSpellRecord,
+  previewContent,
+  targetRecordKey,
+}: {
+  actions?: React.ReactNode;
+  label: string;
+  metadata?: string;
+  onOpenSpellRecord: (recordKey: string) => void;
+  previewContent?: React.ReactNode;
+  targetRecordKey?: string;
+}) {
+  return (
     <PreviewPopover
       actions={
-        target ? (
-          <SpellPopoverActions onOpenSpellRecord={() => onOpenSpellRecord(target)} />
+        targetRecordKey ? (
+          <SpellPopoverActions
+            onOpenSpellRecord={() => onOpenSpellRecord(targetRecordKey)}
+          >
+            {actions}
+          </SpellPopoverActions>
         ) : (
-          <TargetlessSpellPopoverActions />
+          <TargetlessSpellPopoverActions>{actions}</TargetlessSpellPopoverActions>
         )
       }
-      ariaLabel={`${spell.label} spell details`}
+      ariaLabel={`${label} spell details`}
       content={
         <RecordPreviewContext.Provider value={null}>
           <div className="creature-sheet__standalone-spell">
-            <span className="creature-sheet__spell-heading">
-              <small>{metadata}</small>
-            </span>
-            {content.map((document) => (
-              <RichContent
-                content={document}
-                key={document.content_key}
-                onReference={onReference}
-              />
-            ))}
+            {metadata ? (
+              <span className="creature-sheet__spell-heading">
+                <small>{metadata}</small>
+              </span>
+            ) : null}
+            {previewContent}
           </div>
         </RecordPreviewContext.Provider>
       }
-      title={spell.label}
+      title={label}
     >
       {(open) =>
-        target ? (
+        targetRecordKey ? (
           <Typography.Link
             aria-expanded={open}
             aria-haspopup="dialog"
-            href={`/records/${encodeURIComponent(target)}`}
+            href={`/records/${encodeURIComponent(targetRecordKey)}`}
           >
-            {spell.label}
+            {label}
           </Typography.Link>
         ) : (
           <Button
@@ -72,7 +105,7 @@ export function SpellOccurrencePreviewPopover({
             size="small"
             type="link"
           >
-            {spell.label}
+            {label}
           </Button>
         )
       }
@@ -80,15 +113,18 @@ export function SpellOccurrencePreviewPopover({
   );
 }
 
-function TargetlessSpellPopoverActions() {
+function TargetlessSpellPopoverActions({ children }: { children?: React.ReactNode }) {
   const close = usePreviewPopoverClose();
   return (
-    <Button
-      aria-label="Close spell preview"
-      icon={<X size={14} />}
-      onClick={close}
-      size="small"
-    />
+    <div className="preview-popover__actions">
+      {children}
+      <Button
+        aria-label="Close spell preview"
+        icon={<X size={14} />}
+        onClick={close}
+        size="small"
+      />
+    </div>
   );
 }
 
@@ -104,7 +140,13 @@ function spellContext(spell: CreatureSurfaceSpellView) {
   ].filter((detail): detail is string => Boolean(detail));
 }
 
-function SpellPopoverActions({ onOpenSpellRecord }: { onOpenSpellRecord: () => void }) {
+function SpellPopoverActions({
+  children,
+  onOpenSpellRecord,
+}: {
+  children?: React.ReactNode;
+  onOpenSpellRecord: () => void;
+}) {
   const close = usePreviewPopoverClose();
   return (
     <RecordPreviewActions
@@ -115,6 +157,8 @@ function SpellPopoverActions({ onOpenSpellRecord }: { onOpenSpellRecord: () => v
         onOpenSpellRecord();
       }}
       openLabel="Open spell record"
-    />
+    >
+      {children}
+    </RecordPreviewActions>
   );
 }

@@ -1,11 +1,8 @@
-import { Alert, Button, Form, Input, Select, Tag } from "antd";
+import { Button, Form, Input, Select, Tag } from "antd";
 import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
-  EncounterParticipantPreservedDomainView,
-  EncounterParticipantResetDomainView,
-  EncounterParticipantResetResultView,
   EncounterParticipantVariantView,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
@@ -25,7 +22,6 @@ import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
-
 export function EncounterInspectorPane({
   onOpenRecordFullPage,
   onAddCondition,
@@ -36,7 +32,6 @@ export function EncounterInspectorPane({
   onUpdate,
   participant,
   participants,
-  resetResult,
   spellCastResult,
   conditionDefinitions,
   currentTurnParticipantKey,
@@ -53,7 +48,6 @@ export function EncounterInspectorPane({
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
-  resetResult: EncounterParticipantResetResultView | null;
   spellCastResult: EncounterSpellCastResultView | null;
   conditionDefinitions: EncounterConditionDefinitionView[];
   currentTurnParticipantKey: string | null;
@@ -80,7 +74,6 @@ export function EncounterInspectorPane({
             onUpdateCondition={onUpdateCondition}
             participant={participant}
             participants={participants}
-            resetResult={resetResult}
             spellCastResult={spellCastResult}
           />
         </RecordPreviewScope>
@@ -119,7 +112,6 @@ function EncounterParticipantSurface({
   onUpdateCondition,
   participant,
   participants,
-  resetResult,
   spellCastResult,
   currentTurnParticipantKey,
 }: {
@@ -136,7 +128,6 @@ function EncounterParticipantSurface({
   ) => void;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
-  resetResult: EncounterParticipantResetResultView | null;
   spellCastResult: EncounterSpellCastResultView | null;
   currentTurnParticipantKey: string | null;
 }) {
@@ -169,14 +160,11 @@ function EncounterParticipantSurface({
       surface={surface}
       slots={{
         header: (
-          <>
-            {resetResult && <ParticipantResetResult result={resetResult} />}
-            <ParticipantEditStrip
-              currentTurn={activeCurrent.participant_key === currentTurnParticipantKey}
-              participant={activeCurrent}
-              onUpdate={updateParticipant}
-            />
-          </>
+          <ParticipantEditStrip
+            currentTurn={activeCurrent.participant_key === currentTurnParticipantKey}
+            participant={activeCurrent}
+            onUpdate={updateParticipant}
+          />
         ),
         header_actions: (
           <div className="encounter-participant-header-actions">
@@ -222,74 +210,22 @@ function ParticipantResetControl({
   onReset: () => void;
   participant: EncounterParticipantView;
 }) {
-  if (participant.participant_kind !== "creature") {
+  if (participant.participant_kind !== "creature" || !participant.reset.available) {
     return null;
   }
-  const resetUnavailable = !participant.reset.available;
-  const availabilityLabel = resetUnavailable
-    ? "Reset unavailable: no creation baseline"
-    : "Creation baseline available";
   return (
-    <div className="encounter-participant-reset-control">
-      <DangerActionButton
-        aria-label={`Reset ${participant.display_name}`}
-        confirmContent="This restores the creature's mechanical encounter state to its creation baseline, including hit points, defeated state, conditions, initiative and turn state, variant adjustments, action budget, spell use, focus, and resources. Custom name, notes, and visibility are preserved. This cannot be undone."
-        confirmOkText="Reset creature"
-        confirmTitle={`Reset ${participant.display_name}?`}
-        disabled={resetUnavailable}
-        icon={<RotateCcw size={14} />}
-        onConfirm={onReset}
-        size="small"
-        title={availabilityLabel}
-      >
-        Reset creature
-      </DangerActionButton>
-      <small>{availabilityLabel}</small>
-    </div>
+    <DangerActionButton
+      aria-label={`Reset ${participant.display_name}`}
+      confirmContent="This restores the creature's mechanical encounter state to its creation baseline, including hit points, defeated state, conditions, initiative and turn state, variant adjustments, action budget, spell use, focus, and resources. Custom name, notes, and visibility are preserved. This cannot be undone."
+      confirmOkText="Reset creature"
+      confirmTitle={`Reset ${participant.display_name}?`}
+      icon={<RotateCcw size={14} />}
+      onConfirm={onReset}
+      size="small"
+    >
+      Reset creature
+    </DangerActionButton>
   );
-}
-
-function ParticipantResetResult({
-  result,
-}: {
-  result: EncounterParticipantResetResultView;
-}) {
-  const resetDomains = result.reset_domains.map(resetDomainLabel).join(", ");
-  const preservedDomains = result.preserved_domains
-    .map(preservedDomainLabel)
-    .join(", ");
-  return (
-    <Alert
-      className="encounter-participant-reset-result"
-      description={`Restored: ${resetDomains}. Preserved: ${preservedDomains}. Current turn ${result.cleared_current_turn ? "was cleared" : "was unchanged"}.`}
-      message="Creature reset to its creation baseline"
-      showIcon
-      type="success"
-    />
-  );
-}
-
-function resetDomainLabel(domain: EncounterParticipantResetDomainView): string {
-  const labels: Record<EncounterParticipantResetDomainView, string> = {
-    hit_points: "HP, maximum HP, and temporary HP",
-    defeated: "defeated state",
-    conditions: "conditions",
-    initiative_turn_state: "initiative and turn state",
-    variant_adjustments: "variant adjustments",
-    action_budget: "action budget",
-    spell_resources: "spell resources",
-  };
-  return labels[domain];
-}
-
-function preservedDomainLabel(domain: EncounterParticipantPreservedDomainView): string {
-  const labels: Record<EncounterParticipantPreservedDomainView, string> = {
-    display_name: "custom name",
-    notes: "notes",
-    visibility: "visibility",
-    side: "side",
-  };
-  return labels[domain];
 }
 
 function ParticipantVariantControl({
