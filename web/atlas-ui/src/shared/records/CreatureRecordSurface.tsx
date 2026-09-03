@@ -481,16 +481,13 @@ function ProfileAwarenessPanel({ body }: { body: CreatureSurfaceView }) {
   ].filter(isRecordKeyValueItem);
   if (!facts.length) return null;
   return (
-    <SurfaceSection
-      className="creature-sheet__panel--profile"
-      title="Profile & Awareness"
-    >
+    <section className="creature-sheet__panel creature-sheet__panel--profile">
       <RecordKeyValueList
-        ariaLabel="Creature profile and awareness"
+        ariaLabel="Creature profile facts"
         className="creature-sheet__compact-fact-grid"
         items={facts}
       />
-    </SurfaceSection>
+    </section>
   );
 }
 
