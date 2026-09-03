@@ -5,7 +5,6 @@ import type {
   CreatureSurfaceActivityView,
   CreatureSurfaceContentView,
   CreatureSurfaceIwrView,
-  CreatureSurfaceMovementView,
   CreatureSurfaceRelationshipView,
   CreatureSurfaceShieldView,
   CreatureSurfaceSkillPredicateView,
@@ -16,7 +15,7 @@ import type {
   RecordSurfaceMetadataView,
   RuntimeNumberView,
 } from "../../generated/atlas";
-import { ActionGlyph } from "./ActionGlyph";
+import { ActionGlyph, actionCostLabel } from "./ActionGlyph";
 import { DataAvailabilityDisclosure } from "./CreatureDataAvailability";
 import { contentLabel, RichContent, type ReferenceHandler } from "./RecordRichContent";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
@@ -38,9 +37,12 @@ export function CreatureDetailSurface({
   const standalone = body.standalone_spells ?? [];
   return (
     <article className="record-surface record-surface--record-detail">
-      <RecordHeader metadata={metadata} showTitle={showTitle} />
+      <RecordHeader
+        metadata={metadata}
+        onReference={onReference}
+        showTitle={showTitle}
+      />
       <EditionNotice metadata={metadata} onReference={onReference} />
-      <CreatureProfileFacts body={body} />
       <OverviewSection content={overview} onReference={onReference} />
       <div className="creature-sheet__facts-grid">
         <div className="creature-sheet__facts-column creature-sheet__facts-column--primary">
@@ -48,10 +50,7 @@ export function CreatureDetailSurface({
           <AbilitiesPanel body={body} />
         </div>
         <div className="creature-sheet__facts-column creature-sheet__facts-column--secondary">
-          <div className="creature-sheet__facts-summary">
-            <SensesLanguagesPanel body={body} />
-            <MovementPanel movement={body.movement} />
-          </div>
+          <ProfileAwarenessPanel body={body} />
           <SkillsPanel body={body} />
         </div>
       </div>
@@ -113,26 +112,6 @@ export function SearchCompactSurface({
   );
 }
 
-function CreatureProfileFacts({ body }: { body: CreatureSurfaceView }) {
-  const facts = [
-    body.size ? { label: "Size", value: formatSlug(body.size.value) } : null,
-    body.adjustment
-      ? { label: "Adjustment", value: formatSlug(body.adjustment.value) }
-      : null,
-    body.initiative
-      ? { label: "Initiative", value: formatSlug(body.initiative.statistic) }
-      : null,
-  ].filter((fact): fact is { label: string; value: string } => fact !== null);
-  if (!facts.length) return null;
-  return (
-    <dl aria-label="Creature profile" className="creature-sheet__profile-facts">
-      {facts.map((fact) => (
-        <Fact key={fact.label} label={fact.label} value={fact.value} />
-      ))}
-    </dl>
-  );
-}
-
 function EditionTag({ metadata }: { metadata: RecordSurfaceMetadataView }) {
   if (metadata.edition?.status !== "legacy") return null;
   return (
@@ -150,7 +129,7 @@ function EditionNotice({
   onReference: ReferenceHandler;
 }) {
   const edition = metadata.edition;
-  if (!edition) return null;
+  if (edition?.status !== "legacy") return null;
   const navigation = edition.counterparts.length ? (
     <Space className="creature-sheet__edition-navigation" size="small" wrap>
       {edition.counterparts.map((counterpart) => (
@@ -165,7 +144,6 @@ function EditionNotice({
       ))}
     </Space>
   ) : undefined;
-  if (edition.status !== "legacy") return navigation ?? null;
   return (
     <Alert
       action={navigation}
@@ -185,9 +163,11 @@ function counterpartActionLabel(counterpart: RecordSurfaceEditionCounterpartView
 
 export function RecordHeader({
   metadata,
+  onReference,
   showTitle = true,
 }: {
   metadata: RecordSurfaceMetadataView;
+  onReference?: ReferenceHandler;
   showTitle?: boolean;
 }) {
   return (
@@ -196,8 +176,44 @@ export function RecordHeader({
         {showTitle ? <h2>{metadata.title}</h2> : null}
         <IdentityMetadata metadata={metadata} />
         <TraitRow metadata={metadata} />
+        {onReference ? (
+          <RelatedEditionMetadata metadata={metadata} onReference={onReference} />
+        ) : null}
       </div>
     </header>
+  );
+}
+
+function RelatedEditionMetadata({
+  metadata,
+  onReference,
+}: {
+  metadata: RecordSurfaceMetadataView;
+  onReference: ReferenceHandler;
+}) {
+  const counterparts =
+    metadata.edition?.status === "remaster"
+      ? metadata.edition.counterparts.filter(
+          (counterpart) => counterpart.role === "legacy_counterpart",
+        )
+      : [];
+  if (!counterparts.length) return null;
+  return (
+    <div aria-label="Related edition" className="creature-sheet__related-edition">
+      <span>Related edition</span>
+      <Space size="small" wrap>
+        {counterparts.map((counterpart) => (
+          <Button
+            key={`${counterpart.role}:${counterpart.record_key}`}
+            onClick={() => onReference(counterpart.record_key)}
+            size="small"
+            type="link"
+          >
+            {counterpartActionLabel(counterpart)}
+          </Button>
+        ))}
+      </Space>
+    </div>
   );
 }
 
@@ -397,88 +413,171 @@ function ShieldDetails({ shield }: { shield: CreatureSurfaceShieldView | undefin
   );
 }
 
-function SensesLanguagesPanel({ body }: { body: CreatureSurfaceView }) {
+function ProfileAwarenessPanel({ body }: { body: CreatureSurfaceView }) {
   const awareness = body.awareness;
-  if (!awareness) return null;
-  const facts = [
-    recordKeyValue(
-      "senses",
-      "Senses",
-      awareness.senses
-        ?.map((sense) =>
-          [
-            formatSlug(sense.kind),
-            sense.acuity ? `(${formatSlug(sense.acuity)})` : "",
-            sense.range_feet === undefined ? "" : `${sense.range_feet} ft`,
-          ]
-            .filter(Boolean)
-            .join(" "),
-        )
+  const senses = (awareness?.senses ?? [])
+    .slice()
+    .sort((left, right) => left.authored_order - right.authored_order)
+    .map((sense, index) => ({
+      key: `${sense.component_id}:${index}`,
+      label: formatSlug(sense.kind),
+      qualifier: [
+        sense.acuity,
+        sense.range_feet === undefined ? undefined : `${sense.range_feet} feet`,
+      ]
+        .filter((value): value is string => value !== undefined)
         .join(", "),
+    }));
+  const languages: CompactMultiValueItem[] = (awareness?.languages ?? []).map(
+    (language, index) => ({
+      key: `${language}:${index}`,
+      label: formatSlug(language),
+    }),
+  );
+  const perceptionFacts = [
+    recordKeyValue(
+      "perception",
+      "Perception",
+      awareness?.perception === undefined
+        ? undefined
+        : formatSigned(awareness.perception),
     ),
-    recordKeyValue("languages", "Languages", awareness.languages?.join(", ")),
+    recordKeyValue("senses", "Senses", compactMultiValueList("Senses", senses)),
+    detailKeyValue("perception-details", awareness?.details),
   ].filter(isRecordKeyValueItem);
-  if (!facts.length && !awareness.details && !awareness.language_details) return null;
+  const languageFacts = [
+    recordKeyValue(
+      "languages",
+      "Languages",
+      compactMultiValueList("Languages", languages),
+    ),
+    detailKeyValue("language-details", awareness?.language_details),
+  ].filter(isRecordKeyValueItem);
+  const facts = [
+    recordKeyValue("size", "Size", body.size && formatSlug(body.size.value)),
+    recordKeyValue(
+      "adjustment",
+      "Adjustment",
+      body.adjustment && formatSlug(body.adjustment.value),
+    ),
+    recordKeyValue(
+      "initiative",
+      "Initiative",
+      body.initiative && formatSlug(body.initiative.statistic),
+    ),
+    recordKeyValue("movement", "Movement", movementValue(body.movement)),
+    factGroup(
+      "perception-and-senses",
+      "Perception & senses",
+      "Perception and senses",
+      perceptionFacts,
+    ),
+    factGroup(
+      "languages-and-communication",
+      "Languages & communication",
+      "Languages and communication",
+      languageFacts,
+    ),
+  ].filter(isRecordKeyValueItem);
+  if (!facts.length) return null;
   return (
     <SurfaceSection
-      className="creature-sheet__panel--senses"
-      title="Senses & Languages"
+      className="creature-sheet__panel--profile"
+      title="Profile & Awareness"
     >
-      {awareness.perception !== undefined ? (
-        <dl aria-label="Perception" className="creature-sheet__perception-stat">
-          <Fact label="Perception" signed value={awareness.perception} />
-        </dl>
-      ) : null}
-      <RecordKeyValueList ariaLabel="Senses and languages" items={facts} />
-      {awareness.details && (
-        <p className="creature-sheet__detail-note">{awareness.details}</p>
-      )}
-      {awareness.language_details && (
-        <p className="creature-sheet__detail-note">{awareness.language_details}</p>
-      )}
+      <RecordKeyValueList
+        ariaLabel="Creature profile and awareness"
+        className="creature-sheet__compact-fact-grid"
+        items={facts}
+      />
     </SurfaceSection>
   );
 }
 
-export function MovementPanel({
-  movement,
-}: {
-  movement: CreatureSurfaceMovementView[] | undefined;
-}) {
-  if (!movement?.length) return null;
-  const facts: RecordKeyValueItem[] = movement
-    .slice()
-    .sort((left, right) => left.authored_order - right.authored_order)
-    .map((entry, index) => ({
-      key: `${entry.component_id}:${index}`,
-      label: formatSlug(entry.label ?? entry.mode),
-      value: (
-        <span className="creature-sheet__movement-value">
-          <strong>
-            {entry.speed_feet === undefined ? "—" : `${entry.speed_feet} ft`}
-          </strong>
-          {entry.details && <small>{entry.details}</small>}
-        </span>
-      ),
-    }));
-  return (
-    <SurfaceSection className="creature-sheet__panel--movement" title="Movement">
-      <RecordKeyValueList ariaLabel="Movement speeds" items={facts} />
-    </SurfaceSection>
+function movementValue(movement: CreatureSurfaceView["movement"]) {
+  if (!movement?.length) return undefined;
+  return compactMultiValueList(
+    "Movement",
+    movement
+      .slice()
+      .sort((left, right) => left.authored_order - right.authored_order)
+      .map((entry, index) => ({
+        key: `${entry.component_id}:${index}`,
+        label: formatSlug(entry.label ?? entry.mode),
+        qualifier: [
+          entry.speed_feet === undefined ? undefined : `${entry.speed_feet} feet`,
+          entry.details,
+        ]
+          .filter((value): value is string => value !== undefined && value !== "")
+          .join(", "),
+      })),
   );
+}
+
+type CompactMultiValueItem = {
+  key: React.Key;
+  label: string;
+  qualifier?: string;
+};
+
+function compactMultiValueList(ariaLabel: string, items: CompactMultiValueItem[]) {
+  if (!items.length) return undefined;
+  return (
+    <ul aria-label={ariaLabel} className="creature-sheet__compact-multi-value-list">
+      {items.map((item) => (
+        <li className="creature-sheet__compact-multi-value-item" key={item.key}>
+          <span>{item.label}</span>
+          {item.qualifier ? (
+            <>
+              <span aria-hidden="true" className="creature-sheet__value-dash">
+                —
+              </span>
+              <small>{item.qualifier}</small>
+            </>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function detailKeyValue(key: React.Key, value: string | undefined) {
+  const item = recordKeyValue(key, "Details", value);
+  return item ? { ...item, rowClassName: "creature-sheet__fact-group-note" } : null;
+}
+
+function factGroup(
+  key: React.Key,
+  label: string,
+  ariaLabel: string,
+  items: RecordKeyValueItem[],
+) {
+  if (!items.length) return null;
+  return {
+    key,
+    label,
+    rowClassName: "creature-sheet__fact-group",
+    value: (
+      <RecordKeyValueList
+        ariaLabel={ariaLabel}
+        className="creature-sheet__fact-group-rows"
+        items={items}
+      />
+    ),
+  } satisfies RecordKeyValueItem;
 }
 
 function SkillsPanel({ body }: { body: CreatureSurfaceView }) {
   if (!body.skills?.length) return null;
   return (
     <SurfaceSection className="creature-sheet__panel--skills" title="Skills">
-      <div className="creature-sheet__skill-list">
+      <ul aria-label="Skills" className="creature-sheet__skill-grid">
         {body.skills
           .slice()
           .sort((left, right) => left.authored_order - right.authored_order)
           .map((skill) => (
-            <article
-              className="creature-sheet__skill"
+            <li
+              className="creature-sheet__skill-cell"
               key={`${skill.component_id}:${skill.authored_order}`}
             >
               <div className="creature-sheet__skill-heading">
@@ -495,10 +594,12 @@ function SkillsPanel({ body }: { body: CreatureSurfaceView }) {
                     .sort((left, right) => left.authored_order - right.authored_order)
                     .map((variant) => (
                       <li key={`${variant.component_id}:${variant.authored_order}`}>
-                        <span>{variant.label ?? "Variant"}</span>
-                        {variant.modifier === undefined ? null : (
-                          <strong>{formatSigned(variant.modifier)}</strong>
-                        )}
+                        <span>
+                          {variant.label ?? "Variant"}
+                          {variant.modifier === undefined ? null : (
+                            <strong>{formatSigned(variant.modifier)}</strong>
+                          )}
+                        </span>
                         {variant.predicates?.length ? (
                           <small>
                             {variant.predicates.map(formatSkillPredicate).join("; ")}
@@ -508,22 +609,9 @@ function SkillsPanel({ body }: { body: CreatureSurfaceView }) {
                     ))}
                 </ul>
               ) : null}
-              {skill.source_entries?.length ? (
-                <div className="creature-sheet__skill-source">
-                  <span>Source key</span>
-                  {skill.source_entries
-                    .slice()
-                    .sort((left, right) => left.authored_order - right.authored_order)
-                    .map((entry) => (
-                      <code key={`${entry.authored_order}:${entry.authored_key}`}>
-                        {entry.authored_key}
-                      </code>
-                    ))}
-                </div>
-              ) : null}
-            </article>
+            </li>
           ))}
-      </div>
+      </ul>
     </SurfaceSection>
   );
 }
@@ -629,35 +717,57 @@ function StaticActivity({
   onReference: ReferenceHandler;
 }) {
   const content = activity.content ?? [];
-  const summary = <ActivitySummary activity={activity} />;
+  const heading = <ActivityHeading activity={activity} />;
   return content.length ? (
     <Collapse
       className="creature-sheet__activity creature-sheet__activity--expandable"
+      defaultActiveKey={[activity.occurrence_id]}
       expandIcon={disclosureExpandIcon}
       ghost
       items={[
         {
           key: activity.occurrence_id,
-          label: summary,
-          children: content.map((document) => (
-            <RichContent
-              content={document}
-              key={document.content_key}
-              onReference={onReference}
-            />
-          )),
+          label: heading,
+          children: (
+            <div className="creature-sheet__activity-content">
+              <ActivityDetails activity={activity} />
+              {content.map((document) => (
+                <RichContent
+                  content={document}
+                  key={document.content_key}
+                  onReference={onReference}
+                />
+              ))}
+            </div>
+          ),
         },
       ]}
       size="small"
     />
   ) : (
-    <article className="creature-sheet__activity">{summary}</article>
+    <article className="creature-sheet__activity">
+      <div className="creature-sheet__activity-summary">
+        {heading}
+        <ActivityDetails activity={activity} />
+      </div>
+    </article>
   );
 }
 
-function ActivitySummary({ activity }: { activity: CreatureSurfaceActivityView }) {
+function ActivityHeading({ activity }: { activity: CreatureSurfaceActivityView }) {
+  return (
+    <div
+      aria-label={`${activity.label}, ${actionCostLabel(activity.action_cost)}`}
+      className="creature-sheet__activity-heading"
+    >
+      <strong>{activity.label}</strong>
+      <ActionGlyph cost={activity.action_cost} />
+    </div>
+  );
+}
+
+function ActivityDetails({ activity }: { activity: CreatureSurfaceActivityView }) {
   const details = [
-    recordKeyValue("category", "Category", activity.category),
     recordKeyValue("frequency", "Frequency", formatFrequency(activity.frequency)),
     recordKeyValue("requirements", "Requirements", activity.requirements),
     recordKeyValue("cost", "Cost", activity.cost),
@@ -667,18 +777,9 @@ function ActivitySummary({ activity }: { activity: CreatureSurfaceActivityView }
       "Self effect",
       formatSelfEffect(activity.self_effect),
     ),
-    recordKeyValue(
-      "attack-effects",
-      "Attack effects",
-      activity.attack_effects?.join(", "),
-    ),
   ].filter(isRecordKeyValueItem);
   return (
-    <div className="creature-sheet__activity-summary">
-      <div className="creature-sheet__activity-heading">
-        <strong>{activity.label}</strong>
-        <ActionGlyph cost={activity.action_cost} />
-      </div>
+    <>
       {activity.traits?.length ? (
         <Space className="creature-sheet__activity-traits" size={[4, 4]} wrap>
           {activity.traits.map((trait) => (
@@ -706,7 +807,7 @@ function ActivitySummary({ activity }: { activity: CreatureSurfaceActivityView }
       {details.length ? (
         <RecordKeyValueList ariaLabel={`${activity.label} details`} items={details} />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -1019,7 +1120,7 @@ export function ReferenceAndSourceContent({
           </ul>
         </section>
       ) : null}
-      <SourceDetails metadata={metadata} />
+      <SourceDetails body={body} metadata={metadata} />
     </div>
   );
 }
@@ -1041,7 +1142,13 @@ function RelationshipRow({
   );
 }
 
-function SourceDetails({ metadata }: { metadata: RecordSurfaceMetadataView }) {
+function SourceDetails({
+  body,
+  metadata,
+}: {
+  body: CreatureSurfaceView;
+  metadata: RecordSurfaceMetadataView;
+}) {
   const source = metadata.source;
   const facts = [
     recordKeyValue("record-id", "Record ID", metadata.record_key),
@@ -1049,6 +1156,30 @@ function SourceDetails({ metadata }: { metadata: RecordSurfaceMetadataView }) {
     recordKeyValue("source-pack", "Source pack", source?.pack_label),
     recordKeyValue("source-path", "Source path", source?.source_path),
   ].filter(isRecordKeyValueItem);
+  const skillSources: RecordKeyValueItem[] = (body.skills ?? [])
+    .slice()
+    .sort((left, right) => left.authored_order - right.authored_order)
+    .flatMap((skill) => {
+      if (!skill.source_entries?.length) return [];
+      return [
+        {
+          key: `${skill.component_id}:${skill.authored_order}`,
+          label: skill.label,
+          value: (
+            <span className="creature-sheet__skill-source-values">
+              {skill.source_entries
+                .slice()
+                .sort((left, right) => left.authored_order - right.authored_order)
+                .map((entry) => (
+                  <code key={`${entry.authored_order}:${entry.authored_key}`}>
+                    {entry.authored_key}
+                  </code>
+                ))}
+            </span>
+          ),
+        },
+      ];
+    });
   return (
     <section>
       <h4>Provenance</h4>
@@ -1057,6 +1188,16 @@ function SourceDetails({ metadata }: { metadata: RecordSurfaceMetadataView }) {
         items={facts}
         labelWidth="provenance"
       />
+      {skillSources.length ? (
+        <div className="creature-sheet__skill-source-provenance">
+          <h5>Skill source keys</h5>
+          <RecordKeyValueList
+            ariaLabel="Skill source keys"
+            items={skillSources}
+            labelWidth="provenance"
+          />
+        </div>
+      ) : null}
     </section>
   );
 }

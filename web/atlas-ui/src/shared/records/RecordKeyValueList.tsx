@@ -1,6 +1,7 @@
 import type React from "react";
 
 export type RecordKeyValueItem = {
+  rowClassName?: string;
   key: React.Key;
   label: React.ReactNode;
   value: React.ReactNode;
@@ -31,7 +32,12 @@ export function RecordKeyValueList({
         .join(" ")}
     >
       {items.map((item) => (
-        <div className="record-key-value-list__row" key={item.key}>
+        <div
+          className={["record-key-value-list__row", item.rowClassName]
+            .filter(Boolean)
+            .join(" ")}
+          key={item.key}
+        >
           <dt>{item.label}</dt>
           <dd>{item.value}</dd>
         </div>

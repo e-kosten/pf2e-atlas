@@ -11,6 +11,8 @@ import {
 import { RecordSurface } from "./RecordSurface";
 
 const onReference = vi.fn();
+const AIR_MEPHIT_KEY = "pathfinder-bestiary:KDRlxdIUADWHI6Vr";
+const AIR_SCAMP_KEY = "pathfinder-monster-core:MSm1im7lZA5i82rz";
 
 describe("RecordSurface", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -63,36 +65,70 @@ describe("RecordSurface", () => {
       within(defenses!).queryByText("Perception", { exact: true }),
     ).not.toBeInTheDocument();
 
-    const senses = screen.getByRole("heading", {
-      name: "Senses & Languages",
+    const profile = screen.getByRole("heading", {
+      name: "Profile & Awareness",
     }).parentElement;
-    expect(senses).not.toBeNull();
-    expect(
-      within(senses!).getByText("Perception", { exact: true }),
-    ).toBeInTheDocument();
-    expect(
-      within(senses!).getByText("Perception", { exact: true }).closest("dl"),
-    ).toHaveClass("creature-sheet__perception-stat");
-    expect(
-      within(senses!)
-        .getByText("Perception", { exact: true })
-        .closest(".record-key-value-list"),
-    ).toBeNull();
+    expect(profile).not.toBeNull();
+    const perceptionLabel = within(profile!)
+      .getAllByText("Perception", { exact: true })
+      .find((element) => element.tagName === "DT")!;
+    expect(perceptionLabel).toBeInTheDocument();
+    expect(perceptionLabel.closest(".record-key-value-list")).toHaveAttribute(
+      "aria-label",
+      "Perception and senses",
+    );
     for (const label of ["HP", "AC", "Fortitude", "Reflex", "Will"]) {
       expect(
-        within(senses!).queryByText(label, { exact: true }),
+        within(profile!).queryByText(label, { exact: true }),
       ).not.toBeInTheDocument();
     }
   });
 
-  it("renders typed profile, corrected ability modifiers, skill variants, and source context", () => {
+  it("renders compact profile facts, corrected modifiers, and ordered skill variants", () => {
     const { container } = renderSurface();
 
-    const profile = container.querySelector('dl[aria-label="Creature profile"]');
+    const profile = screen.getByRole("heading", {
+      name: "Profile & Awareness",
+    }).parentElement!;
     expect(screen.getByText("Medium")).toBeInTheDocument();
     expect(screen.getByText("Elite")).toBeInTheDocument();
     expect(screen.getByText("Initiative")).toBeInTheDocument();
-    expect(profile).not.toBeNull();
+    expect(container.querySelector('dl[aria-label="Creature profile"]')).toBeNull();
+    const profileList = profile.querySelector<HTMLElement>(
+      'dl[aria-label="Creature profile and awareness"]',
+    )!;
+    for (const label of [
+      "Size",
+      "Adjustment",
+      "Initiative",
+      "Movement",
+      "Perception & senses",
+      "Languages & communication",
+    ]) {
+      const factLabel = within(profileList)
+        .getAllByText(label, { exact: true })
+        .find((element) => element.tagName === "DT")!;
+      expect(factLabel.parentElement).toHaveClass("record-key-value-list__row");
+    }
+    const perceptionGroup =
+      within(profileList).getByText("Perception & senses").parentElement!;
+    const languageGroup = within(profileList).getByText(
+      "Languages & communication",
+    ).parentElement!;
+    expect(perceptionGroup).toHaveClass("creature-sheet__fact-group");
+    expect(languageGroup).toHaveClass("creature-sheet__fact-group");
+    expect(
+      perceptionGroup.querySelector('dl[aria-label="Perception and senses"]'),
+    ).toHaveClass("creature-sheet__fact-group-rows");
+    expect(
+      languageGroup.querySelector('dl[aria-label="Languages and communication"]'),
+    ).toHaveClass("creature-sheet__fact-group-rows");
+    expect(profileList).toHaveClass("creature-sheet__compact-fact-grid");
+    expect(profile.querySelector(".ant-tag")).toBeNull();
+    const overview = screen.getByRole("heading", { name: "Overview" });
+    expect(
+      overview.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     const abilities = screen.getByRole("heading", {
       name: "Ability Modifiers",
@@ -119,27 +155,157 @@ describe("RecordSurface", () => {
     const skills = screen.getByRole("heading", { name: "Skills" }).parentElement!;
     expect(within(skills).getByText("Occultism")).toBeInTheDocument();
     expect(within(skills).getByText("Dreams")).toBeInTheDocument();
+    expect(within(skills).getByText("Nightmares")).toBeInTheDocument();
     expect(within(skills).getByText("dreams")).toBeInTheDocument();
-    expect(within(skills).getByText("Source key")).toBeInTheDocument();
-    expect(within(skills).getByText("occultism")).toBeInTheDocument();
+    expect(within(skills).queryByText("Source key")).not.toBeInTheDocument();
+    expect(within(skills).queryByText("occultism")).not.toBeInTheDocument();
+    const variants = skills.querySelectorAll(".creature-sheet__skill-variants li");
+    expect(variants).toHaveLength(2);
+    expect(variants[0]).toHaveTextContent("Dreams+24dreams");
+    expect(variants[1]).toHaveTextContent("Nightmares+23nightmares");
+    expect(within(skills).getByRole("list", { name: "Skills" })).toHaveClass(
+      "creature-sheet__skill-grid",
+    );
+    expect(within(skills).getByText("Occultism").parentElement).toHaveClass(
+      "creature-sheet__skill-heading",
+    );
+    expect(
+      within(within(skills).getByText("Occultism").parentElement!).getByText("+22"),
+    ).toBeInTheDocument();
+    expect(skills.querySelectorAll(".creature-sheet__skill-cell")).toHaveLength(1);
+    expect(skills.querySelector(".record-key-value-list")).toBeNull();
   });
 
-  it("keeps all movement modes together outside defenses", () => {
+  it("keeps all movement modes together in the compact profile grid", () => {
     renderSurface();
 
-    const movement = screen.getByRole("heading", { name: "Movement" }).parentElement;
-    expect(movement).not.toBeNull();
-    expect(within(movement!).getByText("Speed")).toBeInTheDocument();
-    expect(within(movement!).getByText("Fly")).toBeInTheDocument();
-    expect(within(movement!).getByText("25 ft")).toBeInTheDocument();
-    expect(within(movement!).getByText("40 ft")).toBeInTheDocument();
-    expect(movement?.querySelectorAll(".record-key-value-list__row")).toHaveLength(2);
-    for (const label of ["Speed", "Fly"]) {
-      expect(within(movement!).getByText(label).parentElement).toHaveClass(
-        "record-key-value-list__row",
-      );
+    const profile = screen.getByRole("heading", {
+      name: "Profile & Awareness",
+    }).parentElement!;
+    const movementLabel = within(profile)
+      .getAllByText("Movement", { exact: true })
+      .find((element) => element.tagName === "DT")!;
+    const movement = movementLabel.parentElement!;
+    expect(movement).toHaveClass("record-key-value-list__row");
+    const movementValues = within(movement).getByRole("list", { name: "Movement" });
+    expect(movementValues.children).toHaveLength(2);
+    expect(within(movementValues).getByText("Speed")).toBeInTheDocument();
+    expect(within(movementValues).getByText("Fly")).toBeInTheDocument();
+    expect(within(movementValues).getByText("25 feet")).toBeInTheDocument();
+    expect(within(movementValues).getByText("40 feet")).toBeInTheDocument();
+    for (const item of movementValues.children) {
+      expect(item).toHaveClass("creature-sheet__compact-multi-value-item");
     }
-    expect(movement?.querySelector(".creature-sheet__movement")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Movement" })).not.toBeInTheDocument();
+  });
+
+  it("uses one wrap-safe list pattern for typed senses, languages, and movement", () => {
+    const surface = detailedSurfaceFixture();
+    if (surface.presentation.presentation_type !== "creature") {
+      throw new Error("Fixture must be a creature surface");
+    }
+    surface.presentation.body.awareness = {
+      ...surface.presentation.body.awareness!,
+      senses: [
+        {
+          component_id: "darkvision",
+          authored_order: 0,
+          kind: "darkvision",
+        },
+        {
+          component_id: "scent",
+          authored_order: 1,
+          kind: "scent",
+          acuity: "imprecise",
+          range_feet: 30,
+        },
+      ],
+      languages: ["common"],
+      language_details: "Telepathy 100 feet",
+    };
+
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+
+    const lists = [
+      screen.getByRole("list", { name: "Senses" }),
+      screen.getByRole("list", { name: "Languages" }),
+      screen.getByRole("list", { name: "Movement" }),
+    ];
+    for (const list of lists) {
+      expect(list).toHaveClass("creature-sheet__compact-multi-value-list");
+      for (const item of list.children) {
+        expect(item.tagName).toBe("LI");
+        expect(item).toHaveClass("creature-sheet__compact-multi-value-item");
+      }
+    }
+    expect(lists[0].children).toHaveLength(2);
+    expect(lists[1].children).toHaveLength(1);
+    expect(lists[2].children).toHaveLength(2);
+    expect(lists[0]).toHaveTextContent("DarkvisionScent—imprecise, 30 feet");
+    expect(lists[1]).toHaveTextContent("Common");
+    expect(lists[1]).not.toHaveTextContent("Telepathy 100 feet");
+    expect(lists[2]).toHaveTextContent("Speed—25 feetFly—40 feet");
+    const languageGroup = screen.getByText("Languages & communication").parentElement!;
+    const languageDetails = within(languageGroup).getByText("Telepathy 100 feet");
+    expect(languageDetails.tagName).toBe("DD");
+    expect(languageDetails.closest("li")).toBeNull();
+    expect(languageDetails.parentElement).toHaveClass(
+      "creature-sheet__fact-group-note",
+    );
+    expect(
+      document.querySelector(".creature-sheet__compact-multi-value-list .ant-tag"),
+    ).toBeNull();
+  });
+
+  it("keeps structured senses and exact perception Details distinct", () => {
+    const surface = detailedSurfaceFixture();
+    if (surface.presentation.presentation_type !== "creature") {
+      throw new Error("Fixture must be a creature surface");
+    }
+    surface.presentation.body.awareness = {
+      ...surface.presentation.body.awareness!,
+      details: "fog vision",
+      senses: [
+        {
+          component_id: "darkvision",
+          authored_order: 0,
+          kind: "darkvision",
+        },
+      ],
+    };
+    surface.presentation.body.activities = [
+      ...(surface.presentation.body.activities ?? []),
+      {
+        occurrence_id: "fog-vision",
+        authored_order: 99,
+        provenance: occurrenceProvenance,
+        activity_type: "action",
+        label: "Fog Vision",
+        action_cost: { cost_type: "passive" },
+        content: [
+          passiveActivityContent("The air scamp ignores concealment from fog."),
+        ],
+      },
+    ];
+
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+
+    const profile = screen.getByRole("heading", {
+      name: "Profile & Awareness",
+    }).parentElement!;
+    const perceptionGroup =
+      within(profile).getByText("Perception & senses").parentElement!;
+    const fogVision = within(perceptionGroup).getByText("fog vision");
+    expect(fogVision.tagName).toBe("DD");
+    expect(fogVision.parentElement).toHaveClass("creature-sheet__fact-group-note");
+    expect(within(fogVision.parentElement!).getByText("Details")).toBeInTheDocument();
+    const senses = within(perceptionGroup).getByRole("list", { name: "Senses" });
+    expect(senses.children).toHaveLength(1);
+    expect(senses).toHaveTextContent("Darkvision");
+    expect(senses).not.toHaveTextContent("·");
+    expect(within(perceptionGroup).queryByText("Fog Vision")).not.toBeInTheDocument();
+    const abilities = screen.getByRole("heading", { name: "Abilities" }).parentElement!;
+    expect(within(abilities).getByText("Fog Vision")).toBeInTheDocument();
   });
 
   it("keeps sparse fact sections in the natural two-column flow", () => {
@@ -168,21 +334,163 @@ describe("RecordSurface", () => {
     const sections = container.querySelectorAll(
       ".creature-sheet__facts-grid .creature-sheet__panel",
     );
-    expect(sections).toHaveLength(4);
+    expect(sections).toHaveLength(3);
     expect(sections[0]).toHaveClass("creature-sheet__panel--defenses");
-    expect(sections[1]).toHaveClass("creature-sheet__panel--senses");
-    expect(sections[2]).toHaveClass("creature-sheet__panel--movement");
-    expect(sections[3]).toHaveClass("creature-sheet__panel--skills");
+    expect(sections[1]).toHaveClass("creature-sheet__panel--profile");
+    expect(sections[2]).toHaveClass("creature-sheet__panel--skills");
     expect(sections[0]?.parentElement).toHaveClass(
       "creature-sheet__facts-column--primary",
     );
-    expect(sections[1]?.parentElement).toHaveClass("creature-sheet__facts-summary");
-    expect(sections[3]?.parentElement).toHaveClass(
+    expect(sections[1]?.parentElement).toHaveClass(
+      "creature-sheet__facts-column--secondary",
+    );
+    expect(sections[2]?.parentElement).toHaveClass(
       "creature-sheet__facts-column--secondary",
     );
   });
 
-  it("expands typed activity content inline with check DC and divider structure", () => {
+  it("renders Areelu structured values and exact authored Details", () => {
+    const surface = detailedSurfaceFixture();
+    if (surface.presentation.presentation_type !== "creature") {
+      throw new Error("Fixture must be a creature surface");
+    }
+    surface.metadata.title = "Areelu Vorlesh";
+    surface.presentation.body.awareness = {
+      ...surface.presentation.body.awareness!,
+      perception: 34,
+      details: "darkvision, truesight",
+      senses: [],
+      languages: [
+        "aklo",
+        "chthonian",
+        "common",
+        "diabolic",
+        "draconic",
+        "dwarven",
+        "elven",
+        "empyrean",
+        "fey",
+        "halfling",
+        "hallit",
+        "jotun",
+        "necril",
+        "sakvroth",
+        "gnomish",
+        "orcish",
+      ],
+      language_details: "Telepathy 100 feet",
+    };
+
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+
+    const perceptionGroup = screen.getByText("Perception & senses").parentElement!;
+    expect(within(perceptionGroup).getByText("+34")).toBeInTheDocument();
+    expect(within(perceptionGroup).queryByText("Senses")).not.toBeInTheDocument();
+    const perceptionDetails = within(perceptionGroup).getByText(
+      "darkvision, truesight",
+    );
+    expect(perceptionDetails.parentElement).toHaveClass(
+      "creature-sheet__fact-group-note",
+    );
+
+    const languageGroup = screen.getByText("Languages & communication").parentElement!;
+    const languages = within(languageGroup).getByRole("list", { name: "Languages" });
+    expect(languages.children).toHaveLength(16);
+    expect(within(languages).getByText("Aklo")).toBeInTheDocument();
+    expect(within(languages).getByText("Orcish")).toBeInTheDocument();
+    expect(languages).not.toHaveTextContent("Telepathy 100 feet");
+    expect(
+      within(languageGroup).getByText("Telepathy 100 feet").parentElement,
+    ).toHaveClass("creature-sheet__fact-group-note");
+  });
+
+  it("renders Giant Rat typed senses and omits empty Details", () => {
+    const surface = detailedSurfaceFixture();
+    if (surface.presentation.presentation_type !== "creature") {
+      throw new Error("Fixture must be a creature surface");
+    }
+    surface.metadata.title = "Giant Rat";
+    surface.presentation.body.awareness = {
+      ...surface.presentation.body.awareness!,
+      perception: 5,
+      details: "",
+      senses: [
+        {
+          component_id: "sense:low-light-vision:0",
+          authored_order: 0,
+          kind: "low-light-vision",
+        },
+        {
+          component_id: "sense:scent:0",
+          authored_order: 1,
+          kind: "scent",
+          acuity: "imprecise",
+          range_feet: 30,
+        },
+      ],
+      languages: [],
+      language_details: "",
+    };
+
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+
+    const perceptionGroup = screen.getByText("Perception & senses").parentElement!;
+    expect(within(perceptionGroup).getByText("+5")).toBeInTheDocument();
+    const senses = within(perceptionGroup).getByRole("list", { name: "Senses" });
+    expect(senses.children).toHaveLength(2);
+    expect(within(senses).getByText("Low Light Vision")).toBeInTheDocument();
+    expect(within(senses).getByText("Scent")).toBeInTheDocument();
+    expect(within(senses).getByText("imprecise, 30 feet")).toBeInTheDocument();
+    expect(within(perceptionGroup).queryByText("Details")).not.toBeInTheDocument();
+    expect(screen.queryByText("Languages & communication")).not.toBeInTheDocument();
+  });
+
+  it("shows details-only groups without fabricating structured rows", () => {
+    const surface = detailedSurfaceFixture();
+    if (surface.presentation.presentation_type !== "creature") {
+      throw new Error("Fixture must be a creature surface");
+    }
+    surface.presentation.body.awareness = {
+      provenance: surface.presentation.body.awareness!.provenance,
+      details: "heat ripples",
+      language_details: "Telepathy 100 feet",
+    };
+
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+
+    const perceptionGroup = screen.getByText("Perception & senses").parentElement!;
+    expect(within(perceptionGroup).getByText("heat ripples")).toBeInTheDocument();
+    expect(within(perceptionGroup).queryByText("Perception")).not.toBeInTheDocument();
+    expect(within(perceptionGroup).queryByText("Senses")).not.toBeInTheDocument();
+    const languageGroup = screen.getByText("Languages & communication").parentElement!;
+    expect(within(languageGroup).getByText("Telepathy 100 feet")).toBeInTheDocument();
+    expect(within(languageGroup).queryByText("Languages")).not.toBeInTheDocument();
+  });
+
+  it("uses semantic lists with responsive fact and skill grid hooks", () => {
+    const { container } = renderSurface();
+
+    const facts = container.querySelector<HTMLElement>(
+      'dl[aria-label="Creature profile and awareness"]',
+    )!;
+    expect(facts.tagName).toBe("DL");
+    expect(facts).toHaveClass("creature-sheet__compact-fact-grid");
+    expect(facts.querySelectorAll(":scope > .record-key-value-list__row")).toHaveLength(
+      6,
+    );
+    expect(facts.querySelectorAll(":scope > .creature-sheet__fact-group")).toHaveLength(
+      2,
+    );
+
+    const skills = screen.getByRole("list", { name: "Skills" });
+    expect(skills.tagName).toBe("UL");
+    expect(skills).toHaveClass("creature-sheet__skill-grid");
+    expect(
+      skills.querySelectorAll(":scope > .creature-sheet__skill-cell"),
+    ).toHaveLength(1);
+  });
+
+  it("starts action and ability disclosures open and lets each collapse and reopen", async () => {
     const { container } = renderSurface();
 
     expect(screen.queryByText("View rules")).not.toBeInTheDocument();
@@ -192,9 +500,44 @@ describe("RecordSurface", () => {
     expect(activityHeading).not.toBeNull();
     expect(within(activityHeading!).getByText("Two actions")).toBeInTheDocument();
     expect(activityHeading?.children).toHaveLength(2);
-    fireEvent.click(screen.getByText("Dream Bargain"));
-    expect(screen.getByText("Will DC 28")).toBeInTheDocument();
+    const actionControl = screen.getByRole("button", { name: /Dream Bargain/ });
+    expect(actionControl).toHaveAttribute("aria-expanded", "true");
+    expect(actionControl).toHaveAccessibleName("Dream Bargain, Two actions");
+    const action = actionControl.closest<HTMLElement>(".ant-collapse-item")!;
+    const actionTrait = within(action).getByText("Mental");
+    expect(actionTrait).toBeVisible();
+    expect(within(action).getByText("Occult")).toBeVisible();
+    expect(screen.getByText("Will DC 28")).toBeVisible();
     expect(container.querySelector(".creature-sheet__activity hr")).toBeInTheDocument();
+
+    fireEvent.click(actionControl);
+    expect(actionControl).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(actionTrait).not.toBeVisible());
+    await waitFor(() => expect(screen.getByText("Will DC 28")).not.toBeVisible());
+    fireEvent.click(actionControl);
+    expect(actionControl).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(actionTrait).toBeVisible());
+    await waitFor(() => expect(screen.getByText("Will DC 28")).toBeVisible());
+
+    const abilityControl = screen.getByRole("button", { name: /Dream Haunting/ });
+    expect(abilityControl).toHaveAttribute("aria-expanded", "true");
+    expect(abilityControl).toHaveAccessibleName("Dream Haunting, Passive");
+    const ability = abilityControl.closest<HTMLElement>(".ant-collapse-item")!;
+    const abilityTrait = within(ability).getByText("Occult");
+    expect(abilityTrait).toBeVisible();
+    expect(screen.getByText("The haunting follows the sleeper.")).toBeVisible();
+    fireEvent.click(abilityControl);
+    expect(abilityControl).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(abilityTrait).not.toBeVisible());
+    await waitFor(() =>
+      expect(screen.getByText("The haunting follows the sleeper.")).not.toBeVisible(),
+    );
+    fireEvent.click(abilityControl);
+    expect(abilityControl).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(abilityTrait).toBeVisible());
+    await waitFor(() =>
+      expect(screen.getByText("The haunting follows the sleeper.")).toBeVisible(),
+    );
   });
 
   it("opens typed spell content from compact occurrence links", async () => {
@@ -403,7 +746,7 @@ describe("RecordSurface", () => {
     expect(within(defenses).getByText("+1 against magic")).toBeInTheDocument();
   });
 
-  it("renders typed action details and strike effects with the shared action glyph", () => {
+  it("renders user-facing action details without raw effect or category slugs", () => {
     const { container } = renderSurface();
     const actions = screen.getByRole("heading", { name: "Actions" }).parentElement!;
     const abilities = screen.getByRole("heading", { name: "Abilities" }).parentElement!;
@@ -414,8 +757,9 @@ describe("RecordSurface", () => {
     expect(actions).toContainElement(claw);
     expect(abilities).not.toContainElement(claw);
     expect(within(claw).getByText("One action")).toBeVisible();
-    expect(within(claw).getByText("Grab")).toBeInTheDocument();
-    expect(within(claw).getByText("offensive")).toBeInTheDocument();
+    expect(within(claw).queryByText("abyssal-plague")).not.toBeInTheDocument();
+    expect(within(claw).queryByText("Attack effects")).not.toBeInTheDocument();
+    expect(within(claw).queryByText("offensive")).not.toBeInTheDocument();
 
     const bargain = screen
       .getByText("Dream Bargain")
@@ -427,20 +771,33 @@ describe("RecordSurface", () => {
       "One dream token",
       "3 maximum",
       "Effect: Dream veil",
-      "offensive",
     ]) {
       expect(within(bargain).getByText(value)).toBeInTheDocument();
     }
+    expect(within(bargain).queryByText("Category")).not.toBeInTheDocument();
+    expect(within(bargain).queryByText("offensive")).not.toBeInTheDocument();
     expect(within(bargain).queryByText("PT1M")).not.toBeInTheDocument();
     expect(actions).toContainElement(bargain);
-    for (const label of ["Dream Haunting", "Spell Ambush"]) {
-      const ability = screen
-        .getByText(label)
-        .closest<HTMLElement>(".creature-sheet__activity")!;
-      expect(abilities).toContainElement(ability);
-      expect(actions).not.toContainElement(ability);
-      expect(within(ability).getByText("Passive")).toBeVisible();
-    }
+    const haunting = screen
+      .getByText("Dream Haunting")
+      .closest<HTMLElement>(".creature-sheet__activity")!;
+    expect(abilities).toContainElement(haunting);
+    expect(actions).not.toContainElement(haunting);
+    expect(within(haunting).getByText("Passive")).toBeVisible();
+    expect(haunting).toHaveClass("creature-sheet__activity--expandable");
+
+    const ambush = screen
+      .getByText("Spell Ambush")
+      .closest<HTMLElement>(".creature-sheet__activity")!;
+    expect(abilities).toContainElement(ambush);
+    expect(actions).not.toContainElement(ambush);
+    expect(within(ambush).getByText("Passive")).toBeVisible();
+    expect(within(ambush).queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      ambush.querySelector(":scope > .creature-sheet__activity-summary"),
+    ).toBeInTheDocument();
+    expect(bargain).toHaveClass("creature-sheet__activity--expandable");
+    expect(bargain.querySelector(".ant-collapse-expand-icon")).toBeInTheDocument();
     expect(container.querySelectorAll(".action-glyph__mark")).toHaveLength(2);
   });
 
@@ -586,7 +943,7 @@ describe("RecordSurface", () => {
     expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
   });
 
-  it("navigates only exact verified Air edition counterparts", () => {
+  it("keeps the remastered counterpart action inside the legacy notice", () => {
     const airMephit = detailedSurfaceFixture();
     airMephit.metadata.title = "Air Mephit";
     airMephit.metadata.edition = {
@@ -594,18 +951,27 @@ describe("RecordSurface", () => {
       counterparts: [
         {
           role: "remastered_counterpart",
-          record_key: "monster-core:air-scamp",
+          record_key: AIR_SCAMP_KEY,
           title: "Air Scamp",
         },
       ],
     };
-    const { rerender } = render(
+    const { container } = render(
       <RecordSurface onReference={onReference} surface={airMephit} />,
     );
-    expect(screen.getByText("This record uses legacy rules.")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "View remastered Air Scamp" }));
-    expect(onReference).toHaveBeenLastCalledWith("monster-core:air-scamp");
+    const notice = screen
+      .getByText("This record uses legacy rules.")
+      .closest<HTMLElement>(".ant-alert")!;
+    const action = within(notice).getByRole("button", {
+      name: "View remastered Air Scamp",
+    });
+    expect(action).toBeVisible();
+    expect(container.querySelector(".creature-sheet__related-edition")).toBeNull();
+    fireEvent.click(action);
+    expect(onReference).toHaveBeenLastCalledWith(AIR_SCAMP_KEY);
+  });
 
+  it("places the legacy counterpart in remastered header metadata", () => {
     const airScamp = detailedSurfaceFixture();
     airScamp.metadata.title = "Air Scamp";
     airScamp.metadata.edition = {
@@ -613,32 +979,50 @@ describe("RecordSurface", () => {
       counterparts: [
         {
           role: "legacy_counterpart",
-          record_key: "bestiary:air-mephit",
+          record_key: AIR_MEPHIT_KEY,
           title: "Air Mephit",
         },
       ],
     };
-    rerender(<RecordSurface onReference={onReference} surface={airScamp} />);
+    const { container } = render(
+      <RecordSurface onReference={onReference} surface={airScamp} />,
+    );
     expect(
       screen.queryByText("This record uses remastered rules."),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Remastered")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "View legacy Air Mephit" }));
-    expect(onReference).toHaveBeenLastCalledWith("bestiary:air-mephit");
+    expect(screen.queryByText("Remastered", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText("Legacy", { exact: true })).not.toBeInTheDocument();
+    expect(container.querySelector(".creature-sheet__edition-notice")).toBeNull();
+    const header = screen
+      .getByRole("heading", { name: "Air Scamp" })
+      .closest<HTMLElement>(".creature-sheet__header")!;
+    const related = within(header)
+      .getByText("Related edition")
+      .closest<HTMLElement>(".creature-sheet__related-edition")!;
+    const action = within(related).getByRole("button", {
+      name: "View legacy Air Mephit",
+    });
+    expect(action).toHaveClass("ant-btn-link");
+    fireEvent.click(action);
+    expect(onReference).toHaveBeenLastCalledWith(AIR_MEPHIT_KEY);
   });
 
   it("places record identity only in the inline provenance disclosure", () => {
     renderSurface();
 
     expect(screen.queryByText("concept:f1-record")).not.toBeInTheDocument();
+    expect(screen.queryByText("Skill source keys")).not.toBeInTheDocument();
+    expect(screen.queryByText("occultism")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("References & Source"));
     expect(screen.getByText("Record ID")).toBeInTheDocument();
     expect(screen.getByText("concept:f1-record")).toBeInTheDocument();
+    expect(screen.getByText("Skill source keys")).toBeInTheDocument();
+    expect(screen.getByText("occultism")).toBeInTheDocument();
     expect(screen.queryByText("source contract")).not.toBeInTheDocument();
     expect(screen.queryByText("upstream commit")).not.toBeInTheDocument();
   });
 
-  it("uses aligned key-value grids only for natural definition groups", () => {
+  it("uses aligned key-value grids for natural definition groups", () => {
     const { container } = renderSurface();
 
     fireEvent.click(screen.getByText("References & Source"));
@@ -660,11 +1044,18 @@ describe("RecordSurface", () => {
     expect(
       container.querySelectorAll(".record-key-value-list").length,
     ).toBeGreaterThanOrEqual(3);
-    for (const label of ["AC", "HP", "Fortitude", "Reflex", "Will", "Perception"]) {
+    for (const label of ["AC", "HP", "Fortitude", "Reflex", "Will"]) {
       for (const element of screen.getAllByText(label, { exact: true })) {
         expect(element.closest(".record-key-value-list")).toBeNull();
       }
     }
+    const perceptionLabel = screen
+      .getAllByText("Perception", { exact: true })
+      .find((element) => element.tagName === "DT")!;
+    expect(perceptionLabel.closest(".record-key-value-list")).toHaveAttribute(
+      "aria-label",
+      "Perception and senses",
+    );
   });
 
   it("keeps description secondary in the encounter profile", () => {
@@ -814,6 +1205,13 @@ function detailedSurfaceFixture(): RecordSurfaceView {
             modifier: 24,
             predicates: [{ predicate_type: "term", term: "dreams" }],
           },
+          {
+            component_id: "nightmares",
+            authored_order: 1,
+            label: "Nightmares",
+            modifier: 23,
+            predicates: [{ predicate_type: "term", term: "nightmares" }],
+          },
         ],
         source_entries: [
           {
@@ -827,7 +1225,7 @@ function detailedSurfaceFixture(): RecordSurfaceView {
     activities: [
       ...(surface.presentation.body.activities ?? []).map((activity) => ({
         ...activity,
-        attack_effects: ["Grab"],
+        attack_effects: ["abyssal-plague"],
         category: "offensive",
       })),
       {
@@ -837,6 +1235,7 @@ function detailedSurfaceFixture(): RecordSurfaceView {
         activity_type: "action",
         label: "Dream Bargain",
         action_cost: { cost_type: "actions", count: 2 },
+        traits: ["mental", "occult"],
         category: "offensive",
         frequency: { maximum: 1, period: "PT1M", display: "1 per minute" },
         requirements: "The envoy can see the target.",
@@ -852,7 +1251,9 @@ function detailedSurfaceFixture(): RecordSurfaceView {
         activity_type: "action",
         label: "Dream Haunting",
         action_cost: { cost_type: "passive" },
+        traits: ["occult"],
         category: "offensive",
+        content: [passiveActivityContent()],
       },
       {
         occurrence_id: "spell-ambush",
@@ -1073,6 +1474,30 @@ function activityContent(): CreatureSurfaceContentView {
       { block_type: "divider" },
     ],
     content_hash: "dream-bargain",
+    visibility: "public",
+    provenance: {
+      source_record_key: "concept:f1-record",
+      relative_source_path: "fixture.json",
+      field_family: "fixture.activity",
+    },
+  };
+}
+
+function passiveActivityContent(
+  text = "The haunting follows the sleeper.",
+): CreatureSurfaceContentView {
+  return {
+    content_key: "dream-haunting-content",
+    role: "embedded_capability",
+    authored_order: 0,
+    label: "Dream Haunting",
+    blocks: [
+      {
+        block_type: "paragraph",
+        spans: [{ span_type: "text", text }],
+      },
+    ],
+    content_hash: "dream-haunting",
     visibility: "public",
     provenance: {
       source_record_key: "concept:f1-record",

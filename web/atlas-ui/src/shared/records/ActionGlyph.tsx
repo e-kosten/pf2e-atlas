@@ -24,6 +24,12 @@ export function ActionGlyph({
   );
 }
 
+export function actionCostLabel(
+  cost: CreatureSurfaceActionCostView | FutureActionCost | null | undefined,
+) {
+  return actionCostPresentation(cost).label;
+}
+
 function actionCostPresentation(
   cost: CreatureSurfaceActionCostView | FutureActionCost | null | undefined,
 ): { glyph?: string; kind: string; label: string } {
