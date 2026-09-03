@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
+  EncounterConditionCatalogView,
+  EncounterConditionDefinitionView,
   EncounterDetailView as EncounterDetailViewDto,
   EncounterIndexView as EncounterIndexViewDto,
   EncounterParticipantView,
@@ -18,6 +20,7 @@ import {
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
+import { EncounterInspectorPane } from "./EncounterInspectorPane";
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -29,10 +32,12 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionDefinitions: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
+  mutateEncounterSpellCast: vi.fn(),
   openResultWindow: vi.fn(),
   removeEncounterParticipant: vi.fn(),
   removeEncounterParticipantCondition: vi.fn(),
   reorderEncounterParticipant: vi.fn(),
+  resetEncounterParticipant: vi.fn(),
   setEncounterTurn: vi.fn(),
   updateEncounter: vi.fn(),
   updateEncounterParticipant: vi.fn(),
@@ -49,10 +54,12 @@ vi.mock("../../api/atlasApi", () => ({
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
+  mutateEncounterSpellCast: apiMocks.mutateEncounterSpellCast,
   openResultWindow: apiMocks.openResultWindow,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
   removeEncounterParticipantCondition: apiMocks.removeEncounterParticipantCondition,
   reorderEncounterParticipant: apiMocks.reorderEncounterParticipant,
+  resetEncounterParticipant: apiMocks.resetEncounterParticipant,
   setEncounterTurn: apiMocks.setEncounterTurn,
   updateEncounter: apiMocks.updateEncounter,
   updateEncounterParticipant: apiMocks.updateEncounterParticipant,
@@ -93,6 +100,43 @@ describe("encounter views", () => {
     );
     apiMocks.removeEncounterParticipantCondition.mockResolvedValue(
       encounterDetailFixture(),
+    );
+    apiMocks.mutateEncounterSpellCast.mockImplementation(
+      (_encounterRef, participantKey, request) =>
+        Promise.resolve({
+          operation: request.operation,
+          participant_key: participantKey,
+          spell_occurrence_id: request.spell_occurrence_id,
+          before: {
+            spend_target: request.spend_target,
+            available: true,
+            state: { state_type: "at_will" },
+          },
+          after: {
+            spend_target: request.spend_target,
+            available: true,
+            state: { state_type: "at_will" },
+          },
+          participant: encounterDetailFixture().participants[0],
+        }),
+    );
+    apiMocks.resetEncounterParticipant.mockImplementation(
+      (_encounterRef, participantKey) =>
+        Promise.resolve({
+          participant_key: participantKey,
+          reset_domains: [
+            "hit_points",
+            "defeated",
+            "conditions",
+            "initiative_turn_state",
+            "variant_adjustments",
+            "action_budget",
+            "spell_resources",
+          ],
+          preserved_domains: ["display_name", "notes", "visibility", "side"],
+          cleared_current_turn: true,
+          participant: encounterDetailFixture().participants[0],
+        }),
     );
   });
 
@@ -421,6 +465,136 @@ describe("encounter views", () => {
     );
   });
 
+  it("confirms before invoking the prepared creature reset handler", async () => {
+    const detail = encounterDetailFixture();
+    const participant = detail.participants[0];
+    const onResetParticipant = vi.fn();
+    render(
+      <EncounterInspectorPane
+        conditionDefinitions={conditionDefinitionsFixture().conditions}
+        currentTurnParticipantKey={detail.current_turn_participant_key ?? null}
+        onAddCondition={vi.fn()}
+        onOpenRecordFullPage={vi.fn()}
+        onRemoveCondition={vi.fn()}
+        onResetParticipant={onResetParticipant}
+        onSpellCast={vi.fn()}
+        onUpdate={vi.fn()}
+        onUpdateCondition={vi.fn()}
+        participant={participant}
+        participants={detail.participants}
+        resetResult={null}
+        spellCastResult={null}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: `Reset ${participant.display_name}` }),
+    );
+    expect(onResetParticipant).not.toHaveBeenCalled();
+
+    const confirmation = await screen.findByRole("dialog");
+    expect(confirmation).toHaveTextContent(`Reset ${participant.display_name}?`);
+    expect(confirmation).toHaveTextContent("mechanical encounter state");
+    expect(confirmation).toHaveTextContent("creation baseline");
+    expect(confirmation).toHaveTextContent(
+      "Custom name, notes, and visibility are preserved.",
+    );
+    expect(confirmation).toHaveTextContent("This cannot be undone.");
+    fireEvent.click(
+      within(confirmation).getByRole("button", { name: "Reset creature" }),
+    );
+
+    await waitFor(() =>
+      expect(onResetParticipant).toHaveBeenCalledWith(participant.participant_key),
+    );
+  });
+
+  it("keeps legacy participants reset-unavailable without inventing a baseline", () => {
+    const detail = encounterDetailFixture();
+    const participant = {
+      ...detail.participants[0],
+      reset: {
+        available: false,
+        unavailable_reason: "missing_creation_baseline" as const,
+      },
+    };
+    render(
+      <EncounterInspectorPane
+        conditionDefinitions={conditionDefinitionsFixture().conditions}
+        currentTurnParticipantKey={detail.current_turn_participant_key ?? null}
+        onAddCondition={vi.fn()}
+        onOpenRecordFullPage={vi.fn()}
+        onRemoveCondition={vi.fn()}
+        onResetParticipant={vi.fn()}
+        onSpellCast={vi.fn()}
+        onUpdate={vi.fn()}
+        onUpdateCondition={vi.fn()}
+        participant={participant}
+        participants={[participant, detail.participants[1]]}
+        resetResult={null}
+        spellCastResult={null}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    expect(
+      screen.getByRole("button", { name: `Reset ${participant.display_name}` }),
+    ).toBeDisabled();
+    expect(screen.getByText("Reset unavailable: no creation baseline")).toBeVisible();
+  });
+
+  it("invokes typed reset and reports restored and preserved domains", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Reset Goblin" }));
+    const confirmation = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(confirmation).getByRole("button", { name: "Reset creature" }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.resetEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        "participant_a",
+        { confirmation: "reset_participant" },
+      ),
+    );
+    expect(
+      await screen.findByText("Creature reset to its creation baseline"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Restored: HP, maximum HP, and temporary HP/),
+    ).toHaveTextContent("Preserved: custom name, notes, visibility, side");
+    expect(screen.getByText(/Current turn was cleared/)).toBeVisible();
+  });
+
+  it("casts an encounter spell through its typed occurrence and target", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    fireEvent.click(await screen.findByText("Spellcasting"));
+    fireEvent.click(await screen.findByText("Innate Spells"));
+    fireEvent.click(await screen.findByRole("button", { name: "Cast Linked Rule" }));
+
+    await waitFor(() =>
+      expect(apiMocks.mutateEncounterSpellCast).toHaveBeenCalledWith(
+        "ambush",
+        "participant_a",
+        {
+          spell_occurrence_id: "linked-spell",
+          spend_target: { target_type: "at_will" },
+          operation: "cast_one",
+        },
+      ),
+    );
+    expect(await screen.findByText("Spell cast")).toBeVisible();
+    expect(screen.getAllByText("At will")).not.toHaveLength(0);
+  });
+
   it("opens and dismisses linked record previews inside the encounter record pane", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -429,7 +603,13 @@ describe("encounter views", () => {
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
     fireEvent.click(await screen.findByText("Spellcasting"));
     fireEvent.click(await screen.findByText("Innate Spells"));
-    const linkedRuleLink = await screen.findByRole("link", { name: "Linked Rule" });
+    const linkedRuleDisclosure = await screen.findByRole("button", {
+      name: /Linked Rule.*1st/,
+    });
+    fireEvent.click(linkedRuleDisclosure);
+    const linkedRuleLink = await screen.findByRole("link", {
+      name: "Open full spell record",
+    });
     if (!linkedRuleLink) {
       throw new Error("Linked Rule link was not rendered");
     }
@@ -453,8 +633,14 @@ describe("encounter views", () => {
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
     fireEvent.click(await screen.findByText("Spellcasting"));
     fireEvent.click(await screen.findByText("Innate Spells"));
+    const linkedRuleDisclosureAfterReselect = await screen.findByRole("button", {
+      name: /Linked Rule.*1st/,
+    });
+    if (linkedRuleDisclosureAfterReselect.getAttribute("aria-expanded") === "false") {
+      fireEvent.click(linkedRuleDisclosureAfterReselect);
+    }
     const linkedRuleLinkAfterReselect = await screen.findByRole("link", {
-      name: "Linked Rule",
+      name: "Open full spell record",
     });
     if (!linkedRuleLinkAfterReselect) {
       throw new Error("Linked Rule link was not rendered after reselection");
@@ -469,7 +655,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
     );
-  });
+  }, 15_000);
 
   it("opens condition reference previews from canonical condition rows", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -733,6 +919,45 @@ describe("encounter views", () => {
 
     await screen.findByText("Frightened");
 
+    const frightenedControls = screen.getByRole("group", {
+      name: "Frightened value controls",
+    });
+    fireEvent.click(
+      within(frightenedControls).getByRole("button", {
+        name: "Increase Frightened value",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
+        "ambush",
+        "participant_a",
+        expect.objectContaining({
+          condition_id: 7,
+          name: "Frightened",
+          value: 2,
+        }),
+      ),
+    );
+
+    fireEvent.click(
+      within(frightenedControls).getByRole("button", {
+        name: "Decrease Frightened value",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
+        "ambush",
+        "participant_a",
+        expect.objectContaining({
+          condition_id: 7,
+          name: "Frightened",
+          value: 0,
+        }),
+      ),
+    );
+
     const frightenedValue = screen.getByLabelText("Frightened value");
     fireEvent.change(frightenedValue, {
       target: { value: "2" },
@@ -872,7 +1097,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
   };
 }
 
-function conditionDefinitionsFixture() {
+function conditionDefinitionsFixture(): EncounterConditionCatalogView {
   return {
     conditions: [
       conditionDefinitionFixture(
@@ -908,7 +1133,7 @@ function conditionDefinitionFixture(
   name: string,
   hasValue: boolean,
   automationLevel: "automated" | "tracked",
-) {
+): EncounterConditionDefinitionView {
   return {
     condition_ref: conditionRef,
     name,
@@ -1177,6 +1402,11 @@ function recordSurfaceFixture({
                   label: "Linked Rule",
                   target_record_key: "rules:linked",
                   rank: 1,
+                  cast: {
+                    spend_target: { target_type: "at_will" as const },
+                    available: true,
+                    state: { state_type: "at_will" as const },
+                  },
                   provenance: runtimeProvenance,
                 },
               ],

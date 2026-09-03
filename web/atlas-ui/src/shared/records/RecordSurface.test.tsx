@@ -1080,6 +1080,249 @@ describe("RecordSurface", () => {
     ).toBeInTheDocument();
   });
 
+  it("separates runtime labels from values and exposes typed spell details", async () => {
+    const onSpellCast = vi.fn();
+    const surface = detailedSurfaceFixture();
+    surface.profile = "encounter_participant";
+    const runtime = encounterRuntimeFixture();
+    const provenance = {
+      source: { source_type: "canonical_record" as const },
+    };
+    runtime.movement = {
+      speeds: [
+        {
+          movement_type: "land",
+          label: "Land Speed",
+          base_value_feet: 25,
+          adjusted_value_feet: 25,
+          provenance,
+        },
+      ],
+    };
+    runtime.skills = [
+      {
+        skill_id: "skill:occultism",
+        label: "Occultism",
+        kind: { kind: "standard", slug: "occultism" },
+        modifier: {
+          label: "Occultism",
+          base_value: 20,
+          adjusted_value: 20,
+          provenance,
+        },
+      },
+    ];
+    runtime.spellcasting = [
+      {
+        entry_id: "occult-innate",
+        authored_order: 0,
+        label: "Occult Innate Spells",
+        tradition: "occult",
+        preparation: "innate",
+        spells: [
+          {
+            occurrence_id: "dream-message",
+            authored_order: 0,
+            label: "Dream Message",
+            target_record_key: "spells:dream-message",
+            rank: 5,
+            traits: ["concentrate", "mental"],
+            content: [
+              spellContent(
+                "runtime-dream-message",
+                "Dream Message",
+                "The message reaches a sleeper.",
+              ),
+            ],
+            activity: {
+              activity_id: "dream-message",
+              label: "Dream Message",
+              kind: "spell",
+              usage: "unlimited",
+              action_cost: {
+                value: { kind: "actions", count: 2 },
+                provenance,
+              },
+              provenance,
+            },
+            cast: {
+              spend_target: {
+                target_type: "innate_use",
+                entry_id: "occult-innate",
+                spell_occurrence_id: "dream-message",
+              },
+              available: true,
+              state: {
+                state_type: "tracked",
+                maximum: 2,
+                initial_remaining: 2,
+                remaining: 2,
+              },
+            },
+            provenance,
+          },
+        ],
+      },
+    ];
+    surface.encounter = runtime;
+
+    render(
+      <RecordSurface
+        onReference={onReference}
+        onSpellCast={onSpellCast}
+        surface={surface}
+      />,
+    );
+
+    for (const label of ["Movement", "Skills"]) {
+      const list = screen.getByLabelText(label);
+      expect(list).toHaveClass("record-key-value-list");
+      const row = list.querySelector(".record-key-value-list__row");
+      expect(row?.children[0]?.tagName).toBe("DT");
+      expect(row?.children[1]?.tagName).toBe("DD");
+    }
+    expect(screen.getByText("Land Speed").nextElementSibling).toHaveTextContent(
+      "25 ft",
+    );
+    expect(screen.getByText("Occultism").nextElementSibling).toHaveTextContent("+20");
+
+    const spellcastingDisclosure = screen.getByRole("button", {
+      name: /Occult Innate Spells/,
+    });
+    expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(spellcastingDisclosure);
+    const spellDisclosure = screen.getByRole("button", {
+      name: /Dream Message.*5th.*Concentrate.*Mental.*2 actions/,
+    });
+    expect(spellDisclosure).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(spellDisclosure);
+    expect(spellDisclosure).toHaveAttribute("aria-expanded", "true");
+    expect(await screen.findByText("The message reaches a sleeper.")).toBeVisible();
+    expect(screen.getByText("Open full spell record")).toHaveAttribute(
+      "href",
+      "/records/spells%3Adream-message",
+    );
+    expect(screen.getByText("2 of 2 remaining")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Cast Dream Message" }));
+    expect(onSpellCast).toHaveBeenCalledWith({
+      spell_occurrence_id: "dream-message",
+      spend_target: {
+        target_type: "innate_use",
+        entry_id: "occult-innate",
+        spell_occurrence_id: "dream-message",
+      },
+      operation: "cast_one",
+    });
+    expect(
+      screen.getByRole("button", { name: "Restore one use of Dream Message" }),
+    ).toBeDisabled();
+  });
+
+  it("renders backend-authored spell availability and submits typed cast and restore operations", () => {
+    const surface = detailedSurfaceFixture();
+    surface.profile = "encounter_participant";
+    const runtime = encounterRuntimeFixture();
+    const provenance = {
+      source: { source_type: "canonical_record" as const },
+    };
+    runtime.spellcasting = [
+      {
+        entry_id: "occult-innate",
+        authored_order: 0,
+        label: "Occult Innate Spells",
+        spells: [
+          {
+            occurrence_id: "limited",
+            authored_order: 0,
+            label: "Limited Spell",
+            cast: {
+              spend_target: {
+                target_type: "innate_use",
+                entry_id: "occult-innate",
+                spell_occurrence_id: "limited",
+              },
+              available: false,
+              state: {
+                state_type: "tracked",
+                maximum: 2,
+                initial_remaining: 2,
+                remaining: 0,
+              },
+              blocked_reason: "exhausted",
+            },
+            provenance,
+          },
+          {
+            occurrence_id: "at-will",
+            authored_order: 1,
+            label: "At-Will Spell",
+            cast: {
+              spend_target: { target_type: "at_will" },
+              available: true,
+              state: { state_type: "at_will" },
+            },
+            provenance,
+          },
+          {
+            occurrence_id: "focus",
+            authored_order: 2,
+            label: "Focus Spell",
+            cast: {
+              spend_target: {
+                target_type: "focus_pool",
+                resource_id: "resource:focus",
+              },
+              available: false,
+              state: { state_type: "unavailable", reason: "missing_current" },
+              blocked_reason: "state_unavailable",
+            },
+            provenance,
+          },
+        ],
+      },
+    ];
+    surface.encounter = runtime;
+    const onSpellCast = vi.fn();
+
+    render(
+      <RecordSurface
+        onReference={onReference}
+        onSpellCast={onSpellCast}
+        surface={surface}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Occult Innate Spells/ }));
+
+    expect(screen.getByText("0 of 2 remaining")).toBeVisible();
+    expect(screen.getByText("No uses remaining")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Cast Limited Spell" })).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore one use of Limited Spell" }),
+    );
+    expect(onSpellCast).toHaveBeenLastCalledWith({
+      spell_occurrence_id: "limited",
+      spend_target: {
+        target_type: "innate_use",
+        entry_id: "occult-innate",
+        spell_occurrence_id: "limited",
+      },
+      operation: "restore_one",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cast At-Will Spell" }));
+    expect(onSpellCast).toHaveBeenLastCalledWith({
+      spell_occurrence_id: "at-will",
+      spend_target: { target_type: "at_will" },
+      operation: "cast_one",
+    });
+    expect(screen.getByText("At will")).toBeVisible();
+    expect(
+      screen.getByText(/Unavailable: current uses were not provided/),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Cast Focus Spell" })).toBeDisabled();
+    expect(screen.getByText("Casting state unavailable")).toBeVisible();
+  });
+
   it("keeps static record profiles free of encounter mutation slots", () => {
     const surface = detailedSurfaceFixture();
     surface.encounter = encounterRuntimeFixture();
@@ -1087,6 +1330,7 @@ describe("RecordSurface", () => {
     render(
       <RecordSurface
         onReference={onReference}
+        onSpellCast={vi.fn()}
         slots={{
           conditions: <button>Mutate conditions</button>,
           header: <button>Mutate participant state</button>,
@@ -1103,6 +1347,7 @@ describe("RecordSurface", () => {
     expect(screen.queryByText("Mutate variant")).not.toBeInTheDocument();
     expect(screen.queryByText("Mutate HP")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Participant note")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Cast / })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Defenses & Vitals" })).toBeVisible();
   });
 });

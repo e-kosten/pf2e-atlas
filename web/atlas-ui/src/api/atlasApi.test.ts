@@ -1,4 +1,8 @@
-import type { AppError, OpenResultWindowRequest } from "../generated/atlas";
+import type {
+  AppError,
+  EncounterSpellCastRequest,
+  OpenResultWindowRequest,
+} from "../generated/atlas";
 import {
   addSavedListItem,
   AtlasApiError,
@@ -11,10 +15,12 @@ import {
   getRecordDetail,
   getSavedList,
   getSavedLists,
+  mutateEncounterSpellCast,
   openResultWindow,
   readResultWindowPage,
   removeEncounterParticipantCondition,
   removeSavedListItem,
+  resetEncounterParticipant,
   updateEncounterParticipantCondition,
   updateSavedList,
 } from "./atlasApi";
@@ -179,6 +185,99 @@ describe("atlasApi", () => {
       name: "AtlasApiError",
       message: "Request numeric field exceeds JSON safe integer range",
     });
+  });
+
+  it("posts an opaque typed spell-cast target without reconstructing its identity", async () => {
+    const request: EncounterSpellCastRequest = {
+      spell_occurrence_id: "spell/occurrence",
+      spend_target: {
+        target_type: "prepared_slot",
+        entry_id: "entry/id",
+        rank: 4,
+        slot_id: "slot4:0",
+      },
+      operation: "cast_one",
+    };
+    const resultPayload = {
+      operation: "cast_one",
+      participant_key: "participant/key",
+      spell_occurrence_id: "spell/occurrence",
+      before: {
+        spend_target: request.spend_target,
+        available: true,
+        state: {
+          state_type: "tracked",
+          maximum: 1,
+          initial_remaining: 1,
+          remaining: 1,
+        },
+      },
+      after: {
+        spend_target: request.spend_target,
+        available: false,
+        state: {
+          state_type: "tracked",
+          maximum: 1,
+          initial_remaining: 1,
+          remaining: 0,
+        },
+        blocked_reason: "exhausted",
+      },
+      participant: {},
+    };
+    const fetchMock = mockFetch(resultPayload);
+
+    await expect(
+      mutateEncounterSpellCast("encounter/ref", "participant/key", request),
+    ).resolves.toEqual(resultPayload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/encounter%2Fref/participants/participant%2Fkey/spell-casts",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(request),
+      }),
+    );
+  });
+
+  it("rejects unsafe numeric fields in typed spell targets", async () => {
+    await expect(
+      mutateEncounterSpellCast("encounter", "participant", {
+        spell_occurrence_id: "spell",
+        spend_target: {
+          target_type: "spontaneous_pool",
+          entry_id: "entry",
+          rank: Number.MAX_SAFE_INTEGER + 1,
+        },
+        operation: "cast_one",
+      }),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
+  it("posts the exact typed participant-reset confirmation", async () => {
+    const resultPayload = {
+      participant_key: "participant/key",
+      reset_domains: ["hit_points", "conditions", "spell_resources"],
+      preserved_domains: ["display_name", "notes", "visibility", "side"],
+      cleared_current_turn: true,
+      participant: {},
+    };
+    const fetchMock = mockFetch(resultPayload);
+
+    await expect(
+      resetEncounterParticipant("encounter/ref", "participant/key", {
+        confirmation: "reset_participant",
+      }),
+    ).resolves.toEqual(resultPayload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/encounter%2Fref/participants/participant%2Fkey/reset",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ confirmation: "reset_participant" }),
+      }),
+    );
   });
 
   it("posts filter-editor requests and normalizes record counts", async () => {

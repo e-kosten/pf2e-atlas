@@ -7,9 +7,11 @@ import {
   deleteEncounter,
   getEncounter,
   getEncounterConditionDefinitions,
+  mutateEncounterSpellCast,
   removeEncounterParticipant,
   removeEncounterParticipantCondition,
   reorderEncounterParticipant,
+  resetEncounterParticipant,
   setEncounterTurn,
   updateEncounter,
   updateEncounterParticipant,
@@ -17,6 +19,9 @@ import {
 } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
+  EncounterParticipantResetResultView,
+  EncounterSpellCastRequest,
+  EncounterSpellCastResultView,
   EncounterSummaryView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
@@ -44,6 +49,10 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [spellCastResult, setSpellCastResult] =
+    useState<EncounterSpellCastResultView | null>(null);
+  const [resetResult, setResetResult] =
+    useState<EncounterParticipantResetResultView | null>(null);
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -126,6 +135,28 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       ),
     onSuccess: invalidateEncounter,
   });
+  const mutateSpellCast = useMutation({
+    mutationFn: (request: {
+      participantKey: string;
+      spellCast: EncounterSpellCastRequest;
+    }) =>
+      mutateEncounterSpellCast(route.slug, request.participantKey, request.spellCast),
+    onSuccess: async (result) => {
+      setSpellCastResult(result);
+      await invalidateEncounter();
+    },
+  });
+  const resetParticipant = useMutation({
+    mutationFn: (participantKey: string) =>
+      resetEncounterParticipant(route.slug, participantKey, {
+        confirmation: "reset_participant",
+      }),
+    onSuccess: async (result) => {
+      setResetResult(result);
+      setSpellCastResult(null);
+      await invalidateEncounter();
+    },
+  });
   const encounterSummary = encounter.data?.encounter ?? null;
   const updateEncounterStatus = (status: EncounterSummaryView["status"]) => {
     if (!encounterSummary) {
@@ -207,11 +238,27 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             onRemoveCondition={(participantKey, conditionId) =>
               removeCondition.mutate({ participantKey, conditionId })
             }
+            onResetParticipant={(participantKey) =>
+              resetParticipant.mutate(participantKey)
+            }
+            onSpellCast={(participantKey, spellCast) =>
+              mutateSpellCast.mutate({ participantKey, spellCast })
+            }
             onUpdate={(participant) => updateParticipant.mutate(participant)}
             onUpdateCondition={(participantKey, condition) =>
               updateCondition.mutate({ participantKey, condition })
             }
             participant={selected}
+            resetResult={
+              resetResult?.participant_key === selected?.participant_key
+                ? resetResult
+                : null
+            }
+            spellCastResult={
+              spellCastResult?.participant_key === selected?.participant_key
+                ? spellCastResult
+                : null
+            }
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             currentTurnParticipantKey={

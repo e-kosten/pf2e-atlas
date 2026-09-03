@@ -1,6 +1,10 @@
 import { Alert } from "antd";
 import { memo } from "react";
-import type { RecordSurfaceView } from "../../generated/atlas";
+import type {
+  EncounterSpellCastRequest,
+  EncounterSpellCastResultView,
+  RecordSurfaceView,
+} from "../../generated/atlas";
 import {
   CreatureDetailSurface,
   RecordHeader,
@@ -13,14 +17,18 @@ import {
 
 type RecordSurfaceProps = {
   onReference: (recordKey: string) => void;
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
   showTitle?: boolean;
+  spellCastResult?: EncounterSpellCastResultView;
   surface: RecordSurfaceView;
   slots?: EncounterRecordSurfaceSlots;
 };
 
 export const RecordSurface = memo(function RecordSurface({
   onReference,
+  onSpellCast,
   showTitle = true,
+  spellCastResult,
   surface,
   slots = {},
 }: RecordSurfaceProps) {
@@ -49,8 +57,10 @@ export const RecordSurface = memo(function RecordSurface({
         body={body}
         metadata={surface.metadata}
         onReference={onReference}
+        onSpellCast={onSpellCast}
         runtime={surface.encounter}
         slots={slots}
+        spellCastResult={spellCastResult}
       />
     );
   }
