@@ -14,7 +14,7 @@ describe("RecordDetailPane", () => {
 
     expect(container.querySelector(".detail-panel")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
-    expect(screen.getByText("Description & Lore")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
   });
 
   it("renders an accessible loading state", () => {
