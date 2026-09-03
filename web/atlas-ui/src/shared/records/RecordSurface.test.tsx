@@ -65,9 +65,9 @@ describe("RecordSurface", () => {
       within(defenses!).queryByText("Perception", { exact: true }),
     ).not.toBeInTheDocument();
 
-    const profile = screen.getByRole("heading", {
-      name: "Profile & Awareness",
-    }).parentElement;
+    const profile = document
+      .querySelector('dl[aria-label="Creature profile facts"]')
+      ?.closest<HTMLElement>(".creature-sheet__panel--profile");
     expect(profile).not.toBeNull();
     const perceptionLabel = within(profile!)
       .getAllByText("Perception", { exact: true })
@@ -87,16 +87,19 @@ describe("RecordSurface", () => {
   it("renders compact profile facts, corrected modifiers, and ordered skill variants", () => {
     const { container } = renderSurface();
 
-    const profile = screen.getByRole("heading", {
-      name: "Profile & Awareness",
-    }).parentElement!;
+    expect(
+      screen.queryByRole("heading", { name: "Profile & Awareness" }),
+    ).not.toBeInTheDocument();
+    const profileList = container.querySelector<HTMLElement>(
+      'dl[aria-label="Creature profile facts"]',
+    )!;
+    const profile = profileList.closest<HTMLElement>(
+      ".creature-sheet__panel--profile",
+    )!;
     expect(screen.getByText("Medium")).toBeInTheDocument();
     expect(screen.getByText("Elite")).toBeInTheDocument();
     expect(screen.getByText("Initiative")).toBeInTheDocument();
     expect(container.querySelector('dl[aria-label="Creature profile"]')).toBeNull();
-    const profileList = profile.querySelector<HTMLElement>(
-      'dl[aria-label="Creature profile and awareness"]',
-    )!;
     for (const label of [
       "Size",
       "Adjustment",
@@ -126,9 +129,12 @@ describe("RecordSurface", () => {
     expect(profileList).toHaveClass("creature-sheet__compact-fact-grid");
     expect(profile.querySelector(".ant-tag")).toBeNull();
     const overview = screen.getByRole("heading", { name: "Overview" });
-    expect(
-      overview.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    const overviewCallout = overview.closest<HTMLElement>(
+      ".creature-sheet__narrative",
+    )!;
+    const factsGrid = profile.closest<HTMLElement>(".creature-sheet__facts-grid")!;
+    expect(overviewCallout.nextElementSibling).toBe(factsGrid);
+    expect(overviewCallout).not.toContainElement(profileList);
 
     const abilities = screen.getByRole("heading", {
       name: "Ability Modifiers",
@@ -179,9 +185,9 @@ describe("RecordSurface", () => {
   it("keeps all movement modes together in the compact profile grid", () => {
     renderSurface();
 
-    const profile = screen.getByRole("heading", {
-      name: "Profile & Awareness",
-    }).parentElement!;
+    const profile = document
+      .querySelector('dl[aria-label="Creature profile facts"]')!
+      .closest<HTMLElement>(".creature-sheet__panel--profile")!;
     const movementLabel = within(profile)
       .getAllByText("Movement", { exact: true })
       .find((element) => element.tagName === "DT")!;
@@ -290,9 +296,9 @@ describe("RecordSurface", () => {
 
     render(<RecordSurface onReference={onReference} surface={surface} />);
 
-    const profile = screen.getByRole("heading", {
-      name: "Profile & Awareness",
-    }).parentElement!;
+    const profile = document
+      .querySelector('dl[aria-label="Creature profile facts"]')!
+      .closest<HTMLElement>(".creature-sheet__panel--profile")!;
     const perceptionGroup =
       within(profile).getByText("Perception & senses").parentElement!;
     const fogVision = within(perceptionGroup).getByText("fog vision");
@@ -471,7 +477,7 @@ describe("RecordSurface", () => {
     const { container } = renderSurface();
 
     const facts = container.querySelector<HTMLElement>(
-      'dl[aria-label="Creature profile and awareness"]',
+      'dl[aria-label="Creature profile facts"]',
     )!;
     expect(facts.tagName).toBe("DL");
     expect(facts).toHaveClass("creature-sheet__compact-fact-grid");
