@@ -283,6 +283,79 @@ fn zero_hp_participant_can_be_marked_active() {
 }
 
 #[test]
+fn defeated_participant_action_availability_tracks_reversible_state() {
+    let fixture = fixture_worker();
+    let encounter = fixture
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Defeated Availability".to_string(),
+            description: None,
+            note: None,
+        })
+        .expect("encounter should create")
+        .encounter;
+    let participant = fixture
+        .worker
+        .local_state_store()
+        .expect("local state should open")
+        .encounters()
+        .add_participant(&encounter.slug, pc("Reversible Hero", Some(20)))
+        .expect("participant should add");
+
+    let active = fixture
+        .worker
+        .encounter(&encounter.slug)
+        .expect("encounter should read")
+        .participants
+        .into_iter()
+        .find(|view| view.participant_key == participant.participant_key)
+        .expect("participant should remain present");
+    let active_budget = runtime(&active)
+        .action_budget
+        .as_ref()
+        .expect("action budget")
+        .clone();
+    assert!(active_budget.can_act.available);
+    assert!(active_budget.can_react.available);
+
+    let defeated = fixture
+        .worker
+        .update_encounter_participant(&encounter.slug, participant_update(&participant, true))
+        .expect("participant should become defeated");
+    let defeated_budget = runtime(&defeated)
+        .action_budget
+        .as_ref()
+        .expect("action budget");
+    assert_eq!(defeated_budget.actions, active_budget.actions);
+    assert_eq!(defeated_budget.reactions, active_budget.reactions);
+    assert_eq!(defeated_budget.notes, active_budget.notes);
+    for capability in [&defeated_budget.can_act, &defeated_budget.can_react] {
+        assert!(!capability.available);
+        assert!(matches!(
+            capability
+                .provenance
+                .as_ref()
+                .map(|provenance| &provenance.source),
+            Some(atlas_app_model::RuntimeFactSourceView::ParticipantState)
+        ));
+        assert_eq!(
+            capability.reason.as_deref(),
+            Some("Defeated participants cannot act or react.")
+        );
+    }
+
+    let local = local_participant(&fixture, &encounter.slug, &participant.participant_key);
+    let reactivated = fixture
+        .worker
+        .update_encounter_participant(&encounter.slug, participant_update(&local, false))
+        .expect("participant should become active");
+    assert_eq!(
+        runtime(&reactivated).action_budget.as_ref(),
+        Some(&active_budget)
+    );
+}
+
+#[test]
 fn record_participant_add_rejects_invalid_quantity_without_mutating() {
     let fixture = fixture_worker();
     let encounter = fixture
