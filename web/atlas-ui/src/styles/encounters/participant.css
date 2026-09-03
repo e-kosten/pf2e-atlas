@@ -148,6 +148,71 @@
   gap: 14px;
 }
 
+.encounter-runtime-spell-rank-content,
+.encounter-runtime-spell-list,
+.encounter-runtime-spell-details {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.encounter-runtime-spell-rank-content > .creature-sheet__spell-slots {
+  justify-self: start;
+  margin-right: 0;
+}
+
+.encounter-runtime-spell.ant-collapse > .ant-collapse-item > .ant-collapse-header {
+  padding-block: 4px;
+}
+
+.encounter-runtime-spell.ant-collapse
+  > .ant-collapse-item
+  > .ant-collapse-content
+  > .ant-collapse-content-box {
+  padding: 4px 0 10px 28px;
+}
+
+.encounter-runtime-spell-summary {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-block: 4px;
+}
+
+.encounter-runtime-spell-state,
+.encounter-runtime-spell-blocked {
+  color: var(--muted);
+}
+
+.encounter-runtime-spell-controls {
+  align-items: flex-end;
+  display: grid;
+  flex: 0 0 auto;
+  gap: 4px;
+  justify-items: end;
+  max-width: 240px;
+}
+
+.encounter-runtime-spell-blocked {
+  font-size: 11px;
+  text-align: right;
+}
+
+.encounter-runtime-spell-result {
+  max-width: 240px;
+  text-align: left;
+}
+
+.encounter-runtime-spell-result .ant-alert-message,
+.encounter-runtime-spell-result .ant-alert-description {
+  font-size: 11px;
+}
+
+.encounter-participant-reset-result {
+  margin-bottom: 10px;
+}
+
 .encounter-runtime-adjustment-links {
   justify-content: flex-start;
 }

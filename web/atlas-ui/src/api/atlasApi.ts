@@ -16,6 +16,9 @@ import type {
   EncounterDetailView,
   EncounterIndexView,
   EncounterParticipantView,
+  EncounterParticipantResetResultView,
+  EncounterSpellCastRequest,
+  EncounterSpellCastResultView,
   EncounterUpdateView,
   FilterEditorView,
   FilterSavedListRequest,
@@ -25,6 +28,7 @@ import type {
   RecordDetailView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
+  ResetEncounterParticipantRequest,
   SavedListCreateView,
   ResultWindowPage,
   SavedListDetailView,
@@ -249,6 +253,34 @@ export async function removeEncounterParticipantCondition(
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${safeIntegerPathSegment(conditionId)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function mutateEncounterSpellCast(
+  encounterRef: string,
+  participantKey: string,
+  request: EncounterSpellCastRequest,
+): Promise<EncounterSpellCastResultView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/spell-casts`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function resetEncounterParticipant(
+  encounterRef: string,
+  participantKey: string,
+  request: ResetEncounterParticipantRequest,
+): Promise<EncounterParticipantResetResultView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reset`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
   );
 }
 

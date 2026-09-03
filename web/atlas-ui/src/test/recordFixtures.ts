@@ -232,6 +232,7 @@ export function encounterParticipantFixture(
     defeated: false,
     hidden: false,
     note_hint: null,
+    reset: { available: true },
     record_view: creatureSurfaceFixture({
       encounter,
       profile: "encounter_participant",

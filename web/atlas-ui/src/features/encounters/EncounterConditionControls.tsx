@@ -1,5 +1,5 @@
 import { Button, Form, Input, InputNumber, Popover, Select } from "antd";
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { Minus, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
@@ -277,13 +277,32 @@ function ConditionEditor({
         <span className="encounter-condition-row__name">{condition.name}</span>
       )}
       {hasValue && (
-        <EditableCommitField
-          ariaLabel={`${condition.name} value`}
-          inputMode="numeric"
-          onCommit={(value) => commitConditionValue(value, update)}
-          size="small"
-          value={inputNumberValue(condition.value)}
-        />
+        <div
+          aria-label={`${condition.name} value controls`}
+          className="encounter-condition-value-controls"
+          role="group"
+        >
+          <Button
+            aria-label={`Decrease ${condition.name} value`}
+            disabled={(condition.value ?? 0) <= 0}
+            icon={<Minus size={12} />}
+            onClick={() => stepConditionValue(condition.value, -1, update)}
+            size="small"
+          />
+          <EditableCommitField
+            ariaLabel={`${condition.name} value`}
+            inputMode="numeric"
+            onCommit={(value) => commitConditionValue(value, update)}
+            size="small"
+            value={inputNumberValue(condition.value)}
+          />
+          <Button
+            aria-label={`Increase ${condition.name} value`}
+            icon={<Plus size={12} />}
+            onClick={() => stepConditionValue(condition.value, 1, update)}
+            size="small"
+          />
+        </div>
       )}
       {condition.duration_rounds !== undefined && (
         <span className="encounter-condition-chip">
@@ -356,4 +375,12 @@ function commitConditionValue(
 
 function inputNumberValue(value: number | undefined): string {
   return value === undefined ? "" : value.toString();
+}
+
+function stepConditionValue(
+  value: number | undefined,
+  step: -1 | 1,
+  update: (changes: Partial<UpdateEncounterParticipantConditionRequest>) => void,
+) {
+  update({ value: Math.max(0, (value ?? 0) + step) });
 }

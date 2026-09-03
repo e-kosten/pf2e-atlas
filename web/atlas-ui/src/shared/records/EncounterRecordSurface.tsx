@@ -11,6 +11,10 @@ import type {
   EncounterRuntimeSpellView,
   EncounterRuntimeSpellcastingView,
   EncounterRuntimeView,
+  EncounterSpellCastBlockedReasonView,
+  EncounterSpellCastRequest,
+  EncounterSpellCastResultView,
+  EncounterSpellCastUnavailableReasonView,
   RecordSurfaceMetadataView,
   RuntimeAdjustmentView,
   RuntimeCountSegmentView,
@@ -47,14 +51,18 @@ export function EncounterParticipantSurface({
   body,
   metadata,
   onReference,
+  onSpellCast,
   runtime,
   slots,
+  spellCastResult,
 }: {
   body: CreatureSurfaceView;
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
   runtime: EncounterRuntimeView | undefined;
   slots: EncounterRecordSurfaceSlots;
+  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const narrative = narrativeContent(body.content);
   return (
@@ -94,7 +102,12 @@ export function EncounterParticipantSurface({
         </div>
         <div className="record-surface-structured__column">
           <RuntimeActivities onReference={onReference} runtime={runtime} />
-          <RuntimeSpellcasting onReference={onReference} runtime={runtime} />
+          <RuntimeSpellcasting
+            onReference={onReference}
+            onSpellCast={onSpellCast}
+            runtime={runtime}
+            spellCastResult={spellCastResult}
+          />
           <RuntimeResources runtime={runtime} />
           <RuntimeAutomationLimitations runtime={runtime} />
         </div>
@@ -269,49 +282,49 @@ function RuntimeConditions({ runtime }: { runtime: EncounterRuntimeView | undefi
 function RuntimeMovement({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
   const speeds = runtime?.movement?.speeds;
   if (!speeds?.length) return null;
+  const items: RecordKeyValueItem[] = speeds.map((speed) => ({
+    key: speed.movement_type,
+    label: speed.label,
+    value: (
+      <RuntimeAdjustedValue
+        adjustments={speed.adjustments}
+        adjusted={speed.adjusted_value_feet}
+        base={speed.base_value_feet}
+        label={speed.label}
+        notes={speed.notes}
+        provenance={speed.provenance}
+        suppressedAdjustments={speed.suppressed_adjustments}
+        suffix=" ft"
+      />
+    ),
+  }));
   return (
     <SurfaceSection title="Movement">
-      <div className="creature-sheet__movement-list">
-        {speeds.map((speed) => (
-          <div className="creature-sheet__movement" key={speed.movement_type}>
-            <span>{speed.label}</span>
-            <RuntimeAdjustedValue
-              adjustments={speed.adjustments}
-              adjusted={speed.adjusted_value_feet}
-              base={speed.base_value_feet}
-              label={speed.label}
-              notes={speed.notes}
-              provenance={speed.provenance}
-              suppressedAdjustments={speed.suppressed_adjustments}
-              suffix=" ft"
-            />
-          </div>
-        ))}
-      </div>
+      <RecordKeyValueList ariaLabel="Movement" items={items} />
     </SurfaceSection>
   );
 }
 
 function RuntimeSkills({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
   if (!runtime?.skills?.length) return null;
+  const items: RecordKeyValueItem[] = runtime.skills.map((skill) => ({
+    key: skill.skill_id,
+    label: skill.label,
+    value: (
+      <RuntimeAdjustedValue
+        adjustments={skill.modifier.modifiers}
+        adjusted={skill.modifier.adjusted_value}
+        base={skill.modifier.base_value}
+        label={skill.label}
+        provenance={skill.modifier.provenance}
+        signed
+        suppressedAdjustments={skill.modifier.suppressed_modifiers}
+      />
+    ),
+  }));
   return (
     <SurfaceSection title="Skills">
-      <div className="creature-sheet__chip-list">
-        {runtime.skills.map((skill) => (
-          <span className="creature-sheet__skill" key={skill.skill_id}>
-            <span>{skill.label}</span>
-            <RuntimeAdjustedValue
-              adjustments={skill.modifier.modifiers}
-              adjusted={skill.modifier.adjusted_value}
-              base={skill.modifier.base_value}
-              label={skill.label}
-              provenance={skill.modifier.provenance}
-              signed
-              suppressedAdjustments={skill.modifier.suppressed_modifiers}
-            />
-          </span>
-        ))}
-      </div>
+      <RecordKeyValueList ariaLabel="Skills" items={items} />
     </SurfaceSection>
   );
 }
@@ -411,10 +424,14 @@ function RuntimeActivity({
 
 function RuntimeSpellcasting({
   onReference,
+  onSpellCast,
   runtime,
+  spellCastResult,
 }: {
   onReference: ReferenceHandler;
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
   runtime: EncounterRuntimeView | undefined;
+  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const entries = runtime?.spellcasting ?? [];
   const standalone = runtime?.standalone_spells ?? [];
@@ -423,12 +440,20 @@ function RuntimeSpellcasting({
     <SurfaceSection title="Spellcasting">
       <Collapse
         className="record-surface__inline-disclosure"
+        destroyOnHidden
         ghost
         items={[
           ...entries.map((entry) => ({
             key: entry.entry_id,
             label: <RuntimeSpellcastingHeading entry={entry} />,
-            children: <RuntimeSpellRoster entry={entry} onReference={onReference} />,
+            children: (
+              <RuntimeSpellRoster
+                entry={entry}
+                onReference={onReference}
+                onSpellCast={onSpellCast}
+                spellCastResult={spellCastResult}
+              />
+            ),
           })),
           ...(standalone.length
             ? [
@@ -439,7 +464,9 @@ function RuntimeSpellcasting({
                     <RuntimeSpell
                       key={spell.occurrence_id}
                       onReference={onReference}
+                      onSpellCast={onSpellCast}
                       spell={spell}
+                      spellCastResult={spellCastResult}
                     />
                   )),
                 },
@@ -474,9 +501,13 @@ function RuntimeSpellcastingHeading({
 function RuntimeSpellRoster({
   entry,
   onReference,
+  onSpellCast,
+  spellCastResult,
 }: {
   entry: EncounterRuntimeSpellcastingView;
   onReference: ReferenceHandler;
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
+  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const groups = groupRuntimeSpells(entry.spells ?? []);
   const slots = new Map((entry.slots ?? []).map((slot) => [slot.rank, slot.maximum]));
@@ -493,23 +524,24 @@ function RuntimeSpellRoster({
         return (
           <div className="creature-sheet__spell-rank" key={rank}>
             <strong>{rank === "Unranked" ? rank : formatRank(rank)}</strong>
-            <div>
+            <div className="encounter-runtime-spell-rank-content">
               {slot && (
                 <span className="creature-sheet__spell-slots">
                   <RuntimeCountValue value={slot} /> slot
                   {slot.adjusted_value === 1 ? "" : "s"}
                 </span>
               )}
-              {spells.map((spell, index) => (
-                <span key={spell.occurrence_id}>
-                  {index > 0 && ", "}
-                  <RecordReference
-                    label={spell.label}
+              <div className="encounter-runtime-spell-list">
+                {spells.map((spell) => (
+                  <RuntimeSpell
+                    key={spell.occurrence_id}
                     onReference={onReference}
-                    recordKey={spell.target_record_key}
+                    onSpellCast={onSpellCast}
+                    spell={spell}
+                    spellCastResult={spellCastResult}
                   />
-                </span>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -520,18 +552,32 @@ function RuntimeSpellRoster({
 
 function RuntimeSpell({
   onReference,
+  onSpellCast,
   spell,
+  spellCastResult,
 }: {
   onReference: ReferenceHandler;
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
   spell: EncounterRuntimeSpellView;
+  spellCastResult?: EncounterSpellCastResultView;
 }) {
-  return (
-    <div className="creature-sheet__standalone-spell">
-      <RecordReference
-        label={spell.label}
-        onReference={onReference}
-        recordKey={spell.target_record_key}
-      />
+  const metadata = [
+    spell.rank === undefined ? undefined : formatRank(spell.rank),
+    ...(spell.traits ?? []).map(formatSlug),
+    spell.activity?.action_cost
+      ? formatRuntimeActionCost(spell.activity.action_cost.value)
+      : undefined,
+  ].filter((value): value is string => Boolean(value));
+  const details = (
+    <div className="encounter-runtime-spell-details">
+      {spell.target_record_key && (
+        <RecordReference
+          label="Open full spell record"
+          onReference={onReference}
+          recordKey={spell.target_record_key}
+        />
+      )}
+      {spell.activity && <RuntimeActivityDetails activity={spell.activity} />}
       {spell.content?.map((document) => (
         <RichContent
           content={document}
@@ -541,6 +587,169 @@ function RuntimeSpell({
       ))}
     </div>
   );
+  const heading = (
+    <span className="creature-sheet__spell-heading">
+      <strong>{spell.label}</strong>
+      {metadata.length > 0 && <small>{metadata.join(" · ")}</small>}
+      <small className="encounter-runtime-spell-state">
+        {spellCastStateLabel(spell.cast)}
+      </small>
+    </span>
+  );
+  const controls = (
+    <RuntimeSpellControls
+      onSpellCast={onSpellCast}
+      spell={spell}
+      spellCastResult={spellCastResult}
+    />
+  );
+  if (!spell.target_record_key && !spell.activity && !spell.content?.length) {
+    return (
+      <div className="encounter-runtime-spell">
+        <div className="encounter-runtime-spell-summary">
+          {heading}
+          {controls}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Collapse
+      className="encounter-runtime-spell"
+      destroyOnHidden
+      ghost
+      items={[
+        {
+          key: spell.occurrence_id,
+          label: heading,
+          extra: controls,
+          children: details,
+        },
+      ]}
+      size="small"
+    />
+  );
+}
+
+function RuntimeSpellControls({
+  onSpellCast,
+  spell,
+  spellCastResult,
+}: {
+  onSpellCast?: (request: EncounterSpellCastRequest) => void;
+  spell: EncounterRuntimeSpellView;
+  spellCastResult?: EncounterSpellCastResultView;
+}) {
+  const target = spell.cast.spend_target;
+  const blockedReason = spell.cast.blocked_reason
+    ? spellCastBlockedReasonLabel(spell.cast.blocked_reason)
+    : undefined;
+  const castDisabledReason = !onSpellCast
+    ? "Casting controls are unavailable"
+    : !target
+      ? "Casting target unavailable"
+      : blockedReason;
+  const tracked =
+    spell.cast.state.state_type === "tracked" ? spell.cast.state : undefined;
+  const restoreDisabledReason = !onSpellCast
+    ? "Restore controls are unavailable"
+    : !target
+      ? "Casting target unavailable"
+      : tracked && tracked.remaining >= tracked.initial_remaining
+        ? "Already at the creation baseline"
+        : undefined;
+  const result =
+    spellCastResult?.spell_occurrence_id === spell.occurrence_id
+      ? spellCastResult
+      : undefined;
+  const mutate = (operation: EncounterSpellCastRequest["operation"]) => {
+    if (!onSpellCast || !target) return;
+    onSpellCast({
+      spell_occurrence_id: spell.occurrence_id,
+      spend_target: target,
+      operation,
+    });
+  };
+  return (
+    <div className="encounter-runtime-spell-controls">
+      <Space size="small">
+        <Button
+          aria-label={`Cast ${spell.label}`}
+          disabled={!spell.cast.available || Boolean(castDisabledReason)}
+          onClick={(event) => {
+            event.stopPropagation();
+            mutate("cast_one");
+          }}
+          size="small"
+          title={castDisabledReason}
+          type="primary"
+        >
+          Cast
+        </Button>
+        {tracked && (
+          <Button
+            aria-label={`Restore one use of ${spell.label}`}
+            disabled={Boolean(restoreDisabledReason)}
+            onClick={(event) => {
+              event.stopPropagation();
+              mutate("restore_one");
+            }}
+            size="small"
+            title={restoreDisabledReason}
+          >
+            Restore
+          </Button>
+        )}
+      </Space>
+      {blockedReason && (
+        <small className="encounter-runtime-spell-blocked">{blockedReason}</small>
+      )}
+      {result && (
+        <Alert
+          className="encounter-runtime-spell-result"
+          description={spellCastStateLabel(result.after)}
+          message={result.operation === "cast_one" ? "Spell cast" : "Use restored"}
+          showIcon
+          type="success"
+        />
+      )}
+    </div>
+  );
+}
+
+function spellCastStateLabel(cast: EncounterRuntimeSpellView["cast"]): string {
+  if (cast.state.state_type === "at_will") return "At will";
+  if (cast.state.state_type === "tracked") {
+    return `${cast.state.remaining} of ${cast.state.maximum} remaining`;
+  }
+  return `Unavailable: ${spellCastUnavailableReasonLabel(cast.state.reason)}`;
+}
+
+function spellCastBlockedReasonLabel(
+  reason: EncounterSpellCastBlockedReasonView,
+): string {
+  const labels: Record<EncounterSpellCastBlockedReasonView, string> = {
+    exhausted: "No uses remaining",
+    participant_defeated: "Defeated participants cannot cast",
+    state_unavailable: "Casting state unavailable",
+  };
+  return labels[reason];
+}
+
+function spellCastUnavailableReasonLabel(
+  reason: EncounterSpellCastUnavailableReasonView,
+): string {
+  const labels: Record<EncounterSpellCastUnavailableReasonView, string> = {
+    missing_current: "current uses were not provided by the source",
+    missing_maximum: "maximum uses were not provided by the source",
+    unsafe_integer: "the source value is outside the supported range",
+    missing_identity: "the source does not provide a stable casting identity",
+    ambiguous_ownership: "the source casting ownership is ambiguous",
+    unsupported_preparation: "this preparation type is not supported",
+    unresolved_participant: "the participant record could not be resolved",
+    state_unavailable: "tracked casting state is unavailable",
+  };
+  return labels[reason];
 }
 
 function RuntimeResources({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
