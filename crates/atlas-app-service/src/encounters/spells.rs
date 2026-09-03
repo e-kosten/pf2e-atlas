@@ -1090,6 +1090,95 @@ mod tests {
     }
 
     #[test]
+    fn tracked_consumer_retains_only_its_exact_currentless_resource() {
+        let retained_target = EncounterSpellResourceTarget::FocusPool {
+            resource_id: "resource:focus-a".to_string(),
+        };
+        let context = ParticipantSpellCastContext {
+            catalog: SpellCastCatalog {
+                spells: BTreeMap::from([
+                    (
+                        "tracked-focus".to_string(),
+                        CanonicalSpellCast::Tracked(retained_target),
+                    ),
+                    ("at-will".to_string(), CanonicalSpellCast::AtWill),
+                    (
+                        "targetless-unavailable".to_string(),
+                        CanonicalSpellCast::Unavailable {
+                            target: None,
+                            reason: EncounterSpellCastUnavailableReasonView::MissingIdentity,
+                        },
+                    ),
+                ]),
+                resources: BTreeMap::new(),
+            },
+            state: EncounterParticipantSpellState {
+                initialized: true,
+                resources: Vec::new(),
+            },
+        };
+        let mut runtime = runtime_with_resources(&["resource:focus-a", "resource:focus-b"], 3);
+
+        attach_spell_cast_availability(&participant(false), &context, &mut runtime);
+
+        assert_eq!(
+            runtime
+                .resources
+                .iter()
+                .map(|resource| resource.resource_id.as_str())
+                .collect::<Vec<_>>(),
+            ["resource:focus-a"]
+        );
+        assert!(runtime.resources[0].current.is_none());
+    }
+
+    #[test]
+    fn unavailable_consumer_with_target_retains_only_its_exact_currentless_resource() {
+        let retained_target = EncounterSpellResourceTarget::FocusPool {
+            resource_id: "resource:focus-a".to_string(),
+        };
+        let context = ParticipantSpellCastContext {
+            catalog: SpellCastCatalog {
+                spells: BTreeMap::from([
+                    (
+                        "unavailable-focus".to_string(),
+                        CanonicalSpellCast::Unavailable {
+                            target: Some(retained_target),
+                            reason: EncounterSpellCastUnavailableReasonView::MissingCurrent,
+                        },
+                    ),
+                    ("at-will".to_string(), CanonicalSpellCast::AtWill),
+                    (
+                        "targetless-unavailable".to_string(),
+                        CanonicalSpellCast::Unavailable {
+                            target: None,
+                            reason: EncounterSpellCastUnavailableReasonView::MissingIdentity,
+                        },
+                    ),
+                ]),
+                resources: BTreeMap::new(),
+            },
+            state: EncounterParticipantSpellState {
+                initialized: true,
+                resources: Vec::new(),
+            },
+        };
+        let mut runtime = runtime_with_resources(&["resource:focus-a", "resource:focus-b"], 3);
+
+        attach_spell_cast_availability(&participant(false), &context, &mut runtime);
+
+        assert_eq!(
+            runtime
+                .resources
+                .iter()
+                .map(|resource| resource.resource_id.as_str())
+                .collect::<Vec<_>>(),
+            ["resource:focus-a"]
+        );
+        assert!(runtime.resources[0].current.is_none());
+    }
+
+    #[test]
     fn missing_current_and_prepared_identity_fail_only_the_affected_spell_closed() {
         let mut creature = creature();
         let owner = creature.identity.record_key.clone();
@@ -1319,6 +1408,10 @@ mod tests {
     }
 
     fn runtime_with_resource(resource_id: &str, maximum: i64) -> EncounterRuntimeView {
+        runtime_with_resources(&[resource_id], maximum)
+    }
+
+    fn runtime_with_resources(resource_ids: &[&str], maximum: i64) -> EncounterRuntimeView {
         EncounterRuntimeView {
             level: None,
             vitals: None,
@@ -1328,22 +1421,25 @@ mod tests {
             abilities: None,
             skills: Vec::new(),
             movement: None,
-            resources: vec![EncounterRuntimeResourceView {
-                resource_id: resource_id.to_string(),
-                label: "Focus".to_string(),
-                maximum: RuntimeNumberView {
+            resources: resource_ids
+                .iter()
+                .map(|resource_id| EncounterRuntimeResourceView {
+                    resource_id: (*resource_id).to_string(),
                     label: "Focus".to_string(),
-                    base_value: maximum,
-                    adjusted_value: maximum,
-                    modifiers: Vec::new(),
-                    suppressed_modifiers: Vec::new(),
-                    provenance: RuntimeFactProvenanceView {
-                        source: RuntimeFactSourceView::CanonicalRecord,
-                        canonical_target: None,
+                    maximum: RuntimeNumberView {
+                        label: "Focus".to_string(),
+                        base_value: maximum,
+                        adjusted_value: maximum,
+                        modifiers: Vec::new(),
+                        suppressed_modifiers: Vec::new(),
+                        provenance: RuntimeFactProvenanceView {
+                            source: RuntimeFactSourceView::CanonicalRecord,
+                            canonical_target: None,
+                        },
                     },
-                },
-                current: None,
-            }],
+                    current: None,
+                })
+                .collect(),
             spellcasting: Vec::new(),
             activities: Vec::new(),
             standalone_spells: Vec::new(),
