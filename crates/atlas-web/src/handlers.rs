@@ -2,8 +2,9 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, CreateEncounterRequest,
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterSavedListRequest, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    EncounterSpellCastRequest, FilterSavedListRequest, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
+    ResetEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
@@ -312,6 +313,36 @@ pub(crate) async fn remove_encounter_participant_condition(
                 &participant_key,
                 condition_id,
             )
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn mutate_encounter_spell_cast(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<EncounterSpellCastRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.mutate_encounter_spell_cast(&encounter_ref, &participant_key, request)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn reset_encounter_participant(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<ResetEncounterParticipantRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.reset_encounter_participant(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))

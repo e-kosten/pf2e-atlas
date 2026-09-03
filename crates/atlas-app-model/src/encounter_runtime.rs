@@ -211,7 +211,94 @@ pub struct EncounterRuntimeSpellView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub activity: Option<EncounterRuntimeActivityView>,
+    pub cast: EncounterSpellCastAvailabilityView,
     pub provenance: RuntimeFactProvenanceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterSpellCastAvailabilityView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spend_target: Option<EncounterSpellSpendTargetView>,
+    pub available: bool,
+    pub state: EncounterSpellCastStateView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub blocked_reason: Option<EncounterSpellCastBlockedReasonView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "target_type", rename_all = "snake_case")]
+#[ts(tag = "target_type", rename_all = "snake_case")]
+pub enum EncounterSpellSpendTargetView {
+    PreparedSlot {
+        entry_id: String,
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        rank: i64,
+        slot_id: String,
+    },
+    SpontaneousPool {
+        entry_id: String,
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        rank: i64,
+    },
+    InnateUse {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        entry_id: Option<String>,
+        spell_occurrence_id: String,
+    },
+    FocusPool {
+        resource_id: String,
+    },
+    AtWill,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "state_type", rename_all = "snake_case")]
+#[ts(tag = "state_type", rename_all = "snake_case")]
+pub enum EncounterSpellCastStateView {
+    AtWill,
+    Tracked {
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        maximum: i64,
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        initial_remaining: i64,
+        #[serde(with = "crate::json_integer")]
+        #[ts(type = "number")]
+        remaining: i64,
+    },
+    Unavailable {
+        reason: EncounterSpellCastUnavailableReasonView,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterSpellCastUnavailableReasonView {
+    MissingCurrent,
+    MissingMaximum,
+    UnsafeInteger,
+    MissingIdentity,
+    AmbiguousOwnership,
+    UnsupportedPreparation,
+    UnresolvedParticipant,
+    StateUnavailable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterSpellCastBlockedReasonView {
+    Exhausted,
+    ParticipantDefeated,
+    StateUnavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -221,6 +308,9 @@ pub struct EncounterRuntimeSpellSlotView {
     #[ts(type = "number")]
     pub rank: i64,
     pub maximum: RuntimeCountView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub current: Option<RuntimeCountView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

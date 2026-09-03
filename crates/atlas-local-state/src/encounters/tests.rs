@@ -262,6 +262,276 @@ fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
+#[test]
+fn participant_reset_restores_creation_mechanics_and_preserves_authored_fields()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("participant-reset"))?;
+    let encounters = store.encounters();
+    encounters.create(NewEncounter {
+        slug: "reset".to_string(),
+        name: "Reset".to_string(),
+        description: None,
+        note: None,
+    })?;
+    let target = EncounterSpellResourceTarget::InnateUse {
+        entry_id: Some("entry-innate".to_string()),
+        spell_occurrence_id: "spell-shadow-blast".to_string(),
+    };
+    let original = encounters.add_participant_with_spell_resources(
+        "reset",
+        creature("Original Name", Some(18), 30),
+        &[spell_resource(target.clone(), 2, 2)],
+    )?;
+    encounters.add_participant("reset", creature("Tie Peer", Some(18), 10))?;
+    encounters.add_condition(AddEncounterParticipantCondition {
+        participant_key: original.participant_key.clone(),
+        condition_key: Some("conditions:slowed".to_string()),
+        name: "Slowed".to_string(),
+        value: Some(1),
+        source_participant_key: None,
+        duration_rounds: None,
+        note: None,
+    })?;
+    encounters.mutate_spell_resource(
+        &original.participant_key,
+        &target,
+        EncounterSpellResourceOperation::CastOne,
+    )?;
+    encounters.set_current_turn("reset", Some(&original.participant_key))?;
+    encounters.update_participant(UpdateEncounterParticipant {
+        participant_key: original.participant_key.clone(),
+        display_name: "Custom Name".to_string(),
+        side: ParticipantSide::Ally,
+        participant_variant: ParticipantVariant::Elite,
+        initiative: Some(12),
+        max_hp: Some(42),
+        current_hp: Some(3),
+        temporary_hp: 7,
+        defeated: true,
+        hidden: true,
+        note: Some("Preserve this note".to_string()),
+    })?;
+
+    assert!(encounters.participant_reset_available(&original.participant_key)?);
+    let reset = encounters.reset_participant(&original.participant_key)?;
+    assert!(reset.cleared_current_turn);
+    assert_eq!(reset.participant.display_name, "Custom Name");
+    assert_eq!(reset.participant.side, ParticipantSide::Ally);
+    assert!(reset.participant.hidden);
+    assert_eq!(
+        reset.participant.note.as_deref(),
+        Some("Preserve this note")
+    );
+    assert_eq!(
+        reset.participant.participant_variant,
+        ParticipantVariant::Normal
+    );
+    assert_eq!(reset.participant.initiative, Some(18));
+    assert_eq!(
+        reset.participant.initiative_order,
+        original.initiative_order
+    );
+    assert_eq!(reset.participant.max_hp, Some(30));
+    assert_eq!(reset.participant.current_hp, Some(30));
+    assert_eq!(reset.participant.temporary_hp, 0);
+    assert!(!reset.participant.defeated);
+    assert!(reset.participant.conditions.is_empty());
+    let detail = encounters
+        .get_with_participants("reset")?
+        .expect("encounter should exist");
+    assert_eq!(detail.encounter.current_turn_participant_key, None);
+    let spell_state = encounters.spell_state(&original.participant_key)?;
+    assert_eq!(spell_state.resources[0].remaining, 2);
+    assert_eq!(spell_state.resources[0].initial_remaining, 2);
+    Ok(())
+}
+
+#[test]
+fn participant_creation_rolls_back_when_spell_baseline_is_invalid()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("participant-baseline-atomic"))?;
+    let encounters = store.encounters();
+    encounters.create(NewEncounter {
+        slug: "atomic".to_string(),
+        name: "Atomic".to_string(),
+        description: None,
+        note: None,
+    })?;
+    let invalid = EncounterSpellResource {
+        target: EncounterSpellResourceTarget::SpontaneousPool {
+            entry_id: "entry-spontaneous".to_string(),
+            rank: 3,
+        },
+        maximum: 1,
+        initial_remaining: 2,
+        remaining: 2,
+    };
+    assert!(
+        encounters
+            .add_participant_with_spell_resources(
+                "atomic",
+                creature("Invalid", Some(12), 10),
+                &[invalid],
+            )
+            .is_err()
+    );
+    assert!(
+        encounters
+            .get_with_participants("atomic")?
+            .expect("encounter should exist")
+            .participants
+            .is_empty()
+    );
+    Ok(())
+}
+
+#[test]
+fn spell_resources_preserve_typed_ownership_and_bounded_cast_restore_state()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("spell-resources"))?;
+    let encounters = store.encounters();
+    encounters.create(NewEncounter {
+        slug: "spell-resources".to_string(),
+        name: "Spell Resources".to_string(),
+        description: None,
+        note: None,
+    })?;
+    let participant =
+        encounters.add_participant("spell-resources", creature("Spellcaster", Some(20), 30))?;
+    let prepared = EncounterSpellResourceTarget::PreparedSlot {
+        entry_id: "entry-prepared".to_string(),
+        spell_occurrence_id: "spell-fireball".to_string(),
+        rank: 4,
+        slot_id: "slot4:0".to_string(),
+    };
+    let spontaneous = EncounterSpellResourceTarget::SpontaneousPool {
+        entry_id: "entry-spontaneous".to_string(),
+        rank: 3,
+    };
+    let innate = EncounterSpellResourceTarget::InnateUse {
+        entry_id: Some("entry-innate".to_string()),
+        spell_occurrence_id: "spell-shadow-blast".to_string(),
+    };
+    let focus = EncounterSpellResourceTarget::FocusPool {
+        resource_id: "resource:focus".to_string(),
+    };
+    let resources = vec![
+        spell_resource(prepared.clone(), 1, 1),
+        spell_resource(spontaneous.clone(), 3, 2),
+        spell_resource(innate.clone(), 2, 2),
+        spell_resource(focus.clone(), 1, 1),
+    ];
+
+    let initialized =
+        encounters.initialize_spell_state(&participant.participant_key, &resources)?;
+    assert!(initialized.initialized);
+    assert_eq!(initialized.resources.len(), 4);
+
+    let cast = encounters.mutate_spell_resource(
+        &participant.participant_key,
+        &innate,
+        EncounterSpellResourceOperation::CastOne,
+    )?;
+    assert_eq!(cast.before.remaining, 2);
+    assert_eq!(cast.after.remaining, 1);
+    let restored = encounters.mutate_spell_resource(
+        &participant.participant_key,
+        &innate,
+        EncounterSpellResourceOperation::RestoreOne,
+    )?;
+    assert_eq!(restored.after.remaining, 2);
+    assert!(matches!(
+        encounters.mutate_spell_resource(
+            &participant.participant_key,
+            &innate,
+            EncounterSpellResourceOperation::RestoreOne,
+        ),
+        Err(crate::LocalStateError::SpellResourceAtBaseline(_))
+    ));
+
+    encounters.mutate_spell_resource(
+        &participant.participant_key,
+        &focus,
+        EncounterSpellResourceOperation::CastOne,
+    )?;
+    assert!(matches!(
+        encounters.mutate_spell_resource(
+            &participant.participant_key,
+            &focus,
+            EncounterSpellResourceOperation::CastOne,
+        ),
+        Err(crate::LocalStateError::SpellResourceExhausted(_))
+    ));
+
+    let ignored_reinitialization = encounters.initialize_spell_state(
+        &participant.participant_key,
+        &[spell_resource(spontaneous, 9, 9)],
+    )?;
+    assert_eq!(ignored_reinitialization.resources.len(), 4);
+    assert!(ignored_reinitialization.resources.iter().any(|resource| {
+        resource.target == focus && resource.remaining == 0 && resource.initial_remaining == 1
+    }));
+    assert!(
+        ignored_reinitialization
+            .resources
+            .iter()
+            .any(|resource| { resource.target == prepared && resource.remaining == 1 })
+    );
+
+    let second = encounters.add_participant(
+        "spell-resources",
+        creature("Second Spellcaster", Some(10), 30),
+    )?;
+    encounters.initialize_spell_state(
+        &second.participant_key,
+        &[spell_resource(innate.clone(), 2, 2)],
+    )?;
+    encounters.mutate_spell_resource(
+        &participant.participant_key,
+        &innate,
+        EncounterSpellResourceOperation::CastOne,
+    )?;
+    let first_state = encounters.spell_state(&participant.participant_key)?;
+    let second_state = encounters.spell_state(&second.participant_key)?;
+    assert!(
+        first_state
+            .resources
+            .iter()
+            .any(|resource| { resource.target == innate && resource.remaining == 1 })
+    );
+    assert!(
+        second_state
+            .resources
+            .iter()
+            .any(|resource| { resource.target == innate && resource.remaining == 2 })
+    );
+    assert!(matches!(
+        encounters.mutate_spell_resource(
+            &participant.participant_key,
+            &EncounterSpellResourceTarget::InnateUse {
+                entry_id: Some("entry-innate".to_string()),
+                spell_occurrence_id: "spell-other".to_string(),
+            },
+            EncounterSpellResourceOperation::CastOne,
+        ),
+        Err(crate::LocalStateError::SpellResourceNotFound(_))
+    ));
+    Ok(())
+}
+
+fn spell_resource(
+    target: EncounterSpellResourceTarget,
+    maximum: i64,
+    remaining: i64,
+) -> EncounterSpellResource {
+    EncounterSpellResource {
+        target,
+        maximum,
+        initial_remaining: remaining,
+        remaining,
+    }
+}
+
 fn creature(name: &str, initiative: Option<i64>, hp: i64) -> AddEncounterParticipant {
     AddEncounterParticipant {
         record_key: Some(RecordKey::parse("actors:goblinWarrior").expect("key should parse")),

@@ -12,6 +12,9 @@ const ENCOUNTERS_TABLE: &str = "encounters";
 const ENCOUNTER_PARTICIPANTS_TABLE: &str = "encounter_participants";
 const ENCOUNTER_PARTICIPANT_ADJUSTMENTS_TABLE: &str = "encounter_participant_adjustments";
 const ENCOUNTER_PARTICIPANT_CONDITIONS_TABLE: &str = "encounter_participant_conditions";
+const ENCOUNTER_PARTICIPANT_BASELINES_TABLE: &str = "encounter_participant_baselines";
+const ENCOUNTER_PARTICIPANT_SPELL_STATE_TABLE: &str = "encounter_participant_spell_state";
+const ENCOUNTER_PARTICIPANT_SPELL_RESOURCES_TABLE: &str = "encounter_participant_spell_resources";
 const METADATA_CONTRACT_VERSION: &str = "local_state_contract_version";
 const METADATA_SCHEMA_VERSION: &str = "schema_version";
 
@@ -24,6 +27,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         validate_v2_tables(connection)?;
         validate_v3_tables(connection)?;
         validate_v6_tables(connection)?;
+        validate_v7_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -33,12 +37,12 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
             "saved-list tables exist without local-state metadata".to_string(),
         ));
     }
-    create_v6_schema(connection)?;
+    create_v7_schema(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
 
-fn create_v6_schema(connection: &Connection) -> LocalStateResult<()> {
+fn create_v7_schema(connection: &Connection) -> LocalStateResult<()> {
     connection.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -143,6 +147,59 @@ fn create_v6_schema(connection: &Connection) -> LocalStateResult<()> {
           updated_at TEXT NOT NULL,
           FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
         );
+        CREATE TABLE encounter_participant_baselines (
+          participant_id INTEGER PRIMARY KEY,
+          participant_variant TEXT NOT NULL,
+          initiative INTEGER,
+          initiative_order INTEGER NOT NULL,
+          max_hp INTEGER,
+          current_hp INTEGER,
+          temporary_hp INTEGER NOT NULL,
+          defeated INTEGER NOT NULL,
+          captured_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        CREATE TABLE encounter_participant_spell_state (
+          participant_id INTEGER PRIMARY KEY,
+          initialized_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        CREATE TABLE encounter_participant_spell_resources (
+          participant_id INTEGER NOT NULL,
+          target_kind TEXT NOT NULL,
+          entry_occurrence_id TEXT NOT NULL DEFAULT '',
+          spell_occurrence_id TEXT NOT NULL DEFAULT '',
+          rank INTEGER NOT NULL DEFAULT -1,
+          slot_id TEXT NOT NULL DEFAULT '',
+          resource_id TEXT NOT NULL DEFAULT '',
+          maximum INTEGER NOT NULL,
+          initial_remaining INTEGER NOT NULL,
+          remaining INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (
+            participant_id, target_kind, entry_occurrence_id,
+            spell_occurrence_id, rank, slot_id, resource_id
+          ),
+          CHECK (maximum >= 0),
+          CHECK (initial_remaining >= 0 AND initial_remaining <= maximum),
+          CHECK (remaining >= 0 AND remaining <= initial_remaining),
+          CHECK (
+            (target_kind = 'prepared_slot'
+              AND entry_occurrence_id <> '' AND spell_occurrence_id <> ''
+              AND rank >= 0 AND slot_id <> '' AND resource_id = '')
+            OR (target_kind = 'spontaneous_pool'
+              AND entry_occurrence_id <> '' AND spell_occurrence_id = ''
+              AND rank >= 0 AND slot_id = '' AND resource_id = '')
+            OR (target_kind = 'innate_use'
+              AND spell_occurrence_id <> '' AND rank = -1
+              AND slot_id = '' AND resource_id = '')
+            OR (target_kind = 'focus_pool'
+              AND entry_occurrence_id = '' AND spell_occurrence_id = ''
+              AND rank = -1 AND slot_id = '' AND resource_id <> '')
+          ),
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
         ",
     )?;
     Ok(())
@@ -192,29 +249,101 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
             migrate_v2_to_v3(connection)?;
             migrate_v3_to_v4(connection)?;
             migrate_v4_to_v5(connection)?;
-            migrate_v5_to_v6(connection)
+            migrate_v5_to_v6(connection)?;
+            migrate_v6_to_v7(connection)
         }
         "2" => {
             migrate_v2_to_v3(connection)?;
             migrate_v3_to_v4(connection)?;
             migrate_v4_to_v5(connection)?;
-            migrate_v5_to_v6(connection)
+            migrate_v5_to_v6(connection)?;
+            migrate_v6_to_v7(connection)
         }
         "3" => {
             migrate_v3_to_v4(connection)?;
             migrate_v4_to_v5(connection)?;
-            migrate_v5_to_v6(connection)
+            migrate_v5_to_v6(connection)?;
+            migrate_v6_to_v7(connection)
         }
         "4" => {
             migrate_v4_to_v5(connection)?;
-            migrate_v5_to_v6(connection)
+            migrate_v5_to_v6(connection)?;
+            migrate_v6_to_v7(connection)
         }
-        "5" => migrate_v5_to_v6(connection),
+        "5" => {
+            migrate_v5_to_v6(connection)?;
+            migrate_v6_to_v7(connection)
+        }
+        "6" => migrate_v6_to_v7(connection),
         _ => Err(LocalStateError::UnsupportedMetadata {
             key: METADATA_SCHEMA_VERSION,
             value: schema_version,
         }),
     }
+}
+
+fn migrate_v6_to_v7(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "
+        CREATE TABLE encounter_participant_baselines (
+          participant_id INTEGER PRIMARY KEY,
+          participant_variant TEXT NOT NULL,
+          initiative INTEGER,
+          initiative_order INTEGER NOT NULL,
+          max_hp INTEGER,
+          current_hp INTEGER,
+          temporary_hp INTEGER NOT NULL,
+          defeated INTEGER NOT NULL,
+          captured_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        CREATE TABLE encounter_participant_spell_state (
+          participant_id INTEGER PRIMARY KEY,
+          initialized_at TEXT NOT NULL,
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        CREATE TABLE encounter_participant_spell_resources (
+          participant_id INTEGER NOT NULL,
+          target_kind TEXT NOT NULL,
+          entry_occurrence_id TEXT NOT NULL DEFAULT '',
+          spell_occurrence_id TEXT NOT NULL DEFAULT '',
+          rank INTEGER NOT NULL DEFAULT -1,
+          slot_id TEXT NOT NULL DEFAULT '',
+          resource_id TEXT NOT NULL DEFAULT '',
+          maximum INTEGER NOT NULL,
+          initial_remaining INTEGER NOT NULL,
+          remaining INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (
+            participant_id, target_kind, entry_occurrence_id,
+            spell_occurrence_id, rank, slot_id, resource_id
+          ),
+          CHECK (maximum >= 0),
+          CHECK (initial_remaining >= 0 AND initial_remaining <= maximum),
+          CHECK (remaining >= 0 AND remaining <= initial_remaining),
+          CHECK (
+            (target_kind = 'prepared_slot'
+              AND entry_occurrence_id <> '' AND spell_occurrence_id <> ''
+              AND rank >= 0 AND slot_id <> '' AND resource_id = '')
+            OR (target_kind = 'spontaneous_pool'
+              AND entry_occurrence_id <> '' AND spell_occurrence_id = ''
+              AND rank >= 0 AND slot_id = '' AND resource_id = '')
+            OR (target_kind = 'innate_use'
+              AND spell_occurrence_id <> '' AND rank = -1
+              AND slot_id = '' AND resource_id = '')
+            OR (target_kind = 'focus_pool'
+              AND entry_occurrence_id = '' AND spell_occurrence_id = ''
+              AND rank = -1 AND slot_id = '' AND resource_id <> '')
+          ),
+          FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+        );
+        UPDATE local_state_metadata
+           SET value = '7'
+         WHERE key = 'schema_version';
+        ",
+    )?;
+    Ok(())
 }
 
 fn migrate_v5_to_v6(connection: &Connection) -> LocalStateResult<()> {
@@ -444,6 +573,21 @@ fn validate_v6_tables(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
+fn validate_v7_tables(connection: &Connection) -> LocalStateResult<()> {
+    for table in [
+        ENCOUNTER_PARTICIPANT_BASELINES_TABLE,
+        ENCOUNTER_PARTICIPANT_SPELL_STATE_TABLE,
+        ENCOUNTER_PARTICIPANT_SPELL_RESOURCES_TABLE,
+    ] {
+        if !table_exists(connection, table)? {
+            return Err(LocalStateError::IncompatibleSchema(format!(
+                "missing required local-state table `{table}`"
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn table_exists(connection: &Connection, table: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
@@ -485,7 +629,9 @@ mod tests {
     use time::OffsetDateTime;
 
     use super::*;
-    use crate::LocalStateStore;
+    use crate::{
+        AddEncounterParticipant, LocalStateStore, NewEncounter, ParticipantKind, ParticipantSide,
+    };
 
     #[test]
     fn fresh_database_initializes_metadata() -> Result<(), Box<dyn std::error::Error>> {
@@ -598,6 +744,87 @@ mod tests {
             Some(LOCAL_STATE_SCHEMA_VERSION.to_string())
         );
         assert!(column_exists(&connection, SAVED_LISTS_TABLE, "list_key")?);
+        Ok(())
+    }
+
+    #[test]
+    fn v6_database_migrates_to_typed_spell_resource_state() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let path = temp_path("v6-spell-resource-migration");
+        let participant_key;
+        {
+            let store = LocalStateStore::open(&path)?;
+            store.encounters().create(NewEncounter {
+                slug: "legacy".to_string(),
+                name: "Legacy".to_string(),
+                description: None,
+                note: None,
+            })?;
+            participant_key = store
+                .encounters()
+                .add_participant(
+                    "legacy",
+                    AddEncounterParticipant {
+                        record_key: None,
+                        participant_kind: ParticipantKind::Pc,
+                        display_name: "Legacy participant".to_string(),
+                        record_title_snapshot: None,
+                        record_kind_snapshot: None,
+                        side: ParticipantSide::Pc,
+                        initiative: Some(12),
+                        max_hp: Some(20),
+                        current_hp: Some(8),
+                        temporary_hp: 0,
+                        note: None,
+                    },
+                )?
+                .participant_key;
+            drop(store);
+            let connection = Connection::open(&path)?;
+            connection.execute_batch(
+                "DROP TABLE encounter_participant_spell_resources;
+                 DROP TABLE encounter_participant_spell_state;
+                 DROP TABLE encounter_participant_baselines;
+                 UPDATE local_state_metadata SET value = '6' WHERE key = 'schema_version';",
+            )?;
+        }
+
+        let store = LocalStateStore::open(&path)?;
+        assert!(
+            !store
+                .encounters()
+                .participant_reset_available(&participant_key)?
+        );
+        assert!(matches!(
+            store.encounters().reset_participant(&participant_key),
+            Err(LocalStateError::ParticipantResetBaselineUnavailable(key)) if key == participant_key
+        ));
+        drop(store);
+        let connection = Connection::open(&path)?;
+        assert_eq!(
+            metadata_value(&connection, METADATA_SCHEMA_VERSION)?,
+            Some(LOCAL_STATE_SCHEMA_VERSION.to_string())
+        );
+        assert!(table_exists(
+            &connection,
+            ENCOUNTER_PARTICIPANT_SPELL_STATE_TABLE
+        )?);
+        assert!(table_exists(
+            &connection,
+            ENCOUNTER_PARTICIPANT_SPELL_RESOURCES_TABLE
+        )?);
+        assert!(table_exists(
+            &connection,
+            ENCOUNTER_PARTICIPANT_BASELINES_TABLE
+        )?);
+        assert_eq!(
+            connection.query_row(
+                "SELECT COUNT(*) FROM encounter_participant_baselines",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?,
+            0
+        );
         Ok(())
     }
 

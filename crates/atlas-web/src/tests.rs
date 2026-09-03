@@ -22,19 +22,24 @@ use atlas_app_model::{
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
+    EncounterParticipantPreservedDomainView, EncounterParticipantResetAvailabilityView,
+    EncounterParticipantResetDomainView, EncounterParticipantResetResultView,
     EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
     EncounterParticipantView, EncounterRuntimeActionBudgetView,
     EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
     EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
-    EncounterRuntimeVitalsView, EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
-    FilterControlView, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
-    FilterFieldPlacement, FilterSavedListRequest, FilterValueListView, FilterValueOption,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView, RecordSummaryView,
-    RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionCounterpartView,
-    RecordSurfaceEditionStatusView, RecordSurfaceEditionView, RecordSurfaceMetadataView,
-    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
-    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
+    EncounterRuntimeVitalsView, EncounterSpellCastAvailabilityView,
+    EncounterSpellCastOperationView, EncounterSpellCastRequest, EncounterSpellCastResultView,
+    EncounterSpellCastStateView, EncounterSpellSpendTargetView, EncounterStatusView,
+    EncounterSummaryView, EncounterUpdateView, FilterControlView, FilterEditorFieldView,
+    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
+    FilterValueListView, FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest,
+    RecordDetailView, RecordSummaryView, RecordSurfaceEditionCounterpartRoleView,
+    RecordSurfaceEditionCounterpartView, RecordSurfaceEditionStatusView, RecordSurfaceEditionView,
+    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
+    RecordSurfaceSourceView, RecordSurfaceView, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    ResetEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
     RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
     RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, RuntimeRuleView,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
@@ -878,6 +883,126 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_no_empty_containers(&body["participants"][0]["record_view"]);
 
     let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "entry-innate",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "cast_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["operation"], "cast_one");
+    assert_eq!(body["participant_key"], "participant_a");
+    assert_eq!(body["before"]["state"]["remaining"], 2);
+    assert_eq!(body["after"]["state"]["remaining"], 1);
+    assert_eq!(
+        body["after"]["spend_target"]["spell_occurrence_id"],
+        "spell-shadow-blast"
+    );
+    write_spell_cast_api_sample("api-spell-cast-before-after.json", &body);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "wrong-entry",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "cast_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "spontaneous_pool",
+                "entry_id": "entry-spontaneous",
+                "rank": 9_007_199_254_740_992_i64
+            },
+            "operation": "cast_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    assert!(
+        body["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("JavaScript safe-integer range")
+    );
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "entry-innate",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "restore_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["operation"], "restore_one");
+    assert_eq!(body["before"]["state"]["remaining"], 1);
+    assert_eq!(body["after"]["state"]["remaining"], 2);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/reset",
+        Some(json!({ "confirmation": "reset_participant" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["participant_key"], "participant_a");
+    assert_eq!(
+        body["reset_domains"],
+        json!([
+            "hit_points",
+            "defeated",
+            "conditions",
+            "initiative_turn_state",
+            "variant_adjustments",
+            "action_budget",
+            "spell_resources"
+        ])
+    );
+    assert_eq!(
+        body["preserved_domains"],
+        json!(["display_name", "notes", "visibility", "side"])
+    );
+    assert_eq!(body["cleared_current_turn"], true);
+    assert_eq!(body["participant"]["reset"]["available"], true);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/reset",
+        Some(json!({ "confirmation": "confirmed" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+
+    let (status, body) = route_json(
         Method::PATCH,
         "/api/encounters/ambush/participants/participant_a/conditions/7",
         Some(json!({
@@ -1312,6 +1437,10 @@ impl AtlasWebService for MockService {
             hidden: request.hidden,
             note: request.note.clone(),
             note_hint: request.note,
+            reset: EncounterParticipantResetAvailabilityView {
+                available: true,
+                unavailable_reason: None,
+            },
             record_view: unavailable_surface(
                 Some("actors:testCreature"),
                 &display_name,
@@ -1411,6 +1540,86 @@ impl AtlasWebService for MockService {
             ));
         }
         Ok(encounter_detail(encounter_ref, None, false))
+    }
+
+    fn mutate_encounter_spell_cast(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: EncounterSpellCastRequest,
+    ) -> Result<EncounterSpellCastResultView, AppServiceError> {
+        if encounter_ref != "ambush" || participant_key != "participant_a" {
+            return Err(encounter_not_found(encounter_ref));
+        }
+        let EncounterSpellSpendTargetView::InnateUse {
+            entry_id,
+            spell_occurrence_id,
+        } = &request.spend_target
+        else {
+            return Err(AppServiceError::invalid_request(
+                "fixture expects an innate spell use",
+            ));
+        };
+        if entry_id.as_deref() != Some("entry-innate")
+            || spell_occurrence_id != &request.spell_occurrence_id
+        {
+            return Err(AppServiceError::invalid_request(
+                "fixture spell identity mismatch",
+            ));
+        }
+        let availability = |remaining| EncounterSpellCastAvailabilityView {
+            spend_target: Some(request.spend_target.clone()),
+            available: remaining > 0,
+            state: EncounterSpellCastStateView::Tracked {
+                maximum: 2,
+                initial_remaining: 2,
+                remaining,
+            },
+            blocked_reason: None,
+        };
+        let (before, after) = match request.operation {
+            EncounterSpellCastOperationView::CastOne => (availability(2), availability(1)),
+            EncounterSpellCastOperationView::RestoreOne => (availability(1), availability(2)),
+        };
+        Ok(EncounterSpellCastResultView {
+            operation: request.operation,
+            participant_key: participant_key.to_string(),
+            spell_occurrence_id: request.spell_occurrence_id,
+            before,
+            after,
+            participant: encounter_participant(participant_key, "Goblin", Some(18), false),
+        })
+    }
+
+    fn reset_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        _request: ResetEncounterParticipantRequest,
+    ) -> Result<EncounterParticipantResetResultView, AppServiceError> {
+        if encounter_ref != "ambush" || participant_key != "participant_a" {
+            return Err(encounter_not_found(encounter_ref));
+        }
+        Ok(EncounterParticipantResetResultView {
+            participant_key: participant_key.to_string(),
+            reset_domains: vec![
+                EncounterParticipantResetDomainView::HitPoints,
+                EncounterParticipantResetDomainView::Defeated,
+                EncounterParticipantResetDomainView::Conditions,
+                EncounterParticipantResetDomainView::InitiativeTurnState,
+                EncounterParticipantResetDomainView::VariantAdjustments,
+                EncounterParticipantResetDomainView::ActionBudget,
+                EncounterParticipantResetDomainView::SpellResources,
+            ],
+            preserved_domains: vec![
+                EncounterParticipantPreservedDomainView::DisplayName,
+                EncounterParticipantPreservedDomainView::Notes,
+                EncounterParticipantPreservedDomainView::Visibility,
+                EncounterParticipantPreservedDomainView::Side,
+            ],
+            cleared_current_turn: true,
+            participant: encounter_participant(participant_key, "Goblin", Some(18), false),
+        })
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
@@ -1896,6 +2105,10 @@ fn encounter_participant(
         hidden: false,
         note: Some("wounded".to_string()),
         note_hint: Some("wounded".to_string()),
+        reset: EncounterParticipantResetAvailabilityView {
+            available: true,
+            unavailable_reason: None,
+        },
         record_view: unavailable_surface(
             Some("actors:testCreature"),
             display_name,
@@ -2033,6 +2246,17 @@ fn write_action_budget_api_sample(file_name: &str, value: &Value) {
     };
     let root = PathBuf::from(root);
     fs::create_dir_all(&root).expect("action-budget sample root should be creatable");
+    let mut bytes = serde_json::to_vec_pretty(value).expect("API sample should serialize");
+    bytes.push(b'\n');
+    fs::write(root.join(file_name), bytes).expect("API sample should write");
+}
+
+fn write_spell_cast_api_sample(file_name: &str, value: &Value) {
+    let Ok(root) = std::env::var("F2_SPELL_CAST_SAMPLE_ROOT") else {
+        return;
+    };
+    let root = PathBuf::from(root);
+    fs::create_dir_all(&root).expect("spell-cast sample root should be creatable");
     let mut bytes = serde_json::to_vec_pretty(value).expect("API sample should serialize");
     bytes.push(b'\n');
     fs::write(root.join(file_name), bytes).expect("API sample should write");

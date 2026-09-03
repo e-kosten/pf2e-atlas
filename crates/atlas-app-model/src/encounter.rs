@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::RecordSurfaceView;
+use crate::{EncounterSpellCastAvailabilityView, EncounterSpellSpendTargetView, RecordSurfaceView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -206,7 +206,24 @@ pub struct EncounterParticipantView {
     #[ts(optional)]
     pub note: Option<String>,
     pub note_hint: Option<String>,
+    pub reset: EncounterParticipantResetAvailabilityView,
     pub record_view: RecordSurfaceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterParticipantResetAvailabilityView {
+    pub available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unavailable_reason: Option<EncounterParticipantResetUnavailableReasonView>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterParticipantResetUnavailableReasonView {
+    MissingCreationBaseline,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -344,6 +361,79 @@ pub struct SetEncounterTurnRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub participant_key: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterSpellCastRequest {
+    pub spell_occurrence_id: String,
+    pub spend_target: EncounterSpellSpendTargetView,
+    pub operation: EncounterSpellCastOperationView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterSpellCastOperationView {
+    CastOne,
+    RestoreOne,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterSpellCastResultView {
+    pub operation: EncounterSpellCastOperationView,
+    pub participant_key: String,
+    pub spell_occurrence_id: String,
+    pub before: EncounterSpellCastAvailabilityView,
+    pub after: EncounterSpellCastAvailabilityView,
+    pub participant: EncounterParticipantView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct ResetEncounterParticipantRequest {
+    pub confirmation: EncounterParticipantResetConfirmationView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterParticipantResetConfirmationView {
+    ResetParticipant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterParticipantResetDomainView {
+    HitPoints,
+    Defeated,
+    Conditions,
+    InitiativeTurnState,
+    VariantAdjustments,
+    ActionBudget,
+    SpellResources,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum EncounterParticipantPreservedDomainView {
+    DisplayName,
+    Notes,
+    Visibility,
+    Side,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterParticipantResetResultView {
+    pub participant_key: String,
+    pub reset_domains: Vec<EncounterParticipantResetDomainView>,
+    pub preserved_domains: Vec<EncounterParticipantPreservedDomainView>,
+    pub cleared_current_turn: bool,
+    pub participant: EncounterParticipantView,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

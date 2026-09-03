@@ -2,10 +2,12 @@ use atlas_app_model::{
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest, AppErrorCode,
     CreateEncounterRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCategoryView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterRuntimeView, EncounterStatusView, RecordSurfaceEditionStatusView,
-    RecordSurfacePresentationView, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    EncounterParticipantPreservedDomainView, EncounterParticipantResetConfirmationView,
+    EncounterParticipantResetDomainView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterRuntimeView,
+    EncounterStatusView, RecordSurfaceEditionStatusView, RecordSurfacePresentationView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    ResetEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
@@ -591,6 +593,18 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
         assert!(edition.counterparts.is_empty());
         assert!(runtime(participant).defenses.is_some());
         assert!(runtime(participant).vitals.is_some());
+        assert!(participant.reset.available);
+        let spell_state = fixture
+            .worker
+            .local_state_store()
+            .expect("local state should open")
+            .encounters()
+            .spell_state(&participant.participant_key)
+            .expect("record-backed participant spell state should read");
+        assert!(
+            spell_state.initialized,
+            "record-backed creation must atomically capture even a known-empty spell-resource baseline"
+        );
     }
 
     let hazard_detail = fixture
@@ -1107,6 +1121,144 @@ fn condition_update_and_delete_reject_wrong_participant_without_mutating() {
         runtime(owner).conditions[0].note.as_deref(),
         Some("original")
     );
+}
+
+#[test]
+fn reset_participant_restores_mechanics_and_reports_preserved_authored_domains() {
+    let fixture = fixture_worker();
+    let encounter = fixture
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Reset Contract".to_string(),
+            description: None,
+            note: None,
+        })
+        .expect("encounter should create")
+        .encounter;
+    let original = fixture
+        .worker
+        .local_state_store()
+        .expect("local state should open")
+        .encounters()
+        .add_participant(&encounter.slug, pc("Original", Some(18)))
+        .expect("participant should add");
+    fixture
+        .worker
+        .add_encounter_participant_condition(
+            &encounter.slug,
+            AddEncounterParticipantConditionRequest {
+                participant_key: original.participant_key.clone(),
+                condition_ref: None,
+                name: Some("Slowed".to_string()),
+                value: Some(1),
+                source_participant_key: None,
+                duration_rounds: None,
+                note: None,
+            },
+        )
+        .expect("condition should add");
+    fixture
+        .worker
+        .set_encounter_turn(SetEncounterTurnRequest {
+            encounter_ref: encounter.slug.clone(),
+            participant_key: Some(original.participant_key.clone()),
+        })
+        .expect("turn should set");
+    let mut update = participant_update(&original, true);
+    update.display_name = "Custom Name".to_string();
+    update.side = atlas_app_model::EncounterParticipantSideView::Ally;
+    update.participant_variant = EncounterParticipantVariantView::Elite;
+    update.initiative = Some(9);
+    update.max_hp = Some(20);
+    update.current_hp = Some(0);
+    update.temporary_hp = 4;
+    update.hidden = true;
+    update.note = Some("Preserved note".to_string());
+    let changed = fixture
+        .worker
+        .update_encounter_participant(&encounter.slug, update)
+        .expect("participant should mutate");
+    assert!(changed.reset.available);
+    assert!(
+        !runtime(&changed)
+            .action_budget
+            .as_ref()
+            .expect("budget")
+            .can_act
+            .available
+    );
+    write_reset_api_sample("participant-reset-before.json", &changed);
+
+    let result = fixture
+        .worker
+        .reset_encounter_participant(
+            &encounter.slug,
+            &original.participant_key,
+            ResetEncounterParticipantRequest {
+                confirmation: EncounterParticipantResetConfirmationView::ResetParticipant,
+            },
+        )
+        .expect("participant should reset");
+    assert_eq!(
+        result.reset_domains,
+        vec![
+            EncounterParticipantResetDomainView::HitPoints,
+            EncounterParticipantResetDomainView::Defeated,
+            EncounterParticipantResetDomainView::Conditions,
+            EncounterParticipantResetDomainView::InitiativeTurnState,
+            EncounterParticipantResetDomainView::VariantAdjustments,
+            EncounterParticipantResetDomainView::ActionBudget,
+            EncounterParticipantResetDomainView::SpellResources,
+        ]
+    );
+    assert_eq!(
+        result.preserved_domains,
+        vec![
+            EncounterParticipantPreservedDomainView::DisplayName,
+            EncounterParticipantPreservedDomainView::Notes,
+            EncounterParticipantPreservedDomainView::Visibility,
+            EncounterParticipantPreservedDomainView::Side,
+        ]
+    );
+    assert!(result.cleared_current_turn);
+    assert_eq!(result.participant.display_name, "Custom Name");
+    assert_eq!(result.participant.note.as_deref(), Some("Preserved note"));
+    assert!(result.participant.hidden);
+    assert_eq!(
+        result.participant.side,
+        atlas_app_model::EncounterParticipantSideView::Ally
+    );
+    assert_eq!(
+        result.participant.participant_variant,
+        EncounterParticipantVariantView::Normal
+    );
+    assert_eq!(result.participant.initiative, Some(18));
+    assert!(!result.participant.defeated);
+    assert!(runtime(&result.participant).conditions.is_empty());
+    assert!(
+        runtime(&result.participant)
+            .action_budget
+            .as_ref()
+            .expect("budget")
+            .can_act
+            .available
+    );
+    let detail = fixture
+        .worker
+        .encounter(&encounter.slug)
+        .expect("encounter should reload");
+    assert_eq!(detail.current_turn_participant_key, None);
+    write_reset_api_sample("participant-reset-after.json", &result);
+}
+
+fn write_reset_api_sample<T: serde::Serialize>(file_name: &str, value: &T) {
+    let Ok(root) = std::env::var("ATLAS_F2_BACKEND_SAMPLE_ROOT") else {
+        return;
+    };
+    let root = std::path::PathBuf::from(root);
+    std::fs::create_dir_all(&root).expect("backend sample root should be creatable");
+    let bytes = serde_json::to_vec_pretty(value).expect("backend sample should serialize");
+    std::fs::write(root.join(file_name), bytes).expect("backend sample should write");
 }
 
 fn pc(name: &str, initiative: Option<i64>) -> AddEncounterParticipant {
