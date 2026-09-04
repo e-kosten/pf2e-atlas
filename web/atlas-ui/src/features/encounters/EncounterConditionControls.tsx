@@ -304,41 +304,47 @@ function ConditionEditor({
           />
         </div>
       )}
-      {condition.duration_rounds !== undefined && (
-        <span className="encounter-condition-chip">
-          {condition.duration_rounds.toString()} rounds
-        </span>
+      {(condition.duration_rounds !== undefined || hasDetails) && (
+        <div className="encounter-condition-row__metadata">
+          {condition.duration_rounds !== undefined && (
+            <span className="encounter-condition-chip">
+              {condition.duration_rounds.toString()} rounds
+            </span>
+          )}
+          {hasDetails && <span className="encounter-condition-meta">Details</span>}
+        </div>
       )}
-      {hasDetails && <span className="encounter-condition-meta">Details</span>}
-      <Popover
-        content={
-          <Form form={detailsForm} layout="vertical">
-            <ConditionDetailsFields participants={participants} />
-            <div className="encounter-condition-details__actions">
-              <Button type="primary" onClick={saveDetails}>
-                Save
-              </Button>
-            </div>
-          </Form>
-        }
-        open={detailsOpen}
-        onOpenChange={openDetails}
-        placement="bottomRight"
-        trigger="click"
-      >
+      <div className="encounter-condition-row__actions">
+        <Popover
+          content={
+            <Form form={detailsForm} layout="vertical">
+              <ConditionDetailsFields participants={participants} />
+              <div className="encounter-condition-details__actions">
+                <Button type="primary" onClick={saveDetails}>
+                  Save
+                </Button>
+              </div>
+            </Form>
+          }
+          open={detailsOpen}
+          onOpenChange={openDetails}
+          placement="bottomRight"
+          trigger="click"
+        >
+          <Button
+            aria-label={`Edit ${condition.name} details`}
+            icon={<MoreHorizontal size={14} />}
+            size="small"
+          />
+        </Popover>
         <Button
-          aria-label={`Edit ${condition.name} details`}
-          icon={<MoreHorizontal size={14} />}
+          danger
+          aria-label={`Remove ${condition.name}`}
+          icon={<Trash2 size={12} />}
           size="small"
+          onClick={() => onRemove(participantKey, condition.condition_id)}
         />
-      </Popover>
-      <Button
-        danger
-        aria-label={`Remove ${condition.name}`}
-        icon={<Trash2 size={12} />}
-        size="small"
-        onClick={() => onRemove(participantKey, condition.condition_id)}
-      />
+      </div>
     </div>
   );
 }

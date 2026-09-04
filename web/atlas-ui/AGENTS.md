@@ -13,13 +13,25 @@ This package owns the React browser frontend for PF2e Atlas. Follow these rules 
 
 Before creating a feature-local interaction pattern, check `src/shared/ui`.
 
+Before implementing any generic control, overlay, popup, or confirmation, search both
+`src/shared/ui` and existing Ant Design usage for an established pattern. Destructive
+buttons and confirmations must use `DangerActionButton` or `useConfirmDangerAction` when
+their contracts fit; do not replace them with feature-local modal state or popup CSS.
+A deviation requires a documented product-specific reason explaining why the existing
+Ant or shared primitive cannot satisfy the interaction.
+
+Ant overlays must be created through the application context (for example,
+`App.useApp().modal`) or a shared context-aware wrapper. Do not call static overlay APIs
+such as `Modal.confirm`, `message`, or `notification` directly: they render outside the
+configured provider and can lose Atlas theme, locale, and token context.
+
 - Use `IndexTable` for clickable entity/index tables.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
 - Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
-- Keep lower-level helpers such as `confirmDangerAction` for non-button callbacks where a shared button is not the right shape.
+- Keep lower-level hooks such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
 If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs. Shared primitives should normally wrap or compose Ant components; do not create plain-button or plain-anchor replacements for generic Ant behavior unless there is a documented product-specific reason.
 

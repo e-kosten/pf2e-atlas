@@ -280,12 +280,33 @@ function OverviewSection({
   content: CreatureSurfaceContentView[];
   onReference: ReferenceHandler;
 }) {
+  return (
+    <NarrativeSection
+      content={content}
+      headingId="record-overview"
+      onReference={onReference}
+      title="Overview"
+    />
+  );
+}
+
+export function NarrativeSection({
+  content,
+  headingId,
+  onReference,
+  title,
+}: {
+  content: CreatureSurfaceContentView[];
+  headingId: string;
+  onReference: ReferenceHandler;
+  title: string;
+}) {
   if (!content.length) return null;
   const [primary, ...additional] = content;
   return (
-    <section className="creature-sheet__narrative" aria-labelledby="record-overview">
+    <section className="creature-sheet__narrative" aria-labelledby={headingId}>
       <div className="creature-sheet__section-heading">
-        <h3 id="record-overview">Overview</h3>
+        <h3 id={headingId}>{title}</h3>
       </div>
       <RichContent content={primary} onReference={onReference} />
       {additional.length > 0 && (
@@ -664,15 +685,11 @@ function ActivitySections({
     (left, right) => left.authored_order - right.authored_order,
   );
   const actions = ordered.filter(isActiveActivity);
-  const abilities = ordered.filter((activity) => !isActiveActivity(activity));
+  const features = ordered.filter((activity) => !isActiveActivity(activity));
   return (
     <>
       <ActivityGroup activities={actions} onReference={onReference} title="Actions" />
-      <ActivityGroup
-        activities={abilities}
-        onReference={onReference}
-        title="Abilities"
-      />
+      <ActivityGroup activities={features} onReference={onReference} title="Passives" />
     </>
   );
 }

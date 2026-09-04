@@ -1,19 +1,18 @@
-import { Alert, Button, Collapse, Empty, Popover, Space, Tag } from "antd";
+import { Alert, Button, Collapse, Empty, Popover, Space, Tag, Tooltip } from "antd";
 import { Info } from "lucide-react";
+import { useId } from "react";
 import type React from "react";
 import type {
   CreatureSurfaceView,
   CreatureSurfaceIwrView,
   CreatureSurfaceSenseView,
   EncounterRuntimeAutomationLimitationView,
-  EncounterRuntimeActionCostKindView,
   EncounterRuntimeActivityView,
   EncounterRuntimeSpellView,
   EncounterRuntimeSpellcastingView,
   EncounterRuntimeView,
   EncounterSpellCastBlockedReasonView,
   EncounterSpellCastRequest,
-  EncounterSpellCastResultView,
   EncounterSpellCastUnavailableReasonView,
   RecordSurfaceMetadataView,
   RuntimeAdjustmentView,
@@ -26,10 +25,12 @@ import type {
   RuntimeRollView,
 } from "../../generated/atlas";
 import {
+  NarrativeSection,
   ReferenceAndSourceContent,
   SurfaceSection,
   TraitRow,
 } from "./CreatureRecordSurface";
+import { ActionGlyph } from "./ActionGlyph";
 import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
 import {
   narrativeContent,
@@ -54,7 +55,6 @@ export function EncounterParticipantSurface({
   onSpellCast,
   runtime,
   slots,
-  spellCastResult,
 }: {
   body: CreatureSurfaceView;
   metadata: RecordSurfaceMetadataView;
@@ -62,7 +62,6 @@ export function EncounterParticipantSurface({
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   runtime: EncounterRuntimeView | undefined;
   slots: EncounterRecordSurfaceSlots;
-  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const narrative = narrativeContent(body.content);
   return (
@@ -107,36 +106,37 @@ export function EncounterParticipantSurface({
           )}
         </div>
         <div className="record-surface-structured__column">
-          <RuntimeActivities onReference={onReference} runtime={runtime} />
+          <RuntimeActivities
+            activityType="active"
+            onReference={onReference}
+            runtime={runtime}
+            title="Actions"
+          />
           <RuntimeSpellcasting
             onReference={onReference}
             onSpellCast={onSpellCast}
             runtime={runtime}
-            spellCastResult={spellCastResult}
+          />
+          <RuntimeActivities
+            activityType="passive"
+            onReference={onReference}
+            runtime={runtime}
+            title="Passives"
           />
           <RuntimeResources runtime={runtime} />
           <RuntimeAutomationLimitations runtime={runtime} />
         </div>
       </div>
+      <NarrativeSection
+        content={narrative}
+        headingId="encounter-description"
+        onReference={onReference}
+        title="Description & Lore"
+      />
       <Collapse
         className="record-surface__secondary"
         ghost
         items={[
-          ...(narrative.length
-            ? [
-                {
-                  key: "description",
-                  label: "Description & Lore",
-                  children: narrative.map((document) => (
-                    <RichContent
-                      content={document}
-                      key={document.content_key}
-                      onReference={onReference}
-                    />
-                  )),
-                },
-              ]
-            : []),
           {
             key: "source",
             label: "References & Source",
@@ -235,28 +235,47 @@ function RuntimeActionBudget({
 }) {
   const budget = runtime?.action_budget;
   if (!budget) return null;
+  const fullyAvailable = budget.can_act.available && budget.can_react.available;
   return (
     <SurfaceSection title="Turn Economy">
-      <dl className="creature-sheet__stat-list">
-        <div>
-          <dt>{budget.actions.label}</dt>
-          <dd>{budget.actions.adjusted_value}</dd>
+      {fullyAvailable ? (
+        <div
+          aria-label={`${budget.actions.adjusted_value} ${budget.actions.label}, ${budget.reactions.adjusted_value} ${budget.reactions.label}; can act and react`}
+          className="encounter-action-summary"
+        >
+          <span>
+            <strong>{budget.actions.adjusted_value}</strong> {budget.actions.label}
+          </span>
+          <span>
+            <strong>{budget.reactions.adjusted_value}</strong> {budget.reactions.label}
+          </span>
         </div>
-        <div>
-          <dt>{budget.reactions.label}</dt>
-          <dd>{budget.reactions.adjusted_value}</dd>
-        </div>
-      </dl>
-      <div className="encounter-action-capabilities">
-        <div className="encounter-action-capability">
-          <Tag>{budget.can_act.available ? "Can act" : "Cannot act"}</Tag>
-          {budget.can_act.reason ? <small>{budget.can_act.reason}</small> : null}
-        </div>
-        <div className="encounter-action-capability">
-          <Tag>{budget.can_react.available ? "Can react" : "Cannot react"}</Tag>
-          {budget.can_react.reason ? <small>{budget.can_react.reason}</small> : null}
-        </div>
-      </div>
+      ) : (
+        <>
+          <dl className="creature-sheet__stat-list">
+            <div>
+              <dt>{budget.actions.label}</dt>
+              <dd>{budget.actions.adjusted_value}</dd>
+            </div>
+            <div>
+              <dt>{budget.reactions.label}</dt>
+              <dd>{budget.reactions.adjusted_value}</dd>
+            </div>
+          </dl>
+          <div className="encounter-action-capabilities">
+            <div className="encounter-action-capability">
+              <Tag>{budget.can_act.available ? "Can act" : "Cannot act"}</Tag>
+              {budget.can_act.reason ? <small>{budget.can_act.reason}</small> : null}
+            </div>
+            <div className="encounter-action-capability">
+              <Tag>{budget.can_react.available ? "Can react" : "Cannot react"}</Tag>
+              {budget.can_react.reason ? (
+                <small>{budget.can_react.reason}</small>
+              ) : null}
+            </div>
+          </div>
+        </>
+      )}
       <RuntimeNotes notes={budget.notes} />
     </SurfaceSection>
   );
@@ -388,17 +407,26 @@ function RuntimeCommunication({ body }: { body: CreatureSurfaceView }) {
 }
 
 function RuntimeActivities({
+  activityType,
   onReference,
   runtime,
+  title,
 }: {
+  activityType: "active" | "passive";
   onReference: ReferenceHandler;
   runtime: EncounterRuntimeView | undefined;
+  title: string;
 }) {
-  if (!runtime?.activities?.length) return null;
+  const activities = (runtime?.activities ?? []).filter((activity) =>
+    activityType === "passive"
+      ? activity.action_cost?.value.kind === "passive"
+      : activity.action_cost?.value.kind !== "passive",
+  );
+  if (!activities.length) return null;
   return (
-    <SurfaceSection title="Actions & Abilities">
+    <SurfaceSection title={title}>
       <div className="creature-sheet__activity-list">
-        {runtime.activities.map((activity) => (
+        {activities.map((activity) => (
           <RuntimeActivity
             activity={activity}
             key={activity.activity_id}
@@ -421,11 +449,7 @@ function RuntimeActivity({
     <div className="creature-sheet__activity-summary">
       <div className="creature-sheet__activity-heading">
         <strong>{activity.label}</strong>
-        {activity.action_cost && (
-          <span className="creature-sheet__action-cost">
-            {formatRuntimeActionCost(activity.action_cost.value)}
-          </span>
-        )}
+        {activity.action_cost && <ActionGlyph cost={activity.action_cost.value} />}
       </div>
       {activity.traits?.length ? (
         <Space size={[4, 4]} wrap>
@@ -454,6 +478,7 @@ function RuntimeActivity({
   return activity.content?.length || hasRuntimeActivityDetails(activity) ? (
     <Collapse
       className="creature-sheet__activity creature-sheet__activity--expandable"
+      defaultActiveKey={[activity.activity_id]}
       ghost
       items={[
         {
@@ -484,12 +509,10 @@ function RuntimeSpellcasting({
   onReference,
   onSpellCast,
   runtime,
-  spellCastResult,
 }: {
   onReference: ReferenceHandler;
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   runtime: EncounterRuntimeView | undefined;
-  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const entries = runtime?.spellcasting ?? [];
   const standalone = runtime?.standalone_spells ?? [];
@@ -498,6 +521,10 @@ function RuntimeSpellcasting({
     <SurfaceSection title="Spellcasting">
       <Collapse
         className="record-surface__inline-disclosure"
+        defaultActiveKey={[
+          ...entries.map((entry) => entry.entry_id),
+          ...(standalone.length ? ["standalone"] : []),
+        ]}
         destroyOnHidden
         ghost
         items={[
@@ -509,7 +536,6 @@ function RuntimeSpellcasting({
                 entry={entry}
                 onReference={onReference}
                 onSpellCast={onSpellCast}
-                spellCastResult={spellCastResult}
               />
             ),
           })),
@@ -523,7 +549,6 @@ function RuntimeSpellcasting({
                       onReference={onReference}
                       onSpellCast={onSpellCast}
                       spells={standalone}
-                      spellCastResult={spellCastResult}
                     />
                   ),
                 },
@@ -544,8 +569,6 @@ function RuntimeSpellcastingHeading({
   const meta = [
     entry.tradition ? formatSlug(entry.tradition) : undefined,
     entry.preparation ? formatSlug(entry.preparation) : undefined,
-    entry.dc ? `DC ${entry.dc.adjusted_value}` : undefined,
-    entry.attack ? `attack ${formatSigned(entry.attack.adjusted_value)}` : undefined,
   ].filter(Boolean);
   return (
     <span className="creature-sheet__spell-heading">
@@ -559,12 +582,10 @@ function RuntimeSpellRoster({
   entry,
   onReference,
   onSpellCast,
-  spellCastResult,
 }: {
   entry: EncounterRuntimeSpellcastingView;
   onReference: ReferenceHandler;
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
-  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const groups = groupRuntimeSpells(entry.spells ?? []);
   const slots = new Map((entry.slots ?? []).map((slot) => [slot.rank, slot.maximum]));
@@ -592,7 +613,6 @@ function RuntimeSpellRoster({
                 onReference={onReference}
                 onSpellCast={onSpellCast}
                 spells={spells}
-                spellCastResult={spellCastResult}
               />
             </div>
           </div>
@@ -606,12 +626,10 @@ function RuntimeSpellGroup({
   onReference,
   onSpellCast,
   spells,
-  spellCastResult,
 }: {
   onReference: ReferenceHandler;
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   spells: EncounterRuntimeSpellView[];
-  spellCastResult?: EncounterSpellCastResultView;
 }) {
   return (
     <div className="creature-sheet__spell-links">
@@ -624,7 +642,6 @@ function RuntimeSpellGroup({
             onReference={onReference}
             onSpellCast={onSpellCast}
             spell={spell}
-            spellCastResult={spellCastResult}
           />
           {index < spells.length - 1 ? (
             <span aria-hidden="true" className="creature-sheet__spell-separator">
@@ -641,27 +658,19 @@ function RuntimeSpell({
   onReference,
   onSpellCast,
   spell,
-  spellCastResult,
 }: {
   onReference: ReferenceHandler;
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   spell: EncounterRuntimeSpellView;
-  spellCastResult?: EncounterSpellCastResultView;
 }) {
   const metadata = [
     spell.rank === undefined ? undefined : formatRank(spell.rank),
     ...(spell.traits ?? []).map(formatSlug),
-    spell.activity?.action_cost
-      ? formatRuntimeActionCost(spell.activity.action_cost.value)
-      : undefined,
   ].filter((value): value is string => Boolean(value));
-  const result =
-    spellCastResult?.spell_occurrence_id === spell.occurrence_id
-      ? spellCastResult
-      : undefined;
   return (
     <>
       <SpellPreviewPopover
+        actionCost={spell.activity?.action_cost?.value}
         actions={<RuntimeSpellControls onSpellCast={onSpellCast} spell={spell} />}
         label={spell.label}
         metadata={metadata.join(" · ")}
@@ -671,12 +680,6 @@ function RuntimeSpell({
             <p className="encounter-runtime-spell-availability">
               <strong>{spellCastStateLabel(spell.cast)}</strong>
             </p>
-            {result ? (
-              <p className="encounter-runtime-spell-result" role="status">
-                {result.operation === "cast_one" ? "Spell cast" : "Use restored"}:{" "}
-                {spellCastStateLabel(result.after)}
-              </p>
-            ) : null}
             {spell.activity && <RuntimeActivityDetails activity={spell.activity} />}
             {spell.content?.map((document) => (
               <RichContent
@@ -689,6 +692,11 @@ function RuntimeSpell({
         }
         targetRecordKey={spell.target_record_key}
       />
+      {spell.activity?.action_cost ? (
+        <span className="encounter-runtime-spell-cost">
+          <ActionGlyph cost={spell.activity.action_cost.value} />
+        </span>
+      ) : null}
       <small className="encounter-runtime-spell-state">
         {spellCastStateLabel(spell.cast)}
       </small>
@@ -703,6 +711,7 @@ function RuntimeSpellControls({
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   spell: EncounterRuntimeSpellView;
 }) {
+  const controlId = useId();
   const target = spell.cast.spend_target;
   const blockedReason = spell.cast.blocked_reason
     ? spellCastBlockedReasonLabel(spell.cast.blocked_reason)
@@ -711,16 +720,21 @@ function RuntimeSpellControls({
     ? "Casting controls are unavailable"
     : !target
       ? "Casting target unavailable"
-      : blockedReason;
+      : (blockedReason ??
+        (!spell.cast.available ? "Casting is unavailable" : undefined));
   const tracked =
     spell.cast.state.state_type === "tracked" ? spell.cast.state : undefined;
   const restoreDisabledReason = !onSpellCast
     ? "Restore controls are unavailable"
     : !target
       ? "Casting target unavailable"
-      : tracked && tracked.remaining >= tracked.initial_remaining
-        ? "Already at the creation baseline"
-        : undefined;
+      : !tracked
+        ? spell.cast.state.state_type === "at_will"
+          ? "At-will spells do not consume uses"
+          : "Tracked uses are unavailable"
+        : tracked.remaining >= tracked.initial_remaining
+          ? "Already at the creation baseline"
+          : undefined;
   const mutate = (operation: EncounterSpellCastRequest["operation"]) => {
     if (!onSpellCast || !target) return;
     onSpellCast({
@@ -732,37 +746,54 @@ function RuntimeSpellControls({
   return (
     <div className="encounter-runtime-spell-controls">
       <Space size="small">
-        <Button
-          aria-label={`Cast ${spell.label}`}
-          disabled={!spell.cast.available || Boolean(castDisabledReason)}
-          onClick={(event) => {
-            event.stopPropagation();
-            mutate("cast_one");
-          }}
-          size="small"
-          title={castDisabledReason}
-          type="primary"
-        >
-          Cast
-        </Button>
-        {tracked && (
-          <Button
-            aria-label={`Restore one use of ${spell.label}`}
-            disabled={Boolean(restoreDisabledReason)}
-            onClick={(event) => {
-              event.stopPropagation();
-              mutate("restore_one");
-            }}
-            size="small"
-            title={restoreDisabledReason}
-          >
-            Restore
-          </Button>
-        )}
+        <Tooltip title={castDisabledReason}>
+          <span>
+            <Button
+              aria-describedby={
+                castDisabledReason ? `${controlId}-cast-reason` : undefined
+              }
+              aria-label={`Cast ${spell.label}`}
+              disabled={Boolean(castDisabledReason)}
+              onClick={(event) => {
+                event.stopPropagation();
+                mutate("cast_one");
+              }}
+              size="small"
+              type="primary"
+            >
+              Cast
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title={restoreDisabledReason}>
+          <span>
+            <Button
+              aria-describedby={
+                restoreDisabledReason ? `${controlId}-restore-reason` : undefined
+              }
+              aria-label={`Restore one use of ${spell.label}`}
+              disabled={Boolean(restoreDisabledReason)}
+              onClick={(event) => {
+                event.stopPropagation();
+                mutate("restore_one");
+              }}
+              size="small"
+            >
+              Restore
+            </Button>
+          </span>
+        </Tooltip>
       </Space>
-      {blockedReason && (
-        <small className="encounter-runtime-spell-blocked">{blockedReason}</small>
-      )}
+      {castDisabledReason ? (
+        <span className="sr-only" id={`${controlId}-cast-reason`}>
+          {castDisabledReason}
+        </span>
+      ) : null}
+      {restoreDisabledReason ? (
+        <span className="sr-only" id={`${controlId}-restore-reason`}>
+          {restoreDisabledReason}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -779,7 +810,7 @@ function spellCastBlockedReasonLabel(
   reason: EncounterSpellCastBlockedReasonView,
 ): string {
   const labels: Record<EncounterSpellCastBlockedReasonView, string> = {
-    exhausted: "No uses remaining",
+    exhausted: "Cast unavailable at 0 remaining uses",
     participant_defeated: "Defeated participants cannot cast",
     state_unavailable: "Casting state unavailable",
   };
@@ -1370,14 +1401,4 @@ function groupRuntimeSpells(
     const rightValue = typeof right === "number" ? right : -1;
     return rightValue - leftValue;
   });
-}
-
-function formatRuntimeActionCost(cost: EncounterRuntimeActionCostKindView) {
-  if (cost.kind === "passive") return "Passive";
-  if (cost.kind === "reaction") return "Reaction";
-  if (cost.kind === "free_action") return "Free action";
-  if (cost.kind === "actions") {
-    return `${cost.count} action${cost.count === 1 ? "" : "s"}`;
-  }
-  return cost.value;
 }

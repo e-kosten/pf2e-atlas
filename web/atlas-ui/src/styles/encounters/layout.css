@@ -126,15 +126,3 @@
   gap: 8px;
   justify-content: flex-end;
 }
-
-.encounter-participant-reset-control {
-  align-items: flex-end;
-  display: grid;
-  gap: 4px;
-  justify-items: end;
-}
-
-.encounter-participant-reset-control small {
-  color: var(--muted);
-  font-size: 10px;
-}

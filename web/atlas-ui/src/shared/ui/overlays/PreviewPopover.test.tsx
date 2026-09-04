@@ -12,6 +12,9 @@ describe("PreviewPopover", () => {
     fireEvent.click(trigger);
 
     expect(screen.getByRole("dialog", { name: "Preview details" })).toBeInTheDocument();
+    expect(document.querySelector(".preview-popover")).toHaveClass(
+      "ant-popover-placement-bottom",
+    );
     expect(onOpenChange).toHaveBeenCalledTimes(1);
     expect(onOpenChange).toHaveBeenLastCalledWith(true);
 
