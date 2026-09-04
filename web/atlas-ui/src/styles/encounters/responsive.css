@@ -15,8 +15,7 @@
 
   .encounter-form-grid,
   .encounter-hp-grid,
-  .encounter-add-condition__row,
-  .encounter-condition-row {
+  .encounter-add-condition__row {
     grid-template-columns: 1fr;
   }
 

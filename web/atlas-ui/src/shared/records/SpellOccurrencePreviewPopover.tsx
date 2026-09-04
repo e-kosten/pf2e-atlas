@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import type React from "react";
 import type { CreatureSurfaceSpellView } from "../../generated/atlas";
 import { PreviewPopover, usePreviewPopoverClose } from "../ui/overlays/PreviewPopover";
+import { ActionGlyph, type ActionCost } from "./ActionGlyph";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import { RecordPreviewContext } from "./RecordPreviewContext";
 import { RichContent, type ReferenceHandler } from "./RecordRichContent";
@@ -46,6 +47,7 @@ export function SpellOccurrencePreviewPopover({
 }
 
 export function SpellPreviewPopover({
+  actionCost,
   actions,
   label,
   metadata,
@@ -53,6 +55,7 @@ export function SpellPreviewPopover({
   previewContent,
   targetRecordKey,
 }: {
+  actionCost?: ActionCost;
   actions?: React.ReactNode;
   label: string;
   metadata?: string;
@@ -86,7 +89,12 @@ export function SpellPreviewPopover({
           </div>
         </RecordPreviewContext.Provider>
       }
-      title={label}
+      title={
+        <span className="creature-sheet__spell-preview-title">
+          <span>{label}</span>
+          {actionCost ? <ActionGlyph cost={actionCost} /> : null}
+        </span>
+      }
     >
       {(open) =>
         targetRecordKey ? (

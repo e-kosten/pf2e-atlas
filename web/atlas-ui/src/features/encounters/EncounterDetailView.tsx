@@ -23,7 +23,6 @@ import type {
   EncounterParticipantResetDomainView,
   EncounterParticipantResetResultView,
   EncounterSpellCastRequest,
-  EncounterSpellCastResultView,
   EncounterSummaryView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
@@ -32,7 +31,7 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
+import { useConfirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 
 type EncounterDetailViewProps = {
@@ -47,13 +46,12 @@ const ENCOUNTER_WIDTH_SPECS = {
 
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   const queryClient = useQueryClient();
+  const { confirmationModal, confirmDangerAction } = useConfirmDangerAction();
   const [messageApi, messageContext] = message.useMessage();
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const [spellCastResult, setSpellCastResult] =
-    useState<EncounterSpellCastResultView | null>(null);
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -108,7 +106,19 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         encounter_ref: route.slug,
         ...(participantKey ? { participant_key: participantKey } : {}),
       }),
-    onSuccess: invalidateEncounter,
+    onSuccess: async (result) => {
+      const currentParticipantKey = result.current_turn_participant_key;
+      if (
+        currentParticipantKey &&
+        result.participants.some(
+          (participant) => participant.participant_key === currentParticipantKey,
+        )
+      ) {
+        setSelectedParticipantKey(currentParticipantKey);
+      }
+      queryClient.setQueryData(["encounter", route.slug], result);
+      await queryClient.invalidateQueries({ queryKey: ["encounters"] });
+    },
   });
   const addCondition = useMutation({
     mutationFn: (request: AddEncounterParticipantConditionRequest) =>
@@ -142,9 +152,12 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       spellCast: EncounterSpellCastRequest;
     }) =>
       mutateEncounterSpellCast(route.slug, request.participantKey, request.spellCast),
-    onSuccess: async (result) => {
-      setSpellCastResult(result);
-      await invalidateEncounter();
+    onSuccess: invalidateEncounter,
+    onError: (error) => {
+      messageApi.error({
+        content: `Spell update failed: ${mutationErrorMessage(error)}`,
+        duration: 0,
+      });
     },
   });
   const resetParticipant = useMutation({
@@ -153,7 +166,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         confirmation: "reset_participant",
       }),
     onSuccess: async (result) => {
-      setSpellCastResult(null);
       messageApi.success({
         content: resetResultMessage(result),
         duration: 4,
@@ -162,7 +174,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     },
     onError: (error) => {
       messageApi.error({
-        content: `Creature reset failed: ${resetErrorMessage(error)}`,
+        content: `Creature reset failed: ${mutationErrorMessage(error)}`,
         duration: 0,
       });
     },
@@ -185,6 +197,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   return (
     <>
       {messageContext}
+      {confirmationModal}
       <section className="encounter-detail-header">
         <div>
           <h2>{encounterSummary?.name ?? route.slug}</h2>
@@ -260,11 +273,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
               updateCondition.mutate({ participantKey, condition })
             }
             participant={selected}
-            spellCastResult={
-              spellCastResult?.participant_key === selected?.participant_key
-                ? spellCastResult
-                : null
-            }
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             currentTurnParticipantKey={
@@ -318,7 +326,7 @@ function resetResultMessage(result: EncounterParticipantResetResultView): string
   return `Creature reset. Restored ${reset}; preserved ${preserved}.`;
 }
 
-function resetErrorMessage(error: unknown): string {
+function mutationErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "appError" in error) {
     const appError = error.appError;
     if (

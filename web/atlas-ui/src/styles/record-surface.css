@@ -606,6 +606,14 @@
   font-weight: 400;
 }
 
+.creature-sheet__spell-preview-title {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
 .creature-sheet__spell-roster {
   display: grid;
   gap: 9px;

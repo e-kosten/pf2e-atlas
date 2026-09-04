@@ -1,4 +1,4 @@
-import { Popover } from "antd";
+import { Grid, Popover } from "antd";
 import {
   createContext,
   useCallback,
@@ -38,6 +38,7 @@ export function PreviewPopover({
   onOpenChange?: (open: boolean) => void;
   title: React.ReactNode;
 }) {
+  const screens = Grid.useBreakpoint();
   const [open, setOpen] = useState(false);
   const triggerElement = useRef<HTMLElement | null>(null);
   const restoreFocusTimer = useRef<number | null>(null);
@@ -109,7 +110,7 @@ export function PreviewPopover({
       destroyOnHidden
       onOpenChange={(nextOpen) => changeOpen(nextOpen)}
       open={open}
-      placement="rightTop"
+      placement={screens.md ? "rightTop" : "bottom"}
       title={
         <PreviewPopoverCloseContext.Provider value={close}>
           <header className="preview-popover__header">

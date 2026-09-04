@@ -310,8 +310,10 @@ describe("RecordSurface", () => {
     expect(senses).toHaveTextContent("Darkvision");
     expect(senses).not.toHaveTextContent("·");
     expect(within(perceptionGroup).queryByText("Fog Vision")).not.toBeInTheDocument();
-    const abilities = screen.getByRole("heading", { name: "Abilities" }).parentElement!;
-    expect(within(abilities).getByText("Fog Vision")).toBeInTheDocument();
+    const features = screen.getByRole("heading", {
+      name: "Passives",
+    }).parentElement!;
+    expect(within(features).getByText("Fog Vision")).toBeInTheDocument();
   });
 
   it("keeps sparse fact sections in the natural two-column flow", () => {
@@ -755,14 +757,16 @@ describe("RecordSurface", () => {
   it("renders user-facing action details without raw effect or category slugs", () => {
     const { container } = renderSurface();
     const actions = screen.getByRole("heading", { name: "Actions" }).parentElement!;
-    const abilities = screen.getByRole("heading", { name: "Abilities" }).parentElement!;
+    const features = screen.getByRole("heading", {
+      name: "Passives",
+    }).parentElement!;
 
     const claw = screen
       .getByText("Claw")
       .closest<HTMLElement>(".creature-sheet__activity")!;
     expect(actions).toContainElement(claw);
-    expect(abilities).not.toContainElement(claw);
-    expect(within(claw).getByText("One action")).toBeVisible();
+    expect(features).not.toContainElement(claw);
+    expect(within(claw).getByText("One action")).toHaveClass("sr-only");
     expect(within(claw).queryByText("abyssal-plague")).not.toBeInTheDocument();
     expect(within(claw).queryByText("Attack effects")).not.toBeInTheDocument();
     expect(within(claw).queryByText("offensive")).not.toBeInTheDocument();
@@ -787,7 +791,7 @@ describe("RecordSurface", () => {
     const haunting = screen
       .getByText("Dream Haunting")
       .closest<HTMLElement>(".creature-sheet__activity")!;
-    expect(abilities).toContainElement(haunting);
+    expect(features).toContainElement(haunting);
     expect(actions).not.toContainElement(haunting);
     expect(within(haunting).getByText("Passive")).toBeVisible();
     expect(haunting).toHaveClass("creature-sheet__activity--expandable");
@@ -795,7 +799,7 @@ describe("RecordSurface", () => {
     const ambush = screen
       .getByText("Spell Ambush")
       .closest<HTMLElement>(".creature-sheet__activity")!;
-    expect(abilities).toContainElement(ambush);
+    expect(features).toContainElement(ambush);
     expect(actions).not.toContainElement(ambush);
     expect(within(ambush).getByText("Passive")).toBeVisible();
     expect(within(ambush).queryByRole("button")).not.toBeInTheDocument();
@@ -1064,20 +1068,26 @@ describe("RecordSurface", () => {
     );
   });
 
-  it("keeps description secondary in the encounter profile", () => {
+  it("keeps record-styled description secondary in the encounter profile", () => {
     const surface = detailedSurfaceFixture();
     surface.profile = "encounter_participant";
     surface.encounter = encounterRuntimeFixture();
 
     render(<RecordSurface onReference={onReference} surface={surface} />);
 
-    expect(screen.getByRole("button", { name: /Description & Lore/ })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    const combatSnapshot = screen.getByRole("heading", {
+      name: "Combat Snapshot",
+    });
+    const description = screen.getByRole("heading", {
+      name: "Description & Lore",
+    });
+    const narrative = description.closest(".creature-sheet__narrative");
+    expect(narrative).not.toBeNull();
+    expect(narrative).toHaveTextContent("A quick goblin scout");
     expect(
-      screen.getByRole("heading", { name: "Combat Snapshot" }),
-    ).toBeInTheDocument();
+      combatSnapshot.compareDocumentPosition(description) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("separates runtime labels from values and exposes typed spell details", async () => {
@@ -1118,6 +1128,37 @@ describe("RecordSurface", () => {
         reason: "A condition prevents actions.",
       };
     }
+    runtime.activities = [
+      {
+        activity_id: "runtime-claw",
+        label: "Runtime Claw",
+        kind: "strike",
+        usage: "unlimited",
+        content: [
+          spellContent(
+            "runtime-claw-content",
+            "Runtime Claw",
+            "The creature makes a vicious claw attack.",
+          ),
+        ],
+        action_cost: {
+          value: { kind: "actions", count: 1 },
+          provenance,
+        },
+        provenance,
+      },
+      {
+        activity_id: "nightmare-aura",
+        label: "Nightmare Aura",
+        kind: "other",
+        usage: "unlimited",
+        action_cost: {
+          value: { kind: "passive" },
+          provenance,
+        },
+        provenance,
+      },
+    ];
     runtime.spellcasting = [
       {
         entry_id: "occult-innate",
@@ -1125,6 +1166,22 @@ describe("RecordSurface", () => {
         label: "Occult Innate Spells",
         tradition: "occult",
         preparation: "innate",
+        attack: {
+          roll_id: "occult-innate-attack",
+          label: "Spell attack",
+          base_value: 20,
+          adjusted_value: 20,
+          surface: "attack_roll",
+          provenance,
+        },
+        dc: {
+          roll_id: "occult-innate-dc",
+          label: "Spell DC",
+          base_value: 28,
+          adjusted_value: 28,
+          surface: "dc",
+          provenance,
+        },
         spells: [
           {
             occurrence_id: "dream-message",
@@ -1202,24 +1259,71 @@ describe("RecordSurface", () => {
       screen.queryByRole("button", { name: "Actions adjustment details" }),
     ).not.toBeInTheDocument();
 
+    const actions = screen.getByRole("heading", { name: "Actions" });
+    const spellcasting = screen.getByRole("heading", { name: "Spellcasting" });
+    const features = screen.getByRole("heading", { name: "Passives" });
+    expect(actions.closest("section")).toHaveTextContent("Runtime Claw");
+    expect(actions.closest("section")).not.toHaveTextContent("Nightmare Aura");
+    expect(features.closest("section")).toHaveTextContent("Nightmare Aura");
+    expect(features.closest("section")).not.toHaveTextContent("Runtime Claw");
+    expect(
+      actions.compareDocumentPosition(spellcasting) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      spellcasting.compareDocumentPosition(features) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const actionDisclosure = screen.getByRole("button", {
+      name: /Runtime Claw/,
+    });
+    expect(actionDisclosure).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(actionDisclosure);
+    expect(actionDisclosure).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(actionDisclosure);
+    expect(actionDisclosure).toHaveAttribute("aria-expanded", "true");
+
     const spellcastingDisclosure = screen.getByRole("button", {
       name: /Occult Innate Spells/,
     });
+    const spellcastingSection = spellcasting.closest("section");
+    if (!spellcastingSection) throw new Error("Spellcasting section was not rendered");
+    expect(
+      within(spellcastingSection).getAllByText("DC", { exact: true }),
+    ).toHaveLength(1);
+    expect(
+      within(spellcastingSection).getAllByText("Spell attack", { exact: true }),
+    ).toHaveLength(1);
+    expect(spellcastingDisclosure).not.toHaveTextContent("DC 28");
+    expect(spellcastingDisclosure).not.toHaveTextContent("attack +20");
+    expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(spellcastingDisclosure);
     expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(spellcastingDisclosure);
+    expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
     const spellTrigger = screen.getByRole("link", { name: "Dream Message" });
+    const runtimeSpell = spellTrigger.closest(".encounter-runtime-spell");
+    expect(runtimeSpell?.querySelector(".action-glyph__mark")).toHaveTextContent("2");
+    expect(runtimeSpell).toHaveTextContent("Two actions");
+    expect(within(runtimeSpell as HTMLElement).getByText("Two actions")).toHaveClass(
+      "sr-only",
+    );
     expect(spellTrigger).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(spellTrigger);
     expect(spellTrigger).toHaveAttribute("aria-expanded", "true");
     const preview = await screen.findByRole("dialog", {
       name: "Dream Message spell details",
     });
+    const previewHeader = preview
+      .closest(".ant-popover")
+      ?.querySelector(".preview-popover__header");
+    expect(previewHeader?.querySelector(".action-glyph__mark")).toHaveTextContent("2");
+    expect(within(previewHeader as HTMLElement).getByText("Two actions")).toHaveClass(
+      "sr-only",
+    );
     expect(
       within(preview).getByText("The message reaches a sleeper."),
     ).toBeInTheDocument();
-    expect(
-      within(preview).getByText("5th · Concentrate · Mental · 2 actions"),
-    ).toBeInTheDocument();
+    expect(within(preview).getByText("5th · Concentrate · Mental")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Open spell record" }),
     ).toBeInTheDocument();
@@ -1239,6 +1343,11 @@ describe("RecordSurface", () => {
         name: "Restore one use of Dream Message",
       }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Restore one use of Dream Message",
+      }),
+    ).toHaveAccessibleDescription("Already at the creation baseline");
   });
 
   it("renders backend-authored spell availability and submits typed cast and restore operations", () => {
@@ -1314,7 +1423,9 @@ describe("RecordSurface", () => {
         surface={surface}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Occult Innate Spells/ }));
+    expect(
+      screen.getByRole("button", { name: /Occult Innate Spells/ }),
+    ).toHaveAttribute("aria-expanded", "true");
 
     expect(screen.getByText("0 of 2 remaining")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Limited Spell" }));
@@ -1324,9 +1435,15 @@ describe("RecordSurface", () => {
     expect(within(preview).getByText("0 of 2 remaining")).toBeInTheDocument();
     const limitedCast = screen.getByRole("button", { name: "Cast Limited Spell" });
     expect(limitedCast).toBeDisabled();
-    expect(limitedCast.closest(".encounter-runtime-spell-controls")).toHaveTextContent(
-      "No uses remaining",
+    expect(limitedCast).toHaveAccessibleDescription(
+      "Cast unavailable at 0 remaining uses",
     );
+    expect(screen.queryByText("No uses remaining")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Restore one use of Limited Spell",
+      }),
+    ).toBeEnabled();
     fireEvent.click(
       screen.getByRole("button", {
         name: "Restore one use of Limited Spell",
@@ -1355,6 +1472,16 @@ describe("RecordSurface", () => {
       operation: "cast_one",
     });
     expect(screen.getAllByText("At will").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", {
+        name: "Restore one use of At-Will Spell",
+      }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Restore one use of At-Will Spell",
+      }),
+    ).toHaveAccessibleDescription("At-will spells do not consume uses");
     fireEvent.click(screen.getByRole("button", { name: "Close spell preview" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Focus Spell" }));
@@ -1364,9 +1491,17 @@ describe("RecordSurface", () => {
     ).toBeInTheDocument();
     const focusCast = screen.getByRole("button", { name: "Cast Focus Spell" });
     expect(focusCast).toBeDisabled();
-    expect(focusCast.closest(".encounter-runtime-spell-controls")).toHaveTextContent(
-      "Casting state unavailable",
-    );
+    expect(focusCast).toHaveAccessibleDescription("Casting state unavailable");
+    expect(
+      screen.getByRole("button", {
+        name: "Restore one use of Focus Spell",
+      }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Restore one use of Focus Spell",
+      }),
+    ).toHaveAccessibleDescription("Tracked uses are unavailable");
   });
 
   it("keeps static record profiles free of encounter mutation slots", () => {

@@ -1,6 +1,6 @@
 import { Button } from "antd";
 import type { ButtonProps } from "antd";
-import { confirmDangerAction } from "./confirmDangerAction";
+import { useConfirmDangerAction } from "./confirmDangerAction";
 
 type DangerActionButtonProps = Omit<ButtonProps, "danger" | "onClick"> & {
   confirmContent?: string;
@@ -18,19 +18,23 @@ export function DangerActionButton({
   onConfirm,
   ...buttonProps
 }: DangerActionButtonProps) {
+  const { confirmationModal, confirmDangerAction } = useConfirmDangerAction();
   return (
-    <Button
-      {...buttonProps}
-      danger
-      onClick={(event) => {
-        onBeforeConfirm?.(event);
-        confirmDangerAction({
-          title: confirmTitle,
-          content: confirmContent,
-          okText: confirmOkText,
-          onConfirm,
-        });
-      }}
-    />
+    <>
+      <Button
+        {...buttonProps}
+        danger
+        onClick={(event) => {
+          onBeforeConfirm?.(event);
+          confirmDangerAction({
+            title: confirmTitle,
+            content: confirmContent,
+            okText: confirmOkText,
+            onConfirm,
+          });
+        }}
+      />
+      {confirmationModal}
+    </>
   );
 }

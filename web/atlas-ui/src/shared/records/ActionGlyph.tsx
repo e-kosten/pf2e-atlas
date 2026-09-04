@@ -1,4 +1,7 @@
-import type { CreatureSurfaceActionCostView } from "../../generated/atlas";
+import type {
+  CreatureSurfaceActionCostView,
+  EncounterRuntimeActionCostKindView,
+} from "../../generated/atlas";
 
 type FutureActionCost = {
   cost_type: string;
@@ -6,11 +9,10 @@ type FutureActionCost = {
   value?: string;
 };
 
-export function ActionGlyph({
-  cost,
-}: {
-  cost: CreatureSurfaceActionCostView | FutureActionCost | null | undefined;
-}) {
+export type ActionCost =
+  CreatureSurfaceActionCostView | EncounterRuntimeActionCostKindView | FutureActionCost;
+
+export function ActionGlyph({ cost }: { cost: ActionCost | null | undefined }) {
   const presentation = actionCostPresentation(cost);
   return (
     <span className="action-glyph" data-action-kind={presentation.kind}>
@@ -19,42 +21,43 @@ export function ActionGlyph({
           {presentation.glyph}
         </span>
       ) : null}
-      <span className="action-glyph__label">{presentation.label}</span>
+      <span className={presentation.glyph ? "sr-only" : "action-glyph__label"}>
+        {presentation.label}
+      </span>
     </span>
   );
 }
 
-export function actionCostLabel(
-  cost: CreatureSurfaceActionCostView | FutureActionCost | null | undefined,
-) {
+export function actionCostLabel(cost: ActionCost | null | undefined) {
   return actionCostPresentation(cost).label;
 }
 
-function actionCostPresentation(
-  cost: CreatureSurfaceActionCostView | FutureActionCost | null | undefined,
-): { glyph?: string; kind: string; label: string } {
+function actionCostPresentation(cost: ActionCost | null | undefined): {
+  glyph?: string;
+  kind: string;
+  label: string;
+} {
   if (!cost) {
     return { kind: "missing", label: "The action cost is not listed." };
   }
-  switch (cost.cost_type) {
+  const costType = "kind" in cost ? cost.kind : cost.cost_type;
+  const count = "count" in cost ? cost.count : undefined;
+  const value = "value" in cost ? cost.value : undefined;
+  switch (costType) {
     case "actions":
-      if (typeof cost.count === "number" && cost.count >= 1 && cost.count <= 3) {
+      if (typeof count === "number" && count >= 1 && count <= 3) {
         return {
-          glyph: cost.count.toString(),
-          kind: `actions-${cost.count}`,
+          glyph: count.toString(),
+          kind: `actions-${count}`,
           label:
-            cost.count === 1
-              ? "One action"
-              : cost.count === 2
-                ? "Two actions"
-                : "Three actions",
+            count === 1 ? "One action" : count === 2 ? "Two actions" : "Three actions",
         };
       }
       return {
         kind: "actions-unusual",
         label:
-          typeof cost.count === "number"
-            ? `${cost.count} actions`
+          typeof count === "number"
+            ? `${count} actions`
             : "The action count is not listed.",
       };
     case "free_action":
@@ -66,7 +69,7 @@ function actionCostPresentation(
     case "time":
       return {
         kind: "time",
-        label: cost.value || "The action time is not listed.",
+        label: value || "The action time is not listed.",
       };
     default:
       return { kind: "unknown", label: "The action cost is not recognized." };

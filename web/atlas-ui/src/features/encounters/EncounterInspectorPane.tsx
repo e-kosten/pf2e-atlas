@@ -7,7 +7,6 @@ import type {
   EncounterParticipantView,
   EncounterConditionDefinitionView,
   EncounterSpellCastRequest,
-  EncounterSpellCastResultView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
@@ -32,7 +31,6 @@ export function EncounterInspectorPane({
   onUpdate,
   participant,
   participants,
-  spellCastResult,
   conditionDefinitions,
   currentTurnParticipantKey,
 }: {
@@ -48,7 +46,6 @@ export function EncounterInspectorPane({
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
-  spellCastResult: EncounterSpellCastResultView | null;
   conditionDefinitions: EncounterConditionDefinitionView[];
   currentTurnParticipantKey: string | null;
 }) {
@@ -74,7 +71,6 @@ export function EncounterInspectorPane({
             onUpdateCondition={onUpdateCondition}
             participant={participant}
             participants={participants}
-            spellCastResult={spellCastResult}
           />
         </RecordPreviewScope>
       ) : (
@@ -112,7 +108,6 @@ function EncounterParticipantSurface({
   onUpdateCondition,
   participant,
   participants,
-  spellCastResult,
   currentTurnParticipantKey,
 }: {
   conditionDefinitions: EncounterConditionDefinitionView[];
@@ -128,7 +123,6 @@ function EncounterParticipantSurface({
   ) => void;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
-  spellCastResult: EncounterSpellCastResultView | null;
   currentTurnParticipantKey: string | null;
 }) {
   const [projectedCurrent, setProjectedCurrent] = useState<{
@@ -156,7 +150,6 @@ function EncounterParticipantSurface({
     <RecordSurface
       onReference={onReference}
       onSpellCast={(request) => onSpellCast(activeCurrent.participant_key, request)}
-      spellCastResult={spellCastResult ?? undefined}
       surface={surface}
       slots={{
         header: (
