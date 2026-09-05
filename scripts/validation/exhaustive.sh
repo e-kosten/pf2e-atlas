@@ -30,7 +30,7 @@ if [ -z "$source_root" ] || [ -z "$candidate_head" ] || [ -z "$snapshot_root" ] 
   exit 2
 fi
 
-printf 'exhaustive phase=preflight status=started\n' >&2
+printf 'production-validation phase=preflight status=started\n' >&2
 cargo run -p atlas-cli -- --progress always index validate-corpus \
   --source "$source_root" \
   --candidate-head "$candidate_head" \
@@ -38,4 +38,4 @@ cargo run -p atlas-cli -- --progress always index validate-corpus \
   --report "$report" \
   --embedding-cache-path "$embedding_cache" \
   $force
-printf 'exhaustive phase=complete status=passed\n' >&2
+printf 'production-validation phase=complete status=passed\n' >&2

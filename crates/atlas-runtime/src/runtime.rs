@@ -72,13 +72,7 @@ impl AtlasRuntime {
         &self,
         target: atlas_index::ValidationTarget,
     ) -> atlas_index::ArtifactValidationReport {
-        let base_report = atlas_index::validate_bound_artifact_report(&self.paths.index_path);
-        if base_report.status != atlas_index::ValidationStatus::Ok
-            || matches!(target, atlas_index::ValidationTarget::BaseOnly)
-        {
-            return base_report;
-        }
-        self.validate_vector_target_report(target)
+        atlas_index::validate_bound_artifact_target_report(&self.paths.index_path, target)
     }
 
     pub fn check_index_report(
@@ -103,21 +97,6 @@ impl AtlasRuntime {
                     atlas_index::ValidationTarget::EmbeddingsOnly,
                     error.to_string(),
                 ),
-                Err(base_error) => {
-                    atlas_index::validation_report_for_error(&self.paths.index_path, base_error)
-                }
-            },
-        }
-    }
-
-    fn validate_vector_target_report(
-        &self,
-        target: atlas_index::ValidationTarget,
-    ) -> atlas_index::ArtifactValidationReport {
-        match self.open_search_index() {
-            Ok(index) => index.validate_target_report(target),
-            Err(error) => match self.open_index() {
-                Ok(index) => index.vector_extension_unavailable_report(target, error.to_string()),
                 Err(base_error) => {
                     atlas_index::validation_report_for_error(&self.paths.index_path, base_error)
                 }

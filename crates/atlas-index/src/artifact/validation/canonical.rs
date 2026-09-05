@@ -198,6 +198,57 @@ pub(crate) fn validate_canonical_records(
     Ok(())
 }
 
+/// Validates global canonical storage invariants without hydrating every body or
+/// reconciling every relational projection back to its canonical JSON source.
+/// Complete decoding and attachment validation remain strict on requested
+/// records; [`validate_canonical_records`] is the explicit broad diagnostic.
+pub(super) fn validate_canonical_structure(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    validate_enums(connection, diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(());
+    }
+    validate_record_mechanics(connection, diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(());
+    }
+
+    for (key, sql, message) in [
+        (
+            "canonical_creature_records.missing_npc_body",
+            "SELECT COUNT(*)
+             FROM records r
+             LEFT JOIN canonical_creature_records c ON c.record_key = r.record_key
+             WHERE r.foundry_record_type = 'npc' AND c.record_key IS NULL",
+            "every NPC record must have one canonical creature body",
+        ),
+        (
+            "canonical_creature_records.non_npc_body",
+            "SELECT COUNT(*)
+             FROM canonical_creature_records c
+             JOIN records r ON r.record_key = c.record_key
+             WHERE r.foundry_record_type <> 'npc'",
+            "non-NPC records must not have canonical creature bodies",
+        ),
+    ] {
+        let invalid: i64 = connection
+            .query_row(sql, [], |row| row.get(0))
+            .map_err(query_failed)?;
+        if invalid != 0 {
+            mismatch(
+                diagnostics,
+                message,
+                key,
+                "0 invalid rows".to_string(),
+                invalid.to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
 fn reconcile(
     rows: &ProjectionRows,
     record_key: &str,

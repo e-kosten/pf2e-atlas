@@ -15,8 +15,11 @@ use crate::artifact::pair::{
     GenerationLease, PairLock, VerifiedArtifactFile, adjacent_manifest_path,
     open_verified_generation,
 };
-use crate::read::search::vector::register_sqlite_vec_extension;
-use crate::{ArtifactValidationReport, IndexValidationError};
+use crate::read::search::vector::{
+    register_sqlite_vec_extension, validate_vector_index_connection,
+    vector_extension_unavailable_report_from_base,
+};
+use crate::{ArtifactValidationReport, IndexValidationError, ValidationStatus, ValidationTarget};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct VerifiedArtifactGenerationIdentity {
@@ -220,13 +223,26 @@ impl SqliteIndexReader {
 /// the database compatibility-stamp check is deferred so the explicit
 /// validation command can return its promised metadata diagnostics.
 pub fn validate_bound_artifact_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
-    validate_bound_artifact_report_with_hook(path.as_ref(), |_| {})
+    validate_bound_artifact_target_report(path, ValidationTarget::BaseOnly)
 }
 
-fn validate_bound_artifact_report_with_hook(
+pub fn validate_bound_artifact_target_report(
+    path: impl AsRef<Path>,
+    target: ValidationTarget,
+) -> ArtifactValidationReport {
+    validate_bound_artifact_target_report_with_hook(path.as_ref(), target, |_| {})
+}
+
+fn validate_bound_artifact_target_report_with_hook(
     path: &Path,
+    target: ValidationTarget,
     after_open: impl FnOnce(&SqliteIndexReader),
 ) -> ArtifactValidationReport {
+    let vector_registration_error = if matches!(target, ValidationTarget::BaseOnly) {
+        None
+    } else {
+        register_sqlite_vec_extension().err()
+    };
     let reader = match SqliteIndexReader::open_for_explicit_validation(path) {
         Ok(reader) => reader,
         Err(error) => return crate::validation_report_from_error(path, error),
@@ -235,7 +251,28 @@ fn validate_bound_artifact_report_with_hook(
     if let Err(error) = reader.validate_generation_binding() {
         return crate::validation_report_from_error(path, error);
     }
-    let report = reader.validate_report();
+    let base_report = reader.validate_report();
+    let report = if base_report.status != ValidationStatus::Ok
+        || matches!(target, ValidationTarget::BaseOnly)
+    {
+        base_report
+    } else if let Some(error) = vector_registration_error {
+        vector_extension_unavailable_report_from_base(
+            path.display().to_string(),
+            base_report,
+            error,
+        )
+    } else {
+        match reader.validation_connection() {
+            Ok(connection) => validate_vector_index_connection(
+                path.display().to_string(),
+                base_report,
+                &connection,
+            )
+            .unwrap_or_else(|error| crate::validation_report_from_error(path, error)),
+            Err(error) => crate::validation_report_from_error(path, error),
+        }
+    };
     if let Err(error) = reader.validate_generation_binding() {
         return crate::validation_report_from_error(path, error);
     }
@@ -799,11 +836,82 @@ mod tests {
         write_manifest(&root.join("manifest.json"), &artifact);
 
         let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        crate::read::records::reset_canonical_coherence_scan_count();
+        let report = reader.validate().unwrap();
+        assert_eq!(
+            crate::read::records::canonical_coherence_scan_count(),
+            0,
+            "normal Full validation must not invoke the broad all-body diagnostic"
+        );
+        assert!(
+            report.diagnostics.iter().all(|diagnostic| {
+                !diagnostic.message.contains("canonical JSON")
+                    && diagnostic
+                        .key
+                        .as_deref()
+                        .is_none_or(|key| !key.contains("canonical_json"))
+            }),
+            "normal Full validation must not decode every canonical body"
+        );
+        assert!(
+            !reader.validate_canonical_coherence().unwrap().is_empty(),
+            "the explicit broad diagnostic must still report the malformed body"
+        );
         let key = RecordKey::parse("actions:testAction1").unwrap();
         let error = reader
             .load_canonical_record_bodies_by_key(&[key])
             .expect_err("malformed canonical JSON must fail typed decode");
         assert!(matches!(error, crate::RecordLoadError::InvalidData(_)));
+
+        drop(reader);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn keyed_hydration_reports_malformed_record_content_json() {
+        let root = unique_root("typed-content-decode-mutation");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Content Mutation");
+        let connection = rusqlite::Connection::open(&artifact).unwrap();
+        connection
+            .execute(
+                "INSERT INTO record_content (
+                   record_key, content_key, authored_order, identity_stability, owner_kind,
+                   owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+                   contributes_to_search, contributes_to_references, label, content_json,
+                   content_hash, duplicate_status_json, diagnostics_json
+                 ) VALUES (
+                   'actions:testAction1', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+                   'actions:testAction1', 'primary_description', '{}', 'public', '{}',
+                   'description', 1, 1, NULL, '{\"nodes\":[]}', 'fixture',
+                   '{\"kind\":\"unique\"}', '[]'
+                 )",
+                [],
+            )
+            .unwrap();
+        let changed = connection
+            .execute(
+                "UPDATE record_content SET content_json = '{' WHERE record_key = 'actions:testAction1' AND owner_kind = 'record'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(changed, 1, "fixture must mutate one requested content row");
+        drop(connection);
+        write_manifest(&root.join("manifest.json"), &artifact);
+
+        let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
+        let key = RecordKey::parse("actions:testAction1").unwrap();
+        let error = reader
+            .load_hydrated_records_by_key(&[key])
+            .expect_err("malformed content JSON must fail requested hydration");
+        match error {
+            crate::RecordLoadError::InvalidData(message) => {
+                assert!(message.contains("record_content.content_json"));
+                assert!(message.contains("rich document JSON"));
+            }
+            other => panic!("expected typed invalid-data error, found {other}"),
+        }
 
         drop(reader);
         std::fs::remove_dir_all(root).unwrap();
@@ -880,8 +988,8 @@ mod tests {
     }
 
     #[test]
-    fn deep_receipt_preserves_independent_outputs_with_one_coherence_pass() {
-        let root = unique_root("deep-receipt-equality");
+    fn structural_global_receipt_preserves_independent_outputs_with_one_validation_pass() {
+        let root = unique_root("structural-global-receipt-equality");
         std::fs::create_dir_all(&root).unwrap();
         let artifact = root.join("index.sqlite");
         let manifest = root.join("manifest.json");
@@ -891,25 +999,25 @@ mod tests {
         let independent = SqliteIndexReader::open_read_only(&artifact).unwrap();
         let expected_check = independent.check().unwrap();
         let expected_inspect = independent.inspect().unwrap();
-        let expected_deep = independent
+        let expected_validation = independent
             .validate_target(crate::ValidationTarget::BaseOnly)
             .unwrap();
 
-        crate::artifact::validation::reset_deep_coherence_validation_count();
+        crate::artifact::validation::reset_structural_global_validation_count();
         let composed = SqliteIndexReader::open_read_only(&artifact).unwrap();
         let actual_check = composed.check().unwrap();
-        let actual_deep = composed
+        let actual_validation = composed
             .validate_target(crate::ValidationTarget::BaseOnly)
             .unwrap();
         let actual_inspect = composed
-            .inspect_with_validation_report(actual_deep.clone())
+            .inspect_with_validation_report(actual_validation.clone())
             .unwrap();
 
         assert_eq!(actual_check, expected_check);
         assert_eq!(actual_inspect, expected_inspect);
-        assert_eq!(actual_deep, expected_deep);
+        assert_eq!(actual_validation, expected_validation);
         assert_eq!(
-            crate::artifact::validation::deep_coherence_validation_count(),
+            crate::artifact::validation::structural_global_validation_count(),
             1
         );
         drop(composed);
@@ -918,8 +1026,8 @@ mod tests {
     }
 
     #[test]
-    fn deep_receipt_preserves_independent_failure_payload_and_order() {
-        let root = unique_root("deep-receipt-error-equality");
+    fn structural_global_receipt_preserves_independent_failure_payload_and_order() {
+        let root = unique_root("structural-global-receipt-error-equality");
         std::fs::create_dir_all(&root).unwrap();
         let artifact = root.join("index.sqlite");
         let manifest = root.join("manifest.json");
@@ -932,19 +1040,19 @@ mod tests {
         let independent = SqliteIndexReader::open_read_only(&artifact).unwrap();
         let expected_error = independent.inspect().unwrap_err().to_string();
 
-        crate::artifact::validation::reset_deep_coherence_validation_count();
+        crate::artifact::validation::reset_structural_global_validation_count();
         let composed = SqliteIndexReader::open_read_only(&artifact).unwrap();
-        let deep = composed
+        let validation = composed
             .validate_target(crate::ValidationTarget::BaseOnly)
             .unwrap();
         let actual_error = composed
-            .inspect_with_validation_report(deep)
+            .inspect_with_validation_report(validation)
             .unwrap_err()
             .to_string();
 
         assert_eq!(actual_error, expected_error);
         assert_eq!(
-            crate::artifact::validation::deep_coherence_validation_count(),
+            crate::artifact::validation::structural_global_validation_count(),
             1
         );
         drop(composed);
@@ -1017,21 +1125,43 @@ mod tests {
         create_valid_generation(&artifact, "Mutation");
         write_manifest(&root.join("manifest.json"), &artifact);
 
-        let report = validate_bound_artifact_report_with_hook(&artifact, |reader| {
-            let evidence = reader.verified_generation_evidence().unwrap();
-            let generation_path = evidence["generation_path"].as_str().unwrap();
-            let bytes = evidence["bytes"].as_u64().unwrap();
-            make_test_owner_writable(Path::new(generation_path));
-            let file = std::fs::OpenOptions::new()
-                .append(true)
-                .open(generation_path)
-                .unwrap();
-            file.set_len(bytes + 1).unwrap();
-        });
+        let report = validate_bound_artifact_target_report_with_hook(
+            &artifact,
+            ValidationTarget::BaseOnly,
+            |reader| {
+                let evidence = reader.verified_generation_evidence().unwrap();
+                let generation_path = evidence["generation_path"].as_str().unwrap();
+                let bytes = evidence["bytes"].as_u64().unwrap();
+                make_test_owner_writable(Path::new(generation_path));
+                let file = std::fs::OpenOptions::new()
+                    .append(true)
+                    .open(generation_path)
+                    .unwrap();
+                file.set_len(bytes + 1).unwrap();
+            },
+        );
 
         assert_eq!(report.status, crate::ValidationStatus::Error);
         assert_eq!(report.code, crate::ValidationCode::IndexUnavailable);
         assert!(report.message.contains("generation changed"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bound_full_validation_runs_structural_global_checks_once() {
+        let root = unique_root("bound-full-single-base-pass");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Single Base Pass");
+        write_manifest(&root.join("manifest.json"), &artifact);
+
+        crate::artifact::validation::reset_structural_global_validation_count();
+        let _ = validate_bound_artifact_target_report(&artifact, ValidationTarget::Full);
+        assert_eq!(
+            crate::artifact::validation::structural_global_validation_count(),
+            1,
+            "Full must compose vector validation from one base/global report"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 

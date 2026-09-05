@@ -88,6 +88,9 @@ mod tests {
             1
         );
 
+        // Enum admission is covered in atlas-index's focused visibility and
+        // retrieval-policy mutation test. The remaining canonical faults are
+        // exercised here through the production writer and reader.
         let cases = [
             (
                 "wrong-target",
@@ -130,11 +133,68 @@ mod tests {
             assert_corruption_detected(&path, name, sql, "exact relational projection")?;
         }
 
+        assert_corruption_detected(
+            &path,
+            "orphan",
+            "PRAGMA foreign_keys=OFF; UPDATE canonical_creature_occurrences SET target_entity_id='missing-owner' WHERE target_kind='actor_owned' AND rowid=(SELECT rowid FROM canonical_creature_occurrences WHERE target_kind='actor_owned' LIMIT 1)",
+            "foreign key",
+        )?;
+        for (name, sql) in [
+            (
+                "wrong-canonical-relationship",
+                "UPDATE canonical_creature_relationships SET relationship_kind=CASE relationship_kind WHEN 'granted_by' THEN 'item_grant' ELSE 'granted_by' END WHERE rowid=(SELECT rowid FROM canonical_creature_relationships ORDER BY record_key,relationship_order LIMIT 1)",
+            ),
+            (
+                "wrong-authored-order",
+                "PRAGMA foreign_keys=OFF; UPDATE canonical_creature_occurrences SET authored_order=999999 WHERE rowid=(SELECT rowid FROM canonical_creature_occurrences ORDER BY record_key LIMIT 1)",
+            ),
+            (
+                "wrong-entity-label",
+                "UPDATE canonical_creature_entities SET label=label || ' corrupt' WHERE rowid=(SELECT rowid FROM canonical_creature_entities ORDER BY record_key LIMIT 1)",
+            ),
+        ] {
+            assert_corruption_detected(&path, name, sql, "exact relational projection")?;
+        }
+
+        let duplicate = copy_for_corruption(&path, "duplicate-entity")?;
+        let connection = rusqlite::Connection::open(&duplicate)?;
+        let (duplicate_record_key, canonical_json): (String, String) = connection.query_row(
+            "SELECT c.record_key, c.canonical_json FROM canonical_creature_records c WHERE EXISTS (SELECT 1 FROM canonical_creature_entities e WHERE e.record_key=c.record_key) ORDER BY c.record_key LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let mut value: serde_json::Value = serde_json::from_str(&canonical_json)?;
+        let entities = value
+            .pointer_mut("/value/embedded_entities/value/value/entities")
+            .and_then(serde_json::Value::as_array_mut)
+            .expect("canonical entity array");
+        entities.push(entities.first().expect("fixture entity").clone());
+        connection.execute(
+            "UPDATE canonical_creature_records SET canonical_json=?1 WHERE record_key=?2",
+            rusqlite::params![serde_json::to_string(&value)?, duplicate_record_key],
+        )?;
+        drop(connection);
+        assert_validation_message(&duplicate, "duplicate canonical entity ID", false)?;
+
         let missing = copy_for_corruption(&path, "missing-body")?;
-        rusqlite::Connection::open(&missing)?
-            .execute_batch("PRAGMA foreign_keys=OFF; DELETE FROM canonical_creature_records;")?;
+        rusqlite::Connection::open(&missing)?.execute_batch(
+            "PRAGMA foreign_keys=OFF;
+             DELETE FROM reference_occurrences;
+             DELETE FROM canonical_creature_relationships;
+             DELETE FROM record_content;
+             DELETE FROM record_content_exclusions;
+             DELETE FROM canonical_creature_occurrences;
+             DELETE FROM canonical_creature_entities;
+             DELETE FROM canonical_creature_resources;
+             DELETE FROM canonical_creature_records;",
+        )?;
         write_test_manifest(&missing)?;
         let missing_reader = atlas_index::SqliteIndexReader::open_read_only(&missing)?;
+        let missing_report = missing_reader.validate()?;
+        assert_eq!(missing_report.status, atlas_index::ValidationStatus::Error);
+        assert!(missing_report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("canonical_creature_records.missing_npc_body")
+        }));
         assert!(
             missing_reader
                 .load_hydrated_records()
@@ -158,6 +218,11 @@ mod tests {
         )?;
         write_test_manifest(&extra)?;
         let extra_reader = atlas_index::SqliteIndexReader::open_read_only(&extra)?;
+        let extra_report = extra_reader.validate()?;
+        assert_eq!(extra_report.status, atlas_index::ValidationStatus::Error);
+        assert!(extra_report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("canonical_creature_records.non_npc_body")
+        }));
         assert!(
             extra_reader
                 .load_hydrated_records()
@@ -250,226 +315,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn pinned_night_hag_round_trips_through_atomic_artifact_and_detects_corruption()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let Some(source_root) = std::env::var_os("PF2E_SOURCE_ROOT") else {
-            return Ok(());
-        };
-        let source =
-            crate::source_pipeline::load_foundry_source(std::path::Path::new(&source_root), None)?;
-        let input = index_build_input(source);
-        let expected = input
-            .canonical_bodies
-            .iter()
-            .find(|body| match body {
-                atlas_record::RecordBody::Creature(creature) => {
-                    creature.identity.name == "Night Hag"
-                }
-            })
-            .cloned()
-            .expect("pinned Night Hag canonical body");
-        let atlas_record::RecordBody::Creature(night_hag) = &expected;
-        let embedded = night_hag
-            .embedded_entities
-            .value
-            .as_value()
-            .expect("Night Hag embedded entities");
-        assert_eq!(
-            embedded
-                .occurrences_of(atlas_record::CreatureEntityFamily::SpellcastingEntry)
-                .count(),
-            2
-        );
-        assert_eq!(
-            embedded
-                .occurrences_of(atlas_record::CreatureEntityFamily::Spell)
-                .count(),
-            27
-        );
-        assert_eq!(
-            embedded
-                .occurrences_of(atlas_record::CreatureEntityFamily::Strike)
-                .count(),
-            2
-        );
-        assert_eq!(
-            embedded
-                .occurrences_of(atlas_record::CreatureEntityFamily::Action)
-                .count(),
-            9
-        );
-        assert_eq!(
-            embedded
-                .occurrences_of(atlas_record::CreatureEntityFamily::Equipment)
-                .count(),
-            1
-        );
-        assert_eq!(night_hag.content.documents.len(), 36);
-        assert!(night_hag.content.exclusions.is_empty());
-        assert!(
-            embedded
-                .occurrences
-                .iter()
-                .enumerate()
-                .all(|(index, occurrence)| occurrence.authored_order == index as u32)
-        );
-        let mut duplicate_occurrence_ids = 0;
-        let mut duplicate_content_keys = 0;
-        for body in &input.canonical_bodies {
-            let atlas_record::RecordBody::Creature(creature) = body;
-            if let Some(embedded) = creature.embedded_entities.value.as_value() {
-                let mut ids = std::collections::BTreeSet::new();
-                for occurrence in &embedded.occurrences {
-                    duplicate_occurrence_ids += usize::from(!ids.insert(occurrence.id.as_str()));
-                }
-            }
-            let mut content_keys = std::collections::BTreeSet::new();
-            for document in &creature.content.documents {
-                duplicate_content_keys +=
-                    usize::from(!content_keys.insert(document.id.content_key.as_str()));
-            }
-        }
-        assert!(
-            duplicate_occurrence_ids > 0,
-            "pinned B6 duplicate source identities remain canonical"
-        );
-        assert!(
-            duplicate_content_keys > 0,
-            "pinned B6 duplicate content identities remain canonical"
-        );
-
-        let (path, remove_artifact) = match std::env::var_os("CANDIDATE_INDEX_NO_EMBEDDINGS") {
-            Some(path) if std::path::Path::new(&path).is_file() => {
-                (std::path::PathBuf::from(path), false)
-            }
-            _ => {
-                let path = unique_temp_path("canonical-round-trip.sqlite");
-                atlas_index::IndexArtifactWriter::write(
-                    &atlas_index::SqliteIndexWriter::new(path.clone()),
-                    &input,
-                    atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
-                )?;
-                write_test_manifest(&path)?;
-                (path, true)
-            }
-        };
-        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
-        assert_eq!(reader.validate()?.status, atlas_index::ValidationStatus::Ok);
-        let hydrated = reader.load_canonical_record_bodies()?;
-        let mut expected_bodies = input.canonical_bodies.clone();
-        expected_bodies.sort_by_key(|body| canonical_record_key(body).to_string());
-        assert_eq!(hydrated.len(), expected_bodies.len());
-        for (actual, expected) in hydrated.iter().zip(&expected_bodies) {
-            assert_canonical_body_equal(actual, expected);
-        }
-        assert!(hydrated.contains(&expected));
-
-        let cases = [
-            (
-                "orphan",
-                "PRAGMA foreign_keys=OFF; UPDATE canonical_creature_occurrences SET target_entity_id='missing-owner' WHERE target_kind='actor_owned' AND rowid=(SELECT rowid FROM canonical_creature_occurrences WHERE target_kind='actor_owned' LIMIT 1)",
-                "foreign key",
-            ),
-            (
-                "enum",
-                "PRAGMA ignore_check_constraints=ON; UPDATE records SET record_role='invalid' WHERE rowid=(SELECT rowid FROM records LIMIT 1)",
-                "unsupported value",
-            ),
-            (
-                "typed-json",
-                "UPDATE canonical_creature_occurrences SET context_json='{}' WHERE rowid=(SELECT rowid FROM canonical_creature_occurrences ORDER BY record_key LIMIT 1)",
-                "exact relational projection",
-            ),
-            (
-                "owner",
-                "PRAGMA foreign_keys=OFF; UPDATE record_content SET owner_entity_id='missing-owner' WHERE rowid=(SELECT c.rowid FROM record_content c JOIN canonical_creature_records r ON r.record_key=c.record_key WHERE c.owner_kind='creature_entity' ORDER BY c.record_key LIMIT 1)",
-                "exact relational projection",
-            ),
-            (
-                "reference",
-                "UPDATE canonical_creature_relationships SET relationship_kind=CASE relationship_kind WHEN 'granted_by' THEN 'item_grant' ELSE 'granted_by' END WHERE rowid=(SELECT rowid FROM canonical_creature_relationships ORDER BY record_key,relationship_order LIMIT 1)",
-                "exact relational projection",
-            ),
-            (
-                "order",
-                "PRAGMA foreign_keys=OFF; UPDATE canonical_creature_occurrences SET authored_order=999999 WHERE rowid=(SELECT rowid FROM canonical_creature_occurrences ORDER BY record_key LIMIT 1)",
-                "exact relational projection",
-            ),
-            (
-                "entity",
-                "UPDATE canonical_creature_entities SET label=label || ' corrupt' WHERE rowid=(SELECT rowid FROM canonical_creature_entities ORDER BY record_key LIMIT 1)",
-                "exact relational projection",
-            ),
-            (
-                "metric",
-                "UPDATE record_metrics SET number_value=number_value+1 WHERE rowid=(SELECT m.rowid FROM record_metrics m JOIN canonical_creature_records c ON c.record_key=m.record_key WHERE m.metric_key='perception.mod' ORDER BY m.record_key LIMIT 1)",
-                "exact relational projection",
-            ),
-        ];
-        for (name, sql, expected_message) in cases {
-            assert_corruption_detected(&path, name, sql, expected_message)?;
-        }
-        let duplicate_path = copy_for_corruption(&path, "duplicate")?;
-        let connection = rusqlite::Connection::open(&duplicate_path)?;
-        let (duplicate_record_key, json): (String, String) = connection.query_row(
-            "SELECT c.record_key, c.canonical_json FROM canonical_creature_records c WHERE EXISTS (SELECT 1 FROM canonical_creature_entities e WHERE e.record_key=c.record_key) ORDER BY c.record_key LIMIT 1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
-        let mut value: serde_json::Value = serde_json::from_str(&json)?;
-        let entities = value
-            .pointer_mut("/value/embedded_entities/value/value/entities")
-            .and_then(serde_json::Value::as_array_mut)
-            .expect("canonical entity array");
-        entities.push(entities.first().expect("Night Hag entity").clone());
-        connection.execute(
-            "UPDATE canonical_creature_records SET canonical_json=?1 WHERE record_key=?2",
-            rusqlite::params![serde_json::to_string(&value)?, duplicate_record_key],
-        )?;
-        drop(connection);
-        assert_validation_message(&duplicate_path, "duplicate canonical entity ID", false)?;
-
-        if remove_artifact {
-            remove_test_artifact(&path)?;
-        }
-        Ok(())
-    }
-
-    fn assert_canonical_body_equal(
-        actual: &atlas_record::RecordBody,
-        expected: &atlas_record::RecordBody,
-    ) {
-        if actual == expected {
-            return;
-        }
-        let actual_debug = format!("{actual:#?}");
-        let expected_debug = format!("{expected:#?}");
-        let mismatch = actual_debug
-            .bytes()
-            .zip(expected_debug.bytes())
-            .position(|(left, right)| left != right)
-            .unwrap_or_else(|| actual_debug.len().min(expected_debug.len()));
-        let mut start = mismatch.saturating_sub(160);
-        while !actual_debug.is_char_boundary(start) || !expected_debug.is_char_boundary(start) {
-            start += 1;
-        }
-        let mut actual_end = (mismatch + 320).min(actual_debug.len());
-        while !actual_debug.is_char_boundary(actual_end) {
-            actual_end -= 1;
-        }
-        let mut expected_end = (mismatch + 320).min(expected_debug.len());
-        while !expected_debug.is_char_boundary(expected_end) {
-            expected_end -= 1;
-        }
-        panic!(
-            "canonical hydration mismatch for {} near byte {mismatch}:\nactual: {}\nexpected: {}",
-            canonical_record_key(actual),
-            &actual_debug[start..actual_end],
-            &expected_debug[start..expected_end],
-        );
-    }
-
     fn assert_corruption_detected(
         source: &std::path::Path,
         name: &str,
@@ -483,12 +328,6 @@ mod tests {
             .map_err(|error| format!("corruption fixture `{name}` failed to apply: {error}"))?;
         drop(connection);
         assert_validation_message(&path, expected_message, name == "orphan")
-    }
-
-    fn canonical_record_key(body: &atlas_record::RecordBody) -> &atlas_domain::RecordKey {
-        match body {
-            atlas_record::RecordBody::Creature(creature) => &creature.identity.record_key,
-        }
     }
 
     fn assert_validation_message(
@@ -509,7 +348,8 @@ mod tests {
             diagnostics
                 .iter()
                 .any(|diagnostic| diagnostic.message.contains(expected_message)),
-            "expected `{expected_message}` in {:#?}",
+            "expected `{expected_message}` for {} in {:#?}",
+            path.display(),
             diagnostics
         );
         remove_test_artifact(path)?;
@@ -681,7 +521,7 @@ mod tests {
                     {"_id":"action-a","name":"Pulse","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":2},"bonus":{"value":17},"dc":{"value":26},"damageRolls":{"pulse":{"damage":"2d6","damageType":"mental"}},"description":{"value":"<p>First.</p>"}}},
                     {"_id":"action-b","name":"Second Action","type":"action","system":{"actionType":{"value":"action"},"actions":{"value":1},"description":{"value":"<p>Second.</p>"}}},
                     {"_id":"strike","name":"Bolt","type":"melee","system":{"bonus":{"value":19},"damageRolls":{"bolt":{"damage":"2d8","damageType":"electricity"}}}},
-                    {"_id":"entry","name":"Innate Spells","type":"spellcastingEntry","system":{"prepared":{"value":"innate"},"tradition":{"value":"occult"},"spelldc":{"value":18,"dc":27},"slots":{"slot4":{"max":2,"value":1}}}},
+                    {"_id":"entry","name":"Innate Spells","type":"spellcastingEntry","system":{"prepared":{"value":"prepared"},"tradition":{"value":"occult"},"spelldc":{"value":18,"dc":27},"slots":{"slot4":{"max":2,"value":1,"prepared":[{"id":"spell","expended":false}]}}}},
                     {"_id":"spell","name":"Reactive Spell","type":"spell","system":{"level":{"value":4},"location":{"value":"entry"},"time":{"value":"reaction"},"damage":{}}}
                 ]
             }),

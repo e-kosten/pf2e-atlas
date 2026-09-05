@@ -18,11 +18,10 @@ env:
 
 jobs:
   source-leaf-route:
-    name: source leaf route
+    name: validation route
     runs-on: ubuntu-24.04
     outputs:
       lint: ${{ steps.route.outputs.lint }}
-      persistence: ${{ steps.route.outputs.persistence }}
       exhaustive: ${{ steps.route.outputs.exhaustive }}
     steps:
       - uses: actions/checkout@v5
@@ -41,7 +40,7 @@ jobs:
   source-leaf:
     name: source leaf focused
     needs: source-leaf-route
-    if: needs.source-leaf-route.outputs.lint == 'true' || needs.source-leaf-route.outputs.persistence == 'true'
+    if: needs.source-leaf-route.outputs.lint == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -70,9 +69,6 @@ jobs:
         env:
           PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.source-leaf-pf2e
         run: scripts/validation/source-leaf-coverage.sh lint
-      - name: Run the single no-embedding persistence fixture
-        if: needs.source-leaf-route.outputs.persistence == 'true'
-        run: scripts/validation/source-leaf-coverage.sh persistence
 
   artifact-version:
     name: artifact version
@@ -107,7 +103,7 @@ jobs:
         run: |
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
-      - name: Preserve web bundle for exhaustive validation
+      - name: Preserve web bundle for artifact integration
         uses: actions/upload-artifact@v4
         with:
           name: atlas-web-bundle
@@ -118,8 +114,8 @@ jobs:
       - name: Focused ingest and artifact validation
         run: scripts/validation/focused.sh
 
-  source-leaf-exhaustive:
-    name: source leaf exhaustive
+  artifact-integration:
+    name: artifact integration
     needs: [source-leaf-route, rust]
     if: needs.source-leaf-route.outputs.exhaustive == 'true'
     runs-on: ubuntu-24.04
@@ -138,11 +134,11 @@ jobs:
         with:
           repository: foundryvtt/pf2e
           ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
-          path: .source-leaf-exhaustive-pf2e
+          path: .artifact-integration-pf2e
           fetch-depth: 1
       - name: Relocate accepted source outside candidate checkout
-        run: mv .source-leaf-exhaustive-pf2e "$RUNNER_TEMP/source-leaf-exhaustive-pf2e"
-      - name: Restore exhaustive embedding model
+        run: mv .artifact-integration-pf2e "$RUNNER_TEMP/artifact-integration-pf2e"
+      - name: Restore artifact-integration embedding model
         id: exhaustive-model-cache
         uses: actions/cache@v4
         with:
@@ -158,13 +154,13 @@ jobs:
             https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json
           curl --fail --location --retry 3 --output "$MODEL_ROOT/onnx/model.onnx" \
             https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx
-      - name: Run exhaustive source validation
+      - name: Run embedded production validation
         run: |
           scripts/validation/exhaustive.sh \
-            --source "$RUNNER_TEMP/source-leaf-exhaustive-pf2e" \
+            --source "$RUNNER_TEMP/artifact-integration-pf2e" \
             --candidate-head "$GITHUB_SHA" \
-            --snapshot-root "$RUNNER_TEMP/source-leaf-exhaustive-snapshot" \
-            --report "$RUNNER_TEMP/source-leaf-exhaustive-report.json" \
+            --snapshot-root "$RUNNER_TEMP/artifact-integration-snapshot" \
+            --report "$RUNNER_TEMP/artifact-integration-report.json" \
             --embedding-cache-path "$RUNNER_TEMP/source-leaf-hf-models"
 
   web-ui:

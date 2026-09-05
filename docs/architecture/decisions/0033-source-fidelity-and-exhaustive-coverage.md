@@ -27,7 +27,13 @@ Checkpoint A approved GM-complete behavior as the target. Useful authored inform
 
 Every current exclusion requires an explicit non-auth product rationale, named owner, fixtures, validation, and audit checkpoint. Valid rationales include implementation-only provenance, non-addressable container scaffolding, and avoiding duplicate ranking from copied capability prose. Classification alone is not a rationale.
 
-Real extractor owners declare source coverage. Local builds aggregate meaningful unknown/type-drift warnings. Strict corpus and source-refresh validation fails on new meaningful unknowns, type or presence drift, invalid parent contexts, coverage regression, registry/fixture drift, or lost ownership. Raw JSON remains available only for provenance and deliberate offline audit tooling; runtime consumers do not reparse it.
+Real extractor owners declare source coverage. Normal strict admission and focused
+production-parser fixtures fail on unknown discriminators, malformed shapes, type
+or presence drift, invalid parent contexts, registry/fixture drift, or lost
+ownership. Curated isolated Foundry records may provide relationship context;
+synthetic fixtures remain preferred for precise mutations. Raw JSON remains
+available only for provenance and deliberate optional offline audit tooling;
+runtime consumers do not reparse it.
 
 The authoritative enforcement policy is `atlas-source-leaf-coverage/v1`. Each ledger is bound to the exact `pf2e-serialized-source/v1` contract, pinned commit and source signature, and one complete tuple from the authenticated 313-entry `contracts/pf2e-type-registry.yaml`. A selector includes document class, discriminator, role, and the registry's structured parent context. A declaration owns one normalized scalar, ordered array-member, or identity-retaining map-member leaf. Object and collection containers, recursive paths, prefixes, implicit descendants, declaration-only ownership, and transient known-consumer claims cannot establish coverage. `[]` denotes independently receipted ordered members; `*` is permitted only for a true map with an enforced closed, identity-retaining open, or typed-unsupported key policy.
 
