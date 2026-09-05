@@ -13,7 +13,6 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::error::IngestError;
-use crate::source::SourceLoad;
 use crate::source::dto::{PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT};
 use crate::source::loader::{
     default_manifest_path, json_files, parse_manifest, relative_source_path, resolve_pack_path,
@@ -345,66 +344,6 @@ pub fn audit_source_paths(
         options,
         source_root,
         manifest_path,
-        pack_count,
-        record_count,
-        stats,
-    )
-}
-
-pub(crate) fn audit_loaded_source(
-    options: SourcePathAuditOptions,
-    source: &SourceLoad,
-) -> Result<SourcePathAuditReport, IngestError> {
-    let mut stats = BTreeMap::new();
-    let mut record_count = 0;
-    for loaded in source.records.iter().take(source.source_record_count) {
-        let document_type = loaded.record.foundry.document_type.as_str().to_string();
-        let record_type = loaded.record.foundry.record_type.as_str().to_string();
-        if !selected(
-            &options,
-            loaded.record.identity.key.pack().as_str(),
-            &document_type,
-            Some(&record_type),
-        ) {
-            continue;
-        }
-        let raw_json = loaded
-            .record
-            .provenance
-            .raw_json
-            .as_deref()
-            .ok_or_else(|| {
-                IngestError::RecordParseFailed(format!(
-                    "captured source record {} has no raw JSON for diagnostic inventory",
-                    loaded.record.identity.key
-                ))
-            })?;
-        let value = serde_json::from_str(raw_json).map_err(|error| {
-            IngestError::RecordParseFailed(format!(
-                "captured source record {} has invalid raw JSON: {error}",
-                loaded.record.identity.key
-            ))
-        })?;
-        let context = RecordContext {
-            document_type,
-            record_type,
-            record_key: loaded.record.identity.key.to_string(),
-            source_path: loaded.record.provenance.source_path.clone(),
-        };
-        record_count += 1;
-        collect_inventory_paths("$", &value, &context, &mut stats);
-    }
-    let pack_count = source
-        .packs
-        .iter()
-        .filter(|pack| !pack.declared_path.starts_with("derived://"))
-        .filter(|pack| selected(&options, pack.name.as_str(), &pack.document_type, None))
-        .count();
-    let source_root = options.source_root.clone();
-    finish_inventory(
-        options,
-        source_root,
-        source.manifest_path.clone(),
         pack_count,
         record_count,
         stats,

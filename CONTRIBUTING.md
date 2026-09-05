@@ -88,7 +88,7 @@ Validation is quiet by default: successful gates print summary lines, and detail
 Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` when you want the full command stream.
 
-Validation has four explicit tiers:
+Validation has three explicit tiers:
 
 - `just validate-fast` is the focused formatting plus complementary Clippy
   tier: strict panic-oriented denies apply to runtime libraries/binaries, while
@@ -99,15 +99,28 @@ Validation has four explicit tiers:
   runs the merge-base artifact-version policy guard.
 - `just validate-focused` runs the ingest/index source-contract, mutation,
   corruption, publication, generation-binding, and validation-snapshot tests.
-  It also removes corpus identity variables and never scans the full source.
+  It never scans the full source. Synthetic fixtures are preferred for precise
+  mutations, while curated isolated Foundry records may be used when their
+  relationship context matters.
 - `just validate-exhaustive --source <path> --candidate-head <sha>
-  --snapshot-root <new-path> --report <new-path>` is the author acceptance gate.
+  --snapshot-root <new-path> --report <new-path>` is the final artifact-integration
+  gate.
   Set `PF2E_EMBEDDING_CACHE_ROOT` or pass `--embedding-cache-path`. The command
   requires clean source and candidate checkouts, performs exactly one source
-  traversal, and feeds analysis, strict audit, canonical closure, and both
-  artifact modes from the captured in-memory state.
-- `just validate-exhaustive-review` is reserved for an independent reviewer. It
-  forces a new snapshot root and refuses reuse of author evidence.
+  traversal, and produces exactly one full embedded production artifact. It
+  retains normal strict source admission, publication identity, schema and
+  SQLite structural checks, global FTS/catalog/vector coverage, and bounded
+  public-reader hydration of the pinned Night Hag and Giant Rat records. It does
+  not produce a full no-embedding artifact or run whole-corpus body equality,
+  decode/re-encode, attachment, or canonical-to-relational mirror scans.
+
+Run that embedded production build once in final integration/CI when changed
+artifact constructors, persisted codecs, document-embedding producers, or the
+production validation path can break source-to-reader compatibility. Search-only,
+UI-only, documentation, and focused-test changes do not trigger it. This gate is
+more expensive than the focused suites because only it crosses the clean pinned
+source, writer/publication, manifest/generation, vector, and public-reader
+boundaries together.
 
 The exhaustive snapshot is private, disposable validation evidence. Its identity
 binds source/candidate commits and trees, source signature and pack manifest,
@@ -115,22 +128,23 @@ policy/contracts/schema/migrations/inventory, target/features/toolchain, and
 embedding identity. Missing, dirty, partial, corrupt, ambiguous, mismatched, or
 concurrently published state fails closed. The snapshot is never a runtime input,
 product artifact, fallback, public serialization contract, or canonical model.
-The strict audit replays its accepted pre-localization observation transform from
-raw records already captured by the single source traversal; product normalization
-continues to use localization. Before either success or failure is returned, the
-full strict report is atomically persisted and checksum-bound with path, record,
-member, destination, state/type/value, multiplicity/order, enforcement, and
-closure detail. A failed exhaustive run atomically preserves that report in its
-failed snapshot rather than reducing it to aggregate counts.
-
-Within each exhaustive artifact mode, validation opens one generation-bound
+Its required inventory contains `validation-assertions.json`,
+`artifact-validation.json`, `timing.json`, `progress.jsonl`,
+`snapshot-manifest.json`, and `checksums.sha256`, plus the embedded
+`artifacts/with_embeddings/index.sqlite` publication pair and its bound generation
+evidence. `file-sizes.json` is optional diagnostic telemetry. There is no captured
+build input, strict-audit report, corpus-assertions report, or no-embedding
+artifact.
+Within the embedded artifact phase, validation opens one generation-bound
 `SqliteIndexReader` and retains its existing Diesel hydration and rusqlite
-validation connections. One explicit deep-validation result feeds inspection
-and evidence projection; the same reader performs captured-record round-trip
-hydration. Existing locally published generations are not rehashed on ordinary
+validation connections. One explicit structural/global validation result feeds inspection
+and evidence projection; the same reader performs the bounded selected-record
+smoke. Existing locally published generations are not rehashed on ordinary
 open; transfer, copy, and recovery boundaries retain exactly-once checksums.
-Per-operation timing, byte, reader/connection, hash-category, validation, and
-copy counters report actual operations.
+Per-operation wall timing and byte/count observations come from their enclosing
+operations. CPU timing and the full file-size inventory are optional diagnostics,
+not acceptance requirements. Writer, publication, and reader receipts carry the
+actual digest and generation evidence.
 
 `artifact_contract_version`, `schema_version`, and `manifest_version` respectively
 cover incompatible canonical/artifact semantics, physical DDL, and envelope
@@ -152,10 +166,9 @@ generation digests, failure preservation reuses them and does not rehash the
 artifact pair.
 
 Legacy/new matrix reproduction is a one-time trust-establishment review for this
-migration only. Once an independent reviewer proves equivalence, permanent
-candidate acceptance and CI use only the consolidated fast, focused, exhaustive,
-and reviewer tiers with change-sensitive exhaustive triggering; the migration
-matrix is not a permanent recipe, normal CI gate, or Checkpoint C rerun.
+migration only. Permanent candidate acceptance uses the consolidated fast,
+focused, and change-sensitive artifact-integration tiers; the migration matrix is
+not a permanent recipe, normal CI gate, or Checkpoint C rerun.
 
 Run the CLI from source:
 
@@ -293,9 +306,16 @@ Keep one explicitly current brief. A correction from the user or the decision ow
 
 Escalate product or architecture choices, changed source disposition, weaker acceptance, destructive or external actions, work outside the stated non-goals, and substantial unexpected cost. Administrative path/count changes and mechanically necessary edits within the outcome do not need approval. If implementation uncovers a broader outcome rather than a necessary consequence of the current one, stop and ask.
 
-Use focused, risk-based validation while editing and for ordinary slice handoff. The integrated/final candidate owner runs the full repository gates below once. A slice owner runs them only when that handoff is the final candidate or one of the existing branch-review, merge, push, or Rust-heavy commit triggers below applies. Re-run a full gate only after a relevant candidate, toolchain, or policy input changes. Evidence may be reused only when the relevant source, candidate, toolchain, generator, and policy inputs are unchanged; the handoff must say what was reused and any resulting limitation. Embeddings are appropriate for final semantic-artifact or end-to-end validation when embedding inputs or artifact semantics changed. They are unnecessary for routine UI, documentation, and unit-test iterations.
+Use focused, risk-based unit and integration validation while editing and for ordinary slice handoff. The integrated/final candidate owner runs the applicable repository gates below once. A slice owner runs them only when that handoff is the final candidate or one of the existing branch-review, merge, push, or Rust-heavy commit triggers below applies. Re-run a check only after one of its relevant candidate, source, toolchain, generator, or policy inputs changes. Evidence may be reused when those inputs and the trust context match; the handoff must identify what was reused and its limitation. Local evidence does not replace execution at a genuinely independent CI boundary. Do not invent a receipt platform to transfer ordinary test authority. Embeddings and the single full production artifact are appropriate only for final artifact-construction or end-to-end compatibility risk. They are unnecessary for routine search, UI, documentation, and unit-test iterations.
 
-Independent review should inspect the actual diff and exercise the production path most likely to fail. Batch related findings into one remediation round where practical. Classify pre-existing baseline failures separately from new regressions, but report both and do not silently waive either. Prefer focused adversarial, mutation, rollback, identity, and residue checks over repeating unrelated expensive gates.
+Independent review should inspect the exact diff and the evidence relevant to its material risks. Reviewers reuse matching focused and final evidence instead of forcing a second production build; they rerun a check only when independence itself supplies a distinct failure signal. Batch related findings into one remediation round where practical. Classify pre-existing baseline failures separately from new regressions, but report both and do not silently waive either. Prefer focused adversarial, mutation, rollback, identity, and residue checks over repeating unrelated expensive gates.
+
+Every required check must name the concrete failure risk it detects, use a
+proportionate scope, and explain why cheaper existing unit or integration coverage
+does not already detect that risk. The artifact-integration route uses the reviewed
+artifact-version owner inventory plus explicit embedding and validation owners;
+its routing fixtures keep source-coverage-only and search-only changes on focused
+coverage.
 
 ## Validation Before Commit
 
@@ -365,8 +385,8 @@ Checkpoint B approved the source-faithful contract in ADRs 0033-0036. Implementa
 
 1. Refresh the pinned PF2e source identity and regenerate/reconcile the union-derived type registry. Preserve registration-only zero-count entries and exact parent contexts.
 2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values. Empty strings, nulls, and empty collections are scaffolding for path-warning purposes, but the B1 typed boundary still validates their declared presence and shape.
-3. Run focused ingest/record tests and the strict coverage gate. New meaningful unknowns, type drift, parent-context drift, lost assignment, consumed-path regression, and fixture drift must fail rather than fall through raw JSON pointers. Implemented NPC declarations are leaf-exact; add a mutation test whenever a formerly covered parent could conceal a new or stale child. The full-corpus gate retains all 313 reviewed type/role/parent-context assignments; non-creature paths remain bound to their exact H1-H11 future owners and are not treated as implemented.
-4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, CLI diagnostics, and source-normalized/artifact-hydrated equality as one atomic unit. The current contract is `pf2e-atlas-artifact/v5` with schema `3` and manifest `pf2e-atlas-artifact-manifest/v3`; creature hydration must come only from `RecordBody::Creature`.
+3. Run focused ingest/record tests. New meaningful unknowns, type drift, parent-context drift, lost assignment, and fixture drift must fail through normal admission or the owning focused fixture rather than fall through raw JSON pointers. Preserve leaf-exact declarations and add a precise mutation test whenever a formerly covered parent could conceal a new or stale child. The relaxed raw-path audit is an optional diagnostic, not a final corpus gate.
+4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, and CLI diagnostics as one atomic unit. Small production-code writer/reader tests prove codec, presence, relationship, order, identity, and fault semantics. The current contract is `pf2e-atlas-artifact/v5` with schema `3` and manifest `pf2e-atlas-artifact-manifest/v3`; creature hydration must come only from `RecordBody::Creature`.
 5. Run `just verify`; run `just web-ui-verify` for frontend-affecting work. Browser automation proves semantics/accessibility/runtime behavior only; Checkpoint E remains the separate human visual gate.
 6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete. For creature work, also reject generic record-mechanics hydration or presentation; retained generic mechanics must have an explicit non-creature record-kind boundary.
 

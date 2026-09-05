@@ -80,8 +80,9 @@ pub fn resolve_record_identity_matches_from_diesel_connection(
 }
 
 impl SqliteIndexReader {
-    /// Runs only canonical hydration and relational projection reconciliation.
-    /// Normal artifact readiness should use [`Self::validate`].
+    /// Runs the optional broad canonical hydration and relational projection
+    /// reconciliation diagnostic. Normal validation targets intentionally use
+    /// structural/global checks plus strict decoding of records when requested.
     pub fn validate_canonical_coherence(
         &self,
     ) -> Result<Vec<crate::ArtifactValidationDiagnostic>, crate::IndexValidationError> {

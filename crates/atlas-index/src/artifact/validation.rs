@@ -12,7 +12,6 @@ use crate::{
     IndexValidationError, ValidationCode, ValidationStatus, metadata, sql,
 };
 
-mod content;
 mod discovery;
 mod embeddings;
 mod fts;
@@ -20,8 +19,7 @@ mod metrics;
 mod relationships;
 mod schema;
 
-use canonical::validate_canonical_records;
-use content::validate_content_json;
+use canonical::validate_canonical_structure;
 use discovery::validate_filter_discovery_catalogs;
 use embeddings::validate_document_embedding_cache;
 use fts::validate_fts_coverage;
@@ -34,7 +32,7 @@ use schema::{
 
 #[cfg(test)]
 thread_local! {
-    static DEEP_COHERENCE_VALIDATION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static STRUCTURAL_GLOBAL_VALIDATION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 pub(crate) fn validate_artifact_coherence(
@@ -42,7 +40,7 @@ pub(crate) fn validate_artifact_coherence(
     metadata: &BTreeMap<String, String>,
 ) -> Result<Vec<ArtifactValidationDiagnostic>, IndexValidationError> {
     #[cfg(test)]
-    DEEP_COHERENCE_VALIDATION_COUNT.set(DEEP_COHERENCE_VALIDATION_COUNT.get() + 1);
+    STRUCTURAL_GLOBAL_VALIDATION_COUNT.set(STRUCTURAL_GLOBAL_VALIDATION_COUNT.get() + 1);
     let mut diagnostics = Vec::new();
     validate_required_tables(connection, &mut diagnostics)?;
     if !diagnostics.is_empty() {
@@ -61,8 +59,7 @@ pub(crate) fn validate_artifact_coherence(
     }
     validate_boolean_columns(connection, &mut diagnostics)?;
     validate_metric_values(connection, &mut diagnostics)?;
-    validate_content_json(connection, &mut diagnostics)?;
-    validate_canonical_records(connection, &mut diagnostics)?;
+    validate_canonical_structure(connection, &mut diagnostics)?;
     validate_fts_coverage(connection, &mut diagnostics)?;
     validate_document_embedding_cache(connection, metadata, &mut diagnostics)?;
     validate_relationships(connection, &mut diagnostics)?;
@@ -72,13 +69,13 @@ pub(crate) fn validate_artifact_coherence(
 }
 
 #[cfg(test)]
-pub(crate) fn reset_deep_coherence_validation_count() {
-    DEEP_COHERENCE_VALIDATION_COUNT.set(0);
+pub(crate) fn reset_structural_global_validation_count() {
+    STRUCTURAL_GLOBAL_VALIDATION_COUNT.set(0);
 }
 
 #[cfg(test)]
-pub(crate) fn deep_coherence_validation_count() -> usize {
-    DEEP_COHERENCE_VALIDATION_COUNT.get()
+pub(crate) fn structural_global_validation_count() -> usize {
+    STRUCTURAL_GLOBAL_VALIDATION_COUNT.get()
 }
 
 pub(crate) fn validate_index_connection(

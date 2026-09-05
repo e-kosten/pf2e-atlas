@@ -167,7 +167,7 @@ struct RecordRoundTripCounters {
     embedding_generation_count: usize,
     manifest_write_count: usize,
     strict_audit_count: usize,
-    duplicate_deep_validation_hash_copy_count: usize,
+    duplicate_validation_hash_copy_count: usize,
     reader_open_count: usize,
     generation_before_count: usize,
     persisted_projection_count: usize,

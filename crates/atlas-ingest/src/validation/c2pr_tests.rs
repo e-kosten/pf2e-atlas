@@ -28,7 +28,7 @@ fn tuple(stage: &Path, selector: &str) -> ArtifactValidationTuple {
         candidate_commit: "candidate".to_string(),
         candidate_tree: "tree".to_string(),
         snapshot_stage: stage.to_path_buf(),
-        mode: "no_embeddings".to_string(),
+        mode: EMBEDDED_MODE.to_string(),
         source_signature: "source-signature".to_string(),
         artifact_contract_version: ARTIFACT_CONTRACT_VERSION.to_string(),
         artifact_schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
@@ -44,7 +44,7 @@ fn receipt_report(
     ArtifactValidationReport::ok(
         tuple
             .snapshot_stage
-            .join("artifacts/no_embeddings/index.sqlite")
+            .join("artifacts/with_embeddings/index.sqlite")
             .display()
             .to_string(),
         ArtifactMetadataSummary {
@@ -71,8 +71,8 @@ fn alias_and_canonical_selectors_bind_to_one_typed_receipt_identity() {
     );
 
     let generation = json!({
-        "canonical_artifact_path": "/validation/snapshot/artifacts/no_embeddings/index.sqlite",
-        "generation_path": "/validation/snapshot/artifacts/no_embeddings/index.sqlite.atlas-generations/sha.sqlite",
+        "canonical_artifact_path": "/validation/snapshot/artifacts/with_embeddings/index.sqlite",
+        "generation_path": "/validation/snapshot/artifacts/with_embeddings/index.sqlite.atlas-generations/sha.sqlite",
         "file_identity": "dev:1:ino:2",
         "bytes": 10,
         "trusted_sha256": "sha",
@@ -180,7 +180,7 @@ fn post_publication_failure_reuses_trusted_digests_and_retains_typed_detail() {
     fs::create_dir(&root).expect("fixture root");
     let options = options(&root);
     let stage = staging_path(&options.snapshot_root);
-    let visible = PathBuf::from("artifacts/no_embeddings.sqlite");
+    let visible = PathBuf::from("artifacts/with_embeddings.sqlite");
     let generation = PathBuf::from("artifacts/.generations/trusted.sqlite");
     fs::create_dir_all(stage.join("artifacts/.generations")).expect("fixture artifacts");
     fs::write(stage.join(&visible), b"visible bytes").expect("visible fixture");
@@ -193,24 +193,27 @@ fn post_publication_failure_reuses_trusted_digests_and_retains_typed_detail() {
 
     let mut journal = ValidationRunJournal::new();
     journal
-        .progress(&stage, "no_embeddings", "started")
+        .progress(&stage, EMBEDDED_MODE, "started")
         .expect("start mode");
     journal
-        .progress(&stage, "no_embeddings.build_write_publish", "started")
+        .progress(&stage, "with_embeddings.build_write_publish", "started")
         .expect("start build");
     journal
-        .progress(&stage, "no_embeddings.build_write_publish", "passed")
+        .progress(&stage, "with_embeddings.build_write_publish", "passed")
         .expect("complete build");
     journal
-        .progress(&stage, "no_embeddings.reader_open", "started")
+        .progress(&stage, "with_embeddings.reader_open", "started")
         .expect("start reader");
-    journal.record_artifact_identity("no_embeddings", &visible, &generation, &trusted_sha, 13);
-    journal.record_c2p_counters("no_embeddings");
+    journal.record_artifact_identity(EMBEDDED_MODE, &visible, &generation, &trusted_sha, 13);
     journal
-        .progress(&stage, "no_embeddings.reader_open", "passed")
+        .progress(&stage, "with_embeddings.reader_open", "passed")
         .expect("complete reader");
     journal
-        .progress(&stage, "no_embeddings.deep_validation", "started")
+        .progress(
+            &stage,
+            "with_embeddings.structural_global_validation",
+            "started",
+        )
         .expect("start receipt");
 
     let expected = tuple(&stage, "bge-small-en-v1.5");
@@ -219,7 +222,11 @@ fn post_publication_failure_reuses_trusted_digests_and_retains_typed_detail() {
         .expect_err("different model must fail the receipt");
     journal.fail_with(*detail);
     journal
-        .progress(&stage, "no_embeddings.deep_validation", "failed")
+        .progress(
+            &stage,
+            "with_embeddings.structural_global_validation",
+            "failed",
+        )
         .expect("record receipt failure");
 
     let error = validation_error("deliberate post-publication receipt failure");
@@ -239,8 +246,11 @@ fn post_publication_failure_reuses_trusted_digests_and_retains_typed_detail() {
         &fs::read(root.join("failure.json")).expect("top-level structured failure"),
     )
     .expect("parse structured failure");
-    assert_eq!(failure["mode"], json!("no_embeddings"));
-    assert_eq!(failure["phase"], json!("no_embeddings.deep_validation"));
+    assert_eq!(failure["mode"], json!(EMBEDDED_MODE));
+    assert_eq!(
+        failure["phase"],
+        json!("with_embeddings.structural_global_validation")
+    );
     assert_eq!(failure["tuple_field"], json!("embedding_model"));
     assert_eq!(
         failure["typed_expected"]["semantic_enum_identity"],
@@ -254,23 +264,11 @@ fn post_publication_failure_reuses_trusted_digests_and_retains_typed_detail() {
         failure["checksum_closure"]["trusted_artifact_digest_count"],
         json!(2)
     );
-    assert_eq!(
-        failure["checksum_closure"]["failure_preservation_redundant_full_sha_pass_count"],
-        json!(0)
-    );
-    assert_eq!(
-        failure["checksum_closure"]["failure_preservation_unclassified_full_sha_pass_count"],
-        json!(0)
-    );
-    assert_eq!(
-        failure["counter_state"]["no_embeddings.validation_side_digest_handle_bind_count"],
-        json!(1)
-    );
     assert!(
         failure["in_progress_operations"]
             .as_array()
             .is_some_and(|operations| operations.iter().any(|operation| {
-                operation["phase"] == json!("no_embeddings")
+                operation["phase"] == json!(EMBEDDED_MODE)
                     && operation["status"] == json!("in_progress")
             }))
     );

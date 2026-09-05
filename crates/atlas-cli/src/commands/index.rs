@@ -33,7 +33,7 @@ pub(crate) fn run_index_validate_corpus(
     })
     .map_err(|error| error.to_string())?;
     println!(
-        "ok: exhaustive validation traversals={} modes={} snapshot_reused={}",
+        "ok: production validation traversals={} modes={} snapshot_reused={}",
         report.source_traversal_count,
         report.artifact_modes.join(","),
         report.snapshot_reused

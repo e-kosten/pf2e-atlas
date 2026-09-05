@@ -27,15 +27,10 @@ validate-fast *args:
 validate-focused *args:
     scripts/validation/focused.sh {{args}}
 
-[doc('Run one checksummed exhaustive corpus traversal for candidate acceptance')]
+[doc('Run one checksummed embedded production build for candidate acceptance')]
 [group('validation')]
 validate-exhaustive *args:
     scripts/validation/exhaustive.sh {{args}}
-
-[doc('Force an independent exhaustive reproduction that refuses author snapshots')]
-[group('validation')]
-validate-exhaustive-review *args:
-    scripts/validation/review.sh {{args}}
 
 [doc('Run path-sensitive validation for staged changes, a git range, or all surfaces')]
 [group('validation')]

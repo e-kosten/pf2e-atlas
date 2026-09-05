@@ -22,7 +22,8 @@ C1 is serialized, non-splittable, and atomic. Its artifact unit includes:
 - canonical typed-JSON serialization/decoding and validation;
 - atomic temporary-artifact publication;
 - inspection, readiness, deep validation, CLI diagnostics, and corruption fixtures; and
-- source-normalized versus artifact-hydrated deep equality over the canonical fixtures.
+- small production-code writer/reader fixtures covering codec variants, presence,
+  relationships, authored order, identity, and faults.
 
 Old artifacts are rejected with actionable rebuild guidance. Compatibility adapters, partial migrations, empty-default hydration, and dual schema paths are not authorized.
 
@@ -36,7 +37,7 @@ The Activity identity decision is grounded in the pinned Shobhad source projecti
 
 ## Consequences
 
-Schema v3 stores creature bodies in deterministic typed JSON together with relational resources, entities, contextual occurrences, non-executing creature relationships, owned content, exclusions, reference occurrences, and one-way ordered query metrics. Strict hydration and deep validation decode each body and require exact relational row sets across every authoritative column, including owners, parents, targets, source locators, lifecycle provenance, reference context, exclusions, typed content, canonical metric facts, child IDs, and vector order; missing, extra, reordered, reparented, or valid-but-wrong foreign-key rows are corruption. Approved Stage B canonical identities are not rewritten when the source repeats a nested ID. Those repeated semantic IDs remain unchanged in the canonical body, while the relational primary/foreign-key locator includes authored order so every occurrence and content row remains independently durable.
+Schema v3 stores creature bodies in deterministic typed JSON together with relational resources, entities, contextual occurrences, non-executing creature relationships, owned content, exclusions, reference occurrences, and one-way ordered query metrics. Requested hydration strictly decodes each body and its relational children; malformed, missing, extra, reordered, reparented, or valid-but-wrong values remain corruption. Small writer/reader mutation fixtures prove exact projection behavior without making whole-corpus reconciliation a final gate. Approved Stage B canonical identities are not rewritten when the source repeats a nested ID. Those repeated semantic IDs remain unchanged in the canonical body, while the relational primary/foreign-key locator includes authored order so every occurrence and content row remains independently durable.
 
 Every schema-v3 NPC row has exactly one required canonical creature body, every non-NPC row has none, and both all-record and by-key combined hydration reject missing or extra bodies. Inspection reports canonical creature-owned content separately from total artifact content.
 
@@ -46,32 +47,13 @@ A publisher acquires the exclusive lock with a five-second deadline and actionab
 
 Writer publication uses one non-serializable `ArtifactPublicationReceipt`. After SQLite handles close and the staged file is synced, companion-free, and sealed, a cheap metadata compatibility check and one producer SHA-256 pass operate through one retained file identity. The receipt binds that handle, its portable Unix device/inode or Windows volume/file-index identity, path, intended target, byte count, modification token, digest, and compatibility result. Ingest may carry the receipt and use its digest for the manifest but owns no identity or validation policy. Publication consumes the receipt, rejects drift, and performs no second staged or renamed-file hash. It performs one ordinary byte copy into an absent digest-named generation, syncs and hashes that copy exactly once, seals and atomically installs it with its local trust identity, reuses a matching trusted local generation without copying or rehashing it, and rejects matching source/generation identities; hard links, reflinks, and other shared-mutation aliases are forbidden. Recovery hashes a candidate visible or backup pair only at that recovery boundary and reuses the result when snapshotting the prior pair.
 
-Ordinary all-record and keyed hydration decode and validate the rows they request, including required typed bodies and relational children, but do not launch global canonical coherence. Malformed requested values continue to fail with typed decode/query errors. The writer enables SQLite foreign-key enforcement before its transaction. Full foreign-key, all-row projection equality, FTS/embedding coverage, integrity, and canonical-coherence scans remain explicit supplementary validation tooling and builder/CI tests; they are not ordinary open, setup/readiness, publication, inspection, or keyed hydration preflights.
+Ordinary all-record and keyed hydration decode and validate the rows they request, including required typed bodies and relational children, but do not launch global canonical coherence. Malformed requested values continue to fail with typed decode/query errors. The writer enables SQLite foreign-key enforcement before its transaction. `Full` validation retains foreign-key, schema/required-table, logical/cross-table, canonical body coverage, FTS/catalog/vector, and other structural/global checks without invoking a physical SQLite page/B-tree scan, whole-corpus body decode/re-encode, or exact projection reconciliation. Broad all-body coherence is an explicit optional diagnostic, never an implicit builder, final, or CI gate.
 
-The provisional C1 commit establishes the artifact semantics. C2 adds only the
-private validation-pipeline tooling described above it in the approved task graph;
-it does not approve C1 or change the artifact contract. C2R restores the accepted
-pre-localization strict-audit observation from already captured raw records while
-leaving localized product normalization unchanged, and requires complete detailed
-audit evidence to be atomically persisted and checksum-bound before either PASS
-or FAIL returns. C2P composes explicit validation over one private generation-bound
-handle and one live deep-validation result per artifact mode. It retains the
-required generation copy while eliminating repeated validation-side reader and
-scanning work; neither capability is
-serialized or available to runtime/product consumers. C2PR resolves private
-validation selectors through the existing typed embedding catalog before source
-work, retains canonical artifact-metadata checks after publication, and
-atomically preserves typed failure/partial-timing evidence while reusing already
-trusted generation digests. It changes neither embedding nor artifact semantics.
-C1C corrects only the unreleased artifact persistence and hydration contract for already-modeled ordered mechanics and independent typed visibility, without changing Stage B canonical semantics. C1R then remediates only the independently reproduced residual C1 findings on top of C2,
-C2R, C2P, C2PR, and an independently accepted C1C. Checkpoint C must approve the exact combined
-C1/C2/C2R/C2P/C2PR/C1C/C1R commit chain and final independently reproduced artifact hashes
-before search, runtime, app, CLI, or UI consumers depend on the new artifact.
-Later search work may not amend canonical hydration under its own scope.
-
-The provisional-C1 versus combined optimized-head legacy/new matrix is authorized
-once to establish trust in the consolidation. After that independent equivalence
-PASS, it retires immediately: permanent validation consists only of the
-consolidated fast, focused, exhaustive, and reviewer tiers, with exhaustive work
-triggered by relevant changes. The migration matrix is not added to normal CI,
-future candidate acceptance, or Checkpoint C.
+The permanent production gate performs one full embedded build when final
+integration changes can affect artifact construction or end-to-end compatibility.
+It validates the manifest/hash/generation binding, schema/required-table shape,
+foreign keys, logical/cross-table invariants, global FTS/catalog/vector coverage,
+and a bounded selected-record public-reader smoke.
+It does not build a full no-embedding artifact or require whole-corpus parity.
+Small no-embedding fixtures continue to cover disabled-model, absent-vector, and
+`BaseOnly` behavior.

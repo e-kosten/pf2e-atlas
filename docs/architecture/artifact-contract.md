@@ -10,14 +10,11 @@ Durable mutable local state is not part of this artifact contract. Saved lists a
 
 [ADR 0035](./decisions/0035-atomic-canonical-artifact.md) defines the source-faithful artifact boundary approved at Checkpoint B.
 
-The C2 exhaustive-validation snapshot is outside this artifact contract. It is a
+The production-validation snapshot is outside this artifact contract. It is a
 private, no-clobber, checksum- and identity-bound evidence directory that may
-contain validation-produced artifacts and reports. No runtime reader accepts it,
-no setup freshness path consults it, and it provides neither a fallback artifact
-nor a second serializable canonical record model. Its strict-audit report is
-persisted with a checksum before validation enforcement returns, including on a
-failed candidate; that evidence does not become an artifact manifest, runtime
-freshness input, or canonical serialization.
+contain the single embedded validation artifact and reports. No runtime reader
+accepts it, no setup freshness path consults it, and it provides neither a
+fallback artifact nor a second serializable canonical record model.
 
 The target stores canonical entities, contextual occurrences, owned content, exact reference occurrences, and derived query projections with stable identities. Product-addressable creature resources, content, and occurrences are relational; creature activities and spellcasting entries live in the canonical creature body and its entity/occurrence projections rather than duplicate generic payload tables. Record metrics retain canonical vector order through non-null parent-scoped ordinals. Independently queryable/filterable/joinable facts require authoritative relational projections. Complete canonical hydration belongs only to `atlas-index::read`.
 
@@ -131,11 +128,14 @@ The source position is an invalidation hint for setup freshness, not a replaceme
 
 Ordinary runtime acquisition requires the manifest and cheaply compares its envelope, artifact-contract, and schema versions with code and the two corresponding SQLite metadata rows. Under the shared pair lock it opens the visible file and validates the generation directory as a real directory. An absent generation is copied to a create-new temporary file, synced, checksummed once, sealed without write permissions, and atomically installed as a direct regular-file child before any immutable SQLite open. A sealed trust record binds the validated digest to local file identity, size, and modification tokens. Matching generation/trust pairs open without hashing. Owner-writable legacy generations are recreated from the retained primary; missing or stale trust makes the encounter a recovery boundary where the existing sealed file is hashed once, then trusted if correct or replaced if not. Symlinks, reparse aliases, and source hard-link identities fail closed. Every Diesel and validation/hydration SQLite connection opens that generation while the lock still protects acquisition. The reader then releases the lock and retains the connections and file handle, so a publisher may install a new visible pair while long-lived readers remain coherent on the old generation. Identity-bound lease deletion does not remove a replacement path. No reader reopens the visible pathname or combines connections from different generations. Requested hydration decodes and checks the requested rows; it does not scan unrelated canonical records. Setup owns freshness policy by reading the adjacent manifest and cheap artifact metadata, comparing the current source position, and deciding whether full source analysis is needed before planning a rebuild.
 
-The explicit exhaustive validation pipeline composes checks over that existing reader
-boundary. Per artifact mode, one private candidate/snapshot-bound handle retains
-one generation-bound reader, its Diesel hydration connection, and its rusqlite
-validation connection. One complete deep-validation result is retained as a live
-receipt and projected into inspection and evidence after generation-drift checks;
+The production validation pipeline composes checks over that existing reader
+boundary. Its single embedded artifact uses one private candidate/snapshot-bound
+handle retaining one generation-bound reader, its Diesel hydration connection,
+and its rusqlite validation connection. One structural/global validation result is
+retained as a live receipt and projected into inspection and evidence after
+generation-drift checks; the same handle hydrates only the bounded selected-record
+smoke set. Whole-corpus canonical body and exact projection scans are not part of
+this pipeline. Broad coherence remains explicitly callable for diagnostics;
 serialized evidence cannot recreate the receipt. Publisher recovery and generation
 copy boundaries remain separately counted, while ordinary existing-generation
 acquisition performs no checksum. This validation-side reuse
@@ -146,6 +146,14 @@ publication. Failure evidence carries the typed identity, completed/in-progress
 operation timings, counters, and the already trusted visible/generation digests;
 checksum closure hashes only evidence that lacks a trusted digest. These rules
 belong to validation orchestration and do not extend this artifact contract.
+
+The final integration/CI owner runs one embedded production build only when
+changed artifact constructors, persisted codecs, document-embedding producers,
+or validation composition can affect source-to-reader compatibility. Its
+structural checks cover schema/required-table shape, foreign keys, and
+logical/cross-table invariants; they do not claim a physical SQLite page/B-tree
+scan. CPU timing and whole-snapshot file-size telemetry are optional diagnostics,
+not acceptance requirements.
 
 Builds stage and sync the complete SQLite file and manifest before publication. The writer enables `PRAGMA foreign_keys = ON` before beginning its write transaction. After writer connections close and WAL/SHM companions are absent, it seals the staged file read-only and creates one opaque live publication receipt. A cheap metadata compatibility check and the producer SHA-256 use the same retained open-file identity; device/inode on Unix and volume/file-index on Windows stay behind the index-owned identity abstraction. The receipt also binds the staged path, intended publication target, byte count, modification token, and compatibility result. It cannot be serialized or reconstructed from evidence. Ingest may read only its digest for the unchanged manifest and must pass the live receipt back to the index publisher. Deep artifact validation is an explicit supplementary command/test surface, not a prerequisite for the receipt.
 
@@ -234,7 +242,7 @@ Metadata validation must remain available without loading `sqlite-vec`. For Rust
 
 - required runtime table presence
 - required column presence for the current artifact schema
-- exact canonical relational row sets across all authoritative resource, entity, occurrence, creature-relationship, content, reference, exclusion, and metric columns, with no missing, extra, or foreign-key-valid-but-wrong rows
+- structural canonical projection invariants, enum domains, authored metric order/digests, and global body coverage; exact JSON-to-relational mirror reconciliation remains an optional diagnostic
 - one canonical creature body for every NPC record and no creature body for non-NPC records
 - `artifact_record_count` agreement with `records`
 - `source_record_count` plus `generated_record_count` agreement with `artifact_record_count`
@@ -250,7 +258,7 @@ Metadata validation must remain available without loading `sqlite-vec`. For Rust
 - search-readiness validation for `record_vector_index` rowid coverage exactly matching `document_embedding_cache`
 - vector dimensions matching the embedding identity metadata
 
-Setup and `atlas index check` use a fast readiness check rather than the full deep validation suite. Fast readiness validates metadata compatibility, required runtime table presence, and vector capability for semantic targets. Deep validation stays behind `atlas index validate` and covers SQLite data coherence such as row coverage, catalog consistency, foreign keys, FTS, and vector row diagnostics. Source freshness comparison belongs to callers that supply an expected source signature or equivalent already-computed value. If vector readiness is missing or stale, the supported repair path is an ingest rebuild with the selected embedding model. Recomputing source-derived assignment quality, semantic coverage, or full parity against the Foundry corpus remains outside startup validation.
+Setup and `atlas index check` use a fast readiness check rather than the full deep validation suite. Fast readiness validates metadata compatibility, required runtime table presence, and vector capability for semantic targets. Deep validation stays behind `atlas index validate` and covers SQLite data coherence such as row and canonical-body coverage, catalog consistency, foreign keys, FTS, and vector row diagnostics without decoding and reconciling every canonical body. Requested record hydration retains strict typed decode and attachment errors; broad all-body canonical coherence is a separate optional diagnostic. Source freshness comparison belongs to callers that supply an expected source signature or equivalent already-computed value. If vector readiness is missing or stale, the supported repair path is an ingest rebuild with the selected embedding model. Recomputing source-derived assignment quality, semantic coverage, or full parity against the Foundry corpus remains outside startup and final validation.
 
 ## Extension Loading
 
