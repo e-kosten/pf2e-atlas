@@ -133,10 +133,10 @@ fn snapshot_evidence_manifest_is_complete_and_honest() -> Result<(), Box<dyn std
         retained_capture_matches(&root, capture)?;
     }
     assert!(captures.iter().any(|capture| {
-        capture["stdout_path"] == "authentic-unmodeled/areelu-vorlesh-provenance.json"
+        capture["stdout_path"] == "authentic-unmodeled/chernasardo-ranger-provenance.json"
     }));
     assert!(captures.iter().any(|capture| {
-        capture["stdout_path"] == "authentic-unmodeled/areelu-vorlesh-full-80.txt"
+        capture["stdout_path"] == "authentic-unmodeled/chernasardo-ranger-full-80.txt"
     }));
 
     let first = captures.first().ok_or("at least one retained capture")?;
@@ -207,76 +207,76 @@ const CREATURES: [CreatureFixture; 9] = [
         slug: "night-hag",
         name: "Night Hag",
         key: "pathfinder-bestiary:WQy7HBUcgDLsfVJd",
-        source_path: "packs/pf2e/pathfinder-bestiary/night-hag.json",
-        source_sha256: "ba2a7da4c23b78a4add8ccdc7976c0e8d6a971d21208df58a33f9bd21df76940",
+        source_path: "packs/pathfinder-bestiary/night-hag.json",
+        source_sha256: "9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8",
     },
     CreatureFixture {
         slug: "giant-rat",
         name: "Giant Rat",
         key: "pathfinder-monster-core:iIJPJcDT8wlJ8z5M",
-        source_path: "packs/pf2e/pathfinder-monster-core/giant-rat.json",
-        source_sha256: "aa9cc319293195f87c7c59732915f7820ccb0ac617fa52f0c04d252a1a6c817c",
+        source_path: "packs/pathfinder-monster-core/giant-rat.json",
+        source_sha256: "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f",
     },
     CreatureFixture {
         slug: "calcifda",
         name: "Calcifda",
         key: "quest-for-the-frozen-flame-bestiary:kxO7gXbpcmY1pi7p",
-        source_path: "packs/pf2e/quest-for-the-frozen-flame-bestiary/book-3-burning-tundra/calcifda.json",
-        source_sha256: "89a287cdd849ce347b1e8a1f01515c0cf1c45caa53a55c3406352cb88dbd4b76",
+        source_path: "packs/quest-for-the-frozen-flame-bestiary/book-3-burning-tundra/calcifda.json",
+        source_sha256: "83a68237aac93565f41e75d6ce6e89d5a1e88a468623e1c7e3c34aa3def71c7c",
     },
     CreatureFixture {
         slug: "magical-forge",
         name: "Magical Forge",
         key: "triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n",
-        source_path: "packs/pf2e/triumph-of-the-tusk-bestiary/book-2-hoof-cinder-and-storm/magical-forge.json",
-        source_sha256: "96a76d3c5da6fbe3373c3865dc3f10a4d0f43d79f5a15ffcb0323061638252be",
+        source_path: "packs/triumph-of-the-tusk-bestiary/book-2-hoof-cinder-and-storm/magical-forge.json",
+        source_sha256: "1b61ab9c5014d98617d2cae9dd614b109b7806a32f8c37a128be3bdc0d64a831",
     },
     CreatureFixture {
         slug: "balor",
         name: "Balor",
         key: "pathfinder-bestiary:9vNYtJZiseCEf4wt",
-        source_path: "packs/pf2e/pathfinder-bestiary/balor.json",
-        source_sha256: "f2b1ef8e87eda3665c2416f56f632bc718f77a943dcdb39202a7a60ab0e1b88d",
+        source_path: "packs/pathfinder-bestiary/balor.json",
+        source_sha256: "0ef5eaa7137946177208127edf08387491d005877fbe0d8d0ade38d1471a9e8a",
     },
     CreatureFixture {
         slug: "gray-master",
         name: "Gray Master",
         key: "curtain-call-bestiary:1eX4Csnv3psAsfLf",
-        source_path: "packs/pf2e/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json",
-        source_sha256: "8ccd7b926140b52caa66db0294a44f1aa002e3f9005a42dcd6043f86fddd1289",
+        source_path: "packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json",
+        source_sha256: "497ccd4fe79f6579d7ac33bd9f48bc941bb10182ac82b54ed9c60179208e20f6",
     },
     CreatureFixture {
         slug: "beluthus",
         name: "Beluthus",
         key: "abomination-vaults-bestiary:3ry9WSvMMXHUe3kE",
-        source_path: "packs/pf2e/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/beluthus.json",
-        source_sha256: "47c674ade1ba92d231bd1fdb45fcd06b6ed5648af2ebb2a6960ac91cc9848afa",
+        source_path: "packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/beluthus.json",
+        source_sha256: "bbee3086eaf0745d4feda720a5e15eb7a4db4434f3526dc7e514e76f8096a358",
     },
     CreatureFixture {
         slug: "air-mephit",
         name: "Air Mephit",
         key: "pathfinder-bestiary:KDRlxdIUADWHI6Vr",
-        source_path: "packs/pf2e/pathfinder-bestiary/air-mephit.json",
-        source_sha256: "a5e628ad9f52baac8cce14fafe2dda543d1c3455797f373160c50358d75478ee",
+        source_path: "packs/pathfinder-bestiary/air-mephit.json",
+        source_sha256: "60d5c44540c0a8795bba01271150022a6edb6d8bd07129f585f0c5edaba63264",
     },
     CreatureFixture {
         slug: "air-scamp",
         name: "Air Scamp",
         key: "pathfinder-monster-core:MSm1im7lZA5i82rz",
-        source_path: "packs/pf2e/pathfinder-monster-core/air-scamp.json",
-        source_sha256: "f2c11588000587cd78ba86a2d8e3d8fac209c282da487fe08ec15f5c9d3c63a8",
+        source_path: "packs/pathfinder-monster-core/air-scamp.json",
+        source_sha256: "e7e3508b648dc311e21d43c3bf369c9e18bc96c2a07ac7b8c79d721701a0dd05",
     },
 ];
 
-const REMASTER_JOURNAL_PATH: &str = "packs/pf2e/journals/remaster-changes.json";
+const REMASTER_JOURNAL_PATH: &str = "packs/journals/remaster-changes.json";
 const REMASTER_JOURNAL_SHA256: &str =
-    "838700b9242191e8ea0221bb895eff1726d9705a586415e59343fc552bee1b61";
+    "f422ed137d9f15ca320c19b5675c94ab26c0fa1f5b3e2ba6e157d39fe836a826";
 const AUTHENTIC_UNMODELED: CreatureFixture = CreatureFixture {
-    slug: "areelu-vorlesh",
-    name: "Areelu Vorlesh",
-    key: "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
-    source_path: "packs/pf2e/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
-    source_sha256: "483e9d78ed24093f4c2025cd7d5579394a396d93712b6e6e5131005f180973ca",
+    slug: "chernasardo-ranger",
+    name: "Chernasardo Ranger",
+    key: "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+    source_path: "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+    source_sha256: "b655a11ea8928936ca586f13fd74a0f87c795454e618e8cb4d22d54a15bd566c",
 };
 
 #[test]
@@ -459,7 +459,8 @@ fn prepare_bounded_source(
     target: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(target)?;
-    let manifest: Value = serde_json::from_slice(&fs::read(source_root.join("system.pf2e.json"))?)?;
+    let manifest: Value =
+        serde_json::from_slice(&fs::read(source_root.join("static/system.json"))?)?;
     let selected_packs = manifest["packs"]
         .as_array()
         .ok_or("PF2e manifest packs must be an array")?
@@ -473,7 +474,7 @@ fn prepare_bounded_source(
                     "pathfinder-bestiary",
                     "pathfinder-monster-core",
                     "quest-for-the-frozen-flame-bestiary",
-                    "revenge-of-the-runelords-bestiary",
+                    "claws-of-the-tyrant-bestiary",
                     "triumph-of-the-tusk-bestiary",
                 ]
                 .contains(&name)
@@ -495,8 +496,8 @@ fn prepare_bounded_source(
         .chain(std::iter::once(REMASTER_JOURNAL_PATH))
     {
         let relative = source_path
-            .strip_prefix("packs/pf2e/")
-            .ok_or("bounded source path must begin with packs/pf2e")?;
+            .strip_prefix("packs/")
+            .ok_or("bounded source path must begin with packs")?;
         let destination = target.join("packs").join(relative);
         fs::create_dir_all(destination.parent().ok_or("source file needs a parent")?)?;
         fs::copy(source_root.join(source_path), destination)?;
@@ -634,18 +635,17 @@ fn assert_authentic_unmodeled(
 ) -> Result<Vec<CaptureEvidence>, Box<dyn std::error::Error>> {
     let text = capture_record(artifact, AUTHENTIC_UNMODELED.key, "standard", 80)?;
     let text_value = String::from_utf8(text.stdout.clone())?;
-    assert!(text_value.contains("Key: craft"));
-    assert!(text_value.contains("Modifier: +36"));
+    assert!(text_value.contains("Key: acrobatics+13"));
+    assert!(!text_value.contains("Modifier:"));
     assert!(!text_value.contains("Modifier: +0"));
-    assert_authentic_golden("areelu-vorlesh-standard-80.txt", &text.stdout, update)?;
+    assert_authentic_golden("chernasardo-ranger-standard-80.txt", &text.stdout, update)?;
 
     let full = capture_record(artifact, AUTHENTIC_UNMODELED.key, "full", 80)?;
     let full_value = String::from_utf8(full.stdout.clone())?;
-    assert!(full_value.contains("Key: craft"));
-    assert!(full_value.contains("Modifier: +36"));
+    assert!(full_value.contains("Key: acrobatics+13"));
+    assert!(!full_value.contains("Modifier:"));
     assert!(full_value.contains("The source supplied an unrecognized skill key."));
-    assert_eq!(full_value.matches("Key: craft").count(), 1);
-    assert_eq!(full_value.matches("Modifier: +36").count(), 1);
+    assert_eq!(full_value.matches("Key: acrobatics+13").count(), 1);
     assert_eq!(
         full_value
             .matches("The source supplied an unrecognized skill key.")
@@ -664,7 +664,7 @@ fn assert_authentic_unmodeled(
             "ordinary Full leaked {forbidden}"
         );
     }
-    assert_authentic_golden("areelu-vorlesh-full-80.txt", &full.stdout, update)?;
+    assert_authentic_golden("chernasardo-ranger-full-80.txt", &full.stdout, update)?;
 
     let provenance = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -698,11 +698,15 @@ fn assert_authentic_unmodeled(
         .as_array()
         .ok_or("provenance must expose unmodeled skills")?
         .iter()
-        .find(|row| row["authored_key"] == "craft")
-        .ok_or("authentic craft evidence missing")?;
-    assert_eq!(unmodeled["base"]["state"], "value");
-    assert_eq!(unmodeled["base"]["value"], 36);
-    assert_authentic_golden("areelu-vorlesh-provenance.json", &provenance.stdout, update)?;
+        .find(|row| row["authored_key"] == "acrobatics+13")
+        .ok_or("authentic acrobatics+13 evidence missing")?;
+    assert_eq!(unmodeled["base"]["state"], "null");
+    assert!(unmodeled["base"].get("value").is_none());
+    assert_authentic_golden(
+        "chernasardo-ranger-provenance.json",
+        &provenance.stdout,
+        update,
+    )?;
     update_authentic_manifest(update)?;
 
     Ok(vec![
@@ -714,7 +718,7 @@ fn assert_authentic_unmodeled(
             ),
             Some(80),
             Some("standard"),
-            Some("authentic-unmodeled/areelu-vorlesh-standard-80.txt".into()),
+            Some("authentic-unmodeled/chernasardo-ranger-standard-80.txt".into()),
         ),
         capture_evidence(
             &full,
@@ -724,7 +728,7 @@ fn assert_authentic_unmodeled(
             ),
             Some(80),
             Some("full"),
-            Some("authentic-unmodeled/areelu-vorlesh-full-80.txt".into()),
+            Some("authentic-unmodeled/chernasardo-ranger-full-80.txt".into()),
         ),
         capture_evidence(
             &provenance,
@@ -734,7 +738,7 @@ fn assert_authentic_unmodeled(
             ),
             Some(80),
             Some("provenance-json"),
-            Some("authentic-unmodeled/areelu-vorlesh-provenance.json".into()),
+            Some("authentic-unmodeled/chernasardo-ranger-provenance.json".into()),
         ),
     ])
 }

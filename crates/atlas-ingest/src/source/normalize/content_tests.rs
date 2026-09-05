@@ -50,7 +50,7 @@ fn parses_lists_tables_rolls_and_macro_signals() {
     assert_eq!(parsed.document.nodes.len(), 2);
     assert_eq!(
         render_plain_text(&parsed.document),
-        "fortitude 2d6\nTreasure\nLevel |\n1 |"
+        "Fortitude DC 21 2d6\nTreasure\nLevel |\n1 |"
     );
     assert!(parsed.diagnostics.dropped_macros.is_empty());
 }

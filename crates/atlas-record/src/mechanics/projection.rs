@@ -883,12 +883,12 @@ mod tests {
                         kind: CreatureSkillKind::Arcana,
                     }
         }));
-        assert!(!projection.facts.iter().any(|fact| {
-            matches!(
-                fact.target,
-                MechanicTarget::Skill { .. } | MechanicTarget::AbilityModifier { .. }
-            )
-        }));
+        assert!(
+            !projection
+                .facts
+                .iter()
+                .any(|fact| { matches!(fact.target, MechanicTarget::AbilityModifier { .. }) })
+        );
 
         let strike = activity(&projection.activities, "occurrence:strike");
         let deceptive_roll = fact(

@@ -277,6 +277,26 @@ Published release assets are treated as immutable. Fix bad published releases wi
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
+## Task Briefs And Independent Validation
+
+Use outcome-scoped briefs for delegated engineering. A brief identifies the desired result and the rules that must remain true; it does not attempt to predict every file the implementation will need. Likely paths are useful for coordination, but necessary callers, imports, tests, documentation, generated bindings, formatting, and refactor cleanup remain inside the task when they are required to deliver the stated outcome.
+
+An ordinary brief should be short and include the following when material:
+
+- outcome and accepted base or current context;
+- architectural and source-fidelity invariants;
+- non-goals;
+- focused checks for iteration and applicable final repository gates;
+- conditions requiring escalation.
+
+Keep one explicitly current brief. A correction from the user or the decision owner authorized to change the requirement should name what it supersedes; message arrival order by itself does not make a delayed callback current. Callbacks and handoffs should identify the current base/candidate and note superseded assumptions so stale instructions are not executed. Outcome-scoped briefs replace procedural file-allowlist amendments, authorization shell scripts, per-amendment checksum publication, and newly invented launcher/framework requirements for ordinary repository work. They do not replace semantic requirements, final validation, explicit product approval, or source/artifact/candidate authentication at a boundary that actually consumes those identities.
+
+Escalate product or architecture choices, changed source disposition, weaker acceptance, destructive or external actions, work outside the stated non-goals, and substantial unexpected cost. Administrative path/count changes and mechanically necessary edits within the outcome do not need approval. If implementation uncovers a broader outcome rather than a necessary consequence of the current one, stop and ask.
+
+Use focused, risk-based validation while editing and for ordinary slice handoff. The integrated/final candidate owner runs the full repository gates below once. A slice owner runs them only when that handoff is the final candidate or one of the existing branch-review, merge, push, or Rust-heavy commit triggers below applies. Re-run a full gate only after a relevant candidate, toolchain, or policy input changes. Evidence may be reused only when the relevant source, candidate, toolchain, generator, and policy inputs are unchanged; the handoff must say what was reused and any resulting limitation. Embeddings are appropriate for final semantic-artifact or end-to-end validation when embedding inputs or artifact semantics changed. They are unnecessary for routine UI, documentation, and unit-test iterations.
+
+Independent review should inspect the actual diff and exercise the production path most likely to fail. Batch related findings into one remediation round where practical. Classify pre-existing baseline failures separately from new regressions, but report both and do not silently waive either. Prefer focused adversarial, mutation, rollback, identity, and residue checks over repeating unrelated expensive gates.
+
 ## Validation Before Commit
 
 Run the full Rust gate before opening a branch for review, merging back to `main`, or preparing a Rust-heavy commit manually:
@@ -346,9 +366,9 @@ Checkpoint B approved the source-faithful contract in ADRs 0033-0036. Implementa
 1. Refresh the pinned PF2e source identity and regenerate/reconcile the union-derived type registry. Preserve registration-only zero-count entries and exact parent contexts.
 2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values. Empty strings, nulls, and empty collections are scaffolding for path-warning purposes, but the B1 typed boundary still validates their declared presence and shape.
 3. Run focused ingest/record tests and the strict coverage gate. New meaningful unknowns, type drift, parent-context drift, lost assignment, consumed-path regression, and fixture drift must fail rather than fall through raw JSON pointers. Implemented NPC declarations are leaf-exact; add a mutation test whenever a formerly covered parent could conceal a new or stale child. The full-corpus gate retains all 313 reviewed type/role/parent-context assignments; non-creature paths remain bound to their exact H1-H11 future owners and are not treated as implemented.
-4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, CLI diagnostics, and source-normalized/artifact-hydrated equality as the one serialized C1 unit.
+4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, CLI diagnostics, and source-normalized/artifact-hydrated equality as one atomic unit. The current contract is `pf2e-atlas-artifact/v5` with schema `3` and manifest `pf2e-atlas-artifact-manifest/v3`; creature hydration must come only from `RecordBody::Creature`.
 5. Run `just verify`; run `just web-ui-verify` for frontend-affecting work. Browser automation proves semantics/accessibility/runtime behavior only; Checkpoint E remains the separate human visual gate.
-6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete.
+6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete. For creature work, also reject generic record-mechanics hydration or presentation; retained generic mechanics must have an explicit non-creature record-kind boundary.
 
 Run the relaxed audit for an aggregate local review:
 

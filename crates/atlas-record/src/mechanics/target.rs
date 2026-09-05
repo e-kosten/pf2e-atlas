@@ -8,11 +8,6 @@ pub enum MechanicTarget {
     Save {
         save: SaveKind,
     },
-    /// Transitional sparse-record target. Canonical creature projections use
-    /// `CreatureSkill`, whose component identity cannot be inferred from a metric key.
-    Skill {
-        slug: String,
-    },
     CreatureSkill {
         skill_id: CreatureComponentId,
         kind: CreatureSkillKind,
@@ -63,7 +58,6 @@ impl MechanicTarget {
             Self::MaxHp => "hp.max".to_string(),
             Self::Perception => "perception".to_string(),
             Self::Save { save } => format!("save.{}", save.as_str()),
-            Self::Skill { slug } => skill_target_id(slug),
             Self::CreatureSkill { skill_id, kind } => {
                 structured_target_id("creature-skill", &[skill_id.as_str(), kind.source_slug()])
             }
@@ -104,18 +98,6 @@ impl MechanicTarget {
             ),
             Self::ActorRitualDc => structured_target_id("actor-ritual-dc", &[]),
         }
-    }
-}
-
-fn skill_target_id(slug: &str) -> String {
-    if !slug.is_empty()
-        && slug.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_')
-        })
-    {
-        format!("skill.{slug}")
-    } else {
-        structured_target_id("legacy-skill", &[slug])
     }
 }
 
@@ -201,17 +183,6 @@ impl AbilityKind {
             Self::Charisma => "cha",
         }
     }
-
-    pub(crate) const fn label(self) -> &'static str {
-        match self {
-            Self::Strength => "Strength",
-            Self::Dexterity => "Dexterity",
-            Self::Constitution => "Constitution",
-            Self::Intelligence => "Intelligence",
-            Self::Wisdom => "Wisdom",
-            Self::Charisma => "Charisma",
-        }
-    }
 }
 
 #[cfg(test)]
@@ -234,12 +205,6 @@ mod tests {
                     save: SaveKind::Fortitude,
                 },
                 None,
-            ),
-            (
-                MechanicTarget::Skill {
-                    slug: "a.roll/b:%25.雪\0".to_string(),
-                },
-                Some(("legacy-skill", vec!["a.roll/b:%25.雪\0"])),
             ),
             (
                 MechanicTarget::CreatureSkill {
@@ -360,14 +325,6 @@ mod tests {
             },
         ];
         assert_ne!(reviewed_collision[0].id(), reviewed_collision[1].id());
-        assert_eq!(
-            MechanicTarget::Skill {
-                slug: "athletics".to_string(),
-            }
-            .id(),
-            "skill.athletics"
-        );
-
         let mutation_pairs = vec![
             (
                 MechanicTarget::Save {
@@ -375,14 +332,6 @@ mod tests {
                 },
                 MechanicTarget::Save {
                     save: SaveKind::Will,
-                },
-            ),
-            (
-                MechanicTarget::Skill {
-                    slug: String::new(),
-                },
-                MechanicTarget::Skill {
-                    slug: ".:/%雪\0".to_string(),
                 },
             ),
             (
@@ -563,7 +512,6 @@ mod tests {
             | MechanicTarget::MaxHp
             | MechanicTarget::Perception
             | MechanicTarget::Save { .. }
-            | MechanicTarget::Skill { .. }
             | MechanicTarget::CreatureSkill { .. }
             | MechanicTarget::AbilityModifier { .. }
             | MechanicTarget::Movement { .. }

@@ -19,8 +19,7 @@ pub use embeddings::{document_embedding_cache, record_vector_index};
 pub use identity::{artifact_metadata, packs};
 pub use metrics::{metric_key_catalog, metric_value_catalog, record_metrics};
 pub use record_tables::{
-    actor_records, item_records, record_activities, record_content, record_spellcasting_entries,
-    record_traits, records, spell_records,
+    actor_records, item_records, record_content, record_traits, records, spell_records,
 };
 pub use relationships::{record_aliases, reference_edges, reference_occurrences, remaster_links};
 pub use search::records_fts;
@@ -53,8 +52,6 @@ pub const REQUIRED_TABLES: &[Table] = &[
     record_aliases::TABLE,
     remaster_links::TABLE,
     record_metrics::TABLE,
-    record_activities::TABLE,
-    record_spellcasting_entries::TABLE,
     metric_key_catalog::TABLE,
     metric_value_catalog::TABLE,
     filter_field_catalog::TABLE,
@@ -106,11 +103,6 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (record_aliases::TABLE, record_aliases::ALL_COLUMNS),
     (remaster_links::TABLE, remaster_links::ALL_COLUMNS),
     (record_metrics::TABLE, record_metrics::ALL_COLUMNS),
-    (record_activities::TABLE, record_activities::ALL_COLUMNS),
-    (
-        record_spellcasting_entries::TABLE,
-        record_spellcasting_entries::ALL_COLUMNS,
-    ),
     (metric_key_catalog::TABLE, metric_key_catalog::ALL_COLUMNS),
     (
         metric_value_catalog::TABLE,

@@ -7,6 +7,7 @@ The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant D
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
 - Rust `atlas-app-model` and `atlas-app-service` own product DTOs and workflow semantics.
 - Frontend code should not recreate filter catalogs, retrieval semantics, saved-list behavior, encounter mutation rules, or record presentation contracts that already come from the backend.
+- Creature record and encounter components consume the generated named, typed creature DTOs directly. Do not introduce generic section/value bags, encoded-target lookup, fallback presentation, or client-side joins to recover creature mechanics. Non-creature unavailable presentations remain an explicit record-kind boundary until their separately owned family migrations land.
 
 ## Shared UI Layer
 

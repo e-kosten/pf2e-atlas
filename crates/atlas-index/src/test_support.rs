@@ -15,8 +15,9 @@ use crate::artifact::metadata::{
 use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use crate::schema;
 
-/// Inserts a minimal canonical NPC body for cross-crate retrieval fixtures.
-pub fn insert_minimal_canonical_npc_body(
+/// Inserts a minimal canonical NPC body and its derived query metrics for
+/// cross-crate retrieval fixtures.
+pub fn insert_minimal_canonical_npc_projection(
     connection: &Connection,
     record_key: &str,
     ac: i64,
@@ -101,6 +102,36 @@ pub fn insert_minimal_canonical_npc_body(
         },
     };
     let metrics = atlas_record::project_creature_facts(&creature).metrics;
+    for (ordinal, metric) in metrics.iter().enumerate() {
+        let (value_type, number_value, text_value, bool_value): (
+            &str,
+            Option<f64>,
+            Option<&str>,
+            Option<i64>,
+        ) = match &metric.value {
+            atlas_record::MetricValue::Number(value) => ("number", Some(*value), None, None),
+            atlas_record::MetricValue::Text(value) => ("text", None, Some(value.as_str()), None),
+            atlas_record::MetricValue::Boolean(value) => {
+                ("boolean", None, None, Some(i64::from(*value)))
+            }
+        };
+        connection.execute(
+            "INSERT INTO record_metrics (
+                 record_key, ordinal, metric_domain, metric_key, value_type,
+                 number_value, text_value, bool_value
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![
+                record_key,
+                i64::try_from(ordinal)?,
+                metric.domain.as_str(),
+                metric.key.as_str(),
+                value_type,
+                number_value,
+                text_value,
+                bool_value,
+            ],
+        )?;
+    }
     let metric_count = i64::try_from(metrics.len())?;
     let metric_digest = crate::read::records::children::metric_order_digest(&metrics)
         .map_err(|error| format!("fixture metric digest failed: {error}"))?;

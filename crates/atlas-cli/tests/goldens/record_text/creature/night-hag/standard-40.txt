@@ -125,6 +125,7 @@ Spellcasting
                 shadow
         Range: varies
         Time: 2
+        Damage: 5d8 untyped damage
       - Nightmare — 10 minutes
         Traits: concentrate, illusion,
                 manipulate, mental
@@ -183,8 +184,8 @@ Spellcasting
         Range: 30 feet
         Time: 2
   - Coven Spells — innate · occult
-    Attack: +20
-    DC: 28
+    Attack: +15
+    DC: 23
     Rank 8
       - Baleful Polymorph — [2
         actions]

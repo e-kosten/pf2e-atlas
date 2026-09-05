@@ -66,10 +66,6 @@ diesel::table! {
         visibility_reason -> Text,
         metric_count -> BigInt,
         metric_order_sha256 -> Text,
-        activity_count -> BigInt,
-        activity_order_sha256 -> Text,
-        spellcasting_entry_count -> BigInt,
-        spellcasting_entry_order_sha256 -> Text,
         raw_json -> Text,
         record_role -> Text,
         retrieval_disposition -> Text,
@@ -259,24 +255,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    record_activities (record_key, ordinal) {
-        record_key -> Text,
-        activity_id -> Text,
-        ordinal -> BigInt,
-        payload_json -> Text,
-    }
-}
-
-diesel::table! {
-    record_spellcasting_entries (record_key, entry_id) {
-        record_key -> Text,
-        entry_id -> Text,
-        ordinal -> BigInt,
-        payload_json -> Text,
-    }
-}
-
-diesel::table! {
     metric_key_catalog (metric_domain, record_kind, metric_key) {
         metric_domain -> Text,
         record_kind -> Nullable<Text>,
@@ -459,8 +437,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     record_content,
     record_content_exclusions,
     record_metrics,
-    record_activities,
-    record_spellcasting_entries,
     record_traits,
     records,
     records_fts,

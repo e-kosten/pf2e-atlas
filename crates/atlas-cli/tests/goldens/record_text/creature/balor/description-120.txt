@@ -119,7 +119,7 @@ Aura of Flame
   that hit a balor take (3d6+10)[fire] damage.
 
 Death Throes
-  When a balor dies, their body explodes in a 100-foot aura of intense demonic flame. All creatures and objects in range
+  When a balor dies, their body explodes in a 100-Foot Aura of intense demonic flame. All creatures and objects in range
   take 16d10[fire] damage (Reflex DC 45 save). Because the flame is infused with Abyssal energy, creatures in the area
   apply only half their usual fire resistance. Creatures with immunity to fire use an outcome one degree of success
   better than what they rolled, instead of gaining the usual benefit of immunity. The bodies of creatures reduced to 0

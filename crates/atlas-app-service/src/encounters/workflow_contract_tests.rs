@@ -12,7 +12,7 @@ use atlas_app_model::{
     EncounterSpellCastUnavailableReasonView, EncounterSpellSpendTargetView,
     ResetEncounterParticipantRequest, SetEncounterTurnRequest, UpdateEncounterParticipantRequest,
 };
-use atlas_domain::{MetricDomain, PackName, RecordKey, RecordKind};
+use atlas_domain::{PackName, RecordKey, RecordKind};
 use atlas_embedding::EmbeddingModelId;
 use atlas_index::{
     IndexArtifactWriter, IndexBuildInput, IndexBuildPack, SqliteIndexReader, SqliteIndexWriter,
@@ -28,9 +28,8 @@ use atlas_record::{
     CreatureOccurrenceParent, CreaturePreparedSpellSlot, CreatureProvenance, CreatureRecord,
     CreatureResource, CreatureResourceAmount, CreatureResourceKind, CreatureSourceField,
     CreatureSourceId, CreatureSourceScalar, CreatureSpellPreparation, FactValue,
-    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, MetricRow,
-    MetricValue, OccurrenceIdentityStability, RecordBody, RecordClassification, RecordIdentity,
-    RecordProvenance, ResourceCurrentPolicy,
+    FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, OccurrenceIdentityStability,
+    RecordBody, RecordClassification, RecordIdentity, RecordProvenance, ResourceCurrentPolicy,
 };
 use atlas_search::AtlasRetrievalService;
 use serde::Serialize;
@@ -710,25 +709,6 @@ fn spell_fixture_record() -> (AtlasRecord, RecordBody) {
         RecordProvenance::new("packs/actors/workflow-spellcaster.json"),
     );
     record.classification.level = Some(10);
-    record.mechanics.document = FoundryDocumentMechanics::Actor(Default::default());
-    record.mechanics.metrics = vec![
-        MetricRow {
-            domain: MetricDomain::Actor,
-            key: atlas_record::metrics::actor::HP_MAX
-                .exact_key()
-                .expect("exact hp metric")
-                .to_string(),
-            value: MetricValue::Number(30.0),
-        },
-        MetricRow {
-            domain: MetricDomain::Actor,
-            key: atlas_record::metrics::actor::HP_VALUE
-                .exact_key()
-                .expect("exact hp metric")
-                .to_string(),
-            value: MetricValue::Number(30.0),
-        },
-    ];
     (record, body)
 }
 

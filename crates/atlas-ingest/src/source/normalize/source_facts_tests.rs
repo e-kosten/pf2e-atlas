@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use atlas_domain::{MetricDomain, PackName, Rarity, RecordKind};
+use atlas_domain::{PackName, Rarity, RecordKind};
 use atlas_record::{
-    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, CreatureMovementMode,
-    CreatureResourceAmount, CreatureSourceAlliance, CreatureUnsupportedSourceField,
-    DamageEffectKind, FactValue, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType,
-    ItemTypeMechanics, MechanicActivityUsage, MetricValue, PresentationBlock, RecordBody,
+    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, CreatureDamageKind,
+    CreatureMovementMode, CreatureResourceAmount, CreatureSourceAlliance,
+    CreatureUnsupportedSourceField, FactValue, FoundryDocumentMechanics, FoundryDocumentType,
+    FoundryRecordType, ItemTypeMechanics, PresentationBlock, RecordBody,
     build_search_fts_projection, build_search_presentation_document_with_content_filter,
     render_plain_text,
 };
@@ -89,18 +89,11 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
     assert_eq!(record.provenance.source_path, "packs/bestiary/actor.json");
     assert!(record.provenance.raw_json.is_some());
 
-    let FoundryDocumentMechanics::Actor(actor) = &record.mechanics.document else {
-        panic!("actor mechanics should be nested under record mechanics");
-    };
-    assert_eq!(actor.size.as_deref(), Some("lg"));
-    assert_eq!(actor.languages, vec!["common", "draconic"]);
-    assert_eq!(actor.speed_types, vec!["fly"]);
-    assert_eq!(actor.senses, vec!["darkvision"]);
-    assert_eq!(actor.immunities, vec!["fire"]);
-    assert_eq!(actor.resistances, vec!["cold"]);
-    assert_eq!(actor.weaknesses, vec!["holy"]);
-    assert_eq!(actor.disable_text, None);
-    assert!(!actor.is_complex);
+    assert_eq!(
+        record.mechanics.document,
+        FoundryDocumentMechanics::None,
+        "creatures must not retain a generic actor-mechanics projection"
+    );
 
     let RecordBody::Creature(creature) = loaded
         .facts
@@ -164,7 +157,7 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
 }
 
 #[test]
-fn npc_canonical_facts_drive_metrics_side_display_and_fts_inputs() {
+fn npc_canonical_facts_drive_display_and_fts_without_a_generic_metric_carrier() {
     let raw = json!({
         "_id": "actor-facts",
         "name": "Fact Convergence Creature",
@@ -214,22 +207,8 @@ fn npc_canonical_facts_drive_metrics_side_display_and_fts_inputs() {
     .expect("NPC normalizes");
     let record = &loaded.record;
 
-    assert_metric(record, "perception.mod", 18.0);
-    assert_metric(record, "ac.value", 28.0);
-    assert_metric(record, "hp.value", 170.0);
-    assert_metric(record, "hp.max", 170.0);
-    assert_metric(record, "save.fort.mod", 19.0);
-    assert_metric(record, "skill.arcana.mod", 18.0);
-    assert_metric(record, "speed.land.value", 25.0);
-    assert_metric(record, "speed.fly.value", 40.0);
-    assert_metric(record, "sense.scent.range", 60.0);
-
-    let actor = record.mechanics.actor().expect("actor side facts");
-    assert_eq!(actor.size.as_deref(), Some("med"));
-    assert_eq!(actor.languages, ["aklo", "common"]);
-    assert_eq!(actor.speed_types, ["fly", "land"]);
-    assert_eq!(actor.senses, ["scent"]);
-    assert_eq!(actor.resistances, ["mental"]);
+    assert!(record.mechanics.metrics.is_empty());
+    assert!(record.mechanics.actor().is_none());
 
     let canonical_body = loaded
         .facts
@@ -252,11 +231,7 @@ fn npc_canonical_facts_drive_metrics_side_display_and_fts_inputs() {
             )
         })
     }));
-    let mut conflicting_record = record.clone();
-    for metric in &mut conflicting_record.mechanics.metrics {
-        metric.value = MetricValue::Number(999.0);
-    }
-    let fts = build_search_fts_projection(&conflicting_record, &[], Some(canonical_body));
+    let fts = build_search_fts_projection(record, &[], Some(canonical_body));
     assert!(fts.metric_terms.contains("Arcana"));
     assert!(fts.mechanic_terms.contains("AC 28"));
     assert!(fts.mechanic_terms.contains("Max HP 170"));
@@ -265,10 +240,6 @@ fn npc_canonical_facts_drive_metrics_side_display_and_fts_inputs() {
     assert!(fts.mechanic_terms.contains("Arcana 18"));
     assert!(fts.mechanic_terms.contains("Land Speed 25"));
     assert!(fts.mechanic_terms.contains("Fly Speed 40"));
-    assert!(
-        !fts.mechanic_terms.contains("999"),
-        "legacy metrics must not contribute to canonical FTS terms"
-    );
 }
 
 #[test]
@@ -636,33 +607,6 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
             .as_deref(),
         Some("Nested spell text.")
     );
-    assert_eq!(loaded.record.mechanics.spellcasting_entries.len(), 1);
-    assert_eq!(
-        loaded.record.mechanics.spellcasting_entries[0].entry_id,
-        "casting1"
-    );
-    assert_eq!(loaded.record.mechanics.activities.len(), 3);
-    let spell_activity = loaded
-        .record
-        .mechanics
-        .activities
-        .iter()
-        .find(|activity| activity.activity_id == "spell1")
-        .expect("spell activity should project");
-    assert_eq!(spell_activity.damage[0].formula, "1d4");
-    assert_eq!(
-        spell_activity.damage[0].damage_type.as_deref(),
-        Some("void")
-    );
-    assert_eq!(
-        spell_activity.damage[0].effect_kind,
-        DamageEffectKind::DamageOrHealing
-    );
-    assert!(spell_activity.modes.is_empty());
-    assert_eq!(spell_activity.usage, MechanicActivityUsage::Limited);
-    assert_eq!(spell_activity.rolls.len(), 2);
-    assert_eq!(spell_activity.rolls[0].base_value, 14);
-    assert_eq!(spell_activity.rolls[1].base_value, 23);
     let RecordBody::Creature(creature) = loaded
         .facts
         .canonical_body
@@ -688,25 +632,46 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         "{:#?}",
         canonical_spell.unsupported_notes
     );
-    let strike_activity = loaded
-        .record
-        .mechanics
-        .activities
-        .iter()
-        .find(|activity| activity.activity_id == "claw1")
-        .expect("strike activity should project");
-    assert_eq!(strike_activity.damage[0].formula, "1d6+2");
+    let spell_damage = canonical_spell.damage.as_value().expect("spell damage");
     assert_eq!(
-        strike_activity.damage[0].damage_type.as_deref(),
+        spell_damage[0].formula.as_value().map(String::as_str),
+        Some("1d4")
+    );
+    assert_eq!(
+        spell_damage[0].damage_type.as_value().map(String::as_str),
+        Some("void")
+    );
+    assert_eq!(
+        spell_damage[0].kinds.as_value(),
+        Some(&vec![
+            CreatureDamageKind::Damage,
+            CreatureDamageKind::Healing
+        ])
+    );
+    let strike_activity = embedded
+        .occurrences
+        .iter()
+        .find(|occurrence| occurrence.id.as_str().ends_with(":claw1"))
+        .expect("strike occurrence");
+    let atlas_record::CreatureCapability::Strike(strike_activity) = &strike_activity.capability
+    else {
+        panic!("strike capability")
+    };
+    let strike_damage = strike_activity.damage.as_value().expect("strike damage");
+    assert_eq!(
+        strike_damage[0].formula.as_value().map(String::as_str),
+        Some("1d6+2")
+    );
+    assert_eq!(
+        strike_damage[0].damage_type.as_value().map(String::as_str),
         Some("slashing")
     );
-    assert_eq!(
-        strike_activity.damage[0].ability,
-        Some(ActivityRollAbility::Strength)
-    );
-    assert_eq!(strike_activity.usage, MechanicActivityUsage::Unlimited);
     assert_eq!(strike_activity.rolls.len(), 1);
-    assert_eq!(strike_activity.rolls[0].base_value, 12);
+    assert_eq!(strike_activity.rolls[0].value.as_value(), Some(&12));
+    assert_eq!(
+        strike_activity.rolls[0].ability.as_value(),
+        Some(&ActivityRollAbility::Strength)
+    );
 
     assert_eq!(facts.journal_pages.len(), 2);
     assert_eq!(facts.journal_pages[0].page_id.as_deref(), Some("page1"));
@@ -734,11 +699,4 @@ fn manifest_pack(document_type: &str) -> ManifestPack {
         document_type: document_type.to_string(),
         path: "packs/bestiary".to_string(),
     }
-}
-
-fn assert_metric(record: &atlas_record::AtlasRecord, key: &str, expected: f64) {
-    let value = record.mechanics.metrics.iter().find_map(|metric| {
-        (metric.domain == MetricDomain::Actor && metric.key == key).then_some(&metric.value)
-    });
-    assert_eq!(value, Some(&MetricValue::Number(expected)), "metric {key}");
 }

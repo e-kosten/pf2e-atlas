@@ -475,15 +475,6 @@ impl Deref for RecordJson {
     }
 }
 
-impl RecordJson {
-    pub fn generic_sections(&self) -> &[RecordSectionJson] {
-        match &self.presentation {
-            RecordPresentationJson::Creature { .. } => &[],
-            RecordPresentationJson::Unmigrated { sections, .. } => sections,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RecordJsonBase {
     pub key: String,
@@ -675,10 +666,9 @@ pub fn record_json_with_context(
         relationships,
         include_provenance_evidence,
     } = context;
-    let document = build_record_presentation_document(record);
-    let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
-    let presentation = match (record.classification.kind, &retrieved.body) {
-        (RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
+    let (presentation, supplementary_sections) = match (record.classification.kind, &retrieved.body)
+    {
+        (RecordKind::Creature, Some(RecordBody::Creature(creature))) => (
             creature::creature_presentation(
                 creature,
                 options.detail,
@@ -691,8 +681,9 @@ pub fn record_json_with_context(
                     .and_then(|document| {
                         truncate_words(&render_plain_text(document), DESCRIPTION_PREVIEW_WORDS)
                     }),
-            )
-        }
+            ),
+            Vec::new(),
+        ),
         (RecordKind::Creature, None) => {
             return Err(RecordJsonError::MissingCreatureBody {
                 record_key: record.identity.key.to_string(),
@@ -703,10 +694,17 @@ pub fn record_json_with_context(
                 record_key: record.identity.key.to_string(),
             });
         }
-        (_, None) => RecordPresentationJson::Unmigrated {
-            migration: unmigrated_registry(record),
-            sections: generic_sections(&detailed_sections),
-        },
+        (_, None) => {
+            let document = build_record_presentation_document(record);
+            let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
+            (
+                RecordPresentationJson::Unmigrated {
+                    migration: unmigrated_registry(record),
+                    sections: generic_sections(&detailed_sections),
+                },
+                supplementary_sections(&detailed_sections),
+            )
+        }
     };
 
     Ok(RecordJson {
@@ -740,11 +738,7 @@ pub fn record_json_with_context(
                     )
                 })
                 .flatten(),
-            supplementary_sections: if record.classification.kind == RecordKind::Creature {
-                creature_supplementary_sections(&detailed_sections)
-            } else {
-                supplementary_sections(&detailed_sections)
-            },
+            supplementary_sections,
             source_json: options
                 .include_source_json
                 .then(|| record.provenance.raw_json.clone())
@@ -898,14 +892,6 @@ fn truncate_words(text: &str, max_words: usize) -> Option<String> {
 fn supplementary_sections(sections: &[RecordSectionJson]) -> Vec<RecordSectionJson> {
     sections
         .iter()
-        .filter_map(|section| section_with_blocks(section, false))
-        .collect()
-}
-
-fn creature_supplementary_sections(sections: &[RecordSectionJson]) -> Vec<RecordSectionJson> {
-    sections
-        .iter()
-        .filter(|section| matches!(section.kind, "references" | "backlinks"))
         .filter_map(|section| section_with_blocks(section, false))
         .collect()
 }
@@ -1110,7 +1096,10 @@ mod tests {
             movement.as_ref().expect("standard movement").modes[0].value_feet,
             Some(25)
         );
-        assert!(json.generic_sections().is_empty());
+        assert!(matches!(
+            &json.presentation,
+            RecordPresentationJson::Creature { .. }
+        ));
         assert!(json.supplementary_sections.iter().all(|section| {
             section
                 .blocks

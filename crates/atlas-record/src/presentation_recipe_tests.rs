@@ -174,52 +174,11 @@ fn details_section_does_not_expose_foundry_document_type() {
 }
 
 #[test]
-fn creature_recipe_groups_defense_movement_and_offense_sections() {
-    let mut record = base_record(RecordKind::Creature);
-    record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
-        size: Some("medium".to_string()),
-        languages: vec!["common".to_string()],
-        speed_types: vec!["land".to_string()],
-        senses: vec!["darkvision".to_string()],
-        immunities: vec!["poison".to_string()],
-        resistances: vec!["fire".to_string()],
-        weaknesses: vec!["cold iron".to_string()],
-        disable_text: None,
-        disable_skills: Vec::new(),
-        is_complex: false,
-    });
-    record.mechanics.metrics = vec![
-        defined_metric(metrics::actor::PERCEPTION_MOD, 9.0),
-        metric(&metrics::actor::ability::mod_key("str"), 4.0),
-        defined_metric(metrics::actor::ARMOR_CLASS, 19.0),
-        defined_metric(metrics::actor::HP_VALUE, 45.0),
-        metric(&metrics::actor::save::mod_key("fort"), 12.0),
-        metric(&metrics::actor::save::mod_key("ref"), 8.0),
-        metric(&metrics::actor::save::mod_key("will"), 7.0),
-        metric(&metrics::actor::speed::value_key("land"), 25.0),
-    ];
-
+fn generic_creature_recipe_is_absent_after_cutover() {
+    let record = base_record(RecordKind::Creature);
     let document = build_record_presentation_document(&record);
 
-    assert_eq!(
-        document
-            .sections
-            .iter()
-            .map(|section| section.kind)
-            .collect::<Vec<_>>(),
-        vec![
-            PresentationSectionKind::Summary,
-            PresentationSectionKind::Defense,
-            PresentationSectionKind::Movement,
-            PresentationSectionKind::Offense,
-            PresentationSectionKind::Description,
-            PresentationSectionKind::Details,
-        ]
-    );
-    assert_section_facts_include(&document.sections[0], "Size", "Medium");
-    assert_section_facts_include(&document.sections[1], "AC", "19");
-    assert_section_facts_include(&document.sections[1], "Saves", "Fort +12, Ref +8, Will +7");
-    assert_section_facts_include(&document.sections[2], "Speed", "Land 25 feet");
+    assert!(document.sections.is_empty());
 }
 
 #[test]

@@ -371,8 +371,6 @@ pub enum DurationTimeSourceField {
 pub struct RecordMechanics {
     pub metrics: Vec<MetricRow>,
     pub document: FoundryDocumentMechanics,
-    pub spellcasting_entries: Vec<SpellcastingEntryMechanics>,
-    pub activities: Vec<MechanicActivity>,
 }
 
 impl RecordMechanics {
@@ -408,77 +406,6 @@ pub enum ItemTypeMechanics {
     Spell(SpellMechanics),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpellcastingEntryMechanics {
-    pub entry_id: String,
-    pub label: String,
-    pub preparation: SpellcastingPreparation,
-    pub spell_attack: Option<i64>,
-    pub spell_dc: Option<i64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpellcastingPreparation {
-    Prepared,
-    Spontaneous,
-    Focus,
-    Innate,
-    Other(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MechanicActivity {
-    pub activity_id: String,
-    pub label: String,
-    pub kind: MechanicActivityKind,
-    pub traits: Vec<String>,
-    pub compendium_source: Option<String>,
-    pub usage: MechanicActivityUsage,
-    pub rolls: Vec<ActivityRoll>,
-    pub damage: Vec<DamageExpression>,
-    pub modes: Vec<MechanicActivityMode>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MechanicActivityMode {
-    pub mode_id: String,
-    pub label: String,
-    pub sort: i64,
-    pub target: Option<String>,
-    pub range: Option<String>,
-    pub time: Option<String>,
-    pub damage: Vec<DamageExpression>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MechanicActivityKind {
-    Strike,
-    Spell,
-    Other,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MechanicActivityUsage {
-    Unlimited,
-    Limited,
-    Ambiguous,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ActivityRoll {
-    pub roll_id: String,
-    pub label: String,
-    pub base_value: i64,
-    pub surface: ActivityRollSurface,
-    pub ability: Option<ActivityRollAbility>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActivityRollSurface {
-    AttackRoll,
-    Dc,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivityRollAbility {
     Strength,
@@ -487,16 +414,6 @@ pub enum ActivityRollAbility {
     Intelligence,
     Wisdom,
     Charisma,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DamageExpression {
-    pub damage_id: String,
-    pub label: Option<String>,
-    pub formula: String,
-    pub damage_type: Option<String>,
-    pub effect_kind: DamageEffectKind,
-    pub ability: Option<ActivityRollAbility>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,4 +1,4 @@
-use atlas_domain::{RecordKey, SearchFilterNode};
+use atlas_domain::{RecordKey, RecordKind, SearchFilterNode};
 use atlas_record::{
     ActorMechanics, AtlasRecord, AtlasRecordSet, FoundryDocumentMechanics, FoundryRecordType,
     ItemMechanics, ItemTypeMechanics, RetrievedRecord, SpellMechanics,
@@ -225,8 +225,6 @@ fn attach_record_details(
     records: &mut [AtlasRecord],
 ) -> Result<(), RecordLoadError> {
     let metrics = metrics::read_metrics(connection)?;
-    let activities = children::read_activities(connection)?;
-    let spellcasting_entries = children::read_spellcasting_entries(connection)?;
     let actor_data = mechanics::read_actor_mechanics(connection)?;
     let item_data = mechanics::read_item_mechanics(connection)?;
     let spell_data = mechanics::read_spell_mechanics(connection)?;
@@ -234,16 +232,16 @@ fn attach_record_details(
 
     for record in records {
         let key = record.identity.key.to_string();
-        record.mechanics.metrics = metrics.get(&key).cloned().unwrap_or_default();
-        record.mechanics.activities = activities.get(&key).cloned().unwrap_or_default();
-        record.mechanics.spellcasting_entries =
-            spellcasting_entries.get(&key).cloned().unwrap_or_default();
-        record.mechanics.document =
-            document_mechanics_for_key(&key, &actor_data, &item_data, &spell_data);
-        record
-            .content
-            .documents
-            .extend(supplemental_content.get(&key).cloned().unwrap_or_default());
+        if record.classification.kind != RecordKind::Creature {
+            if let Some(rows) = metrics.get(&key) {
+                record.mechanics.metrics.clone_from(rows);
+            }
+            record.mechanics.document =
+                document_mechanics_for_key(&key, &actor_data, &item_data, &spell_data);
+        }
+        if let Some(documents) = supplemental_content.get(&key) {
+            record.content.documents.extend(documents.iter().cloned());
+        }
     }
 
     Ok(())
@@ -259,8 +257,6 @@ fn attach_record_details_by_key(
     }
 
     let metrics = metrics::read_metrics_by_keys(connection, keys)?;
-    let activities = children::read_activities_by_keys(connection, keys)?;
-    let spellcasting_entries = children::read_spellcasting_entries_by_keys(connection, keys)?;
     let actor_data = mechanics::read_actor_mechanics_by_keys(connection, keys)?;
     let item_data = mechanics::read_item_mechanics_by_keys(connection, keys)?;
     let spell_data = mechanics::read_spell_mechanics_by_keys(connection, keys)?;
@@ -268,16 +264,16 @@ fn attach_record_details_by_key(
 
     for record in records {
         let key = record.identity.key.to_string();
-        record.mechanics.metrics = metrics.get(&key).cloned().unwrap_or_default();
-        record.mechanics.activities = activities.get(&key).cloned().unwrap_or_default();
-        record.mechanics.spellcasting_entries =
-            spellcasting_entries.get(&key).cloned().unwrap_or_default();
-        record.mechanics.document =
-            document_mechanics_for_key(&key, &actor_data, &item_data, &spell_data);
-        record
-            .content
-            .documents
-            .extend(supplemental_content.get(&key).cloned().unwrap_or_default());
+        if record.classification.kind != RecordKind::Creature {
+            if let Some(rows) = metrics.get(&key) {
+                record.mechanics.metrics.clone_from(rows);
+            }
+            record.mechanics.document =
+                document_mechanics_for_key(&key, &actor_data, &item_data, &spell_data);
+        }
+        if let Some(documents) = supplemental_content.get(&key) {
+            record.content.documents.extend(documents.iter().cloned());
+        }
     }
 
     Ok(())

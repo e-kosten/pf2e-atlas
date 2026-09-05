@@ -21,7 +21,12 @@ fn graph_remaster_json_returns_legacy_and_remaster_links() -> Result<(), Box<dyn
         .arg("--json")
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
@@ -49,7 +54,12 @@ fn graph_remaster_json_resolves_record_names() -> Result<(), Box<dyn std::error:
         .arg("--json")
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
@@ -92,7 +102,12 @@ fn graph_remaster_json_supports_remaster_seed_direction() -> Result<(), Box<dyn 
         .arg("--json")
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction2");

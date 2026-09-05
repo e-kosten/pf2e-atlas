@@ -219,17 +219,15 @@ mod tests {
     };
     use atlas_embedding::EmbeddingModelId;
     use atlas_record::{
-        ActivationTimeSourceField, ActivityRoll, ActivityRollAbility, ActivityRollSurface,
-        AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility, DamageEffectKind,
-        DamageExpression, DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics, MechanicActivity,
-        MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricRow, MetricValue,
-        NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
-        RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
-        RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
-        RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
-        RemasterLink, RichDocument, RichNode, SpellArea, SpellDefense, SpellMechanics, SpellRange,
-        SpellTarget, SpellcastingEntryMechanics, SpellcastingPreparation, VariantSource,
+        ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, ContentSourceKind,
+        ContentVisibility, DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType,
+        FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow,
+        MetricValue, NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification,
+        RecordContent, RecordContentDocument, RecordDurationTiming, RecordIdentity,
+        RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
+        RecordTiming, RecordVariantMembership, RecordVisibility, RecordVisibilityReason,
+        ReferenceEdge, RemasterLink, RichDocument, RichNode, SpellArea, SpellDefense,
+        SpellMechanics, SpellRange, SpellTarget, VariantSource,
     };
     use rusqlite::Connection;
 
@@ -256,6 +254,174 @@ mod tests {
             .expect_err("foreign-key violations must abort the writer transaction");
 
         assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
+    }
+
+    #[test]
+    fn writer_rejects_creature_generic_document_mechanics() {
+        let target_path = unique_temp_path("creature-generic-mechanics.sqlite");
+        let pack_name = PackName::new("bestiary").expect("pack parses");
+        let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
+        record.classification.kind = RecordKind::Creature;
+        record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics::default());
+
+        let error = write_fixture_records(&target_path, vec![record], Vec::new())
+            .expect_err("creature generic mechanics must fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("retains forbidden generic document mechanics")
+        );
+    }
+
+    #[test]
+    fn writer_rejects_creature_generic_metrics() {
+        let target_path = unique_temp_path("creature-generic-metrics.sqlite");
+        let pack_name = PackName::new("bestiary").expect("pack parses");
+        let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
+        record.classification.kind = RecordKind::Creature;
+        record.mechanics.document = FoundryDocumentMechanics::None;
+
+        let error = write_fixture_records(&target_path, vec![record], Vec::new())
+            .expect_err("creature generic metrics must fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("retains forbidden generic metrics")
+        );
+    }
+
+    #[test]
+    fn writer_derives_creature_metrics_from_the_matching_canonical_body()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let target_path = unique_temp_path("canonical-creature-metrics.sqlite");
+        let pack_name = PackName::new("bestiary")?;
+        let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
+        record.classification.kind = RecordKind::Creature;
+        record.classification.level = None;
+        record.classification.rarity = None;
+        record.classification.traits.clear();
+        record.foundry.document_type = FoundryDocumentType::Actor;
+        record.foundry.record_type = FoundryRecordType::Npc;
+        record.mechanics = RecordMechanics::default();
+        let body = fixture_creature_body(&record, 22, 80, 15);
+
+        write_fixture_records_with_canonical_bodies(
+            &target_path,
+            vec![record],
+            vec![body],
+            Vec::new(),
+        )?;
+
+        let connection = Connection::open(&target_path)?;
+        let mut statement = connection.prepare(
+            "SELECT metric_key,number_value FROM record_metrics
+             WHERE record_key='bestiary:testCreature' ORDER BY ordinal",
+        )?;
+        let actual = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            actual,
+            vec![
+                ("perception.mod".to_string(), 15.0),
+                ("ac.value".to_string(), 22.0),
+                ("hp.value".to_string(), 80.0),
+                ("hp.max".to_string(), 80.0),
+            ]
+        );
+        let summary: (i64, String) = connection.query_row(
+            "SELECT metric_count,metric_order_sha256 FROM records
+             WHERE record_key='bestiary:testCreature'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let atlas_record::RecordBody::Creature(creature) = fixture_creature_body(
+            &fixture_record(&pack_name, "testCreature", "Test Creature"),
+            22,
+            80,
+            15,
+        );
+        let projected = atlas_record::project_creature_facts(&creature).metrics;
+        assert_eq!(summary.0, i64::try_from(projected.len())?);
+        assert_eq!(
+            summary.1,
+            crate::read::records::children::metric_order_digest(&projected)?
+        );
+        drop(statement);
+        drop(connection);
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn writer_preserves_non_creature_generic_metrics() -> Result<(), Box<dyn std::error::Error>> {
+        let target_path = unique_temp_path("non-creature-generic-metrics.sqlite");
+        let pack_name = PackName::new("actions")?;
+        let record = fixture_record(&pack_name, "testAction", "Test Action");
+
+        write_fixture_records(&target_path, vec![record], Vec::new())?;
+
+        let connection = Connection::open(&target_path)?;
+        let actual: Vec<(String, f64)> = {
+            let mut statement = connection.prepare(
+                "SELECT metric_key,number_value FROM record_metrics
+                 WHERE record_key='actions:testAction' ORDER BY ordinal",
+            )?;
+            statement
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        assert_eq!(
+            actual,
+            vec![
+                ("level.value".to_string(), 1.0),
+                ("rank.value".to_string(), 2.0),
+            ]
+        );
+        drop(connection);
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn writer_rejects_missing_or_unexpected_canonical_creature_bodies() {
+        let pack_name = PackName::new("bestiary").expect("pack parses");
+        let mut creature = fixture_record(&pack_name, "testCreature", "Test Creature");
+        creature.classification.kind = RecordKind::Creature;
+        creature.foundry.document_type = FoundryDocumentType::Actor;
+        creature.foundry.record_type = FoundryRecordType::Npc;
+        creature.mechanics = RecordMechanics::default();
+        let missing_path = unique_temp_path("missing-canonical-creature.sqlite");
+        let missing = write_fixture_records(&missing_path, vec![creature.clone()], Vec::new())
+            .expect_err("a creature must have a matching canonical body");
+        assert!(
+            missing
+                .to_string()
+                .contains("is missing its required canonical body")
+        );
+
+        let mut non_creature = creature.clone();
+        non_creature.classification.kind = RecordKind::Rule;
+        non_creature.foundry.document_type = FoundryDocumentType::Item;
+        non_creature.foundry.record_type = FoundryRecordType::Action;
+        let body = fixture_creature_body(&creature, 22, 80, 15);
+        let unexpected_path = unique_temp_path("unexpected-canonical-creature.sqlite");
+        let unexpected = write_fixture_records_with_canonical_bodies(
+            &unexpected_path,
+            vec![non_creature],
+            vec![body],
+            Vec::new(),
+        )
+        .expect_err("a non-creature must not have a canonical creature body");
+        assert!(
+            unexpected
+                .to_string()
+                .contains("has an unexpected canonical creature body")
+        );
     }
 
     #[test]
@@ -376,53 +542,6 @@ mod tests {
         );
         assert_eq!(loaded.mechanics.metrics[0].key, "level.value");
         assert_eq!(loaded.mechanics.metrics[1].key, "rank.value");
-        assert_eq!(
-            loaded
-                .mechanics
-                .spellcasting_entries
-                .iter()
-                .map(|entry| entry.entry_id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["casting-1", "casting-2"]
-        );
-        assert_eq!(
-            loaded
-                .mechanics
-                .activities
-                .iter()
-                .map(|activity| activity.activity_id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["activity-1", "activity-1"]
-        );
-        assert_eq!(
-            loaded
-                .mechanics
-                .activities
-                .iter()
-                .map(|activity| activity.label.as_str())
-                .collect::<Vec<_>>(),
-            vec!["Arcane Claw", "Empty Activity"]
-        );
-        assert_eq!(
-            loaded.mechanics.activities[0].traits,
-            vec!["attack", "magical"]
-        );
-        assert_eq!(loaded.mechanics.activities[0].rolls[0].base_value, 17);
-        assert_eq!(loaded.mechanics.activities[0].damage[0].formula, "2d6+4");
-        assert_eq!(
-            loaded.mechanics.activities[0].modes[0].damage[0].formula,
-            "3d6+4"
-        );
-        assert!(loaded.mechanics.activities[1].traits.is_empty());
-        assert!(loaded.mechanics.activities[1].rolls.is_empty());
-        assert!(loaded.mechanics.activities[1].damage.is_empty());
-        assert!(loaded.mechanics.activities[1].modes.is_empty());
-        assert_eq!(
-            loaded.mechanics.spellcasting_entries[1].preparation,
-            SpellcastingPreparation::Other("ritual".to_string())
-        );
-        assert_eq!(loaded.mechanics.spellcasting_entries[1].spell_attack, None);
-        assert_eq!(loaded.mechanics.spellcasting_entries[1].spell_dc, None);
         assert!(loaded.content.description().is_some());
         assert!(loaded.content.blurb().is_some());
         assert!(
@@ -499,76 +618,6 @@ mod tests {
                 .to_string()
                 .contains("record_metrics.record_key, record_metrics.ordinal")
         );
-        let duplicate_activity_ordinal = connection.execute(
-            "INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json)
-             SELECT record_key,'duplicate-activity',ordinal,payload_json
-             FROM record_activities
-             WHERE record_key='actions:testAction00' AND ordinal=0",
-            [],
-        );
-        assert!(
-            duplicate_activity_ordinal
-                .expect_err("duplicate activity ordinal must be rejected")
-                .to_string()
-                .contains("record_activities.record_key, record_activities.ordinal")
-        );
-        let duplicate_spellcasting_id = connection.execute(
-            "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json)
-             SELECT record_key,entry_id,99,payload_json
-             FROM record_spellcasting_entries
-             WHERE record_key='actions:testAction00' AND ordinal=0",
-            [],
-        );
-        assert!(
-            duplicate_spellcasting_id
-                .expect_err("duplicate spellcasting child ID must be rejected")
-                .to_string()
-                .contains(
-                    "record_spellcasting_entries.record_key, record_spellcasting_entries.entry_id"
-                )
-        );
-        let first_activity_payload: String = connection.query_row(
-            "SELECT payload_json FROM record_activities
-             WHERE record_key='actions:testAction00' AND ordinal=0",
-            [],
-            |row| row.get(0),
-        )?;
-        let second_activity_payload: String = connection.query_row(
-            "SELECT payload_json FROM record_activities
-             WHERE record_key='actions:testAction00' AND ordinal=1",
-            [],
-            |row| row.get(0),
-        )?;
-        connection.execute(
-            "UPDATE record_activities SET payload_json=?1
-             WHERE record_key='actions:testAction00' AND ordinal=0",
-            [&second_activity_payload],
-        )?;
-        connection.execute(
-            "UPDATE record_activities SET payload_json=?1
-             WHERE record_key='actions:testAction00' AND ordinal=1",
-            [&first_activity_payload],
-        )?;
-        let reordered =
-            crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?.validate()?;
-        assert_eq!(reordered.status, ValidationStatus::Error, "{reordered:?}");
-        assert!(reordered.diagnostics.iter().any(|diagnostic| {
-            diagnostic.key.as_deref()
-                == Some("record_activities[actions:testAction00].order_sha256")
-        }));
-        connection.execute(
-            "UPDATE record_activities SET payload_json=?1
-             WHERE record_key='actions:testAction00' AND ordinal=0",
-            [&first_activity_payload],
-        )?;
-        connection.execute(
-            "UPDATE record_activities SET payload_json=?1
-             WHERE record_key='actions:testAction00' AND ordinal=1",
-            [&second_activity_payload],
-        )?;
-        let restored =
-            crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?.validate()?;
-        assert_eq!(restored.status, ValidationStatus::Ok, "{restored:?}");
         let metric_count: i64 = connection.query_row(
             "SELECT COUNT(*) FROM metric_key_catalog WHERE metric_key = 'level.value'",
             [],
@@ -589,308 +638,6 @@ mod tests {
         assert_eq!(reference_count, references_len as i64);
 
         let _ = fs::remove_file(&target_path);
-        Ok(())
-    }
-
-    #[test]
-    fn shobhad_duplicate_activity_ids_round_trip_by_parent_ordinal()
-    -> Result<(), Box<dyn std::error::Error>> {
-        const HUNTER_KEY: &str = "pfs-season-3-bestiary:EB00f6ADElWInuix";
-        const HUNTER_ACTIVITY_ID: &str = "AMqdiX2GpuYvsQOp";
-        const SNIPER_KEY: &str = "strength-of-thousands-bestiary:RJKVH3fxPEiTCwt5";
-        const SNIPER_ACTIVITY_ID: &str = "lLXZFku1wFZoAPdz";
-
-        let target_path = unique_temp_path("shobhad-activity-identities.sqlite");
-        let hunter_pack = PackName::new("pfs-season-3-bestiary")?;
-        let sniper_pack = PackName::new("strength-of-thousands-bestiary")?;
-        let mut hunter = fixture_record(&hunter_pack, "EB00f6ADElWInuix", "Shobhad Hunter");
-        hunter.mechanics.activities = shobhad_activities(6, HUNTER_ACTIVITY_ID);
-        let mut sniper = fixture_record(&sniper_pack, "RJKVH3fxPEiTCwt5", "Shobhad Sniper");
-        sniper.mechanics.activities = shobhad_activities(2, SNIPER_ACTIVITY_ID);
-        let expected = vec![hunter, sniper];
-
-        write_fixture_records(&target_path, expected.clone(), Vec::new())?;
-        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
-        let full = reader.load_record_set()?.records;
-        let requested = vec![RecordKey::parse(SNIPER_KEY)?, RecordKey::parse(HUNTER_KEY)?];
-        let by_key = reader.load_records_by_key(&requested)?;
-
-        for (records, path) in [(&full, "full"), (&by_key, "by_key")] {
-            let hunter = records
-                .iter()
-                .find(|record| record.identity.key.to_string() == HUNTER_KEY)
-                .expect("Shobhad Hunter must hydrate");
-            assert_shobhad_duplicate_pair(
-                &hunter.mechanics.activities,
-                6,
-                HUNTER_ACTIVITY_ID,
-                path,
-            );
-            let sniper = records
-                .iter()
-                .find(|record| record.identity.key.to_string() == SNIPER_KEY)
-                .expect("Shobhad Sniper must hydrate");
-            assert_shobhad_duplicate_pair(
-                &sniper.mechanics.activities,
-                2,
-                SNIPER_ACTIVITY_ID,
-                path,
-            );
-        }
-        assert_eq!(full, expected);
-        assert_eq!(by_key.len(), 2);
-
-        let _ = fs::remove_file(&target_path);
-        Ok(())
-    }
-
-    #[test]
-    fn interleaved_multi_parent_ordered_mechanics_round_trip_full_and_by_key()
-    -> Result<(), Box<dyn std::error::Error>> {
-        const FIRST_KEY: &str = "actions:testAction00";
-        const SECOND_KEY: &str = "actions:testAction99";
-
-        let target_path = unique_temp_path("interleaved-ordered-mechanics.sqlite");
-        let pack_name = PackName::new("actions")?;
-        let mut first = fixture_record(&pack_name, "testAction00", "Test Action 00");
-        first.mechanics.metrics[0].value = MetricValue::Number(11.0);
-        first.mechanics.metrics[1].value = MetricValue::Number(12.0);
-        first.mechanics.activities[0].activity_id = "first-duplicate".to_string();
-        first.mechanics.activities[1].activity_id = "first-duplicate".to_string();
-        first.mechanics.spellcasting_entries[0].label = "First Prepared".to_string();
-        first.mechanics.spellcasting_entries[1].label = "First Ritual".to_string();
-
-        let mut second = fixture_record(&pack_name, "testAction99", "Test Action 99");
-        second.mechanics.metrics[0].value = MetricValue::Number(91.0);
-        second.mechanics.metrics[1].value = MetricValue::Number(92.0);
-        second.mechanics.activities[0].activity_id = "second-duplicate".to_string();
-        second.mechanics.activities[0].label = "Second Arcane Claw".to_string();
-        second.mechanics.activities[1].activity_id = "second-duplicate".to_string();
-        second.mechanics.activities[1].label = "Second Empty Activity".to_string();
-        second.mechanics.spellcasting_entries[0].entry_id = "second-casting-1".to_string();
-        second.mechanics.spellcasting_entries[0].label = "Second Prepared".to_string();
-        second.mechanics.spellcasting_entries[1].entry_id = "second-casting-2".to_string();
-        second.mechanics.spellcasting_entries[1].label = "Second Ritual".to_string();
-
-        let expected = vec![first, second];
-        write_fixture_records(&target_path, expected.clone(), Vec::new())?;
-
-        let connection = Connection::open(&target_path)?;
-        reinsert_ordered_mechanics_interleaved(&connection)?;
-        for table_name in [
-            "record_metrics",
-            "record_activities",
-            "record_spellcasting_entries",
-        ] {
-            assert_interleaved_storage_order(&connection, table_name, FIRST_KEY, SECOND_KEY)?;
-        }
-        drop(connection);
-
-        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
-        let full = reader.load_record_set()?.records;
-        let reversed_keys = vec![RecordKey::parse(SECOND_KEY)?, RecordKey::parse(FIRST_KEY)?];
-        let by_key = reader.load_records_by_key(&reversed_keys)?;
-
-        for (hydration_path, records) in [("full", &full), ("by_key", &by_key)] {
-            assert_eq!(
-                records, &expected,
-                "{hydration_path} hydration must preserve complete typed records"
-            );
-            for expected_record in &expected {
-                let loaded = records
-                    .iter()
-                    .find(|record| record.identity.key == expected_record.identity.key)
-                    .expect("requested parent must hydrate");
-                assert_eq!(
-                    loaded.mechanics.metrics, expected_record.mechanics.metrics,
-                    "{hydration_path} metrics must retain parent-local ordinal order"
-                );
-                assert_eq!(
-                    loaded.mechanics.activities, expected_record.mechanics.activities,
-                    "{hydration_path} activities must retain parent-local ordinal order"
-                );
-                assert_eq!(
-                    loaded.mechanics.spellcasting_entries,
-                    expected_record.mechanics.spellcasting_entries,
-                    "{hydration_path} spellcasting must retain parent-local ordinal order"
-                );
-                assert_eq!(
-                    loaded.mechanics.activities[0].activity_id,
-                    loaded.mechanics.activities[1].activity_id,
-                    "{hydration_path} must preserve duplicate parent-local activity_id payloads"
-                );
-                assert_ne!(
-                    loaded.mechanics.activities[0], loaded.mechanics.activities[1],
-                    "{hydration_path} must preserve distinct Activity bodies at distinct ordinals"
-                );
-            }
-        }
-
-        let validation = reader.validate()?;
-        assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
-
-        let _ = fs::remove_file(&target_path);
-        Ok(())
-    }
-
-    #[test]
-    fn ordered_mechanics_reject_complete_negative_mutation_matrix()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let base_path = unique_temp_path("ordered-mechanics-mutation-base.sqlite");
-        let pack_name = PackName::new("actions")?;
-        let source = fixture_record(&pack_name, "testAction00", "Test Action 00");
-        let mut target = fixture_record(&pack_name, "testAction99", "Test Action 99");
-        target.mechanics.metrics.clear();
-        target.mechanics.activities.clear();
-        target.mechanics.spellcasting_entries.clear();
-        write_fixture_records(&base_path, vec![source, target], Vec::new())?;
-
-        for (name, sql, expected_key) in [
-            (
-                "metric-missing",
-                "UPDATE records SET metric_count=3 WHERE record_key='actions:testAction00'",
-                "record_metrics[actions:testAction00].count",
-            ),
-            (
-                "activity-missing",
-                "UPDATE records SET activity_count=3 WHERE record_key='actions:testAction00'",
-                "record_activities[actions:testAction00].count",
-            ),
-            (
-                "spellcasting-missing",
-                "UPDATE records SET spellcasting_entry_count=3 WHERE record_key='actions:testAction00'",
-                "record_spellcasting_entries[actions:testAction00].count",
-            ),
-            (
-                "metric-extra",
-                "UPDATE records SET metric_count=1 WHERE record_key='actions:testAction00'",
-                "record_metrics[actions:testAction00].count",
-            ),
-            (
-                "activity-extra",
-                "UPDATE records SET activity_count=1 WHERE record_key='actions:testAction00'",
-                "record_activities[actions:testAction00].count",
-            ),
-            (
-                "spellcasting-extra",
-                "UPDATE records SET spellcasting_entry_count=1 WHERE record_key='actions:testAction00'",
-                "record_spellcasting_entries[actions:testAction00].count",
-            ),
-            (
-                "metric-deleted",
-                "DELETE FROM record_metrics WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_metrics[actions:testAction00].count",
-            ),
-            (
-                "activity-deleted",
-                "DELETE FROM record_activities WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_activities[actions:testAction00].count",
-            ),
-            (
-                "spellcasting-deleted",
-                "DELETE FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_spellcasting_entries[actions:testAction00].count",
-            ),
-            (
-                "metric-duplicated",
-                "INSERT INTO record_metrics (record_key,ordinal,metric_domain,metric_key,value_type,number_value) VALUES ('actions:testAction00',2,'item','duplicate.metric','number',1)",
-                "record_metrics[actions:testAction00].count",
-            ),
-            (
-                "activity-duplicated",
-                "INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json) SELECT record_key,activity_id,2,payload_json FROM record_activities WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_activities[actions:testAction00].count",
-            ),
-            (
-                "spellcasting-duplicated",
-                "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json) SELECT record_key,'casting-3',2,replace(payload_json,'casting-2','casting-3') FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_spellcasting_entries[actions:testAction00].count",
-            ),
-            (
-                "metric-reordered",
-                "UPDATE record_metrics SET ordinal=99 WHERE record_key='actions:testAction00' AND ordinal=0; UPDATE record_metrics SET ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1; UPDATE record_metrics SET ordinal=1 WHERE record_key='actions:testAction00' AND ordinal=99",
-                "record_metrics[actions:testAction00].order_sha256",
-            ),
-            (
-                "activity-reordered",
-                "UPDATE record_activities SET ordinal=99 WHERE record_key='actions:testAction00' AND ordinal=0; UPDATE record_activities SET ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1; UPDATE record_activities SET ordinal=1 WHERE record_key='actions:testAction00' AND ordinal=99",
-                "record_activities[actions:testAction00].order_sha256",
-            ),
-            (
-                "spellcasting-reordered",
-                "UPDATE record_spellcasting_entries SET ordinal=99 WHERE record_key='actions:testAction00' AND ordinal=0; UPDATE record_spellcasting_entries SET ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1; UPDATE record_spellcasting_entries SET ordinal=1 WHERE record_key='actions:testAction00' AND ordinal=99",
-                "record_spellcasting_entries[actions:testAction00].order_sha256",
-            ),
-            (
-                "metric-reparented",
-                "UPDATE record_metrics SET record_key='actions:testAction99',ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_metrics[actions:testAction00].count",
-            ),
-            (
-                "activity-reparented",
-                "UPDATE record_activities SET record_key='actions:testAction99',ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_activities[actions:testAction00].count",
-            ),
-            (
-                "spellcasting-reparented",
-                "UPDATE record_spellcasting_entries SET record_key='actions:testAction99',ordinal=0 WHERE record_key='actions:testAction00' AND ordinal=1",
-                "record_spellcasting_entries[actions:testAction00].count",
-            ),
-            (
-                "activity-malformed",
-                "UPDATE record_activities SET payload_json='{\"bad\":true}' WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_activities[actions:testAction00:0].payload_json",
-            ),
-            (
-                "spellcasting-malformed",
-                "UPDATE record_spellcasting_entries SET payload_json='{\"bad\":true}' WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_spellcasting_entries[actions:testAction00:casting-1].payload_json",
-            ),
-            (
-                "activity-payload-id-divergence",
-                "UPDATE record_activities SET activity_id='relational-only' WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_activities[actions:testAction00:0].payload_json",
-            ),
-            (
-                "spellcasting-payload-id-divergence",
-                "UPDATE record_spellcasting_entries SET entry_id='relational-only' WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_spellcasting_entries[actions:testAction00:relational-only].payload_json",
-            ),
-        ] {
-            assert_mechanics_mutation_rejected(&base_path, name, sql, expected_key)?;
-        }
-        assert_malformed_metric_mutation_rejected(&base_path)?;
-
-        let connection = Connection::open(&base_path)?;
-        for (name, sql, constraint) in [
-            (
-                "metric-duplicate-ordinal",
-                "INSERT INTO record_metrics (record_key,ordinal,metric_domain,metric_key,value_type,number_value) VALUES ('actions:testAction00',0,'item','duplicate.metric','number',1)",
-                "record_metrics.record_key, record_metrics.ordinal",
-            ),
-            (
-                "activity-duplicate-ordinal",
-                "INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json) SELECT record_key,'duplicate',ordinal,payload_json FROM record_activities WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_activities.record_key, record_activities.ordinal",
-            ),
-            (
-                "spellcasting-duplicate-ordinal",
-                "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json) SELECT record_key,'casting-3',ordinal,replace(payload_json,'casting-1','casting-3') FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_spellcasting_entries.record_key, record_spellcasting_entries.ordinal",
-            ),
-            (
-                "spellcasting-duplicate-id",
-                "INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json) SELECT record_key,entry_id,99,payload_json FROM record_spellcasting_entries WHERE record_key='actions:testAction00' AND ordinal=0",
-                "record_spellcasting_entries.record_key, record_spellcasting_entries.entry_id",
-            ),
-        ] {
-            let error = connection
-                .execute_batch(sql)
-                .expect_err("duplicate ordered child identity must be rejected");
-            assert!(error.to_string().contains(constraint), "{name}: {error}");
-        }
-
-        let _ = fs::remove_file(&base_path);
         Ok(())
     }
 
@@ -1305,6 +1052,20 @@ mod tests {
         records: Vec<AtlasRecord>,
         remaster_links: Vec<RemasterLink>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        write_fixture_records_with_canonical_bodies(
+            target_path,
+            records,
+            Vec::new(),
+            remaster_links,
+        )
+    }
+
+    fn write_fixture_records_with_canonical_bodies(
+        target_path: &Path,
+        records: Vec<AtlasRecord>,
+        canonical_bodies: Vec<atlas_record::RecordBody>,
+        remaster_links: Vec<RemasterLink>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut pack_counts = BTreeMap::<String, usize>::new();
         for record in &records {
             *pack_counts
@@ -1315,10 +1076,15 @@ mod tests {
             .into_iter()
             .map(|(name, record_count)| {
                 let pack_name = PackName::new(name.as_str()).expect("fixture pack name parses");
+                let document_type = records
+                    .iter()
+                    .find(|record| record.identity.pack().as_str() == name)
+                    .map(|record| record.foundry.document_type.as_str())
+                    .unwrap_or("Item");
                 IndexBuildPack {
                     name: pack_name,
                     label: name.clone(),
-                    document_type: "Item".to_string(),
+                    document_type: document_type.to_string(),
                     declared_path: format!("packs/{name}"),
                     resolved_path: Path::new("packs").join(&name),
                     record_count,
@@ -1330,7 +1096,7 @@ mod tests {
             source_record_count: records.len(),
             packs,
             records,
-            canonical_bodies: Vec::new(),
+            canonical_bodies,
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links,
@@ -1342,193 +1108,82 @@ mod tests {
         Ok(())
     }
 
-    fn shobhad_activities(prefix_count: usize, duplicate_id: &str) -> Vec<MechanicActivity> {
-        let mut activities = (0..prefix_count)
-            .map(|ordinal| MechanicActivity {
-                activity_id: format!("fixture-prefix-{ordinal}"),
-                label: format!("Prefix {ordinal}"),
-                kind: MechanicActivityKind::Other,
-                traits: Vec::new(),
-                compendium_source: None,
-                usage: MechanicActivityUsage::Unlimited,
-                rolls: Vec::new(),
-                damage: Vec::new(),
-                modes: Vec::new(),
-            })
-            .collect::<Vec<_>>();
-        activities.extend([0, 1].map(|duplicate_ordinal| MechanicActivity {
-            activity_id: duplicate_id.to_string(),
-            label: "Four-Armed".to_string(),
-            kind: MechanicActivityKind::Other,
-            traits: Vec::new(),
-            compendium_source: None,
-            usage: if duplicate_ordinal == 0 {
-                MechanicActivityUsage::Limited
-            } else {
-                MechanicActivityUsage::Unlimited
+    fn fixture_creature_body(
+        record: &AtlasRecord,
+        armor_class: i64,
+        hit_points: i64,
+        perception: i64,
+    ) -> atlas_record::RecordBody {
+        use atlas_record::{CreatureFact, CreatureSourceField, FactValue};
+
+        macro_rules! missing {
+            ($field:expr) => {
+                CreatureFact::source(FactValue::Missing, $field)
+            };
+        }
+
+        atlas_record::RecordBody::Creature(atlas_record::CreatureRecord {
+            identity: atlas_record::CreatureIdentity {
+                record_key: record.identity.key.clone(),
+                source_id: atlas_record::CreatureSourceId::new(record.identity.id().as_str())
+                    .expect("fixture source ID"),
+                name: record.identity.name.clone(),
+                family: atlas_record::CreatureFamily::Npc,
             },
-            rolls: Vec::new(),
-            damage: Vec::new(),
-            modes: Vec::new(),
-        }));
-        activities
-    }
-
-    fn assert_shobhad_duplicate_pair(
-        activities: &[MechanicActivity],
-        first_ordinal: usize,
-        activity_id: &str,
-        hydration_path: &str,
-    ) {
-        let pair = &activities[first_ordinal..first_ordinal + 2];
-        assert_eq!(
-            pair.iter()
-                .map(|activity| activity.activity_id.as_str())
-                .collect::<Vec<_>>(),
-            vec![activity_id, activity_id],
-            "{hydration_path} hydration must preserve duplicate activity_id payloads"
-        );
-        assert!(pair.iter().all(|activity| activity.label == "Four-Armed"));
-        assert!(
-            pair.iter()
-                .all(|activity| activity.kind == MechanicActivityKind::Other)
-        );
-        assert_eq!(pair[0].usage, MechanicActivityUsage::Limited);
-        assert_eq!(pair[1].usage, MechanicActivityUsage::Unlimited);
-    }
-
-    fn reinsert_ordered_mechanics_interleaved(
-        connection: &Connection,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        connection.execute_batch(
-            "CREATE TEMP TABLE interleaved_metrics AS SELECT * FROM record_metrics;
-             CREATE TEMP TABLE interleaved_activities AS SELECT * FROM record_activities;
-             CREATE TEMP TABLE interleaved_spellcasting AS
-                 SELECT * FROM record_spellcasting_entries;
-
-             DELETE FROM record_metrics;
-             INSERT INTO record_metrics (
-                 record_key,ordinal,metric_domain,metric_key,value_type,
-                 number_value,text_value,bool_value
-             )
-             SELECT record_key,ordinal,metric_domain,metric_key,value_type,
-                    number_value,text_value,bool_value
-             FROM interleaved_metrics
-             ORDER BY ordinal DESC,record_key DESC;
-
-             DELETE FROM record_activities;
-             INSERT INTO record_activities (record_key,activity_id,ordinal,payload_json)
-             SELECT record_key,activity_id,ordinal,payload_json
-             FROM interleaved_activities
-             ORDER BY ordinal DESC,record_key DESC;
-
-             DELETE FROM record_spellcasting_entries;
-             INSERT INTO record_spellcasting_entries (record_key,entry_id,ordinal,payload_json)
-             SELECT record_key,entry_id,ordinal,payload_json
-             FROM interleaved_spellcasting
-             ORDER BY ordinal DESC,record_key DESC;
-
-             DROP TABLE interleaved_metrics;
-             DROP TABLE interleaved_activities;
-             DROP TABLE interleaved_spellcasting;",
-        )?;
-        Ok(())
-    }
-
-    fn assert_interleaved_storage_order(
-        connection: &Connection,
-        table_name: &str,
-        first_key: &str,
-        second_key: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut statement = connection.prepare(&format!(
-            "SELECT record_key,ordinal FROM {table_name} ORDER BY rowid"
-        ))?;
-        let actual = statement
-            .query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-        assert_eq!(
-            actual,
-            vec![
-                (second_key.to_string(), 1),
-                (first_key.to_string(), 1),
-                (second_key.to_string(), 0),
-                (first_key.to_string(), 0),
-            ],
-            "{table_name} rows must be physically interleaved across parents with non-sorted parent-local ordinals"
-        );
-        Ok(())
-    }
-
-    fn assert_mechanics_mutation_rejected(
-        base_path: &Path,
-        name: &str,
-        sql: &str,
-        expected_key: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let path = unique_temp_path(&format!("ordered-mechanics-{name}.sqlite"));
-        fs::copy(base_path, &path)?;
-        let connection = Connection::open(&path)?;
-        connection.execute_batch(sql)?;
-        drop(connection);
-
-        let report = crate::SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
-        assert_eq!(report.status, ValidationStatus::Error, "{name}: {report:?}");
-        assert_eq!(
-            report.code,
-            crate::ValidationCode::ArtifactContractViolation,
-            "{name}: {report:?}"
-        );
-        assert!(
-            report.diagnostics.iter().any(|diagnostic| {
-                diagnostic.family == crate::ArtifactValidationFamily::Data
-                    && diagnostic.key.as_deref() == Some(expected_key)
-                    && diagnostic.expected.is_some()
-                    && diagnostic.actual.is_some()
-            }),
-            "{name}: expected typed diagnostic `{expected_key}`, got {report:?}"
-        );
-        let _ = fs::remove_file(path);
-        Ok(())
-    }
-
-    fn assert_malformed_metric_mutation_rejected(
-        base_path: &Path,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let path = unique_temp_path("ordered-mechanics-metric-malformed.sqlite");
-        fs::copy(base_path, &path)?;
-        let connection = Connection::open(&path)?;
-        connection.execute_batch(
-            "PRAGMA ignore_check_constraints=ON; UPDATE record_metrics SET value_type='text',number_value=NULL,text_value=NULL WHERE record_key='actions:testAction00' AND ordinal=0",
-        )?;
-        drop(connection);
-
-        let report = crate::SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
-        assert_eq!(report.status, ValidationStatus::Error, "{report:?}");
-        assert_eq!(
-            report.code,
-            crate::ValidationCode::ArtifactContractViolation,
-            "{report:?}"
-        );
-        let diagnostic = report
-            .diagnostics
-            .first()
-            .expect("malformed metric produces a typed diagnostic");
-        assert_eq!(diagnostic.family, crate::ArtifactValidationFamily::Data);
-        assert_eq!(diagnostic.key.as_deref(), Some("record_metrics:text_value"));
-        assert_eq!(
-            diagnostic.message,
-            "metric value shape `record_metrics:text_value` is inconsistent with value_type"
-        );
-        assert_eq!(
-            diagnostic.expected.as_deref(),
-            Some("exactly one matching value column")
-        );
-        assert_eq!(diagnostic.actual.as_deref(), Some("1 invalid rows"));
-        let _ = fs::remove_file(path);
-        Ok(())
+            level: missing!(CreatureSourceField::Level),
+            rarity: missing!(CreatureSourceField::Rarity),
+            traits: missing!(CreatureSourceField::Traits),
+            size: missing!(CreatureSourceField::Size),
+            publication: missing!(CreatureSourceField::Publication),
+            adjustment: missing!(CreatureSourceField::Adjustment),
+            source_alliance: missing!(CreatureSourceField::SourceAlliance),
+            perception: CreatureFact::source(
+                FactValue::Value(atlas_record::CreaturePerception {
+                    modifier: FactValue::Value(perception),
+                    details: FactValue::Missing,
+                    has_vision: FactValue::Missing,
+                    senses: FactValue::Value(Vec::new()),
+                }),
+                CreatureSourceField::Perception,
+            ),
+            initiative: missing!(CreatureSourceField::Initiative),
+            languages: missing!(CreatureSourceField::Languages),
+            skills: missing!(CreatureSourceField::Skills),
+            legacy_abilities: missing!(CreatureSourceField::LegacyAbilities),
+            defenses: CreatureFact::source(
+                FactValue::Value(atlas_record::CreatureDefenses {
+                    armor_class: FactValue::Value(atlas_record::CreatureArmorClass {
+                        value: FactValue::Value(armor_class),
+                        details: FactValue::Missing,
+                    }),
+                    hit_points: FactValue::Value(atlas_record::CreatureHitPoints {
+                        value: FactValue::Value(atlas_record::CreatureNumber::Integer(hit_points)),
+                        maximum: FactValue::Value(hit_points),
+                        temporary: FactValue::Missing,
+                        temporary_maximum: FactValue::Missing,
+                        details: FactValue::Missing,
+                    }),
+                    hardness: FactValue::Missing,
+                    shield: FactValue::Missing,
+                    saves: FactValue::Missing,
+                    all_saves_note: FactValue::Missing,
+                    immunities: FactValue::Missing,
+                    resistances: FactValue::Missing,
+                    weaknesses: FactValue::Missing,
+                }),
+                CreatureSourceField::Defenses,
+            ),
+            movement: missing!(CreatureSourceField::Movement),
+            resources: missing!(CreatureSourceField::Resources),
+            embedded_entities: missing!(CreatureSourceField::EmbeddedEntities),
+            content: atlas_record::OwnedRichContent::default(),
+            provenance: atlas_record::CreatureProvenance {
+                source_path: record.provenance.source_path.clone(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "fixture".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+            },
+        })
     }
 
     fn assert_data_mutation_rejected(
@@ -1672,76 +1327,6 @@ mod tests {
                     hands_requirement: Some("1".to_string()),
                     damage_types: vec!["mental".to_string()],
                 }),
-                spellcasting_entries: vec![
-                    SpellcastingEntryMechanics {
-                        entry_id: "casting-1".to_string(),
-                        label: "Arcane Prepared Spells".to_string(),
-                        preparation: SpellcastingPreparation::Prepared,
-                        spell_attack: Some(17),
-                        spell_dc: Some(27),
-                    },
-                    SpellcastingEntryMechanics {
-                        entry_id: "casting-2".to_string(),
-                        label: "Rituals".to_string(),
-                        preparation: SpellcastingPreparation::Other("ritual".to_string()),
-                        spell_attack: None,
-                        spell_dc: None,
-                    },
-                ],
-                activities: vec![
-                    MechanicActivity {
-                        activity_id: "activity-1".to_string(),
-                        label: "Arcane Claw".to_string(),
-                        kind: MechanicActivityKind::Strike,
-                        traits: vec!["attack".to_string(), "magical".to_string()],
-                        compendium_source: Some(
-                            "Compendium.pf2e.actionspf2e.Item.test".to_string(),
-                        ),
-                        usage: MechanicActivityUsage::Limited,
-                        rolls: vec![ActivityRoll {
-                            roll_id: "attack".to_string(),
-                            label: "Attack".to_string(),
-                            base_value: 17,
-                            surface: ActivityRollSurface::AttackRoll,
-                            ability: Some(ActivityRollAbility::Strength),
-                        }],
-                        damage: vec![DamageExpression {
-                            damage_id: "base".to_string(),
-                            label: Some("slashing".to_string()),
-                            formula: "2d6+4".to_string(),
-                            damage_type: Some("slashing".to_string()),
-                            effect_kind: DamageEffectKind::Damage,
-                            ability: Some(ActivityRollAbility::Strength),
-                        }],
-                        modes: vec![MechanicActivityMode {
-                            mode_id: "two-action".to_string(),
-                            label: "Two Actions".to_string(),
-                            sort: 1,
-                            target: Some("one creature".to_string()),
-                            range: Some("reach 10 feet".to_string()),
-                            time: Some("2 actions".to_string()),
-                            damage: vec![DamageExpression {
-                                damage_id: "mode".to_string(),
-                                label: None,
-                                formula: "3d6+4".to_string(),
-                                damage_type: Some("force".to_string()),
-                                effect_kind: DamageEffectKind::Damage,
-                                ability: None,
-                            }],
-                        }],
-                    },
-                    MechanicActivity {
-                        activity_id: "activity-1".to_string(),
-                        label: "Empty Activity".to_string(),
-                        kind: MechanicActivityKind::Other,
-                        traits: Vec::new(),
-                        compendium_source: None,
-                        usage: MechanicActivityUsage::Unlimited,
-                        rolls: Vec::new(),
-                        damage: Vec::new(),
-                        modes: Vec::new(),
-                    },
-                ],
             },
             content: RecordContent {
                 documents: vec![

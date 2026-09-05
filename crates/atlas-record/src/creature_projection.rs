@@ -3,20 +3,18 @@ use std::collections::BTreeSet;
 use atlas_domain::MetricDomain;
 
 use crate::{
-    ActorMechanics, CreatureDefenses, CreatureMovementMode, CreatureNumber, CreatureRecord,
-    CreatureSave, CreatureSkill, CreatureSkillKind, MetricRow, MetricValue, metrics,
+    CreatureDefenses, CreatureMovementMode, CreatureNumber, CreatureRecord, CreatureSave,
+    CreatureSkill, CreatureSkillKind, MetricRow, MetricValue, metrics,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreatureFactProjection {
     pub metrics: Vec<MetricRow>,
-    pub actor_side_facts: ActorMechanics,
 }
 
 pub fn project_creature_facts(creature: &CreatureRecord) -> CreatureFactProjection {
     CreatureFactProjection {
         metrics: project_metrics(creature),
-        actor_side_facts: project_actor_side_facts(creature),
     }
 }
 
@@ -141,72 +139,6 @@ fn save_value(save: &CreatureSave) -> Option<i64> {
     save.value.as_value().copied()
 }
 
-fn project_actor_side_facts(creature: &CreatureRecord) -> ActorMechanics {
-    let size = creature
-        .size
-        .value
-        .as_value()
-        .map(|size| size.as_source().to_string());
-    let languages = creature
-        .languages
-        .value
-        .as_value()
-        .and_then(|languages| languages.values.as_value())
-        .map(|values| {
-            values
-                .iter()
-                .map(|value| value.as_str().to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-    let mut speed_types = creature
-        .movement
-        .value
-        .as_value()
-        .map(|speeds| {
-            speeds
-                .iter()
-                .map(|speed| movement_slug(&speed.mode))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    speed_types.sort();
-    speed_types.dedup();
-    let senses = creature
-        .perception
-        .value
-        .as_value()
-        .and_then(|perception| perception.senses.as_value())
-        .map(|senses| {
-            senses
-                .iter()
-                .map(|sense| sense.sense_type.as_str().to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-    let defenses = creature.defenses.value.as_value();
-    ActorMechanics {
-        size,
-        languages,
-        speed_types,
-        senses,
-        immunities: project_iwr(defenses.and_then(|value| value.immunities.as_value())),
-        resistances: project_iwr(defenses.and_then(|value| value.resistances.as_value())),
-        weaknesses: project_iwr(defenses.and_then(|value| value.weaknesses.as_value())),
-        disable_text: None,
-        disable_skills: Vec::new(),
-        is_complex: false,
-    }
-}
-
-fn project_iwr(entries: Option<&Vec<crate::CreatureIwr>>) -> Vec<String> {
-    entries
-        .into_iter()
-        .flatten()
-        .map(|entry| entry.iwr_type.as_str().to_string())
-        .collect()
-}
-
 fn skill_metric_segment(skill: &CreatureSkill) -> Option<String> {
     match skill.kind {
         CreatureSkillKind::Lore => Some(metrics::normalize_metric_key_segment(&skill.label)),
@@ -282,12 +214,12 @@ mod tests {
         CreatureIwr, CreatureIwrKind, CreatureLanguages, CreatureNumber, CreaturePerception,
         CreatureProvenance, CreaturePublication, CreatureSave, CreatureSaveKind, CreatureSaves,
         CreatureSense, CreatureSize, CreatureSkill, CreatureSourceField, CreatureSourceId,
-        CreatureSpeed, FactValue, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, IwrType, Language, PresentationBlock, RecordClassification,
-        RecordContent, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
-        RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility, SenseType,
-        UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
-        build_record_fts_projection, build_record_presentation_document,
+        CreatureSpeed, FactValue, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        IwrType, Language, PresentationBlock, RecordBody, RecordClassification, RecordContent,
+        RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
+        RecordTaxonomy, RecordTiming, RecordVisibility, SenseType, UnsupportedSourceReason,
+        UnsupportedSourceShape, UnsupportedSourceValue, build_search_fts_projection,
+        build_search_presentation_document_with_content_filter,
     };
 
     #[test]
@@ -305,14 +237,13 @@ mod tests {
         assert_number(&projection.metrics, "speed.land.value", 25.0);
         assert_number(&projection.metrics, "speed.fly.value", 40.0);
         assert_number(&projection.metrics, "sense.scent.range", 60.0);
-        assert_eq!(projection.actor_side_facts.size.as_deref(), Some("med"));
-        assert_eq!(projection.actor_side_facts.languages, ["aklo", "common"]);
-        assert_eq!(projection.actor_side_facts.speed_types, ["fly", "land"]);
-        assert_eq!(projection.actor_side_facts.senses, ["darkvision", "scent"]);
-        assert_eq!(projection.actor_side_facts.resistances, ["mental"]);
-
-        let record = projected_record(&creature, projection);
-        let presentation = build_record_presentation_document(&record);
+        let record = projected_record(&creature);
+        let canonical_body = RecordBody::Creature(creature);
+        let presentation = build_search_presentation_document_with_content_filter(
+            &record,
+            Some(&canonical_body),
+            |_| true,
+        );
         assert!(
             presentation.sections.iter().any(|section| {
                 section.blocks.iter().any(|block| {
@@ -320,16 +251,16 @@ mod tests {
                         block,
                         PresentationBlock::FactList(facts)
                             if facts.iter().any(|fact| {
-                            fact.label == "Skills"
-                                && fact.value.contains("Arcana +18")
-                                && fact.value.contains("Theater lore +25")
+                                fact.label == "Arcana" && fact.value == "18"
+                            }) && facts.iter().any(|fact| {
+                                fact.label == "Theater Lore" && fact.value == "25"
                             })
                     )
                 })
             }),
             "{presentation:#?}"
         );
-        let fts = build_record_fts_projection(&record, &[]);
+        let fts = build_search_fts_projection(&record, &[], Some(&canonical_body));
         assert!(fts.metric_terms.contains("Arcana"));
         assert!(fts.metric_terms.contains("Theater lore"));
         assert!(fts.metric_terms.contains("Fly Speed"));
@@ -359,8 +290,6 @@ mod tests {
         assert!(metric(&projection.metrics, "perception.mod").is_none());
         assert!(metric(&projection.metrics, "ac.value").is_none());
         assert_number(&projection.metrics, "speed.land.value", 0.0);
-        assert!(projection.actor_side_facts.languages.len() == 2);
-        assert_eq!(projection.actor_side_facts.speed_types, ["land"]);
     }
 
     #[test]
@@ -510,10 +439,7 @@ mod tests {
         }
     }
 
-    fn projected_record(
-        creature: &CreatureRecord,
-        projection: CreatureFactProjection,
-    ) -> crate::AtlasRecord {
+    fn projected_record(creature: &CreatureRecord) -> crate::AtlasRecord {
         crate::AtlasRecord {
             identity: RecordIdentity {
                 key: creature.identity.record_key.clone(),
@@ -543,12 +469,7 @@ mod tests {
             },
             requirements: RecordRequirements::default(),
             timing: RecordTiming::default(),
-            mechanics: RecordMechanics {
-                metrics: projection.metrics,
-                document: FoundryDocumentMechanics::Actor(projection.actor_side_facts),
-                spellcasting_entries: Vec::new(),
-                activities: Vec::new(),
-            },
+            mechanics: RecordMechanics::default(),
             content: RecordContent::default(),
             variant: None,
             visibility: RecordVisibility::default(),

@@ -6,7 +6,8 @@ use crate::{
     MechanicBaseValue, MechanicFact, MechanicSourceFamily, MechanicSurface, PresentationBlock,
     PresentationFact, PresentationSection, PresentationSectionKind, RecordBody,
     RecordContentDocument, RecordPresentationDocument,
-    build_record_presentation_document_with_content_filter, label_for_row, project_creature_facts,
+    build_record_presentation_document_with_content_filter, label_for_row,
+    presentation_recipe::searchable_content_sections, project_creature_facts,
     project_creature_mechanics,
 };
 
@@ -74,7 +75,10 @@ pub fn build_search_presentation_document_with_content_filter(
         )
     });
     let mut canonical_sections = canonical_mechanics_search_projection(creature).sections;
-    canonical_sections.extend(document.sections);
+    canonical_sections.extend(searchable_content_sections(
+        record,
+        include_supplemental_content,
+    ));
     document.sections = canonical_sections;
     document
 }
@@ -92,16 +96,18 @@ fn append_structured_terms(
     canonical_creature: Option<&CreatureRecord>,
     projection: &mut RecordFtsProjection,
 ) {
+    let generic_mechanics = (record.classification.kind != atlas_domain::RecordKind::Creature)
+        .then_some(&record.mechanics);
     let mut taxonomy = TermCollector::default();
     taxonomy.add_slug(record.classification.kind.as_str());
     taxonomy.add_slug(record.foundry.record_type.as_str());
     taxonomy.add_slugs(&record.classification.taxonomy.inferred_groups);
-    if let Some(item) = record.mechanics.item() {
+    if let Some(item) = generic_mechanics.and_then(crate::RecordMechanics::item) {
         taxonomy.add_optional_slug(item.category.as_deref());
         taxonomy.add_optional_slug(item.group.as_deref());
         taxonomy.add_optional_slug(item.base_item.as_deref());
     }
-    if let Some(spell) = record.mechanics.spell() {
+    if let Some(spell) = generic_mechanics.and_then(crate::RecordMechanics::spell) {
         taxonomy.add_slugs(&spell.kinds);
     }
     if let Some(variant) = record.variant.as_ref() {
@@ -117,7 +123,7 @@ fn append_structured_terms(
         constraints.add_text(&time.text);
         append_action_cost_terms(time.kind, time.actions, &mut constraints);
     }
-    if let Some(item) = record.mechanics.item() {
+    if let Some(item) = generic_mechanics.and_then(crate::RecordMechanics::item) {
         constraints.add_optional_text(item.hands_requirement.as_deref());
     }
     append_text(&mut projection.constraint_terms, &constraints.render());
@@ -135,7 +141,7 @@ fn append_structured_terms(
     if let Some(duration) = record.timing.duration_time() {
         mechanics.add_text(&duration.text);
     }
-    if let Some(spell) = record.mechanics.spell() {
+    if let Some(spell) = generic_mechanics.and_then(crate::RecordMechanics::spell) {
         mechanics.add_slugs(&spell.traditions);
         mechanics.add_optional_text(spell.range.as_ref().map(|range| range.text.as_str()));
         mechanics.add_optional_text(spell.target.as_ref().map(|target| target.text.as_str()));
@@ -161,13 +167,11 @@ fn append_structured_terms(
             mechanics.add_text("basic save");
         }
     }
-    if let Some(item) = record.mechanics.item() {
+    if let Some(item) = generic_mechanics.and_then(crate::RecordMechanics::item) {
         mechanics.add_optional_text(item.usage.as_deref());
         mechanics.add_slugs(&item.damage_types);
     }
-    if canonical_creature.is_none()
-        && let Some(actor) = record.mechanics.actor()
-    {
+    if let Some(actor) = generic_mechanics.and_then(crate::RecordMechanics::actor) {
         mechanics.add_optional_slug(actor.size.as_deref());
         mechanics.add_slugs(&actor.languages);
         mechanics.add_slugs(&actor.speed_types);
@@ -193,8 +197,8 @@ fn append_structured_terms(
         let canonical = canonical_mechanics_search_projection(creature);
         mechanics.add_text(&canonical.mechanic_terms);
         metrics.add_text(&canonical.metric_terms);
-    } else {
-        for metric in &record.mechanics.metrics {
+    } else if let Some(generic_mechanics) = generic_mechanics {
+        for metric in &generic_mechanics.metrics {
             let label = label_for_row(metric);
             metrics.add_text(&label.label);
             if let Some(short_label) = label.short_label.as_deref() {
@@ -240,44 +244,67 @@ fn canonical_mechanics_search_projection(
         metric_terms.add_text(&label.label);
         metric_terms.add_optional_text(label.short_label.as_deref());
     }
-    let actor_side_facts = canonical_facts.actor_side_facts;
-    mechanic_terms.add_optional_slug(actor_side_facts.size.as_deref());
-    mechanic_terms.add_slugs(&actor_side_facts.languages);
-    mechanic_terms.add_slugs(&actor_side_facts.speed_types);
-    mechanic_terms.add_slugs(&actor_side_facts.senses);
-    mechanic_terms.add_slugs(&actor_side_facts.immunities);
-    mechanic_terms.add_slugs(&actor_side_facts.resistances);
-    mechanic_terms.add_slugs(&actor_side_facts.weaknesses);
-    push_canonical_list_fact(
-        &mut summary,
-        "actor.languages",
-        "Languages",
-        &actor_side_facts.languages,
-    );
-    push_canonical_list_fact(
-        &mut summary,
-        "actor.senses",
-        "Senses",
-        &actor_side_facts.senses,
-    );
-    push_canonical_list_fact(
-        &mut defense,
-        "actor.immunities",
-        "Immunities",
-        &actor_side_facts.immunities,
-    );
+    let size = creature
+        .size
+        .value
+        .as_value()
+        .map(|value| value.as_source());
+    let languages = creature
+        .languages
+        .value
+        .as_value()
+        .and_then(|value| value.values.as_value())
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.as_str().to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let speed_types = creature
+        .movement
+        .value
+        .as_value()
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| movement_mode_slug(&value.mode))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let senses = creature
+        .perception
+        .value
+        .as_value()
+        .and_then(|value| value.senses.as_value())
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.sense_type.as_str().to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let defenses = creature.defenses.value.as_value();
+    let immunities = canonical_iwr_terms(defenses.and_then(|value| value.immunities.as_value()));
+    let resistances = canonical_iwr_terms(defenses.and_then(|value| value.resistances.as_value()));
+    let weaknesses = canonical_iwr_terms(defenses.and_then(|value| value.weaknesses.as_value()));
+    mechanic_terms.add_optional_slug(size);
+    mechanic_terms.add_slugs(&languages);
+    mechanic_terms.add_slugs(&speed_types);
+    mechanic_terms.add_slugs(&senses);
+    mechanic_terms.add_slugs(&immunities);
+    mechanic_terms.add_slugs(&resistances);
+    mechanic_terms.add_slugs(&weaknesses);
+    push_canonical_list_fact(&mut summary, "actor.languages", "Languages", &languages);
+    push_canonical_list_fact(&mut summary, "actor.senses", "Senses", &senses);
+    push_canonical_list_fact(&mut defense, "actor.immunities", "Immunities", &immunities);
     push_canonical_list_fact(
         &mut defense,
         "actor.resistances",
         "Resistances",
-        &actor_side_facts.resistances,
+        &resistances,
     );
-    push_canonical_list_fact(
-        &mut defense,
-        "actor.weaknesses",
-        "Weaknesses",
-        &actor_side_facts.weaknesses,
-    );
+    push_canonical_list_fact(&mut defense, "actor.weaknesses", "Weaknesses", &weaknesses);
 
     for fact in &mechanics.facts {
         add_canonical_fact_terms(fact, None, &mut mechanic_terms, &mut metric_terms);
@@ -330,6 +357,25 @@ fn canonical_mechanics_search_projection(
         })
         .collect(),
     }
+}
+
+fn canonical_iwr_terms(entries: Option<&Vec<crate::CreatureIwr>>) -> Vec<String> {
+    entries
+        .into_iter()
+        .flatten()
+        .map(|entry| entry.iwr_type.as_str().to_string())
+        .collect()
+}
+
+fn movement_mode_slug(mode: &crate::CreatureMovementMode) -> Option<String> {
+    Some(match mode {
+        crate::CreatureMovementMode::Land => "land".to_string(),
+        crate::CreatureMovementMode::Burrow => "burrow".to_string(),
+        crate::CreatureMovementMode::Climb => "climb".to_string(),
+        crate::CreatureMovementMode::Fly => "fly".to_string(),
+        crate::CreatureMovementMode::Swim => "swim".to_string(),
+        crate::CreatureMovementMode::Unsupported(_) => return None,
+    })
 }
 
 fn push_canonical_list_fact(
@@ -647,7 +693,7 @@ mod tests {
     };
 
     use crate::{
-        ActivationTimeSourceField, ContentSourceKind, DurationTimeSourceField,
+        ActivationTimeSourceField, ActorMechanics, ContentSourceKind, DurationTimeSourceField,
         FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
         ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
         RecordActivationTiming, RecordClassification, RecordContent, RecordContentDocument,
@@ -689,6 +735,28 @@ mod tests {
         assert_eq!(projection.body, "");
         assert_eq!(projection.facts, "");
         assert_eq!(projection.embedded_content, "");
+    }
+
+    #[test]
+    fn creature_without_canonical_body_cannot_fall_back_to_generic_mechanics() {
+        let mut record = base_record();
+        record.classification.kind = RecordKind::Creature;
+        record.mechanics.metrics.push(MetricRow {
+            domain: MetricDomain::Actor,
+            key: "speed.fly.value".to_string(),
+            value: MetricValue::Number(60.0),
+        });
+        record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics {
+            size: Some("lg".to_string()),
+            senses: vec!["darkvision".to_string()],
+            ..ActorMechanics::default()
+        });
+
+        let projection = build_record_fts_projection(&record, &[]);
+
+        assert!(!projection.mechanic_terms.contains("darkvision"));
+        assert!(!projection.mechanic_terms.contains("lg"));
+        assert!(!projection.metric_terms.contains("Fly Speed"));
     }
 
     #[test]

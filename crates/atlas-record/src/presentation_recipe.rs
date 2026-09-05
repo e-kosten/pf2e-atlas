@@ -8,9 +8,8 @@ use crate::{
     PresentationSectionKind, RecordContentDocument, SpellMechanics,
     presentation_content::project_presentation_content,
     presentation_format::{
-        action_count_text, activation_text, duration_text, format_ability_mods, format_area,
-        format_bulk, format_list, format_number, format_price_cp, format_save, format_saves,
-        format_size, format_skill_mods, format_speeds, format_stealth, humanize,
+        activation_text, duration_text, format_area, format_bulk, format_list, format_number,
+        format_price_cp, format_save, format_saves, format_stealth, humanize,
         metric_number_for_definition,
     },
 };
@@ -43,7 +42,7 @@ fn recipe_sections(
 ) -> Vec<PresentationSection> {
     match record.classification.kind {
         RecordKind::Spell => spell_sections(record, include_supplemental_content),
-        RecordKind::Creature => creature_sections(record, include_supplemental_content),
+        RecordKind::Creature => Vec::new(),
         RecordKind::Equipment => equipment_sections(record, include_supplemental_content),
         RecordKind::Hazard => hazard_sections(record, include_supplemental_content),
         RecordKind::Feat | RecordKind::Rule => {
@@ -67,30 +66,13 @@ fn spell_sections(
     ]
 }
 
-fn creature_sections(
+pub(crate) fn searchable_content_sections(
     record: &AtlasRecord,
     include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
 ) -> Vec<PresentationSection> {
-    vec![
-        fact_section(
-            PresentationSectionKind::Summary,
-            creature_summary_facts(record.mechanics.actor(), &record.mechanics.metrics),
-        ),
-        fact_section(
-            PresentationSectionKind::Defense,
-            creature_defense_facts(record.mechanics.actor(), &record.mechanics.metrics),
-        ),
-        fact_section(
-            PresentationSectionKind::Movement,
-            creature_movement_facts(record.mechanics.actor(), &record.mechanics.metrics),
-        ),
-        fact_section(
-            PresentationSectionKind::Offense,
-            creature_offense_facts(record, record.mechanics.spell()),
-        ),
-        description_section(record, include_supplemental_content),
-        details_section(record),
-    ]
+    let mut sections = vec![description_section(record, include_supplemental_content)];
+    prune_empty_sections(&mut sections);
+    sections
 }
 
 fn equipment_sections(
@@ -118,7 +100,7 @@ fn hazard_sections(
         ),
         fact_section(
             PresentationSectionKind::Defense,
-            creature_defense_facts(record.mechanics.actor(), &record.mechanics.metrics),
+            hazard_defense_facts(record.mechanics.actor(), &record.mechanics.metrics),
         ),
         fact_section(
             PresentationSectionKind::Routine,
@@ -292,137 +274,6 @@ fn spell_summary_facts(
     facts
 }
 
-fn creature_summary_facts(
-    actor: Option<&ActorMechanics>,
-    metrics: &[MetricRow],
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    if let Some(actor) = actor {
-        push_fact(
-            &mut facts,
-            "size",
-            "Size",
-            actor.size.as_deref().map(format_size),
-        );
-        push_fact(
-            &mut facts,
-            "languages",
-            "Languages",
-            format_list(&actor.languages),
-        );
-        push_fact(&mut facts, "senses", "Senses", format_list(&actor.senses));
-    }
-    push_fact(
-        &mut facts,
-        "perception",
-        "Perception",
-        metric_number_for_definition(metrics, crate::metrics::actor::PERCEPTION_MOD)
-            .map(crate::presentation_format::format_modifier),
-    );
-    push_fact(&mut facts, "skills", "Skills", format_skill_mods(metrics));
-    push_fact(
-        &mut facts,
-        "abilities",
-        "Abilities",
-        format_ability_mods(metrics),
-    );
-    facts
-}
-
-fn creature_defense_facts(
-    actor: Option<&ActorMechanics>,
-    metrics: &[MetricRow],
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    push_fact(
-        &mut facts,
-        "ac",
-        "AC",
-        metric_number_for_definition(metrics, crate::metrics::actor::ARMOR_CLASS)
-            .map(format_number),
-    );
-    push_fact(
-        &mut facts,
-        "hp",
-        "HP",
-        metric_number_for_definition(metrics, crate::metrics::actor::HP_VALUE).map(format_number),
-    );
-    push_fact(
-        &mut facts,
-        "hardness",
-        "Hardness",
-        metric_number_for_definition(metrics, crate::metrics::actor::HARDNESS).map(format_number),
-    );
-    push_fact(&mut facts, "saves", "Saves", format_saves(metrics));
-    if let Some(actor) = actor {
-        push_fact(
-            &mut facts,
-            "immunities",
-            "Immunities",
-            format_list(&actor.immunities),
-        );
-        push_fact(
-            &mut facts,
-            "resistances",
-            "Resistances",
-            format_list(&actor.resistances),
-        );
-        push_fact(
-            &mut facts,
-            "weaknesses",
-            "Weaknesses",
-            format_list(&actor.weaknesses),
-        );
-    }
-    facts
-}
-
-fn creature_movement_facts(
-    actor: Option<&ActorMechanics>,
-    metrics: &[MetricRow],
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    push_fact(&mut facts, "speed", "Speed", format_speeds(metrics));
-    if let Some(actor) = actor {
-        push_fact(
-            &mut facts,
-            "speedTypes",
-            "Speed Types",
-            format_list(&actor.speed_types),
-        );
-    }
-    facts
-}
-
-fn creature_offense_facts(
-    record: &AtlasRecord,
-    spell: Option<&SpellMechanics>,
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    if let Some(spell) = spell {
-        push_fact(
-            &mut facts,
-            "damage",
-            "Damage",
-            format_list(&spell.damage_types),
-        );
-        push_fact(
-            &mut facts,
-            "spellKinds",
-            "Spell Kinds",
-            format_list(&spell.kinds),
-        );
-        push_fact(&mut facts, "save", "Save", format_save(spell));
-    }
-    push_fact(
-        &mut facts,
-        "actionCost",
-        "Action Cost",
-        action_count_text(record.timing.activation_actions_value()),
-    );
-    facts
-}
-
 fn equipment_summary_facts(
     record: &AtlasRecord,
     item: Option<&ItemMechanics>,
@@ -497,6 +348,54 @@ fn hazard_summary_facts(
         );
     }
     push_fact(&mut facts, "stealth", "Stealth", format_stealth(metrics));
+    facts
+}
+
+fn hazard_defense_facts(
+    actor: Option<&ActorMechanics>,
+    metrics: &[MetricRow],
+) -> Vec<PresentationFact> {
+    let mut facts = Vec::new();
+    push_fact(
+        &mut facts,
+        "ac",
+        "AC",
+        metric_number_for_definition(metrics, crate::metrics::actor::ARMOR_CLASS)
+            .map(format_number),
+    );
+    push_fact(
+        &mut facts,
+        "hp",
+        "HP",
+        metric_number_for_definition(metrics, crate::metrics::actor::HP_VALUE).map(format_number),
+    );
+    push_fact(
+        &mut facts,
+        "hardness",
+        "Hardness",
+        metric_number_for_definition(metrics, crate::metrics::actor::HARDNESS).map(format_number),
+    );
+    push_fact(&mut facts, "saves", "Saves", format_saves(metrics));
+    if let Some(actor) = actor {
+        push_fact(
+            &mut facts,
+            "immunities",
+            "Immunities",
+            format_list(&actor.immunities),
+        );
+        push_fact(
+            &mut facts,
+            "resistances",
+            "Resistances",
+            format_list(&actor.resistances),
+        );
+        push_fact(
+            &mut facts,
+            "weaknesses",
+            "Weaknesses",
+            format_list(&actor.weaknesses),
+        );
+    }
     facts
 }
 

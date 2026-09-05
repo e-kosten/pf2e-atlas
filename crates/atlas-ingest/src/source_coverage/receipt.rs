@@ -66,15 +66,15 @@ impl SourceLeafReceipt {
         &self.source
     }
     pub(crate) fn integrity_is_valid(&self) -> bool {
-        self.evidence_digest
-            == evidence_digest(
-                &self.identity,
-                &self.fixture,
-                &self.source,
-                &self.reader,
-                &self.observations,
-                &self.semantic_output,
-            )
+        evidence_digest(
+            &self.identity,
+            &self.fixture,
+            &self.source,
+            &self.reader,
+            &self.observations,
+            &self.semantic_output,
+        )
+        .is_ok_and(|digest| self.evidence_digest == digest)
     }
     pub(crate) fn reader_id(&self) -> &str {
         &self.reader.reader_id
@@ -187,11 +187,9 @@ fn registration_for(
         && identity.selector.document_class == "Actor"
         && identity.selector.type_discriminator == "npc"
         && reader_id == Some(NPC_ABILITY_MOD_READER)
-        && ability_slot(&identity.normalized_path).is_some()
+        && let Some(slot) = ability_slot(&identity.normalized_path)
     {
-        Ok(RegisteredAccessor::ActorNpcAbilityMod(
-            ability_slot(&identity.normalized_path).expect("checked above"),
-        ))
+        Ok(RegisteredAccessor::ActorNpcAbilityMod(slot))
     } else if identity.type_id == "actor--npc--top-level--root--root--root"
         && identity.selector.document_class == "Actor"
         && identity.selector.type_discriminator == "npc"
@@ -251,8 +249,13 @@ fn capture_item_name(
                 "$.name is not a string",
             )
         })?;
-    let excerpt = serde_json::to_vec(&Value::String(source_name.to_string()))
-        .expect("JSON string serialization cannot fail");
+    let excerpt =
+        serde_json::to_vec(&Value::String(source_name.to_string())).map_err(|source_error| {
+            error(
+                CoverageFailureCode::ReceiptProvenanceInvalid,
+                format!("failed to serialize the registered $.name excerpt: {source_error}"),
+            )
+        })?;
     if digest_bytes(&excerpt) != fixture.reference.excerpt_digest {
         return Err(error(
             CoverageFailureCode::ReceiptProvenanceInvalid,
@@ -278,41 +281,41 @@ fn capture_item_name(
             "source::dto::parse_item_source",
             actual.source_dto,
             &mutation.source_dto,
-        ),
+        )?,
         stage(
             FinalOwnerStage::Canonical,
             "AtlasRecord.identity.name",
             "source::normalize::normalize_record",
             actual.canonical,
             &mutation.canonical,
-        ),
+        )?,
         stage(
             FinalOwnerStage::PostProjection,
             "IndexBuildInput.records[].identity.name",
             "index_build_input::index_build_input",
             actual.post_projection,
             &mutation.post_projection,
-        ),
+        )?,
         stage(
             FinalOwnerStage::ArtifactHydration,
             "RetrievedRecord.record.identity.name",
             "atlas_index::hydrate_record_parts",
             actual.hydration,
             &mutation.hydration,
-        ),
+        )?,
         stage(
             FinalOwnerStage::PublicSurface,
             "RecordJson.name",
             "atlas_record::record_json",
             actual.public_surface,
             &mutation.public_surface,
-        ),
+        )?,
     ];
     let reader = ActualReadEvidence {
         reader_id: ITEM_NAME_READER.to_string(),
         accessor_binding: "sealed::ItemActionName".to_string(),
         purpose: SourceAccessorPurpose::Parser,
-        mutation_digest: digest_serializable(&string_leaf(mutation.source_dto)),
+        mutation_digest: digest_serializable(&string_leaf(mutation.source_dto))?,
     };
     let semantic_output = None;
     let evidence_digest = evidence_digest(
@@ -322,7 +325,7 @@ fn capture_item_name(
         &reader,
         &observations,
         &semantic_output,
-    );
+    )?;
     Ok(SourceLeafReceipt {
         identity,
         fixture: fixture.reference,
@@ -352,9 +355,13 @@ fn capture_actor_npc_ability(
             ));
         }
     };
-    *mutated_raw
-        .pointer_mut(slot.mod_pointer())
-        .expect("the source leaf was checked above") = mutation_value;
+    let Some(mutated_slot) = mutated_raw.pointer_mut(slot.mod_pointer()) else {
+        return Err(error(
+            CoverageFailureCode::ReaderNotObserved,
+            format!("{} disappeared before mutation", slot.mod_pointer()),
+        ));
+    };
+    *mutated_slot = mutation_value;
     let source_mutation = ability_mod_from_raw(&mutated_raw, slot)?;
     let actual = run_npc_pipeline(&fixture, fixture.raw.clone())?;
     let mutation = run_npc_pipeline(&fixture, mutated_raw)?;
@@ -375,28 +382,28 @@ fn capture_actor_npc_ability(
             "source::dto::parse_npc_source",
             dto_ability_value(&actual.source_dto, slot),
             &dto_ability_value(&mutation.source_dto, slot),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::Canonical,
             &canonical_destination,
             "source::npc_core::convert_npc_core",
             creature_ability_value(&actual.canonical, slot),
             &creature_ability_value(&mutation.canonical, slot),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::PostProjection,
             &post_destination,
             "index_build_input::index_build_input",
             creature_ability_value(&actual.post_projection, slot),
             &creature_ability_value(&mutation.post_projection, slot),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::ArtifactHydration,
             &hydration_destination,
             "atlas_index::hydrate_record_parts",
             creature_ability_value(&actual.hydration, slot),
             &creature_ability_value(&mutation.hydration, slot),
-        ),
+        )?,
     ];
     sealed_receipt(
         identity,
@@ -428,9 +435,13 @@ fn capture_actor_npc_shadow_skill(
             ));
         }
     };
-    *mutated_raw
-        .pointer_mut(&base_pointer)
-        .expect("the shadow-skill base was checked above") = mutation_value;
+    let Some(mutated_base) = mutated_raw.pointer_mut(&base_pointer) else {
+        return Err(error(
+            CoverageFailureCode::ReaderNotObserved,
+            format!("shadow skill {skill_key:?} base disappeared before mutation"),
+        ));
+    };
+    *mutated_base = mutation_value;
     let source_mutation = shadow_skill_from_raw(&mutated_raw, &skill_key)?;
     let actual = run_npc_pipeline(&fixture, fixture.raw.clone())?;
     let mutation = run_npc_pipeline(&fixture, mutated_raw)?;
@@ -441,35 +452,35 @@ fn capture_actor_npc_shadow_skill(
             "source::dto::parse_npc_source",
             dto_shadow_skill_value(&actual.source_dto, &skill_key),
             &dto_shadow_skill_value(&mutation.source_dto, &skill_key),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::Canonical,
             "CreatureRecord.skills[*].source_entries[*].modifier",
             "source::npc_core::convert_npc_core",
             creature_skill_value(&actual.canonical, &skill_key),
             &creature_skill_value(&mutation.canonical, &skill_key),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::PostProjection,
             "IndexBuildInput.canonical_bodies[].skills[*].source_entries[*].modifier",
             "index_build_input::index_build_input",
             creature_skill_value(&actual.post_projection, &skill_key),
             &creature_skill_value(&mutation.post_projection, &skill_key),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::ArtifactHydration,
             "RetrievedRecord.body.skills[*].source_entries[*].modifier",
             "atlas_index::hydrate_record_parts",
             creature_skill_value(&actual.hydration, &skill_key),
             &creature_skill_value(&mutation.hydration, &skill_key),
-        ),
+        )?,
         presence_stage(
             FinalOwnerStage::PublicSurface,
             "RecordPresentationJson.creature.skills[*].source_entries[*].modifier",
             "atlas_record::record_json",
             public_skill_value(&actual.public_surface, &skill_key),
             &public_skill_value(&mutation.public_surface, &skill_key),
-        ),
+        )?,
     ];
     sealed_receipt(
         identity,
@@ -501,7 +512,7 @@ fn sealed_receipt(
         reader_id: reader_id.to_string(),
         accessor_binding: accessor_binding.to_string(),
         purpose: SourceAccessorPurpose::Parser,
-        mutation_digest: digest_serializable(&source_mutation),
+        mutation_digest: digest_serializable(&source_mutation)?,
     };
     let semantic_output = None;
     let evidence_digest = evidence_digest(
@@ -511,7 +522,7 @@ fn sealed_receipt(
         &reader,
         &observations,
         &semantic_output,
-    );
+    )?;
     Ok(SourceLeafReceipt {
         identity,
         fixture,
@@ -705,7 +716,7 @@ fn creature_body(body: Option<&RecordBody>) -> Result<&CreatureRecord, CoverageC
 
 fn validate_actor_excerpt(fixture: &ResolvedFixture) -> Result<(), CoverageContractError> {
     let excerpt = actor_excerpt(&fixture.raw)?;
-    if digest_serializable(&excerpt) != fixture.reference.excerpt_digest {
+    if digest_serializable(&excerpt)? != fixture.reference.excerpt_digest {
         return Err(error(
             CoverageFailureCode::ReceiptProvenanceInvalid,
             "registered Actor NPC excerpt does not match its declaration digest",
@@ -761,12 +772,10 @@ fn dto_ability_value(
     source: &VersionedNpcSource,
     slot: AbilitySlot,
 ) -> SourcePresence<SourceLeafValue> {
-    let SourcePresence::Value(abilities) = &source.source.core.abilities else {
-        return match &source.source.core.abilities {
-            SourcePresence::Missing => SourcePresence::Missing,
-            SourcePresence::Null => SourcePresence::Null,
-            SourcePresence::Value(_) => unreachable!(),
-        };
+    let abilities = match &source.source.core.abilities {
+        SourcePresence::Missing => return SourcePresence::Missing,
+        SourcePresence::Null => return SourcePresence::Null,
+        SourcePresence::Value(abilities) => abilities,
     };
     let ability = match slot {
         AbilitySlot::Strength => &abilities.strength,
@@ -858,12 +867,10 @@ fn dto_shadow_skill_value(
     source: &VersionedNpcSource,
     key: &str,
 ) -> SourcePresence<SourceLeafValue> {
-    let SourcePresence::Value(skills) = &source.source.core.skills else {
-        return match &source.source.core.skills {
-            SourcePresence::Missing => SourcePresence::Missing,
-            SourcePresence::Null => SourcePresence::Null,
-            SourcePresence::Value(_) => unreachable!(),
-        };
+    let skills = match &source.source.core.skills {
+        SourcePresence::Missing => return SourcePresence::Missing,
+        SourcePresence::Null => return SourcePresence::Null,
+        SourcePresence::Value(skills) => skills,
     };
     let Some(skill) = skills.get(key) else {
         return SourcePresence::Missing;
@@ -881,19 +888,13 @@ fn creature_skill_value(creature: &CreatureRecord, key: &str) -> SourcePresence<
     let FactValue::Value(skills) = &creature.skills.value else {
         return fact_presence(&creature.skills.value);
     };
-    let Some(skill) = skills.iter().find(|skill| {
-        skill
-            .source_entries
-            .iter()
-            .any(|entry| entry.authored_key == key)
-    }) else {
+    let Some(entry) = skills
+        .iter()
+        .flat_map(|skill| &skill.source_entries)
+        .find(|entry| entry.authored_key == key)
+    else {
         return SourcePresence::Missing;
     };
-    let entry = skill
-        .source_entries
-        .iter()
-        .find(|entry| entry.authored_key == key)
-        .expect("skill source entry was selected above");
     skill_fact_leaf(key, &entry.modifier)
 }
 
@@ -901,21 +902,17 @@ fn public_skill_value(record: &RecordJson, key: &str) -> SourcePresence<SourceLe
     let RecordPresentationJson::Creature { skills, .. } = &record.presentation else {
         return SourcePresence::Missing;
     };
-    let Some(skill) = skills.as_ref().and_then(|skills| {
-        skills.iter().find(|skill| {
+    let Some((skill, source_entry)) = skills.as_ref().and_then(|skills| {
+        skills.iter().find_map(|skill| {
             skill
                 .source_entries
                 .iter()
-                .any(|entry| entry.authored_key == key)
+                .find(|entry| entry.authored_key == key)
+                .map(|entry| (skill, entry))
         })
     }) else {
         return SourcePresence::Missing;
     };
-    let source_entry = skill
-        .source_entries
-        .iter()
-        .find(|entry| entry.authored_key == key)
-        .expect("public skill source entry was selected above");
     if skill.unmodeled.is_some() {
         return match source_entry.modifier {
             atlas_record::CreatureIntegerPresenceJson::Missing => SourcePresence::Missing,
@@ -1034,14 +1031,14 @@ fn presence_stage(
     accessor_binding: &str,
     value: SourcePresence<SourceLeafValue>,
     mutation: &SourcePresence<SourceLeafValue>,
-) -> StageObservation {
-    StageObservation {
+) -> Result<StageObservation, CoverageContractError> {
+    Ok(StageObservation {
         stage,
         destination: destination.to_string(),
         accessor_binding: accessor_binding.to_string(),
-        mutation_digest: digest_serializable(mutation),
+        mutation_digest: digest_serializable(mutation)?,
         value,
-    }
+    })
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -1491,21 +1488,28 @@ fn stage(
     accessor_binding: &str,
     value: String,
     mutation: &str,
-) -> StageObservation {
-    StageObservation {
+) -> Result<StageObservation, CoverageContractError> {
+    Ok(StageObservation {
         stage,
         destination: destination.to_string(),
         accessor_binding: accessor_binding.to_string(),
-        mutation_digest: digest_serializable(&string_leaf(mutation.to_string())),
+        mutation_digest: digest_serializable(&string_leaf(mutation.to_string()))?,
         value: string_leaf(value),
-    }
+    })
 }
 
 fn digest_bytes(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
-fn digest_serializable(value: &impl Serialize) -> String {
-    digest_bytes(&serde_json::to_vec(value).expect("source-leaf evidence is serializable"))
+fn digest_serializable(value: &impl Serialize) -> Result<String, CoverageContractError> {
+    serde_json::to_vec(value)
+        .map(|bytes| digest_bytes(&bytes))
+        .map_err(|source_error| {
+            error(
+                CoverageFailureCode::ReceiptProvenanceInvalid,
+                format!("failed to serialize sealed source-leaf evidence: {source_error}"),
+            )
+        })
 }
 fn evidence_digest(
     identity: &SourceLeafIdentity,
@@ -1514,7 +1518,7 @@ fn evidence_digest(
     reader: &ActualReadEvidence,
     observations: &[StageObservation],
     semantic_output: &Option<SemanticOutputObservation>,
-) -> String {
+) -> Result<String, CoverageContractError> {
     digest_serializable(&(
         identity,
         fixture,

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use atlas_index::SqliteIndexReader;
 use atlas_index::test_support::{
     create_minimal_artifact_schema, insert_artifact_metadata_entries, insert_minimal_artifact_rows,
-    insert_minimal_canonical_npc_body, legacy_minilm_metadata_entries,
+    insert_minimal_canonical_npc_projection, legacy_minilm_metadata_entries,
     refresh_fixture_metric_summary, write_bound_test_manifest,
 };
 use rusqlite::Connection;
@@ -145,13 +145,7 @@ fn insert_encounter_fixture_rows(
             foundry_record_type: "condition",
         },
     )?;
-    // Keep fixture rows in the canonical projection order derived from the
-    // persisted creature body below.
-    insert_number_metric(connection, "actors:testCreature", "perception.mod", 9.0)?;
-    insert_number_metric(connection, "actors:testCreature", "ac.value", 19.0)?;
-    insert_number_metric(connection, "actors:testCreature", "hp.value", 17.0)?;
-    insert_number_metric(connection, "actors:testCreature", "hp.max", 25.0)?;
-    insert_minimal_canonical_npc_body(connection, "actors:testCreature", 19, 17, 25, 9)?;
+    insert_minimal_canonical_npc_projection(connection, "actors:testCreature", 19, 17, 25, 9)?;
     connection.execute(
         "UPDATE records SET level = 5 WHERE record_key = 'actors:testCreature'",
         [],

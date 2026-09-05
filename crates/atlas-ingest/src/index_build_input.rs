@@ -6,11 +6,7 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
     let mut records = Vec::with_capacity(source.records.len());
     let mut canonical_bodies = Vec::new();
     for loaded in source.records {
-        let mut record = loaded.record;
-        if let Some(atlas_record::RecordBody::Creature(creature)) = &loaded.facts.canonical_body {
-            record.mechanics.metrics = atlas_record::project_creature_facts(creature).metrics;
-        }
-        records.push(record);
+        records.push(loaded.record);
         canonical_bodies.extend(loaded.facts.canonical_body);
     }
     IndexBuildInput {
@@ -185,6 +181,10 @@ mod tests {
     fn canonical_mechanics_drive_the_written_fts_baseline_contract()
     -> Result<(), Box<dyn std::error::Error>> {
         let input = canonical_fixture_input();
+        assert!(
+            input.records[0].mechanics.metrics.is_empty(),
+            "index input must not inject canonical creature facts into generic record metrics"
+        );
         let path = unique_temp_path("canonical-search-projection.sqlite");
         atlas_index::IndexArtifactWriter::write(
             &atlas_index::SqliteIndexWriter::new(path.clone()),

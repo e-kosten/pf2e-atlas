@@ -1,6 +1,6 @@
 # ADR 0036: Source-Faithful Record Surfaces
 
-Status: proposed for Checkpoint B
+Status: accepted at Checkpoint B; creature surfaces completed through G1 cutover
 Date: 2026-08-24
 
 ## Context
@@ -27,15 +27,15 @@ ADR 0023 remains authoritative for CLI JSON. CLI record-bearing commands share o
 
 The ordinary creature terminal renderer keeps ownership and occurrence locators as placement rules rather than headings: authored content appears under natural record, ability, spell, equipment, Lore, or note labels, and spellcasting uses entry-to-rank hierarchy with distinct ordered rows. `atlas record provenance <canonical-key>` is the separate typed diagnostic surface for full fact provenance, occurrence identities and locators, content ownership, verified edition context, embedded relationships, and exact reference/backlink provenance. Its optional `--json` uses the shared envelope; it does not parse or expose raw source and does not change Full or `--include-raw` semantics.
 
-The CLI and app projections receive the `atlas-record`-owned `RetrievedRecord` aggregate produced by index canonical hydration and preserved by search. Both read creature presentation values exclusively from `RecordBody::Creature`; `AtlasRecord.mechanics` remains a separate sparse projection and is never a recovery path. App-service consumes the complete aggregate for its typed record-surface profiles and passes the complete aggregate to the local CLI.
+The CLI and app projections receive the `atlas-record`-owned `RetrievedRecord` aggregate produced by index canonical hydration and preserved by search. Both read creature presentation values exclusively from `RecordBody::Creature`; hydrated creature records carry no generic record mechanics. App-service consumes the complete aggregate for its typed record-surface profiles and passes the complete aggregate to the local CLI.
 
 `RichDocument` remains the once-parsed authored content tree. Record, entity, occurrence, child, content, and section targets remain addressable. The default child embedding policy remains overflow-only. Copied embedded capability prose stays reachable through its owner but is excluded from default ranking to prevent duplicate-result flooding, not because of authorization.
 
 For creature activity presentation, app-service resolves an activity's typed occurrence target and composes its occurrence-owned content with content owned by the exact targeted actor-local entity. The activity exposes those documents once as ordered typed rich-content blocks and general overview/lore excludes them. Association failure is fail-closed for that activity. `atlas-record` owns the structured `RichDocument` projection, including authored paragraph/divider boundaries and a typed Foundry `Check` inline carrying display fallback plus optional statistic and numeric DC; web rendering consumes that DTO without label matching, ID parsing, raw HTML parsing, or a frontend join.
 
-Current CLI/app/UI behavior is unauthenticated but inherits pinned-base default-visible/public-only routing and is not GM-complete. The approved target preserves typed visibility, role, and provenance as metadata while preventing classification-only suppression of useful authored information; no present security boundary is claimed. D2 produces CLI JSON/text and agent behavior, then D3 audits only the available source/artifact/search/CLI/agent surfaces. E3 separately verifies generated app DTOs/composition/transport. F1/F2 produce record and encounter UI, F3 audits the completed browser/static/runtime matrix, Checkpoint E owns human visual approval, and G2 verifies the final staged evidence and cutover residue.
+Current CLI/app/UI behavior inherits pinned-source default-visible/public-only routing and is not GM-complete. The implemented contract preserves typed visibility, role, and provenance as metadata while preventing classification-only suppression of useful authored information; no present security boundary is claimed. D2/D3, E3, F1/F2/F3, and the Checkpoint E gate precede the G1 creature cutover. G2 remains the independent final staged-evidence and residue review; G1 does not authorize or launch it.
 
-A4 screenshots are diagnostic only. F3 automation runs only after F2 and must pass the complete hashed fixture/viewport/theme/static/runtime matrix, including rejection of classification-only suppression; only Checkpoint E provides human visual approval. Creature fallback removal is forbidden before that approval, and G2 later verifies the complete evidence chain.
+A4 screenshots remain diagnostic only. F3 automation follows F2 and covers the complete hashed fixture/viewport/theme/static/runtime matrix, including rejection of classification-only suppression. The recorded Checkpoint E gate precedes G1 fallback removal, and G2 separately verifies the complete evidence chain.
 
 ## Consequences
 

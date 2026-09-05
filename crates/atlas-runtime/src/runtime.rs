@@ -72,16 +72,13 @@ impl AtlasRuntime {
         &self,
         target: atlas_index::ValidationTarget,
     ) -> atlas_index::ArtifactValidationReport {
-        if matches!(
-            target,
-            atlas_index::ValidationTarget::Full | atlas_index::ValidationTarget::EmbeddingsOnly
-        ) {
-            return self.validate_vector_target_report(target);
+        let base_report = atlas_index::validate_bound_artifact_report(&self.paths.index_path);
+        if base_report.status != atlas_index::ValidationStatus::Ok
+            || matches!(target, atlas_index::ValidationTarget::BaseOnly)
+        {
+            return base_report;
         }
-        match self.open_index() {
-            Ok(index) => index.validate_target_report(target),
-            Err(error) => atlas_index::validation_report_for_error(&self.paths.index_path, error),
-        }
+        self.validate_vector_target_report(target)
     }
 
     pub fn check_index_report(

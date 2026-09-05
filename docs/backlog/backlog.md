@@ -12,11 +12,11 @@ This is the tracked backlog for open durable future work.
 
 Completed and retired items are tracked separately in [history/done-and-superseded.md](./history/done-and-superseded.md).
 
-## Checkpoint B Candidate Reconciliation
+## Source-Faithful Contract State
 
-The proposed source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) reconciles 17 existing items as subsumed, retained, superseded, or deferred. Each affected item records its candidate disposition and owner. These are planning dispositions only: Checkpoint B has not approved the documentation candidate or authorized implementation, so open work remains in this backlog until its owning task lands and the item is moved to history.
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Its creature implementation now runs through the G1 direct cutover: canonical creature bodies are the only hydrated creature presentation/runtime source, while generic record mechanics remain bounded to non-creature families and one-way query metrics remain available for filtering and discovery. Later record families remain separate owned work and are not implied by the creature cutover.
 
-The candidate preserves all 313 exact type-registry assignments, keeps non-creature priority as a later user decision, and retains overflow-only child embeddings. It records the pinned base truthfully as unauthenticated but still default-visible/public-only, then defines Checkpoint A's GM-complete behavior as the implementation target: typed visibility/provenance remains data, not a present auth/security boundary, and target exclusions require non-auth product rationale.
+The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
 
 ## Now
 
@@ -77,6 +77,9 @@ The candidate preserves all 313 exact type-registry assignments, keeps non-creat
 
 - [Rust CLI content output formats](./items/rust-cli-content-output-formats.md)
   Decide which optional non-markdown content formats the Rust CLI should expose for record JSON output. Status: deferred.
+
+- [Rust entity-aware query facts and filter modeling](./items/rust-entity-aware-query-facts-and-filter-modeling.md)
+  Evaluate family-owned typed query-facts projections and entity-aware product filters over a common query/filter IR without creating a second semantic model. Status: proposed.
 
 - [Rust side data and metric source fact convergence](./items/rust-side-data-metric-source-fact-convergence.md)
   Track cleanup for overlapping Rust side-table and metric projections. Status: proposed.

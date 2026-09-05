@@ -2,24 +2,21 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    ActivityRoll, ActivityRollAbility, ActivityRollSurface, CreatureActionCapability,
-    CreatureActionCost, CreatureActorSpellcastingContext, CreatureCapability, CreatureDamage,
-    CreatureDamageKind, CreatureDeltaDisposition, CreatureDeltaValue, CreatureEmbeddedEntities,
-    CreatureEntity, CreatureEntityFamily, CreatureEntityId, CreatureEntityOccurrence,
-    CreatureEntityRelationship, CreatureEntityRelationshipKind, CreatureEntitySourceIdentity,
-    CreatureEntityTarget, CreatureEquipmentCapability, CreatureFact, CreatureLoreCapability,
-    CreatureOccurrenceContext, CreatureOccurrenceDelta, CreatureOccurrenceId,
-    CreatureOccurrenceParent, CreaturePreparedSpellSlot, CreatureRelationshipExecution,
-    CreatureRelationshipTarget, CreatureRitualContext, CreatureRoll, CreatureRollKind,
-    CreatureSourceField, CreatureSourceId, CreatureSourceLocator, CreatureSourceScalar,
-    CreatureSpellArea, CreatureSpellCapability, CreatureSpellDefense, CreatureSpellDuration,
-    CreatureSpellPreparation, CreatureSpellSave, CreatureSpellSlot,
-    CreatureSpellcastingEntryCapability, CreatureStrikeCapability, CreatureUnsupportedCapability,
-    CreatureUseLimit, DamageEffectKind, DamageExpression, FactValue, MechanicActivity,
-    MechanicActivityKind, MechanicActivityUsage, OccurrenceIdentityStability, RecordBody,
-    SpellcastingEntryMechanics, SpellcastingPreparation, StableSourceLocator,
-    UnsupportedMechanicNote, UnsupportedSourceReason, UnsupportedSourceShape,
-    UnsupportedSourceValue,
+    ActivityRollAbility, CreatureActionCapability, CreatureActionCost,
+    CreatureActorSpellcastingContext, CreatureCapability, CreatureDamage, CreatureDamageKind,
+    CreatureDeltaDisposition, CreatureDeltaValue, CreatureEmbeddedEntities, CreatureEntity,
+    CreatureEntityFamily, CreatureEntityId, CreatureEntityOccurrence, CreatureEntityRelationship,
+    CreatureEntityRelationshipKind, CreatureEntitySourceIdentity, CreatureEntityTarget,
+    CreatureEquipmentCapability, CreatureFact, CreatureLoreCapability, CreatureOccurrenceContext,
+    CreatureOccurrenceDelta, CreatureOccurrenceId, CreatureOccurrenceParent,
+    CreaturePreparedSpellSlot, CreatureRelationshipExecution, CreatureRelationshipTarget,
+    CreatureRitualContext, CreatureRoll, CreatureRollKind, CreatureSourceField, CreatureSourceId,
+    CreatureSourceLocator, CreatureSourceScalar, CreatureSpellArea, CreatureSpellCapability,
+    CreatureSpellDefense, CreatureSpellDuration, CreatureSpellPreparation, CreatureSpellSave,
+    CreatureSpellSlot, CreatureSpellcastingEntryCapability, CreatureStrikeCapability,
+    CreatureUnsupportedCapability, CreatureUseLimit, FactValue, OccurrenceIdentityStability,
+    RecordBody, StableSourceLocator, UnsupportedMechanicNote, UnsupportedSourceReason,
+    UnsupportedSourceShape, UnsupportedSourceValue,
 };
 use serde::Serialize;
 
@@ -220,19 +217,6 @@ pub(crate) fn finalize_npc_embedded_entities(
         for diagnostic in &mut conversion.diagnostics {
             diagnostic.bind(&owner, &loaded.record.provenance.source_path);
         }
-        let FactValue::Value(embedded) = &conversion.embedded else {
-            if let Some(RecordBody::Creature(creature)) = &mut loaded.facts.canonical_body {
-                creature.embedded_entities = CreatureFact::source(
-                    conversion.embedded,
-                    CreatureSourceField::EmbeddedEntities,
-                );
-            }
-            loaded.facts.npc_embedded_diagnostics = conversion.diagnostics;
-            continue;
-        };
-        let (entries, activities) = legacy_projection(embedded);
-        loaded.record.mechanics.spellcasting_entries = entries;
-        loaded.record.mechanics.activities = activities;
         if let Some(RecordBody::Creature(creature)) = &mut loaded.facts.canonical_body {
             creature.embedded_entities =
                 CreatureFact::source(conversion.embedded, CreatureSourceField::EmbeddedEntities);
@@ -1599,243 +1583,6 @@ fn fact_map<T, U>(source: &FactValue<T>, map: impl FnOnce(&T) -> U) -> FactValue
         FactValue::Null => FactValue::Null,
         FactValue::Value(value) => FactValue::Value(map(value)),
     }
-}
-
-fn legacy_projection(
-    embedded: &CreatureEmbeddedEntities,
-) -> (Vec<SpellcastingEntryMechanics>, Vec<MechanicActivity>) {
-    let entries = embedded
-        .occurrences
-        .iter()
-        .filter_map(|occurrence| {
-            let CreatureCapability::SpellcastingEntry(entry) = &occurrence.capability else {
-                return None;
-            };
-            Some(SpellcastingEntryMechanics {
-                entry_id: occurrence_source_id(embedded, occurrence),
-                label: context_label(occurrence),
-                preparation: match entry.preparation.as_value() {
-                    Some(CreatureSpellPreparation::Prepared) => SpellcastingPreparation::Prepared,
-                    Some(CreatureSpellPreparation::Spontaneous) => {
-                        SpellcastingPreparation::Spontaneous
-                    }
-                    Some(CreatureSpellPreparation::Focus) => SpellcastingPreparation::Focus,
-                    Some(CreatureSpellPreparation::Innate) => SpellcastingPreparation::Innate,
-                    Some(CreatureSpellPreparation::Ritual) => {
-                        SpellcastingPreparation::Other("ritual".to_string())
-                    }
-                    Some(CreatureSpellPreparation::Unsupported(value)) => {
-                        SpellcastingPreparation::Other(value.value.clone())
-                    }
-                    None => SpellcastingPreparation::Other("unknown".to_string()),
-                },
-                spell_attack: entry.attack.as_value().copied(),
-                spell_dc: entry.dc.as_value().copied(),
-            })
-        })
-        .collect::<Vec<_>>();
-    let activities = embedded
-        .occurrences
-        .iter()
-        .filter_map(|occurrence| legacy_activity(occurrence, embedded, &entries))
-        .collect();
-    (entries, activities)
-}
-
-fn legacy_activity(
-    occurrence: &CreatureEntityOccurrence,
-    embedded: &CreatureEmbeddedEntities,
-    entries: &[SpellcastingEntryMechanics],
-) -> Option<MechanicActivity> {
-    let (kind, traits, usage, rolls, damage) = match &occurrence.capability {
-        CreatureCapability::Strike(strike) => (
-            MechanicActivityKind::Strike,
-            fact_value_or_default(&strike.traits),
-            MechanicActivityUsage::Unlimited,
-            legacy_rolls(&strike.rolls),
-            legacy_damage(
-                &strike.damage,
-                strike
-                    .rolls
-                    .first()
-                    .and_then(|roll| roll.ability.as_value().copied()),
-            ),
-        ),
-        CreatureCapability::Action(action) => (
-            MechanicActivityKind::Other,
-            fact_value_or_default(&action.traits),
-            if action.frequency.as_value().is_some() {
-                MechanicActivityUsage::Limited
-            } else {
-                MechanicActivityUsage::Ambiguous
-            },
-            legacy_rolls(&action.rolls),
-            legacy_damage(&action.damage, None),
-        ),
-        CreatureCapability::Spell(spell) => {
-            let mut rolls = Vec::new();
-            let mut usage = if spell
-                .traits
-                .as_value()
-                .is_some_and(|traits| traits.iter().any(|value| value == "cantrip"))
-            {
-                MechanicActivityUsage::Unlimited
-            } else if occurrence.context.uses.as_value().is_some() {
-                MechanicActivityUsage::Limited
-            } else {
-                MechanicActivityUsage::Ambiguous
-            };
-            if let CreatureOccurrenceParent::SpellcastingEntry(entry_occurrence) =
-                &occurrence.parent
-                && let Some(entry) = embedded
-                    .occurrences
-                    .iter()
-                    .find(|candidate| &candidate.id == entry_occurrence)
-                && let Some(entry) = entries
-                    .iter()
-                    .find(|candidate| candidate.entry_id == occurrence_source_id(embedded, entry))
-            {
-                if matches!(
-                    entry.preparation,
-                    SpellcastingPreparation::Prepared
-                        | SpellcastingPreparation::Spontaneous
-                        | SpellcastingPreparation::Focus
-                ) {
-                    usage = MechanicActivityUsage::Limited;
-                }
-                if let Some(value) = entry.spell_attack {
-                    rolls.push(ActivityRoll {
-                        roll_id: "spell.attack".to_string(),
-                        label: "Spell Attack".to_string(),
-                        base_value: value,
-                        surface: ActivityRollSurface::AttackRoll,
-                        ability: None,
-                    });
-                }
-                if let Some(value) = entry.spell_dc {
-                    rolls.push(ActivityRoll {
-                        roll_id: "spell.dc".to_string(),
-                        label: "Spell DC".to_string(),
-                        base_value: value,
-                        surface: ActivityRollSurface::Dc,
-                        ability: None,
-                    });
-                }
-            }
-            (
-                MechanicActivityKind::Spell,
-                fact_value_or_default(&spell.traits),
-                usage,
-                rolls,
-                legacy_damage(&spell.damage, None),
-            )
-        }
-        CreatureCapability::SpellcastingEntry(_)
-        | CreatureCapability::Equipment(_)
-        | CreatureCapability::Lore(_)
-        | CreatureCapability::Unsupported(_) => return None,
-    };
-    Some(MechanicActivity {
-        activity_id: occurrence_source_id(embedded, occurrence),
-        label: context_label(occurrence),
-        kind,
-        traits,
-        compendium_source: None,
-        usage,
-        rolls,
-        damage,
-        modes: Vec::new(),
-    })
-}
-
-fn occurrence_source_id(
-    embedded: &CreatureEmbeddedEntities,
-    occurrence: &CreatureEntityOccurrence,
-) -> String {
-    if let CreatureEntityTarget::ActorOwned(id) = &occurrence.target
-        && let Some(source_id) = embedded
-            .entities
-            .iter()
-            .find(|entity| &entity.id == id)
-            .and_then(|entity| entity.source_identity.nested_source_id.as_value())
-    {
-        return source_id.as_str().to_string();
-    }
-    occurrence
-        .id
-        .as_str()
-        .rsplit(':')
-        .next()
-        .unwrap_or(occurrence.id.as_str())
-        .to_string()
-}
-
-fn context_label(occurrence: &CreatureEntityOccurrence) -> String {
-    occurrence
-        .context
-        .contextual_label
-        .as_value()
-        .cloned()
-        .unwrap_or_else(|| occurrence.id.as_str().to_string())
-}
-
-fn legacy_rolls(rolls: &[CreatureRoll]) -> Vec<ActivityRoll> {
-    rolls
-        .iter()
-        .filter_map(|roll| {
-            Some(ActivityRoll {
-                roll_id: roll.id.clone(),
-                label: roll.label.clone(),
-                base_value: *roll.value.as_value()?,
-                surface: match roll.kind {
-                    CreatureRollKind::DifficultyClass => ActivityRollSurface::Dc,
-                    CreatureRollKind::Attack | CreatureRollKind::Check => {
-                        ActivityRollSurface::AttackRoll
-                    }
-                },
-                ability: roll.ability.as_value().copied(),
-            })
-        })
-        .collect()
-}
-
-fn legacy_damage(
-    source: &FactValue<Vec<CreatureDamage>>,
-    ability: Option<ActivityRollAbility>,
-) -> Vec<DamageExpression> {
-    source
-        .as_value()
-        .into_iter()
-        .flatten()
-        .filter_map(|damage| {
-            Some(DamageExpression {
-                damage_id: damage.id.clone(),
-                label: damage.category.as_value().cloned(),
-                formula: damage.formula.as_value()?.clone(),
-                damage_type: damage.damage_type.as_value().cloned(),
-                effect_kind: match damage.kinds.as_value() {
-                    Some(kinds)
-                        if kinds.contains(&CreatureDamageKind::Damage)
-                            && kinds.contains(&CreatureDamageKind::Healing) =>
-                    {
-                        DamageEffectKind::DamageOrHealing
-                    }
-                    Some(kinds) if kinds.contains(&CreatureDamageKind::Healing) => {
-                        DamageEffectKind::Healing
-                    }
-                    Some(kinds) if kinds.contains(&CreatureDamageKind::Damage) => {
-                        DamageEffectKind::Damage
-                    }
-                    _ => DamageEffectKind::Unknown,
-                },
-                ability,
-            })
-        })
-        .collect()
-}
-
-fn fact_value_or_default<T: Clone>(value: &FactValue<Vec<T>>) -> Vec<T> {
-    value.as_value().cloned().unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -1,8 +1,6 @@
 use atlas_domain::{MetricDomain, TimeKind};
 
-use crate::{
-    MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellMechanics, definition_for,
-};
+use crate::{MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellMechanics};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CreatureFrequencyPeriod {
@@ -97,50 +95,6 @@ pub(crate) fn metric_number_for_definition(
     metric_number(rows, definition.domain(), definition.exact_key()?)
 }
 
-pub(crate) fn format_ability_mods(metrics: &[MetricRow]) -> Option<String> {
-    let parts = [
-        ("str", "Str"),
-        ("dex", "Dex"),
-        ("con", "Con"),
-        ("int", "Int"),
-        ("wis", "Wis"),
-        ("cha", "Cha"),
-    ]
-    .into_iter()
-    .filter_map(|(key, label)| {
-        metric_number(
-            metrics,
-            MetricDomain::Actor,
-            &crate::metrics::actor::ability::mod_key(key),
-        )
-        .map(|value| format!("{label} {}", format_modifier(value)))
-    })
-    .collect::<Vec<_>>();
-    non_empty_join(parts)
-}
-
-pub(crate) fn format_skill_mods(metrics: &[MetricRow]) -> Option<String> {
-    let mut parts = metrics
-        .iter()
-        .filter_map(|metric| {
-            let skill = and_definition_match(metric)
-                .filter(|matched| *matched.definition == crate::metrics::actor::skill::MOD)
-                .and_then(|matched| {
-                    matched
-                        .captures
-                        .first()
-                        .map(|capture| capture.label.clone())
-                })?;
-            match metric.value {
-                MetricValue::Number(value) => Some(format!("{skill} {}", format_modifier(value))),
-                MetricValue::Text(_) | MetricValue::Boolean(_) => None,
-            }
-        })
-        .collect::<Vec<_>>();
-    parts.sort();
-    non_empty_join(parts)
-}
-
 pub(crate) fn format_saves(metrics: &[MetricRow]) -> Option<String> {
     let parts = [
         (crate::metrics::actor::save::mod_key("fort"), "Fort"),
@@ -156,28 +110,6 @@ pub(crate) fn format_saves(metrics: &[MetricRow]) -> Option<String> {
     non_empty_join(parts)
 }
 
-pub(crate) fn format_speeds(metrics: &[MetricRow]) -> Option<String> {
-    let mut parts = metrics
-        .iter()
-        .filter_map(|metric| {
-            let speed = and_definition_match(metric)
-                .filter(|matched| *matched.definition == crate::metrics::actor::speed::VALUE)
-                .and_then(|matched| {
-                    matched
-                        .captures
-                        .first()
-                        .map(|capture| capture.label.clone())
-                })?;
-            match metric.value {
-                MetricValue::Number(value) => Some(format!("{speed} {}", format_feet(value))),
-                MetricValue::Text(_) | MetricValue::Boolean(_) => None,
-            }
-        })
-        .collect::<Vec<_>>();
-    parts.sort();
-    non_empty_join(parts)
-}
-
 pub(crate) fn format_stealth(metrics: &[MetricRow]) -> Option<String> {
     let stealth_mod = metric_number_for_definition(metrics, crate::metrics::actor::STEALTH_MOD)
         .map(format_modifier);
@@ -189,10 +121,6 @@ pub(crate) fn format_stealth(metrics: &[MetricRow]) -> Option<String> {
         (None, Some(dc)) => Some(format!("DC {dc}")),
         (None, None) => None,
     }
-}
-
-fn and_definition_match(metric: &MetricRow) -> Option<crate::MetricDefinitionMatch> {
-    definition_for(metric.domain, &metric.key)
 }
 
 pub(crate) fn format_list(values: &[String]) -> Option<String> {
@@ -344,10 +272,6 @@ pub(crate) fn format_modifier(value: f64) -> String {
     } else {
         formatted
     }
-}
-
-fn format_feet(value: f64) -> String {
-    format!("{} feet", format_number(value))
 }
 
 #[cfg(test)]
