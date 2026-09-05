@@ -16,8 +16,8 @@ Defenses
   Reflex: 18
   Will: 24
   All saves: +1 status to all saves vs. magic
-  Immunities: bleed, death-effects, disease, paralyzed, poison,
-              spell-deflection, unconscious
+  Immunities: death-effects, disease, paralyzed, poison, spell-deflection,
+              unconscious
 
 Awareness and abilities
   Perception: +22; darkvision
@@ -363,7 +363,6 @@ Drain Life
   gains 10 temporary Hit Points and the creature must succeed at a Fortitude DC
   24 save or become Drained 1. Further damage dealt by the devourer increases
   the condition value by 1 on a failed save, to a maximum of drained 4.
-  Effect: Drain Life
 
 Soul Spells
   A devourer casts occult innate spells, but to do so it must expend a number of

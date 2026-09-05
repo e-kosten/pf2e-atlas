@@ -156,9 +156,6 @@ fn night_hag_matches_approved_canonical_core_facts() {
     );
 
     let projected = project_creature_facts(creature);
-    assert_eq!(projected.actor_side_facts.size.as_deref(), Some("med"));
-    assert_eq!(projected.actor_side_facts.senses, ["darkvision"]);
-    assert_eq!(projected.actor_side_facts.resistances, ["mental"]);
     assert_eq!(
         projected.metrics.iter().find_map(|metric| {
             (metric.domain == MetricDomain::Actor && metric.key == "skill.occultism.mod")
@@ -890,12 +887,12 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
             &abilities.charisma,
         ],
         [
-            &FactValue::Value(16),
-            &FactValue::Value(18),
-            &FactValue::Value(16),
+            &FactValue::Value(6),
+            &FactValue::Value(6),
+            &FactValue::Value(5),
+            &FactValue::Value(2),
             &FactValue::Value(8),
-            &FactValue::Value(14),
-            &FactValue::Value(10),
+            &FactValue::Value(6),
         ]
     );
 

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::AppErrorCode;
-use atlas_domain::RecordKey;
+use atlas_domain::{RecordKey, RecordKind};
 use atlas_local_state::EncounterParticipant;
 use atlas_record::MetricValue;
 use atlas_search::{
@@ -97,7 +97,25 @@ pub(super) fn resolve_retrieved_record_ref(
     })
 }
 
-pub(super) fn default_hp(record: &atlas_record::AtlasRecord) -> (Option<i64>, Option<i64>) {
+pub(super) fn default_hp(retrieved: &atlas_record::RetrievedRecord) -> (Option<i64>, Option<i64>) {
+    if let Some(atlas_record::RecordBody::Creature(creature)) = retrieved.body.as_ref() {
+        let Some(defenses) = creature.defenses.value.as_value() else {
+            return (None, None);
+        };
+        let Some(hit_points) = defenses.hit_points.as_value() else {
+            return (None, None);
+        };
+        let maximum = hit_points.maximum.as_value().copied();
+        let current = hit_points.value.as_value().and_then(|value| match value {
+            atlas_record::CreatureNumber::Integer(value) => Some(*value),
+            atlas_record::CreatureNumber::Unsupported(_) => None,
+        });
+        return (maximum.or(current), current.or(maximum));
+    }
+    if retrieved.record.classification.kind != RecordKind::Hazard {
+        return (None, None);
+    }
+    let record = &retrieved.record;
     let metric = |key: &str| {
         record.mechanics.metrics.iter().find_map(|metric| {
             if metric.key == key {

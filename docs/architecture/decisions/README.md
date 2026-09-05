@@ -25,9 +25,9 @@ This index is the quickest way to scan accepted architecture decision records fo
 Checkpoint B approved these decisions as the dependency-ordered implementation contract. Each implementation slice remains bounded by its named owner and prerequisites:
 
 - [`0033-source-fidelity-and-exhaustive-coverage.md`](./0033-source-fidelity-and-exhaustive-coverage.md): source interpretation uses a pinned serialized-Source boundary and exhaustive zero-unassigned registry, with a truthful default-visible/public-only base and an approved unauthenticated GM-complete target whose exclusions need non-auth rationales.
-- [`0034-canonical-entities-occurrences-and-projections.md`](./0034-canonical-entities-occurrences-and-projections.md): canonical entities own intrinsic facts, occurrences own context, runtime instances own mutable state, retrieval carries the canonical body without a second model, and profiles are projections.
-- [`0035-atomic-canonical-artifact.md`](./0035-atomic-canonical-artifact.md): canonical artifact migration, writing, complete hydration, validation, and round-trip proof land as one non-splittable unit.
-- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service composes shared record profiles, canonical-body retrieval feeds the distinct tagged CLI entity-presentation model without changing app DTOs, and Checkpoint E owns visual approval.
+- [`0034-canonical-entities-occurrences-and-projections.md`](./0034-canonical-entities-occurrences-and-projections.md): canonical entities own intrinsic facts, occurrences own context, runtime instances own mutable state, and the completed creature cutover carries the canonical body without a second model.
+- [`0035-atomic-canonical-artifact.md`](./0035-atomic-canonical-artifact.md): artifact contract v5/schema v3 stores and completely hydrates canonical creatures without obsolete sparse activity/spellcasting tables.
+- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service and CLI consume canonical creature bodies through typed profile contracts, with generic presentation retained only for explicitly non-creature families.
 
 ## Historical ADRs
 

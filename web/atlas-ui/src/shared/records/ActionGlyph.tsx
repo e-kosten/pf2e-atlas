@@ -10,7 +10,9 @@ type FutureActionCost = {
 };
 
 export type ActionCost =
-  CreatureSurfaceActionCostView | EncounterRuntimeActionCostKindView | FutureActionCost;
+  | CreatureSurfaceActionCostView
+  | EncounterRuntimeActionCostKindView
+  | FutureActionCost;
 
 export function ActionGlyph({ cost }: { cost: ActionCost | null | undefined }) {
   const presentation = actionCostPresentation(cost);

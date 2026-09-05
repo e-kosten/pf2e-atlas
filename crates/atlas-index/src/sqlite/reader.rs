@@ -7,7 +7,6 @@ use diesel::connection::SimpleConnection;
 use diesel::{Connection as DieselConnection, SqliteConnection};
 use rusqlite::{Connection, OpenFlags};
 
-use crate::IndexValidationError;
 use crate::artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION,
     artifact_metadata_keys,
@@ -17,6 +16,7 @@ use crate::artifact::pair::{
     open_verified_generation,
 };
 use crate::read::search::vector::register_sqlite_vec_extension;
+use crate::{ArtifactValidationReport, IndexValidationError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct VerifiedArtifactGenerationIdentity {
@@ -46,11 +46,16 @@ pub struct SqliteIndexReader {
 
 impl SqliteIndexReader {
     pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self, IndexValidationError> {
-        Self::open_bound_read_only_with_hook(path.as_ref(), || {})
+        Self::open_bound_read_only_with_hook(path.as_ref(), true, || {})
+    }
+
+    fn open_for_explicit_validation(path: impl AsRef<Path>) -> Result<Self, IndexValidationError> {
+        Self::open_bound_read_only_with_hook(path.as_ref(), false, || {})
     }
 
     fn open_bound_read_only_with_hook(
         path: &Path,
+        validate_stamps: bool,
         after_verification: impl FnOnce(),
     ) -> Result<Self, IndexValidationError> {
         let acquisition_started = Instant::now();
@@ -63,11 +68,13 @@ impl SqliteIndexReader {
         after_verification();
         let database_url = immutable_read_only_sqlite_uri(&generation.file, &generation.path)?;
         let (diesel_connection, validation_connection) = open_connections(&database_url)?;
-        validate_compatibility_stamps(
-            &validation_connection,
-            &verified.artifact_contract_version,
-            &verified.schema_version,
-        )?;
+        if validate_stamps {
+            validate_compatibility_stamps(
+                &validation_connection,
+                &verified.artifact_contract_version,
+                &verified.schema_version,
+            )?;
+        }
         let verified_generation = verified_generation_identity(
             &path,
             &generation.path,
@@ -204,6 +211,35 @@ impl SqliteIndexReader {
     pub(crate) fn verified_artifact_sha256(&self) -> Option<&str> {
         self._verified_artifact_sha256.as_deref()
     }
+}
+
+/// Validates an authenticated artifact pair without exposing a reader that
+/// bypasses compatibility-stamp admission.
+///
+/// Manifest, digest, and generation identity checks still fail closed. Only
+/// the database compatibility-stamp check is deferred so the explicit
+/// validation command can return its promised metadata diagnostics.
+pub fn validate_bound_artifact_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
+    validate_bound_artifact_report_with_hook(path.as_ref(), |_| {})
+}
+
+fn validate_bound_artifact_report_with_hook(
+    path: &Path,
+    after_open: impl FnOnce(&SqliteIndexReader),
+) -> ArtifactValidationReport {
+    let reader = match SqliteIndexReader::open_for_explicit_validation(path) {
+        Ok(reader) => reader,
+        Err(error) => return crate::validation_report_from_error(path, error),
+    };
+    after_open(&reader);
+    if let Err(error) = reader.validate_generation_binding() {
+        return crate::validation_report_from_error(path, error);
+    }
+    let report = reader.validate_report();
+    if let Err(error) = reader.validate_generation_binding() {
+        return crate::validation_report_from_error(path, error);
+    }
+    report
 }
 
 fn validate_compatibility_stamps(
@@ -664,7 +700,7 @@ mod tests {
                 [],
             )
             .unwrap();
-        crate::test_support::insert_minimal_canonical_npc_body(
+        crate::test_support::insert_minimal_canonical_npc_projection(
             &connection,
             "actions:testAction1",
             20,
@@ -738,7 +774,13 @@ mod tests {
         let artifact = root.join("index.sqlite");
         create_valid_generation(&artifact, "Mutation");
         let connection = rusqlite::Connection::open(&artifact).unwrap();
-        crate::test_support::insert_minimal_canonical_npc_body(
+        connection
+            .execute(
+                "UPDATE records SET record_kind = 'creature', foundry_document_type = 'Actor', foundry_record_type = 'npc' WHERE record_key = 'actions:testAction1'",
+                [],
+            )
+            .unwrap();
+        crate::test_support::insert_minimal_canonical_npc_projection(
             &connection,
             "actions:testAction1",
             20,
@@ -786,7 +828,7 @@ mod tests {
         let (attempted_tx, attempted_rx) = std::sync::mpsc::channel();
         let (published_tx, published_rx) = std::sync::mpsc::channel();
 
-        let reader = SqliteIndexReader::open_bound_read_only_with_hook(&artifact, || {
+        let reader = SqliteIndexReader::open_bound_read_only_with_hook(&artifact, true, || {
             let target_artifact = artifact.clone();
             let target_manifest = manifest.clone();
             std::thread::spawn(move || {
@@ -963,6 +1005,33 @@ mod tests {
         assert!(error.to_string().contains("generation changed"));
 
         drop(reader);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn explicit_validation_report_rejects_generation_mutation() {
+        let root = unique_root("explicit-validation-generation-mutation");
+        std::fs::create_dir_all(&root).unwrap();
+        let artifact = root.join("index.sqlite");
+        create_valid_generation(&artifact, "Mutation");
+        write_manifest(&root.join("manifest.json"), &artifact);
+
+        let report = validate_bound_artifact_report_with_hook(&artifact, |reader| {
+            let evidence = reader.verified_generation_evidence().unwrap();
+            let generation_path = evidence["generation_path"].as_str().unwrap();
+            let bytes = evidence["bytes"].as_u64().unwrap();
+            make_test_owner_writable(Path::new(generation_path));
+            let file = std::fs::OpenOptions::new()
+                .append(true)
+                .open(generation_path)
+                .unwrap();
+            file.set_len(bytes + 1).unwrap();
+        });
+
+        assert_eq!(report.status, crate::ValidationStatus::Error);
+        assert_eq!(report.code, crate::ValidationCode::IndexUnavailable);
+        assert!(report.message.contains("generation changed"));
         std::fs::remove_dir_all(root).unwrap();
     }
 

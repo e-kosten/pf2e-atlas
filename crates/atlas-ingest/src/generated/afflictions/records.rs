@@ -69,8 +69,6 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
                 category: Some(affliction_family_label(input.family).to_string()),
                 ..ItemMechanics::default()
             }),
-            spellcasting_entries: Vec::new(),
-            activities: Vec::new(),
         },
         content: RecordContent { documents },
         variant: None,

@@ -47,6 +47,7 @@ pub use read::search::{
 pub use sqlite::{
     FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
     FtsSearchLane, ReferenceEdgeDirection, SqliteIndexReader, SqliteIndexWriter,
+    validate_bound_artifact_report,
 };
 pub use validation::{
     ArtifactMetadataSummary, ArtifactValidationDiagnostic, ArtifactValidationFamily,

@@ -1,0 +1,1960 @@
+{
+  "status": "ok",
+  "data": {
+    "key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+    "name": "Chernasardo Ranger",
+    "kind": "creature",
+    "record_provenance": {
+      "source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+      "source_contract_version": "pf2e-serialized-source/v1",
+      "source_system_version": "6.12.4",
+      "source_upstream_commit": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce",
+      "facts": {
+        "level": {
+          "kind": "source",
+          "field": "level"
+        },
+        "rarity": {
+          "kind": "source",
+          "field": "rarity"
+        },
+        "traits": {
+          "kind": "source",
+          "field": "traits"
+        },
+        "size": {
+          "kind": "source",
+          "field": "size"
+        },
+        "publication": {
+          "kind": "source",
+          "field": "publication"
+        },
+        "adjustment": {
+          "kind": "source",
+          "field": "adjustment"
+        },
+        "source_alliance": {
+          "kind": "source",
+          "field": "source_alliance"
+        },
+        "perception": {
+          "kind": "source",
+          "field": "perception"
+        },
+        "initiative": {
+          "kind": "source",
+          "field": "initiative"
+        },
+        "languages": {
+          "kind": "source",
+          "field": "languages"
+        },
+        "skills": {
+          "kind": "source",
+          "field": "skills"
+        },
+        "abilities": {
+          "kind": "source",
+          "field": "legacy_abilities"
+        },
+        "defenses": {
+          "kind": "source",
+          "field": "defenses"
+        },
+        "movement": {
+          "kind": "source",
+          "field": "movement"
+        },
+        "resources": {
+          "kind": "source",
+          "field": "resources"
+        },
+        "embedded_entities": {
+          "kind": "source",
+          "field": "embedded_entities"
+        }
+      }
+    },
+    "edition": {
+      "status": "remaster",
+      "counterpart_lookup": {
+        "state": "verified",
+        "counterparts": []
+      }
+    },
+    "occurrences": [
+      {
+        "family": "equipment",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "order": 3,
+        "label": "Snare Kit (Specialist)",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "QECt3nBdeCuwGptC",
+          "stable_source_locator": "Compendium.pf2e.equipment-srd.Item.P2DjThbSOWwra49r",
+          "source_locators": [
+            "Compendium.pf2e.equipment-srd.Item.P2DjThbSOWwra49r"
+          ]
+        }
+      },
+      {
+        "family": "strike",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:29VLLOc0ESaM2Cxl",
+        "order": 5,
+        "label": "Dagger",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:29VLLOc0ESaM2Cxl",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "29VLLOc0ESaM2Cxl"
+        }
+      },
+      {
+        "family": "strike",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:cVDrNvh7BUGzlW7r",
+        "order": 6,
+        "label": "Shortsword",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:cVDrNvh7BUGzlW7r",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "cVDrNvh7BUGzlW7r"
+        }
+      },
+      {
+        "family": "strike",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:1K7AU1a3yTScQjot",
+        "order": 7,
+        "label": "Shortbow",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:1K7AU1a3yTScQjot",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "1K7AU1a3yTScQjot"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "order": 8,
+        "label": "Double Shot",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "rp18xC5ihiCNOnYj"
+        }
+      },
+      {
+        "family": "activity",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:oEphqCBGMjm1SqbC",
+        "order": 9,
+        "label": "Quick Draw",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:oEphqCBGMjm1SqbC",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "oEphqCBGMjm1SqbC"
+        }
+      },
+      {
+        "family": "lore",
+        "id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:CnIa8JwRHun57VEF",
+        "order": 10,
+        "label": "Forest Lore",
+        "target_entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:CnIa8JwRHun57VEF",
+        "provenance": {
+          "identity_stability": "stable_nested_source_id",
+          "nested_source_id": "CnIa8JwRHun57VEF"
+        }
+      }
+    ],
+    "unmodeled_skills": [
+      {
+        "component_id": "skill:unmodeled:be869594559d19513980a99531742c7342ceffaffe6deaf6fdaed49b1e2a4410",
+        "authored_order": 6,
+        "authored_key": "acrobatics+13",
+        "base": {
+          "state": "null"
+        },
+        "reason": "unknown_authored_key",
+        "source_entries": [
+          {
+            "authored_key": "acrobatics+13",
+            "modifier": {
+              "state": "null"
+            }
+          }
+        ]
+      }
+    ],
+    "content": [
+      {
+        "content_key": "item:gA2b3pvKCSreUUG9:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9"
+        },
+        "role": "embedded_capability",
+        "authored_order": 0,
+        "label": "Dagger",
+        "content_hash": "6f25a461ced7ad89b04692c20d608056dd55fce1f14d593ac6e55203edb33be2",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=gA2b3pvKCSreUUG9].system.description.value",
+          "nested_source_id": "gA2b3pvKCSreUUG9"
+        }
+      },
+      {
+        "content_key": "item:Y5Ry8ryJ0ovuZS8z:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z"
+        },
+        "role": "embedded_capability",
+        "authored_order": 1,
+        "label": "Shortbow",
+        "content_hash": "b89b91ea5aa6ffd4a687874bc22b0a27f32eb8d0bc377d8a6cf7cd5ae9f7730a",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=Y5Ry8ryJ0ovuZS8z].system.description.value",
+          "nested_source_id": "Y5Ry8ryJ0ovuZS8z"
+        }
+      },
+      {
+        "content_key": "item:k5DXdSgXwgd8KMkO:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO"
+        },
+        "role": "embedded_capability",
+        "authored_order": 2,
+        "label": "Shortsword",
+        "content_hash": "5d678974e47da40800c506c9b9ac01cc1c1c84db5b643e96d846b76ccc2d8a04",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=k5DXdSgXwgd8KMkO].system.description.value",
+          "nested_source_id": "k5DXdSgXwgd8KMkO"
+        }
+      },
+      {
+        "content_key": "item:QECt3nBdeCuwGptC:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC"
+        },
+        "role": "embedded_capability",
+        "authored_order": 3,
+        "label": "Snare Kit (Specialist)",
+        "content_hash": "4e365ddcfe8fa66bd814903f1bd8969bc6ae0fa4556273b1842df788733a466c",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=QECt3nBdeCuwGptC].system.description.value",
+          "nested_source_id": "QECt3nBdeCuwGptC"
+        }
+      },
+      {
+        "content_key": "item:QJG3WDdS646np6jg:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg"
+        },
+        "role": "embedded_capability",
+        "authored_order": 4,
+        "label": "Arrows",
+        "content_hash": "b1a4344d538d4bdcf7c651ae20296d09723cd337cc15405170b16006b00e1479",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=QJG3WDdS646np6jg].system.description.value",
+          "nested_source_id": "QJG3WDdS646np6jg"
+        }
+      },
+      {
+        "content_key": "item:rp18xC5ihiCNOnYj:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj"
+        },
+        "role": "embedded_capability",
+        "authored_order": 5,
+        "label": "Double Shot",
+        "content_hash": "7b8ca317a38db295d484c92bc8694dae606cd5496ab3f69a8b23bf3e59d17815",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=rp18xC5ihiCNOnYj].system.description.value",
+          "nested_source_id": "rp18xC5ihiCNOnYj"
+        }
+      },
+      {
+        "content_key": "item:oEphqCBGMjm1SqbC:description",
+        "owner": {
+          "owner_type": "entity",
+          "entity_id": "actor-owned:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:oEphqCBGMjm1SqbC"
+        },
+        "role": "embedded_capability",
+        "authored_order": 6,
+        "label": "Quick Draw",
+        "content_hash": "762093c07bf5ce7421ae969c446f6c6f7cab8254c9718a8ca821822e94c9ed89",
+        "visibility": "public",
+        "provenance": {
+          "source_record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+          "relative_source_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+          "field_family": "$.items[_id=oEphqCBGMjm1SqbC].system.description.value",
+          "nested_source_id": "oEphqCBGMjm1SqbC"
+        }
+      }
+    ],
+    "embedded_relationships": [
+      {
+        "source_occurrence_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:29VLLOc0ESaM2Cxl",
+        "kind": "linked_weapon",
+        "target": {
+          "target_type": "occurrence",
+          "occurrence_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9"
+        },
+        "source_path": "$.flags.pf2e.linkedWeapon"
+      },
+      {
+        "source_occurrence_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:cVDrNvh7BUGzlW7r",
+        "kind": "linked_weapon",
+        "target": {
+          "target_type": "occurrence",
+          "occurrence_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO"
+        },
+        "source_path": "$.flags.pf2e.linkedWeapon"
+      },
+      {
+        "source_occurrence_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:1K7AU1a3yTScQjot",
+        "kind": "linked_weapon",
+        "target": {
+          "target_type": "occurrence",
+          "occurrence_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z"
+        },
+        "source_path": "$.flags.pf2e.linkedWeapon"
+      }
+    ],
+    "availability_evidence": [
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:oEphqCBGMjm1SqbC",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:oEphqCBGMjm1SqbC",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:oEphqCBGMjm1SqbC",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[9].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "source_value": "{\"domain\":\"ranged-attack-roll\",\"key\":\"RollOption\",\"option\":\"double-shot\",\"toggleable\":true}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.rules[0]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:action:rp18xC5ihiCNOnYj",
+        "source_value": "{\"key\":\"FlatModifier\",\"predicate\":[\"double-shot\"],\"selector\":\"ranged-attack-roll\",\"slug\":\"double-shot\",\"value\":-2}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[8].system.rules[1]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"ammo\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.category",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"arrows\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.stackGroup",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"held-in-one-hand\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.usage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"med\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.size",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "\"worn\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.equipped.carryType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.hardness",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.hp.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.hp.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.level.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "0.1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.bulk.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.price.value.sp",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.uses.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.uses.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "10",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.price.per",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "20",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.quantity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.baseItem",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.containerId",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.damage",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.material.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.material.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "source_value": "true",
+        "source_shape": "boolean",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[4].system.uses.autoDestroy",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "\"Pathfinder Core Rulebook\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "\"med\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.size",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "\"worn\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.equipped.carryType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.hardness",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.hp.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.hp.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "2",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.bulk.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "55",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.price.value.gp",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.traits.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.baseItem",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.containerId",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.equipped.invested",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.material.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.material.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:equipment:QECt3nBdeCuwGptC",
+        "source_value": "{\"key\":\"FlatModifier\",\"label\":\"Snare Kit (Craft snares)\",\"predicate\":[\"snare\"],\"selector\":\"crafting\",\"type\":\"item\",\"value\":1}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[3].system.rules[0]",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:CnIa8JwRHun57VEF",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:CnIa8JwRHun57VEF",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:CnIa8JwRHun57VEF",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.proficient.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:lore:CnIa8JwRHun57VEF",
+        "source_value": "{}",
+        "source_shape": "object",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[10].system.traits",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:1K7AU1a3yTScQjot",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:1K7AU1a3yTScQjot",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[7].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:29VLLOc0ESaM2Cxl",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[5].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:29VLLOc0ESaM2Cxl",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[5].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:cVDrNvh7BUGzlW7r",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[6].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:strike:cVDrNvh7BUGzlW7r",
+        "source_value": "\"OGL\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[6].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"0\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.reload.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"bow\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.group",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"d6\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.damage.die",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"held-in-one-plus-hands\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.usage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"martial\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.category",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"med\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.size",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"piercing\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.damage.damageType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"shortbow\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.baseItem",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "\"worn\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.equipped.carryType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.bonus.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.bonusDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.equipped.handsHeld",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.hardness",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.hp.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.hp.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.level.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.runes.potency",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.runes.striking",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.splashDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.bulk.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.damage.dice",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.quantity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "3",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.price.value.gp",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "60",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.range",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.runes.property",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.containerId",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.equipped.invested",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.material.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[1].system.material.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"-\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.reload.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"d4\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.damage.die",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"dagger\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.baseItem",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"held-in-one-hand\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.usage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"knife\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.group",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"med\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.size",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"piercing\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.damage.damageType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"simple\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.category",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "\"worn\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.equipped.carryType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.bonus.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.bonusDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.equipped.handsHeld",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.hardness",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.hp.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.hp.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.level.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.runes.potency",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.runes.striking",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.splashDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "0.1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.bulk.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.damage.dice",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.quantity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "2",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.price.value.sp",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.runes.property",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "false",
+        "source_shape": "boolean",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.usage.canBeAmmo",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.containerId",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.equipped.invested",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.material.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.material.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[0].system.range",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.reload.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"ORC\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.publication.license",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"Pathfinder Player Core\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.publication.title",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"common\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.traits.rarity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"d6\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.damage.die",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"held-in-one-hand\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.usage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"martial\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.category",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"med\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.size",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"piercing\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.damage.damageType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"shortsword\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.baseItem",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"sword\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.group",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "\"worn\"",
+        "source_shape": "string",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.equipped.carryType",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.bonus.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.bonusDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.equipped.handsHeld",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.hardness",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.hp.max",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.hp.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.level.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.runes.striking",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.splashDamage.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "0.1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.bulk.value",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.damage.dice",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.quantity",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "1",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.runes.potency",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "9",
+        "source_shape": "number",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.price.value.sp",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "[]",
+        "source_shape": "array",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.runes.property",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.containerId",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.equipped.invested",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.material.grade",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.material.type",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_mechanic",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "source_value": "null",
+        "source_shape": "null",
+        "source_reason": "open_vocabulary",
+        "source_path": "$.items[2].system.range",
+        "message": "The source supplied an unsupported mechanic."
+      },
+      {
+        "state": "unsupported",
+        "field": "unmodeled_skill",
+        "component_id": "skill:unmodeled:be869594559d19513980a99531742c7342ceffaffe6deaf6fdaed49b1e2a4410",
+        "authored_key": "acrobatics+13",
+        "message": "The source supplied an unrecognized skill key."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_capability",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:consumable:QJG3WDdS646np6jg",
+        "authored_key": "consumable",
+        "message": "The source supplied an unsupported creature capability."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_capability",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:Y5Ry8ryJ0ovuZS8z",
+        "authored_key": "weapon",
+        "message": "The source supplied an unsupported creature capability."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_capability",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:gA2b3pvKCSreUUG9",
+        "authored_key": "weapon",
+        "message": "The source supplied an unsupported creature capability."
+      },
+      {
+        "state": "unsupported",
+        "field": "unsupported_capability",
+        "component_id": "occurrence:claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E:weapon:k5DXdSgXwgd8KMkO",
+        "authored_key": "weapon",
+        "message": "The source supplied an unsupported creature capability."
+      }
+    ],
+    "references": {
+      "lookup_performed": true,
+      "outgoing_truncated": false,
+      "backlinks_truncated": false,
+      "outgoing_total": 0,
+      "backlinks_total": 0
+    }
+  }
+}

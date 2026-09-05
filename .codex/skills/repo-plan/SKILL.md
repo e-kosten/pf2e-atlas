@@ -1,6 +1,6 @@
 ---
 name: repo-plan
-description: "Use when planning implementation work in this repository. This skill is for repo-specific planning workflow: shaping work without commits, writing a new scratch/plans file, grounding the plan in existing backlog intent or creating a new backlog item, reading the relevant architecture docs first, using sub-agent orchestration for large-task research and validation, and producing an execution-ready plan that encodes slices, docs follow-through, validation, optional worktree usage, and end-state checks."
+description: "Use when planning implementation work in this repository. Produces an execution-ready, outcome-scoped plan grounded in backlog and architecture intent, with practical slices, risk-based independent validation, docs follow-through, optional worktree use, and end-state checks without procedural permission scaffolding."
 ---
 
 # Repo Plan
@@ -14,8 +14,10 @@ This skill is specifically about how planning should happen here. It is not a ge
 1. Read the architecture docs that govern the area before planning.
    Start with:
    - `docs/architecture/overview.md`
-   - `docs/architecture/boundaries.md`
-   Then read the focused doc closest to the change, such as `tui.md`, `search.md`, `editorial.md`, `extending.md`, or relevant ADRs.
+   For runtime, ingest, search, or artifact work, also read:
+   - `docs/architecture/runtime.md`
+   - `docs/architecture/artifact-contract.md`
+   Consult `docs/architecture/decisions/README.md` and the relevant ADRs for durable decisions.
 2. Shape the plan on `main` first.
    Planning happens in the shared checkout while the task is still being framed.
 3. Write a new plan file under `scratch/plans/`.
@@ -33,15 +35,21 @@ A good plan in this repo is execution-ready. It should usually include:
 
 - the requested end state in concrete terms
 - architectural boundaries and owners that matter
+- material source-fidelity and other invariants that must remain true
+- non-goals when they prevent a plausible but different outcome
+- accepted base or implementation context
 - explicit slices or workstreams
 - which parts are local work versus delegated work
-- validation ownership for each slice
+- focused validation during each slice and applicable final gates
+- the product, architecture, acceptance, external-action, or cost decisions that require escalation
 - required docs and ADR follow-through
 - refactor end-state requirements when replacing shared infrastructure
 - checkout, optional worktree, and landing expectations
 - blockers, assumptions, and open questions
 
 Do not produce a vague task list that leaves architecture, ownership, or validation implicit.
+
+File and module references are coordination aids, not exhaustive permission allowlists. Define each slice by its outcome and semantic ownership. Necessary callers, imports, tests, current-behavior docs, generated bindings, formatting, and refactor cleanup are part of that slice when required to reach its end state; the implementer reports them rather than seeking path-by-path amendments.
 
 When the task is large, architectural, or contract-shaping, make the end state concrete enough that later implementation does not have to rediscover the intended model. Good ways to do that include:
 
@@ -55,13 +63,13 @@ When the task is large, architectural, or contract-shaping, make the end state c
 For large or architecture-impacting work, plan as an orchestrator:
 
 - break the task into explicit slices with dependencies
-- identify which slices are good candidates for sub-agent research, implementation, or validation
+- identify which slices materially benefit from independent research, implementation, or validation
 - keep the main agent focused on coordination and end-state checks
-- make each slice produce a concrete artifact and a validation step
-- when helpful, group slices into orchestration blocks with explicit check-in points so the user can review progress between major phases
+- give each slice one concise current brief, a concrete outcome, and risk-appropriate validation
+- when helpful, group slices into orchestration blocks with check-in points for genuine product or architecture decisions
 - if one slice is still too large to be implementation-ready, split it into sub-slices with clear ownership and validation boundaries
 
-Use sub-agents for research and review when the task is large enough to benefit from parallel or isolated investigation. Planning should not assume one agent will carry all context alone if the work naturally decomposes.
+Use sub-agents for research and skeptical independent review when the task is large enough to benefit from parallel or isolated investigation. Do not create extra agents, publication steps, or approval points merely to mirror every file or checklist item.
 
 ## Backlog Coupling
 
@@ -144,10 +152,12 @@ Every implementation plan should define how completion will be proven.
 Include:
 
 - targeted validation for each slice where practical
-- final validation commands
-- plan-file validation before reporting completion
+- the integrated/final candidate owner and its final validation commands
+- comparison of the final integrated candidate to the plan before reporting completion
 - checks that docs and code agree
 - checks that no intermediate migration state remains
+- rules for reusing prior evidence only when relevant inputs are unchanged, with limitations disclosed
+- embedding or semantic-artifact validation only at the final gates where those boundaries are affected
 
 For larger plans, do not stop at command lists. Also include invariant-style validation, such as:
 
@@ -160,14 +170,17 @@ If the plan came from a `scratch/plans/` file, the final implementation pass mus
 
 ## Good Planning Defaults
 
-- prefer exact file and module references when known
+- use exact file and module references when they improve coordination, while labeling them as likely owners rather than exhaustive permissions
 - prefer concrete acceptance criteria over broad goals
 - prefer explicit follow-up tracking over “later” prose
-- pause and ask the user if a blocker or architecture question prevents a clean end-state plan
+- pause and ask the user when a product, architecture, source-disposition, acceptance-strength, destructive/external-action, or substantial-cost decision prevents a clean end-state plan
+- do not create approval points for administrative path counts or mechanically necessary outcome-local edits
 - keep plan prose concise, but make ownership and validation explicit
 - for very large plans, prefer explicit “what this plan is not changing” guidance so implementation does not sprawl
 - when the intended model is non-obvious, include a representative shape or examples rather than leaving the meaning implicit in prose alone
 - when a successful implementation will depend on a few non-negotiable architectural rules, state them directly in the plan instead of assuming they are obvious from the slice text
+
+When emitting delegated slices, use the short brief structure in `$delegated-agent-contract`. A newer brief from the user or appropriate decision owner may supersede older procedural allowlist or publication requirements, but it must preserve or explicitly escalate every semantic invariant and acceptance criterion.
 
 ## Output Shape
 

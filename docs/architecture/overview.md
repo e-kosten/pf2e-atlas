@@ -63,7 +63,7 @@ Acceptance is staged along the dependency graph: D3 audits source/artifact/searc
 flowchart TD
     pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, build input"]
     ingest --> indexWriter["atlas-index<br/>SqliteIndexWriter"]
-    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v4"]
+    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v5"]
     localStateDb["SQLite local state<br/>pf2e-local-state.sqlite"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
@@ -139,7 +139,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 ## Data Flow
 
 1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
-2. Ingest dispatches serialized Source through versioned types, records exhaustive coverage, normalizes canonical entities and occurrences, parses rich content once into `RichDocument`, resolves rich-content references, derives traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
+2. Ingest dispatches serialized Source through versioned types, records exhaustive coverage, normalizes canonical entities and occurrences, parses rich content once into `RichDocument`, resolves rich-content references, derives traits, non-creature generic metrics, and aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`. The artifact writer derives creature query metrics directly from the matching canonical body.
 3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
 4. `atlas-runtime` resolves source, embedding cache, artifact, and local-state paths for setup and query commands.
 5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.

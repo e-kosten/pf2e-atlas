@@ -737,109 +737,9 @@ fn validate_record_mechanics(
         metrics.entry(record_key).or_default().push(metric);
     }
 
-    let mut activities = BTreeMap::<String, Vec<atlas_record::MechanicActivity>>::new();
     let mut statement = connection
         .prepare(
-            "SELECT record_key,ordinal,activity_id,payload_json
-             FROM record_activities ORDER BY record_key,ordinal",
-        )
-        .map_err(query_failed)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-            ))
-        })
-        .map_err(query_failed)?;
-    for row in rows {
-        let (record_key, ordinal, activity_id, payload) = row.map_err(query_failed)?;
-        if !expected_ordinal(
-            &activities,
-            &record_key,
-            ordinal,
-            "record_activities",
-            diagnostics,
-        ) {
-            return Ok(());
-        }
-        let path = format!("record_activities[{record_key}:{ordinal}].payload_json");
-        let activity = match crate::read::records::children::decode_activity(&payload, &path) {
-            Ok(value) => value,
-            Err(error) => {
-                invalid(diagnostics, &error, &path);
-                return Ok(());
-            }
-        };
-        if activity.activity_id != activity_id {
-            mismatch(
-                diagnostics,
-                "activity payload ID diverges from stored activity_id",
-                &path,
-                activity_id,
-                activity.activity_id.clone(),
-            );
-            return Ok(());
-        }
-        activities.entry(record_key).or_default().push(activity);
-    }
-
-    let mut entries = BTreeMap::<String, Vec<atlas_record::SpellcastingEntryMechanics>>::new();
-    let mut statement = connection
-        .prepare(
-            "SELECT record_key,entry_id,ordinal,payload_json
-             FROM record_spellcasting_entries ORDER BY record_key,ordinal",
-        )
-        .map_err(query_failed)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, i64>(2)?,
-                row.get::<_, String>(3)?,
-            ))
-        })
-        .map_err(query_failed)?;
-    for row in rows {
-        let (record_key, child_id, ordinal, payload) = row.map_err(query_failed)?;
-        if !expected_ordinal(
-            &entries,
-            &record_key,
-            ordinal,
-            "record_spellcasting_entries",
-            diagnostics,
-        ) {
-            return Ok(());
-        }
-        let path = format!("record_spellcasting_entries[{record_key}:{child_id}].payload_json");
-        let entry = match crate::read::records::children::decode_spellcasting_entry(&payload, &path)
-        {
-            Ok(value) => value,
-            Err(error) => {
-                invalid(diagnostics, &error, &path);
-                return Ok(());
-            }
-        };
-        if entry.entry_id != child_id {
-            mismatch(
-                diagnostics,
-                "spellcasting payload ID diverges from relational child ID",
-                &path,
-                child_id,
-                entry.entry_id.clone(),
-            );
-            return Ok(());
-        }
-        entries.entry(record_key).or_default().push(entry);
-    }
-
-    let mut statement = connection
-        .prepare(
-            "SELECT record_key,metric_count,metric_order_sha256,activity_count,activity_order_sha256,
-                    spellcasting_entry_count,spellcasting_entry_order_sha256
+            "SELECT record_key,metric_count,metric_order_sha256
              FROM records ORDER BY record_key",
         )
         .map_err(query_failed)?;
@@ -849,32 +749,12 @@ fn validate_record_mechanics(
                 row.get::<_, String>(0)?,
                 row.get::<_, i64>(1)?,
                 row.get::<_, String>(2)?,
-                row.get::<_, i64>(3)?,
-                row.get::<_, String>(4)?,
-                row.get::<_, i64>(5)?,
-                row.get::<_, String>(6)?,
             ))
         })
         .map_err(query_failed)?;
     for row in rows {
-        let (
-            record_key,
-            metric_count,
-            metric_digest,
-            activity_count,
-            activity_digest,
-            entry_count,
-            entry_digest,
-        ) = row.map_err(query_failed)?;
+        let (record_key, metric_count, metric_digest) = row.map_err(query_failed)?;
         let metric_values = metrics
-            .get(&record_key)
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        let activity_values = activities
-            .get(&record_key)
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        let entry_values = entries
             .get(&record_key)
             .map(Vec::as_slice)
             .unwrap_or_default();
@@ -886,24 +766,6 @@ fn validate_record_mechanics(
             &metric_digest,
             metric_values.len(),
             crate::read::records::children::metric_order_digest(metric_values),
-        );
-        validate_summary(
-            diagnostics,
-            &record_key,
-            "record_activities",
-            activity_count,
-            &activity_digest,
-            activity_values.len(),
-            crate::read::records::children::activity_order_digest(activity_values),
-        );
-        validate_summary(
-            diagnostics,
-            &record_key,
-            "record_spellcasting_entries",
-            entry_count,
-            &entry_digest,
-            entry_values.len(),
-            crate::read::records::children::spellcasting_order_digest(entry_values),
         );
         if !diagnostics.is_empty() {
             return Ok(());

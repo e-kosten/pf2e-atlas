@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
@@ -76,9 +83,14 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     vi.clearAllMocks();
 
-    history.pushState(null, "", "/records/spell%3Aheal");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    await act(async () => {
+      history.pushState(null, "", "/records/spell%3Aheal");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
 
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:heal"),
+    );
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
@@ -86,9 +98,14 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:heal");
 
     vi.clearAllMocks();
-    history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    await act(async () => {
+      history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
 
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:linked"),
+    );
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();

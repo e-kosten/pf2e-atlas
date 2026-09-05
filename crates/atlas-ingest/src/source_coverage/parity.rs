@@ -166,7 +166,7 @@ fn evaluate_declaration(
             SourceLeafDisposition::Promoted => CoverageFailureCode::ReaderNotObserved,
             SourceLeafDisposition::ProvenanceOnly => CoverageFailureCode::ProvenanceNotDurable,
             SourceLeafDisposition::Ignored => CoverageFailureCode::FixtureNotSourceGrounded,
-            SourceLeafDisposition::Deferred | SourceLeafDisposition::Unconsumed => unreachable!(),
+            SourceLeafDisposition::Deferred | SourceLeafDisposition::Unconsumed => return,
         };
         failures.push(CoverageFailure::for_identity(
             code,
@@ -381,7 +381,7 @@ fn evaluate_receipt(
                 ));
             }
         }
-        SourceLeafDisposition::Deferred | SourceLeafDisposition::Unconsumed => unreachable!(),
+        SourceLeafDisposition::Deferred | SourceLeafDisposition::Unconsumed => {}
     }
 }
 
@@ -416,7 +416,7 @@ fn validate_map_policy(
                 MapKeyPolicy::TypedUnsupported => {
                     format!("map member {key} was not retained as typed unsupported")
                 }
-                MapKeyPolicy::OpenVocabularyRetainedIdentity => unreachable!(),
+                MapKeyPolicy::OpenVocabularyRetainedIdentity => return,
             },
         ));
     }

@@ -158,7 +158,7 @@ impl AtlasAppService {
         } else {
             ParticipantSide::Enemy
         };
-        let (max_hp, current_hp) = default_hp(record);
+        let (max_hp, current_hp) = default_hp(&retrieved);
         let spell_resources = initial_spell_resources(&retrieved);
         let store = self.local_state_store()?;
         for index in 0..request.quantity {

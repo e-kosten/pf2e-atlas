@@ -7,7 +7,6 @@ mod creature_entities;
 mod creature_projection;
 mod json_projection;
 mod mechanics;
-mod mechanics_view;
 pub mod metrics;
 mod model;
 mod presentation;
@@ -103,9 +102,6 @@ pub use mechanics::{
     MechanicSurface, MechanicTarget, SaveKind, UnsupportedMechanic, UnsupportedMechanicValue,
     project_creature_mechanics,
 };
-pub use mechanics_view::{
-    MechanicScalar, MechanicValue, MechanicsView, MovementSpeed, build_mechanics_view,
-};
 pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
     MetricKeyDefinition, MetricKeyPattern, MetricKeySegment, MetricLabelTemplate,
@@ -113,17 +109,15 @@ pub use metrics::{
     normalize_metric_key_segment,
 };
 pub use model::{
-    ActivationTimeSourceField, ActivityRoll, ActivityRollAbility, ActivityRollSurface,
-    ActorMechanics, AliasSource, AtlasRecord, AtlasRecordSet, DamageEffectKind, DamageExpression,
-    DefaultRetrievalVisibility, DurationTimeSourceField, FoundryDocumentMechanics,
-    FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics,
-    MechanicActivity, MechanicActivityKind, MechanicActivityMode, MechanicActivityUsage, MetricRow,
-    MetricValue, NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification,
-    RecordContent, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
-    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVariantMembership,
-    RecordVisibility, RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense,
-    SpellMechanics, SpellRange, SpellTarget, SpellcastingEntryMechanics, SpellcastingPreparation,
-    VariantSource,
+    ActivationTimeSourceField, ActivityRollAbility, ActorMechanics, AliasSource, AtlasRecord,
+    AtlasRecordSet, DamageEffectKind, DefaultRetrievalVisibility, DurationTimeSourceField,
+    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+    ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
+    RecordActivationTiming, RecordAlias, RecordClassification, RecordContent, RecordDurationTiming,
+    RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
+    RecordTaxonomy, RecordTiming, RecordVariantMembership, RecordVisibility,
+    RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense, SpellMechanics,
+    SpellRange, SpellTarget, VariantSource,
 };
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationContent,

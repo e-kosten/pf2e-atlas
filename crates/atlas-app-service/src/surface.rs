@@ -888,7 +888,7 @@ fn iwr(
                         .map(|value| value.as_str().to_string())
                         .collect()
                 })
-                .unwrap_or_else(Vec::new);
+                .unwrap_or_default();
             let double_vs = optional_fact(&value.double_vs)
                 .map(|values| {
                     values
@@ -896,7 +896,7 @@ fn iwr(
                         .map(|value| value.as_str().to_string())
                         .collect()
                 })
-                .unwrap_or_else(Vec::new);
+                .unwrap_or_default();
             CreatureSurfaceIwrView {
                 component_id,
                 authored_order: value.authored_order,
@@ -1109,7 +1109,7 @@ fn awareness(
                 })
                 .collect::<Vec<_>>()
         })
-        .unwrap_or_else(Vec::new);
+        .unwrap_or_default();
     senses.sort_by_key(|value| value.authored_order);
     let view = CreatureSurfaceAwarenessView {
         perception: include_perception_modifier
@@ -1137,7 +1137,7 @@ fn awareness(
                     .map(|value| value.as_str().to_string())
                     .collect()
             })
-            .unwrap_or_else(Vec::new),
+            .unwrap_or_default(),
         language_details: languages.and_then(|value| note(&value.details)),
         provenance: fact_provenance(CreatureSurfaceSourceFieldView::Perception),
     };

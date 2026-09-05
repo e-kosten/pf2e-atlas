@@ -10,9 +10,9 @@
   ],
   "base_tree": "c0e52555441cbf15eae9a8395a0c3319cd36fad3",
   "bounded_artifact": {
-    "artifact_contract": "pf2e-atlas-artifact/v4",
-    "artifact_schema": "2",
-    "artifact_sha256": "4984df8c4f4c2ede4f4a97d76e690c77a50c6c8218ce2464783405a27c746287",
+    "artifact_contract": "pf2e-atlas-artifact/v5",
+    "artifact_schema": "3",
+    "artifact_sha256": "71a8c1dedd8f93950ad1c42fada3e98f3a501fcea43608ecfb2e7448d13fcb0c",
     "build_capture": {
       "color": "NO_COLOR=1",
       "command": "atlas --progress never index build --source $BOUNDED_SOURCE --output $BOUNDED_ARTIFACT --no-embeddings --json",
@@ -21,35 +21,35 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2319,
-      "stdout_sha256": "b4947f7acaf94657ec96dbb03b481c45a786fff8aa9b22e5b27c575bd4e623c5",
+      "stdout_bytes": 2318,
+      "stdout_sha256": "bb2ade665e8c2d5185c6f0452deaa6000e0e7b995bfec06a52e9c2f6773dcef7",
       "width": null
     },
     "embeddings": false,
     "manifest_contract": "pf2e-atlas-artifact-manifest/v3",
     "manifest_identity": {
-      "artifact_contract_version": "pf2e-atlas-artifact/v4",
+      "artifact_contract_version": "pf2e-atlas-artifact/v5",
       "build": {
         "artifact_record_count": 15,
-        "artifact_sha256": "4984df8c4f4c2ede4f4a97d76e690c77a50c6c8218ce2464783405a27c746287",
+        "artifact_sha256": "71a8c1dedd8f93950ad1c42fada3e98f3a501fcea43608ecfb2e7448d13fcb0c",
         "document_embedding_count": 0,
         "embedding_model": "bge-small-en-v1.5",
         "generated_record_count": 4
       },
       "manifest_version": "pf2e-atlas-artifact-manifest/v3",
-      "schema_version": "2",
+      "schema_version": "3",
       "source": {
         "fingerprint": {
           "kind": "file_metadata_v1",
-          "value": "sha256:f67a939a7daf374e4bb161359ea4c789915506772ae4004080610a77f2cc4852"
+          "value": "sha256:6264a5e94868b1c7501cc9d991d7ed4bd2f4a89bb21ebe75f1eb97e06c163d89"
         },
         "kind": "foundry-pf2e",
         "record_count": 11,
         "root": "$BOUNDED_SOURCE",
-        "signature": "foundry-pf2e:sha256:f42b47dd2332bbd687281ce2f1b2e6a15dda37314236ee362184375d158c91bd"
+        "signature": "foundry-pf2e:sha256:137570ee382b1b05e71bf7e42b306a5fd9c95a4958357adb57b452eecc7ee796"
       }
     },
-    "manifest_sha256": "c8e6e67b2a942cd42a5de48aec89cc491888f3fd36b0e1bfedaea2d2a6f3d4bf"
+    "manifest_sha256": "61407891711c4ad3d6419ed9e0eb51c4abeba3f1ad56eb6e7e5f9809189141f1"
   },
   "captures": [
     {
@@ -138,9 +138,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 26561,
+      "stdout_bytes": 26297,
       "stdout_path": "creature/night-hag/description-40.txt",
-      "stdout_sha256": "d144be2152406cc6f03c0cacdddd0c5e44b37fd7d58a7300a2ecd2b2a4219d91",
+      "stdout_sha256": "b9e0ca5c3553085d914b86dc6d5542bf7675649fa67c3b035594d2afdc4e2108",
       "width": 40
     },
     {
@@ -151,9 +151,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 25830,
+      "stdout_bytes": 25576,
       "stdout_path": "creature/night-hag/description-80.txt",
-      "stdout_sha256": "041f6df3ec63526a66b3f79f65026c4be823c922f4ac8deeddb38abe516c3b46",
+      "stdout_sha256": "58badb14d9c0fcde7ece94c5a316e1ccf8119f08ca88fbc93c894063f7e68f4e",
       "width": 80
     },
     {
@@ -164,9 +164,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 25620,
+      "stdout_bytes": 25370,
       "stdout_path": "creature/night-hag/description-120.txt",
-      "stdout_sha256": "eb9a7801a5df5387ac08054f4f71b1c156629c5e327126803715dc60a16356fb",
+      "stdout_sha256": "7d5390fd537058f940ebacc29472e67ba876f2405222586e3352c3fe1ec384d7",
       "width": 120
     },
     {
@@ -177,9 +177,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 7362,
+      "stdout_bytes": 7397,
       "stdout_path": "creature/night-hag/standard-40.txt",
-      "stdout_sha256": "ecb18bb7e324f7c99f4c8a41afd03e351306bf25d9b34c4299ebd9b3d272d87d",
+      "stdout_sha256": "515de141046eca795155cfb5c7cffe7e005a16bc6c680213e5f92ac10df4e978",
       "width": 40
     },
     {
@@ -190,9 +190,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 6522,
+      "stdout_bytes": 6557,
       "stdout_path": "creature/night-hag/standard-80.txt",
-      "stdout_sha256": "ef2643cb3183c5a551f12557398c9287a3fe03947b7feec7bcc017c3a9b1296c",
+      "stdout_sha256": "54e9ba4d6f16d0e16deea8dfcfb5e729c16f032f687a0c6ce363d3ddef7aadc9",
       "width": 80
     },
     {
@@ -203,9 +203,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 6495,
+      "stdout_bytes": 6530,
       "stdout_path": "creature/night-hag/standard-120.txt",
-      "stdout_sha256": "0a41b2315ff148da665d0f0d34b6c2012382c5394f8c6706dcb3a0d9926185dc",
+      "stdout_sha256": "15fa82674df0c67b10f48f9830b1ccf4268fee5ba2e041bb33f0af118bfa21cc",
       "width": 120
     },
     {
@@ -216,9 +216,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 33970,
+      "stdout_bytes": 33741,
       "stdout_path": "creature/night-hag/full-40.txt",
-      "stdout_sha256": "9fe3e0881ca3f314b4efef6c18fc10a249ffac2564bee06df3907ca23e0a5810",
+      "stdout_sha256": "e885b38b11ef0bca769cd92f65f3d6f18eb79ccb728aa2005e81238787bae9d5",
       "width": 40
     },
     {
@@ -229,9 +229,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 32406,
+      "stdout_bytes": 32187,
       "stdout_path": "creature/night-hag/full-80.txt",
-      "stdout_sha256": "810ba0ada4abbcf78aa754c05580e72ffbce10440c00048bb9cb3d3466d4b970",
+      "stdout_sha256": "d75794c31d1b0ba60b494a7568f814c1635d7826b7cbdfb15ac7c4fe552340a9",
       "width": 80
     },
     {
@@ -242,9 +242,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 32169,
+      "stdout_bytes": 31954,
       "stdout_path": "creature/night-hag/full-120.txt",
-      "stdout_sha256": "3561bb656f6e0496e3cd1414f2396a55515814b9050786f7bc8d817051d98392",
+      "stdout_sha256": "18fec0d6bbbc450ad174b553305da6b0e7fa319a2ce898cfb58bcb5bc8aa2598",
       "width": 120
     },
     {
@@ -920,7 +920,7 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout_bytes": 9566,
       "stdout_path": "creature/balor/description-40.txt",
-      "stdout_sha256": "94a45f8c8f61608fd8d6c639e0fec4ac8f4a55c4b650bde5c5a73e72a8cf91bd",
+      "stdout_sha256": "0826f343cd3d91a70584dd1b7fdbd5c124a233d87666f0f6e28cc8812b924bb0",
       "width": 40
     },
     {
@@ -933,7 +933,7 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout_bytes": 9321,
       "stdout_path": "creature/balor/description-80.txt",
-      "stdout_sha256": "2ea5cb05e7ee51766dfd8ddcd3c911e76e10892057c374aaa9f800edd5a8fde5",
+      "stdout_sha256": "9dcedcb7ed7c126f9e37dcd7c3d7ffdf03922d5cca86e5bb2c491a1f0185548c",
       "width": 80
     },
     {
@@ -946,7 +946,7 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout_bytes": 9239,
       "stdout_path": "creature/balor/description-120.txt",
-      "stdout_sha256": "48752fbca5e5c393157d7923361f8b0700d81f17a24fa73b068ab9f1cfd50785",
+      "stdout_sha256": "3ae27a2ddd482a62b12d4c4a2ff27f7506850be0618f6dd9f180266cd80c9d5c",
       "width": 120
     },
     {
@@ -998,7 +998,7 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout_bytes": 13478,
       "stdout_path": "creature/balor/full-40.txt",
-      "stdout_sha256": "0c01305512324f40341a8632058926f0c9f7253d302df810630c4c7655140406",
+      "stdout_sha256": "c64a52abaede4e8c3e55d0a6363129aabf1f4a877ac493da2e3513541c7bfb30",
       "width": 40
     },
     {
@@ -1011,7 +1011,7 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout_bytes": 12928,
       "stdout_path": "creature/balor/full-80.txt",
-      "stdout_sha256": "888cc263259be7cbcf5b825711ce77e1ad51df42584d05a508c788761746029a",
+      "stdout_sha256": "72582a5c20b24a0cc997599c1c4684b163c3bc85a39231cc55a7101e506cc4fb",
       "width": 80
     },
     {
@@ -1024,7 +1024,7 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout_bytes": 12846,
       "stdout_path": "creature/balor/full-120.txt",
-      "stdout_sha256": "1d7a63ef604fc5aa76e248ebda638e45f0f7fdc3c42752cfd46d750f01d484c8",
+      "stdout_sha256": "59d2d44b4f4f9cca744ee7faee2f4b3806ea653c2b6077c28b329f2f30b6b960",
       "width": 120
     },
     {
@@ -1074,9 +1074,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 1760,
+      "stdout_bytes": 1739,
       "stdout_path": "creature/gray-master/preview-40.txt",
-      "stdout_sha256": "dfbd689ebc257ccd745031c28e2e6bbaa586f76c1e99e6d68452ce4672628848",
+      "stdout_sha256": "d03dd33a652dc527df5e08b18f04dab80b2e5afb7b7e7f638d398bda711e58d0",
       "width": 40
     },
     {
@@ -1087,9 +1087,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 1638,
+      "stdout_bytes": 1617,
       "stdout_path": "creature/gray-master/preview-80.txt",
-      "stdout_sha256": "fb97dffd1897e9fe270189180debb14ecea70038ec437eca110123db23d97546",
+      "stdout_sha256": "9e4d6e8b56a575a28c65a941906af1c3b2716268d5f363b19f7b5145abfcb104",
       "width": 80
     },
     {
@@ -1100,9 +1100,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 1624,
+      "stdout_bytes": 1617,
       "stdout_path": "creature/gray-master/preview-120.txt",
-      "stdout_sha256": "36e421b87bf9b5defbe6d92ab5e7744db7cd7ae9cb0461188e92447390d590d1",
+      "stdout_sha256": "9e4d6e8b56a575a28c65a941906af1c3b2716268d5f363b19f7b5145abfcb104",
       "width": 120
     },
     {
@@ -1113,9 +1113,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 8953,
+      "stdout_bytes": 8951,
       "stdout_path": "creature/gray-master/description-40.txt",
-      "stdout_sha256": "03b1f37b92af740ecbcdd2aaa2f0a7d7def2ef44429c9e72799b209587f9edca",
+      "stdout_sha256": "bd4fc71b6a4ce94301ee593d63498647fa36ab4789fcd54f2aec7be2108c17d9",
       "width": 40
     },
     {
@@ -1126,9 +1126,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 8716,
+      "stdout_bytes": 8714,
       "stdout_path": "creature/gray-master/description-80.txt",
-      "stdout_sha256": "cbd688587ab59af25b6d6d4d352febc69bf9cf398fc2cbecbb403d23931509d6",
+      "stdout_sha256": "1ff813bd50728cef9ce0cbb209adbfe4c49c1cf42595161554c978f19066068a",
       "width": 80
     },
     {
@@ -1139,9 +1139,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 8648,
+      "stdout_bytes": 8646,
       "stdout_path": "creature/gray-master/description-120.txt",
-      "stdout_sha256": "c6cfb2db141b4096e5c7c5e8e8be67cde443c3093da2adbbfeedf04e8f144866",
+      "stdout_sha256": "2bc6848028daa6f94656b78fce5d73e4bdabef0a0baf77dd79ef41cadb8cb87e",
       "width": 120
     },
     {
@@ -1152,9 +1152,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3197,
+      "stdout_bytes": 3176,
       "stdout_path": "creature/gray-master/standard-40.txt",
-      "stdout_sha256": "5a14e259c560e69cd1c33f0344ddd4b371ea87dcfaf316dafd7a697e07f0d65a",
+      "stdout_sha256": "8acedf8a59863912969431f5050b3840cf4b61e0f21ba30de3a127c990e51ee3",
       "width": 40
     },
     {
@@ -1165,9 +1165,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2921,
+      "stdout_bytes": 2900,
       "stdout_path": "creature/gray-master/standard-80.txt",
-      "stdout_sha256": "c739811d659963ca7e2918ead21b4ba698c906495241bdd23e83daea162e51d9",
+      "stdout_sha256": "372a34cdfa333937a90fff2d2ceb7d4673bcdf779236e09aa8cd7d8e7caa727c",
       "width": 80
     },
     {
@@ -1178,9 +1178,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 2907,
+      "stdout_bytes": 2900,
       "stdout_path": "creature/gray-master/standard-120.txt",
-      "stdout_sha256": "bd187a7c2a9b69d4006abb0eeb27d8803d1cb6d7580efb023e31c226cd9023b6",
+      "stdout_sha256": "372a34cdfa333937a90fff2d2ceb7d4673bcdf779236e09aa8cd7d8e7caa727c",
       "width": 120
     },
     {
@@ -1191,9 +1191,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 12238,
+      "stdout_bytes": 12215,
       "stdout_path": "creature/gray-master/full-40.txt",
-      "stdout_sha256": "89f3402e6dcbe9475f3e68eb5270741bdd7edcfbc34dfc4e73149c76eb521f46",
+      "stdout_sha256": "c6c155c829604fdd1192a2cb207d90e041e22d8c1e72fb395b45e5edaa00e342",
       "width": 40
     },
     {
@@ -1204,9 +1204,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 11709,
+      "stdout_bytes": 11686,
       "stdout_path": "creature/gray-master/full-80.txt",
-      "stdout_sha256": "4cf41b3b857bdc3f48255acd5c1eb57bca1a9d960b65769d3759889aa8a7b3cd",
+      "stdout_sha256": "c92677a50e7e066ec3e4178e6b203a7e31e247f015749b2c912838e3f0608ab2",
       "width": 80
     },
     {
@@ -1217,9 +1217,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 11627,
+      "stdout_bytes": 11618,
       "stdout_path": "creature/gray-master/full-120.txt",
-      "stdout_sha256": "9c42675e93d0035f255c2f5e0da292a81367eb4633c8631603e7a1f97b2f5af5",
+      "stdout_sha256": "9833f743414334d7e87e632d2fea8bcf7e49c75656cc92a79f2a3721cd257566",
       "width": 120
     },
     {
@@ -1269,9 +1269,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 1636,
+      "stdout_bytes": 1629,
       "stdout_path": "creature/beluthus/preview-40.txt",
-      "stdout_sha256": "e5b2941c74b875f62bbfe78f73c161b0d20bca9add25eacb6718d0b2f8df059a",
+      "stdout_sha256": "83475aa836f56c13b1894c228be2ee1757c95a432a4b57ca2ccec46685836847",
       "width": 40
     },
     {
@@ -1282,9 +1282,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 1536,
+      "stdout_bytes": 1529,
       "stdout_path": "creature/beluthus/preview-80.txt",
-      "stdout_sha256": "fa1af926559d5244aeb799ed4c838ffc4ceb7d00140ed556233a26df96843c9a",
+      "stdout_sha256": "24cb0533fbface1a23ec569edb24df0a1a0713d14be351ad05eb551479cb57b6",
       "width": 80
     },
     {
@@ -1295,9 +1295,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 1522,
+      "stdout_bytes": 1515,
       "stdout_path": "creature/beluthus/preview-120.txt",
-      "stdout_sha256": "0b692c883c690f753315147793dc01da9ade04bdb1836619585b7e5593291078",
+      "stdout_sha256": "d593821b58b293877daaa0a1353a083897b8be3bd0f14dc605870533f3309359",
       "width": 120
     },
     {
@@ -1308,9 +1308,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 10710,
+      "stdout_bytes": 10689,
       "stdout_path": "creature/beluthus/description-40.txt",
-      "stdout_sha256": "1b5a0335a30f36a94748b0e5591972e91ee47e3ce6d483cd5316267f77ab9fd2",
+      "stdout_sha256": "b14793777b0defff85990e6dd45eeac08013d2f00e5ae0ed05c0507a19cc1492",
       "width": 40
     },
     {
@@ -1321,9 +1321,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 10440,
+      "stdout_bytes": 10419,
       "stdout_path": "creature/beluthus/description-80.txt",
-      "stdout_sha256": "09dc171da298f3cd9c70b3ffca8877d3a7308dc12f46d793e586cd35ccde73fd",
+      "stdout_sha256": "991efef35ce6748f6145b662606e7840eba050b6a8ee4f37ce251da9b490df7e",
       "width": 80
     },
     {
@@ -1334,9 +1334,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 10376,
+      "stdout_bytes": 10355,
       "stdout_path": "creature/beluthus/description-120.txt",
-      "stdout_sha256": "922ed186e1b0a3753cdccc15496389844b8652efa1d276f3e5413e6d9d9e94be",
+      "stdout_sha256": "2cbda550bf5f85b70151dce7e6e63470b262f7aad5011dbd2965b5f807f5dc4f",
       "width": 120
     },
     {
@@ -1347,9 +1347,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3466,
+      "stdout_bytes": 3459,
       "stdout_path": "creature/beluthus/standard-40.txt",
-      "stdout_sha256": "bb3be3e7044174aee47f365e1e9f1f72e16aac531386ad5299b31e6cca417d54",
+      "stdout_sha256": "a40a9ecfd737bec1ce4505ac7cabe4b37424d0d038d55a2de048c51036d0d078",
       "width": 40
     },
     {
@@ -1360,9 +1360,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3142,
+      "stdout_bytes": 3135,
       "stdout_path": "creature/beluthus/standard-80.txt",
-      "stdout_sha256": "4f82560ef4c918087cffd6fa6d28409c13edbb1d72895cecd9ead85691bf315d",
+      "stdout_sha256": "5403d86aab0baca91122547b87e99567434323bea4b9c47f354abcacf1197566",
       "width": 80
     },
     {
@@ -1373,9 +1373,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 3112,
+      "stdout_bytes": 3105,
       "stdout_path": "creature/beluthus/standard-120.txt",
-      "stdout_sha256": "f693ffc9ffe7568aa26c786ac982e0e657ecedd59e5e971b51be543bdddd27ed",
+      "stdout_sha256": "4700fd24761c30e20bd11f176a7ca9a20b1a78ae6a077053c3c46799aa028427",
       "width": 120
     },
     {
@@ -1386,9 +1386,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 14292,
+      "stdout_bytes": 14264,
       "stdout_path": "creature/beluthus/full-40.txt",
-      "stdout_sha256": "ad3111ed6948ff31740c29b9eeb6d66281b7fccea18eddd4565364ad8b994ea1",
+      "stdout_sha256": "d731b54e6036bc8492deaad3b8c4057f5690b3d625123d4aff25d881b0ae32b5",
       "width": 40
     },
     {
@@ -1399,9 +1399,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13669,
+      "stdout_bytes": 13641,
       "stdout_path": "creature/beluthus/full-80.txt",
-      "stdout_sha256": "465027eb57a298e54c2d7fba327ed5af5286e4ad2f6c1625b4d719ae0ae14ef3",
+      "stdout_sha256": "e049b2d54072845fea8253af9323fa6a71213645a2168eca0da3560eb6a10b80",
       "width": 80
     },
     {
@@ -1412,9 +1412,9 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13575,
+      "stdout_bytes": 13547,
       "stdout_path": "creature/beluthus/full-120.txt",
-      "stdout_sha256": "1b5d4ac91ee4859c72ddebb05b892226352e8c0e512439e6aac01aa1c2839e61",
+      "stdout_sha256": "79837674378330e295a974a7d6b60dc4fb7e32c7b955814711134c625aa223ac",
       "width": 120
     },
     {
@@ -1809,41 +1809,41 @@
     },
     {
       "color": "NO_COLOR=1",
-      "command": "atlas --progress never record get revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ --detail standard --index $BOUNDED_ARTIFACT",
+      "command": "atlas --progress never record get claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E --detail standard --index $BOUNDED_ARTIFACT",
       "exit_status": 0,
       "profile": "standard",
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 4490,
-      "stdout_path": "authentic-unmodeled/areelu-vorlesh-standard-80.txt",
-      "stdout_sha256": "267952cb60b32ca229767934965b50b14c79d5e473c50f506b76d1cc8fd5e9ea",
+      "stdout_bytes": 1594,
+      "stdout_path": "authentic-unmodeled/chernasardo-ranger-standard-80.txt",
+      "stdout_sha256": "5e57eff98a5e7478baa2c896216bfbd733a2d334c27dbba17e0bc30716e6c769",
       "width": 80
     },
     {
       "color": "NO_COLOR=1",
-      "command": "atlas --progress never record get revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ --detail full --index $BOUNDED_ARTIFACT",
+      "command": "atlas --progress never record get claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E --detail full --index $BOUNDED_ARTIFACT",
       "exit_status": 0,
       "profile": "full",
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 13640,
-      "stdout_path": "authentic-unmodeled/areelu-vorlesh-full-80.txt",
-      "stdout_sha256": "7890f9c12c6250c2d0d84ff66c4554d807f412bef8c3b6de9210e32121da9ffe",
+      "stdout_bytes": 2820,
+      "stdout_path": "authentic-unmodeled/chernasardo-ranger-full-80.txt",
+      "stdout_sha256": "bb67b1ce6bb53e85668d5b247b4bd72a103701623061861d94980c22e0403fdc",
       "width": 80
     },
     {
       "color": "NO_COLOR=1",
-      "command": "atlas --progress never record provenance revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ --json --index $BOUNDED_ARTIFACT",
+      "command": "atlas --progress never record provenance claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E --json --index $BOUNDED_ARTIFACT",
       "exit_status": 0,
       "profile": "provenance-json",
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 103413,
-      "stdout_path": "authentic-unmodeled/areelu-vorlesh-provenance.json",
-      "stdout_sha256": "b450149626479780e0cb762e9c4121473c8aa53bf3dac093d1fc7544a3c17d18",
+      "stdout_bytes": 84136,
+      "stdout_path": "authentic-unmodeled/chernasardo-ranger-provenance.json",
+      "stdout_sha256": "56e87cb1da97d4a7d71b0cc66f606030bed5edd35d4f4d2c42ee1b657678e827",
       "width": 80
     }
   ],
@@ -1884,8 +1884,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 201774,
-      "stdout_sha256": "7f499520d9d7fe9e9f4677ff2bc4c6a57e79f55b1a3117e398ce291fd56e33be",
+      "stdout_bytes": 173787,
+      "stdout_sha256": "8b116bb79b6734dd846946fdc2a954fbca212e02ff3a0b6e75391d419b95d1bc",
       "width": 80
     },
     {
@@ -1896,8 +1896,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 14529,
-      "stdout_sha256": "5d15f4edc38e882091da87d386f6f57c12c1d09f1c0b72ec4232fccc9b07c5af",
+      "stdout_bytes": 13613,
+      "stdout_sha256": "b1b47570fc61ff72057fe35960480ed78bafb5fe060c93663220de26c6004c13",
       "width": 80
     },
     {
@@ -1908,8 +1908,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 74210,
-      "stdout_sha256": "ff262068a2ae1ba2ec000a308a9327bcb0c459bce30c3962b93b92ec2e75224d",
+      "stdout_bytes": 61257,
+      "stdout_sha256": "fea40fac6cd0b4108931ad1d64000c3ce2db22bbc91373c6dfaa23608e98e996",
       "width": 80
     },
     {
@@ -1920,8 +1920,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 14048,
-      "stdout_sha256": "dc1f1eef6e705232663b81b0e59faa9892756dca64dc43f2dcc9ebb0a7cf1396",
+      "stdout_bytes": 11329,
+      "stdout_sha256": "29fcd1eb03850269cfe741225fe78dfa3e0f471ca2bfc563a5e734a4b6cbaade",
       "width": 80
     },
     {
@@ -1932,8 +1932,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 81022,
-      "stdout_sha256": "39c23c003052e422fab085f1420accee21a405a73af097bd6c8f0c1ae09dc9ad",
+      "stdout_bytes": 69169,
+      "stdout_sha256": "05db41ad95d071e72cd679e91b79417f36a317b5b5edf59f66a1ff78c48665ab",
       "width": 80
     },
     {
@@ -1944,8 +1944,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 68420,
-      "stdout_sha256": "1995e59f9d4c7dfb22756d5ad6a018f076960ee54cfd859d62ee1ea702c000d5",
+      "stdout_bytes": 58521,
+      "stdout_sha256": "63cdb9a345d322a67e37fbf4787bc0eb5d9c9e427ed0f96b03ccbcc0401bb85c",
       "width": 80
     },
     {
@@ -1956,8 +1956,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 112200,
-      "stdout_sha256": "5e56548b68f0848de0b1e01abd5f36816083253930c61ab6edfed707e0aed2ce",
+      "stdout_bytes": 101841,
+      "stdout_sha256": "96f29310abe6321523295c916163a5629c8e7e8048e725b133c5dffea046ab41",
       "width": 80
     },
     {
@@ -1968,8 +1968,8 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 21679,
-      "stdout_sha256": "bbcb0e71c74adcf0b8b3c37ed318364d0ca4d9dc88bcff56a524636be8888707",
+      "stdout_bytes": 18722,
+      "stdout_sha256": "5f7c47994e8969c35d3d3f76a8748ab55a8c51e8d74f9655c878015236f616a4",
       "width": 80
     },
     {
@@ -1980,68 +1980,68 @@
       "progress": "never",
       "stderr_bytes": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_bytes": 24280,
-      "stdout_sha256": "31dbd8ce74dceb7351924a47a7f69ad26dc435884ddad261656f8802cede9fb1",
+      "stdout_bytes": 20694,
+      "stdout_sha256": "4c11db5d57e60135c1215432f752b1dfa20340b2a69960eba7e909e38303e2ae",
       "width": 80
     }
   ],
   "format": "pf2e-atlas-cli-text-snapshot-evidence/v1",
   "pinned_source": {
-    "bounded_module_sha256": "7cbc0865166ce8cc9f2c8013c407f5f6a0fbcba583d4806c4bd34849047e376a",
+    "bounded_module_sha256": "e8e68028999a084e6f3effe5149a7a8345e654432cbec5f69a5ec96762875e43",
     "files": [
       {
         "record_key": "pathfinder-bestiary:WQy7HBUcgDLsfVJd",
-        "relative_path": "packs/pf2e/pathfinder-bestiary/night-hag.json",
-        "sha256": "ba2a7da4c23b78a4add8ccdc7976c0e8d6a971d21208df58a33f9bd21df76940"
+        "relative_path": "packs/pathfinder-bestiary/night-hag.json",
+        "sha256": "9b7697e6ea8a367b432c9f2d11fdaadf1f32a58b6a6ee5ec2e5ec3ca517829a8"
       },
       {
         "record_key": "pathfinder-monster-core:iIJPJcDT8wlJ8z5M",
-        "relative_path": "packs/pf2e/pathfinder-monster-core/giant-rat.json",
-        "sha256": "aa9cc319293195f87c7c59732915f7820ccb0ac617fa52f0c04d252a1a6c817c"
+        "relative_path": "packs/pathfinder-monster-core/giant-rat.json",
+        "sha256": "f8399003c84dff77ec500f39a1e4996bf4a0eadb71be606152ae34f088570b4f"
       },
       {
         "record_key": "quest-for-the-frozen-flame-bestiary:kxO7gXbpcmY1pi7p",
-        "relative_path": "packs/pf2e/quest-for-the-frozen-flame-bestiary/book-3-burning-tundra/calcifda.json",
-        "sha256": "89a287cdd849ce347b1e8a1f01515c0cf1c45caa53a55c3406352cb88dbd4b76"
+        "relative_path": "packs/quest-for-the-frozen-flame-bestiary/book-3-burning-tundra/calcifda.json",
+        "sha256": "83a68237aac93565f41e75d6ce6e89d5a1e88a468623e1c7e3c34aa3def71c7c"
       },
       {
         "record_key": "triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n",
-        "relative_path": "packs/pf2e/triumph-of-the-tusk-bestiary/book-2-hoof-cinder-and-storm/magical-forge.json",
-        "sha256": "96a76d3c5da6fbe3373c3865dc3f10a4d0f43d79f5a15ffcb0323061638252be"
+        "relative_path": "packs/triumph-of-the-tusk-bestiary/book-2-hoof-cinder-and-storm/magical-forge.json",
+        "sha256": "1b61ab9c5014d98617d2cae9dd614b109b7806a32f8c37a128be3bdc0d64a831"
       },
       {
         "record_key": "pathfinder-bestiary:9vNYtJZiseCEf4wt",
-        "relative_path": "packs/pf2e/pathfinder-bestiary/balor.json",
-        "sha256": "f2b1ef8e87eda3665c2416f56f632bc718f77a943dcdb39202a7a60ab0e1b88d"
+        "relative_path": "packs/pathfinder-bestiary/balor.json",
+        "sha256": "0ef5eaa7137946177208127edf08387491d005877fbe0d8d0ade38d1471a9e8a"
       },
       {
         "record_key": "curtain-call-bestiary:1eX4Csnv3psAsfLf",
-        "relative_path": "packs/pf2e/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json",
-        "sha256": "8ccd7b926140b52caa66db0294a44f1aa002e3f9005a42dcd6043f86fddd1289"
+        "relative_path": "packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json",
+        "sha256": "497ccd4fe79f6579d7ac33bd9f48bc941bb10182ac82b54ed9c60179208e20f6"
       },
       {
         "record_key": "abomination-vaults-bestiary:3ry9WSvMMXHUe3kE",
-        "relative_path": "packs/pf2e/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/beluthus.json",
-        "sha256": "47c674ade1ba92d231bd1fdb45fcd06b6ed5648af2ebb2a6960ac91cc9848afa"
+        "relative_path": "packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/beluthus.json",
+        "sha256": "bbee3086eaf0745d4feda720a5e15eb7a4db4434f3526dc7e514e76f8096a358"
       },
       {
         "record_key": "pathfinder-bestiary:KDRlxdIUADWHI6Vr",
-        "relative_path": "packs/pf2e/pathfinder-bestiary/air-mephit.json",
-        "sha256": "a5e628ad9f52baac8cce14fafe2dda543d1c3455797f373160c50358d75478ee"
+        "relative_path": "packs/pathfinder-bestiary/air-mephit.json",
+        "sha256": "60d5c44540c0a8795bba01271150022a6edb6d8bd07129f585f0c5edaba63264"
       },
       {
         "record_key": "pathfinder-monster-core:MSm1im7lZA5i82rz",
-        "relative_path": "packs/pf2e/pathfinder-monster-core/air-scamp.json",
-        "sha256": "f2c11588000587cd78ba86a2d8e3d8fac209c282da487fe08ec15f5c9d3c63a8"
+        "relative_path": "packs/pathfinder-monster-core/air-scamp.json",
+        "sha256": "e7e3508b648dc311e21d43c3bf369c9e18bc96c2a07ac7b8c79d721701a0dd05"
       },
       {
-        "record_key": "revenge-of-the-runelords-bestiary:igeNfVBZBcIkCzcZ",
-        "relative_path": "packs/pf2e/revenge-of-the-runelords-bestiary/book-3-into-the-apocalypse-archive/areelu-vorlesh.json",
-        "sha256": "483e9d78ed24093f4c2025cd7d5579394a396d93712b6e6e5131005f180973ca"
+        "record_key": "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+        "relative_path": "packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json",
+        "sha256": "b655a11ea8928936ca586f13fd74a0f87c795454e618e8cb4d22d54a15bd566c"
       },
       {
-        "relative_path": "packs/pf2e/journals/remaster-changes.json",
-        "sha256": "838700b9242191e8ea0221bb895eff1726d9705a586415e59343fc552bee1b61"
+        "relative_path": "packs/journals/remaster-changes.json",
+        "sha256": "f422ed137d9f15ca320c19b5675c94ab26c0fa1f5b3e2ba6e157d39fe836a826"
       }
     ],
     "source_contract": "pf2e-serialized-source/v1",
@@ -2068,8 +2068,8 @@
     ]
   },
   "snapshot_hashes": {
-    "authentic_unmodeled_manifest_sha256": "dcd034ef4ef767d3cb3e45bdc3aad33f1366455c5bf9ac6a5694d07824484016",
-    "matrix_manifest_sha256": "cbcbb52a3a85babaa7c591238ff8e7d56d2f707c5ec9db349dfd924a35387fd0"
+    "authentic_unmodeled_manifest_sha256": "e8cd9e7723ea2c5fb3bb0d657c654447c54991f99e28fa6c9695c4e50a2d0cd0",
+    "matrix_manifest_sha256": "fe437e291f6cc85098a46b76470f6386aaa3b60b4e1de942ba79ee2f65e9b9f9"
   },
   "verified_edition_lookups": [
     {

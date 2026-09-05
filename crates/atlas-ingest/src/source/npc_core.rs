@@ -617,10 +617,10 @@ fn standard_skill(
     })
 }
 
-fn modeled_skill_entries<'a>(
+fn modeled_skill_entries(
     kind: CreatureSkillKind,
-    skills: &'a BTreeMap<String, NpcSkillSource>,
-) -> Vec<(&'a str, &'a NpcSkillSource)> {
+    skills: &BTreeMap<String, NpcSkillSource>,
+) -> Vec<(&str, &NpcSkillSource)> {
     let mut entries = Vec::new();
     let canonical_key = kind.source_slug();
     if let Some(source) = skills.get(canonical_key) {

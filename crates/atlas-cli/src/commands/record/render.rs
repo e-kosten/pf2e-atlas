@@ -113,7 +113,10 @@ pub(super) fn render_record(
             }
             out.availability(detail, availability, unmodeled_skill_availability);
         }
-        RecordPresentationJson::Unmigrated { sections, .. } => out.generic_sections(sections),
+        RecordPresentationJson::Unmigrated { sections, .. } => {
+            out.generic_sections(sections);
+            out.generic_sections(&record.supplementary_sections);
+        }
     }
     out.finish()
 }
@@ -1876,16 +1879,16 @@ pub(super) mod tests {
             base: RecordJsonBase {
                 key: "bestiary:Night-Hag".into(), name: "Night Hag".into(), kind: "creature",
                 level: (detail != DetailLevel::Summary).then_some(9), rarity: (detail != DetailLevel::Summary).then(|| "uncommon".into()),
-                traits: (detail != DetailLevel::Summary).then(|| vec!["fiend".into(), "hag".into()]).unwrap_or_default(),
+                traits: if detail != DetailLevel::Summary { vec!["fiend".into(), "hag".into()] } else { Vec::new() },
                 source, supplementary_sections: Vec::new(), source_json: None,
             },
             presentation: RecordPresentationJson::Creature {
                 teaser: matches!(detail, DetailLevel::Preview | DetailLevel::Standard).then(|| "Night hags prey upon sleepers, trading in stolen dreams and stalking victims through a world of nightmares while their repeated innate magic remains tied to exact spell occurrences.".into()),
                 size: scan.then(|| "medium".into()), adjustment: scan.then(|| "elite-ready".into()),
                 initiative: scan.then(|| atlas_record::CreatureInitiativeJson { statistic: "Perception".into() }),
-                abilities: scan.then(|| CreatureAbilitiesJson { strength: Some(5), dexterity: Some(4), constitution: Some(4), intelligence: Some(4), wisdom: Some(5), charisma: Some(6) }),
+                abilities: scan.then_some(CreatureAbilitiesJson { strength: Some(5), dexterity: Some(4), constitution: Some(4), intelligence: Some(4), wisdom: Some(5), charisma: Some(6) }),
                 defenses: scan.then(|| CreatureDefensesJson { ac: Some(CreatureArmorClassJson { value: Some(28), details: Some("+1 status against dreams".into()) }), hp: Some(CreatureHitPointsJson { value: Some(170), maximum: Some(170), temporary: None, temporary_maximum: None, details: None }), ..Default::default() }),
-                perception: scan.then(|| CreaturePerceptionJson { modifier: Some(19), details: None, has_vision: Some(true), senses: None }),
+                perception: scan.then_some(CreaturePerceptionJson { modifier: Some(19), details: None, has_vision: Some(true), senses: None }),
                 languages: scan.then(|| vec!["Aklo".into(), "Common".into(), "Infernal".into()]),
                 skills: scan.then(|| vec![CreatureSkillJson {
                     id: "synthetic-unmodeled-skill".into(),
@@ -1913,20 +1916,20 @@ pub(super) mod tests {
                     attack: Some(19), dc: Some(28), slots: complete.then(|| vec![CreatureSpellSlotJson { rank: 5, maximum: Some(2), serialized_value: Some(2), prepared: Some(vec![atlas_record::CreaturePreparedSpellJson { order: 0, id: Some("dream-message-source-item".into()), name: Some("Dream Message".into()), expended: Some(false), prepared: Some(true) }]) }]), spells: vec![first_spell.clone(), CreatureSpellJson { id: "dream-message-rank-5-second".into(), order: 3, context: CreatureOccurrenceContextJson { slot: Some("slot5:1".into()), ..first_spell.context.clone() }, ..first_spell }],
                     target_record_key: None, target_entity_id: Some("innate-spells-entity".into()), provenance: None, content: None,
                 }], standalone_spells: Vec::new() }),
-                rituals: scan.then(|| CreatureRitualsJson { difficulty_class: Some(28) }), equipment: None, lore: None,
+                rituals: scan.then_some(CreatureRitualsJson { difficulty_class: Some(28) }), equipment: None, lore: None,
                 content: description.then(|| vec![content]),
                 relationships: scan.then(|| vec![CreatureRelationshipJson { source_occurrence_id: "change-shape".into(), kind: "helper" , target: CreatureRelationshipTargetJson::Occurrence { occurrence_id: "claw-occurrence".into() }, source_path: "system.items[1]".into() }]),
                 provenance: (detail == DetailLevel::Full).then_some(provenance),
                 edition: (detail == DetailLevel::Full).then(|| RecordEditionContextJson { status: RecordEditionStatusJson::Legacy, counterpart_lookup: RecordEditionCounterpartLookupJson::Verified { counterparts: vec![RecordEditionCounterpartJson { role: RecordEditionCounterpartRoleJson::RemasteredCounterpart, record_key: "bestiary:Dream-Hag".into(), title: "Dream Hag".into() }] } }),
                 record_relationships: scan.then(|| RecordRelationshipLookupJson::Verified { relationships: vec![RecordCanonicalRelationshipJson { direction: RecordRelationshipDirectionJson::Reference, kind: ReferenceRelationKind::Reference, label: "Dream Message".into(), target_record_key: "spells:Dream-Message".into(), provenance: RecordRelationshipProvenanceJson { from_record_key: "bestiary:Night-Hag".into(), to_record_key: "spells:Dream-Message".into(), source_kind: ContentSourceKind::Description, visibility: ContentVisibility::Public } }] }),
                 availability: Vec::new(),
-                unmodeled_skill_availability: scan.then(|| vec![CreatureUnmodeledSkillAvailabilityJson {
+                unmodeled_skill_availability: if scan { vec![CreatureUnmodeledSkillAvailabilityJson {
                     skill_id: "synthetic-unmodeled-skill".into(),
                     authored_order: 0,
                     authored_key: "synthetic-review-skill".into(),
                     modifier: CreatureIntegerPresenceJson::Value(17),
                     message: "The source supplied an unrecognized skill key.",
-                }]).unwrap_or_default(),
+                }] } else { Vec::new() },
                 availability_evidence: full.then(|| vec![CreatureAvailabilityEvidenceJson {
                     state: CreatureAvailabilityStateJson::Unsupported,
                     field: CreatureAvailabilityFieldJson::ResourceSerializedValue,

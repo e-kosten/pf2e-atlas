@@ -3,6 +3,7 @@ use std::fs;
 use atlas_domain::RecordKey;
 use atlas_index::{ReferenceEdgeDirection, SqliteIndexReader, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
+use atlas_record::{CreatureMovementMode, RecordBody};
 use rusqlite::Connection;
 use serde_json::Value;
 
@@ -989,7 +990,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 
-    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
+    let reader = SqliteIndexReader::open_read_only(&output_path)?;
+    let validation = reader.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(
         validation.source_signature.as_deref(),
@@ -998,6 +1000,13 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(validation.source_record_count.as_deref(), Some("5"));
     assert_eq!(validation.artifact_record_count.as_deref(), Some("5"));
     assert_eq!(validation.generated_record_count.as_deref(), Some("0"));
+    let goblin_key = RecordKey::parse("bestiary:testActor0001")?;
+    let mut goblin_records =
+        reader.load_hydrated_records_by_key(std::slice::from_ref(&goblin_key))?;
+    let goblin_record = goblin_records.pop().ok_or("missing canonical goblin")?;
+    let Some(RecordBody::Creature(goblin)) = goblin_record.body else {
+        return Err("goblin must hydrate through its canonical creature body".into());
+    };
 
     let connection = Connection::open(&output_path)?;
     let pack_count: usize =
@@ -1142,17 +1151,6 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| row.get(0),
     )?;
-    let (actor_size, actor_languages, actor_speed_types, actor_senses): (
-        String,
-        String,
-        String,
-        String,
-    ) = connection.query_row(
-        "SELECT size, languages_json, speed_types_json, senses_json
-         FROM actor_records WHERE record_key = 'bestiary:testActor0001'",
-        [],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-    )?;
     let (item_group, item_bulk, item_hands, item_damage_types): (String, f64, String, String) =
         connection.query_row(
             "SELECT system_group, bulk_value, hands_requirement, damage_types_json
@@ -1215,10 +1213,10 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_rarity, "common");
     assert_eq!(spell_publication_family, "core");
     assert_eq!(trait_count, 13);
-    assert_eq!(metric_count, 17);
-    assert!(metric_key_catalog_count >= 17);
+    assert_eq!(metric_count, 18);
+    assert!(metric_key_catalog_count >= 18);
     assert!(metric_value_catalog_count >= 3);
-    assert_eq!(actor_side_count, 1);
+    assert_eq!(actor_side_count, 0);
     assert_eq!(item_side_count, 4);
     assert_eq!(spell_side_count, 1);
     assert_eq!(reference_edge_count, 1);
@@ -1241,10 +1239,46 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(weapon_damage_faces, 8.0);
     assert_eq!(actor_catalog_count, 1);
     assert_eq!(save_best_catalog_value, "ref");
-    assert_eq!(actor_size, "sm");
-    assert_eq!(actor_languages, "[\"goblin\"]");
-    assert_eq!(actor_speed_types, "[\"climb\",\"land\"]");
-    assert_eq!(actor_senses, "[\"darkvision\"]");
+    assert_eq!(
+        goblin.size.value.as_value().map(|size| size.as_source()),
+        Some("sm")
+    );
+    assert_eq!(
+        goblin
+            .languages
+            .value
+            .as_value()
+            .and_then(|languages| languages.values.as_value())
+            .map(|languages| languages
+                .iter()
+                .map(|language| language.as_str())
+                .collect::<Vec<_>>()),
+        Some(vec!["goblin"])
+    );
+    assert_eq!(
+        goblin.movement.value.as_value().map(|speeds| {
+            speeds
+                .iter()
+                .map(|speed| speed.mode.clone())
+                .collect::<Vec<_>>()
+        }),
+        Some(vec![
+            CreatureMovementMode::Land,
+            CreatureMovementMode::Climb
+        ])
+    );
+    assert_eq!(
+        goblin
+            .perception
+            .value
+            .as_value()
+            .and_then(|perception| perception.senses.as_value())
+            .map(|senses| senses
+                .iter()
+                .map(|sense| sense.sense_type.as_str())
+                .collect::<Vec<_>>()),
+        Some(vec!["darkvision"])
+    );
     assert_eq!(item_group, "bow");
     assert_eq!(item_bulk, 2.0);
     assert_eq!(item_hands, "two_hands");

@@ -1,4 +1,3 @@
-use super::tables::{record_activities, record_spellcasting_entries};
 use super::{
     Column, Table, actor_records, document_embedding_cache, item_records, packs, record_aliases,
     record_content, record_metrics, record_traits, records, reference_edges, reference_occurrences,
@@ -111,20 +110,6 @@ pub const REQUIRED_REFERENCES: &[RequiredReference] = &[
         key: "record_metrics.record_key",
         table: record_metrics::TABLE,
         column: record_metrics::columns::RECORD_KEY,
-        referenced_table: records::TABLE,
-        referenced_column: records::columns::RECORD_KEY,
-    },
-    RequiredReference {
-        key: "record_activities.record_key",
-        table: record_activities::TABLE,
-        column: record_activities::columns::RECORD_KEY,
-        referenced_table: records::TABLE,
-        referenced_column: records::columns::RECORD_KEY,
-    },
-    RequiredReference {
-        key: "record_spellcasting_entries.record_key",
-        table: record_spellcasting_entries::TABLE,
-        column: record_spellcasting_entries::columns::RECORD_KEY,
         referenced_table: records::TABLE,
         referenced_column: records::columns::RECORD_KEY,
     },

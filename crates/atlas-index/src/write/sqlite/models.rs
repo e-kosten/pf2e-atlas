@@ -69,10 +69,6 @@ pub(super) struct RecordRow {
     pub visibility_reason: String,
     pub metric_count: i64,
     pub metric_order_sha256: String,
-    pub activity_count: i64,
-    pub activity_order_sha256: String,
-    pub spellcasting_entry_count: i64,
-    pub spellcasting_entry_order_sha256: String,
     pub raw_json: String,
     pub record_role: String,
     pub retrieval_disposition: String,
@@ -252,24 +248,6 @@ pub(super) struct RecordMetricRow {
     pub number_value: Option<f64>,
     pub text_value: Option<String>,
     pub bool_value: Option<bool>,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = crate::schema::record_activities)]
-pub(super) struct RecordActivityRow {
-    pub record_key: String,
-    pub activity_id: String,
-    pub ordinal: i64,
-    pub payload_json: String,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = crate::schema::record_spellcasting_entries)]
-pub(super) struct RecordSpellcastingEntryRow {
-    pub record_key: String,
-    pub entry_id: String,
-    pub ordinal: i64,
-    pub payload_json: String,
 }
 
 #[derive(Insertable)]

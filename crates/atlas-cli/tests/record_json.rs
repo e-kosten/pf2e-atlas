@@ -309,8 +309,10 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(text_resolve_description_output.status.success());
     let text_resolve_description_stdout =
         String::from_utf8(text_resolve_description_output.stdout)?;
-    assert!(text_resolve_description_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
-    assert!(text_resolve_description_stdout.contains("Source: Actions"));
+    assert!(text_resolve_description_stdout.starts_with("Treat Wounds\n"));
+    assert!(text_resolve_description_stdout.contains("Type: rule"));
+    assert!(text_resolve_description_stdout.contains("Key: actions:testAction0001"));
+    assert!(text_resolve_description_stdout.contains("Pack: Actions"));
     assert!(
         text_resolve_description_stdout
             .contains("You spend 10 minutes treating one injured living creature with")
@@ -538,7 +540,9 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .output()?;
     assert!(text_get_output.status.success());
     let text_get_stdout = String::from_utf8(text_get_output.stdout)?;
-    assert!(text_get_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
+    assert!(text_get_stdout.starts_with("Treat Wounds\n"));
+    assert!(text_get_stdout.contains("Type: rule"));
+    assert!(text_get_stdout.contains("Key: actions:testAction0001"));
     assert!(!text_get_stdout.contains("\"status\""));
 
     let text_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -561,8 +565,10 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .output()?;
     assert!(text_search_preview_output.status.success());
     let text_search_preview_stdout = String::from_utf8(text_search_preview_output.stdout)?;
-    assert!(text_search_preview_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
-    assert!(text_search_preview_stdout.contains("Source: Actions"));
+    assert!(text_search_preview_stdout.contains("Treat Wounds\n"));
+    assert!(text_search_preview_stdout.contains("Type: rule"));
+    assert!(text_search_preview_stdout.contains("Key: actions:testAction0001"));
+    assert!(text_search_preview_stdout.contains("Pack: Actions"));
     assert!(
         text_search_preview_stdout
             .contains("You spend 10 minutes treating one injured living creature with")

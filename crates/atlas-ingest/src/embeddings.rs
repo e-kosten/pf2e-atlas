@@ -267,9 +267,7 @@ mod tests {
     #[test]
     fn canonical_source_record_builds_stable_search_units_and_remaster_demotion() {
         let mut loaded = canonical_loaded_fixture();
-        for metric in &mut loaded.record.mechanics.metrics {
-            metric.value = atlas_record::MetricValue::Number(999.0);
-        }
+        assert!(loaded.record.mechanics.metrics.is_empty());
         let record_key = loaded.record.identity.key.clone();
         let RecordBody::Creature(creature) = loaded
             .facts
@@ -355,7 +353,6 @@ mod tests {
             );
         }
         assert!(!parent.input_text.contains("Copied canonical spell prose"));
-        assert!(!parent.input_text.contains("999"));
         assert!(
             parent.input_text.find("AC: 22")
                 < parent.input_text.find("Unique embedded tactical context")

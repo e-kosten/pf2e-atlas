@@ -1,19 +1,15 @@
-use atlas_domain::{MetricDomain, RecordKey};
+use atlas_domain::MetricDomain;
 use atlas_record::metrics as metric_definitions;
-use atlas_record::{MetricRow, MetricValue, RecordBody, project_creature_facts};
+use atlas_record::{MetricRow, MetricValue};
 use serde_json::Value;
-
-use crate::source::dto::{SourceIdentity, parse_npc_source, pinned_source_version_metadata};
-use crate::source::npc_core::convert_npc_core;
 
 use super::actor::extract_actor_metrics;
 use super::specs::{
     ACTOR_DYNAMIC_SPECS, ACTOR_STATIC_SPECS, ARMOR_STATIC_SPECS, MetricCaptureSource,
-    NPC_REMAINDER_DYNAMIC_SPECS, NPC_REMAINDER_STATIC_SPECS, SHIELD_STATIC_SPECS,
-    WEAPON_STATIC_SPECS,
+    SHIELD_STATIC_SPECS, WEAPON_STATIC_SPECS,
 };
 use super::value::{number_like_value, slugify_metric_segment};
-use super::{dedupe_metrics, validate_metric_rows};
+use super::{dedupe_metrics, extract_metrics, validate_metric_rows};
 
 fn exact_metric_key(definition: metric_definitions::MetricDefinition) -> &'static str {
     definition
@@ -98,7 +94,6 @@ fn rejects_metric_value_type_mismatches() {
 fn source_specs_reference_the_definitions_they_emit() {
     for spec in [
         ACTOR_STATIC_SPECS,
-        NPC_REMAINDER_STATIC_SPECS,
         WEAPON_STATIC_SPECS,
         ARMOR_STATIC_SPECS,
         SHIELD_STATIC_SPECS,
@@ -112,10 +107,7 @@ fn source_specs_reference_the_definitions_they_emit() {
         assert_eq!(*matched.definition, spec.definition);
     }
 
-    for spec in ACTOR_DYNAMIC_SPECS
-        .iter()
-        .chain(NPC_REMAINDER_DYNAMIC_SPECS)
-    {
+    for spec in ACTOR_DYNAMIC_SPECS {
         let key = match spec.capture_source {
             MetricCaptureSource::FixedCapture { capture, .. } => (spec.key_builder)(capture),
             MetricCaptureSource::ClosedVocabulary { captures, .. } => {
@@ -146,34 +138,7 @@ fn source_specs_reference_the_definitions_they_emit() {
 }
 
 #[test]
-fn canonical_creature_metrics_replace_migrated_raw_pointer_families() {
-    let canonical_source = parse_npc_source(
-        pinned_source_version_metadata(),
-        SourceIdentity::new(
-            "metric-fixtures:ability-owner",
-            "packs/metric-fixtures/ability-owner.json",
-        ),
-        serde_json::json!({
-            "_id": "ability-owner",
-            "name": "Canonical Ability Owner",
-            "type": "npc",
-            "system": {
-                "abilities": {
-                    "str": {"mod": 14, "value": 18, "modifier": 4}
-                }
-            }
-        }),
-    )
-    .expect("canonical ability source DTO");
-    let converted = convert_npc_core(
-        RecordKey::parse("metric-fixtures:ability-owner").expect("record key"),
-        "packs/metric-fixtures/ability-owner.json",
-        &canonical_source,
-    )
-    .expect("canonical ability conversion");
-    let RecordBody::Creature(creature) = &converted.body;
-    let mut canonical = project_creature_facts(creature).metrics;
-
+fn npc_metrics_are_absent_from_the_generic_record_carrier() {
     let raw = serde_json::json!({
         "system": {
             "attributes": {
@@ -187,72 +152,10 @@ fn canonical_creature_metrics_replace_migrated_raw_pointer_families() {
             "skills": {"arcana": {"value": 66, "rank": 2}}
         }
     });
-    canonical.extend([
-        number_metric(
-            exact_metric_key(metric_definitions::actor::ARMOR_CLASS),
-            28.0,
-        ),
-        number_metric(exact_metric_key(metric_definitions::actor::HP_VALUE), 170.0),
-        number_metric(exact_metric_key(metric_definitions::actor::HP_MAX), 170.0),
-        number_metric(
-            exact_metric_key(metric_definitions::actor::PERCEPTION_MOD),
-            18.0,
-        ),
-        number_metric(&metric_definitions::actor::save::mod_key("fort"), 19.0),
-        number_metric(&metric_definitions::actor::skill::mod_key("arcana"), 18.0),
-        number_metric(&metric_definitions::actor::speed::value_key("land"), 25.0),
-    ]);
 
-    let metrics = extract_actor_metrics(&raw, Some(&canonical)).expect("actor metrics extract");
+    let metrics = extract_metrics(&raw, "Actor", "npc").expect("npc metric extraction");
 
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::ARMOR_CLASS),
-        28.0,
-    );
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::HP_VALUE),
-        170.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::save::mod_key("fort"),
-        19.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::skill::mod_key("arcana"),
-        18.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::speed::value_key("land"),
-        25.0,
-    );
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::HP_BROKEN_THRESHOLD),
-        7.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::ability::mod_key("str"),
-        14.0,
-    );
-    assert_eq!(
-        metrics
-            .iter()
-            .filter(|metric| metric.key == metric_definitions::actor::ability::mod_key("str"))
-            .count(),
-        1,
-        "only the canonical CreatureRecord ability projection may emit strength.mod"
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::skill::rank_key("arcana"),
-        2.0,
-    );
+    assert!(metrics.is_empty());
 }
 
 #[test]
@@ -268,7 +171,7 @@ fn source_specs_emit_first_valid_static_metric_path() {
         }
     });
 
-    let metrics = extract_actor_metrics(&raw, None).expect("actor metrics extract");
+    let metrics = extract_actor_metrics(&raw).expect("actor metrics extract");
 
     assert_number_metric(
         &metrics,
@@ -306,7 +209,7 @@ fn source_specs_emit_dynamic_pattern_metrics() {
         }
     });
 
-    let metrics = extract_actor_metrics(&raw, None).expect("actor metrics extract");
+    let metrics = extract_actor_metrics(&raw).expect("actor metrics extract");
 
     assert_number_metric(
         &metrics,
@@ -355,7 +258,7 @@ fn extracts_disable_dc_and_rank_metrics_from_hazard_checks() {
         }
     });
 
-    let metrics = extract_actor_metrics(&raw, None).expect("actor metrics extract");
+    let metrics = extract_actor_metrics(&raw).expect("actor metrics extract");
 
     assert_number_metric(
         &metrics,
@@ -400,12 +303,4 @@ fn assert_number_metric(metrics: &[MetricRow], key: &str, expected: f64) {
         None
     });
     assert_eq!(actual, Some(expected), "metric {key} should match");
-}
-
-fn number_metric(key: &str, value: f64) -> MetricRow {
-    MetricRow {
-        domain: MetricDomain::Actor,
-        key: key.to_string(),
-        value: MetricValue::Number(value),
-    }
 }

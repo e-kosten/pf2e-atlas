@@ -139,6 +139,11 @@ pub fn insert_second_variant_group(path: &Path) -> Result<(), Box<dyn std::error
 pub fn insert_remaster_link(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
     connection.execute(
+        "UPDATE records SET publication_remaster = 1
+         WHERE record_key = 'actions:testAction2'",
+        [],
+    )?;
+    connection.execute(
         "INSERT INTO remaster_links (
            remaster_record_key, legacy_record_key, source_kind, source_ref
          ) VALUES (?1, ?2, ?3, ?4)",

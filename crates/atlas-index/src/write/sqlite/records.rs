@@ -1,6 +1,7 @@
 use atlas_record::{
     AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
-    ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
+    FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
+    project_creature_facts,
 };
 use diesel::SqliteConnection;
 use diesel::prelude::*;
@@ -11,8 +12,8 @@ use super::labels::{
     time_kind_label, time_unit_label,
 };
 use super::models::{
-    ActorRecordRow, ItemRecordRow, RecordActivityRow, RecordContentRow, RecordMetricRow, RecordRow,
-    RecordSpellcastingEntryRow, RecordTraitRow, RecordsFtsRow, SpellRecordRow,
+    ActorRecordRow, ItemRecordRow, RecordContentRow, RecordMetricRow, RecordRow, RecordTraitRow,
+    RecordsFtsRow, SpellRecordRow,
 };
 use crate::IndexWriteError;
 use atlas_record::{RecordAlias, RemasterLink};
@@ -39,10 +40,45 @@ pub(super) fn write_records(
     let mut item_rows = Vec::new();
     let mut spell_rows = Vec::new();
     let mut metric_rows = Vec::new();
-    let mut activity_rows = Vec::new();
-    let mut spellcasting_entry_rows = Vec::new();
     let mut fts_rows = Vec::new();
     for record in records {
+        let record_key = record.identity.key.to_string();
+        let projected_creature_metrics;
+        let persisted_metrics = if record.classification.kind == atlas_domain::RecordKind::Creature
+        {
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "creature record `{}` retains forbidden generic document mechanics",
+                    record.identity.key
+                )));
+            }
+            if !record.mechanics.metrics.is_empty() {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "creature record `{}` retains forbidden generic metrics",
+                    record.identity.key
+                )));
+            }
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "creature record `{}` is missing its required canonical body",
+                        record.identity.key
+                    ))
+                })?;
+            let RecordBody::Creature(creature) = body;
+            projected_creature_metrics = project_creature_facts(creature).metrics;
+            projected_creature_metrics.as_slice()
+        } else {
+            if canonical_bodies_by_key.contains_key(&record_key) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "non-creature record `{}` has an unexpected canonical creature body",
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
+        };
         let retrieval = retrieval_policy.decision(record);
         let record_role = retrieval.role.as_str();
         let retrieval_disposition = retrieval.disposition.as_str();
@@ -66,16 +102,8 @@ pub(super) fn write_records(
         let system_duration_value = record.timing.duration_value_text().map(str::to_string);
         let item_mechanics = record.mechanics.item();
         let metric_order_sha256 =
-            crate::read::records::children::metric_order_digest(&record.mechanics.metrics)
+            crate::read::records::children::metric_order_digest(persisted_metrics)
                 .map_err(IndexWriteError::WriteFailed)?;
-        let activity_order_sha256 =
-            crate::read::records::children::activity_order_digest(&record.mechanics.activities)
-                .map_err(IndexWriteError::WriteFailed)?;
-        let spellcasting_entry_order_sha256 =
-            crate::read::records::children::spellcasting_order_digest(
-                &record.mechanics.spellcasting_entries,
-            )
-            .map_err(IndexWriteError::WriteFailed)?;
         let visibility_state = if record.visibility.visible_by_default() {
             "visible"
         } else {
@@ -145,15 +173,8 @@ pub(super) fn write_records(
             is_default_visible,
             visibility_state: visibility_state.to_string(),
             visibility_reason: visibility_reason.to_string(),
-            metric_count: to_i64(record.mechanics.metrics.len(), "records.metric_count")?,
+            metric_count: to_i64(persisted_metrics.len(), "records.metric_count")?,
             metric_order_sha256,
-            activity_count: to_i64(record.mechanics.activities.len(), "records.activity_count")?,
-            activity_order_sha256,
-            spellcasting_entry_count: to_i64(
-                record.mechanics.spellcasting_entries.len(),
-                "records.spellcasting_entry_count",
-            )?,
-            spellcasting_entry_order_sha256,
             raw_json: record.provenance.raw_json.clone().unwrap_or_default(),
             record_role: record_role.to_string(),
             retrieval_disposition: retrieval_disposition.to_string(),
@@ -270,7 +291,7 @@ pub(super) fn write_records(
                 damage_types_json: json_array(&spell_data.damage_types)?,
             });
         }
-        for (ordinal, metric) in record.mechanics.metrics.iter().enumerate() {
+        for (ordinal, metric) in persisted_metrics.iter().enumerate() {
             let (value_type, number_value, text_value, bool_value) =
                 metric_value_parts(&metric.value);
             metric_rows.push(RecordMetricRow {
@@ -282,24 +303,6 @@ pub(super) fn write_records(
                 number_value,
                 text_value: text_value.map(str::to_string),
                 bool_value: bool_value.map(|value| value != 0),
-            });
-        }
-        for (ordinal, activity) in record.mechanics.activities.iter().enumerate() {
-            activity_rows.push(RecordActivityRow {
-                record_key: record.identity.key.to_string(),
-                activity_id: activity.activity_id.clone(),
-                ordinal: to_i64(ordinal, "record_activities.ordinal")?,
-                payload_json: crate::read::records::children::encode_activity(activity)
-                    .map_err(IndexWriteError::WriteFailed)?,
-            });
-        }
-        for (ordinal, entry) in record.mechanics.spellcasting_entries.iter().enumerate() {
-            spellcasting_entry_rows.push(RecordSpellcastingEntryRow {
-                record_key: record.identity.key.to_string(),
-                entry_id: entry.entry_id.clone(),
-                ordinal: to_i64(ordinal, "record_spellcasting_entries.ordinal")?,
-                payload_json: crate::read::records::children::encode_spellcasting_entry(entry)
-                    .map_err(IndexWriteError::WriteFailed)?,
             });
         }
         if is_default_visible {
@@ -371,18 +374,6 @@ pub(super) fn write_records(
     }
     for rows in metric_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::record_metrics::table)
-            .values(rows)
-            .execute(connection)
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    }
-    for rows in activity_rows.chunks(super::INSERT_BATCH_ROWS) {
-        diesel::insert_into(crate::schema::record_activities::table)
-            .values(rows)
-            .execute(connection)
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    }
-    for rows in spellcasting_entry_rows.chunks(super::INSERT_BATCH_ROWS) {
-        diesel::insert_into(crate::schema::record_spellcasting_entries::table)
             .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;

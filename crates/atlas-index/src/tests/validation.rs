@@ -213,21 +213,9 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
 }
 
 #[test]
-fn old_v2_layouts_fail_with_actionable_rebuild_guidance() -> Result<(), Box<dyn std::error::Error>>
-{
+fn incomplete_current_layouts_fail_with_actionable_rebuild_guidance()
+-> Result<(), Box<dyn std::error::Error>> {
     let cases = [
-        (
-            "missing-activities-table",
-            "DROP TABLE record_activities",
-            "table:record_activities",
-            "required artifact table `record_activities` is missing",
-        ),
-        (
-            "missing-spellcasting-table",
-            "DROP TABLE record_spellcasting_entries",
-            "table:record_spellcasting_entries",
-            "required artifact table `record_spellcasting_entries` is missing",
-        ),
         (
             "missing-metric-ordinal",
             "ALTER TABLE record_metrics RENAME COLUMN ordinal TO legacy_ordinal",
