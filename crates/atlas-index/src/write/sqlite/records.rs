@@ -38,15 +38,12 @@ pub(super) fn write_records(
     for record in records {
         let record_key = record.identity.key.to_string();
         let projected_metrics;
-        let persisted_metrics = if matches!(
-            record.classification.kind,
-            atlas_domain::RecordKind::Creature | atlas_domain::RecordKind::Hazard
-        ) {
-            let expected_foundry_type = match record.classification.kind {
-                atlas_domain::RecordKind::Creature => atlas_record::FoundryRecordType::Npc,
-                atlas_domain::RecordKind::Hazard => atlas_record::FoundryRecordType::Hazard,
-                _ => unreachable!("guarded canonical family"),
-            };
+        let expected_foundry_type = match record.classification.kind {
+            atlas_domain::RecordKind::Creature => Some(atlas_record::FoundryRecordType::Npc),
+            atlas_domain::RecordKind::Hazard => Some(atlas_record::FoundryRecordType::Hazard),
+            _ => None,
+        };
+        let persisted_metrics = if let Some(expected_foundry_type) = expected_foundry_type {
             if record.foundry.record_type != expected_foundry_type {
                 return Err(IndexWriteError::WriteFailed(format!(
                     "{} record `{}` does not have the expected Foundry body kind",

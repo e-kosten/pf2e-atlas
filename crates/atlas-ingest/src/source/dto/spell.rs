@@ -1772,7 +1772,7 @@ fn duplicate_value(key: &str, values: &[&SerializedSourceValue]) -> String {
             .enumerate()
             .map(|(order, value)| format!(
                 "{{\"key\":{},\"authored_order\":{order},\"value\":{}}}",
-                serde_json::to_string(key).expect("duplicate key JSON"),
+                serde_json::Value::String(key.to_string()),
                 value.compact_json()
             ))
             .collect::<Vec<_>>()

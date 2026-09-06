@@ -23,6 +23,7 @@ use super::dto::{
     HazardSourceField, HazardSourceValue as DtoValue, SourcePresence, ValueSummary,
     VersionedHazardSource,
 };
+use super::hazard_core::{HazardConversionError, conversion_error};
 use super::normalize::{LocalizationResolver, parse_foundry_content_with_localization};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,16 +48,16 @@ pub(crate) fn convert_hazard_embedded_entities(
     owner_record_key: &RecordKey,
     source: &VersionedHazardSource,
     localization: Option<&dyn LocalizationResolver>,
-) -> HazardEmbeddedConversion {
+) -> Result<HazardEmbeddedConversion, HazardConversionError> {
     let items = match &source.source.items {
         SourcePresence::Missing => {
-            return empty_conversion(FactValue::Missing);
+            return Ok(empty_conversion(FactValue::Missing));
         }
         SourcePresence::Null => {
-            return empty_conversion(FactValue::Null);
+            return Ok(empty_conversion(FactValue::Null));
         }
         SourcePresence::Value(DtoValue::Unsupported(value)) => {
-            return HazardEmbeddedConversion {
+            return Ok(HazardEmbeddedConversion {
                 embedded: HazardFact::source(
                     FactValue::Value(HazardSourceValue::Unsupported(summary_value(
                         value,
@@ -69,12 +70,12 @@ pub(crate) fn convert_hazard_embedded_entities(
                 relationships: Vec::new(),
                 diagnostics: Vec::new(),
                 resolved_identities: Vec::new(),
-            };
+            });
         }
         SourcePresence::Value(DtoValue::Typed(items)) => items,
     };
 
-    let (resolved_identities, mut diagnostics) = resolve_identities(owner_record_key, items);
+    let (resolved_identities, mut diagnostics) = resolve_identities(owner_record_key, items)?;
     let mut ordered = items
         .iter()
         .map(|item| {
@@ -146,9 +147,17 @@ pub(crate) fn convert_hazard_embedded_entities(
             ),
             identity_stability: identity.stability,
         });
+        let relationship_id =
+            HazardRelationshipId::new(format!("contains-{}", occurrence_id.as_str())).map_err(
+                |_| {
+                    conversion_error(
+                        format!("/items/{}/_id", item.source_ordinal),
+                        "derived hazard relationship id is invalid",
+                    )
+                },
+            )?;
         relationships.push(HazardRelationship {
-            id: HazardRelationshipId::new(format!("contains-{}", occurrence_id.as_str()))
-                .expect("derived relationship id is valid"),
+            id: relationship_id,
             authored_order: authored_order as u32,
             source_occurrence_id: Some(occurrence_id.clone()),
             kind: HazardRelationshipKind::Contains,
@@ -156,7 +165,7 @@ pub(crate) fn convert_hazard_embedded_entities(
         });
     }
 
-    HazardEmbeddedConversion {
+    Ok(HazardEmbeddedConversion {
         embedded: HazardFact::source(
             FactValue::Value(HazardSourceValue::Typed(HazardEmbeddedEntities {
                 entities,
@@ -167,7 +176,7 @@ pub(crate) fn convert_hazard_embedded_entities(
         relationships,
         diagnostics,
         resolved_identities,
-    }
+    })
 }
 
 fn empty_conversion(
@@ -201,10 +210,10 @@ fn sort_value(value: &HazardSourceField<i64>) -> (u8, i64) {
 fn resolve_identities(
     record_key: &RecordKey,
     items: &[HazardItemSource],
-) -> (Vec<HazardResolvedItemIdentity>, Vec<HazardUnsupportedFact>) {
+) -> Result<(Vec<HazardResolvedItemIdentity>, Vec<HazardUnsupportedFact>), HazardConversionError> {
     let mut valid_counts = BTreeMap::<String, usize>::new();
     for item in items {
-        if let Some(value) = valid_source_id(&item.id) {
+        if let Some((value, _, _, _)) = valid_source_id(&item.id) {
             *valid_counts.entry(value).or_default() += 1;
         }
     }
@@ -214,26 +223,33 @@ fn resolve_identities(
         .iter()
         .map(|item| {
             let family = family(item);
-            if let Some(value) = valid_source_id(&item.id)
+            if let Some((value, source_id, entity_id, occurrence_id)) = valid_source_id(&item.id)
                 && valid_counts.get(&value) == Some(&1)
             {
-                return HazardResolvedItemIdentity {
+                return Ok(HazardResolvedItemIdentity {
                     source_ordinal: item.source_ordinal,
-                    entity_id: HazardEntityId::new(value.clone()).expect("validated entity id"),
-                    occurrence_id: HazardOccurrenceId::new(value.clone())
-                        .expect("validated occurrence id"),
-                    source_identity: HazardEntitySourceIdentity::Stable {
-                        source_id: HazardSourceId::new(value.clone()).expect("validated source id"),
-                    },
+                    entity_id,
+                    occurrence_id,
+                    source_identity: HazardEntitySourceIdentity::Stable { source_id },
                     stability: HazardOccurrenceIdentityStability::StableSourceIdentity,
                     stable_sort_id: Some(value),
-                };
+                });
             }
 
             let locator = format!("{}:{}:{}", record_key, family.as_str(), item.source_ordinal);
             let fallback = format!("fallback-{}", item.source_ordinal);
-            let entity_id = HazardEntityId::new(fallback.clone()).expect("fallback entity id");
-            let occurrence_id = HazardOccurrenceId::new(fallback).expect("fallback occurrence id");
+            let entity_id = HazardEntityId::new(fallback.clone()).map_err(|_| {
+                conversion_error(
+                    format!("/items/{}/_id", item.source_ordinal),
+                    "generated fallback hazard entity id is invalid",
+                )
+            })?;
+            let occurrence_id = HazardOccurrenceId::new(fallback).map_err(|_| {
+                conversion_error(
+                    format!("/items/{}/_id", item.source_ordinal),
+                    "generated fallback hazard occurrence id is invalid",
+                )
+            })?;
             let value = field_unsupported(
                 &item.id,
                 &format!("/items/{}/_id", item.source_ordinal),
@@ -246,7 +262,7 @@ fn resolve_identities(
                 field: HazardUnsupportedField::UnsupportedChildField("_id".to_string()),
                 value: value.clone(),
             });
-            HazardResolvedItemIdentity {
+            Ok(HazardResolvedItemIdentity {
                 source_ordinal: item.source_ordinal,
                 entity_id,
                 occurrence_id,
@@ -256,18 +272,20 @@ fn resolve_identities(
                 },
                 stability: HazardOccurrenceIdentityStability::UnstableAuthoredOrdinal,
                 stable_sort_id: None,
-            }
+            })
         })
-        .collect();
-    (identities, diagnostics)
+        .collect::<Result<Vec<_>, HazardConversionError>>()?;
+    Ok((identities, diagnostics))
 }
 
-fn valid_source_id(value: &HazardSourceField<String>) -> Option<String> {
+fn valid_source_id(
+    value: &HazardSourceField<String>,
+) -> Option<(String, HazardSourceId, HazardEntityId, HazardOccurrenceId)> {
     let value = typed_string(value)?;
-    HazardSourceId::new(value.clone()).ok()?;
-    HazardEntityId::new(value.clone()).ok()?;
-    HazardOccurrenceId::new(value.clone()).ok()?;
-    Some(value)
+    let source_id = HazardSourceId::new(value.clone()).ok()?;
+    let entity_id = HazardEntityId::new(value.clone()).ok()?;
+    let occurrence_id = HazardOccurrenceId::new(value.clone()).ok()?;
+    Some((value, source_id, entity_id, occurrence_id))
 }
 
 fn capability(
@@ -392,7 +410,7 @@ fn convert_common(
                     })
                     .collect()
             },
-            |values| serde_json::to_string(values).expect("traits serialize"),
+            |values| Value::Array(values.iter().cloned().map(Value::String).collect()).to_string(),
         ),
     }
 }
@@ -913,7 +931,7 @@ fn json_fact<T>(
                 FactValue::Value(convert(value).map(HazardSourceValue::Typed).unwrap_or_else(
                     || {
                         HazardSourceValue::Unsupported(HazardUnsupportedValue {
-                            exact_json: serde_json::to_string(value).expect("JSON serializes"),
+                            exact_json: value.to_string(),
                             expected_shape: expected,
                             actual_shape: value_shape(value),
                             relative_source_path: path.clone(),
@@ -1150,5 +1168,5 @@ fn shape_for_expected(value: HazardExpectedShape) -> HazardSourceShape {
     }
 }
 fn json_string(value: &str) -> String {
-    serde_json::to_string(value).expect("string serializes")
+    Value::String(value.to_string()).to_string()
 }

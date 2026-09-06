@@ -268,26 +268,25 @@ impl FilterCompiler {
         field: MetadataNumberField,
         r#match: MetadataNumberMatch,
     ) -> Result<String, FilterCompileError> {
-        if field == MetadataNumberField::RangeValue {
-            return self.with_field_source(
-                spell_records::columns::RANGE_VALUE,
-                |compiler, column| {
-                    let numeric = compiler.number_operator(column, r#match)?;
-                    let rule = compiler.text(atlas_record::SPELL_RANGE_DERIVATION_RULE);
-                    Ok(format!(
-                        "{} = {rule} AND ({numeric})",
-                        aliased_column("s", spell_records::columns::RANGE_RULE)
-                    ))
-                },
-            );
-        }
         let column = match field {
             MetadataNumberField::Level => records::columns::LEVEL,
             MetadataNumberField::SpellRank => spell_records::columns::RANK,
             MetadataNumberField::PriceCp => records::columns::PRICE_CP,
             MetadataNumberField::BulkValue => item_records::columns::BULK_VALUE,
             MetadataNumberField::ActionCost => records::columns::ACTIVATION_TIME_ACTIONS,
-            MetadataNumberField::RangeValue => unreachable!("handled above"),
+            MetadataNumberField::RangeValue => {
+                return self.with_field_source(
+                    spell_records::columns::RANGE_VALUE,
+                    |compiler, column| {
+                        let numeric = compiler.number_operator(column, r#match)?;
+                        let rule = compiler.text(atlas_record::SPELL_RANGE_DERIVATION_RULE);
+                        Ok(format!(
+                            "{} = {rule} AND ({numeric})",
+                            aliased_column("s", spell_records::columns::RANGE_RULE)
+                        ))
+                    },
+                );
+            }
             MetadataNumberField::AreaValue => spell_records::columns::AREA_VALUE,
             MetadataNumberField::Hands => {
                 return Err(FilterCompileError::Unsupported {

@@ -137,9 +137,11 @@ impl SpellDefinition {
         if has_rank_dependent_heightening(&self.heightening) && base_rank.is_none() {
             return Err(SpellFormSelectionError::BaseRankUnavailable);
         }
-        if base_rank.is_some_and(|rank| context.cast_rank < rank) {
+        if let Some(base_rank) = base_rank
+            && context.cast_rank < base_rank
+        {
             return Err(SpellFormSelectionError::CastRankBelowBase {
-                base_rank: base_rank.expect("checked as some"),
+                base_rank,
                 cast_rank: context.cast_rank,
             });
         }

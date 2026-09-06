@@ -260,9 +260,7 @@ pub fn place_creature_content_for_families(
                 .entry(owner.clone())
                 .or_default()
                 .push(index),
-            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => {
-                unreachable!("hazard-owned content is excluded from creature content placement")
-            }
+            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => continue,
         }
         let matches = candidates
             .iter()
