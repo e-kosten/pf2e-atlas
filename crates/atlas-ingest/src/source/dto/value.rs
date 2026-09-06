@@ -403,8 +403,10 @@ pub(crate) fn serialized_member<'a>(
     object: &'a [(String, SerializedSourceValue)],
     key: &str,
 ) -> Option<&'a SerializedSourceValue> {
-    let values = serialized_members(object, key);
-    (values.len() == 1).then_some(values[0])
+    match serialized_members(object, key).as_slice() {
+        [value] => Some(*value),
+        _ => None,
+    }
 }
 
 pub(crate) fn serialized_member_order(
@@ -611,6 +613,36 @@ pub(crate) fn actual_shape(value: &Value) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serialized_member_returns_only_one_present_value() {
+        let source = parse_serialized_source_object(
+            br#"{"null":null,"flag":false,"zero":0,"duplicate":1,"duplicate":2}"#,
+        )
+        .expect("lossless source");
+
+        assert_eq!(serialized_member(source.fields(), "missing"), None);
+        assert!(matches!(
+            serialized_member(source.fields(), "null"),
+            Some(SerializedSourceValue::Null)
+        ));
+        assert!(matches!(
+            serialized_member(source.fields(), "flag"),
+            Some(SerializedSourceValue::Boolean(false))
+        ));
+        assert!(matches!(
+            serialized_member(source.fields(), "zero"),
+            Some(SerializedSourceValue::Number(value)) if value.as_i64() == Some(0)
+        ));
+        assert_eq!(serialized_member(source.fields(), "duplicate"), None);
+        assert_eq!(
+            serialized_members(source.fields(), "duplicate")
+                .iter()
+                .map(|value| value.compact_json())
+                .collect::<Vec<_>>(),
+            ["1", "2"]
+        );
+    }
 
     #[test]
     fn lossless_tree_preserves_nested_members_values_arrays_and_scalar_presence() {
