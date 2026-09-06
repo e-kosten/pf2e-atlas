@@ -77,8 +77,17 @@ describe("AtlasApp routing", () => {
   });
 
   it("restores record and reader views from browser history without running search queries", async () => {
-    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const addEventListener = vi.spyOn(window, "addEventListener");
+    try {
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      await waitFor(() =>
+        expect(addEventListener).toHaveBeenCalledWith("popstate", expect.any(Function)),
+      );
+    } finally {
+      addEventListener.mockRestore();
+    }
 
+    await import("../features/records/RecordViews");
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     vi.clearAllMocks();
