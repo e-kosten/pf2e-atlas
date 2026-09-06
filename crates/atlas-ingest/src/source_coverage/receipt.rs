@@ -937,14 +937,14 @@ fn capture_item_spell_leaf(
     let observations = vec![
         presence_stage(
             FinalOwnerStage::SourceDto,
-            spell_source_destination(probe),
+            spell_source_destination(probe)?,
             "source::dto::parse_spell_document_source",
             spell_source_leaf(&actual.source, probe, fixture.reference.case_id())?,
             &spell_source_leaf(&mutation.source, probe, fixture.reference.case_id())?,
         )?,
         presence_stage(
             FinalOwnerStage::Canonical,
-            spell_canonical_destination(probe),
+            spell_canonical_destination(probe)?,
             "source::spells::convert_standalone_spell",
             spell_definition_leaf(
                 &actual
@@ -974,7 +974,7 @@ fn capture_item_spell_leaf(
         )?,
         presence_stage(
             FinalOwnerStage::PostProjection,
-            spell_post_destination(probe),
+            spell_post_destination(probe)?,
             "index_build_input::index_build_input",
             spell_definition_leaf(
                 &actual
@@ -1007,7 +1007,7 @@ fn capture_item_spell_leaf(
         )?,
         presence_stage(
             FinalOwnerStage::ArtifactHydration,
-            &format!("ArtifactHydration::{}", spell_canonical_destination(probe)),
+            &format!("ArtifactHydration::{}", spell_canonical_destination(probe)?),
             "atlas_index::hydrate_record_parts",
             spell_definition_leaf(
                 &actual
@@ -1130,7 +1130,7 @@ fn capture_consumable_spell_child_leaf(
     let observations = vec![
         presence_stage(
             FinalOwnerStage::SourceDto,
-            consumable_spell_child_source_destination(probe),
+            consumable_spell_child_source_destination(probe)?,
             "source::dto::parse_spell_document_source",
             consumable_spell_child_source_leaf(&actual.source, probe, fixture.reference.case_id())?,
             &consumable_spell_child_source_leaf(
@@ -1141,7 +1141,7 @@ fn capture_consumable_spell_child_leaf(
         )?,
         presence_stage(
             FinalOwnerStage::Canonical,
-            consumable_spell_child_canonical_destination(probe),
+            consumable_spell_child_canonical_destination(probe)?,
             "source::spells::finalize_consumable_spell_children",
             consumable_spell_child_canonical_leaf(
                 actual_child,
@@ -1156,7 +1156,7 @@ fn capture_consumable_spell_child_leaf(
         )?,
         presence_stage(
             FinalOwnerStage::PostProjection,
-            consumable_spell_child_post_destination(probe),
+            consumable_spell_child_post_destination(probe)?,
             "records::references::resolve_content_references",
             consumable_spell_child_canonical_leaf(
                 actual.post_child.as_ref().ok_or_else(|| {
@@ -1183,7 +1183,7 @@ fn capture_consumable_spell_child_leaf(
             FinalOwnerStage::ArtifactHydration,
             &format!(
                 "ArtifactHydration::{}",
-                consumable_spell_child_canonical_destination(probe)
+                consumable_spell_child_canonical_destination(probe)?
             ),
             "atlas_index::hydrate_record_parts",
             consumable_spell_child_canonical_leaf(
@@ -1524,13 +1524,13 @@ fn mapped_spell_stage_leaf(
         return mapped_spell_content_leaf(pipeline, selected, normalized_path, child, stage);
     }
     let view = match (child, stage) {
-        (_, MappedSpellStage::Source) => source_view(&pipeline.source, &pipeline.common_source),
+        (_, MappedSpellStage::Source) => source_view(&pipeline.source, &pipeline.common_source)?,
         (false, MappedSpellStage::Canonical) => canonical_spell_view(
             &pipeline.record,
             pipeline.canonical.as_ref().ok_or_else(|| {
                 error(CoverageFailureCode::CanonicalMismatch, "missing spell body")
             })?,
-        ),
+        )?,
         (false, MappedSpellStage::PostProjection) => canonical_spell_view(
             &pipeline.record,
             pipeline.post_projection.as_ref().ok_or_else(|| {
@@ -1539,7 +1539,7 @@ fn mapped_spell_stage_leaf(
                     "missing projected spell body",
                 )
             })?,
-        ),
+        )?,
         (false, MappedSpellStage::ArtifactHydration) => canonical_spell_view(
             pipeline.hydrated_record.as_ref().ok_or_else(|| {
                 error(
@@ -1553,14 +1553,14 @@ fn mapped_spell_stage_leaf(
                     "missing hydrated spell body",
                 )
             })?,
-        ),
+        )?,
         (true, MappedSpellStage::Canonical) => {
             canonical_child_view(pipeline.child.as_ref().ok_or_else(|| {
                 error(
                     CoverageFailureCode::CanonicalMismatch,
                     "missing canonical spell child",
                 )
-            })?)
+            })?)?
         }
         (true, MappedSpellStage::PostProjection) => {
             canonical_child_view(pipeline.post_child.as_ref().ok_or_else(|| {
@@ -1568,7 +1568,7 @@ fn mapped_spell_stage_leaf(
                     CoverageFailureCode::PostProjectionMismatch,
                     "missing projected spell child",
                 )
-            })?)
+            })?)?
         }
         (true, MappedSpellStage::ArtifactHydration) => {
             canonical_child_view(pipeline.hydrated_child.as_ref().ok_or_else(|| {
@@ -1576,7 +1576,7 @@ fn mapped_spell_stage_leaf(
                     CoverageFailureCode::ArtifactHydrationMismatch,
                     "missing hydrated spell child",
                 )
-            })?)
+            })?)?
         }
     };
     selected_leaf_from_view(&view, selected)
@@ -2310,7 +2310,7 @@ fn raw_spell_leaf_from_root(
         SpellLeafProbe::PublicationLicense => {
             scalar_pointer_leaf(spell, "/system/publication/license")
         }
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use the generic receipt"),
+        SpellLeafProbe::Mapped => mapped_probe_error("raw spell leaf"),
     }
 }
 
@@ -2332,7 +2332,7 @@ fn raw_consumable_spell_child_leaf_from_root(
             "missing spell child",
         )
     })?;
-    scalar_pointer_leaf(spell, consumable_spell_child_pointer(probe))
+    scalar_pointer_leaf(spell, consumable_spell_child_pointer(probe)?)
 }
 
 fn raw_provenance_consumable_spell_child_leaf(
@@ -2392,7 +2392,7 @@ fn mutate_spell_leaf(
         }
         SpellLeafProbe::Image => mutate_pointer(spell, "/img"),
         SpellLeafProbe::PublicationLicense => mutate_pointer(spell, "/system/publication/license"),
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use the generic receipt"),
+        SpellLeafProbe::Mapped => mapped_probe_error("spell mutation"),
     }
 }
 
@@ -2509,7 +2509,7 @@ fn mutate_consumable_spell_child_leaf(
             "missing spell child",
         )
     })?;
-    mutate_pointer(spell, consumable_spell_child_pointer(probe))
+    mutate_pointer(spell, consumable_spell_child_pointer(probe)?)
 }
 
 fn mutate_pointer(root: &mut Value, pointer: &str) -> Result<(), CoverageContractError> {
@@ -2864,8 +2864,10 @@ fn spell_member_for_case(
     Ok(member)
 }
 
-fn consumable_spell_child_pointer(probe: ConsumableSpellChildLeafProbe) -> &'static str {
-    match probe {
+fn consumable_spell_child_pointer(
+    probe: ConsumableSpellChildLeafProbe,
+) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         ConsumableSpellChildLeafProbe::ChildId => "/_id",
         ConsumableSpellChildLeafProbe::StandaloneLocator => "/flags/core/sourceId",
         ConsumableSpellChildLeafProbe::HeightenedRank => "/system/location/heightenedLevel",
@@ -2878,9 +2880,9 @@ fn consumable_spell_child_pointer(probe: ConsumableSpellChildLeafProbe) -> &'sta
         ConsumableSpellChildLeafProbe::PublicationTitle => "/system/publication/title",
         ConsumableSpellChildLeafProbe::Rarity => "/system/traits/rarity",
         ConsumableSpellChildLeafProbe::Mapped => {
-            unreachable!("mapped child probes use the generic receipt")
+            return mapped_probe_error("consumable spell child pointer");
         }
-    }
+    })
 }
 
 fn spell_source_leaf(
@@ -2928,7 +2930,7 @@ fn spell_definition_leaf(
             &definition.source_context.publication_license,
             PublicationLicense::as_str,
         ),
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use the generic receipt"),
+        SpellLeafProbe::Mapped => mapped_probe_error("canonical spell leaf"),
     }
 }
 
@@ -2958,7 +2960,7 @@ fn spell_item_leaf(
         SpellLeafProbe::PublicationLicense => {
             spell_fact_string_like_leaf(&source.publication_license, PublicationLicense::as_str)
         }
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use the generic receipt"),
+        SpellLeafProbe::Mapped => mapped_probe_error("spell DTO leaf"),
     }
 }
 
@@ -3007,9 +3009,7 @@ fn consumable_spell_child_source_leaf(
             CoverageFailureCode::DtoMismatch,
             "provenance-only child sort has no semantic DTO owner",
         )),
-        ConsumableSpellChildLeafProbe::Mapped => {
-            unreachable!("mapped child probes use the generic receipt")
-        }
+        ConsumableSpellChildLeafProbe::Mapped => mapped_probe_error("consumable spell DTO leaf"),
     }
 }
 
@@ -3049,7 +3049,7 @@ fn consumable_spell_child_canonical_leaf(
             "provenance-only child sort has no semantic canonical owner",
         )),
         ConsumableSpellChildLeafProbe::Mapped => {
-            unreachable!("mapped child probes use the generic receipt")
+            mapped_probe_error("canonical consumable spell leaf")
         }
     }
 }
@@ -3337,10 +3337,15 @@ fn capture_hazard_disable(
     })?;
     let mut mutated_raw = fixture.raw.clone();
     let mutated_text = format!("{source_text}\u{241f}source-leaf-mutation");
-    *mutated_raw
+    let target = mutated_raw
         .pointer_mut("/system/details/disable")
-        .expect("validated hazard disable pointer remains present") =
-        Value::String(mutated_text.clone());
+        .ok_or_else(|| {
+            error(
+                CoverageFailureCode::ReaderNotObserved,
+                "validated hazard disable pointer disappeared before mutation",
+            )
+        })?;
+    *target = Value::String(mutated_text.clone());
     let actual = run_hazard_pipeline(&fixture, fixture.raw.clone(), ledger, &identity)?;
     let mutation = run_hazard_pipeline(&fixture, mutated_raw, ledger, &identity)?;
     let source = dto_hazard_string(&hazard_lifecycle(&actual.source_dto)?.disable);
@@ -3461,10 +3466,13 @@ fn capture_hazard_folder(
     })?;
     let mut mutated_raw = fixture.raw.clone();
     let mutated_folder = format!("{folder}-source-leaf-mutation");
-    *mutated_raw
-        .pointer_mut("/folder")
-        .expect("validated hazard folder pointer remains present") =
-        Value::String(mutated_folder.clone());
+    let target = mutated_raw.pointer_mut("/folder").ok_or_else(|| {
+        error(
+            CoverageFailureCode::ReaderNotObserved,
+            "validated hazard folder pointer disappeared before mutation",
+        )
+    })?;
+    *target = Value::String(mutated_folder.clone());
     let actual = run_hazard_pipeline_core(&fixture, fixture.raw.clone())?;
     let mutation = run_hazard_pipeline_core(&fixture, mutated_raw)?;
     let source = dto_hazard_string(&actual.source_dto.source.folder);
@@ -3531,9 +3539,15 @@ fn capture_hazard_temporary_maximum(
         )
     })?;
     let mut mutated_raw = fixture.raw.clone();
-    *mutated_raw
+    let target = mutated_raw
         .pointer_mut("/system/attributes/hp/tempmax")
-        .expect("validated hazard tempmax pointer remains present") = Value::from(value + 101);
+        .ok_or_else(|| {
+            error(
+                CoverageFailureCode::ReaderNotObserved,
+                "validated hazard tempmax pointer disappeared before mutation",
+            )
+        })?;
+    *target = Value::from(value + 101);
     let actual = run_hazard_pipeline(&fixture, fixture.raw.clone(), ledger, &identity)?;
     let mutation = run_hazard_pipeline(&fixture, mutated_raw, ledger, &identity)?;
     let source = unsupported_number_leaf(value, "legacy hazard hp.tempmax field");
@@ -3628,10 +3642,13 @@ fn capture_hazard_action_type(
         "passive"
     };
     let mut mutated_raw = fixture.raw.clone();
-    *mutated_raw
-        .pointer_mut(&pointer)
-        .expect("validated action type pointer remains present") =
-        Value::String(mutated_action_type.to_string());
+    let target = mutated_raw.pointer_mut(&pointer).ok_or_else(|| {
+        error(
+            CoverageFailureCode::ReaderNotObserved,
+            "validated hazard action type pointer disappeared before mutation",
+        )
+    })?;
+    *target = Value::String(mutated_action_type.to_string());
     let actual = run_hazard_pipeline(&fixture, fixture.raw.clone(), ledger, &identity)?;
     let mutation = run_hazard_pipeline(&fixture, mutated_raw, ledger, &identity)?;
     let source = dto_hazard_string(&hazard_item(&actual.source_dto, item_id)?.action.action_type);
@@ -3746,9 +3763,13 @@ fn capture_hazard_damage(
     })?;
     let mutated_damage = format!("{damage}+1");
     let mut mutated_raw = fixture.raw.clone();
-    *mutated_raw
-        .pointer_mut(&pointer)
-        .expect("validated damage formula pointer remains present") = Value::String(mutated_damage);
+    let target = mutated_raw.pointer_mut(&pointer).ok_or_else(|| {
+        error(
+            CoverageFailureCode::ReaderNotObserved,
+            "validated hazard damage formula pointer disappeared before mutation",
+        )
+    })?;
+    *target = Value::String(mutated_damage);
     let actual = run_hazard_pipeline(&fixture, fixture.raw.clone(), ledger, &identity)?;
     let mutation = run_hazard_pipeline(&fixture, mutated_raw, ledger, &identity)?;
     let source = dto_hazard_damage(&actual.source_dto, item_id, &source_key)?;
@@ -4313,12 +4334,13 @@ fn set_json_pointer(
                     )
                 })?;
         } else {
-            if !current.is_object() {
-                *current = Value::Object(Default::default());
-            }
-            current = current
-                .as_object_mut()
-                .expect("converted to object")
+            let Value::Object(object) = current else {
+                return Err(error(
+                    CoverageFailureCode::ReaderNotObserved,
+                    format!("non-object parent while mutating {pointer}"),
+                ));
+            };
+            current = object
                 .entry(segment.clone())
                 .or_insert_with(|| Value::Object(Default::default()));
         }
@@ -4348,13 +4370,13 @@ fn set_json_pointer(
             array[index] = value;
         }
     } else {
-        if !current.is_object() {
-            *current = Value::Object(Default::default());
-        }
-        current
-            .as_object_mut()
-            .expect("converted to object")
-            .insert(last.clone(), value);
+        let Value::Object(object) = current else {
+            return Err(error(
+                CoverageFailureCode::ReaderNotObserved,
+                format!("non-object leaf parent while mutating {pointer}"),
+            ));
+        };
+        object.insert(last.clone(), value);
     }
     Ok(())
 }
@@ -5585,7 +5607,7 @@ fn exact_hazard_item_source_fingerprint(
                 ".system.frequency.per" => {
                     owner_fingerprint("HazardFrequencySource.per", &frequency.per)
                 }
-                _ => unreachable!(),
+                _ => return unknown_hazard_accessor("DTO fingerprint", local_path),
             }
         }
         ".system.selfEffect.uuid" | ".system.selfEffect.name" => {
@@ -5739,7 +5761,7 @@ fn exact_hazard_item_source_value(
                         json_owner_value,
                     );
                 }
-                _ => unreachable!(),
+                _ => return unknown_hazard_accessor("DTO value", local_path),
             };
             dto_field_owner_value(field, occurrence, disposition, json_owner_value)
         }
@@ -6770,7 +6792,7 @@ fn exact_hazard_item_canonical_fingerprint(
                 ".system.publication.license" => {
                     owner_fingerprint("HazardPublication.license", &publication.license)
                 }
-                _ => unreachable!(),
+                _ => return unknown_hazard_accessor("canonical fingerprint", local_path),
             }
         }
         ".system.slug" => owner_fingerprint(
@@ -6903,7 +6925,7 @@ fn exact_hazard_item_canonical_value(
                     disposition,
                     |value| Ok(Value::String(value.as_str().to_string())),
                 ),
-                _ => unreachable!(),
+                _ => unknown_hazard_accessor("canonical value", local_path),
             }
         }
         ".system.slug" => canonical_fact_owner_value(
@@ -7328,7 +7350,7 @@ fn exact_hazard_action_canonical_fingerprint(
                     owner_fingerprint("HazardFrequency.maximum", &frequency.maximum)
                 }
                 ".system.frequency.per" => owner_fingerprint("HazardFrequency.per", &frequency.per),
-                _ => unreachable!(),
+                _ => return unknown_hazard_accessor("canonical Action", path),
             }
         }
         ".system.selfEffect.uuid" | ".system.selfEffect.name" => {
@@ -7840,8 +7862,15 @@ fn unknown_hazard_accessor<T>(stage: &str, path: &str) -> Result<T, CoverageCont
     ))
 }
 
-fn spell_source_destination(probe: SpellLeafProbe) -> &'static str {
-    match probe {
+fn mapped_probe_error<T>(owner: &str) -> Result<T, CoverageContractError> {
+    Err(error(
+        CoverageFailureCode::ReaderNotObserved,
+        format!("mapped spell probe reached the dedicated {owner}"),
+    ))
+}
+
+fn spell_source_destination(probe: SpellLeafProbe) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         SpellLeafProbe::Rank => "SpellItemSource.classification.rank",
         SpellLeafProbe::DamageFormula => "SpellItemSource.damage[*].formula",
         SpellLeafProbe::OverlaySort => "SpellItemSource.overlays[*].sort",
@@ -7849,12 +7878,14 @@ fn spell_source_destination(probe: SpellLeafProbe) -> &'static str {
         SpellLeafProbe::StandaloneLocation => "SpellItemSource.location_provenance",
         SpellLeafProbe::Image => "SpellItemSource.image",
         SpellLeafProbe::PublicationLicense => "SpellItemSource.publication_license",
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use generic destinations"),
-    }
+        SpellLeafProbe::Mapped => return mapped_probe_error("source destination"),
+    })
 }
 
-fn spell_canonical_destination(probe: SpellLeafProbe) -> &'static str {
-    match probe {
+fn spell_canonical_destination(
+    probe: SpellLeafProbe,
+) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         SpellLeafProbe::Rank => "SpellDefinition.classification.rank",
         SpellLeafProbe::DamageFormula => "SpellDefinition.damage[*].formula",
         SpellLeafProbe::OverlaySort => "SpellDefinition.overlays[*].sort",
@@ -7862,12 +7893,12 @@ fn spell_canonical_destination(probe: SpellLeafProbe) -> &'static str {
         SpellLeafProbe::StandaloneLocation => "SpellDefinition.provenance.standalone_location",
         SpellLeafProbe::Image => "SpellDefinition.source_context.image",
         SpellLeafProbe::PublicationLicense => "SpellDefinition.source_context.publication_license",
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use generic destinations"),
-    }
+        SpellLeafProbe::Mapped => return mapped_probe_error("canonical destination"),
+    })
 }
 
-fn spell_post_destination(probe: SpellLeafProbe) -> &'static str {
-    match probe {
+fn spell_post_destination(probe: SpellLeafProbe) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         SpellLeafProbe::Rank => "PostProjection::SpellDefinition.classification.rank",
         SpellLeafProbe::DamageFormula => "PostProjection::SpellDefinition.damage[*].formula",
         SpellLeafProbe::OverlaySort => "PostProjection::SpellDefinition.overlays[*].sort",
@@ -7879,12 +7910,14 @@ fn spell_post_destination(probe: SpellLeafProbe) -> &'static str {
         SpellLeafProbe::PublicationLicense => {
             "PostProjection::SpellDefinition.source_context.publication_license"
         }
-        SpellLeafProbe::Mapped => unreachable!("mapped spell probes use generic destinations"),
-    }
+        SpellLeafProbe::Mapped => return mapped_probe_error("post-projection destination"),
+    })
 }
 
-fn consumable_spell_child_source_destination(probe: ConsumableSpellChildLeafProbe) -> &'static str {
-    match probe {
+fn consumable_spell_child_source_destination(
+    probe: ConsumableSpellChildLeafProbe,
+) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         ConsumableSpellChildLeafProbe::ChildId => "ConsumableSpellChildSource.spell.id",
         ConsumableSpellChildLeafProbe::StandaloneLocator => {
             "ConsumableSpellChildSource.standalone_locator"
@@ -7907,15 +7940,15 @@ fn consumable_spell_child_source_destination(probe: ConsumableSpellChildLeafProb
             "AtlasRecord.provenance.raw_json#/system/spell"
         }
         ConsumableSpellChildLeafProbe::Mapped => {
-            unreachable!("mapped child probes use generic destinations")
+            return mapped_probe_error("consumable spell source destination");
         }
-    }
+    })
 }
 
 fn consumable_spell_child_canonical_destination(
     probe: ConsumableSpellChildLeafProbe,
-) -> &'static str {
-    match probe {
+) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         ConsumableSpellChildLeafProbe::ChildId => "ConsumableSpellChild.child_id",
         ConsumableSpellChildLeafProbe::StandaloneLocator => {
             "ConsumableSpellChild.standalone_locator"
@@ -7944,13 +7977,15 @@ fn consumable_spell_child_canonical_destination(
             "AtlasRecord.provenance.raw_json#/system/spell"
         }
         ConsumableSpellChildLeafProbe::Mapped => {
-            unreachable!("mapped child probes use generic destinations")
+            return mapped_probe_error("consumable spell canonical destination");
         }
-    }
+    })
 }
 
-fn consumable_spell_child_post_destination(probe: ConsumableSpellChildLeafProbe) -> &'static str {
-    match probe {
+fn consumable_spell_child_post_destination(
+    probe: ConsumableSpellChildLeafProbe,
+) -> Result<&'static str, CoverageContractError> {
+    Ok(match probe {
         ConsumableSpellChildLeafProbe::ChildId => "PostProjection::ConsumableSpellChild.child_id",
         ConsumableSpellChildLeafProbe::StandaloneLocator => {
             "PostProjection::ConsumableSpellChild.standalone_locator"
@@ -7983,9 +8018,9 @@ fn consumable_spell_child_post_destination(probe: ConsumableSpellChildLeafProbe)
             "AtlasRecord.provenance.raw_json#/system/spell"
         }
         ConsumableSpellChildLeafProbe::Mapped => {
-            unreachable!("mapped child probes use generic destinations")
+            return mapped_probe_error("consumable spell post-projection destination");
         }
-    }
+    })
 }
 
 fn sealed_receipt(
@@ -10233,6 +10268,36 @@ mod tests {
         SurfaceContract, SurfaceDecision, SurfaceDisposition, evaluate_source_leaf_coverage,
         parse_source_leaf_ledger,
     };
+
+    #[test]
+    fn mapped_spell_probes_fail_closed_if_routed_to_dedicated_accessors() {
+        let standalone = spell_source_destination(SpellLeafProbe::Mapped)
+            .expect_err("mapped standalone probe must use the generic receipt");
+        let child = consumable_spell_child_pointer(ConsumableSpellChildLeafProbe::Mapped)
+            .expect_err("mapped child probe must use the generic receipt");
+
+        assert_eq!(standalone.code, CoverageFailureCode::ReaderNotObserved);
+        assert_eq!(child.code, CoverageFailureCode::ReaderNotObserved);
+    }
+
+    #[test]
+    fn json_pointer_mutation_rejects_scalar_and_null_parents_without_replacing_them() {
+        for parent in [Value::String("authored".into()), Value::Null] {
+            let mut root = serde_json::json!({"system": parent});
+            let original = root.clone();
+
+            let error = set_json_pointer(&mut root, "/system/value", Value::from(7))
+                .expect_err("authored non-object parent must be rejected");
+
+            assert_eq!(error.code, CoverageFailureCode::ReaderNotObserved);
+            assert_eq!(root, original);
+        }
+
+        let mut root = serde_json::json!({"system": {}});
+        set_json_pointer(&mut root, "/system/value", Value::from(7))
+            .expect("missing member beneath an object remains insertable");
+        assert_eq!(root, serde_json::json!({"system": {"value": 7}}));
+    }
 
     fn promoted() -> SurfaceDecision {
         SurfaceDecision {

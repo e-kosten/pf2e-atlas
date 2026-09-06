@@ -2,9 +2,15 @@ use atlas_record::*;
 use serde_json::{Map, Value};
 
 use crate::source::dto::{SpellDocumentSource, SpellItemSource, VersionedItemSource};
+use crate::source_coverage::{CoverageContractError, CoverageFailureCode};
 
-pub(crate) fn source_view(document: &SpellDocumentSource, common: &VersionedItemSource) -> Value {
-    match document {
+type ViewResult<T> = Result<T, CoverageContractError>;
+
+pub(crate) fn source_view(
+    document: &SpellDocumentSource,
+    common: &VersionedItemSource,
+) -> ViewResult<Value> {
+    Ok(match document {
         SpellDocumentSource::Standalone(spell) => {
             let item = common.source.source();
             let mut root = Map::new();
@@ -17,14 +23,14 @@ pub(crate) fn source_view(document: &SpellDocumentSource, common: &VersionedItem
             insert_spell_fact(&mut root, "img", &spell.image, |value| {
                 Value::String(value.clone())
             });
-            root.insert("system".into(), source_system_view(spell));
+            root.insert("system".into(), source_system_view(spell)?);
             Value::Object(root)
         }
-        SpellDocumentSource::ConsumableChild(child) => child_source_view(child),
-    }
+        SpellDocumentSource::ConsumableChild(child) => child_source_view(child)?,
+    })
 }
 
-pub(crate) fn canonical_spell_view(record: &AtlasRecord, spell: &SpellRecord) -> Value {
+pub(crate) fn canonical_spell_view(record: &AtlasRecord, spell: &SpellRecord) -> ViewResult<Value> {
     let mut root = Map::new();
     root.insert(
         "_id".into(),
@@ -41,22 +47,22 @@ pub(crate) fn canonical_spell_view(record: &AtlasRecord, spell: &SpellRecord) ->
         &spell.definition.source_context.image,
         |value| Value::String(value.clone()),
     );
-    let mut system = definition_system_view(&spell.definition);
+    let mut system = definition_system_view(&spell.definition)?;
     if let Some(title) = &record.publication.title {
-        object_member(&mut system, "publication")
+        object_member(&mut system, "publication")?
             .insert("title".into(), Value::String(title.clone()));
     }
-    object_member(&mut system, "publication")
+    object_member(&mut system, "publication")?
         .insert("remaster".into(), Value::Bool(record.publication.remaster));
     if let Some(rarity) = &record.classification.rarity {
-        object_member(&mut system, "traits")
+        object_member(&mut system, "traits")?
             .insert("rarity".into(), Value::String(rarity.as_str().to_string()));
     }
     root.insert("system".into(), Value::Object(system));
-    Value::Object(root)
+    Ok(Value::Object(root))
 }
 
-pub(crate) fn canonical_child_view(child: &ConsumableSpellChild) -> Value {
+pub(crate) fn canonical_child_view(child: &ConsumableSpellChild) -> ViewResult<Value> {
     let mut root = Map::new();
     root.insert(
         "_id".into(),
@@ -66,24 +72,23 @@ pub(crate) fn canonical_child_view(child: &ConsumableSpellChild) -> Value {
         Value::String(value.clone())
     });
     root.insert("type".into(), Value::String("spell".into()));
-    insert_spell_fact(
-        object_member(object_member(&mut root, "flags"), "core"),
-        "sourceId",
-        &child.standalone_locator,
-        |value| Value::String(value.as_str().to_string()),
-    );
+    let flags = object_member(&mut root, "flags")?;
+    let core = object_member(flags, "core")?;
+    insert_spell_fact(core, "sourceId", &child.standalone_locator, |value| {
+        Value::String(value.as_str().to_string())
+    });
     insert_spell_fact(
         &mut root,
         "img",
         &child.definition.source_context.image,
         |value| Value::String(value.clone()),
     );
-    let mut system = definition_system_view(&child.definition);
+    let mut system = definition_system_view(&child.definition)?;
     if let FactValue::Value(source) = &child.definition.source_context.consumable_child {
         insert_spell_fact(&mut system, "slug", &source.slug, |value| {
             Value::String(value.clone())
         });
-        let publication = object_member(&mut system, "publication");
+        let publication = object_member(&mut system, "publication")?;
         insert_spell_fact(publication, "title", &source.publication_title, |value| {
             Value::String(value.clone())
         });
@@ -93,36 +98,35 @@ pub(crate) fn canonical_child_view(child: &ConsumableSpellChild) -> Value {
             &source.publication_remaster,
             |value| Value::Bool(*value),
         );
-        let traits = object_member(&mut system, "traits");
+        let traits = object_member(&mut system, "traits")?;
         insert_spell_fact(traits, "rarity", &source.rarity, |value| {
             Value::String(value.as_str().to_string())
         });
     }
     insert_spell_fact(&mut system, "location", &child.location, location_value);
     root.insert("system".into(), Value::Object(system));
-    Value::Object(root)
+    Ok(Value::Object(root))
 }
 
-fn child_source_view(child: &crate::source::dto::ConsumableSpellChildSource) -> Value {
+fn child_source_view(child: &crate::source::dto::ConsumableSpellChildSource) -> ViewResult<Value> {
     let spell = &child.spell;
     let mut root = Map::new();
     root.insert("_id".into(), Value::String(spell.id.clone()));
     root.insert("name".into(), Value::String(spell.name.clone()));
     root.insert("type".into(), Value::String("spell".into()));
-    insert_spell_fact(
-        object_member(object_member(&mut root, "flags"), "core"),
-        "sourceId",
-        &child.standalone_locator,
-        |value| Value::String(value.as_str().to_string()),
-    );
+    let flags = object_member(&mut root, "flags")?;
+    let core = object_member(flags, "core")?;
+    insert_spell_fact(core, "sourceId", &child.standalone_locator, |value| {
+        Value::String(value.as_str().to_string())
+    });
     insert_spell_fact(&mut root, "img", &spell.image, |value| {
         Value::String(value.clone())
     });
-    root.insert("system".into(), source_system_view(spell));
-    Value::Object(root)
+    root.insert("system".into(), source_system_view(spell)?);
+    Ok(Value::Object(root))
 }
 
-fn source_system_view(spell: &SpellItemSource) -> Value {
+fn source_system_view(spell: &SpellItemSource) -> ViewResult<Value> {
     let mut system = definition_fields_view(DefinitionFields {
         classification: &spell.classification,
         casting: &spell.casting,
@@ -135,11 +139,11 @@ fn source_system_view(spell: &SpellItemSource) -> Value {
         ritual: &spell.ritual,
         rules: &spell.rules,
         unsupported_notes: &spell.unsupported_notes,
-    });
+    })?;
     insert_spell_fact(&mut system, "slug", &spell.slug, |value| {
         Value::String(value.clone())
     });
-    let publication = object_member(&mut system, "publication");
+    let publication = object_member(&mut system, "publication")?;
     insert_spell_fact(
         publication,
         "license",
@@ -155,21 +159,19 @@ fn source_system_view(spell: &SpellItemSource) -> Value {
         &spell.publication_remaster,
         |value| Value::Bool(*value),
     );
-    let traits = object_member(&mut system, "traits");
+    let traits = object_member(&mut system, "traits")?;
     insert_spell_fact(traits, "rarity", &spell.rarity, |value| {
         Value::String(value.as_str().to_string())
     });
     insert_spell_fact(&mut system, "location", &spell.location, location_value);
-    insert_spell_fact(
-        object_member(&mut system, "description"),
-        "value",
-        &spell.description_markup,
-        |value| Value::String(value.clone()),
-    );
-    Value::Object(system)
+    let description = object_member(&mut system, "description")?;
+    insert_spell_fact(description, "value", &spell.description_markup, |value| {
+        Value::String(value.clone())
+    });
+    Ok(Value::Object(system))
 }
 
-fn definition_system_view(definition: &SpellDefinition) -> Map<String, Value> {
+fn definition_system_view(definition: &SpellDefinition) -> ViewResult<Map<String, Value>> {
     let mut system = definition_fields_view(DefinitionFields {
         classification: &definition.classification,
         casting: &definition.casting,
@@ -182,9 +184,10 @@ fn definition_system_view(definition: &SpellDefinition) -> Map<String, Value> {
         ritual: &definition.ritual,
         rules: &definition.rules,
         unsupported_notes: &definition.unsupported_notes,
-    });
+    })?;
+    let publication = object_member(&mut system, "publication")?;
     insert_spell_fact(
-        object_member(&mut system, "publication"),
+        publication,
         "license",
         &definition.source_context.publication_license,
         |value| Value::String(value.as_str().to_string()),
@@ -198,7 +201,7 @@ fn definition_system_view(definition: &SpellDefinition) -> Map<String, Value> {
             unsupported_fact_value(&definition.provenance.standalone_location),
         );
     }
-    system
+    Ok(system)
 }
 
 struct DefinitionFields<'a> {
@@ -215,7 +218,7 @@ struct DefinitionFields<'a> {
     unsupported_notes: &'a [SpellUnsupportedSourceFact],
 }
 
-fn definition_fields_view(fields: DefinitionFields<'_>) -> Map<String, Value> {
+fn definition_fields_view(fields: DefinitionFields<'_>) -> ViewResult<Map<String, Value>> {
     let mut system = Map::new();
     insert_spell_fact(
         &mut system,
@@ -230,7 +233,7 @@ fn definition_fields_view(fields: DefinitionFields<'_>) -> Map<String, Value> {
         },
     );
     if let Some(SpellSourceValue::Known(classification)) = fields.classification.as_value() {
-        let traits = object_member(&mut system, "traits");
+        let traits = object_member(&mut system, "traits")?;
         insert_spell_fact(traits, "value", &classification.traits, |values| {
             Value::Array(
                 values
@@ -249,8 +252,8 @@ fn definition_fields_view(fields: DefinitionFields<'_>) -> Map<String, Value> {
         });
     }
     if let Some(SpellSourceValue::Known(casting)) = fields.casting.as_value() {
-        insert_nested_string(&mut system, "time", "value", &casting.time);
-        insert_nested_string(&mut system, "cost", "value", &casting.cost);
+        insert_nested_string(&mut system, "time", "value", &casting.time)?;
+        insert_nested_string(&mut system, "cost", "value", &casting.cost)?;
         insert_spell_fact(
             &mut system,
             "requirements",
@@ -267,8 +270,8 @@ fn definition_fields_view(fields: DefinitionFields<'_>) -> Map<String, Value> {
         insert_spell_fact(&mut system, "casting", fields.casting, |_| Value::Null);
     }
     if let Some(SpellSourceValue::Known(targeting)) = fields.targeting.as_value() {
-        insert_nested_string(&mut system, "target", "value", &targeting.target);
-        let range = object_member(&mut system, "range");
+        insert_nested_string(&mut system, "target", "value", &targeting.target)?;
+        let range = object_member(&mut system, "range")?;
         insert_spell_fact(range, "value", &targeting.range, |value| {
             Value::String(value.authored_text.clone())
         });
@@ -279,16 +282,16 @@ fn definition_fields_view(fields: DefinitionFields<'_>) -> Map<String, Value> {
         damage_map(values)
     });
     insert_spell_fact(&mut system, "duration", fields.duration, duration_value);
-    insert_spell_fact(
+    insert_spell_fact_result(
         &mut system,
         "heightening",
         fields.heightening,
         heightening_value,
-    );
-    insert_spell_fact(&mut system, "overlays", fields.overlays, |values| {
+    )?;
+    insert_spell_fact_result(&mut system, "overlays", fields.overlays, |values| {
         overlay_map(values)
-    });
-    insert_spell_fact(&mut system, "ritual", fields.ritual, ritual_value);
+    })?;
+    insert_spell_fact_result(&mut system, "ritual", fields.ritual, ritual_value)?;
     insert_spell_fact(&mut system, "rules", fields.rules, |values| {
         rules_value(values)
     });
@@ -301,9 +304,9 @@ fn definition_fields_view(fields: DefinitionFields<'_>) -> Map<String, Value> {
         selected.insert(note.authored_key.clone(), unsupported_value(&note.value));
     }
     if !selected.is_empty() {
-        object_member(&mut system, "traits").insert("selected".into(), Value::Object(selected));
+        object_member(&mut system, "traits")?.insert("selected".into(), Value::Object(selected));
     }
-    system
+    Ok(system)
 }
 
 fn insert_nested_string(
@@ -311,10 +314,11 @@ fn insert_nested_string(
     root: &str,
     leaf: &str,
     fact: &SpellFact<String>,
-) {
-    insert_spell_fact(object_member(system, root), leaf, fact, |value| {
+) -> ViewResult<()> {
+    insert_spell_fact(object_member(system, root)?, leaf, fact, |value| {
         Value::String(value.clone())
     });
+    Ok(())
 }
 
 fn area_value(area: &SpellAreaValue) -> Value {
@@ -419,7 +423,7 @@ fn duration_value(duration: &SpellDuration) -> Value {
     Value::Object(object)
 }
 
-fn heightening_value(heightening: &SpellHeightening) -> Value {
+fn heightening_value(heightening: &SpellHeightening) -> ViewResult<Value> {
     let mut object = Map::new();
     match heightening {
         SpellHeightening::Interval(interval) => {
@@ -446,17 +450,17 @@ fn heightening_value(heightening: &SpellHeightening) -> Value {
                 Value::Object(
                     layers
                         .iter()
-                        .map(|layer| (layer.key.clone(), patch_value(&layer.patch)))
-                        .collect(),
+                        .map(|layer| Ok((layer.key.clone(), patch_value(&layer.patch)?)))
+                        .collect::<ViewResult<Map<_, _>>>()?,
                 ),
             );
         }
     }
-    Value::Object(object)
+    Ok(Value::Object(object))
 }
 
-fn overlay_map(overlays: &[SpellOverlay]) -> Value {
-    Value::Object(
+fn overlay_map(overlays: &[SpellOverlay]) -> ViewResult<Value> {
+    Ok(Value::Object(
         overlays
             .iter()
             .map(|overlay| {
@@ -473,23 +477,23 @@ fn overlay_map(overlays: &[SpellOverlay]) -> Value {
                 insert_spell_fact(&mut object, "sort", &overlay.sort, |value| {
                     Value::from(*value)
                 });
-                object.insert("system".into(), patch_value(&overlay.patch));
-                (overlay.key.clone(), Value::Object(object))
+                object.insert("system".into(), patch_value(&overlay.patch)?);
+                Ok((overlay.key.clone(), Value::Object(object)))
             })
-            .collect(),
-    )
+            .collect::<ViewResult<Map<_, _>>>()?,
+    ))
 }
 
-fn patch_value(patch: &SpellPatch) -> Value {
+fn patch_value(patch: &SpellPatch) -> ViewResult<Value> {
     let mut system = Map::new();
     if let Some(SpellSourceValue::Known(classification)) = patch.classification.as_value() {
         insert_spell_fact(
-            object_member(&mut system, "level"),
+            object_member(&mut system, "level")?,
             "value",
             &classification.rank,
             |value| Value::from(*value),
         );
-        let traits = object_member(&mut system, "traits");
+        let traits = object_member(&mut system, "traits")?;
         insert_spell_fact(traits, "value", &classification.traits, |values| {
             Value::Array(
                 values
@@ -508,8 +512,8 @@ fn patch_value(patch: &SpellPatch) -> Value {
         });
     }
     if let Some(SpellSourceValue::Known(casting)) = patch.casting.as_value() {
-        insert_nested_string(&mut system, "time", "value", &casting.time);
-        insert_nested_string(&mut system, "cost", "value", &casting.cost);
+        insert_nested_string(&mut system, "time", "value", &casting.time)?;
+        insert_nested_string(&mut system, "cost", "value", &casting.cost)?;
         insert_spell_fact(
             &mut system,
             "requirements",
@@ -524,9 +528,9 @@ fn patch_value(patch: &SpellPatch) -> Value {
         );
     }
     if let Some(SpellSourceValue::Known(targeting)) = patch.targeting.as_value() {
-        insert_nested_string(&mut system, "target", "value", &targeting.target);
+        insert_nested_string(&mut system, "target", "value", &targeting.target)?;
         insert_spell_fact(
-            object_member(&mut system, "range"),
+            object_member(&mut system, "range")?,
             "value",
             &targeting.range,
             |value| Value::String(value.authored_text.clone()),
@@ -534,7 +538,7 @@ fn patch_value(patch: &SpellPatch) -> Value {
         insert_spell_fact(&mut system, "area", &targeting.area, area_patch_value);
     }
     if let Some(SpellSourceValue::Known(defense)) = patch.defense.as_value() {
-        let defense_object = object_member(&mut system, "defense");
+        let defense_object = object_member(&mut system, "defense")?;
         insert_spell_fact(defense_object, "passive", &defense.passive, |value| {
             let mut object = Map::new();
             object.insert(
@@ -558,7 +562,7 @@ fn patch_value(patch: &SpellPatch) -> Value {
         system.insert("damage".into(), keyed_damage_patch(damage));
     }
     if let Some(SpellSourceValue::Known(duration)) = patch.duration.as_value() {
-        let object = object_member(&mut system, "duration");
+        let object = object_member(&mut system, "duration")?;
         insert_spell_fact(object, "value", &duration.value, |value| {
             Value::String(value.clone())
         });
@@ -585,7 +589,7 @@ fn patch_value(patch: &SpellPatch) -> Value {
     if let Some(SpellSourceValue::Known(rules)) = patch.rules.as_value() {
         system.insert("rules".into(), rules_value(rules));
     }
-    Value::Object(system)
+    Ok(Value::Object(system))
 }
 
 fn keyed_damage_patch(patch: &SpellKeyedPatch<SpellDamagePatch>) -> Value {
@@ -646,22 +650,22 @@ fn keyed_text_patch(patch: &SpellKeyedPatch<SpellTextPatch>) -> Value {
     )
 }
 
-fn ritual_value(ritual: &SpellRitual) -> Value {
+fn ritual_value(ritual: &SpellRitual) -> ViewResult<Value> {
     let mut root = Map::new();
     insert_spell_fact(
-        object_member(&mut root, "primary"),
+        object_member(&mut root, "primary")?,
         "check",
         &ritual.primary_check,
         |value| Value::String(value.clone()),
     );
-    let secondary = object_member(&mut root, "secondary");
+    let secondary = object_member(&mut root, "secondary")?;
     insert_spell_fact(secondary, "casters", &ritual.secondary_casters, |value| {
         Value::from(*value)
     });
     insert_spell_fact(secondary, "checks", &ritual.secondary_checks, |value| {
         Value::String(value.clone())
     });
-    Value::Object(root)
+    Ok(Value::Object(root))
 }
 
 fn rules_value(rules: &[SpellRuleElement]) -> Value {
@@ -718,6 +722,24 @@ fn insert_spell_fact<T>(
     }
 }
 
+fn insert_spell_fact_result<T>(
+    object: &mut Map<String, Value>,
+    key: &str,
+    fact: &SpellFact<T>,
+    known: impl Fn(&T) -> ViewResult<Value>,
+) -> ViewResult<()> {
+    let value = match fact {
+        FactValue::Missing => None,
+        FactValue::Null => Some(Value::Null),
+        FactValue::Value(SpellSourceValue::Known(value)) => Some(known(value)?),
+        FactValue::Value(SpellSourceValue::Unsupported(value)) => Some(unsupported_value(value)),
+    };
+    if let Some(value) = value {
+        object.insert(key.into(), value);
+    }
+    Ok(())
+}
+
 fn spell_fact_value<T>(fact: &SpellFact<T>, known: impl Fn(&T) -> Value) -> Option<Value> {
     match fact {
         FactValue::Missing => None,
@@ -739,14 +761,38 @@ fn unsupported_value(value: &UnsupportedSourceValue) -> Value {
     serde_json::from_str(&value.value).unwrap_or_else(|_| Value::String(value.value.clone()))
 }
 
-fn object_member<'a>(object: &'a mut Map<String, Value>, key: &str) -> &'a mut Map<String, Value> {
-    object
+fn object_member<'a>(
+    object: &'a mut Map<String, Value>,
+    key: &str,
+) -> ViewResult<&'a mut Map<String, Value>> {
+    let value = object
         .entry(key.to_string())
-        .or_insert_with(|| Value::Object(Map::new()))
-        .as_object_mut()
-        .expect("spell receipt view owns object member")
+        .or_insert_with(|| Value::Object(Map::new()));
+    match value {
+        Value::Object(member) => Ok(member),
+        _ => Err(CoverageContractError {
+            code: CoverageFailureCode::ReaderNotObserved,
+            message: format!("spell receipt view member {key} is not an object"),
+        }),
+    }
 }
 
 fn string_array(values: &[String]) -> Value {
     Value::Array(values.iter().cloned().map(Value::String).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn object_member_rejects_an_existing_non_object() {
+        let mut object = Map::from_iter([("system".to_string(), Value::String("raw".into()))]);
+
+        let error = object_member(&mut object, "system")
+            .expect_err("a non-object receipt member must fail closed");
+
+        assert_eq!(error.code, CoverageFailureCode::ReaderNotObserved);
+        assert_eq!(object["system"], Value::String("raw".into()));
+    }
 }

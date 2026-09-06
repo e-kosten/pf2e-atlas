@@ -186,12 +186,16 @@ pub(crate) fn normalize_record_from_source(
         .map(|source| convert_hazard_core(key.clone(), &source_path, source, localization))
         .transpose()
         .map_err(|error| normalization_error(path, &error.to_string()))?;
-    let canonical_creature = npc_conversion.as_ref().map(|conversion| {
-        conversion
-            .body
-            .creature()
-            .expect("NPC conversion always produces a creature body")
-    });
+    let canonical_creature = match npc_conversion.as_ref().map(|conversion| &conversion.body) {
+        None => None,
+        Some(atlas_record::RecordBody::Creature(creature)) => Some(creature),
+        Some(atlas_record::RecordBody::Hazard(_) | atlas_record::RecordBody::Spell(_)) => {
+            return Err(normalization_error(
+                path,
+                "NPC conversion did not produce a creature body",
+            ));
+        }
+    };
     let canonical_hazard =
         hazard_conversion
             .as_ref()

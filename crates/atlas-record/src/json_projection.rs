@@ -815,7 +815,7 @@ pub fn record_json_with_context(
             let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
             (
                 RecordPresentationJson::Unmigrated {
-                    migration: unmigrated_registry(record),
+                    migration: unmigrated_registry(record)?,
                     sections: generic_sections(&detailed_sections),
                 },
                 supplementary_sections(&detailed_sections),
@@ -890,14 +890,26 @@ fn source_json(
     })
 }
 
-fn unmigrated_registry(record: &AtlasRecord) -> UnmigratedRegistryJson {
+fn unmigrated_registry(record: &AtlasRecord) -> Result<UnmigratedRegistryJson, RecordJsonError> {
     use crate::FoundryRecordType;
 
     let (family, plan_id) = match record.classification.kind {
         // This private registry is called only for families without a canonical
         // body; retain explicit canonical-family entries so the match stays total.
-        RecordKind::Creature | RecordKind::Hazard | RecordKind::Spell => {
-            unreachable!("canonical record families are rejected before unmigrated projection")
+        RecordKind::Creature => {
+            return Err(RecordJsonError::MissingCreatureBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        RecordKind::Hazard => {
+            return Err(RecordJsonError::MissingHazardBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        RecordKind::Spell => {
+            return Err(RecordJsonError::MissingSpellBody {
+                record_key: record.identity.key.to_string(),
+            });
         }
         RecordKind::Equipment => match record.foundry.record_type {
             FoundryRecordType::Weapon | FoundryRecordType::Ammo => ("weapon_or_ammunition", "H3"),
@@ -915,11 +927,11 @@ fn unmigrated_registry(record: &AtlasRecord) -> UnmigratedRegistryJson {
         }
         RecordKind::Tooling => ("generated_container_or_embedded_context", "H10"),
     };
-    UnmigratedRegistryJson {
+    Ok(UnmigratedRegistryJson {
         family,
         plan_id,
         acceptance_checkpoint: "H12",
-    }
+    })
 }
 
 fn sections_for_detail(

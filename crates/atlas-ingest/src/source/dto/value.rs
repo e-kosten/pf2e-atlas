@@ -184,7 +184,7 @@ impl SerializedSourceValue {
             Self::Null => "null".to_string(),
             Self::Boolean(value) => value.to_string(),
             Self::Number(value) => value.to_string(),
-            Self::String(value) => serde_json::to_string(value).expect("string JSON"),
+            Self::String(value) => Value::String(value.clone()).to_string(),
             Self::Array(values) => format!(
                 "[{}]",
                 values
@@ -200,7 +200,7 @@ impl SerializedSourceValue {
                     .iter()
                     .map(|(key, value)| format!(
                         "{}:{}",
-                        serde_json::to_string(key).expect("object key JSON"),
+                        Value::String(key.clone()),
                         value.compact_json()
                     ))
                     .collect::<Vec<_>>()
@@ -700,5 +700,18 @@ mod tests {
             .to_legacy_json_rejecting_duplicates()
             .expect_err("duplicate discriminator must be rejected");
         assert!(error.to_string().contains("/type"));
+    }
+
+    #[test]
+    fn compact_json_preserves_json_escaping_and_duplicate_member_order() {
+        let source = parse_serialized_source_object(
+            br#"{"line\nkey":"quote\" slash\\ control\u0001 snowman \u2603","line\nkey":false}"#,
+        )
+        .expect("lossless source");
+
+        assert_eq!(
+            source.compact_json(),
+            r#"{"line\nkey":"quote\" slash\\ control\u0001 snowman ☃","line\nkey":false}"#
+        );
     }
 }

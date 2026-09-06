@@ -277,7 +277,7 @@ pub(crate) fn parse_hazard_source(
         ),
         creature_type: string_field(&raw, "/system/creatureType"),
         status_effects: string_array_field(&raw, "/system/statusEffects", "/system/statusEffects"),
-        items: items_field(&raw, serialized),
+        items: items_field(&raw, serialized, &identity)?,
         effects: summaries_field(&raw, "/effects"),
         unclaimed: collect_unclaimed_root(&raw),
     };
@@ -400,36 +400,50 @@ fn publication_field(value: &Value, path: &str) -> HazardSourceField<HazardPubli
 fn items_field(
     raw: &Value,
     serialized: &SerializedSourceObject,
-) -> HazardSourceField<Vec<HazardItemSource>> {
+    identity: &SourceIdentity,
+) -> Result<HazardSourceField<Vec<HazardItemSource>>, SourceDiagnostic> {
     let serialized_items = match serialized.member("items") {
         SerializedSourceMember::Value(SerializedSourceValue::Array(items)) => {
             Some(items.as_slice())
         }
         _ => None,
     };
-    field(raw, "/items", "array", |value| {
-        let items = value.as_array()?;
-        Some(
-            items
-                .iter()
-                .enumerate()
-                .map(|(index, item)| {
-                    parse_item(
-                        index,
-                        item,
-                        serialized_items.and_then(|items| items.get(index)),
-                    )
-                })
-                .collect(),
-        )
-    })
+    let Some(value) = raw.pointer("/items") else {
+        return Ok(SourcePresence::Missing);
+    };
+    if value.is_null() {
+        return Ok(SourcePresence::Null);
+    }
+    let Some(items) = value.as_array() else {
+        return Ok(SourcePresence::Value(HazardSourceValue::Unsupported(
+            ValueSummary {
+                source_path: "/items".to_string(),
+                shape: format!("expected array; observed {}", actual_shape(value)),
+                value: exact_json(value),
+            },
+        )));
+    };
+    let items = items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            parse_item(
+                index,
+                item,
+                serialized_items.and_then(|items| items.get(index)),
+                identity,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(SourcePresence::Value(HazardSourceValue::Typed(items)))
 }
 
 fn parse_item(
     source_ordinal: usize,
     item: &Value,
     serialized: Option<&SerializedSourceValue>,
-) -> HazardItemSource {
+    identity: &SourceIdentity,
+) -> Result<HazardItemSource, SourceDiagnostic> {
     let base = format!("/items/{source_ordinal}");
     let item_type = item.pointer("/type").and_then(Value::as_str);
     let common = HazardItemCommonSource {
@@ -519,7 +533,7 @@ fn parse_item(
             "/system/attackEffects/value",
             &format!("{base}/system/attackEffects/value"),
         ),
-        damage_rolls: damage_field(item, source_ordinal, serialized),
+        damage_rolls: damage_field(item, source_ordinal, serialized, identity)?,
         attack: integer_field_with_path(
             item,
             "/system/attack/value",
@@ -541,7 +555,7 @@ fn parse_item(
             &format!("{base}/system/traits/rarity"),
         ),
     };
-    HazardItemSource {
+    Ok(HazardItemSource {
         source_ordinal: source_ordinal as u32,
         id: string_field_with_path(item, "/_id", &format!("{base}/_id")),
         name: string_field_with_path(item, "/name", &format!("{base}/name")),
@@ -553,14 +567,15 @@ fn parse_item(
         action,
         strike,
         unclaimed: collect_unclaimed(item, &base, &item_claimed_paths(item_type)),
-    }
+    })
 }
 
 fn damage_field(
     item: &Value,
     source_ordinal: usize,
     serialized: Option<&SerializedSourceValue>,
-) -> HazardSourceField<Vec<HazardDamageSource>> {
+    identity: &SourceIdentity,
+) -> Result<HazardSourceField<Vec<HazardDamageSource>>, SourceDiagnostic> {
     let base = format!("/items/{source_ordinal}/system/damageRolls");
     let serialized_entries = serialized
         .and_then(SerializedSourceValue::object)
@@ -572,48 +587,62 @@ fn damage_field(
             SerializedSourceMember::Value(SerializedSourceValue::Object(damage)) => Some(damage),
             _ => None,
         });
-    field_with_path(item, "/system/damageRolls", &base, "object", |value| {
-        value.as_object()?;
-        let entries = serialized_entries?;
-        Some(
-            entries
-                .fields()
-                .iter()
-                .enumerate()
-                .map(|(order, (key, serialized_value))| {
-                    let value = serialized_value
-                        .to_legacy_json_rejecting_duplicates()
-                        .expect("checked legacy projection already rejected nested duplicates");
-                    let entry_base = format!("{base}/{key}");
-                    HazardDamageSource {
-                        source_path: entry_base.clone(),
-                        source_key: key.clone(),
-                        authored_order: order as u32,
-                        damage: string_field_with_path(
-                            &value,
-                            "/damage",
-                            &format!("{entry_base}/damage"),
-                        ),
-                        damage_type: string_field_with_path(
-                            &value,
-                            "/damageType",
-                            &format!("{entry_base}/damageType"),
-                        ),
-                        category: string_field_with_path(
-                            &value,
-                            "/category",
-                            &format!("{entry_base}/category"),
-                        ),
-                        unclaimed: collect_unclaimed(
-                            &value,
-                            &entry_base,
-                            &["/damage", "/damageType", "/category"],
-                        ),
-                    }
-                })
-                .collect(),
-        )
-    })
+    let Some(value) = item.pointer("/system/damageRolls") else {
+        return Ok(SourcePresence::Missing);
+    };
+    if value.is_null() {
+        return Ok(SourcePresence::Null);
+    }
+    let (true, Some(entries)) = (value.is_object(), serialized_entries) else {
+        return Ok(SourcePresence::Value(HazardSourceValue::Unsupported(
+            ValueSummary {
+                source_path: base,
+                shape: format!("expected object; observed {}", actual_shape(value)),
+                value: exact_json(value),
+            },
+        )));
+    };
+    let values = entries
+        .fields()
+        .iter()
+        .enumerate()
+        .map(|(order, (key, serialized_value))| {
+            let entry_base = format!("{base}/{key}");
+            let value = serialized_value
+                .to_legacy_json_rejecting_duplicates()
+                .map_err(|error| {
+                    SourceDiagnostic::new(
+                        SourceDiagnosticKind::MalformedShape,
+                        identity,
+                        &entry_base,
+                        "damage entry without duplicate members",
+                        error.to_string(),
+                    )
+                })?;
+            Ok(HazardDamageSource {
+                source_path: entry_base.clone(),
+                source_key: key.clone(),
+                authored_order: order as u32,
+                damage: string_field_with_path(&value, "/damage", &format!("{entry_base}/damage")),
+                damage_type: string_field_with_path(
+                    &value,
+                    "/damageType",
+                    &format!("{entry_base}/damageType"),
+                ),
+                category: string_field_with_path(
+                    &value,
+                    "/category",
+                    &format!("{entry_base}/category"),
+                ),
+                unclaimed: collect_unclaimed(
+                    &value,
+                    &entry_base,
+                    &["/damage", "/damageType", "/category"],
+                ),
+            })
+        })
+        .collect::<Result<Vec<_>, SourceDiagnostic>>()?;
+    Ok(SourcePresence::Value(HazardSourceValue::Typed(values)))
 }
 
 fn summaries_field(value: &Value, path: &str) -> HazardSourceField<Vec<ValueSummary>> {
@@ -892,7 +921,7 @@ fn summary(path: &str, value: &Value) -> ValueSummary {
 }
 
 fn exact_json(value: &Value) -> String {
-    serde_json::to_string(value).expect("serializing an existing JSON value cannot fail")
+    value.to_string()
 }
 
 fn escape_pointer(value: &str) -> String {
@@ -916,4 +945,29 @@ fn required_root_string(
                 value.map(actual_shape).unwrap_or("missing"),
             )
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::source::dto::{parse_serialized_source_object, pinned_source_version_metadata};
+
+    #[test]
+    fn nested_duplicate_damage_member_is_a_typed_source_error() {
+        let bytes = br#"{"_id":"hazard-id","name":"Duplicate Damage","type":"hazard","items":[{"_id":"strike-id","name":"Strike","type":"melee","system":{"damageRolls":{"first":{"damage":"1d6","damage":"2d6","damageType":"piercing"}}}}],"system":{}}"#;
+        let raw: Value = serde_json::from_slice(bytes).expect("collapsed fixture JSON");
+        let serialized = parse_serialized_source_object(bytes).expect("lossless fixture JSON");
+
+        let error = parse_hazard_source(
+            pinned_source_version_metadata(),
+            SourceIdentity::new("hazards:hazard-id", "packs/hazards/hazard-id.json"),
+            raw,
+            &serialized,
+        )
+        .expect_err("nested duplicate damage must fail instead of panicking");
+
+        assert_eq!(error.kind, SourceDiagnosticKind::MalformedShape);
+        assert_eq!(error.json_path(), "/items/0/system/damageRolls/first");
+        assert!(error.actual_shape().contains("/damage"));
+    }
 }

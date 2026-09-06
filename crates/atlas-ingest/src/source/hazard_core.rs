@@ -10,6 +10,7 @@ use atlas_record::{
     HazardTrait, HazardUnsupportedFact, HazardUnsupportedField, HazardUnsupportedOwner,
     HazardUnsupportedValue, PublicationLicense, RecordBody,
 };
+use serde_json::Value;
 
 use super::dto::{
     HazardDefensesSource, HazardDetectionSource, HazardEmitsSoundSource, HazardHitPointsSource,
@@ -183,7 +184,9 @@ pub(crate) fn convert_hazard_core(
                         })
                         .collect()
                 },
-                |values| serde_json::to_string(values).expect("string vector serializes"),
+                |values| {
+                    Value::Array(values.iter().cloned().map(Value::String).collect()).to_string()
+                },
             )
         },
         owner.clone(),
@@ -246,8 +249,11 @@ pub(crate) fn convert_hazard_core(
         owner,
     );
 
-    let embedded =
-        super::hazard_entities::convert_hazard_embedded_entities(&record_key, source, localization);
+    let embedded = super::hazard_entities::convert_hazard_embedded_entities(
+        &record_key,
+        source,
+        localization,
+    )?;
     diagnostics.extend(embedded.diagnostics.clone());
     let hazard = HazardRecord {
         identity: HazardIdentity {
@@ -812,10 +818,13 @@ fn hazard_size(value: &str) -> Option<HazardSize> {
 }
 
 fn json_string(value: &str) -> String {
-    serde_json::to_string(value).expect("string serializes")
+    Value::String(value.to_string()).to_string()
 }
 
-fn conversion_error(path: impl Into<String>, message: impl Into<String>) -> HazardConversionError {
+pub(crate) fn conversion_error(
+    path: impl Into<String>,
+    message: impl Into<String>,
+) -> HazardConversionError {
     HazardConversionError {
         source_field: path.into(),
         message: message.into(),
