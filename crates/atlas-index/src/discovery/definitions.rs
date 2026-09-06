@@ -293,6 +293,17 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Count
     ),
     field!(
+        "rank",
+        Number,
+        Spell,
+        NumericStats,
+        DiscoveryFieldExtractor::Column(spell_records::columns::RANK),
+        NUMBER_OPERATORS,
+        ["--spell-rank"],
+        SPELL_KIND,
+        Count
+    ),
+    field!(
         "action_cost",
         Number,
         Record,
@@ -332,7 +343,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Enumerable,
         DiscoveryFieldExtractor::JsonArrayColumn(spell_records::columns::TRADITIONS_JSON),
         SET_OPERATORS,
-        [],
+        ["--tradition"],
         SPELL_KIND,
         Count
     ),
@@ -356,6 +367,17 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         SET_OPERATORS,
         [],
         &["equipment", "spell"],
+        Count
+    ),
+    field!(
+        "spell_damage_types",
+        Set,
+        Spell,
+        Enumerable,
+        DiscoveryFieldExtractor::JsonArrayColumn(spell_records::columns::DAMAGE_TYPES_JSON),
+        SET_OPERATORS,
+        ["--spell-damage-type"],
+        SPELL_KIND,
         Count
     ),
     field!(
@@ -508,7 +530,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Enumerable,
         DiscoveryFieldExtractor::Column(spell_records::columns::SAVE_TYPE),
         STRING_OPERATORS,
-        [],
+        ["--spell-save"],
         SPELL_KIND,
         Count
     ),
@@ -519,7 +541,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Enumerable,
         DiscoveryFieldExtractor::Column(spell_records::columns::AREA_TYPE),
         STRING_OPERATORS,
-        [],
+        ["--spell-area"],
         SPELL_KIND,
         Count
     ),
@@ -541,7 +563,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         BooleanCounts,
         DiscoveryFieldExtractor::Column(spell_records::columns::SUSTAINED),
         BOOLEAN_OPERATORS,
-        [],
+        ["--spell-sustained"],
         SPELL_KIND,
         Count
     ),
@@ -552,7 +574,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         BooleanCounts,
         DiscoveryFieldExtractor::Column(spell_records::columns::BASIC_SAVE),
         BOOLEAN_OPERATORS,
-        [],
+        ["--spell-basic-save"],
         SPELL_KIND,
         Count
     ),
@@ -596,7 +618,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         NumericStats,
         DiscoveryFieldExtractor::Column(spell_records::columns::RANGE_VALUE),
         NUMBER_OPERATORS,
-        [],
+        ["--spell-range-feet"],
         SPELL_KIND,
         Count
     ),
@@ -640,7 +662,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Sample,
         DiscoveryFieldExtractor::Column(spell_records::columns::RANGE_TEXT),
         TEXT_OPERATORS,
-        [],
+        ["--spell-range-text"],
         SPELL_KIND,
         Count
     ),
@@ -662,7 +684,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Sample,
         DiscoveryFieldExtractor::Column(spell_records::columns::TARGET_TEXT),
         TEXT_OPERATORS,
-        [],
+        ["--spell-target"],
         SPELL_KIND,
         Count
     ),
@@ -735,7 +757,7 @@ pub(crate) fn metric_field_info(catalog_available: bool) -> FilterFieldInfo {
 mod tests {
     use atlas_domain::RecordKind;
 
-    use super::DISCOVERY_ALL_KINDS;
+    use super::{DISCOVERY_ALL_KINDS, definition_for};
 
     #[test]
     fn discovery_kinds_match_canonical_record_kinds() {
@@ -745,5 +767,25 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(DISCOVERY_ALL_KINDS, expected.as_slice());
+    }
+
+    #[test]
+    fn spell_discovery_fields_name_their_convenience_flags() {
+        for (field, flag) in [
+            ("rank", "--spell-rank"),
+            ("traditions", "--tradition"),
+            ("range_text", "--spell-range-text"),
+            ("target_text", "--spell-target"),
+            ("area_type", "--spell-area"),
+            ("save_type", "--spell-save"),
+            ("sustained", "--spell-sustained"),
+            ("basic_save", "--spell-basic-save"),
+            ("spell_damage_types", "--spell-damage-type"),
+            ("range_value", "--spell-range-feet"),
+        ] {
+            let definition = definition_for(field).expect("spell discovery field");
+            assert!(definition.cli_flags.contains(&flag), "{field} omits {flag}");
+            assert!(definition.applicable_kinds.contains(&"spell"));
+        }
     }
 }

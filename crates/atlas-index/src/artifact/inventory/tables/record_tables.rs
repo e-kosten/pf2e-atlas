@@ -136,6 +136,13 @@ pub mod record_content {
         pub const OWNER_RECORD_KEY: Column = Column::new(TABLE, "owner_record_key");
         pub const OWNER_ENTITY_ID: Column = Column::new(TABLE, "owner_entity_id");
         pub const OWNER_OCCURRENCE_ID: Column = Column::new(TABLE, "owner_occurrence_id");
+        pub const OWNER_OCCURRENCE_AUTHORED_ORDER: Column =
+            Column::new(TABLE, "owner_occurrence_authored_order");
+        pub const OWNER_HAZARD_ENTITY_ID: Column = Column::new(TABLE, "owner_hazard_entity_id");
+        pub const OWNER_HAZARD_OCCURRENCE_ID: Column =
+            Column::new(TABLE, "owner_hazard_occurrence_id");
+        pub const OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER: Column =
+            Column::new(TABLE, "owner_hazard_occurrence_authored_order");
         pub const ROLE: Column = Column::new(TABLE, "role");
         pub const ORIGIN_JSON: Column = Column::new(TABLE, "origin_json");
         pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
@@ -160,6 +167,10 @@ pub mod record_content {
         columns::OWNER_RECORD_KEY,
         columns::OWNER_ENTITY_ID,
         columns::OWNER_OCCURRENCE_ID,
+        columns::OWNER_OCCURRENCE_AUTHORED_ORDER,
+        columns::OWNER_HAZARD_ENTITY_ID,
+        columns::OWNER_HAZARD_OCCURRENCE_ID,
+        columns::OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER,
         columns::ROLE,
         columns::ORIGIN_JSON,
         columns::SOURCE_KIND,
@@ -280,6 +291,9 @@ pub mod spell_records {
         pub const SUSTAINED: Column = Column::new(TABLE, "sustained");
         pub const BASIC_SAVE: Column = Column::new(TABLE, "basic_save");
         pub const DAMAGE_TYPES_JSON: Column = Column::new(TABLE, "damage_types_json");
+        pub const RANK: Column = Column::new(TABLE, "rank");
+        pub const RANGE_KIND: Column = Column::new(TABLE, "range_kind");
+        pub const RANGE_RULE: Column = Column::new(TABLE, "range_rule");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
@@ -295,5 +309,8 @@ pub mod spell_records {
         columns::SUSTAINED,
         columns::BASIC_SAVE,
         columns::DAMAGE_TYPES_JSON,
+        columns::RANK,
+        columns::RANGE_KIND,
+        columns::RANGE_RULE,
     ];
 }

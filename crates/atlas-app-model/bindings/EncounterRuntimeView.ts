@@ -6,6 +6,7 @@ import type { EncounterRuntimeAutomationLimitationView } from "./EncounterRuntim
 import type { EncounterRuntimeAwarenessView } from "./EncounterRuntimeAwarenessView";
 import type { EncounterRuntimeConditionView } from "./EncounterRuntimeConditionView";
 import type { EncounterRuntimeDefensesView } from "./EncounterRuntimeDefensesView";
+import type { EncounterRuntimeHazardView } from "./EncounterRuntimeHazardView";
 import type { EncounterRuntimeMovementView } from "./EncounterRuntimeMovementView";
 import type { EncounterRuntimeResourceView } from "./EncounterRuntimeResourceView";
 import type { EncounterRuntimeSavesView } from "./EncounterRuntimeSavesView";
@@ -15,4 +16,4 @@ import type { EncounterRuntimeSpellcastingView } from "./EncounterRuntimeSpellca
 import type { EncounterRuntimeVitalsView } from "./EncounterRuntimeVitalsView";
 import type { RuntimeNumberView } from "./RuntimeNumberView";
 
-export type EncounterRuntimeView = { level?: RuntimeNumberView, vitals?: EncounterRuntimeVitalsView, defenses?: EncounterRuntimeDefensesView, saves?: EncounterRuntimeSavesView, awareness?: EncounterRuntimeAwarenessView, abilities?: EncounterRuntimeAbilitiesView, skills?: Array<EncounterRuntimeSkillView>, movement?: EncounterRuntimeMovementView, resources?: Array<EncounterRuntimeResourceView>, spellcasting?: Array<EncounterRuntimeSpellcastingView>, activities?: Array<EncounterRuntimeActivityView>, standalone_spells?: Array<EncounterRuntimeSpellView>, action_budget?: EncounterRuntimeActionBudgetView, conditions?: Array<EncounterRuntimeConditionView>, automation_limitations?: Array<EncounterRuntimeAutomationLimitationView>, };
+export type EncounterRuntimeView = { hazard?: EncounterRuntimeHazardView, level?: RuntimeNumberView, vitals?: EncounterRuntimeVitalsView, defenses?: EncounterRuntimeDefensesView, saves?: EncounterRuntimeSavesView, awareness?: EncounterRuntimeAwarenessView, abilities?: EncounterRuntimeAbilitiesView, skills?: Array<EncounterRuntimeSkillView>, movement?: EncounterRuntimeMovementView, resources?: Array<EncounterRuntimeResourceView>, spellcasting?: Array<EncounterRuntimeSpellcastingView>, activities?: Array<EncounterRuntimeActivityView>, standalone_spells?: Array<EncounterRuntimeSpellView>, action_budget?: EncounterRuntimeActionBudgetView, conditions?: Array<EncounterRuntimeConditionView>, automation_limitations?: Array<EncounterRuntimeAutomationLimitationView>, };

@@ -8,25 +8,29 @@ use atlas_app_model::{
     EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
     EncounterRuntimeAutomationLimitationView, EncounterRuntimeAwarenessView,
     EncounterRuntimeConditionView, EncounterRuntimeDefensesView, EncounterRuntimeFrequencyView,
-    EncounterRuntimeMovementView, EncounterRuntimeResourceView, EncounterRuntimeSavesView,
-    EncounterRuntimeSkillKindView, EncounterRuntimeSkillView, EncounterRuntimeSpellSlotView,
-    EncounterRuntimeSpellcastingView, EncounterRuntimeUsesView, EncounterRuntimeView,
-    EncounterRuntimeVitalsView, RuntimeAbilityKindView, RuntimeAdjustmentView,
-    RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeDamageEffectKindView, RuntimeDistanceView, RuntimeEffectNoteView,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeFormulaView, RuntimeModifierView,
-    RuntimeNumberView, RuntimeRollSurfaceView, RuntimeRollView, RuntimeRuleView,
-    RuntimeSaveKindView, StatModifierTypeView,
+    EncounterRuntimeHazardInitiativeStatisticView, EncounterRuntimeHazardInitiativeSuggestionView,
+    EncounterRuntimeHazardStateView, EncounterRuntimeHazardView, EncounterRuntimeMovementView,
+    EncounterRuntimeResourceView, EncounterRuntimeSavesView, EncounterRuntimeSkillKindView,
+    EncounterRuntimeSkillView, EncounterRuntimeSpellSlotView, EncounterRuntimeSpellcastingView,
+    EncounterRuntimeUsesView, EncounterRuntimeView, EncounterRuntimeVitalsView,
+    RuntimeAbilityKindView, RuntimeAdjustmentView, RuntimeCanonicalTargetView,
+    RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView, RuntimeDamageEffectKindView,
+    RuntimeDistanceView, RuntimeEffectNoteView, RuntimeFactProvenanceView, RuntimeFactSourceView,
+    RuntimeFormulaView, RuntimeModifierView, RuntimeNumberView, RuntimeRollSurfaceView,
+    RuntimeRollView, RuntimeRuleView, RuntimeSaveKindView, StatModifierTypeView,
 };
-use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition, ParticipantVariant};
+use atlas_local_state::{
+    EncounterParticipant, EncounterParticipantCondition, ParticipantHazardState, ParticipantVariant,
+};
 use atlas_record::{
     AbilityKind, ActivityRollAbility, CanonicalMechanicActivity, CanonicalMechanicsProjection,
     CreatureActionCost, CreatureDamage, CreatureDamageKind, CreatureFrequency, CreatureNumber,
     CreatureResourceAmount, CreatureRoll, CreatureRollKind, CreatureSourceScalar, CreatureUseLimit,
-    DamageEffectKind, FactValue, MechanicActivityFamily, MechanicBaseValue, MechanicFact,
-    MechanicSurface, MechanicTarget, RecordBody, RetrievedRecord, SaveKind, UnsupportedMechanic,
-    UnsupportedMechanicValue, UnsupportedSourceReason, UnsupportedSourceShape,
-    UnsupportedSourceValue, project_creature_mechanics,
+    DamageEffectKind, FactValue, HazardActionType, HazardCapability, HazardFrequencyInterval,
+    HazardInitiativeStatistic, HazardRecord, MechanicActivityFamily, MechanicBaseValue,
+    MechanicFact, MechanicSurface, MechanicTarget, RecordBody, RetrievedRecord, SaveKind,
+    UnsupportedMechanic, UnsupportedMechanicValue, UnsupportedSourceReason, UnsupportedSourceShape,
+    UnsupportedSourceValue, project_creature_mechanics, project_hazard_conveniences,
 };
 
 use super::conditions::{ConditionRule, condition_rule_for_key};
@@ -478,22 +482,370 @@ pub(super) fn participant_encounter_runtime(
     participant: &EncounterParticipant,
     retrieved: &RetrievedRecord,
 ) -> Option<EncounterRuntimeView> {
-    let Some(RecordBody::Creature(creature)) = retrieved.body.as_ref() else {
-        return None;
+    match retrieved.body.as_ref()? {
+        RecordBody::Creature(creature) => {
+            let mechanics = canonical_participant_mechanics(project_creature_mechanics(creature));
+            Some(into_public_runtime(apply_participant_effects(
+                participant,
+                mechanics.view,
+                mechanics.diagnostics,
+                mechanics.automation_limitations,
+                mechanics.variant_damage_blocked_activity_ids,
+                mechanics.activity_runtime,
+            )))
+        }
+        RecordBody::Hazard(hazard) => Some(hazard_encounter_runtime(participant, hazard)),
+        RecordBody::Spell(_) => None,
+    }
+}
+
+fn hazard_encounter_runtime(
+    participant: &EncounterParticipant,
+    hazard: &HazardRecord,
+) -> EncounterRuntimeView {
+    let canonical_number = |label: &str, value: i64, target| RuntimeNumberView {
+        label: label.to_string(),
+        base_value: value,
+        adjusted_value: value,
+        modifiers: Vec::new(),
+        suppressed_modifiers: Vec::new(),
+        provenance: fact_provenance(RuntimeFactSourceView::CanonicalRecord, Some(target)),
     };
-    let mechanics = canonical_participant_mechanics(project_creature_mechanics(creature));
-    Some(into_public_runtime(apply_participant_effects(
-        participant,
-        mechanics.view,
-        mechanics.diagnostics,
-        mechanics.automation_limitations,
-        mechanics.variant_damage_blocked_activity_ids,
-        mechanics.activity_runtime,
-    )))
+    let conveniences = project_hazard_conveniences(hazard);
+    let convenience_number = |label: &str, value: i64, target| RuntimeNumberView {
+        label: label.to_string(),
+        base_value: value,
+        adjusted_value: value,
+        modifiers: Vec::new(),
+        suppressed_modifiers: Vec::new(),
+        provenance: fact_provenance(
+            RuntimeFactSourceView::RuntimeRule {
+                rule: RuntimeRuleView::HazardConvenience,
+            },
+            Some(target),
+        ),
+    };
+    let defenses = hazard.defenses.typed();
+    let vitals = (participant.max_hp.is_some()
+        || participant.current_hp.is_some()
+        || participant.temporary_hp != 0)
+        .then(|| EncounterRuntimeVitalsView {
+            maximum_hp: participant
+                .max_hp
+                .map(|value| participant_number("Maximum HP", value)),
+            current_hp: participant.current_hp,
+            temporary_hp: participant.temporary_hp,
+        });
+    let saves = defenses
+        .and_then(|value| value.saves.typed())
+        .and_then(|saves| {
+            let projected = EncounterRuntimeSavesView {
+                fortitude: saves.fortitude.typed().copied().map(|value| {
+                    canonical_number(
+                        "Fortitude",
+                        value,
+                        RuntimeCanonicalTargetView::Save {
+                            save: RuntimeSaveKindView::Fortitude,
+                        },
+                    )
+                }),
+                reflex: saves.reflex.typed().copied().map(|value| {
+                    canonical_number(
+                        "Reflex",
+                        value,
+                        RuntimeCanonicalTargetView::Save {
+                            save: RuntimeSaveKindView::Reflex,
+                        },
+                    )
+                }),
+                will: saves.will.typed().copied().map(|value| {
+                    canonical_number(
+                        "Will",
+                        value,
+                        RuntimeCanonicalTargetView::Save {
+                            save: RuntimeSaveKindView::Will,
+                        },
+                    )
+                }),
+            };
+            (projected.fortitude.is_some()
+                || projected.reflex.is_some()
+                || projected.will.is_some())
+            .then_some(projected)
+        });
+
+    let mut occurrences = hazard
+        .embedded_entities
+        .typed()
+        .map(|embedded| embedded.occurrences.iter().collect::<Vec<_>>())
+        .unwrap_or_default();
+    occurrences.sort_by_key(|occurrence| (occurrence.authored_order, occurrence.source_ordinal));
+    let activities = occurrences
+        .into_iter()
+        .filter_map(|occurrence| {
+            let embedded = hazard.embedded_entities.typed()?;
+            let entity = embedded
+                .entities
+                .iter()
+                .find(|entity| entity.id == occurrence.entity_id)?;
+            let activity_id = occurrence.id.as_str().to_string();
+            let label = occurrence
+                .contextual_label
+                .typed()
+                .cloned()
+                .unwrap_or_else(|| entity.label.clone());
+            let provenance =
+                fact_provenance(RuntimeFactSourceView::CanonicalRecord, None);
+            let content = {
+                let values = hazard
+                    .content
+                    .documents
+                    .iter()
+                    .filter(|document| {
+                        matches!(
+                            &document.owner,
+                            atlas_record::ContentOwner::HazardOccurrence(owner) if owner == &occurrence.id
+                        )
+                    })
+                    .filter_map(crate::surface::content_view)
+                    .collect::<Vec<_>>();
+                (!values.is_empty()).then_some(values)
+            };
+            let (kind, traits, action_cost, frequency, rolls, damage, available, reason) =
+                match &entity.capability {
+                    HazardCapability::Action(action) => {
+                        let action_type = action.action_type.typed().copied();
+                        let action_cost = match action_type {
+                            Some(HazardActionType::Passive) => {
+                                Some(EncounterRuntimeActionCostKindView::Passive)
+                            }
+                            Some(HazardActionType::Reaction) => {
+                                Some(EncounterRuntimeActionCostKindView::Reaction)
+                            }
+                            Some(HazardActionType::Free) => {
+                                Some(EncounterRuntimeActionCostKindView::FreeAction)
+                            }
+                            Some(HazardActionType::Action) => action
+                                .actions
+                                .typed()
+                                .map(|count| EncounterRuntimeActionCostKindView::Actions {
+                                    count: i64::from(count.value()),
+                                }),
+                            None => None,
+                        }
+                        .map(|value| EncounterRuntimeActionCostView {
+                            value,
+                            provenance: fact_provenance(
+                                RuntimeFactSourceView::CanonicalRecord,
+                                Some(RuntimeCanonicalTargetView::ActivityActionCost {
+                                    activity_id: activity_id.clone(),
+                                }),
+                            ),
+                        });
+                        let frequency = action.frequency.typed().map(|frequency| {
+                            EncounterRuntimeFrequencyView {
+                                maximum: frequency.maximum.typed().copied(),
+                                period: frequency.per.typed().map(|period| match period {
+                                    HazardFrequencyInterval::Turn => "turn",
+                                    HazardFrequencyInterval::Round => "round",
+                                    HazardFrequencyInterval::OneMinute => "PT1M",
+                                    HazardFrequencyInterval::TenMinutes => "PT10M",
+                                    HazardFrequencyInterval::OneHour => "PT1H",
+                                    HazardFrequencyInterval::TwentyFourHours => "PT24H",
+                                    HazardFrequencyInterval::Day => "day",
+                                    HazardFrequencyInterval::Week => "P1W",
+                                    HazardFrequencyInterval::Month => "P1M",
+                                    HazardFrequencyInterval::Year => "P1Y",
+                                }.to_string()),
+                                serialized_value: frequency.value.typed().copied(),
+                                provenance: fact_provenance(
+                                    RuntimeFactSourceView::CanonicalRecord,
+                                    Some(RuntimeCanonicalTargetView::ActivityFrequency {
+                                        activity_id: activity_id.clone(),
+                                    }),
+                                ),
+                            }
+                        });
+                        let supported = action_type.is_some()
+                            && (!matches!(action_type, Some(HazardActionType::Action))
+                                || action.actions.typed().is_some());
+                        (
+                            EncounterRuntimeActivityKindView::Other,
+                            action
+                                .common
+                                .traits
+                                .typed()
+                                .map(|traits| traits.iter().map(|value| value.as_str().to_string()).collect())
+                                .unwrap_or_default(),
+                            action_cost,
+                            frequency,
+                            Vec::new(),
+                            Vec::new(),
+                            supported,
+                            (!supported).then(|| "canonical action cost is unavailable".to_string()),
+                        )
+                    }
+                    HazardCapability::Strike(strike) => {
+                        let bonus = strike.bonus.typed().copied();
+                        let typed_damage = strike.damage_rolls.typed();
+                        let damage_complete = typed_damage.is_some_and(|values| {
+                            values.iter().all(|value| value.damage.typed().is_some())
+                        });
+                        let rolls = bonus.map(|bonus| vec![RuntimeRollView {
+                            roll_id: format!("{activity_id}:attack"),
+                            label: "Attack".to_string(),
+                            base_value: bonus,
+                            adjusted_value: bonus,
+                            surface: RuntimeRollSurfaceView::AttackRoll,
+                            modifiers: Vec::new(),
+                            suppressed_modifiers: Vec::new(),
+                            provenance: fact_provenance(RuntimeFactSourceView::CanonicalRecord, Some(RuntimeCanonicalTargetView::ActivityRoll { activity_id: activity_id.clone(), roll_id: format!("{activity_id}:attack") })),
+                        }]).unwrap_or_default();
+                        let damage = typed_damage.map(|values| values.iter().filter_map(|value| {
+                            let formula = value.damage.typed()?.clone();
+                            Some(RuntimeFormulaView {
+                                damage_id: value.source_key.clone(),
+                                label: None,
+                                formula,
+                                adjusted_formula: None,
+                                damage_type: value.damage_type.typed().cloned(),
+                                effect_kind: RuntimeDamageEffectKindView::Damage,
+                                modifiers: Vec::new(),
+                                provenance: fact_provenance(RuntimeFactSourceView::CanonicalRecord, Some(RuntimeCanonicalTargetView::ActivityDamage { activity_id: activity_id.clone(), damage_id: value.source_key.clone() })),
+                            })
+                        }).collect()).unwrap_or_default();
+                        (
+                            EncounterRuntimeActivityKindView::Strike,
+                            strike.common.traits.typed().map(|traits| traits.iter().map(|value| value.as_str().to_string()).collect()).unwrap_or_default(),
+                            None,
+                            None,
+                            rolls,
+                            damage,
+                            bonus.is_some() && damage_complete,
+                            if bonus.is_none() {
+                                Some("canonical strike attack bonus is unavailable".to_string())
+                            } else if !damage_complete {
+                                Some("canonical strike damage formula is unavailable".to_string())
+                            } else {
+                                None
+                            },
+                        )
+                    }
+                    HazardCapability::Condition(_)
+                    | HazardCapability::Effect(_)
+                    | HazardCapability::UnsupportedChild(_) => (
+                        EncounterRuntimeActivityKindView::Other,
+                        Vec::new(),
+                        None,
+                        None,
+                        Vec::new(),
+                        Vec::new(),
+                        false,
+                        Some("this canonical hazard child has no supported runtime action".to_string()),
+                    ),
+                };
+            Some(EncounterRuntimeActivityView {
+                activity_id,
+                label,
+                kind,
+                usage: if frequency.is_some() {
+                    EncounterRuntimeActivityUsageView::Limited
+                } else {
+                    EncounterRuntimeActivityUsageView::Unlimited
+                },
+                availability: Some(RuntimeCapabilityView {
+                    available,
+                    provenance: Some(provenance.clone()),
+                    reason,
+                }),
+                traits,
+                action_cost,
+                frequency,
+                uses: None,
+                rolls,
+                damage,
+                modes: Vec::new(),
+                content,
+                provenance,
+            })
+        })
+        .collect();
+
+    EncounterRuntimeView {
+        hazard: Some(EncounterRuntimeHazardView {
+            state: match participant.hazard_state {
+                ParticipantHazardState::Active => EncounterRuntimeHazardStateView::Active,
+                ParticipantHazardState::Disabled => EncounterRuntimeHazardStateView::Disabled,
+            },
+            detection_dc: conveniences.detection_dc.map(|value| {
+                convenience_number(
+                    "Detection DC",
+                    value,
+                    RuntimeCanonicalTargetView::DetectionDc,
+                )
+            }),
+            broken_threshold: conveniences.broken_threshold.map(|value| {
+                convenience_number(
+                    "Broken Threshold",
+                    value,
+                    RuntimeCanonicalTargetView::BrokenThreshold,
+                )
+            }),
+            initiative_suggestion: conveniences.initiative_suggestion.map(|suggestion| {
+                EncounterRuntimeHazardInitiativeSuggestionView {
+                    statistic: match suggestion.statistic {
+                        HazardInitiativeStatistic::Stealth => {
+                            EncounterRuntimeHazardInitiativeStatisticView::Stealth
+                        }
+                    },
+                    modifier: convenience_number(
+                        "Stealth",
+                        suggestion.modifier,
+                        RuntimeCanonicalTargetView::HazardInitiativeSuggestion,
+                    ),
+                }
+            }),
+            convenience_rule_id: conveniences.rule_id.to_string(),
+            convenience_rule_version: conveniences.rule_version,
+        }),
+        level: hazard
+            .level
+            .typed()
+            .copied()
+            .map(|value| canonical_number("Level", value, RuntimeCanonicalTargetView::Level)),
+        vitals,
+        defenses: defenses
+            .and_then(|value| value.armor_class.typed())
+            .copied()
+            .map(|value| EncounterRuntimeDefensesView {
+                armor_class: canonical_number(
+                    "Armor Class",
+                    value,
+                    RuntimeCanonicalTargetView::ArmorClass,
+                ),
+            }),
+        saves,
+        awareness: None,
+        abilities: None,
+        skills: Vec::new(),
+        movement: None,
+        resources: Vec::new(),
+        spellcasting: Vec::new(),
+        activities,
+        standalone_spells: Vec::new(),
+        action_budget: None,
+        conditions: participant
+            .conditions
+            .iter()
+            .map(runtime_condition_view)
+            .collect(),
+        automation_limitations: Vec::new(),
+    }
 }
 
 pub(super) fn manual_encounter_runtime(participant: &EncounterParticipant) -> EncounterRuntimeView {
     EncounterRuntimeView {
+        hazard: None,
         level: None,
         vitals: Some(EncounterRuntimeVitalsView {
             maximum_hp: participant
@@ -1515,6 +1867,7 @@ fn apply_participant_effects(
 
     EncounterRuntimeProjection {
         runtime: EncounterRuntimeView {
+            hazard: None,
             level,
             vitals: Some(vitals),
             defenses: armor_class.map(|armor_class| EncounterRuntimeDefensesView { armor_class }),
@@ -1903,6 +2256,7 @@ fn activity_view(
         label: activity.label,
         kind: activity_kind_view(kind),
         usage: activity_usage_view(usage),
+        availability: None,
         traits: Vec::new(),
         action_cost: metadata.action_cost,
         frequency: metadata.frequency,
@@ -2874,6 +3228,7 @@ mod tests {
             RuntimeFactSourceView::RuntimeRule { rule } => match rule {
                 RuntimeRuleView::ActionBudget => "Action budget",
                 RuntimeRuleView::Movement => "Movement",
+                RuntimeRuleView::HazardConvenience => "Hazard convenience",
             },
         }
     }
@@ -4819,6 +5174,7 @@ mod tests {
                 RecordProvenance::new("test.json"),
             ),
             body: None,
+            spell_children: Vec::new(),
         };
 
         assert!(
@@ -5930,6 +6286,7 @@ mod tests {
                         display_name: participant.display_name.clone(),
                         side: participant.side,
                         participant_variant: variant,
+                        hazard_state: participant.hazard_state,
                         initiative: participant.initiative,
                         max_hp: participant.max_hp,
                         current_hp: participant.current_hp,
@@ -6361,6 +6718,7 @@ mod tests {
             record_key: Some("actors:test".to_string()),
             participant_kind: atlas_local_state::ParticipantKind::Creature,
             participant_variant,
+            hazard_state: ParticipantHazardState::Active,
             position: 1,
             display_name: "Creature".to_string(),
             record_title_snapshot: Some("Creature".to_string()),

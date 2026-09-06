@@ -1,0 +1,16 @@
+{
+  "packs": [
+    {
+      "name": "spells-srd",
+      "label": "Spells",
+      "type": "Item",
+      "path": "packs/spells"
+    },
+    {
+      "name": "equipment-srd",
+      "label": "Equipment",
+      "type": "Item",
+      "path": "packs/equipment"
+    }
+  ]
+}

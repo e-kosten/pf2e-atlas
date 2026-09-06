@@ -6,8 +6,9 @@ import type { EncounterRuntimeActivityModeView } from "./EncounterRuntimeActivit
 import type { EncounterRuntimeActivityUsageView } from "./EncounterRuntimeActivityUsageView";
 import type { EncounterRuntimeFrequencyView } from "./EncounterRuntimeFrequencyView";
 import type { EncounterRuntimeUsesView } from "./EncounterRuntimeUsesView";
+import type { RuntimeCapabilityView } from "./RuntimeCapabilityView";
 import type { RuntimeFactProvenanceView } from "./RuntimeFactProvenanceView";
 import type { RuntimeFormulaView } from "./RuntimeFormulaView";
 import type { RuntimeRollView } from "./RuntimeRollView";
 
-export type EncounterRuntimeActivityView = { activity_id: string, label: string, kind: EncounterRuntimeActivityKindView, usage: EncounterRuntimeActivityUsageView, traits?: Array<string>, action_cost?: EncounterRuntimeActionCostView, frequency?: EncounterRuntimeFrequencyView, uses?: EncounterRuntimeUsesView, rolls?: Array<RuntimeRollView>, damage?: Array<RuntimeFormulaView>, modes?: Array<EncounterRuntimeActivityModeView>, content?: Array<CreatureSurfaceContentView>, provenance: RuntimeFactProvenanceView, };
+export type EncounterRuntimeActivityView = { activity_id: string, label: string, kind: EncounterRuntimeActivityKindView, usage: EncounterRuntimeActivityUsageView, availability?: RuntimeCapabilityView, traits?: Array<string>, action_cost?: EncounterRuntimeActionCostView, frequency?: EncounterRuntimeFrequencyView, uses?: EncounterRuntimeUsesView, rolls?: Array<RuntimeRollView>, damage?: Array<RuntimeFormulaView>, modes?: Array<EncounterRuntimeActivityModeView>, content?: Array<CreatureSurfaceContentView>, provenance: RuntimeFactProvenanceView, };

@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::AppErrorCode;
-use atlas_domain::{RecordKey, RecordKind};
+use atlas_domain::RecordKey;
 use atlas_local_state::EncounterParticipant;
-use atlas_record::MetricValue;
 use atlas_search::{
     GetRecordsRequest, RecordRefResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
 };
@@ -98,42 +97,38 @@ pub(super) fn resolve_retrieved_record_ref(
 }
 
 pub(super) fn default_hp(retrieved: &atlas_record::RetrievedRecord) -> (Option<i64>, Option<i64>) {
-    if let Some(atlas_record::RecordBody::Creature(creature)) = retrieved.body.as_ref() {
-        let Some(defenses) = creature.defenses.value.as_value() else {
-            return (None, None);
-        };
-        let Some(hit_points) = defenses.hit_points.as_value() else {
-            return (None, None);
-        };
-        let maximum = hit_points.maximum.as_value().copied();
-        let current = hit_points.value.as_value().and_then(|value| match value {
-            atlas_record::CreatureNumber::Integer(value) => Some(*value),
-            atlas_record::CreatureNumber::Unsupported(_) => None,
-        });
-        return (maximum.or(current), current.or(maximum));
-    }
-    if retrieved.record.classification.kind != RecordKind::Hazard {
-        return (None, None);
-    }
-    let record = &retrieved.record;
-    let metric = |key: &str| {
-        record.mechanics.metrics.iter().find_map(|metric| {
-            if metric.key == key {
-                match metric.value {
-                    MetricValue::Number(value) => Some(value.round() as i64),
-                    MetricValue::Text(_) | MetricValue::Boolean(_) => None,
-                }
-            } else {
-                None
-            }
-        })
+    let (maximum, current) = match retrieved.body.as_ref() {
+        Some(atlas_record::RecordBody::Creature(creature)) => {
+            let Some(hit_points) = creature
+                .defenses
+                .value
+                .as_value()
+                .and_then(|defenses| defenses.hit_points.as_value())
+            else {
+                return (None, None);
+            };
+            (
+                hit_points.maximum.as_value().copied(),
+                hit_points.value.as_value().and_then(|value| match value {
+                    atlas_record::CreatureNumber::Integer(value) => Some(*value),
+                    atlas_record::CreatureNumber::Unsupported(_) => None,
+                }),
+            )
+        }
+        Some(atlas_record::RecordBody::Hazard(hazard)) => {
+            let Some(hit_points) = hazard
+                .defenses
+                .typed()
+                .and_then(|defenses| defenses.hit_points.typed())
+            else {
+                return (None, None);
+            };
+            return (
+                hit_points.maximum.typed().copied(),
+                hit_points.current.typed().copied(),
+            );
+        }
+        Some(atlas_record::RecordBody::Spell(_)) | None => return (None, None),
     };
-    let max_hp = atlas_record::metrics::actor::HP_MAX
-        .exact_key()
-        .and_then(metric);
-    let current_hp = atlas_record::metrics::actor::HP_VALUE
-        .exact_key()
-        .and_then(metric)
-        .or(max_hp);
-    (max_hp.or(current_hp), current_hp)
+    (maximum.or(current), current.or(maximum))
 }

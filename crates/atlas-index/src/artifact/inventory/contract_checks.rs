@@ -20,7 +20,7 @@ pub fn boolean_columns() -> Vec<BooleanColumn> {
         boolean_column(record_metrics::columns::BOOL_VALUE, true),
         boolean_column(actor_records::columns::IS_COMPLEX, false),
         boolean_column(spell_records::columns::SUSTAINED, false),
-        boolean_column(spell_records::columns::BASIC_SAVE, false),
+        boolean_column(spell_records::columns::BASIC_SAVE, true),
     ]
     .into()
 }

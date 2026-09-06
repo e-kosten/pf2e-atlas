@@ -1,8 +1,68 @@
 use atlas_domain::{Rarity, RecordKey};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)] // Preserve the established direct body contract.
 pub enum RecordBody {
     Creature(CreatureRecord),
+    Hazard(crate::HazardRecord),
+    Spell(crate::SpellRecord),
+}
+
+impl RecordBody {
+    pub fn record_key(&self) -> &RecordKey {
+        match self {
+            Self::Creature(creature) => &creature.identity.record_key,
+            Self::Hazard(hazard) => &hazard.identity.record_key,
+            Self::Spell(spell) => &spell.identity.record_key,
+        }
+    }
+
+    pub fn creature(&self) -> Option<&CreatureRecord> {
+        match self {
+            Self::Creature(creature) => Some(creature),
+            Self::Hazard(_) | Self::Spell(_) => None,
+        }
+    }
+
+    pub fn creature_mut(&mut self) -> Option<&mut CreatureRecord> {
+        match self {
+            Self::Creature(creature) => Some(creature),
+            Self::Hazard(_) | Self::Spell(_) => None,
+        }
+    }
+
+    pub fn into_creature(self) -> Option<CreatureRecord> {
+        match self {
+            Self::Creature(creature) => Some(creature),
+            Self::Hazard(_) | Self::Spell(_) => None,
+        }
+    }
+
+    pub fn hazard(&self) -> Option<&crate::HazardRecord> {
+        match self {
+            Self::Hazard(hazard) => Some(hazard),
+            Self::Creature(_) | Self::Spell(_) => None,
+        }
+    }
+
+    pub fn as_creature(&self) -> Option<&CreatureRecord> {
+        self.creature()
+    }
+
+    pub fn as_creature_mut(&mut self) -> Option<&mut CreatureRecord> {
+        match self {
+            Self::Creature(record) => Some(record),
+            Self::Hazard(_) | Self::Spell(_) => None,
+        }
+    }
+
+    pub fn as_spell(&self) -> Option<&crate::SpellRecord> {
+        match self {
+            Self::Spell(record) => Some(record),
+            Self::Creature(_) | Self::Hazard(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,8 +144,10 @@ impl<T> CreatureFact<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(tag = "state", content = "value", rename_all = "snake_case")]
 pub enum FactValue<T> {
+    #[default]
     Missing,
     Null,
     Value(T),
@@ -214,7 +276,8 @@ pub struct CreaturePublication {
     pub license: FactValue<PublicationLicense>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(transparent)]
 pub struct PublicationLicense(String);
 
 impl PublicationLicense {
@@ -224,6 +287,16 @@ impl PublicationLicense {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for PublicationLicense {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::new(value).map_err(|_| serde::de::Error::custom("invalid publication license"))
     }
 }
 

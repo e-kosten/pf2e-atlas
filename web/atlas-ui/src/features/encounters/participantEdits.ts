@@ -7,16 +7,18 @@ export function participantUpdate(
   participant: EncounterParticipantView,
   changes: Partial<UpdateEncounterParticipantRequest>,
 ): UpdateEncounterParticipantRequest {
-  const vitals = requireParticipantVitals(participant);
+  const runtime = participant.record_view.encounter;
+  const vitals = runtime?.vitals;
   return {
     participant_key: participant.participant_key,
     display_name: participant.display_name,
     side: participant.side,
     participant_variant: participant.participant_variant,
+    hazard_state: runtime?.hazard?.state,
     initiative: participant.initiative,
-    max_hp: vitals.maximum_hp?.adjusted_value,
-    current_hp: vitals.current_hp,
-    temporary_hp: vitals.temporary_hp,
+    max_hp: vitals?.maximum_hp?.adjusted_value,
+    current_hp: vitals?.current_hp,
+    temporary_hp: vitals?.temporary_hp ?? 0,
     defeated: participant.defeated,
     hidden: participant.hidden,
     note: participant.note,
@@ -39,27 +41,32 @@ export function applyParticipantUpdate(
     defeated: request.defeated,
     hidden: request.hidden,
     note: request.note,
-    record_view:
-      encounter && vitals
-        ? {
-            ...participant.record_view,
-            encounter: {
-              ...encounter,
-              vitals: {
-                ...vitals,
-                current_hp: request.current_hp,
-                temporary_hp: request.temporary_hp,
-                maximum_hp:
-                  vitals.maximum_hp && request.max_hp !== undefined
-                    ? {
-                        ...vitals.maximum_hp,
-                        adjusted_value: request.max_hp,
-                      }
-                    : vitals.maximum_hp,
-              },
-            },
-          }
-        : participant.record_view,
+    record_view: encounter
+      ? {
+          ...participant.record_view,
+          encounter: {
+            ...encounter,
+            hazard:
+              encounter.hazard && request.hazard_state
+                ? { ...encounter.hazard, state: request.hazard_state }
+                : encounter.hazard,
+            vitals: vitals
+              ? {
+                  ...vitals,
+                  current_hp: request.current_hp,
+                  temporary_hp: request.temporary_hp,
+                  maximum_hp:
+                    vitals.maximum_hp && request.max_hp !== undefined
+                      ? {
+                          ...vitals.maximum_hp,
+                          adjusted_value: request.max_hp,
+                        }
+                      : vitals.maximum_hp,
+                }
+              : undefined,
+          },
+        }
+      : participant.record_view,
   };
 }
 

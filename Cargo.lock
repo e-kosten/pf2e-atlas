@@ -104,6 +104,7 @@ dependencies = [
  "atlas-domain",
  "atlas-embedding",
  "atlas-index",
+ "atlas-ingest",
  "atlas-local-state",
  "atlas-record",
  "atlas-runtime",

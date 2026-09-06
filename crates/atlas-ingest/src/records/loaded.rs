@@ -8,7 +8,7 @@ use atlas_record::{
 use serde_json::Value;
 
 use crate::generated::afflictions::GeneratedAfflictionRole;
-use crate::source::dto::VersionedNpcSource;
+use crate::source::dto::{SpellDocumentSource, VersionedHazardSource, VersionedNpcSource};
 use crate::source::normalize::ContentParseDiagnostics;
 use crate::source::npc_core::NpcCoreDiagnostic;
 use crate::source::npc_entities::{NpcEmbeddedCandidates, NpcEmbeddedDiagnostic};
@@ -30,10 +30,14 @@ pub(crate) struct SourceConstructionFacts {
     pub(crate) content_parse_diagnostics: Vec<ContentParseDiagnostics>,
     pub(crate) source_facts: SourceRecordFacts,
     pub(crate) npc_source: Option<VersionedNpcSource>,
+    pub(crate) hazard_source: Option<VersionedHazardSource>,
+    pub(crate) spell_source: Option<SpellDocumentSource>,
     pub(crate) canonical_body: Option<RecordBody>,
+    pub(crate) canonical_spell_children: Vec<atlas_record::ConsumableSpellChild>,
     pub(crate) npc_core_diagnostics: Vec<NpcCoreDiagnostic>,
     pub(crate) npc_embedded_candidates: Option<NpcEmbeddedCandidates>,
     pub(crate) npc_embedded_diagnostics: Vec<NpcEmbeddedDiagnostic>,
+    pub(crate) hazard_diagnostics: Vec<atlas_record::HazardUnsupportedFact>,
     pub(crate) generated_affliction_role: Option<GeneratedAfflictionRole>,
 }
 
@@ -43,10 +47,14 @@ impl SourceConstructionFacts {
             content_parse_diagnostics: Vec::new(),
             source_facts: SourceRecordFacts::default(),
             npc_source: None,
+            hazard_source: None,
+            spell_source: None,
             canonical_body: None,
+            canonical_spell_children: Vec::new(),
             npc_core_diagnostics: Vec::new(),
             npc_embedded_candidates: None,
             npc_embedded_diagnostics: Vec::new(),
+            hazard_diagnostics: Vec::new(),
             generated_affliction_role: None,
         }
     }

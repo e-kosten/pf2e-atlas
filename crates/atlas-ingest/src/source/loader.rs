@@ -5,15 +5,17 @@ use std::time::{Duration, Instant};
 
 use atlas_domain::PackName;
 use rayon::prelude::*;
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tracing::info;
 
 use crate::diagnostics::IngestDiagnostics;
 use crate::error::IngestError;
+use crate::source::dto::{SerializedSourceObject, parse_serialized_source_object};
 use crate::source::localization::{LocalizationCatalog, LocalizationSourceFile};
 use crate::source::model::SkippedRecord;
-use crate::source::normalize::{ContentParseDiagnostics, DroppedContentMacro, normalize_record};
+use crate::source::normalize::{
+    ContentParseDiagnostics, DroppedContentMacro, normalize_record_from_source,
+};
 use crate::source::{LoadedPack, ManifestPack, ParsedManifest, SourceLoad};
 
 const DROPPED_INLINE_MACRO_EXAMPLE_LIMIT: usize = 5;
@@ -256,13 +258,13 @@ fn process_source_file(
     path: &Path,
     localization: &LocalizationCatalog,
 ) -> ProcessedSourceFile {
-    process_source_file_with_projection(source_root, path, |raw| {
-        normalize_record(
+    process_source_file_with_projection(source_root, path, |source| {
+        normalize_record_from_source(
             manifest_pack,
             pack_name,
             path,
             source_root,
-            raw,
+            source,
             Some(localization),
         )
     })
@@ -271,7 +273,9 @@ fn process_source_file(
 fn process_source_file_with_projection(
     source_root: &Path,
     path: &Path,
-    project: impl FnOnce(Value) -> Result<crate::records::LoadedSourceRecord, IngestError>,
+    project: impl FnOnce(
+        SerializedSourceObject,
+    ) -> Result<crate::records::LoadedSourceRecord, IngestError>,
 ) -> ProcessedSourceFile {
     let mut timing = SourceLoadTiming::default();
     let (source_signature, result) = match read_raw_record(path, &mut timing) {
@@ -515,9 +519,9 @@ fn parse_raw_record(
     path: &Path,
     serialized: &[u8],
     timing: &mut SourceLoadTiming,
-) -> Result<Value, IngestError> {
+) -> Result<SerializedSourceObject, IngestError> {
     let parse_started_at = Instant::now();
-    let value = serde_json::from_slice(serialized)
+    let value = parse_serialized_source_object(serialized)
         .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))?;
     timing.parse_duration += parse_started_at.elapsed();
     Ok(value)
@@ -525,6 +529,8 @@ fn parse_raw_record(
 
 #[cfg(test)]
 mod tests {
+    use atlas_record::{HazardCapability, RecordBody};
+
     use super::*;
 
     #[test]
@@ -566,6 +572,64 @@ mod tests {
                 .as_ref()
                 .map(|record| record.source_path.as_str()),
             Some("packs/actions/rejected.json")
+        );
+
+        fs::remove_dir_all(root).expect("fixture directory should be removed");
+    }
+
+    #[test]
+    fn loader_preserves_nonlexical_hazard_damage_map_order_from_source_bytes() {
+        let root = std::env::temp_dir().join(format!(
+            "atlas-ingest-hazard-damage-order-{}-{}",
+            std::process::id(),
+            std::thread::current().name().unwrap_or("test")
+        ));
+        let manifest_path = root.join("static/system.json");
+        let record_path = root.join("packs/hazards/ordered.json");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(manifest_path.parent().expect("manifest has a parent"))
+            .expect("fixture manifest directory should be created");
+        fs::create_dir_all(record_path.parent().expect("record has a parent"))
+            .expect("fixture record directory should be created");
+        fs::write(
+            &manifest_path,
+            r#"{"packs":[{"name":"hazards","label":"Hazards","type":"Actor","path":"packs/hazards"}]}"#,
+        )
+        .expect("fixture manifest should be written");
+        fs::write(
+            &record_path,
+            r#"{"_id":"ordered-damage-hazard","name":"Ordered Damage","type":"hazard","items":[{"_id":"ordered-strike","name":"Strike","type":"melee","sort":0,"system":{"damageRolls":{"10":{"damage":"1d10","damageType":"piercing"},"2":{"damage":"1d2","damageType":"cold"}}}}],"system":{}}"#,
+        )
+        .expect("fixture hazard should be written");
+
+        let load = load_foundry_source_records(&root, None).expect("real source loader succeeds");
+        let RecordBody::Hazard(hazard) = load.records[0]
+            .facts
+            .canonical_body
+            .as_ref()
+            .expect("loader emits a canonical hazard body")
+        else {
+            panic!("loader emitted the wrong canonical family")
+        };
+        let strike = match &hazard
+            .embedded_entities
+            .typed()
+            .expect("typed hazard entities")
+            .entities[0]
+            .capability
+        {
+            HazardCapability::Strike(strike) => strike,
+            _ => panic!("loader emitted the wrong child family"),
+        };
+        assert_eq!(
+            strike
+                .damage_rolls
+                .typed()
+                .expect("typed damage rolls")
+                .iter()
+                .map(|damage| (damage.source_key.as_str(), damage.authored_order))
+                .collect::<Vec<_>>(),
+            [("10", 0), ("2", 1)]
         );
 
         fs::remove_dir_all(root).expect("fixture directory should be removed");

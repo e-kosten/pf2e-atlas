@@ -9,7 +9,7 @@ use super::{SourceDocumentRole, SourceParentContextSelector};
 
 pub const PF2E_TYPE_REGISTRY_VERSION: &str = "pf2e-type-registry/v1";
 pub const PF2E_TYPE_REGISTRY_SHA256: &str =
-    "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f";
+    "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31";
 pub const PF2E_TYPE_REGISTRY_ENTRY_COUNT: usize = 313;
 
 const REGISTRY_BYTES: &[u8] = include_bytes!(concat!(

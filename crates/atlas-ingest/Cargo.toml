@@ -25,4 +25,5 @@ tracing.workspace = true
 yaml_serde.workspace = true
 
 [dev-dependencies]
+atlas-index = { workspace = true, features = ["test-support"] }
 rusqlite.workspace = true

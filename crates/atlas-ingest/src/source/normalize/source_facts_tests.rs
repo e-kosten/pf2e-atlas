@@ -5,9 +5,8 @@ use atlas_record::{
     ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, CreatureDamageKind,
     CreatureMovementMode, CreatureResourceAmount, CreatureSourceAlliance,
     CreatureUnsupportedSourceField, FactValue, FoundryDocumentMechanics, FoundryDocumentType,
-    FoundryRecordType, ItemTypeMechanics, PresentationBlock, RecordBody,
-    build_search_fts_projection, build_search_presentation_document_with_content_filter,
-    render_plain_text,
+    FoundryRecordType, PresentationBlock, RecordBody, build_search_fts_projection,
+    build_search_presentation_document_with_content_filter, render_plain_text,
 };
 use serde_json::json;
 
@@ -95,10 +94,11 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
         "creatures must not retain a generic actor-mechanics projection"
     );
 
-    let RecordBody::Creature(creature) = loaded
+    let creature = loaded
         .facts
         .canonical_body
         .as_ref()
+        .and_then(RecordBody::creature)
         .expect("NPC canonical body");
     assert_eq!(creature.level.value, FactValue::Value(5));
     let CreatureSourceAlliance::Named(alliance) = creature
@@ -243,7 +243,7 @@ fn npc_canonical_facts_drive_display_and_fts_without_a_generic_metric_carrier() 
 }
 
 #[test]
-fn normalizes_spell_item_into_nested_item_and_spell_shape() {
+fn normalizes_spell_into_canonical_body_without_generic_mechanics() {
     let raw = json!({
         "_id": "spell1",
         "name": "Fixture Spell",
@@ -315,46 +315,15 @@ fn normalizes_spell_item_into_nested_item_and_spell_shape() {
         "Spell body."
     );
 
-    let item = record
-        .mechanics
-        .item()
-        .expect("item mechanics should exist");
-    assert_eq!(item.category.as_deref(), Some("spell"));
-    assert_eq!(item.base_item.as_deref(), Some("wand"));
-    assert_eq!(item.group.as_deref(), Some("attack"));
-    assert_eq!(item.usage.as_deref(), Some("held-in-one-hand"));
-    assert_eq!(item.price_json.as_deref(), Some(r#"{"gp":2}"#));
-    assert_eq!(item.hands_requirement.as_deref(), Some("one_hand"));
-    assert_eq!(item.damage_types, vec!["fire"]);
-
-    let Some(ItemTypeMechanics::Spell(spell)) = item.foundry_type.as_ref() else {
-        panic!("spell item should carry spell mechanics");
+    assert!(record.mechanics.metrics.is_empty());
+    assert!(matches!(
+        record.mechanics.document,
+        FoundryDocumentMechanics::None
+    ));
+    let Some(RecordBody::Spell(spell)) = loaded.facts.canonical_body.as_ref() else {
+        panic!("spell must use its canonical body");
     };
-    assert_eq!(spell.traditions, vec!["arcane", "primal"]);
-    assert_eq!(spell.kinds, vec!["cantrip"]);
-    assert_eq!(
-        spell.range.as_ref().map(|range| range.text.as_str()),
-        Some("30 feet")
-    );
-    assert_eq!(
-        spell.target.as_ref().map(|target| target.text.as_str()),
-        Some("1 creature")
-    );
-    assert_eq!(
-        spell.area.as_ref().and_then(|area| area.kind.as_deref()),
-        Some("burst")
-    );
-    assert_eq!(spell.area.as_ref().and_then(|area| area.value), Some(10.0));
-    assert_eq!(
-        spell
-            .defense
-            .as_ref()
-            .and_then(|defense| defense.save.as_deref()),
-        Some("reflex")
-    );
-    assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
-    assert!(spell.sustained);
-    assert_eq!(spell.damage_types, vec!["fire"]);
+    assert_eq!(spell.identity.name, "Fixture Spell");
 }
 
 #[test]
@@ -607,10 +576,11 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
             .as_deref(),
         Some("Nested spell text.")
     );
-    let RecordBody::Creature(creature) = loaded
+    let creature = loaded
         .facts
         .canonical_body
         .as_ref()
+        .and_then(RecordBody::creature)
         .expect("canonical creature");
     let embedded = creature
         .embedded_entities

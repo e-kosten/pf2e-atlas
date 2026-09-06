@@ -1,0 +1,1923 @@
+contract_version: atlas-source-leaf-coverage/v1
+type_id: item--consumable--embedded--actor--hazard--actor-items
+source_pin:
+  upstream_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+  source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+selector:
+  source_contract_version: pf2e-serialized-source/v1
+  document_class: Item
+  type_discriminator: consumable
+  role: embedded
+  parent_context:
+    document_class: Actor
+    type_discriminator: hazard
+    relationship_path: Actor.items
+leaves:
+  - normalized_path: $._id
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-id@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-id
+    fixtures:
+      - case_id: consumable-id
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:434f292f2c587474ed31cf4e097dd1a118bb9c55ea543b9184610630c5647aae
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource identity/context field ($._id)
+      - stage: canonical
+        destination: HazardEntity/HazardEntityOccurrence field ($._id)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardEntity/HazardEntityOccurrence field ($._id)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardEntity/HazardEntityOccurrence field ($._id)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.folder
+    leaf_kind: scalar
+    expected_shapes:
+      - missing
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: folder-consumable-context@4cbdaa37
+      record_count: 1
+      occurrence_count: 0
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: provenance_only
+    reader:
+      reader_id: source::dto::HazardSource::exact_provenance_leaf
+      parity_case_ids:
+        - folder-consumable-context
+    fixtures:
+      - case_id: folder-consumable-context
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:08990f0e45f705981f01520c023737eba668485b091bdb5ec17b57eec717a6cc
+        provenance: pinned_source
+    final_owners:
+      - stage: durable_provenance
+        destination: HazardEntity/HazardEntityOccurrence field ($.folder)
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      search:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      cli:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      app:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      ui:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      runtime:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+    rationale: The False Door consumable folder is null source-editor organization; HazardEntityOccurrence.source_folder preserves Null and typed presentation/mechanic projections are proven unchanged.
+    owner: atlas-ingest::source hazard B/C zero-context reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.img
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-img@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: provenance_only
+    reader:
+      reader_id: source::dto::HazardSource::exact_provenance_leaf
+      parity_case_ids:
+        - consumable-img
+    fixtures:
+      - case_id: consumable-img
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:6f61c85e318ac50cb7fc5c473c53631cb40a6319009717d197569db506d0af25
+        provenance: pinned_source
+    final_owners:
+      - stage: durable_provenance
+        destination: HazardEntity.image ($.img)
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: schema v4 retains this exact typed image locator only inside canonical provenance and creates no semantic artifact projection
+      search:
+        disposition: not_applicable
+        rationale: ADR 0034 image locators are typed codec-retained provenance and never search or ranking input
+      cli:
+        disposition: not_applicable
+        rationale: ADR 0034 forbids ordinary image display
+      app:
+        disposition: not_applicable
+        rationale: the typed source locator is not an application presentation field
+      ui:
+        disposition: not_applicable
+        rationale: ADR 0034 forbids copying fetching embedding or displaying the locator
+      runtime:
+        disposition: not_applicable
+        rationale: the source locator has no encounter behavior
+    rationale: The exact Foundry image locator is retained in the typed hazard canonical codec as source provenance; ADR 0034 forbids copy, fetch, embed, ordinary display, ranking, and mechanic/FTS use while reuse licensing is unestablished.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.name
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-name@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-name
+    fixtures:
+      - case_id: consumable-name
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:0785d18f2de51788c3c95c1b39d9ba6cc6a1b6c4aee02a87167845f376910c98
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource identity/context field ($.name)
+      - stage: canonical
+        destination: HazardEntity/HazardEntityOccurrence field ($.name)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardEntity/HazardEntityOccurrence field ($.name)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardEntity/HazardEntityOccurrence field ($.name)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.sort
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-sort@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-sort
+    fixtures:
+      - case_id: consumable-sort
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:3bb78535cc9555ff19fe3556aaa41c78a0a45c64d49ba2bc564507648a8e77a1
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource identity/context field ($.sort)
+      - stage: canonical
+        destination: HazardEntity/HazardEntityOccurrence field ($.sort)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardEntity/HazardEntityOccurrence field ($.sort)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardEntity/HazardEntityOccurrence field ($.sort)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.type
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-type@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-type
+    fixtures:
+      - case_id: consumable-type
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:25409ee1f291bb803f89f7cc66f14863adafd4becd76fe6dbd6aae01a096e6c3
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource identity/context field ($.type)
+      - stage: canonical
+        destination: HazardEntity/HazardEntityOccurrence field ($.type)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardEntity/HazardEntityOccurrence field ($.type)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardEntity/HazardEntityOccurrence field ($.type)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.baseItem
+    leaf_kind: scalar
+    expected_shapes:
+      - 'null'
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-baseitem@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-baseitem
+    fixtures:
+      - case_id: consumable-system-baseitem
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.baseItem)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.baseItem]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.baseItem]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.baseItem]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact baseItem null belongs to the unsupported consumable definition, not hazard mechanics; UnsupportedChild.unsupported_fields retains Null and the path as a visible limitation.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.bulk.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-bulk-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-bulk-value
+    fixtures:
+      - case_id: consumable-system-bulk-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:14be4b45f18e0d8c67b4f719b5144eee88497e413709d11d85b096d8e2346310
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.bulk.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.bulk.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.bulk.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.bulk.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact bulk value 0.1 is consumable inventory data on the source-conflicting child; UnsupportedChild.unsupported_fields retains it, while H1 does not make the child an executable or carried hazard item.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.category
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-category@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-category
+    fixtures:
+      - case_id: consumable-system-category
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:6f32630ae3ae4318ab27ec6aeb6e8ec4be99605e4189f7c490c12bb17d25ba58
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.category)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.category]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.category]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.category]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact category potion identifies the source-conflicting child as consumable data; UnsupportedChild.unsupported_fields retains it without converting the child into a supported hazard Action, Strike, or consumable runtime model.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.containerId
+    leaf_kind: scalar
+    expected_shapes:
+      - 'null'
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-containerid@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-containerid
+    fixtures:
+      - case_id: consumable-system-containerid
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.containerId)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.containerId]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.containerId]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.containerId]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact containerId null is consumable inventory context; UnsupportedChild.unsupported_fields retains Null and its path without inventing containment semantics for a hazard child.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.damage
+    leaf_kind: scalar
+    expected_shapes:
+      - 'null'
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-damage@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-damage
+    fixtures:
+      - case_id: consumable-system-damage
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.damage)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.damage]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.damage]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.damage]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact damage null is a consumable-system field, not authored hazard Strike damage; UnsupportedChild.unsupported_fields retains Null and prevents a false damage projection.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.description.value
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-description-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-system-description-value
+    fixtures:
+      - case_id: consumable-system-description-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:c5807d9674600acfdff618d4e1680b4defeaeacfa85553d808c26e3d26e4c59d
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.description.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.description.value)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.description.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.description.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.equipped.carryType
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-equipped-carrytype@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-equipped-carrytype
+    fixtures:
+      - case_id: consumable-system-equipped-carrytype
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:4079877c4c3a696a619248e7b02d925dcf432f24978f5681ea955cc2597818eb
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.equipped.carryType)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.equipped.carryType]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.equipped.carryType]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.equipped.carryType]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact carryType worn is consumable equipment state; UnsupportedChild.unsupported_fields retains it but H1 does not expose equipment controls for the source-conflicting hazard child.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.hardness
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-hardness@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-hardness
+    fixtures:
+      - case_id: consumable-system-hardness
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.hardness)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.hardness]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.hardness]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.hardness]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact consumable hardness 0 is distinct from root hazard hardness; UnsupportedChild.unsupported_fields retains it and prevents it from overriding the hazard defense fact.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.hp.max
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-hp-max@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-hp-max
+    fixtures:
+      - case_id: consumable-system-hp-max
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.hp.max)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.hp.max]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.hp.max]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.hp.max]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact consumable HP max 0 is distinct from root hazard HP; UnsupportedChild.unsupported_fields retains it and prevents it from entering hazard defenses or BT derivation.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.hp.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-hp-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-hp-value
+    fixtures:
+      - case_id: consumable-system-hp-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.hp.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.hp.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.hp.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.hp.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact consumable HP value 0 is distinct from root hazard HP; UnsupportedChild.unsupported_fields retains it and prevents it from entering hazard defenses or runtime state.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.level.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-level-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-level-value
+    fixtures:
+      - case_id: consumable-system-level-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:3fdba35f04dc8c462986c992bcf875546257113072a909c162f7e470e581e278
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.level.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.level.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.level.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.level.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact consumable level 13 describes Purple Worm Venom, not the parent hazard level; UnsupportedChild.unsupported_fields retains it without changing hazard level or filters.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.material.grade
+    leaf_kind: scalar
+    expected_shapes:
+      - 'null'
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-material-grade@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-material-grade
+    fixtures:
+      - case_id: consumable-system-material-grade
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.material.grade)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.material.grade]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.material.grade]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.material.grade]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact material grade null is consumable item context; UnsupportedChild.unsupported_fields retains Null and does not invent hazard material mechanics.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.material.type
+    leaf_kind: scalar
+    expected_shapes:
+      - 'null'
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-material-type@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-material-type
+    fixtures:
+      - case_id: consumable-system-material-type
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.material.type)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.material.type]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.material.type]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.material.type]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact material type null is consumable item context; UnsupportedChild.unsupported_fields retains Null and does not invent hazard material mechanics.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.price.value.gp
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-price-value-gp@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-price-value-gp
+    fixtures:
+      - case_id: consumable-system-price-value-gp
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:0604cd3138feed202ef293e062da2f4720f77a05d25ee036a7a01c9cfcdd1f0a
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.price.value.gp)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.price.value.gp]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.price.value.gp]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.price.value.gp]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact price 500 gp is consumable economy data on the source-conflicting child; UnsupportedChild.unsupported_fields retains it, but H1 does not add shop/value mechanics to hazards.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.publication.license
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-publication-license@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-system-publication-license
+    fixtures:
+      - case_id: consumable-system-publication-license
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:c058f7391d82ea88e994423091a3585349c502961ebdf35f5a4747f804fa3939
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.publication.license)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.publication.license)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.publication.license)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.publication.license)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: not_applicable
+        rationale: license is typed canonical publication metadata, not a mechanic or FTS term
+      cli:
+        disposition: not_applicable
+        rationale: accepted creature policy does not expose license in ordinary CLI presentation
+      app:
+        disposition: not_applicable
+        rationale: no ordinary application metadata consumer is assigned
+      ui:
+        disposition: not_applicable
+        rationale: accepted creature policy does not expose license in ordinary UI presentation
+      runtime:
+        disposition: not_applicable
+        rationale: publication license has no encounter behavior
+    rationale: The exact publication license is validated and retained by the family typed canonical publication fact and codec; consistent with creatures, it is source metadata outside ordinary presentation, mechanic, FTS, and runtime output.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.publication.remaster
+    leaf_kind: scalar
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-publication-remaster@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-system-publication-remaster
+    fixtures:
+      - case_id: consumable-system-publication-remaster
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.publication.remaster)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.publication.remaster)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.publication.remaster)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.publication.remaster)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no named search consumer
+      cli:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no ordinary CLI consumer
+      app:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no application DTO consumer
+      ui:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no ordinary UI consumer
+      runtime:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no encounter behavior
+    rationale: The exact unsupported-child publication value is retained by HazardItemCommon.publication and the canonical codec as source metadata; no ordinary embedded metadata consumer is assigned.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.publication.title
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-publication-title@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-system-publication-title
+    fixtures:
+      - case_id: consumable-system-publication-title
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.publication.title)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.publication.title)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.publication.title)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.publication.title)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no named search consumer
+      cli:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no ordinary CLI consumer
+      app:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no application DTO consumer
+      ui:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no ordinary UI consumer
+      runtime:
+        disposition: not_applicable
+        rationale: unsupported-child publication metadata has no encounter behavior
+    rationale: The exact unsupported-child publication value is retained by HazardItemCommon.publication and the canonical codec as source metadata; no ordinary embedded metadata consumer is assigned.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.quantity
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-quantity@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-quantity
+    fixtures:
+      - case_id: consumable-system-quantity
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.quantity)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.quantity]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.quantity]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.quantity]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact quantity 1 is consumable inventory data; UnsupportedChild.unsupported_fields retains it without creating stack or inventory behavior for the hazard.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.size
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-size@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-size
+    fixtures:
+      - case_id: consumable-system-size
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:25b4edf5c2276cc8c8dfaff3d5e749e32bdd729a10a5dab9e09e471d6e7f10d5
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.size)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.size]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.size]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.size]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact consumable size med is item context distinct from the parent hazard size; UnsupportedChild.unsupported_fields retains it without overriding hazard size.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.slug
+    leaf_kind: scalar
+    expected_shapes:
+      - 'null'
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-slug@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-system-slug
+    fixtures:
+      - case_id: consumable-system-slug
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.slug)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.slug)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.slug)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.slug)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: not_applicable
+        rationale: common embedded slug has no named search consumer and is never identity
+      cli:
+        disposition: not_applicable
+        rationale: common embedded slug is typed source provenance, not ordinary presentation
+      app:
+        disposition: not_applicable
+        rationale: no application consumer is assigned to the embedded source slug
+      ui:
+        disposition: not_applicable
+        rationale: no UI consumer is assigned to the embedded source slug
+      runtime:
+        disposition: not_applicable
+        rationale: source slug has no encounter behavior
+    rationale: The exact embedded slug is retained in the typed family canonical capability as source provenance; it has no named ordinary consumer and is never used for identity, deduplication, search, or mechanics.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.traits.rarity
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-traits-rarity@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-traits-rarity
+    fixtures:
+      - case_id: consumable-system-traits-rarity
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:eea96276bad0ea13c250c9f7ab7a1d9f8acdc1f2ad51e611df81b8dd41743fcf
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.traits.rarity)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.traits.rarity]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.traits.rarity]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.traits.rarity]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact consumable rarity common is item metadata distinct from the typed parent hazard rarity; UnsupportedChild.unsupported_fields retains it without silently merging the two records.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.traits.value[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-traits-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - consumable-system-traits-value
+    fixtures:
+      - case_id: consumable-system-traits-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:dd0052b8f331a675998fedc134deabf95e82b56e69b326ab0588899e1d3a86fd
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.traits.value[])
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.traits.value[])
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.traits.value[])
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.traits.value[])
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.usage.value
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-usage-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-usage-value
+    fixtures:
+      - case_id: consumable-system-usage-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:b409998ea478b79d9ac2094b0f5286e183880e1cc3dcfe9c472d1bda1edb78e0
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.usage.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.usage.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.usage.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.usage.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact usage held-in-one-hand is consumable handling data; UnsupportedChild.unsupported_fields retains it, with no invented hazard equipment or activation control.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.uses.autoDestroy
+    leaf_kind: scalar
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-uses-autodestroy@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-uses-autodestroy
+    fixtures:
+      - case_id: consumable-system-uses-autodestroy
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.uses.autoDestroy)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.autoDestroy]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.autoDestroy]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.autoDestroy]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact uses.autoDestroy true is consumable depletion behavior; UnsupportedChild.unsupported_fields retains it without automating destruction from hazard actions.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.uses.max
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-uses-max@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-uses-max
+    fixtures:
+      - case_id: consumable-system-uses-max
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.uses.max)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.max]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.max]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.max]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact maximum uses 1 is consumable depletion data; UnsupportedChild.unsupported_fields retains it without creating hazard use counters.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.uses.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: consumable-system-uses-value@4cbdaa37
+      record_count: 1
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - consumable-system-uses-value
+    fixtures:
+      - case_id: consumable-system-uses-value
+        record_key: agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi#item:4XbK3Gnf0R1gkYPJ
+        source_path: packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+        source_file_digest: sha256:6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.uses.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.uses.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The exact current uses 1 is consumable depletion data; UnsupportedChild.unsupported_fields retains it without creating mutable hazard use state.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review

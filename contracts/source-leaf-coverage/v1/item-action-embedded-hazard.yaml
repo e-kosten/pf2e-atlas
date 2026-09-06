@@ -1,0 +1,582 @@
+contract_version: "atlas-source-leaf-coverage/v1"
+type_id: "item--action--embedded--actor--hazard--actor-items"
+source_pin:
+  upstream_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+  source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+selector:
+  source_contract_version: "pf2e-serialized-source/v1"
+  document_class: "Item"
+  type_discriminator: "action"
+  role: "embedded"
+  parent_context:
+    document_class: "Actor"
+    type_discriminator: "hazard"
+    relationship_path: "Actor.items"
+leaves:
+  - normalized_path: "$.system.actionType.value"
+    leaf_kind: "scalar"
+    expected_shapes: ["string"]
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      entry_id: "item-action-embedded-hazard-action-type@4cbdaa37"
+      record_count: 1330
+      occurrence_count: 1330
+    fixture_prevalence: {record_count: 1, occurrence_count: 1}
+    disposition: "promoted"
+    reader: {reader_id: "source::dto::HazardActionSource::action_type", parity_case_ids: ["dragon-pillar-recognize-ally-action-type"]}
+    fixtures:
+      - {case_id: "dragon-pillar-recognize-ally-action-type", record_key: "age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:HSs8knjTJuMzsAQr", source_path: "packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json", source_file_digest: "sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef", excerpt_digest: "sha256:65cd922cc44794c06fff9e49ff409ae891a98824b5acfcdfcd756cf1c79c5303", provenance: "pinned_source"}
+    final_owners:
+      - {stage: "source_dto", destination: "HazardActionSource.action_type"}
+      - {stage: "canonical", destination: "HazardActionCapability.action_type"}
+      - {stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].embedded_entities.entities[].action_type"}
+      - {stage: "artifact_hydration", destination: "RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.actionType.value)"}
+    surfaces:
+      artifact: {disposition: "promoted", rationale: "atlas-index schema v4 persists and hydrates the exact canonical hazard leaf"}
+      search: {disposition: "deferred", rationale: "H1-E consumes the canonical action projection"}
+      cli: {disposition: "deferred", rationale: "H1-E owns typed action presentation"}
+      app: {disposition: "deferred", rationale: "H1-G owns static action DTOs"}
+      ui: {disposition: "deferred", rationale: "H1-G renders hazard actions"}
+      runtime: {disposition: "deferred", rationale: "H1-F consumes the typed action kind"}
+    rationale: "actionType.value is an authored ability-schema mechanic and is never inferred from labels or prose"
+    owner: "atlas-ingest::source::hazard_entities"
+    acceptance_checkpoint: "H1-B/C independent review"
+  - normalized_path: $.system.actions.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-actions-value@4cbdaa37
+      record_count: 1330
+      occurrence_count: 89
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-actions-value
+    fixtures:
+      - case_id: action-system-actions-value
+        record_key: age-of-ashes-bestiary:HbgvZUYFJd2VfwmQ#item:cP2We7SRbI7YuRzt
+        source_path: packs/age-of-ashes-bestiary/book-3-tomorrow-must-burn/tree-of-dreadful-dreams.json
+        source_file_digest: sha256:1d67476b2ed2bb93ba732c7fe06f2c4b4a5b58b96c87a9cf771cd82d05a02f61
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.actions.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.actions.value)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.actions.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.actions.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.folder
+    leaf_kind: scalar
+    expected_shapes:
+      - missing
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: folder-action-context@4cbdaa37
+      record_count: 1330
+      occurrence_count: 0
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: provenance_only
+    reader:
+      reader_id: source::dto::HazardSource::exact_provenance_leaf
+      parity_case_ids:
+        - folder-action-context
+    fixtures:
+      - case_id: folder-action-context
+        record_key: hazards:BHq5wpQU8hQEke8D#item:lY83oUjx0DLxDByK
+        source_path: packs/hazards/hidden-pit.json
+        source_file_digest: sha256:645d9d31313903e6afa81eb7191a4e011cf5bd74c17304c4f190275a5e1359c3
+        excerpt_digest: sha256:08990f0e45f705981f01520c023737eba668485b091bdb5ec17b57eec717a6cc
+        provenance: pinned_source
+    final_owners:
+      - stage: durable_provenance
+        destination: HazardEntity/HazardEntityOccurrence field ($.folder)
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      search:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      cli:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      app:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      ui:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      runtime:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+    rationale: The selected embedded Action folder is null source-editor organization; HazardEntityOccurrence.source_folder preserves Null and typed presentation/mechanic projections are proven unchanged.
+    owner: atlas-ingest::source hazard B/C zero-context reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.category
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-category@4cbdaa37
+      record_count: 1330
+      occurrence_count: 415
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-category
+    fixtures:
+      - case_id: action-system-category
+        record_key: pfs-season-5-bestiary:sAUzCiBg92IFZxJt#item:wsnpINUmPDfwfuW4
+        source_path: packs/pfs-season-5-bestiary/5-13/extremely-helpful-wisp-swarm.json
+        source_file_digest: sha256:3e8b4e1914d1748e06bc409a6d4f76de98a79fcbe877ce235288e0203fa052fa
+        excerpt_digest: sha256:1a61e3def94cc15cf8f72067a48e39802c263d1d5274e0356bebff5ccdc17160
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.category)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.category)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.category)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.category)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.deathNote
+    leaf_kind: scalar
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-deathnote@4cbdaa37
+      record_count: 1330
+      occurrence_count: 2
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-deathnote
+    fixtures:
+      - case_id: action-system-deathnote
+        record_key: pfs-season-5-bestiary:sAUzCiBg92IFZxJt#item:jZWn15yFITgGDFQk
+        source_path: packs/pfs-season-5-bestiary/5-13/extremely-helpful-wisp-swarm.json
+        source_file_digest: sha256:3e8b4e1914d1748e06bc409a6d4f76de98a79fcbe877ce235288e0203fa052fa
+        excerpt_digest: sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.deathNote)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.deathNote)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.deathNote)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.deathNote)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.frequency.max
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-frequency-max@4cbdaa37
+      record_count: 1330
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-frequency-max
+    fixtures:
+      - case_id: action-system-frequency-max
+        record_key: hazards:AqK60DreNDtgDb4o#item:748inOlksdAeFB0A
+        source_path: packs/hazards/poisonous-mold.json
+        source_file_digest: sha256:d06fc4be0d265397ebf17ccd250d0c846b0382fd2880b37969c8be2abcd9cac0
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.frequency.max)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.frequency.max)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.frequency.max)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.frequency.max)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.frequency.per
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-frequency-per@4cbdaa37
+      record_count: 1330
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-frequency-per
+    fixtures:
+      - case_id: action-system-frequency-per
+        record_key: hazards:AqK60DreNDtgDb4o#item:748inOlksdAeFB0A
+        source_path: packs/hazards/poisonous-mold.json
+        source_file_digest: sha256:d06fc4be0d265397ebf17ccd250d0c846b0382fd2880b37969c8be2abcd9cac0
+        excerpt_digest: sha256:051a9620d1bd5b81584d838db0e0e86acd8f28cc1ecd613d1b60af27b953dd37
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.frequency.per)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.frequency.per)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.frequency.per)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.frequency.per)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.frequency.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-frequency-value@4cbdaa37
+      record_count: 1330
+      occurrence_count: 2
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-frequency-value
+    fixtures:
+      - case_id: action-system-frequency-value
+        record_key: kingmaker-bestiary:E70Drr6CmSaJQ01v#item:ZiobchoAZw8EGQAl
+        source_path: packs/kingmaker-bestiary/spiral-seal.json
+        source_file_digest: sha256:72d5bf54402da112b2f3209438ea0c23fa0f7586f63e069ec2b14dc7089ea5af
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.frequency.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.frequency.value)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.frequency.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.frequency.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.selfEffect.uuid
+    leaf_kind: scalar
+    expected_shapes:
+      - missing
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-selfeffect-uuid@4cbdaa37
+      record_count: 1330
+      occurrence_count: 0
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-selfeffect-uuid
+    fixtures:
+      - case_id: action-system-selfeffect-uuid
+        record_key: age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:HSs8knjTJuMzsAQr
+        source_path: packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json
+        source_file_digest: sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef
+        excerpt_digest: sha256:08990f0e45f705981f01520c023737eba668485b091bdb5ec17b57eec717a6cc
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.selfEffect.uuid)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.selfEffect.uuid)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.selfEffect.uuid)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.selfEffect.uuid)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.selfEffect.name
+    leaf_kind: scalar
+    expected_shapes:
+      - missing
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: action-system-selfeffect-name@4cbdaa37
+      record_count: 1330
+      occurrence_count: 0
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - action-system-selfeffect-name
+    fixtures:
+      - case_id: action-system-selfeffect-name
+        record_key: age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:HSs8knjTJuMzsAQr
+        source_path: packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json
+        source_file_digest: sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef
+        excerpt_digest: sha256:08990f0e45f705981f01520c023737eba668485b091bdb5ec17b57eec717a6cc
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.selfEffect.name)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.selfEffect.name)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.selfEffect.name)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.selfEffect.name)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review

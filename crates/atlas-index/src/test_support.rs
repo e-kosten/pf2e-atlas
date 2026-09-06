@@ -152,6 +152,342 @@ pub fn insert_minimal_canonical_npc_projection(
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum FixtureHazardNumber {
+    Missing,
+    Null,
+    Value(i64),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FixtureHazardProjection {
+    pub level: i64,
+    pub armor_class: i64,
+    pub current_hit_points: FixtureHazardNumber,
+    pub maximum_hit_points: FixtureHazardNumber,
+    pub stealth_modifier: i64,
+    pub saves: (Option<i64>, Option<i64>, Option<i64>),
+    pub malformed_strike: bool,
+}
+
+/// Inserts a source-faithful canonical hazard body for cross-crate encounter fixtures.
+pub fn insert_minimal_canonical_hazard_projection(
+    connection: &Connection,
+    record_key: &str,
+    fixture: FixtureHazardProjection,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use atlas_record::{FactValue, HazardFact, HazardSourceValue};
+
+    macro_rules! missing {
+        ($path:expr) => {
+            HazardFact::source(FactValue::Missing, $path)
+        };
+    }
+    macro_rules! typed {
+        ($value:expr, $path:expr) => {
+            HazardFact::source(FactValue::Value(HazardSourceValue::Typed($value)), $path)
+        };
+    }
+
+    let FixtureHazardProjection {
+        level,
+        armor_class,
+        current_hit_points,
+        maximum_hit_points,
+        stealth_modifier,
+        saves,
+        malformed_strike,
+    } = fixture;
+
+    let key = RecordKey::parse(record_key)?;
+    let source_id = key.id().as_str().to_string();
+    let name = connection.query_row(
+        "SELECT name FROM records WHERE record_key = ?1",
+        [record_key],
+        |row| row.get::<_, String>(0),
+    )?;
+    let number_fact = |value: FixtureHazardNumber, path: &str| match value {
+        FixtureHazardNumber::Missing => HazardFact::source(FactValue::Missing, path),
+        FixtureHazardNumber::Null => HazardFact::source(FactValue::Null, path),
+        FixtureHazardNumber::Value(value) => {
+            HazardFact::source(FactValue::Value(HazardSourceValue::Typed(value)), path)
+        }
+    };
+    let common = |with_aura: bool| atlas_record::HazardItemCommon {
+        description: missing!("$.system.description.value"),
+        publication: missing!("$.system.publication"),
+        rules: if with_aura {
+            typed!(
+                vec![atlas_record::HazardRuleElement::Aura(
+                    atlas_record::HazardAuraRule {
+                        authored_order: 0,
+                        radius: typed!(5, "$.system.rules[0].radius"),
+                        slug: typed!("fixture-aura".to_string(), "$.system.rules[0].slug"),
+                        traits: missing!("$.system.rules[0].traits"),
+                    },
+                )],
+                "$.system.rules"
+            )
+        } else {
+            missing!("$.system.rules")
+        },
+        slug: typed!("source-only-slug".to_string(), "$.system.slug"),
+        traits: missing!("$.system.traits.value"),
+    };
+    let action_id = atlas_record::HazardEntityId::new("fixture-action").map_err(|_| "action id")?;
+    let strike_id = atlas_record::HazardEntityId::new("fixture-strike").map_err(|_| "strike id")?;
+    let unsupported_id =
+        atlas_record::HazardEntityId::new("fixture-unsupported").map_err(|_| "unsupported id")?;
+    let stable = |value: &str| {
+        Ok::<_, Box<dyn std::error::Error>>(atlas_record::HazardEntitySourceIdentity::Stable {
+            source_id: atlas_record::HazardSourceId::new(value).map_err(|_| "source id")?,
+        })
+    };
+    let entities = vec![
+        atlas_record::HazardEntity {
+            id: action_id.clone(),
+            family: atlas_record::HazardEntityFamily::Action,
+            label: "Routine".to_string(),
+            image: missing!("$.items[0].img"),
+            source_identity: stable("fixture-action")?,
+            capability: atlas_record::HazardCapability::Action(Box::new(
+                atlas_record::HazardActionCapability {
+                    common: common(true),
+                    action_type: typed!(
+                        atlas_record::HazardActionType::Passive,
+                        "$.system.actionType.value"
+                    ),
+                    actions: missing!("$.system.actions.value"),
+                    category: missing!("$.system.category"),
+                    death_note: missing!("$.system.deathNote"),
+                    frequency: missing!("$.system.frequency"),
+                    self_effect: missing!("$.system.selfEffect"),
+                    unsupported_fields: Vec::new(),
+                },
+            )),
+        },
+        atlas_record::HazardEntity {
+            id: strike_id.clone(),
+            family: atlas_record::HazardEntityFamily::Strike,
+            label: "Routine".to_string(),
+            image: missing!("$.items[1].img"),
+            source_identity: stable("fixture-strike")?,
+            capability: atlas_record::HazardCapability::Strike(Box::new(
+                atlas_record::HazardStrikeCapability {
+                    common: common(false),
+                    bonus: typed!(11, "$.system.bonus.value"),
+                    attack_effects: missing!("$.system.attackEffects.value"),
+                    damage_rolls: typed!(
+                        vec![atlas_record::HazardStrikeDamage {
+                            source_key: "main".to_string(),
+                            authored_order: 0,
+                            damage: if malformed_strike {
+                                HazardFact::source(
+                                    FactValue::Null,
+                                    "$.system.damageRolls.main.damage",
+                                )
+                            } else {
+                                typed!("1d8".to_string(), "$.system.damageRolls.main.damage")
+                            },
+                            damage_type: typed!(
+                                "piercing".to_string(),
+                                "$.system.damageRolls.main.damageType"
+                            ),
+                            category: missing!("$.system.damageRolls.main.category"),
+                        }],
+                        "$.system.damageRolls"
+                    ),
+                    unsupported_fields: Vec::new(),
+                },
+            )),
+        },
+        atlas_record::HazardEntity {
+            id: unsupported_id.clone(),
+            family: atlas_record::HazardEntityFamily::UnsupportedChild,
+            label: "Unknown child".to_string(),
+            image: missing!("$.items[2].img"),
+            source_identity: stable("fixture-unsupported")?,
+            capability: atlas_record::HazardCapability::UnsupportedChild(Box::new(
+                atlas_record::HazardUnsupportedChildCapability {
+                    child_type: "mystery".to_string(),
+                    common: common(false),
+                    unsupported_fields: Vec::new(),
+                },
+            )),
+        },
+    ];
+    let occurrence = |id: &str, entity_id, family, authored_order| {
+        Ok::<_, Box<dyn std::error::Error>>(atlas_record::HazardEntityOccurrence {
+            id: atlas_record::HazardOccurrenceId::new(id).map_err(|_| "occurrence id")?,
+            owner_record_key: key.clone(),
+            entity_id,
+            family,
+            authored_order,
+            source_sort: missing!("$.sort"),
+            source_folder: missing!("$.folder"),
+            source_ordinal: authored_order,
+            contextual_label: missing!("$.name"),
+            identity_stability:
+                atlas_record::HazardOccurrenceIdentityStability::StableSourceIdentity,
+        })
+    };
+    let occurrences = vec![
+        occurrence(
+            "occurrence-unsupported",
+            unsupported_id,
+            atlas_record::HazardEntityFamily::UnsupportedChild,
+            2,
+        )?,
+        occurrence(
+            "occurrence-action",
+            action_id,
+            atlas_record::HazardEntityFamily::Action,
+            0,
+        )?,
+        occurrence(
+            "occurrence-strike",
+            strike_id,
+            atlas_record::HazardEntityFamily::Strike,
+            1,
+        )?,
+    ];
+    let hazard = atlas_record::HazardRecord {
+        identity: atlas_record::HazardIdentity {
+            record_key: key.clone(),
+            source_id: atlas_record::HazardSourceId::new(&source_id)
+                .map_err(|_| "fixture source id is invalid")?,
+            name: name.clone(),
+        },
+        level: typed!(level, "$.system.details.level.value"),
+        rarity: missing!("$.system.traits.rarity"),
+        traits: missing!("$.system.traits.value"),
+        size: missing!("$.system.traits.size.value"),
+        publication: missing!("$.system.details.publication"),
+        complexity: typed!(
+            atlas_record::HazardComplexity::Complex,
+            "$.system.details.isComplex"
+        ),
+        detection: typed!(
+            atlas_record::HazardDetection {
+                stealth_modifier: typed!(stealth_modifier, "$.system.attributes.stealth.value"),
+                details: typed!(
+                    atlas_record::RichDocument::new(vec![atlas_record::RichNode::Text {
+                        text:
+                            "Roll Perception for initiative; adjacent DC 99 is authored prose only."
+                                .to_string(),
+                    }]),
+                    "$.system.attributes.stealth.details"
+                ),
+            },
+            "$.system.attributes.stealth"
+        ),
+        defenses: typed!(
+            atlas_record::HazardDefenses {
+                armor_class: typed!(armor_class, "$.system.attributes.ac.value"),
+                hardness: missing!("$.system.attributes.hardness"),
+                hit_points: typed!(
+                    atlas_record::HazardHitPoints {
+                        current: number_fact(current_hit_points, "$.system.attributes.hp.value",),
+                        maximum: number_fact(maximum_hit_points, "$.system.attributes.hp.max",),
+                        temporary: missing!("$.system.attributes.hp.temp"),
+                        details: missing!("$.system.attributes.hp.details"),
+                        unsupported_fields: Vec::new(),
+                    },
+                    "$.system.attributes.hp"
+                ),
+                saves: typed!(
+                    atlas_record::HazardSaves {
+                        fortitude: saves.0.map_or_else(
+                            || missing!("$.system.saves.fortitude.value"),
+                            |value| typed!(value, "$.system.saves.fortitude.value"),
+                        ),
+                        reflex: saves.1.map_or_else(
+                            || missing!("$.system.saves.reflex.value"),
+                            |value| typed!(value, "$.system.saves.reflex.value"),
+                        ),
+                        will: saves.2.map_or_else(
+                            || missing!("$.system.saves.will.value"),
+                            |value| typed!(value, "$.system.saves.will.value"),
+                        ),
+                        unsupported_fields: Vec::new(),
+                    },
+                    "$.system.saves"
+                ),
+                immunities: missing!("$.system.attributes.immunities"),
+                weaknesses: missing!("$.system.attributes.weaknesses"),
+                resistances: missing!("$.system.attributes.resistances"),
+                unsupported_fields: Vec::new(),
+            },
+            "$.system.attributes"
+        ),
+        lifecycle: typed!(
+            atlas_record::HazardLifecycle {
+                description: typed!(
+                    atlas_record::RichDocument::new(vec![atlas_record::RichNode::Text {
+                        text: "When noticed, roll a secret check and disable automatically."
+                            .to_string(),
+                    }]),
+                    "$.system.description.value"
+                ),
+                disable: missing!("$.system.details.disable"),
+                routine: missing!("$.system.details.routine"),
+                reset: missing!("$.system.details.reset"),
+            },
+            "$.system.details"
+        ),
+        emits_sound: missing!("$.system.emitsSound"),
+        embedded_entities: typed!(
+            atlas_record::HazardEmbeddedEntities {
+                entities,
+                occurrences
+            },
+            "$.items"
+        ),
+        content: atlas_record::OwnedRichContent::default(),
+        relationships: Vec::new(),
+        unsupported_fields: Vec::new(),
+        provenance: atlas_record::HazardProvenance {
+            source_path: format!("packs/hazards/{source_id}.json"),
+            source_contract_version: "fixture".to_string(),
+            source_system_version: "fixture".to_string(),
+            source_upstream_commit: "fixture".to_string(),
+            source_folder: missing!("$.folder"),
+            image: missing!("$.img"),
+            source_creature_type: missing!("$.system.attributes.emitsSound"),
+            source_status_effects: missing!("$.statuses"),
+            actor_effects: missing!("$.effects"),
+        },
+    };
+    let metrics = atlas_record::project_hazard_facts(&hazard).metrics;
+    for (ordinal, metric) in metrics.iter().enumerate() {
+        let (value_type, number_value, text_value, bool_value) = match &metric.value {
+            atlas_record::MetricValue::Number(value) => ("number", Some(*value), None, None),
+            atlas_record::MetricValue::Text(value) => ("text", None, Some(value.as_str()), None),
+            atlas_record::MetricValue::Boolean(value) => {
+                ("boolean", None, None, Some(i64::from(*value)))
+            }
+        };
+        connection.execute(
+            "INSERT INTO record_metrics (record_key, ordinal, metric_domain, metric_key, value_type, number_value, text_value, bool_value)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![record_key, i64::try_from(ordinal)?, metric.domain.as_str(), metric.key.as_str(), value_type, number_value, text_value, bool_value],
+        )?;
+    }
+    refresh_fixture_metric_summary(connection, record_key)?;
+    let body = atlas_record::RecordBody::Hazard(hazard);
+    let canonical_json = crate::artifact::canonical_json::encode(&body)?;
+    connection.execute(
+        "INSERT INTO canonical_hazard_records (record_key, source_id, name, family, canonical_json)
+         VALUES (?1, ?2, ?3, 'hazard', ?4)",
+        (record_key, source_id, name, canonical_json),
+    )?;
+    connection.execute(
+        "UPDATE records SET level = ?2 WHERE record_key = ?1",
+        (record_key, level),
+    )?;
+    Ok(())
+}
+
 /// Recomputes the writer-bound metric summary after a cross-crate fixture has
 /// inserted its ordered metric rows.
 pub fn refresh_fixture_metric_summary(

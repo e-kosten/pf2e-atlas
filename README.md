@@ -81,6 +81,10 @@ Fetch records by keys (generally retrieved from other results and queries):
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
 atlas record get equipment-srd:s1vB3HdXjMigYAnY
+atlas record get hazards:BHq5wpQU8hQEke8D --detail full
+atlas record get spells-srd:rfZpqmj0AIIdkVIs --detail full
+atlas record provenance hazards:BHq5wpQU8hQEke8D --json
+atlas record provenance spells-srd:rfZpqmj0AIIdkVIs --json
 ```
 
 Explore available filters and nearby record context:

@@ -82,10 +82,12 @@ atlas search "low level healing spell" --kind spell --detail preview
 atlas search --kind equipment --rarity uncommon --detail preview
 ```
 
-Translate clear structured constraints into filters instead of leaving them only in the text query. For example, "low-level" usually means `--max-level`, "level 3" means `--level 3`, "uncommon" means `--rarity uncommon`, "cheap" or a price ceiling means `--max-price`, and known traits should use `--trait` or `--any-trait`. Keep the remaining query text focused on the concept that cannot be expressed structurally:
+Translate clear structured constraints into filters instead of leaving them only in the text query. For example, spell rank uses `--spell-rank`, traditions use `--tradition`, exact authored spell ranges use `--spell-range-text`, "uncommon" means `--rarity uncommon`, "cheap" or a price ceiling means `--max-price`, and known traits should use `--trait` or `--any-trait`. Keep the remaining query text focused on the concept that cannot be expressed structurally:
 
 ```bash
-atlas search "healing spell" --kind spell --max-level 2 --detail preview --limit 8
+atlas search "healing spell" --kind spell --spell-rank 1 --tradition divine --detail preview --limit 8
+atlas search --kind spell --spell-save reflex --spell-basic-save true --spell-damage-type fire --limit 8
+atlas search --kind spell --spell-range-text "30 feet" --limit 8
 atlas search "protect an ally" --kind feat --trait champion --detail preview --limit 8
 ```
 
@@ -131,11 +133,26 @@ provenance in `resources`, action costs and frequencies in activities, and
 rank, location, use, slot, and parent-entry context in spellcasting. Do not
 treat labels as typed identity or infer missing parent relationships from
 prose.
+For `spell`, read typed classification, casting, targeting, defense, damage,
+duration, heightening, ritual, forms, and content directly. `targeting.range`
+retains the original authored text; numeric `--spell-range-feet` is a bounded
+filter-only derivative and is never an ordinary display value. Form `id`
+values are opaque: use the backend-provided label/order and the typed
+available or unavailable result instead of parsing the identifier. Source,
+image, license, unsupported-value, and exact source-context evidence belongs
+under `record provenance`, not ordinary spell presentation.
 `supplementary_sections` carries rich prose and relationships, not duplicate
-creature mechanics. Never scrape a generic fact block or infer mechanics from
-prose. Non-creature records may temporarily report `presentation_type:
-"unmigrated"` with an explicit `migration.plan_id`; use their `sections` only
-until that named family-specific contract lands.
+creature mechanics. For `hazard`, read the typed `sections` produced from the
+canonical hazard body; they preserve authored lifecycle and action content and
+derive detection DC and broken threshold only through the guarded hazard
+projection. Missing, null, and unsupported hazard facts appear in
+`availability`, while exact source, occurrence, content-owner, license, and
+unsupported-value evidence is available through `record provenance`. Never
+infer a trigger or other mechanic from prose. Families other than creature,
+hazard, and spell may
+temporarily report `presentation_type: "unmigrated"` with an explicit
+`migration.plan_id`; use their `sections` only until that named family-specific
+contract lands.
 
 Check field presence before reading detail-dependent entity data. `summary`
 and `description` omit creature mechanics fields, and `preview` omits activity
@@ -232,7 +249,7 @@ Filter discovery defaults to human-readable output for scanning. Add `--json` wh
 
 The Rust query model is based on record kinds, metadata fields, traits, references, metrics, and canonical filter JSON. Use discovered field ids and values with `atlas search`, `atlas record resolve`, or `--filter-json`.
 
-Prefer convenience filters when they express the query clearly: `--kind`, `--pack-name`, `--pack-label`, `--rarity`, `--publication-title`, `--level`, `--min-level`, `--max-level`, `--price`, `--min-price`, `--max-price`, `--trait`, `--any-trait`, `--references`, `--referenced-by`, and `--metric`. Use `--filter-json` for canonical filter trees that cannot be expressed cleanly with convenience flags, and do not combine `--filter-json` with convenience filters in the same command.
+Prefer convenience filters when they express the query clearly: `--kind`, `--pack-name`, `--pack-label`, `--rarity`, `--publication-title`, `--level`, `--min-level`, `--max-level`, `--price`, `--min-price`, `--max-price`, `--trait`, `--any-trait`, `--references`, `--referenced-by`, `--metric`, `--spell-rank`, `--tradition`, `--spell-range-text`, `--spell-target`, `--spell-area`, `--spell-save`, `--spell-sustained`, `--spell-basic-save`, `--spell-damage-type`, and `--spell-range-feet`. Spell range text is exact authored text. The numeric feet flag is the named bounded query derivative; do not use it as a substitute for authored display text. Use `--filter-json` for canonical filter trees that cannot be expressed cleanly with convenience flags, and do not combine `--filter-json` with convenience filters in the same command.
 
 Discover metric keys before constructing metric predicates unless the exact key is already known. Prefer `--metric-query` for natural metric terms like "save", "armor", "speed", "perception", or "hp"; use `--metric-label`, `--metric-prefix`, or `--metric` when you already know the label, prefix, or key:
 

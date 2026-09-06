@@ -176,7 +176,12 @@ pub(crate) fn analyze_captured_source_load(
             spell_records: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.mechanics.spell().is_some())
+                .filter(|loaded| {
+                    matches!(
+                        loaded.facts.canonical_body.as_ref(),
+                        Some(atlas_record::RecordBody::Spell(_))
+                    )
+                })
                 .count(),
         },
         metrics: metrics_report(&source.records, &retrieval_policy),

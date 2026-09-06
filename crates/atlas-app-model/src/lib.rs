@@ -4,11 +4,13 @@ mod encounter;
 mod encounter_runtime;
 mod error;
 mod filter;
+mod hazard_surface;
 mod json_integer;
 mod list;
 mod readiness;
 mod record;
 mod result_window;
+mod spell_surface;
 mod surface;
 
 pub use encounter::{
@@ -38,6 +40,7 @@ pub use filter::{
     FilterRange, FilterValidationCode, FilterValidationMessage, FilterValidationResult,
     FilterValueListView, FilterValueOption, MetricComparison,
 };
+pub use hazard_surface::*;
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
@@ -50,14 +53,15 @@ pub use list::{
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{
-    RecordDetailView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
-    RecordSummaryView,
+    RecordDetailRequest, RecordDetailView, RecordResolutionAmbiguousView,
+    RecordResolutionCandidateView, RecordSummaryView,
 };
 pub use result_window::{
     OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
     ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
     SearchPageRequest, SearchPageView,
 };
+pub use spell_surface::*;
 pub use surface::*;
 
 #[cfg(test)]
@@ -153,6 +157,107 @@ mod tests {
         assert!(surface.contains("encounter?: EncounterRuntimeView"));
         assert!(!surface.contains(&["sec", "tions"].concat()));
         assert!(!surface.contains(&["section", "order"].join("_")));
+        let presentation = actual
+            .get("RecordSurfacePresentationView.ts")
+            .expect("record presentation union should exist");
+        assert!(presentation.contains("\"presentation_type\": \"hazard\""));
+        assert!(presentation.contains("body: HazardSurfaceView"));
+        let hazard = actual
+            .get("HazardSurfaceView.ts")
+            .expect("hazard surface binding should exist");
+        for field in [
+            "complexity?: HazardSurfaceComplexityView",
+            "detection?: HazardSurfaceDetectionView",
+            "defenses?: HazardSurfaceDefensesView",
+            "lifecycle?: HazardSurfaceLifecycleView",
+            "activities?: Array<HazardSurfaceActivityView>",
+            "content?: Array<CreatureSurfaceContentView>",
+            "relationships?: Array<HazardSurfaceRelationshipView>",
+            "unavailable_fields?: Array<HazardSurfaceUnavailableView>",
+            "provenance: HazardSurfaceProvenanceView",
+        ] {
+            assert!(hazard.contains(field), "missing hazard binding `{field}`");
+        }
+        let hazard_runtime = actual
+            .get("EncounterRuntimeHazardView.ts")
+            .expect("hazard runtime binding should exist");
+        for field in [
+            "state: EncounterRuntimeHazardStateView",
+            "detection_dc?: RuntimeNumberView",
+            "broken_threshold?: RuntimeNumberView",
+            "initiative_suggestion?: EncounterRuntimeHazardInitiativeSuggestionView",
+        ] {
+            assert!(
+                hazard_runtime.contains(field),
+                "missing runtime binding `{field}`"
+            );
+        }
+        assert!(presentation.contains("\"presentation_type\": \"spell\""));
+        assert!(presentation.contains("body: SpellSurfaceView"));
+        let spell_surface = actual
+            .get("SpellSurfaceView.ts")
+            .expect("SpellSurfaceView binding should exist");
+        for field in [
+            "definition: SpellDefinitionSurfaceView",
+            "forms: Array<SpellFormView>",
+            "selected_form?: SpellSelectedFormView",
+            "form_catalog_unavailable?: SpellFormCatalogUnavailableReasonView",
+            "content?: Array<CreatureSurfaceContentView>",
+        ] {
+            assert!(spell_surface.contains(field), "missing `{field}`");
+        }
+        let spell_form = actual
+            .get("SpellFormView.ts")
+            .expect("SpellFormView binding should exist");
+        for field in [
+            "id: string",
+            "label: string",
+            "order: number",
+            "cast_rank: number",
+            "authored_patch?: SpellPatchView",
+            "result: SpellFormResultView",
+        ] {
+            assert!(spell_form.contains(field), "missing `{field}`");
+        }
+        let detail_request = actual
+            .get("RecordDetailRequest.ts")
+            .expect("record-detail request binding should exist");
+        assert!(detail_request.contains("spell_form_id?: string"));
+        assert!(detail_request.contains("spell_cast_rank?: number"));
+        let selected_form = actual
+            .get("SpellSelectedFormView.ts")
+            .expect("selected spell-form binding should exist");
+        for field in [
+            "id: string",
+            "cast_rank: number",
+            "result: SpellFormResultView",
+        ] {
+            assert!(selected_form.contains(field), "missing `{field}`");
+        }
+        for binding in [
+            "SpellSurfaceView.ts",
+            "SpellDefinitionSurfaceView.ts",
+            "SpellFormView.ts",
+            "SpellRuleView.ts",
+        ] {
+            let generated = actual
+                .get(binding)
+                .unwrap_or_else(|| panic!("{binding} binding should exist"));
+            for forbidden in [
+                "authored_object_json",
+                "overlay_id",
+                "publication_license",
+                "raw_json",
+                "source_id",
+                "numeric",
+                "image",
+            ] {
+                assert!(
+                    !generated.contains(forbidden),
+                    "{binding} must not expose `{forbidden}`"
+                );
+            }
+        }
         let metadata = actual
             .get("RecordSurfaceMetadataView.ts")
             .expect("RecordSurfaceMetadataView binding should exist");
@@ -479,6 +584,82 @@ mod tests {
         assert!(serialized["presentation"].get("body").is_none());
         assert!(serialized.get(["sec", "tions"].concat()).is_none());
         assert!(serialized.get(["section", "order"].join("_")).is_none());
+    }
+
+    #[test]
+    fn hazard_record_surface_serializes_tagged_body_and_preserves_zero_and_presence() {
+        let surface = RecordSurfaceView {
+            metadata: RecordSurfaceMetadataView {
+                record_key: Some("hazards:test".to_string()),
+                title: "Test Hazard".to_string(),
+                kind: "hazard".to_string(),
+                kind_label: "Hazard".to_string(),
+                level: Some(1),
+                rarity: None,
+                traits: Vec::new(),
+                edition: None,
+                source: None,
+            },
+            profile: RecordSurfaceProfileView::RecordDetail,
+            presentation: RecordSurfacePresentationView::Hazard {
+                body: Box::new(HazardSurfaceView {
+                    teaser: None,
+                    complexity: Some(HazardSurfaceComplexityView::Complex),
+                    size: None,
+                    emits_sound: None,
+                    detection: Some(HazardSurfaceDetectionView {
+                        stealth_modifier: Some(0),
+                        difficulty_class: Some(10),
+                        details: None,
+                    }),
+                    defenses: None,
+                    lifecycle: None,
+                    activities: None,
+                    content: None,
+                    relationships: None,
+                    unavailable_fields: Some(vec![HazardSurfaceUnavailableView {
+                        state: HazardSurfaceUnavailableStateView::Null,
+                        field: "defenses.hit_points.current".to_string(),
+                        component_id: None,
+                        message: "This canonical hazard field was explicitly null.".to_string(),
+                    }]),
+                    provenance: HazardSurfaceProvenanceView {
+                        source_path: "packs/hazards/test.json".to_string(),
+                        source_contract_version: "v1".to_string(),
+                        source_system_version: "7".to_string(),
+                        source_upstream_commit: "fixture".to_string(),
+                        convenience_rule_id: "pf2e-hazard-conveniences".to_string(),
+                        convenience_rule_version: 1,
+                        image: HazardSurfaceProvenanceTextView::Value {
+                            value: "systems/pf2e/icons/test.webp".to_string(),
+                        },
+                        publication_license: HazardSurfaceProvenanceTextView::Unsupported,
+                    },
+                }),
+            },
+            encounter: None,
+        };
+
+        let serialized = serde_json::to_value(surface).expect("hazard surface should serialize");
+        assert_eq!(serialized["presentation"]["presentation_type"], "hazard");
+        assert_eq!(
+            serialized["presentation"]["body"]["detection"]["stealth_modifier"],
+            0
+        );
+        assert_eq!(
+            serialized["presentation"]["body"]["unavailable_fields"][0]["state"],
+            "null"
+        );
+        assert_eq!(
+            serialized["presentation"]["body"]["provenance"]["image"]["state"],
+            "value"
+        );
+        assert!(serialized["presentation"]["body"].get("image").is_none());
+        assert!(
+            serialized["presentation"]["body"]
+                .get("publication_license")
+                .is_none()
+        );
     }
 
     #[test]
@@ -1013,6 +1194,7 @@ mod tests {
     #[test]
     fn targeted_automation_limitation_remains_explicit_when_empty_runtime_arrays_are_omitted() {
         let runtime = EncounterRuntimeView {
+            hazard: None,
             level: None,
             vitals: None,
             defenses: None,
@@ -1050,6 +1232,7 @@ mod tests {
     #[test]
     fn encounter_runtime_level_serializes_with_inner_adjustment_semantics() {
         let runtime = EncounterRuntimeView {
+            hazard: None,
             level: Some(RuntimeNumberView {
                 label: "Level".to_string(),
                 base_value: 5,
@@ -1130,6 +1313,7 @@ mod tests {
                 },
             },
             encounter: Some(EncounterRuntimeView {
+                hazard: None,
                 level: Some(RuntimeNumberView {
                     label: "Level".to_string(),
                     base_value: 5,
@@ -1313,6 +1497,8 @@ mod tests {
             .expect("OpenResultWindowRequest bindings should export");
         ReadResultWindowPageRequest::export_all_to(path)
             .expect("ReadResultWindowPageRequest bindings should export");
+        RecordDetailRequest::export_all_to(path)
+            .expect("RecordDetailRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
         RecordResolutionAmbiguousView::export_all_to(path)
             .expect("RecordResolutionAmbiguousView bindings should export");

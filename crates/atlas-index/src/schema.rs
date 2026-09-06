@@ -84,6 +84,9 @@ diesel::table! {
         owner_entity_id -> Nullable<Text>,
         owner_occurrence_id -> Nullable<Text>,
         owner_occurrence_authored_order -> Nullable<BigInt>,
+        owner_hazard_entity_id -> Nullable<Text>,
+        owner_hazard_occurrence_id -> Nullable<Text>,
+        owner_hazard_occurrence_authored_order -> Nullable<BigInt>,
         role -> Text,
         origin_json -> Text,
         visibility -> Text,
@@ -180,6 +183,95 @@ diesel::table! {
 }
 
 diesel::table! {
+    canonical_hazard_records (record_key) {
+        record_key -> Text,
+        source_id -> Text,
+        name -> Text,
+        family -> Text,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_spell_records (record_key) {
+        record_key -> Text,
+        source_id -> Text,
+        name -> Text,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_hazard_entities (record_key, entity_id) {
+        record_key -> Text,
+        entity_id -> Text,
+        family -> Text,
+        label -> Text,
+        image_json -> Text,
+        source_identity_json -> Text,
+        capability_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_consumable_spell_children (parent_record_key, child_id) {
+        parent_record_key -> Text,
+        child_id -> Text,
+        authored_order -> BigInt,
+        standalone_target_record_key -> Nullable<Text>,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_hazard_occurrences (record_key, occurrence_id, authored_order) {
+        record_key -> Text,
+        occurrence_id -> Text,
+        entity_id -> Text,
+        identity_stability -> Text,
+        family -> Text,
+        authored_order -> BigInt,
+        source_sort_json -> Text,
+        source_folder_json -> Text,
+        source_ordinal -> BigInt,
+        contextual_label_json -> Text,
+    }
+}
+
+diesel::table! {
+    spell_traditions (record_key, authored_order) {
+        record_key -> Text,
+        authored_order -> BigInt,
+        tradition -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_hazard_relationships (record_key, relationship_id) {
+        record_key -> Text,
+        relationship_id -> Text,
+        authored_order -> BigInt,
+        source_occurrence_id -> Nullable<Text>,
+        source_occurrence_authored_order -> Nullable<BigInt>,
+        relationship_kind -> Text,
+        target_kind -> Text,
+        target_entity_id -> Nullable<Text>,
+        target_occurrence_id -> Nullable<Text>,
+        target_occurrence_authored_order -> Nullable<BigInt>,
+    }
+}
+
+diesel::table! {
+    spell_damage_types (record_key, damage_key, damage_authored_order, type_authored_order) {
+        record_key -> Text,
+        damage_key -> Text,
+        damage_authored_order -> BigInt,
+        type_authored_order -> BigInt,
+        damage_type -> Text,
+    }
+}
+
+diesel::table! {
     record_traits (record_key, trait_) {
         record_key -> Text,
         #[sql_name = "trait"]
@@ -210,6 +302,9 @@ diesel::table! {
         owner_entity_id -> Nullable<Text>,
         owner_occurrence_id -> Nullable<Text>,
         owner_occurrence_authored_order -> Nullable<BigInt>,
+        owner_hazard_entity_id -> Nullable<Text>,
+        owner_hazard_occurrence_id -> Nullable<Text>,
+        owner_hazard_occurrence_authored_order -> Nullable<BigInt>,
         role -> Text,
         origin_json -> Text,
         visibility -> Text,
@@ -379,8 +474,11 @@ diesel::table! {
         area_value -> Nullable<Double>,
         save_type -> Nullable<Text>,
         sustained -> Bool,
-        basic_save -> Bool,
+        basic_save -> Nullable<Bool>,
         damage_types_json -> Text,
+        rank -> Nullable<BigInt>,
+        range_kind -> Nullable<Text>,
+        range_rule -> Nullable<Text>,
     }
 }
 
@@ -424,6 +522,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     canonical_creature_relationships,
     canonical_creature_records,
     canonical_creature_resources,
+    canonical_hazard_entities,
+    canonical_hazard_occurrences,
+    canonical_hazard_relationships,
+    canonical_hazard_records,
+    canonical_consumable_spell_children,
+    canonical_spell_records,
     document_embedding_cache,
     filter_field_catalog,
     filter_numeric_catalog,
@@ -444,4 +548,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     reference_occurrences,
     remaster_links,
     spell_records,
+    spell_traditions,
+    spell_damage_types,
 );

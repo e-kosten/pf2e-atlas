@@ -1,6 +1,6 @@
-use atlas_domain::{MetricDomain, TimeKind};
+use atlas_domain::TimeKind;
 
-use crate::{MetricDefinition, MetricRow, MetricValue, NormalizedTime, SpellMechanics};
+use crate::NormalizedTime;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CreatureFrequencyPeriod {
@@ -76,80 +76,8 @@ pub fn format_creature_frequency(
     }
 }
 
-pub(crate) fn metric_number(metrics: &[MetricRow], domain: MetricDomain, key: &str) -> Option<f64> {
-    metrics.iter().find_map(|metric| {
-        if metric.domain == domain
-            && metric.key == key
-            && let MetricValue::Number(value) = metric.value
-        {
-            return Some(value);
-        }
-        None
-    })
-}
-
-pub(crate) fn metric_number_for_definition(
-    rows: &[MetricRow],
-    definition: MetricDefinition,
-) -> Option<f64> {
-    metric_number(rows, definition.domain(), definition.exact_key()?)
-}
-
-pub(crate) fn format_saves(metrics: &[MetricRow]) -> Option<String> {
-    let parts = [
-        (crate::metrics::actor::save::mod_key("fort"), "Fort"),
-        (crate::metrics::actor::save::mod_key("ref"), "Ref"),
-        (crate::metrics::actor::save::mod_key("will"), "Will"),
-    ]
-    .into_iter()
-    .filter_map(|(key, label)| {
-        metric_number(metrics, MetricDomain::Actor, &key)
-            .map(|value| format!("{label} {}", format_modifier(value)))
-    })
-    .collect::<Vec<_>>();
-    non_empty_join(parts)
-}
-
-pub(crate) fn format_stealth(metrics: &[MetricRow]) -> Option<String> {
-    let stealth_mod = metric_number_for_definition(metrics, crate::metrics::actor::STEALTH_MOD)
-        .map(format_modifier);
-    let stealth_dc =
-        metric_number_for_definition(metrics, crate::metrics::actor::STEALTH_DC).map(format_number);
-    match (stealth_mod, stealth_dc) {
-        (Some(modifier), Some(dc)) => Some(format!("{modifier} (DC {dc})")),
-        (Some(modifier), None) => Some(modifier),
-        (None, Some(dc)) => Some(format!("DC {dc}")),
-        (None, None) => None,
-    }
-}
-
 pub(crate) fn format_list(values: &[String]) -> Option<String> {
     non_empty_join(values.iter().map(|value| humanize(value)).collect())
-}
-
-pub(crate) fn format_area(spell: &SpellMechanics) -> Option<String> {
-    let area = spell.area.as_ref()?;
-    match (&area.kind, area.value) {
-        (Some(area_type), Some(area_value)) => Some(format!(
-            "{} {}",
-            format_number(area_value),
-            humanize(area_type)
-        )),
-        (Some(area_type), None) => Some(humanize(area_type)),
-        (None, Some(area_value)) => Some(format_number(area_value)),
-        (None, None) => None,
-    }
-}
-
-pub(crate) fn format_save(spell: &SpellMechanics) -> Option<String> {
-    let defense = spell.defense.as_ref()?;
-    defense.save.as_ref().map(|save_type| {
-        if defense.basic {
-            format!("basic {}", humanize(save_type))
-        } else {
-            humanize(save_type)
-        }
-    })
 }
 
 pub(crate) fn activation_text(
@@ -262,15 +190,6 @@ fn format_time(time: &NormalizedTime) -> String {
         },
         TimeKind::Variable => "Variable".to_string(),
         TimeKind::Other => "Other".to_string(),
-    }
-}
-
-pub(crate) fn format_modifier(value: f64) -> String {
-    let formatted = format_number(value);
-    if value >= 0.0 {
-        format!("+{formatted}")
-    } else {
-        formatted
     }
 }
 

@@ -522,7 +522,11 @@ mod tests {
             Ok(self
                 .records_for_keys(keys)
                 .into_iter()
-                .map(|record| atlas_record::RetrievedRecord { record, body: None })
+                .map(|record| atlas_record::RetrievedRecord {
+                    record,
+                    body: None,
+                    spell_children: Vec::new(),
+                })
                 .collect())
         }
 

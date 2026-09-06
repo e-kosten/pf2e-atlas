@@ -1,0 +1,2578 @@
+contract_version: atlas-source-leaf-coverage/v1
+type_id: item--spell--child--item--consumable--consumable-system-spell
+source_pin:
+  upstream_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+  source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+selector:
+  source_contract_version: pf2e-serialized-source/v1
+  document_class: Item
+  type_discriminator: spell
+  role: child
+  parent_context:
+    document_class: Item
+    type_discriminator: consumable
+    relationship_path: Consumable.system.spell
+leaves:
+- normalized_path: $._id
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-id@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-id
+  fixtures:
+  - case_id: arboreal-child-id
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:060b93105eea2ce3726a2ea98cf1e585ac5c3fb79e3f9323f0fe6886494d1cec
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell.id
+  - stage: canonical
+    destination: ConsumableSpellChild.child_id
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.child_id
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.child_id
+  surfaces: &id001
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable owns a local child identity distinct from any standalone spell target.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.flags.core.sourceId
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-source-id@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-source-id
+  fixtures:
+  - case_id: arboreal-child-source-id
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:9a8545f2fc24b12aff89caa36df4341e7c48d3ff32297d43b211aded9f5db2d5
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.standalone_locator
+  - stage: canonical
+    destination: ConsumableSpellChild.standalone_locator
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.standalone_locator
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.standalone_locator
+  surfaces: *id001
+  rationale: The authenticated authored locator remains separate from its resolved or unresolved target state.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.img
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-image@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-image
+  fixtures:
+  - case_id: arboreal-child-image
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:27e24b7dcc120b2d644ce8cca1eec87a1cd699e19c42e99bcc58e729c1c5545e
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SpellItemSource.image
+  - stage: canonical
+    destination: SpellDefinition.source_context.image
+  - stage: post_projection
+    destination: PostProjection::SpellDefinition.source_context.image
+  - stage: artifact_hydration
+    destination: ArtifactHydration::SpellDefinition.source_context.image
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: not_applicable
+      rationale: image reuse licensing is unestablished and images are not search or ranking input
+    cli:
+      disposition: not_applicable
+      rationale: ordinary child output does not display or fetch source images
+    app:
+      disposition: not_applicable
+      rationale: child-link composition does not fetch or embed source images
+    ui:
+      disposition: not_applicable
+      rationale: ADR 0034 forbids displaying or embedding source images
+    runtime:
+      disposition: not_applicable
+      rationale: local child images have no cast-state meaning
+  rationale: The exact local child image locator remains codec-retained typed provenance independent of target resolution; it is never fetched, embedded, displayed, or ranked.
+  owner: atlas-record::SpellSourceContext
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.name
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-name@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-name
+  fixtures:
+  - case_id: consumable-spell-child-name
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:209866b7c792e47a9d254a903354fa47df94d17eeb83110c3a25e072dd8471a4
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell.name
+  - stage: canonical
+    destination: ConsumableSpellChild.name
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.name
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.name
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: Authored identity and source placement remain typed through the canonical spell record pipeline.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.sort
+  leaf_kind: scalar
+  expected_shapes:
+  - number
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-sort@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: provenance_only
+  reader:
+    reader_id: AtlasRecord.provenance.raw_json
+    parity_case_ids:
+    - arboreal-child-sort
+  fixtures:
+  - case_id: arboreal-child-sort
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:045b3291be3fd1e35e6d365eb9c560a2d179382722cb29ee3642bb3335e811fe
+    provenance: pinned_source
+  final_owners:
+  - stage: durable_provenance
+    destination: AtlasRecord.provenance.raw_json#/system/spell
+  surfaces:
+    artifact:
+      disposition: deferred
+      rationale: H2-C does not replace existing parent raw provenance storage
+    search:
+      disposition: not_applicable
+      rationale: embedded editor sort is not spell search data
+    cli:
+      disposition: not_applicable
+      rationale: embedded editor sort is not a displayed spell fact
+    app:
+      disposition: not_applicable
+      rationale: form order comes from overlay sort, not the child envelope
+    ui:
+      disposition: not_applicable
+      rationale: single-child editor sort has no presentation meaning
+    runtime:
+      disposition: not_applicable
+      rationale: single-child editor sort has no cast-state meaning
+  rationale: The exact embedded editor sort remains parent source context and does not order standalone spell forms.
+  owner: atlas-record::RecordProvenance
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.counteraction
+  leaf_kind: scalar
+  expected_shapes:
+  - boolean
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-counteraction@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-counteraction
+  fixtures:
+  - case_id: consumable-spell-child-system-counteraction
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:ddf5e641402dd4a893121d71c77844652d77d8b3398fdc179cc9f0f9eb946a25
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.counteraction
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.counteraction
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.counteraction
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.counteraction
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.damage.*.applyMod
+  leaf_kind: map_member
+  expected_shapes:
+  - boolean
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-damage-key-applymod@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-damage-key-applymod
+  fixtures:
+  - case_id: consumable-spell-child-system-damage-key-applymod
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:e21facb4e7b6fe02e37828a1f969fd373556ecc44a0a95b251ea4c4d1dbe3239
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.damage.*.applyMod
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.damage.*.applyMod
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.damage.*.applyMod
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.damage.*.applyMod
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.damage.*.formula
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-damage-key-formula@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-damage-key-formula
+  fixtures:
+  - case_id: consumable-spell-child-system-damage-key-formula
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:fb2b6efa2ab74b330f796328f49b5bab61e24b674ecc4bc58ca0144c31576628
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.damage.*.formula
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.damage.*.formula
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.damage.*.formula
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.damage.*.formula
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.damage.*.kinds[]
+  leaf_kind: nested_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-damage-key-kinds-member@4cbdaa37
+    record_count: 190
+    occurrence_count: 16
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-damage-key-kinds-member
+  fixtures:
+  - case_id: consumable-spell-child-system-damage-key-kinds-member
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:0373368cd77c852c61d4c492918eebcfebaf237a0ff150a4ac20a716dc62dca0
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.damage.*.kinds[]
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.damage.*.kinds[]
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.damage.*.kinds[]
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.damage.*.kinds[]
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.damage.*.type
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-damage-key-type@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-damage-key-type
+  fixtures:
+  - case_id: consumable-spell-child-system-damage-key-type
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:9e1c1de2c64f83397032282727c95286e0a9090505dccde771371dad41d0beca
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.damage.*.type
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.damage.*.type
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.damage.*.type
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.damage.*.type
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.defense.save.basic
+  leaf_kind: scalar
+  expected_shapes:
+  - boolean
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-defense-save-basic@4cbdaa37
+    record_count: 190
+    occurrence_count: 6
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-defense-save-basic
+  fixtures:
+  - case_id: consumable-spell-child-system-defense-save-basic
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:b00cc6b71c434d8692f44b594c3dedbad94ae762b0c214e4671a689c14669ac5
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.defense.save.basic
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.defense.save.basic
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.defense.save.basic
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.defense.save.basic
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.defense.save.statistic
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-defense-save-statistic@4cbdaa37
+    record_count: 190
+    occurrence_count: 6
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-defense-save-statistic
+  fixtures:
+  - case_id: consumable-spell-child-system-defense-save-statistic
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:8d264dd068839f549715166654af36c08bb1fa9670971d1d276b8648ae6d973d
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.defense.save.statistic
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.defense.save.statistic
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.defense.save.statistic
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.defense.save.statistic
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.description.value
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-description-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-description-value
+  fixtures:
+  - case_id: consumable-spell-child-system-description-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:87de752456773f81aff1fd0a9ac94f95ad9dfd5784389c8bbec40fc978b5bf9c
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SourceConstructionFacts.source_facts.content_sources[$.system.spell.system.description.value]
+  - stage: canonical
+    destination: ConsumableSpellChild.definition.content[$.system.spell.system.description.value]
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition.content[$.system.spell.system.description.value]
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition.content[$.system.spell.system.description.value]
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: Authored rich content is parsed once into its typed owned-content document while this receipt proves the exact source leaf reaches that owner.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.duration.sustained
+  leaf_kind: scalar
+  expected_shapes:
+  - boolean
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-duration-sustained@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-duration-sustained
+  fixtures:
+  - case_id: consumable-spell-child-system-duration-sustained
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:ddf5e641402dd4a893121d71c77844652d77d8b3398fdc179cc9f0f9eb946a25
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.duration.sustained
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.duration.sustained
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.duration.sustained
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.duration.sustained
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.heightening.damage.*
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-heightening-damage-key@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-heightening-damage-key
+  fixtures:
+  - case_id: consumable-spell-child-system-heightening-damage-key
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:341b6ae5cb3df8ed340b5d29be5f8a4e87aef69a1c97a7d5a4f12efb9bd51f7a
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.heightening.damage.*
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.heightening.damage.*
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.heightening.damage.*
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.heightening.damage.*
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.heightening.interval
+  leaf_kind: scalar
+  expected_shapes:
+  - number
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-heightening-interval@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-heightening-interval
+  fixtures:
+  - case_id: consumable-spell-child-system-heightening-interval
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:5250ea4378cad3997357678fb5d1212499ea199976d24b5713879651a688a106
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.heightening.interval
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.heightening.interval
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.heightening.interval
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.heightening.interval
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.heightening.type
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-heightening-type@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-heightening-type
+  fixtures:
+  - case_id: consumable-spell-child-system-heightening-type
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:8840b555d78740a1cad88d86896e732d18af1ca6fff69823f106c2c444fa7183
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.heightening.type
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.heightening.type
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.heightening.type
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.heightening.type
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.level.value
+  leaf_kind: scalar
+  expected_shapes:
+  - number
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-level-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-level-value
+  fixtures:
+  - case_id: consumable-spell-child-system-level-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:5250ea4378cad3997357678fb5d1212499ea199976d24b5713879651a688a106
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.level.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.level.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.level.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.level.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.location.heightenedLevel
+  leaf_kind: scalar
+  expected_shapes:
+  - number
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-heightened-rank@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-heightened-rank
+  fixtures:
+  - case_id: arboreal-child-heightened-rank
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:1eb3fe6dac2caab5a70e9c65fdacbf4ed0a93f80e00e12fafa607af38aa52e0b
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell.location.heightened_rank
+  - stage: canonical
+    destination: ConsumableSpellChild.location.heightened_rank
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.location.heightened_rank
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.location.heightened_rank
+  surfaces: *id001
+  rationale: The child rank is authored occurrence context and is not inferred from its parent name or uses.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.location.value
+  leaf_kind: scalar
+  expected_shapes:
+  - 'null'
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-location-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-location-null
+  fixtures:
+  - case_id: arboreal-child-location-null
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:f072cbec3bf8841871d4284230c5e983dc211a56837aed862487148f947d1a1f
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell.location.value
+  - stage: canonical
+    destination: ConsumableSpellChild.location.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.location.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.location.value
+  surfaces: *id001
+  rationale: Explicit Null remains distinct from Missing and from the child heightened rank.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*._id
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-id@4cbdaa37
+    record_count: 190
+    occurrence_count: 24
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-id
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-id
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:e1dc6e22c17ec3970431a0c5b1ea11124b54a60cda29b13ff063cc89e475ad8d
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*._id
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*._id
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*._id
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*._id
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.name
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-name@4cbdaa37
+    record_count: 190
+    occurrence_count: 12
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-name
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-name
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:9a63ba730bab344932f16825f8e1b54cfd5fbdcf9ec38c7879740564c162fef8
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.name
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.name
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.name
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.name
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.overlayType
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-overlaytype@4cbdaa37
+    record_count: 190
+    occurrence_count: 24
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-overlaytype
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-overlaytype
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:80919afe03a18afc333677eeb5299ab0090fb5ec310251a78e41b93db16b6414
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.overlayType
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.overlayType
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.overlayType
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.overlayType
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.sort
+  leaf_kind: map_member
+  expected_shapes:
+  - number
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-sort@4cbdaa37
+    record_count: 190
+    occurrence_count: 24
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-sort
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-sort
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:a63bfa708d299376db3c80720e45b496eff5b34e5f2c14d50673b31919144b2a
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.sort
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.sort
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.sort
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.sort
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.area.type
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-area-type@4cbdaa37
+    record_count: 190
+    occurrence_count: 6
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-area-type
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-area-type
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:e548ac440a3b8df0599ef3a15f6e7bd3d75250bad08e77733be6f4a78f42d5ba
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.area.type
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.area.type
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.area.type
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.area.type
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.area.value
+  leaf_kind: map_member
+  expected_shapes:
+  - number
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-area-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 6
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-area-value
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-area-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:168a1a9130d8edc59e74785c070f75f09983ad19fcb49a4ed5c22aac1334f477
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.area.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.area.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.area.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.area.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.damage.*.formula
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-damage-key-formula@4cbdaa37
+    record_count: 190
+    occurrence_count: 6
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-damage-key-formula
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-damage-key-formula
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:c45f6445354110d684a3713211077a58e6a5f340411a3a0e02dd4301c82c8e2a
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.damage.*.formula
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.damage.*.formula
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.damage.*.formula
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.damage.*.formula
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.damage.*.kinds[]
+  leaf_kind: nested_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-damage-key-kinds-member@4cbdaa37
+    record_count: 190
+    occurrence_count: 12
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-damage-key-kinds-member
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-damage-key-kinds-member
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:0be119fa156815459de7327df93142daaf4322c1d52554ae2108066bb1f95483
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.damage.*.kinds[]
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.damage.*.kinds[]
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.damage.*.kinds[]
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.damage.*.kinds[]
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.heightening.damage.*
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-heightening-damage-key@4cbdaa37
+    record_count: 190
+    occurrence_count: 6
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-heightening-damage-key
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-heightening-damage-key
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:ce3a31ac53aeccca3c50e16dd5c736ebe4976d8383beeeeb792f4043c23210b3
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.heightening.damage.*
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.heightening.damage.*
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.heightening.damage.*
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.heightening.damage.*
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.range.value
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-range-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 18
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-range-value
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-range-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:991ee406c8bd6ec57b175f287d6da3864193e6bbd220df0a49b2f010a6a82e5b
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.range.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.range.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.range.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.range.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.target.value
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-target-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 12
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-target-value
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-target-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:de2f4cf6935012fea92c568eb03a78c7a108e27e5373a6d9b4c612292d2b64a2
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.target.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.target.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.target.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.target.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.time.value
+  leaf_kind: map_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-time-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 24
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-time-value
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-time-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:c64d5e586f1898a721689957f1e05b2b3656fd635428b142910e5346aabbc5a8
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.time.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.time.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.time.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.time.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.overlays.*.system.traits.value[]
+  leaf_kind: nested_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-overlays-key-system-traits-value-member@4cbdaa37
+    record_count: 190
+    occurrence_count: 72
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  map_key_policy:
+    kind: open_vocabulary_retained_identity
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-overlays-key-system-traits-value-member
+  fixtures:
+  - case_id: consumable-spell-child-system-overlays-key-system-traits-value-member
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:8298234a1bfaeb92098ddbb2d4e1fd1995bfa94fcb76954d21ca741a1f4ff041
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.overlays.*.system.traits.value[]
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.overlays.*.system.traits.value[]
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.overlays.*.system.traits.value[]
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.overlays.*.system.traits.value[]
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.publication.license
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-publication-license@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-license
+  fixtures:
+  - case_id: arboreal-child-license
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:45bbd0d0f0048533f86894939b74b34c140585dbe9269af28057e8f42cb44175
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SpellItemSource.publication_license
+  - stage: canonical
+    destination: SpellDefinition.source_context.publication_license
+  - stage: post_projection
+    destination: PostProjection::SpellDefinition.source_context.publication_license
+  - stage: artifact_hydration
+    destination: ArtifactHydration::SpellDefinition.source_context.publication_license
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: not_applicable
+      rationale: publication license is not a spell mechanic or FTS term
+    cli:
+      disposition: not_applicable
+      rationale: ordinary child output does not expose the license value
+    app:
+      disposition: not_applicable
+      rationale: child-link composition does not consume publication license
+    ui:
+      disposition: not_applicable
+      rationale: ordinary child presentation does not expose publication license
+    runtime:
+      disposition: not_applicable
+      rationale: local child publication license has no cast-state meaning
+  rationale: The exact local child license is validated through PublicationLicense and remains typed canonical publication context independent of target resolution, without mechanic, FTS, or ordinary display use.
+  owner: atlas-record::SpellSourceContext
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.publication.remaster
+  leaf_kind: scalar
+  expected_shapes:
+  - boolean
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-publication-remaster@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-remaster
+  fixtures:
+  - case_id: arboreal-child-remaster
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:b00cc6b71c434d8692f44b594c3dedbad94ae762b0c214e4671a689c14669ac5
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SpellItemSource.publication_remaster
+  - stage: canonical
+    destination: SpellDefinition.source_context.consumable_child.publication_remaster
+  - stage: post_projection
+    destination: PostProjection::SpellDefinition.source_context.consumable_child.publication_remaster
+  - stage: artifact_hydration
+    destination: ArtifactHydration::SpellDefinition.source_context.consumable_child.publication_remaster
+  surfaces: *id001
+  rationale: The local child remaster flag remains typed publication context without borrowing the resolved record value.
+  owner: atlas-record::ConsumableSpellSourceContext
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.publication.title
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-publication-title@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-publication-title
+  fixtures:
+  - case_id: arboreal-child-publication-title
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:31d337200aa17929d7171ccd69183334bd600e726ff79a5a59496510cfa89569
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SpellItemSource.publication_title
+  - stage: canonical
+    destination: SpellDefinition.source_context.consumable_child.publication_title
+  - stage: post_projection
+    destination: PostProjection::SpellDefinition.source_context.consumable_child.publication_title
+  - stage: artifact_hydration
+    destination: ArtifactHydration::SpellDefinition.source_context.consumable_child.publication_title
+  surfaces: *id001
+  rationale: The local child publication title remains typed even when the standalone target is missing or unresolved.
+  owner: atlas-record::ConsumableSpellSourceContext
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.range.value
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-range-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-range-value
+  fixtures:
+  - case_id: consumable-spell-child-system-range-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:b2fa165f5dbbbc3ca1c4932b0ee8bc131af88099a1d646f43d7fc2ba3f0a2d2f
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.range.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.range.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.range.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.range.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.slug
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-slug@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-slug
+  fixtures:
+  - case_id: arboreal-child-slug
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:ced3defd4ae7078cb63d49f7114a36be811944144ffe9aa99857313a097484ea
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SpellItemSource.slug
+  - stage: canonical
+    destination: SpellDefinition.source_context.consumable_child.slug
+  - stage: post_projection
+    destination: PostProjection::SpellDefinition.source_context.consumable_child.slug
+  - stage: artifact_hydration
+    destination: ArtifactHydration::SpellDefinition.source_context.consumable_child.slug
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: not_applicable
+      rationale: local slug is not a spell search term or locator
+    cli:
+      disposition: not_applicable
+      rationale: ordinary child output does not expose editor slug
+    app:
+      disposition: not_applicable
+      rationale: child-link composition uses authenticated IDs and locators, never slug
+    ui:
+      disposition: not_applicable
+      rationale: local slug has no presentation meaning
+    runtime:
+      disposition: not_applicable
+      rationale: local slug has no cast-state meaning
+  rationale: The exact authored local slug remains codec-retained typed nonsemantic provenance; it is never identity or a resolution locator.
+  owner: atlas-record::ConsumableSpellSourceContext
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.target.value
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-target-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-target-value
+  fixtures:
+  - case_id: consumable-spell-child-system-target-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:b1288adc5a16ca57fadbe67caf5a4c14656e4721e53826eca7dbddc041980146
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.target.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.target.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.target.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.target.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.time.value
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-time-value@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-time-value
+  fixtures:
+  - case_id: consumable-spell-child-system-time-value
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:20f6e5a8cb09b27e95f2b0021ec7c8d1a6cf212a1e2287e5c5fc0fbf43c046c2
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.time.value
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.time.value
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.time.value
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.time.value
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.traits.rarity
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-rarity@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - arboreal-child-rarity
+  fixtures:
+  - case_id: arboreal-child-rarity
+    record_key: equipment-srd:eOtQtVRLeGH39dNx
+    source_path: packs/equipment/arboreal-wand-rank-4.json
+    source_file_digest: sha256:96a8adc40af1ff0772e63854ae94ccd260c9539042f9dd0a7e7edae7f156fc93
+    excerpt_digest: sha256:f8cca14824123eb71000e0f235ac4b94a276217c54603b54d26eac324ccfcc43
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: SpellItemSource.rarity
+  - stage: canonical
+    destination: SpellDefinition.source_context.consumable_child.rarity
+  - stage: post_projection
+    destination: PostProjection::SpellDefinition.source_context.consumable_child.rarity
+  - stage: artifact_hydration
+    destination: ArtifactHydration::SpellDefinition.source_context.consumable_child.rarity
+  surfaces: *id001
+  rationale: The local child rarity is validated through Rarity and remains typed classification context instead of being borrowed from a resolved target; invalid drift is exact typed unsupported.
+  owner: atlas-record::ConsumableSpellSourceContext
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.traits.traditions[]
+  leaf_kind: array_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-traits-traditions-member@4cbdaa37
+    record_count: 190
+    occurrence_count: 20
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-traits-traditions-member
+  fixtures:
+  - case_id: consumable-spell-child-system-traits-traditions-member
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:78f279604535950fed30683da1d1ae91a11f3afcc8c53473513a1dc9572994f0
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.traits.traditions[]
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.traits.traditions[]
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.traits.traditions[]
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.traits.traditions[]
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.system.traits.value[]
+  leaf_kind: array_member
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-system-traits-value-member@4cbdaa37
+    record_count: 190
+    occurrence_count: 34
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-system-traits-value-member
+  fixtures:
+  - case_id: consumable-spell-child-system-traits-value-member
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:67508279ffa5aa8e6f39e058636325a7db9313fec5e70e1540d617029cc2d167
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: ConsumableSpellChildSource.spell::$.system.traits.value[]
+  - stage: canonical
+    destination: ConsumableSpellChild.definition::$.system.traits.value[]
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition::$.system.traits.value[]
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition::$.system.traits.value[]
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The consumable child keeps this authored spell-definition leaf in its local typed definition; resolving a standalone target does not replace local source data.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review
+- normalized_path: $.type
+  leaf_kind: scalar
+  expected_shapes:
+  - string
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+    entry_id: consumable-spell-child-type@4cbdaa37
+    record_count: 190
+    occurrence_count: 10
+  fixture_prevalence:
+    record_count: 1
+    occurrence_count: 1
+  disposition: promoted
+  reader:
+    reader_id: source::dto::ConsumableSpellChildSource
+    parity_case_ids:
+    - consumable-spell-child-type
+  fixtures:
+  - case_id: consumable-spell-child-type
+    record_key: equipment-srd:MXK38neBJmy2n2AE
+    source_path: packs/equipment/arboreal-wand-rank-2.json
+    source_file_digest: sha256:5158370cb3471ada969221c63e94f743379c3553c7b9656a79558b2e579ca49e
+    excerpt_digest: sha256:fd7ba3cd08680507e67774f51c53090aa04eccc328368ebeee0799582b383f9e
+    provenance: pinned_source
+  final_owners:
+  - stage: source_dto
+    destination: parse_spell_document_source.child_type_discriminator
+  - stage: canonical
+    destination: ConsumableSpellChild.definition (spell discriminator)
+  - stage: post_projection
+    destination: PostProjection::ConsumableSpellChild.definition (spell discriminator)
+  - stage: artifact_hydration
+    destination: ArtifactHydration::ConsumableSpellChild.definition (spell discriminator)
+  surfaces:
+    artifact:
+      disposition: promoted
+      rationale: H2-C canonical storage and strict hydration preserve this owner.
+    search:
+      disposition: deferred
+      rationale: H2-D owns typed retrieval
+    cli:
+      disposition: deferred
+      rationale: H2-D owns typed display
+    app:
+      disposition: deferred
+      rationale: H2-E owns child/link composition
+    ui:
+      disposition: deferred
+      rationale: H2-F owns embedded spell rendering
+    runtime:
+      disposition: not_applicable
+      rationale: creature occurrence state remains E3-owned
+  rationale: The exact spell discriminator controls DTO admission, canonical body construction, and post-projection membership.
+  owner: atlas-ingest::source::spells
+  acceptance_checkpoint: H2-B independent review

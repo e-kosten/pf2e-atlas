@@ -35,6 +35,7 @@ contract|crates/atlas-index/src/read/records/parse.rs
 contract|crates/atlas-index/src/read/records/relationships.rs
 contract|crates/atlas-index/src/read/records/rows.rs
 contract|crates/atlas-index/src/sqlite/reader.rs
+contract|crates/atlas-index/src/spell_query.rs
 contract|crates/atlas-index/src/write.rs
 contract|crates/atlas-index/src/write/input.rs
 contract|crates/atlas-index/src/write/sqlite.rs
@@ -78,6 +79,7 @@ contract|crates/atlas-record/src/model.rs
 contract|crates/atlas-record/src/reference_policy.rs
 contract|crates/atlas-record/src/retrieval_policy.rs
 contract|crates/atlas-record/src/retrieved_record.rs
+contract|crates/atlas-record/src/spell.rs
 
 # Source decoding and canonical normalization. Test-only siblings are excluded
 # by listing the production modules instead of matching the entire directory.
@@ -87,6 +89,7 @@ contract|crates/atlas-ingest/src/source/dto/embedded.rs
 contract|crates/atlas-ingest/src/source/dto/item.rs
 contract|crates/atlas-ingest/src/source/dto/npc.rs
 contract|crates/atlas-ingest/src/source/dto/presence.rs
+contract|crates/atlas-ingest/src/source/dto/spell.rs
 contract|crates/atlas-ingest/src/source/dto/value.rs
 contract|crates/atlas-ingest/src/source/dto/version.rs
 contract|crates/atlas-ingest/src/source/loader.rs
@@ -108,6 +111,7 @@ contract|crates/atlas-ingest/src/source/normalize/time.rs
 contract|crates/atlas-ingest/src/source/npc_core.rs
 contract|crates/atlas-ingest/src/source/npc_entities.rs
 contract|crates/atlas-ingest/src/source/owned_content.rs
+contract|crates/atlas-ingest/src/source/spells.rs
 
 # Canonical enrichment, references, generated records, and final build package.
 contract|crates/atlas-ingest/src/build.rs

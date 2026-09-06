@@ -8,9 +8,11 @@
 mod creature_core;
 mod diagnostic;
 mod embedded;
+mod hazard;
 mod item;
 mod npc;
 mod presence;
+mod spell;
 mod value;
 mod version;
 
@@ -21,7 +23,6 @@ pub use item::{
 };
 pub use npc::{ActorType, NpcSource, VersionedNpcSource, parse_npc_source};
 pub use presence::SourcePresence;
-pub use value::SerializedSourceObject;
 pub use version::{
     PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE,
     PF2E_SOURCE_PINNED_SYSTEM_ID, PF2E_SOURCE_PINNED_SYSTEM_VERSION, SourceVersionMetadata,
@@ -34,12 +35,25 @@ pub(crate) use embedded::{
     SourceTypeDrift, SpellDefenseSource, SpellSource, SpellcastingEntrySource, StrikeSource,
     UseLimitSource, ValueSummary,
 };
+pub(crate) use hazard::{
+    HazardDamageSource, HazardDefensesSource, HazardDetectionSource, HazardEmitsSoundSource,
+    HazardFrequencySource, HazardHitPointsSource, HazardItemSource, HazardIwrSource,
+    HazardLifecycleSource, HazardPublicationSource, HazardSaveSource, HazardSavesSource,
+    HazardSelfEffectSource, HazardSource, HazardSourceField, HazardSourceValue,
+    VersionedHazardSource, parse_hazard_source,
+};
 pub(crate) use item::{
     EmbeddedRelationshipKindSource, EmbeddedRelationshipSource, EmbeddedStableLocatorSource,
 };
+pub(crate) use npc::parse_npc_source_from_serialized;
+pub(crate) use spell::{
+    ConsumableSpellChildSource, SpellDocumentSource, SpellItemSource, parse_spell_document_source,
+};
 pub(crate) use value::{
-    RawSourceJson, actual_shape, optional_array_of_objects, optional_integer, optional_object,
-    optional_string, required_object, required_string,
+    LegacyDuplicateDisposition, RawSourceJson, SerializedSourceMember, SerializedSourceObject,
+    SerializedSourceValue, actual_shape, optional_array_of_objects, optional_integer,
+    optional_object, optional_string, parse_serialized_source_object, required_object,
+    required_string,
 };
 
 #[cfg(test)]

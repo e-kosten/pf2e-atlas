@@ -91,12 +91,39 @@ pub(crate) fn resolve_content_references(
 ) {
     for loaded in records {
         let record_key = loaded.record.identity.key.clone();
-        if let Some(RecordBody::Creature(creature)) = &mut loaded.facts.canonical_body {
-            for content in &mut creature.content.documents {
+        for child in &mut loaded.facts.canonical_spell_children {
+            for document in &mut child.definition.content.documents {
+                resolve_document_references(&mut document.document, index);
+                document.refresh_derived_state();
+            }
+        }
+        let canonical_content = match &mut loaded.facts.canonical_body {
+            Some(RecordBody::Creature(creature)) => Some(&mut creature.content),
+            Some(RecordBody::Hazard(hazard)) => Some(&mut hazard.content),
+            Some(RecordBody::Spell(spell)) => Some(&mut spell.definition.content),
+            None => None,
+        };
+        if let Some(content) = canonical_content {
+            for document in &mut content.documents {
+                resolve_document_references(&mut document.document, index);
+                document.refresh_derived_state();
+            }
+            loaded.record.content.documents = content
+                .documents
+                .iter()
+                .filter(|content| content.owner == ContentOwner::Record(record_key.clone()))
+                .map(|content| RecordContentDocument {
+                    source_kind: content.source_kind,
+                    label: content.label.clone(),
+                    document: content.document.clone(),
+                })
+                .collect();
+        } else if let Some(RecordBody::Hazard(hazard)) = &mut loaded.facts.canonical_body {
+            for content in &mut hazard.content.documents {
                 resolve_document_references(&mut content.document, index);
                 content.refresh_derived_state();
             }
-            loaded.record.content.documents = creature
+            loaded.record.content.documents = hazard
                 .content
                 .documents
                 .iter()
@@ -176,21 +203,39 @@ fn record_content_documents(
 fn owned_content_documents(
     loaded: &LoadedSourceRecord,
 ) -> Option<Vec<(ContentSourceKind, ContentVisibility, &RichDocument)>> {
-    let RecordBody::Creature(creature) = loaded.facts.canonical_body.as_ref()?;
-    Some(
-        creature
-            .content
-            .documents
+    let mut documents = match loaded.facts.canonical_body.as_ref() {
+        Some(RecordBody::Creature(creature)) => owned_documents(&creature.content),
+        Some(RecordBody::Hazard(hazard)) => owned_documents(&hazard.content),
+        Some(RecordBody::Spell(spell)) => owned_documents(&spell.definition.content),
+        None if !loaded.facts.canonical_spell_children.is_empty() => {
+            record_content_documents(&loaded.record)
+        }
+        None => return None,
+    };
+    documents.extend(
+        loaded
+            .facts
+            .canonical_spell_children
             .iter()
-            .filter(|content| {
-                !matches!(
-                    content.duplicate_status,
-                    DuplicateContentStatus::CopiedFromCanonicalTarget { .. }
-                )
-            })
-            .map(|content| (content.source_kind, content.visibility, &content.document))
-            .collect(),
-    )
+            .flat_map(|child| owned_documents(&child.definition.content)),
+    );
+    Some(documents)
+}
+
+fn owned_documents(
+    content: &atlas_record::OwnedRichContent,
+) -> Vec<(ContentSourceKind, ContentVisibility, &RichDocument)> {
+    content
+        .documents
+        .iter()
+        .filter(|content| {
+            !matches!(
+                content.duplicate_status,
+                DuplicateContentStatus::CopiedFromCanonicalTarget { .. }
+            )
+        })
+        .map(|content| (content.source_kind, content.visibility, &content.document))
+        .collect()
 }
 
 fn resolve_foundry_link(link: &FoundryLink, index: &RecordReferenceIndex) -> Option<RecordKey> {
@@ -271,10 +316,11 @@ mod tests {
 
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
-        AtlasRecord, ContentSourceKind, FoundryDocumentType, FoundryLink, FoundryLinkBehavior,
-        FoundryLinkMacroKind, FoundryLinkSource, FoundryRecordInfo, FoundryRecordType,
-        RecordClassification, RecordContentDocument, RecordIdentity, RecordProvenance,
-        RichDocument, RichLinkTarget, RichNode, iter_foundry_links,
+        AtlasRecord, ContentSourceKind, FactValue, FoundryDocumentType, FoundryLink,
+        FoundryLinkBehavior, FoundryLinkMacroKind, FoundryLinkSource, FoundryRecordInfo,
+        FoundryRecordType, RecordClassification, RecordContentDocument, RecordIdentity,
+        RecordProvenance, RichDocument, RichLinkTarget, RichNode, SpellIdentity, SpellProvenance,
+        SpellRecord, SpellSourceId, iter_foundry_links,
     };
 
     use super::{
@@ -330,6 +376,57 @@ mod tests {
             resolve_reference_edges(&records).is_empty(),
             "embedded content should resolve occurrences but stay out of default backlink edges"
         );
+    }
+
+    #[test]
+    fn canonical_spell_content_blocks_legacy_record_reference_fallback() {
+        let target = loaded_record("spells-srd:targetSpell", "Target Spell", Vec::new());
+        let mut host = loaded_record(
+            "spells-srd:hostSpell",
+            "Host Spell",
+            vec![RecordContentDocument {
+                source_kind: ContentSourceKind::Description,
+                label: None,
+                document: RichDocument::new(vec![RichNode::FoundryLink {
+                    link: FoundryLink {
+                        target: RichLinkTarget::Unresolved {
+                            target: "Compendium.pf2e.spells-srd.Item.Target Spell".to_string(),
+                            fallback_label: "Target Spell".to_string(),
+                        },
+                        label: None,
+                        source: FoundryLinkSource {
+                            macro_kind: FoundryLinkMacroKind::Uuid,
+                            authored_target: "Compendium.pf2e.spells-srd.Item.Target Spell"
+                                .to_string(),
+                            relation: None,
+                        },
+                        behavior: FoundryLinkBehavior::Reference,
+                    },
+                }]),
+            }],
+        );
+        let host_key = host.record.identity.key.clone();
+        host.facts.canonical_body = Some(atlas_record::RecordBody::Spell(SpellRecord::new(
+            SpellIdentity {
+                record_key: host_key,
+                source_id: SpellSourceId::new("hostSpell").expect("source id"),
+                name: "Host Spell".to_string(),
+            },
+            SpellProvenance {
+                source_path: "packs/spells/host-spell.json".to_string(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "6.12.4".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+                standalone_location: FactValue::Null,
+            },
+        )));
+        let mut records = vec![host, target];
+        let index = build_record_reference_index(&records);
+
+        resolve_content_references(&mut records, &index);
+
+        assert!(records[0].record.content.documents.is_empty());
+        assert!(resolve_reference_edges(&records).is_empty());
     }
 
     fn loaded_record(

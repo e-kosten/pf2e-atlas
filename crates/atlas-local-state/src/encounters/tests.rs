@@ -241,6 +241,7 @@ fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::
             display_name: participant.display_name,
             side: participant.side,
             participant_variant: ParticipantVariant::Elite,
+            hazard_state: participant.hazard_state,
             initiative: participant.initiative,
             max_hp: participant.max_hp,
             current_hp: participant.current_hp,
@@ -303,6 +304,7 @@ fn participant_reset_restores_creation_mechanics_and_preserves_authored_fields()
         display_name: "Custom Name".to_string(),
         side: ParticipantSide::Ally,
         participant_variant: ParticipantVariant::Elite,
+        hazard_state: ParticipantHazardState::Disabled,
         initiative: Some(12),
         max_hp: Some(42),
         current_hp: Some(3),
@@ -325,6 +327,15 @@ fn participant_reset_restores_creation_mechanics_and_preserves_authored_fields()
     assert_eq!(
         reset.participant.participant_variant,
         ParticipantVariant::Normal
+    );
+    assert_eq!(
+        reset.participant.hazard_state,
+        ParticipantHazardState::Active
+    );
+    assert!(
+        reset
+            .reset_domains
+            .contains(&EncounterParticipantResetDomain::HazardState)
     );
     assert_eq!(reset.participant.initiative, Some(18));
     assert_eq!(
@@ -387,6 +398,7 @@ fn participant_reset_failure_rolls_back_every_mechanical_domain()
         display_name: "Preserved Custom Name".to_string(),
         side: ParticipantSide::Ally,
         participant_variant: ParticipantVariant::Elite,
+        hazard_state: ParticipantHazardState::Disabled,
         initiative: Some(12),
         max_hp: Some(42),
         current_hp: Some(3),

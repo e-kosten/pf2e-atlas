@@ -5,9 +5,11 @@ use crate::source::SourceLoad;
 pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
     let mut records = Vec::with_capacity(source.records.len());
     let mut canonical_bodies = Vec::new();
+    let mut canonical_spell_children = Vec::new();
     for loaded in source.records {
         records.push(loaded.record);
         canonical_bodies.extend(loaded.facts.canonical_body);
+        canonical_spell_children.extend(loaded.facts.canonical_spell_children);
     }
     IndexBuildInput {
         source_signature: source.source_signature,
@@ -26,6 +28,7 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
             .collect(),
         records,
         canonical_bodies,
+        canonical_spell_children,
         references: source.references,
         aliases: source.aliases,
         remaster_links: source.remaster_links,
@@ -45,9 +48,10 @@ mod tests {
     };
     use atlas_record::{
         AliasSource, AtlasRecord, ContentExclusion, ContentExclusionReason, ContentKey,
-        ContentSourceKind, ContentVisibility, FoundryDocumentType, FoundryRecordInfo,
+        ContentSourceKind, ContentVisibility, FactValue, FoundryDocumentType, FoundryRecordInfo,
         FoundryRecordType, RecordAlias, RecordBody, RecordClassification, RecordIdentity,
-        RecordProvenance, ReferenceEdge, RemasterLink,
+        RecordProvenance, ReferenceEdge, RemasterLink, SpellChildId, SpellSourceId,
+        SpellSourceValue,
     };
 
     use super::index_build_input;
@@ -56,10 +60,263 @@ mod tests {
     use crate::records::{LoadedSourceRecord, SourceConstructionFacts};
     use crate::source::normalize::normalize_record;
     use crate::source::npc_entities::finalize_npc_embedded_entities;
-    use crate::source::owned_content::finalize_npc_owned_content;
+    use crate::source::owned_content::{finalize_hazard_owned_content, finalize_npc_owned_content};
     use crate::source::{LoadedPack, SourceLoad};
     use serde_json::json;
     use sha2::{Digest, Sha256};
+
+    #[test]
+    fn late_consumable_child_projection_failure_rolls_back_the_whole_artifact() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract");
+        let source = crate::source_pipeline::load_foundry_source(&root, None)
+            .expect("portable spell fixture source");
+        let mut input = index_build_input(source);
+        let mut duplicate = input
+            .canonical_spell_children
+            .first()
+            .expect("fixture consumable spell child")
+            .clone();
+        duplicate.child_id =
+            SpellChildId::new("late-duplicate-order").expect("valid distinct child ID");
+        input.canonical_spell_children.push(duplicate);
+
+        let path = unique_temp_path("late-spell-child-rollback.sqlite");
+        std::fs::write(&path, b"existing artifact").expect("seed recoverable target artifact");
+        let error = atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("late child projection failure must abort the artifact transaction");
+        assert!(error.to_string().contains("UNIQUE constraint failed"));
+        assert_eq!(
+            std::fs::read(&path).expect("original target remains readable"),
+            b"existing artifact"
+        );
+        let staged = std::fs::read_dir(path.parent().expect("temporary parent"))
+            .expect("temporary parent readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains(".rebuild-"));
+        assert!(
+            !staged,
+            "failed transaction must remove its staged database"
+        );
+        std::fs::remove_dir_all(path.parent().expect("temporary parent"))
+            .expect("temporary rollback fixture cleanup");
+    }
+
+    #[test]
+    fn spell_writer_rejects_missing_and_mismatched_canonical_body_ownership() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract");
+        let source = crate::source_pipeline::load_foundry_source(&root, None)
+            .expect("portable spell fixture source");
+        let mut missing = index_build_input(source);
+        missing
+            .canonical_bodies
+            .retain(|body| body.record_key().to_string() != "spells-srd:rfZpqmj0AIIdkVIs");
+        let missing_path = unique_temp_path("missing-spell-body.sqlite");
+        let error = atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(missing_path.clone()),
+            &missing,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("standalone spell without a body must fail closed");
+        assert!(
+            error
+                .to_string()
+                .contains("missing its required canonical body")
+        );
+        std::fs::remove_dir_all(missing_path.parent().expect("temporary parent"))
+            .expect("missing-body fixture cleanup");
+
+        let source = crate::source_pipeline::load_foundry_source(&root, None)
+            .expect("portable spell fixture source");
+        let mut mismatched = index_build_input(source);
+        let heal = mismatched
+            .records
+            .iter_mut()
+            .find(|record| record.identity.key.to_string() == "spells-srd:rfZpqmj0AIIdkVIs")
+            .expect("Heal record");
+        heal.classification.kind = RecordKind::Rule;
+        let mismatched_path = unique_temp_path("mismatched-spell-body.sqlite");
+        let error = atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(mismatched_path.clone()),
+            &mismatched,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("spell body and generic record kind must agree");
+        assert!(
+            error
+                .to_string()
+                .contains("canonical body kind that disagrees")
+        );
+        std::fs::remove_dir_all(mismatched_path.parent().expect("temporary parent"))
+            .expect("mismatched-body fixture cleanup");
+
+        for mismatch in ["name", "source-id"] {
+            let source = crate::source_pipeline::load_foundry_source(&root, None)
+                .expect("portable spell fixture source");
+            let mut input = index_build_input(source);
+            let spell = input
+                .canonical_bodies
+                .iter_mut()
+                .find_map(|body| match body {
+                    RecordBody::Spell(spell)
+                        if spell.identity.record_key.to_string()
+                            == "spells-srd:rfZpqmj0AIIdkVIs" =>
+                    {
+                        Some(spell)
+                    }
+                    RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+                })
+                .expect("Heal spell body");
+            match mismatch {
+                "name" => spell.identity.name = "Wrong Heal".to_string(),
+                "source-id" => {
+                    spell.identity.source_id =
+                        SpellSourceId::new("wrongSourceId").expect("valid wrong source ID");
+                }
+                _ => unreachable!(),
+            }
+            let path = unique_temp_path(&format!("spell-owner-{mismatch}.sqlite"));
+            let error = atlas_index::IndexArtifactWriter::write(
+                &atlas_index::SqliteIndexWriter::new(path.clone()),
+                &input,
+                atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+            )
+            .expect_err("spell body identity must match the generic record owner");
+            assert!(
+                error
+                    .to_string()
+                    .contains("does not match its generic record owner"),
+                "{mismatch}: {error}"
+            );
+            std::fs::remove_dir_all(path.parent().expect("temporary parent"))
+                .expect("identity-mismatch fixture cleanup");
+        }
+    }
+
+    #[test]
+    fn spell_storage_preserves_query_multiplicity_and_rejects_child_identity_collisions()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract");
+        let source = crate::source_pipeline::load_foundry_source(&root, None)?;
+        let mut input = index_build_input(source);
+        let heal_key = RecordKey::parse("spells-srd:rfZpqmj0AIIdkVIs")?;
+        let heal = input
+            .canonical_bodies
+            .iter_mut()
+            .find_map(|body| match body {
+                RecordBody::Spell(spell) if spell.identity.record_key == heal_key => Some(spell),
+                RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+            })
+            .expect("Heal canonical spell body");
+        let FactValue::Value(SpellSourceValue::Known(classification)) =
+            &mut heal.definition.classification
+        else {
+            panic!("Heal classification must be known");
+        };
+        let FactValue::Value(SpellSourceValue::Known(traditions)) = &mut classification.traditions
+        else {
+            panic!("Heal traditions must be known");
+        };
+        traditions.push(traditions[0].clone());
+
+        let path = unique_temp_path("spell-query-multiplicity.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        let connection = rusqlite::Connection::open(&path)?;
+        let traditions = connection
+            .prepare(
+                "SELECT authored_order, tradition FROM spell_traditions
+                 WHERE record_key=?1 ORDER BY authored_order",
+            )?
+            .query_map([heal_key.to_string()], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            traditions,
+            vec![
+                (0, "divine".to_string()),
+                (1, "primal".to_string()),
+                (2, "divine".to_string()),
+            ],
+            "query rows retain authored order and duplicate tradition values"
+        );
+        let duplicate_damage_key = "spells-srd:nonlexicalSpellMaps";
+        let damage = connection
+            .prepare(
+                "SELECT damage_key, damage_authored_order, type_authored_order, damage_type
+                 FROM spell_damage_types WHERE record_key=?1
+                 ORDER BY damage_authored_order, type_authored_order",
+            )?
+            .query_map([duplicate_damage_key], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            damage,
+            vec![
+                ("zeta-damage".to_string(), 0, 0, "force".to_string()),
+                ("alpha-damage".to_string(), 1, 0, "spirit".to_string()),
+                ("zeta-damage".to_string(), 2, 0, "force".to_string()),
+            ],
+            "query rows retain duplicate damage keys and authored map order"
+        );
+        drop(connection);
+        write_test_manifest(&path)?;
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        assert_eq!(
+            reader
+                .load_hydrated_records_by_key(
+                    &[heal_key, RecordKey::parse(duplicate_damage_key)?,]
+                )?
+                .len(),
+            2,
+            "bounded public hydration reconciles the multiplicity-preserving projection"
+        );
+        remove_test_artifact(&path)?;
+
+        for collision in ["child-id", "child-order"] {
+            let source = crate::source_pipeline::load_foundry_source(&root, None)?;
+            let mut input = index_build_input(source);
+            let mut duplicate = input.canonical_spell_children[0].clone();
+            match collision {
+                "child-id" => duplicate.authored_order = 1,
+                "child-order" => {
+                    duplicate.child_id =
+                        SpellChildId::new("distinct-child").expect("valid distinct child ID");
+                }
+                _ => unreachable!(),
+            }
+            input.canonical_spell_children.push(duplicate);
+            let path = unique_temp_path(&format!("spell-{collision}.sqlite"));
+            let error = atlas_index::IndexArtifactWriter::write(
+                &atlas_index::SqliteIndexWriter::new(path.clone()),
+                &input,
+                atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+            )
+            .expect_err("duplicate child identity or authored order must fail closed");
+            assert!(
+                error.to_string().contains("UNIQUE constraint failed"),
+                "{collision}: {error}"
+            );
+            remove_test_artifact(&path)?;
+        }
+        Ok(())
+    }
 
     #[test]
     fn ordinary_fixture_rejects_wrong_valid_relational_values_extra_rows_and_hydration_gaps()
@@ -195,19 +452,21 @@ mod tests {
         assert!(missing_report.diagnostics.iter().any(|diagnostic| {
             diagnostic.key.as_deref() == Some("canonical_creature_records.missing_npc_body")
         }));
+        let all_error = missing_reader.load_hydrated_records().unwrap_err();
         assert!(
-            missing_reader
-                .load_hydrated_records()
-                .unwrap_err()
+            all_error
                 .to_string()
-                .contains("missing its required creature body")
+                .contains("canonical creature `bestiary:actor` is missing its required body"),
+            "unexpected hydration error: {all_error}"
         );
+        let keyed_error = missing_reader
+            .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
+            .unwrap_err();
         assert!(
-            missing_reader
-                .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
-                .unwrap_err()
+            keyed_error
                 .to_string()
-                .contains("missing its required creature body")
+                .contains("canonical creature `bestiary:actor` is missing its required body"),
+            "unexpected keyed hydration error: {keyed_error}"
         );
         remove_test_artifact(&missing)?;
 
@@ -223,19 +482,21 @@ mod tests {
         assert!(extra_report.diagnostics.iter().any(|diagnostic| {
             diagnostic.key.as_deref() == Some("canonical_creature_records.non_npc_body")
         }));
+        let all_error = extra_reader.load_hydrated_records().unwrap_err();
         assert!(
-            extra_reader
-                .load_hydrated_records()
-                .unwrap_err()
+            all_error
                 .to_string()
-                .contains("unexpected canonical creature body")
+                .contains("incompatible classification/foundry kinds"),
+            "unexpected hydration error: {all_error}"
         );
+        let keyed_error = extra_reader
+            .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
+            .unwrap_err();
         assert!(
-            extra_reader
-                .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
-                .unwrap_err()
+            keyed_error
                 .to_string()
-                .contains("unexpected canonical creature body")
+                .contains("incompatible classification/foundry kinds"),
+            "unexpected keyed hydration error: {keyed_error}"
         );
         remove_test_artifact(&extra)?;
         remove_test_artifact(&path)?;
@@ -315,6 +576,326 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn mixed_creature_and_hazard_bodies_round_trip_by_requested_key()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let input = mixed_canonical_fixture_input();
+        let path = unique_temp_path("mixed-canonical-hazard.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        write_test_manifest(&path)?;
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        assert_eq!(reader.validate()?.status, atlas_index::ValidationStatus::Ok);
+
+        let hazard_key = input
+            .records
+            .iter()
+            .find(|record| record.classification.kind == RecordKind::Hazard)
+            .expect("hazard record")
+            .identity
+            .key
+            .clone();
+        let requested = reader.load_hydrated_records_by_key(std::slice::from_ref(&hazard_key))?;
+        assert_eq!(requested.len(), 1);
+        let RecordBody::Hazard(hazard) = requested[0].body.as_ref().expect("hazard body") else {
+            panic!("requested hazard body")
+        };
+        assert_eq!(hazard.identity.source_id.as_str(), "BHq5wpQU8hQEke8D");
+        assert_eq!(hazard.identity.name, "Hidden Pit");
+        assert_eq!(
+            hazard
+                .embedded_entities
+                .typed()
+                .expect("embedded")
+                .occurrences
+                .iter()
+                .map(|occurrence| occurrence.id.as_str())
+                .collect::<Vec<_>>(),
+            ["lY83oUjx0DLxDByK"]
+        );
+        let all = reader.load_hydrated_records()?;
+        assert!(
+            all.iter()
+                .any(|row| matches!(row.body, Some(RecordBody::Creature(_))))
+        );
+        assert!(
+            all.iter()
+                .any(|row| matches!(row.body, Some(RecordBody::Hazard(_))))
+        );
+        assert!(reader.validate_canonical_coherence()?.is_empty());
+
+        let connection = rusqlite::Connection::open(&path)?;
+        let (hazards, entities, occurrences, actor_rows): (i64, i64, i64, i64) = (
+            connection.query_row("SELECT COUNT(*) FROM canonical_hazard_records", [], |row| {
+                row.get(0)
+            })?,
+            connection.query_row(
+                "SELECT COUNT(*) FROM canonical_hazard_entities",
+                [],
+                |row| row.get(0),
+            )?,
+            connection.query_row(
+                "SELECT COUNT(*) FROM canonical_hazard_occurrences",
+                [],
+                |row| row.get(0),
+            )?,
+            connection.query_row(
+                "SELECT COUNT(*) FROM actor_records WHERE record_key=?1",
+                [hazard_key.to_string()],
+                |row| row.get(0),
+            )?,
+        );
+        assert_eq!((hazards, entities, occurrences, actor_rows), (1, 1, 1, 0));
+        let hazard_metric_keys = connection
+            .prepare("SELECT metric_key FROM record_metrics WHERE record_key=?1 ORDER BY ordinal")?
+            .query_map([hazard_key.to_string()], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert!(hazard_metric_keys.iter().any(|key| key == "stealth.mod"));
+        assert!(hazard_metric_keys.iter().any(|key| key == "hp.max"));
+        assert!(!hazard_metric_keys.iter().any(|key| key == "stealth.dc"));
+        assert!(!hazard_metric_keys.iter().any(|key| key == "hp.bt"));
+        let relationship_count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM canonical_hazard_relationships WHERE record_key=?1",
+            [hazard_key.to_string()],
+            |row| row.get(0),
+        )?;
+        assert_eq!(relationship_count, 1);
+        let (owner_kind, target_kind, target_json): (String, String, String) = connection.query_row(
+            "SELECT owner_kind,target_kind,target_json FROM reference_occurrences WHERE record_key=?1",
+            [hazard_key.to_string()],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        assert_eq!(owner_kind, "hazard_occurrence");
+        assert_eq!(target_kind, "unresolved");
+        assert!(target_json.contains("Grab an Edge"));
+        drop(connection);
+
+        for (name, sql, expected) in [
+            (
+                "hazard-identity",
+                "UPDATE canonical_hazard_records SET source_id='different' WHERE record_key='hazards:BHq5wpQU8hQEke8D'",
+                "canonical hazard identity diverges",
+            ),
+            (
+                "hazard-order",
+                "PRAGMA foreign_keys=OFF; UPDATE canonical_hazard_occurrences SET authored_order=5 WHERE record_key='hazards:BHq5wpQU8hQEke8D'",
+                "exact relational projection",
+            ),
+            (
+                "hazard-entity",
+                "UPDATE canonical_hazard_entities SET label=label || ' corrupt' WHERE record_key='hazards:BHq5wpQU8hQEke8D'",
+                "exact relational projection",
+            ),
+        ] {
+            assert_corruption_detected(&path, name, sql, expected)?;
+        }
+        assert_corruption_detected(
+            &path,
+            "hazard-orphan",
+            "PRAGMA foreign_keys=OFF; UPDATE canonical_hazard_occurrences SET entity_id='missing' WHERE record_key='hazards:BHq5wpQU8hQEke8D'",
+            "foreign key",
+        )?;
+
+        let missing = copy_for_corruption(&path, "hazard-missing-body")?;
+        rusqlite::Connection::open(&missing)?.execute_batch(
+            "PRAGMA foreign_keys=OFF;
+             DELETE FROM reference_occurrences WHERE record_key='hazards:BHq5wpQU8hQEke8D';
+             DELETE FROM record_content WHERE record_key='hazards:BHq5wpQU8hQEke8D';
+             DELETE FROM record_content_exclusions WHERE record_key='hazards:BHq5wpQU8hQEke8D';
+             DELETE FROM canonical_hazard_relationships WHERE record_key='hazards:BHq5wpQU8hQEke8D';
+             DELETE FROM canonical_hazard_occurrences WHERE record_key='hazards:BHq5wpQU8hQEke8D';
+             DELETE FROM canonical_hazard_entities WHERE record_key='hazards:BHq5wpQU8hQEke8D';
+             DELETE FROM canonical_hazard_records WHERE record_key='hazards:BHq5wpQU8hQEke8D';",
+        )?;
+        write_test_manifest(&missing)?;
+        let missing_reader = atlas_index::SqliteIndexReader::open_read_only(&missing)?;
+        let report = missing_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("canonical_hazard_records.missing_hazard_body")
+        }));
+        assert!(
+            missing_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&hazard_key))
+                .unwrap_err()
+                .to_string()
+                .contains("missing its required hazard body")
+        );
+        remove_test_artifact(&missing)?;
+
+        let wrong_kind = copy_for_corruption(&path, "hazard-wrong-record-kind")?;
+        rusqlite::Connection::open(&wrong_kind)?.execute(
+            "UPDATE records SET record_kind='rule' WHERE record_key=?1",
+            [hazard_key.to_string()],
+        )?;
+        write_test_manifest(&wrong_kind)?;
+        let wrong_kind_reader = atlas_index::SqliteIndexReader::open_read_only(&wrong_kind)?;
+        let report = wrong_kind_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("records.canonical_family_mismatch")
+        }));
+        for error in [
+            wrong_kind_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&hazard_key))
+                .expect_err("requested hazard hydration must reject a non-hazard record kind"),
+            wrong_kind_reader
+                .load_hydrated_records()
+                .expect_err("all-record hydration must reject a non-hazard record kind"),
+        ] {
+            assert!(
+                error.to_string().contains("record kind `rule`"),
+                "unexpected strict-family error: {error}"
+            );
+        }
+        remove_test_artifact(&wrong_kind)?;
+
+        let stale = copy_for_corruption(&path, "hazard-stale-contract")?;
+        rusqlite::Connection::open(&stale)?.execute(
+            "UPDATE artifact_metadata SET value='pf2e-atlas-artifact/v5' WHERE key='artifact_contract_version'",
+            [],
+        )?;
+        write_test_manifest(&stale)?;
+        let error = match atlas_index::SqliteIndexReader::open_read_only(&stale) {
+            Ok(_) => panic!("stale hazard artifact must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("artifact contract"));
+        remove_test_artifact(&stale)?;
+        remove_test_artifact(&path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn gate_i_combined_artifact_preserves_all_families_and_shared_owners()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let input = gate_i_combined_fixture_input();
+        let path = unique_temp_path("gate-i-combined.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        write_test_manifest(&path)?;
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        assert_eq!(reader.validate()?.status, atlas_index::ValidationStatus::Ok);
+
+        let hydrated = reader.load_hydrated_records()?;
+        let creature = hydrated
+            .iter()
+            .find(|record| record.record.identity.key.to_string() == "bestiary:actor")
+            .expect("unchanged creature");
+        let RecordBody::Creature(creature_body) = creature.body.as_ref().expect("creature body")
+        else {
+            panic!("creature dispatch")
+        };
+        assert!(!creature_body.content.documents.is_empty());
+
+        let hazard = hydrated
+            .iter()
+            .find(|record| record.record.identity.key.to_string() == "hazards:BHq5wpQU8hQEke8D")
+            .expect("Hidden Pit hazard");
+        let RecordBody::Hazard(hazard_body) = hazard.body.as_ref().expect("hazard body") else {
+            panic!("hazard dispatch")
+        };
+        assert!(!hazard_body.content.documents.is_empty());
+        assert_eq!(hazard_body.relationships.len(), 1);
+
+        let spell = hydrated
+            .iter()
+            .find(|record| record.record.identity.key.to_string() == "spells-srd:Popa5umI3H33levx")
+            .expect("Rime Slick spell");
+        let RecordBody::Spell(spell_body) = spell.body.as_ref().expect("spell body") else {
+            panic!("spell dispatch")
+        };
+        assert_eq!(spell_body.identity.name, "Rime Slick");
+
+        let heal = hydrated
+            .iter()
+            .find(|record| record.record.identity.key.to_string() == "spells-srd:rfZpqmj0AIIdkVIs")
+            .expect("Heal spell");
+        let RecordBody::Spell(heal_body) = heal.body.as_ref().expect("Heal body") else {
+            panic!("Heal spell dispatch")
+        };
+        assert!(!heal_body.definition.content.documents.is_empty());
+
+        let wand_key = RecordKey::parse("equipment-srd:eOtQtVRLeGH39dNx")?;
+        let wand = hydrated
+            .iter()
+            .find(|record| record.record.identity.key == wand_key)
+            .expect("unchanged non-spell consumable");
+        assert_eq!(
+            wand.record.foundry.record_type,
+            FoundryRecordType::Consumable
+        );
+        assert!(wand.body.is_none());
+        assert_eq!(wand.spell_children.len(), 1);
+        assert_eq!(wand.spell_children[0].child_id.as_str(), "7w37duycMs4YOBeu");
+        assert!(!wand.record.content.documents.is_empty());
+
+        let references = reader
+            .reference_edges_for_seed(&wand_key, atlas_index::ReferenceEdgeDirection::Outgoing)?;
+        assert_eq!(references.len(), 1);
+        assert_eq!(references[0].display_text.as_deref(), Some("Heal"));
+
+        drop(reader);
+        rusqlite::Connection::open(&path)?.execute(
+            "UPDATE records SET record_kind='spell' WHERE record_key=?1",
+            [wand_key.to_string()],
+        )?;
+        write_test_manifest(&path)?;
+        let corrupted_reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        let validation = corrupted_reader.validate()?;
+        assert_eq!(validation.status, atlas_index::ValidationStatus::Error);
+        assert!(validation.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("records.canonical_family_mismatch")
+        }));
+        drop(corrupted_reader);
+
+        remove_test_artifact(&path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn hazard_foreign_key_failure_preserves_existing_artifact_atomically()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut input = mixed_canonical_fixture_input();
+        let path = unique_temp_path("hazard-atomic-failure.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        let before = std::fs::read(&path)?;
+        let hazard = input
+            .canonical_bodies
+            .iter_mut()
+            .find_map(|body| match body {
+                RecordBody::Hazard(hazard) => Some(hazard),
+                RecordBody::Creature(_) | RecordBody::Spell(_) => None,
+            })
+            .expect("hazard body");
+        let FactValue::Value(atlas_record::HazardSourceValue::Typed(embedded)) =
+            &mut hazard.embedded_entities.value
+        else {
+            panic!("embedded")
+        };
+        embedded.entities.clear();
+        let error = atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("hazard occurrence must not outlive its entity");
+        assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
+        assert_eq!(std::fs::read(&path)?, before);
+        remove_test_artifact(&path)?;
+        Ok(())
+    }
+
     fn assert_corruption_detected(
         source: &std::path::Path,
         name: &str,
@@ -327,7 +908,7 @@ mod tests {
             .execute_batch(sql)
             .map_err(|error| format!("corruption fixture `{name}` failed to apply: {error}"))?;
         drop(connection);
-        assert_validation_message(&path, expected_message, name == "orphan")
+        assert_validation_message(&path, expected_message, name.ends_with("orphan"))
     }
 
     fn assert_validation_message(
@@ -532,10 +1113,11 @@ mod tests {
         finalize_npc_embedded_entities(&mut records, &reference_index);
         finalize_npc_owned_content(&mut records);
         resolve_content_references(&mut records, &reference_index);
-        let RecordBody::Creature(creature) = records[0]
+        let creature = records[0]
             .facts
             .canonical_body
             .as_mut()
+            .and_then(RecordBody::creature_mut)
             .expect("creature body");
         creature.content.exclusions.push(ContentExclusion {
             parent_record_key: creature.identity.record_key.clone(),
@@ -567,6 +1149,75 @@ mod tests {
             skipped_records: Vec::new(),
             warnings: Vec::new(),
         })
+    }
+
+    fn mixed_canonical_fixture_input() -> atlas_index::IndexBuildInput {
+        let mut input = canonical_fixture_input();
+        let source_root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hazards/pinned");
+        let relative = Path::new("packs/hazards/hidden-pit.json");
+        let source_path = source_root.join(relative);
+        let bytes = std::fs::read(&source_path).expect("checked-in Hidden Pit fixture");
+        let pack_name = PackName::new("hazards").expect("hazard pack");
+        let loaded = crate::source::normalize::normalize_record_from_source_bytes(
+            &crate::source::ManifestPack {
+                name: "hazards".to_string(),
+                label: "Hazards".to_string(),
+                document_type: "Actor".to_string(),
+                path: "packs/hazards".to_string(),
+            },
+            &pack_name,
+            &source_path,
+            &source_root,
+            &bytes,
+            None,
+        )
+        .expect("Hidden Pit normalizes");
+        let mut records = vec![loaded];
+        finalize_hazard_owned_content(&mut records);
+        let reference_index = build_record_reference_index(&records);
+        resolve_content_references(&mut records, &reference_index);
+        let loaded = records.pop().expect("hazard record");
+        input
+            .canonical_bodies
+            .push(loaded.facts.canonical_body.clone().expect("hazard body"));
+        input.records.push(loaded.record);
+        input.packs.push(atlas_index::IndexBuildPack {
+            name: pack_name,
+            label: "Hazards".to_string(),
+            document_type: "Actor".to_string(),
+            declared_path: "packs/hazards".to_string(),
+            resolved_path: PathBuf::from("packs/hazards"),
+            record_count: 1,
+        });
+        input.source_record_count += 1;
+        input
+    }
+
+    fn gate_i_combined_fixture_input() -> atlas_index::IndexBuildInput {
+        let mut combined = mixed_canonical_fixture_input();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract");
+        let spell_source = crate::source_pipeline::load_foundry_source(&root, None)
+            .expect("portable spell fixture source");
+        let spell = index_build_input(spell_source);
+        combined.source_record_count += spell.source_record_count;
+        combined.packs.extend(spell.packs);
+        combined.records.extend(spell.records);
+        combined.canonical_bodies.extend(spell.canonical_bodies);
+        combined
+            .canonical_spell_children
+            .extend(spell.canonical_spell_children);
+        combined.references.extend(spell.references);
+        combined.aliases.extend(spell.aliases);
+        combined.remaster_links.extend(spell.remaster_links);
+        combined
+            .pending_document_embeddings
+            .extend(spell.pending_document_embeddings);
+        combined
+            .document_embeddings
+            .extend(spell.document_embeddings);
+        combined
     }
 
     fn record(pack_name: &str, id: &str, kind: RecordKind) -> AtlasRecord {

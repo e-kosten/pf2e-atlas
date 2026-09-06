@@ -47,6 +47,40 @@ pub fn write_creature_preview_source(root: &Path) -> Result<(), Box<dyn std::err
     copy_fixture_source("creature-preview", root)
 }
 
+pub fn write_hazard_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let pack = root.join("packs/hazards");
+    let actions = root.join("packs/actionspf2e");
+    fs::create_dir_all(&pack)?;
+    fs::create_dir_all(&actions)?;
+    fs::write(
+        root.join("module.json"),
+        r#"{"packs":[{"name":"hazards","label":"Hazards","type":"Actor","path":"packs/hazards"},{"name":"actionspf2e","label":"Actions","type":"Item","path":"packs/actionspf2e"}]}"#,
+    )?;
+    let hazard_path = pack.join("hidden-pit.json");
+    fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../atlas-ingest/tests/fixtures/hazards/pinned/packs/hazards/hidden-pit.json"),
+        &hazard_path,
+    )?;
+    let mut hazard: serde_json::Value = serde_json::from_slice(&fs::read(&hazard_path)?)?;
+    let description = hazard
+        .pointer_mut("/system/details/description")
+        .and_then(|value| value.as_str())
+        .ok_or("Hidden Pit description fixture")?
+        .to_string();
+    *hazard
+        .pointer_mut("/system/details/description")
+        .ok_or("Hidden Pit description fixture")? = serde_json::Value::String(format!(
+        "{description}<p>Reference fixture: @UUID[Compendium.pf2e.actionspf2e.Item.Grab an Edge].</p>"
+    ));
+    fs::write(&hazard_path, serde_json::to_vec(&hazard)?)?;
+    fs::write(
+        actions.join("grab-an-edge.json"),
+        r#"{"_id":"grabEdgeTest0001","name":"Grab an Edge","type":"action","system":{"description":{"value":"<p>A referenced reaction.</p>"},"traits":{"value":[]}}}"#,
+    )?;
+    Ok(())
+}
+
 pub fn write_ambiguous_action_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_fixture_source("ambiguous-actions", root)
 }

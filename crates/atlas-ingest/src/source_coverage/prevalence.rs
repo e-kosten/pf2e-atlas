@@ -13,7 +13,7 @@ use super::{SourceLeafIdentity, SourceLeafSelector};
 
 pub const PF2E_SOURCE_LEAF_PREVALENCE_VERSION: &str = "pf2e-source-leaf-prevalence/v1";
 pub const PF2E_SOURCE_LEAF_PREVALENCE_SHA256: &str =
-    "466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf";
+    "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097";
 
 const PREVALENCE_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -77,7 +77,6 @@ pub(crate) fn accepted_prevalence() -> Result<&'static [PrevalenceEntry], String
                 if entry.entry_id.trim().is_empty()
                     || !entry_ids.insert(entry.entry_id.as_str())
                     || !identities.insert(entry.identity())
-                    || entry.occurrence_count < entry.record_count
                 {
                     return Err("accepted leaf prevalence entries require unique non-empty identities and valid counts".to_string());
                 }
@@ -112,6 +111,32 @@ pub(crate) fn accepted_prevalence() -> Result<&'static [PrevalenceEntry], String
 mod tests {
     use super::*;
 
+    const HAZARD_LEDGERS: [&str; 4] = [
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/actor-hazard.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/item-action-embedded-hazard.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/item-melee-embedded-hazard.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml"
+        )),
+    ];
+
+    const HAZARD_PREVALENCE_TYPE_IDS: [&str; 4] = [
+        "actor--hazard--top-level--root--root--root",
+        "item--action--embedded--actor--hazard--actor-items",
+        "item--melee--embedded--actor--hazard--actor-items",
+        "item--consumable--embedded--actor--hazard--actor-items",
+    ];
+
     #[test]
     fn accepted_prevalence_is_digest_pin_registry_and_count_bound() {
         let entries = accepted_prevalence().expect("accepted prevalence");
@@ -121,5 +146,42 @@ mod tests {
             .expect("action name prevalence");
         assert_eq!(action_name.record_count, 1_169);
         assert_eq!(action_name.occurrence_count, 1_169);
+        let sparse_spell_rules = entries
+            .iter()
+            .find(|entry| entry.entry_id == "item-spell-top-level-rule-key@4cbdaa37")
+            .expect("spell rule prevalence");
+        assert_eq!(sparse_spell_rules.record_count, 1_716);
+        assert_eq!(sparse_spell_rules.occurrence_count, 14);
+    }
+
+    #[test]
+    fn h1_bc_hazard_ledgers_exactly_partition_the_authenticated_inventory() {
+        let inventory = accepted_prevalence().expect("accepted prevalence");
+        let inventory_hazard_identities = inventory
+            .iter()
+            .filter(|entry| HAZARD_PREVALENCE_TYPE_IDS.contains(&entry.type_id.as_str()))
+            .map(PrevalenceEntry::identity)
+            .collect::<BTreeSet<_>>();
+        let declared_hazard_identities = HAZARD_LEDGERS
+            .iter()
+            .flat_map(|source| {
+                super::super::parse_source_leaf_ledger(source)
+                    .expect("hazard ledger parses")
+                    .leaves
+                    .into_iter()
+                    .map(|leaf| leaf.normalized_path)
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        let mut declared = BTreeSet::new();
+        for source in HAZARD_LEDGERS {
+            let ledger =
+                super::super::parse_source_leaf_ledger(source).expect("hazard ledger parses");
+            declared.extend(ledger.leaves.iter().map(|leaf| ledger.identity_for(leaf)));
+        }
+
+        assert_eq!(declared, inventory_hazard_identities);
+        assert_eq!(declared_hazard_identities.len(), declared.len());
     }
 }

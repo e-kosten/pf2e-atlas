@@ -7,7 +7,8 @@ The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant D
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
 - Rust `atlas-app-model` and `atlas-app-service` own product DTOs and workflow semantics.
 - Frontend code should not recreate filter catalogs, retrieval semantics, saved-list behavior, encounter mutation rules, or record presentation contracts that already come from the backend.
-- Creature record and encounter components consume the generated named, typed creature DTOs directly. Do not introduce generic section/value bags, encoded-target lookup, fallback presentation, or client-side joins to recover creature mechanics. Non-creature unavailable presentations remain an explicit record-kind boundary until their separately owned family migrations land.
+- Creature and hazard record/encounter components consume their generated named, typed DTOs directly. Do not introduce generic section/value bags, encoded-target lookup, fallback presentation, or client-side joins to recover mechanics. Hazard static and runtime payloads are composed by the backend; image paths are not fetched or displayed, and license metadata appears only in explicit source provenance. Unavailable presentations remain an explicit boundary for families whose separately owned migrations have not landed.
+- Standalone spell and ritual detail consumes `SpellSurfaceView` directly. The browser preserves the backend form catalog order, submits an opaque form ID together with a cast-rank choice through the existing record-detail endpoint, and renders only the matching returned `selected_form`. It never applies patches, calculates heightening, parses form labels or IDs, substitutes the numeric range query projection for authored range text, or turns a definition into encounter casting state.
 
 ## Shared UI Layer
 

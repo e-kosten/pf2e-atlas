@@ -21,6 +21,9 @@ const ROUTE_PATH: &str = "/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundr
 const ROUTE_SHA256: &str = "c91d442157c712401f52fe582e657cb7e0f6e73ba5f80153d380916c6a3a519a";
 const AUDIT_PATH: &str = "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/cli-presentation-audit/2026-09-02-non-json-creature-cli-presentation-audit-final.md";
 const AUDIT_SHA256: &str = "94298824b37d96f4e6ce48705b93cf0838d2be4b07575f84f2d3aa28c07b6182";
+const SNAPSHOT_ARTIFACT_CONTRACT: &str = "pf2e-atlas-artifact/v5";
+const SNAPSHOT_ARTIFACT_SCHEMA: &str = "3";
+const SNAPSHOT_MANIFEST_CONTRACT: &str = "pf2e-atlas-artifact-manifest/v3";
 const DETAILS: [&str; 5] = ["summary", "preview", "description", "standard", "full"];
 const WIDTHS: [usize; 3] = [40, 80, 120];
 
@@ -95,16 +98,41 @@ fn snapshot_evidence_manifest_is_complete_and_honest() -> Result<(), Box<dyn std
     assert_eq!(evidence["durable_audit"]["sha256"], AUDIT_SHA256);
     assert_eq!(
         evidence["bounded_artifact"]["artifact_contract"],
-        atlas_index::ARTIFACT_CONTRACT_VERSION
+        SNAPSHOT_ARTIFACT_CONTRACT
     );
     assert_eq!(
         evidence["bounded_artifact"]["artifact_schema"],
-        atlas_index::ARTIFACT_SCHEMA_VERSION
+        SNAPSHOT_ARTIFACT_SCHEMA
     );
     assert_eq!(
         evidence["bounded_artifact"]["manifest_contract"],
-        atlas_index::ARTIFACT_MANIFEST_VERSION
+        SNAPSHOT_MANIFEST_CONTRACT
     );
+    assert_eq!(
+        evidence["bounded_artifact"]["manifest_identity"]["artifact_contract_version"],
+        evidence["bounded_artifact"]["artifact_contract"]
+    );
+    assert_eq!(
+        evidence["bounded_artifact"]["manifest_identity"]["schema_version"],
+        evidence["bounded_artifact"]["artifact_schema"]
+    );
+    assert_eq!(
+        evidence["bounded_artifact"]["manifest_identity"]["manifest_version"],
+        evidence["bounded_artifact"]["manifest_contract"]
+    );
+    assert_eq!(
+        evidence["bounded_artifact"]["manifest_identity"]["build"]["artifact_sha256"],
+        evidence["bounded_artifact"]["artifact_sha256"]
+    );
+    for field in ["artifact_sha256", "manifest_sha256"] {
+        let digest = evidence["bounded_artifact"][field]
+            .as_str()
+            .ok_or("bounded artifact digest must be a string")?;
+        assert!(
+            digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "bounded artifact {field} must be a SHA-256 hex digest"
+        );
+    }
     assert_eq!(
         evidence["verified_edition_lookups"]
             .as_array()

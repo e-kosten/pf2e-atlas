@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::EncounterRuntimeView;
+use crate::{EncounterRuntimeView, HazardSurfaceView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -108,6 +108,8 @@ pub struct RecordSurfaceSourceView {
 #[ts(tag = "presentation_type", rename_all = "snake_case")]
 pub enum RecordSurfacePresentationView {
     Creature { body: Box<CreatureSurfaceView> },
+    Hazard { body: Box<HazardSurfaceView> },
+    Spell { body: Box<crate::SpellSurfaceView> },
     Unavailable { unavailable: SurfaceUnavailableView },
 }
 

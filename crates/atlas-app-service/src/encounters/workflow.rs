@@ -259,6 +259,21 @@ impl AtlasAppService {
                 display_name: request.display_name,
                 side: participant_side(request.side),
                 participant_variant: new_variant,
+                hazard_state: match request.hazard_state {
+                    Some(atlas_app_model::EncounterRuntimeHazardStateView::Active)
+                        if existing.participant_kind
+                            == atlas_local_state::ParticipantKind::Hazard =>
+                    {
+                        atlas_local_state::ParticipantHazardState::Active
+                    }
+                    Some(atlas_app_model::EncounterRuntimeHazardStateView::Disabled)
+                        if existing.participant_kind
+                            == atlas_local_state::ParticipantKind::Hazard =>
+                    {
+                        atlas_local_state::ParticipantHazardState::Disabled
+                    }
+                    _ => existing.hazard_state,
+                },
                 initiative: request.initiative,
                 max_hp: request.max_hp,
                 current_hp,
@@ -611,6 +626,9 @@ fn reset_domain_view(
         }
         EncounterParticipantResetDomain::SpellResources => {
             EncounterParticipantResetDomainView::SpellResources
+        }
+        EncounterParticipantResetDomain::HazardState => {
+            EncounterParticipantResetDomainView::HazardState
         }
     }
 }

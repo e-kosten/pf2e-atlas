@@ -3,14 +3,11 @@ use std::collections::BTreeSet;
 use atlas_domain::RecordKind;
 
 use crate::{
-    ActorMechanics, AtlasRecord, ItemMechanics, MetricRow, PresentationBadge,
-    PresentationBadgeKind, PresentationBlock, PresentationFact, PresentationSection,
-    PresentationSectionKind, RecordContentDocument, SpellMechanics,
+    AtlasRecord, ItemMechanics, PresentationBadge, PresentationBadgeKind, PresentationBlock,
+    PresentationFact, PresentationSection, PresentationSectionKind, RecordContentDocument,
     presentation_content::project_presentation_content,
     presentation_format::{
-        activation_text, duration_text, format_area, format_bulk, format_list, format_number,
-        format_price_cp, format_save, format_saves, format_stealth, humanize,
-        metric_number_for_definition,
+        activation_text, duration_text, format_bulk, format_list, format_price_cp, humanize,
     },
 };
 
@@ -41,29 +38,14 @@ fn recipe_sections(
     include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
 ) -> Vec<PresentationSection> {
     match record.classification.kind {
-        RecordKind::Spell => spell_sections(record, include_supplemental_content),
-        RecordKind::Creature => Vec::new(),
+        RecordKind::Spell => Vec::new(),
+        RecordKind::Creature | RecordKind::Hazard => Vec::new(),
         RecordKind::Equipment => equipment_sections(record, include_supplemental_content),
-        RecordKind::Hazard => hazard_sections(record, include_supplemental_content),
         RecordKind::Feat | RecordKind::Rule => {
             feat_action_sections(record, include_supplemental_content)
         }
         _ => fallback_sections(record, include_supplemental_content),
     }
-}
-
-fn spell_sections(
-    record: &AtlasRecord,
-    include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
-) -> Vec<PresentationSection> {
-    vec![
-        fact_section(
-            PresentationSectionKind::Summary,
-            spell_summary_facts(record, record.mechanics.spell()),
-        ),
-        description_section(record, include_supplemental_content),
-        details_section(record),
-    ]
 }
 
 pub(crate) fn searchable_content_sections(
@@ -83,28 +65,6 @@ fn equipment_sections(
         fact_section(
             PresentationSectionKind::Summary,
             equipment_summary_facts(record, record.mechanics.item()),
-        ),
-        description_section(record, include_supplemental_content),
-        details_section(record),
-    ]
-}
-
-fn hazard_sections(
-    record: &AtlasRecord,
-    include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
-) -> Vec<PresentationSection> {
-    vec![
-        fact_section(
-            PresentationSectionKind::Summary,
-            hazard_summary_facts(record.mechanics.actor(), &record.mechanics.metrics),
-        ),
-        fact_section(
-            PresentationSectionKind::Defense,
-            hazard_defense_facts(record.mechanics.actor(), &record.mechanics.metrics),
-        ),
-        fact_section(
-            PresentationSectionKind::Routine,
-            hazard_routine_facts(record, record.mechanics.actor(), record.mechanics.spell()),
         ),
         description_section(record, include_supplemental_content),
         details_section(record),
@@ -204,76 +164,6 @@ fn badges(record: &AtlasRecord) -> Vec<PresentationBadge> {
         .collect()
 }
 
-fn spell_summary_facts(
-    record: &AtlasRecord,
-    spell: Option<&SpellMechanics>,
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    if let Some(spell) = spell {
-        push_fact(
-            &mut facts,
-            "traditions",
-            "Traditions",
-            format_list(&spell.traditions),
-        );
-        push_fact(
-            &mut facts,
-            "range",
-            "Range",
-            spell.range.as_ref().map(|range| range.text.clone()),
-        );
-        push_fact(&mut facts, "area", "Area", format_area(spell));
-        push_fact(&mut facts, "save", "Save", format_save(spell));
-        push_fact(
-            &mut facts,
-            "duration",
-            "Duration",
-            duration_text(record.timing.duration_time()),
-        );
-        push_fact(
-            &mut facts,
-            "targets",
-            "Targets",
-            spell.target.as_ref().map(|target| target.text.clone()),
-        );
-        push_fact(
-            &mut facts,
-            "damage",
-            "Damage",
-            format_list(&spell.damage_types),
-        );
-        push_fact(
-            &mut facts,
-            "spellKinds",
-            "Spell Kinds",
-            format_list(&spell.kinds),
-        );
-        push_fact(
-            &mut facts,
-            "sustained",
-            "Sustained",
-            spell.sustained.then(|| "Yes".to_string()),
-        );
-    } else {
-        push_fact(
-            &mut facts,
-            "duration",
-            "Duration",
-            duration_text(record.timing.duration_time()),
-        );
-    }
-    push_fact(
-        &mut facts,
-        "cast",
-        "Cast",
-        activation_text(
-            record.timing.activation_time(),
-            record.timing.activation_actions_value(),
-        ),
-    );
-    facts
-}
-
 fn equipment_summary_facts(
     record: &AtlasRecord,
     item: Option<&ItemMechanics>,
@@ -327,118 +217,6 @@ fn equipment_summary_facts(
     facts
 }
 
-fn hazard_summary_facts(
-    actor: Option<&ActorMechanics>,
-    metrics: &[MetricRow],
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    if let Some(actor) = actor {
-        push_fact(
-            &mut facts,
-            "complexity",
-            "Complexity",
-            actor.is_complex.then(|| "Complex".to_string()),
-        );
-        push_fact(&mut facts, "disable", "Disable", actor.disable_text.clone());
-        push_fact(
-            &mut facts,
-            "disableSkills",
-            "Disable Skills",
-            format_list(&actor.disable_skills),
-        );
-    }
-    push_fact(&mut facts, "stealth", "Stealth", format_stealth(metrics));
-    facts
-}
-
-fn hazard_defense_facts(
-    actor: Option<&ActorMechanics>,
-    metrics: &[MetricRow],
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    push_fact(
-        &mut facts,
-        "ac",
-        "AC",
-        metric_number_for_definition(metrics, crate::metrics::actor::ARMOR_CLASS)
-            .map(format_number),
-    );
-    push_fact(
-        &mut facts,
-        "hp",
-        "HP",
-        metric_number_for_definition(metrics, crate::metrics::actor::HP_VALUE).map(format_number),
-    );
-    push_fact(
-        &mut facts,
-        "hardness",
-        "Hardness",
-        metric_number_for_definition(metrics, crate::metrics::actor::HARDNESS).map(format_number),
-    );
-    push_fact(&mut facts, "saves", "Saves", format_saves(metrics));
-    if let Some(actor) = actor {
-        push_fact(
-            &mut facts,
-            "immunities",
-            "Immunities",
-            format_list(&actor.immunities),
-        );
-        push_fact(
-            &mut facts,
-            "resistances",
-            "Resistances",
-            format_list(&actor.resistances),
-        );
-        push_fact(
-            &mut facts,
-            "weaknesses",
-            "Weaknesses",
-            format_list(&actor.weaknesses),
-        );
-    }
-    facts
-}
-
-fn hazard_routine_facts(
-    record: &AtlasRecord,
-    actor: Option<&ActorMechanics>,
-    spell: Option<&SpellMechanics>,
-) -> Vec<PresentationFact> {
-    let mut facts = Vec::new();
-    if let Some(spell) = spell {
-        push_fact(
-            &mut facts,
-            "range",
-            "Range",
-            spell.range.as_ref().map(|range| range.text.clone()),
-        );
-        push_fact(&mut facts, "area", "Area", format_area(spell));
-        push_fact(&mut facts, "save", "Save", format_save(spell));
-        push_fact(
-            &mut facts,
-            "damage",
-            "Damage",
-            format_list(&spell.damage_types),
-        );
-        push_fact(
-            &mut facts,
-            "targets",
-            "Targets",
-            spell.target.as_ref().map(|target| target.text.clone()),
-        );
-    }
-    if let Some(actor) = actor {
-        push_fact(&mut facts, "disable", "Disable", actor.disable_text.clone());
-    }
-    push_fact(
-        &mut facts,
-        "duration",
-        "Duration",
-        duration_text(record.timing.duration_time()),
-    );
-    facts
-}
-
 fn action_summary_facts(record: &AtlasRecord) -> Vec<PresentationFact> {
     let mut facts = Vec::new();
     push_fact(
@@ -456,34 +234,6 @@ fn action_summary_facts(record: &AtlasRecord) -> Vec<PresentationFact> {
             record.timing.activation_actions_value(),
         ),
     );
-    if let Some(spell) = record.mechanics.spell() {
-        push_fact(
-            &mut facts,
-            "range",
-            "Range",
-            spell.range.as_ref().map(|range| range.text.clone()),
-        );
-        push_fact(&mut facts, "area", "Area", format_area(spell));
-        push_fact(&mut facts, "save", "Save", format_save(spell));
-        push_fact(
-            &mut facts,
-            "duration",
-            "Duration",
-            duration_text(record.timing.duration_time()),
-        );
-        push_fact(
-            &mut facts,
-            "targets",
-            "Targets",
-            spell.target.as_ref().map(|target| target.text.clone()),
-        );
-        push_fact(
-            &mut facts,
-            "damage",
-            "Damage",
-            format_list(&spell.damage_types),
-        );
-    }
     facts
 }
 

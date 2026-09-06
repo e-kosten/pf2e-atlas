@@ -4,7 +4,7 @@ use atlas_record::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason, ContentId,
     ContentKey, ContentOrigin, ContentOwner, ContentProvenance, ContentRole, CreatureEntityFamily,
     CreatureEntityTarget, CreatureOccurrenceId, CreatureSourceId, DuplicateContentStatus,
-    OwnedRichContent, OwnedRichContentDocument, RecordBody,
+    HazardOccurrenceId, OwnedRichContent, OwnedRichContentDocument, RecordBody,
 };
 
 use crate::records::{LoadedSourceRecord, SourceContentFact};
@@ -87,6 +87,160 @@ pub(crate) fn finalize_npc_owned_content(records: &mut [LoadedSourceRecord]) {
     }
 }
 
+pub(crate) fn finalize_hazard_owned_content(records: &mut [LoadedSourceRecord]) {
+    for loaded in records {
+        let Some(RecordBody::Hazard(hazard)) = &mut loaded.facts.canonical_body else {
+            continue;
+        };
+        let source_content = loaded.facts.source_facts.content_sources.clone();
+        let embedded = hazard.embedded_entities.typed();
+        let mut content = OwnedRichContent::default();
+
+        for source in source_content {
+            let content_key = match ContentKey::new(source.content_key.clone()) {
+                Ok(key) => key,
+                Err(_) => continue,
+            };
+            let content_id = ContentId::new(hazard.identity.record_key.clone(), content_key);
+            if source.source_kind.is_embedded() {
+                attach_hazard_embedded_content(
+                    &hazard.identity.record_key,
+                    &loaded.record.provenance.source_path,
+                    embedded,
+                    source,
+                    content_id,
+                    &mut content,
+                );
+            } else {
+                let diagnostics = source_diagnostics(&source);
+                content.documents.push(OwnedRichContentDocument::new(
+                    content_id,
+                    source.identity_stability,
+                    ContentOwner::Record(hazard.identity.record_key.clone()),
+                    record_role(source.source_kind),
+                    ContentOrigin::RecordField {
+                        source_kind: source.source_kind,
+                        relative_source_path: source.relative_source_path.clone(),
+                    },
+                    source.source_kind.default_visibility(),
+                    provenance(
+                        &hazard.identity.record_key,
+                        &loaded.record.provenance.source_path,
+                        &source,
+                    ),
+                    source.source_kind,
+                    source.authored_order,
+                    source.label,
+                    source.document,
+                    DuplicateContentStatus::Unique,
+                    diagnostics,
+                ));
+            }
+        }
+        content
+            .documents
+            .sort_by_key(|document| document.authored_order);
+        hazard.content = content;
+    }
+}
+
+pub(crate) fn finalize_spell_owned_content(records: &mut [LoadedSourceRecord]) {
+    for loaded in records {
+        let Some(RecordBody::Spell(spell)) = &mut loaded.facts.canonical_body else {
+            continue;
+        };
+        let mut content = OwnedRichContent::default();
+        for source in loaded
+            .facts
+            .source_facts
+            .content_sources
+            .iter()
+            .filter(|source| !source.source_kind.is_embedded())
+            .cloned()
+        {
+            let Ok(content_key) = ContentKey::new(source.content_key.clone()) else {
+                continue;
+            };
+            let diagnostics = source_diagnostics(&source);
+            content.documents.push(OwnedRichContentDocument::new(
+                ContentId::new(spell.identity.record_key.clone(), content_key),
+                source.identity_stability,
+                ContentOwner::Record(spell.identity.record_key.clone()),
+                record_role(source.source_kind),
+                ContentOrigin::RecordField {
+                    source_kind: source.source_kind,
+                    relative_source_path: source.relative_source_path.clone(),
+                },
+                source.source_kind.default_visibility(),
+                provenance(
+                    &spell.identity.record_key,
+                    &loaded.record.provenance.source_path,
+                    &source,
+                ),
+                source.source_kind,
+                source.authored_order,
+                source.label,
+                source.document,
+                DuplicateContentStatus::Unique,
+                diagnostics,
+            ));
+        }
+        content
+            .documents
+            .sort_by_key(|document| document.authored_order);
+        spell.definition.content = content;
+    }
+}
+
+fn attach_hazard_embedded_content(
+    record_key: &atlas_domain::RecordKey,
+    source_record_path: &str,
+    embedded: Option<&atlas_record::HazardEmbeddedEntities>,
+    source: SourceContentFact,
+    content_id: ContentId,
+    content: &mut OwnedRichContent,
+) {
+    let source_id = source.nested_source_id.as_deref().unwrap_or_default();
+    let occurrence_id = HazardOccurrenceId::new(source_id.to_string()).ok();
+    let occurrence = occurrence_id.as_ref().and_then(|id| {
+        embedded.and_then(|embedded| {
+            embedded
+                .occurrences
+                .iter()
+                .find(|occurrence| &occurrence.id == id)
+        })
+    });
+    let Some(occurrence) = occurrence else {
+        content.exclusions.push(ContentExclusion {
+            parent_record_key: record_key.clone(),
+            content_key: content_id.content_key,
+            relative_source_path: source.relative_source_path,
+            label: source.label,
+            reason: ContentExclusionReason::MissingTypedOwner,
+        });
+        return;
+    };
+    let diagnostics = source_diagnostics(&source);
+    content.documents.push(OwnedRichContentDocument::new(
+        content_id,
+        source.identity_stability,
+        ContentOwner::HazardOccurrence(occurrence.id.clone()),
+        ContentRole::EmbeddedCapability,
+        ContentOrigin::HazardEmbeddedEntityField {
+            family: occurrence.family,
+            nested_source_id: source.nested_source_id.clone(),
+            relative_source_path: source.relative_source_path.clone(),
+        },
+        source.source_kind.default_visibility(),
+        provenance(record_key, source_record_path, &source),
+        source.source_kind,
+        source.authored_order,
+        source.label,
+        source.document,
+        DuplicateContentStatus::Unique,
+        diagnostics,
+    ));
+}
 fn attach_embedded_content(
     record_key: &atlas_domain::RecordKey,
     source_record_path: &str,
@@ -189,7 +343,7 @@ fn provenance(
     }
 }
 
-fn source_diagnostics(source: &SourceContentFact) -> Vec<ContentDiagnostic> {
+pub(crate) fn source_diagnostics(source: &SourceContentFact) -> Vec<ContentDiagnostic> {
     let mut diagnostics = source
         .diagnostics
         .unsupported_tags
@@ -294,10 +448,11 @@ mod tests {
         finalize_npc_owned_content(&mut records);
         resolve_content_references(&mut records, &index);
 
-        let RecordBody::Creature(creature) = records[0]
+        let creature = records[0]
             .facts
             .canonical_body
             .as_ref()
+            .and_then(RecordBody::creature)
             .expect("creature body");
         let action_content = creature
             .content
@@ -419,10 +574,11 @@ mod tests {
         finalize_npc_owned_content(&mut records);
         resolve_content_references(&mut records, &index);
 
-        let RecordBody::Creature(creature) = records[0]
+        let creature = records[0]
             .facts
             .canonical_body
             .as_ref()
+            .and_then(RecordBody::creature)
             .expect("Night Hag creature body");
         assert_eq!(source_count, 36);
         assert_eq!(embedded_source_count, 35);
@@ -468,10 +624,11 @@ mod tests {
         finalize_npc_owned_content(&mut records);
         resolve_content_references(&mut records, &index);
 
-        let RecordBody::Creature(creature) = records[0]
+        let creature = records[0]
             .facts
             .canonical_body
             .as_ref()
+            .and_then(RecordBody::creature)
             .expect("Blackfingers creature body");
         let content = creature
             .content
@@ -547,9 +704,8 @@ mod tests {
             .records
             .iter()
             .filter_map(|record| record.facts.canonical_body.as_ref())
-            .map(|body| match body {
-                RecordBody::Creature(creature) => &creature.content,
-            })
+            .filter_map(RecordBody::creature)
+            .map(|creature| &creature.content)
             .flat_map(|content| &content.documents)
             .filter(|content| content.source_kind == ContentSourceKind::EmbeddedGmDescription)
             .collect::<Vec<_>>();
@@ -587,9 +743,8 @@ mod tests {
             .records
             .iter()
             .filter_map(|record| record.facts.canonical_body.as_ref())
-            .map(|body| match body {
-                RecordBody::Creature(creature) => &creature.content,
-            })
+            .filter_map(RecordBody::creature)
+            .map(|creature| &creature.content)
             .flat_map(|content| &content.exclusions)
             .filter(|exclusion| {
                 exclusion
@@ -606,12 +761,12 @@ mod tests {
         let index = build_record_reference_index(&records);
         finalize_npc_embedded_entities(&mut records, &index);
         finalize_npc_owned_content(&mut records);
-        let RecordBody::Creature(creature) = records
+        records
             .remove(0)
             .facts
             .canonical_body
-            .expect("creature body");
-        creature
+            .and_then(RecordBody::into_creature)
+            .expect("creature body")
     }
 
     fn content_ids(creature: &atlas_record::CreatureRecord) -> BTreeSet<String> {

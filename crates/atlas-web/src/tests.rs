@@ -34,19 +34,20 @@ use atlas_app_model::{
     EncounterSummaryView, EncounterUpdateView, FilterControlView, FilterEditorFieldView,
     FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
     FilterValueListView, FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RecordDetailView, RecordSummaryView, RecordSurfaceEditionCounterpartRoleView,
-    RecordSurfaceEditionCounterpartView, RecordSurfaceEditionStatusView, RecordSurfaceEditionView,
-    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
-    RecordSurfaceSourceView, RecordSurfaceView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResetEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
-    RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView, RuntimeRuleView,
-    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
-    SavedListUpdateView, SearchPageView, SetEncounterTurnRequest, SurfaceUnavailableReasonView,
-    SurfaceUnavailableView, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    RecordDetailRequest, RecordDetailView, RecordSummaryView,
+    RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionCounterpartView,
+    RecordSurfaceEditionStatusView, RecordSurfaceEditionView, RecordSurfaceMetadataView,
+    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
+    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, ResetEncounterParticipantRequest, ResultWindowModeSummary,
+    ResultWindowPage, RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView,
+    RuntimeCountView, RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView,
+    RuntimeRuleView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::AppServiceError;
 use axum::Router;
@@ -376,6 +377,50 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert!(body["surface"]["metadata"].get("traits").is_none());
     assert_no_empty_containers(&body["surface"]);
 
+    let (status, body) = route_json(Method::GET, "/api/records/hazards:testHazard", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let surface = &body["surface"];
+    assert_eq!(surface["metadata"]["record_key"], "hazards:testHazard");
+    assert_eq!(surface["presentation"]["presentation_type"], "hazard");
+    let hazard = &surface["presentation"]["body"];
+    assert_eq!(hazard["complexity"], "complex");
+    assert_eq!(hazard["detection"]["stealth_modifier"], 12);
+    assert_eq!(hazard["detection"]["difficulty_class"], 22);
+    assert_eq!(hazard["defenses"]["saves"]["fortitude"], 0);
+    assert_eq!(
+        hazard["activities"]
+            .as_array()
+            .expect("hazard activities")
+            .iter()
+            .map(|activity| activity["occurrence_id"].as_str().expect("occurrence id"))
+            .collect::<Vec<_>>(),
+        vec![
+            "occurrence-action",
+            "occurrence-strike",
+            "occurrence-unsupported"
+        ]
+    );
+    assert!(hazard["activities"][0].get("slug").is_none());
+    assert_eq!(hazard["activities"][0]["rules"][0]["slug"], "fixture-aura");
+    assert!(
+        hazard["unavailable_fields"]
+            .as_array()
+            .is_none_or(|fields| fields.iter().all(|field| {
+                !matches!(
+                    field["field"].as_str(),
+                    Some("activity.slug" | "activity.publication")
+                )
+            }))
+    );
+    assert!(hazard.get("image").is_none());
+    assert!(hazard.get("publication_license").is_none());
+    assert_eq!(hazard["provenance"]["image"]["state"], "missing");
+    assert_eq!(
+        hazard["provenance"]["publication_license"]["state"],
+        "missing"
+    );
+    assert_no_empty_containers(surface);
+
     let editor_request = json!({
         "context": { "kind": "filtered", "filter": { "clauses": [] } }
     });
@@ -394,6 +439,31 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["field_id"], "pack");
     assert_eq!(body["options"][0]["label"], "Actions");
+}
+
+#[tokio::test]
+async fn record_route_transports_opaque_spell_form_and_cast_rank_selection() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/spells-srd:test?spell_form_id=spell-form:test&spell_cast_rank=5",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["surface"]["metadata"]["title"],
+        "selected:spell-form:test:5"
+    );
+
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/spells-srd:test?spell_form_id=spell-form:test&spell_cast_rank=300",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
 }
 
 #[tokio::test]
@@ -1305,7 +1375,11 @@ impl AtlasWebService for MockService {
         Ok(result_window_page(window_id, request.page.number))
     }
 
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
+    fn record_detail(
+        &self,
+        record_key: &str,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
         if record_key == "pathfinder-bestiary:KDRlxdIUADWHI6Vr" {
             return Ok(RecordDetailView {
                 surface: air_mephit_surface(),
@@ -1321,14 +1395,23 @@ impl AtlasWebService for MockService {
                 surface: typed_failure_surface(),
             });
         }
-        Ok(RecordDetailView {
+        if record_key == "hazards:testHazard" {
+            return Ok(RecordDetailView {
+                surface: hazard_record_surface(),
+            });
+        }
+        let mut detail = RecordDetailView {
             surface: unavailable_surface(
                 Some(record_key),
                 "Test Action 1",
                 RecordSurfaceProfileView::RecordDetail,
                 None,
             ),
-        })
+        };
+        if let (Some(form_id), Some(cast_rank)) = (request.spell_form_id, request.spell_cast_rank) {
+            detail.surface.metadata.title = format!("selected:{form_id}:{cast_rank}");
+        }
+        Ok(detail)
     }
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
@@ -2130,6 +2213,7 @@ fn test_runtime(
         canonical_target: None,
     };
     EncounterRuntimeView {
+        hazard: None,
         level: Some(RuntimeNumberView {
             label: "Level".to_string(),
             base_value: 5,
@@ -2284,6 +2368,116 @@ fn record_summary() -> RecordSummaryView {
             None,
         ),
     }
+}
+
+fn hazard_record_surface() -> RecordSurfaceView {
+    let activity = |occurrence_id: &str,
+                    activity_type: atlas_app_model::HazardSurfaceActivityTypeView,
+                    authored_order| atlas_app_model::HazardSurfaceActivityView {
+        occurrence_id: occurrence_id.to_string(),
+        entity_id: format!("entity-{authored_order}"),
+        authored_order,
+        source_ordinal: authored_order,
+        identity_stability:
+            atlas_app_model::HazardSurfaceOccurrenceIdentityStabilityView::StableSourceIdentity,
+        label: format!("Activity {authored_order}"),
+        activity_type,
+        child_type: None,
+        traits: None,
+        action_cost: None,
+        frequency: None,
+        category: None,
+        death_note: None,
+        self_effect: None,
+        attack_bonus: None,
+        attack_effects: None,
+        damage: None,
+        rules: (authored_order == 0).then(|| {
+            vec![atlas_app_model::HazardSurfaceRuleView::Aura {
+                authored_order: 0,
+                radius: Some(5),
+                slug: Some("fixture-aura".to_string()),
+                traits: Vec::new(),
+            }]
+        }),
+        content: None,
+    };
+    let mut surface = unavailable_surface(
+        Some("hazards:testHazard"),
+        "Test Hazard",
+        RecordSurfaceProfileView::RecordDetail,
+        None,
+    );
+    surface.metadata.kind = "hazard".to_string();
+    surface.metadata.kind_label = "Hazard".to_string();
+    surface.metadata.source = Some(RecordSurfaceSourceView {
+        publication_title: None,
+        pack_label: "Hazards".to_string(),
+        document_type: "Actor".to_string(),
+        record_type: "hazard".to_string(),
+        source_path: None,
+        source_contract_version: None,
+        source_system_version: None,
+        source_upstream_commit: None,
+    });
+    surface.presentation = RecordSurfacePresentationView::Hazard {
+        body: Box::new(atlas_app_model::HazardSurfaceView {
+            teaser: None,
+            complexity: Some(atlas_app_model::HazardSurfaceComplexityView::Complex),
+            size: None,
+            emits_sound: None,
+            detection: Some(atlas_app_model::HazardSurfaceDetectionView {
+                stealth_modifier: Some(12),
+                difficulty_class: Some(22),
+                details: None,
+            }),
+            defenses: Some(atlas_app_model::HazardSurfaceDefensesView {
+                armor_class: Some(22),
+                hardness: None,
+                hit_points: None,
+                saves: Some(atlas_app_model::HazardSurfaceSavesView {
+                    fortitude: Some(0),
+                    reflex: Some(8),
+                    will: Some(4),
+                }),
+                immunities: None,
+                weaknesses: None,
+                resistances: None,
+            }),
+            lifecycle: None,
+            activities: Some(vec![
+                activity(
+                    "occurrence-action",
+                    atlas_app_model::HazardSurfaceActivityTypeView::Action,
+                    0,
+                ),
+                activity(
+                    "occurrence-strike",
+                    atlas_app_model::HazardSurfaceActivityTypeView::Strike,
+                    1,
+                ),
+                activity(
+                    "occurrence-unsupported",
+                    atlas_app_model::HazardSurfaceActivityTypeView::UnsupportedChild,
+                    2,
+                ),
+            ]),
+            content: None,
+            relationships: None,
+            unavailable_fields: None,
+            provenance: atlas_app_model::HazardSurfaceProvenanceView {
+                source_path: "packs/hazards/test-hazard.json".to_string(),
+                source_contract_version: "test".to_string(),
+                source_system_version: "test".to_string(),
+                source_upstream_commit: "test".to_string(),
+                convenience_rule_id: "pf2e-hazard-derived-conveniences".to_string(),
+                convenience_rule_version: 1,
+                image: atlas_app_model::HazardSurfaceProvenanceTextView::Missing,
+                publication_license: atlas_app_model::HazardSurfaceProvenanceTextView::Missing,
+            },
+        }),
+    };
+    surface
 }
 
 fn unavailable_surface(

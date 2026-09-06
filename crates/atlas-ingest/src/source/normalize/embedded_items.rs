@@ -3,6 +3,7 @@ use atlas_record::{ContentSourceKind, RecordContentDocument};
 use serde_json::Value;
 
 use crate::records::{EmbeddedItemContentRef, EmbeddedItemFact};
+use crate::source::hazard_entities::HazardResolvedItemIdentity;
 
 use super::content_sources::{embedded_item_content_key, embedded_item_id};
 use super::{
@@ -12,6 +13,7 @@ use super::{
 pub(super) fn extract_embedded_item_facts(
     raw: &Value,
     host_record_key: &RecordKey,
+    hazard_identities: Option<&[HazardResolvedItemIdentity]>,
 ) -> Vec<EmbeddedItemFact> {
     let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
         return Vec::new();
@@ -19,7 +21,14 @@ pub(super) fn extract_embedded_item_facts(
     items
         .iter()
         .enumerate()
-        .filter_map(|(index, item)| embedded_item_fact(item, host_record_key, index))
+        .filter_map(|(index, item)| {
+            embedded_item_fact(
+                item,
+                host_record_key,
+                index,
+                hazard_identities.and_then(|identities| identities.get(index)),
+            )
+        })
         .collect()
 }
 
@@ -27,12 +36,15 @@ fn embedded_item_fact(
     item: &Value,
     host_record_key: &RecordKey,
     index: usize,
+    hazard_identity: Option<&HazardResolvedItemIdentity>,
 ) -> Option<EmbeddedItemFact> {
     let name = string_field(item, "name")?.trim().to_string();
     if name.is_empty() {
         return None;
     }
-    let item_id = embedded_item_id(item, index);
+    let item_id = hazard_identity
+        .map(|identity| identity.occurrence_id.as_str().to_string())
+        .unwrap_or_else(|| embedded_item_id(item, index));
     let foundry_item_type = string_field(item, "type").unwrap_or_default();
     Some(EmbeddedItemFact {
         host_record_key: host_record_key.clone(),

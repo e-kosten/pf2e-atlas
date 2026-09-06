@@ -19,6 +19,7 @@ time.workspace = true
 
 [dev-dependencies]
 atlas-embedding.workspace = true
+atlas-ingest.workspace = true
 atlas-index = { workspace = true, features = ["test-support"] }
 atlas-search = { workspace = true, features = ["test-support"] }
 rusqlite.workspace = true

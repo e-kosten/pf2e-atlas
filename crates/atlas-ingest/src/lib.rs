@@ -41,10 +41,10 @@ pub use report::{
 pub use source::dto::{
     ActorType, FullItemSource, ItemSource, ItemType, NpcSource, PF2E_SOURCE_CONTRACT_VERSION,
     PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE, PF2E_SOURCE_PINNED_SYSTEM_ID,
-    PF2E_SOURCE_PINNED_SYSTEM_VERSION, SerializedSourceObject, SourceDiagnostic,
-    SourceDiagnosticKind, SourceIdentity, SourceParentContext, SourcePresence,
-    SourceVersionMetadata, VersionedItemSource, VersionedNpcSource, parse_item_source,
-    parse_npc_source, pinned_source_version_metadata, validate_pinned_source_version,
+    PF2E_SOURCE_PINNED_SYSTEM_VERSION, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
+    SourceParentContext, SourcePresence, SourceVersionMetadata, VersionedItemSource,
+    VersionedNpcSource, parse_item_source, parse_npc_source, pinned_source_version_metadata,
+    validate_pinned_source_version,
 };
 pub use source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingRecordTruncationCoverageReport,
@@ -60,8 +60,9 @@ pub use source_coverage::{
     PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256, PF2E_TYPE_REGISTRY_VERSION,
     ReaderContract, SourceDocumentRole, SourceLeafContract, SourceLeafCoverageLedger,
     SourceLeafDisposition, SourceLeafIdentity, SourceLeafKind, SourceLeafReceipt,
-    SourceLeafSelector, SourceParentContextSelector, SourcePin, SourcePrevalence, SurfaceContract,
-    SurfaceDecision, SurfaceDisposition, capture_registered_source_leaf_receipt,
+    SourceLeafSelector, SourceParentContextSelector, SourcePin, SourcePrevalence,
+    SpellArtifactReceiptOperations, SurfaceContract, SurfaceDecision, SurfaceDisposition,
+    capture_registered_source_leaf_receipt, capture_registered_spell_source_leaf_receipts,
     evaluate_source_leaf_coverage, lint_source_leaf_ledger, lint_source_leaf_ledgers,
     parse_source_leaf_ledger,
 };

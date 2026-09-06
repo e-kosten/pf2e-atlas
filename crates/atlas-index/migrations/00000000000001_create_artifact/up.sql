@@ -265,7 +265,7 @@ CREATE TABLE spell_records (
   area_value REAL,
   save_type TEXT,
   sustained INTEGER NOT NULL CHECK (sustained IN (0, 1)),
-  basic_save INTEGER NOT NULL CHECK (basic_save IN (0, 1)),
+  basic_save INTEGER CHECK (basic_save IN (0, 1)),
   damage_types_json TEXT NOT NULL,
   FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
 );

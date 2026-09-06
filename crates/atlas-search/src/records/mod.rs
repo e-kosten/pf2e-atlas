@@ -156,6 +156,7 @@ mod tests {
             record: RetrievedRecord {
                 record: fake_record(key, name),
                 body: None,
+                spell_children: Vec::new(),
             },
         }
     }

@@ -45,6 +45,48 @@ describe("atlasApi", () => {
     );
   });
 
+  it("requests an opaque spell form and cast rank through record detail", async () => {
+    const fetchMock = mockFetch({ surface: {} });
+    const signal = new AbortController().signal;
+
+    await getRecordDetail(
+      "spells-srd:rime/slick",
+      {
+        spell_form_id: "opaque:form/id",
+        spell_cast_rank: 8,
+      },
+      signal,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/spells-srd%3Arime%2Fslick?spell_form_id=opaque%3Aform%2Fid&spell_cast_rank=8",
+      expect.objectContaining({ signal }),
+    );
+  });
+
+  it("keeps the default record-detail request free of spell selection state", async () => {
+    const fetchMock = mockFetch({ surface: {} });
+
+    await getRecordDetail("spells-srd:heal");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/spells-srd%3Aheal",
+      expect.not.objectContaining({ body: expect.anything() }),
+    );
+  });
+
+  it("rejects unsafe spell cast ranks before record-detail transport", async () => {
+    await expect(
+      getRecordDetail("spells-srd:rime", {
+        spell_form_id: "opaque:rime",
+        spell_cast_rank: Number.MAX_SAFE_INTEGER + 1,
+      }),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
   it("posts result-window requests as JSON and normalizes bigint fields", async () => {
     const fetchMock = mockFetch(resultWindowPayload());
     const request: OpenResultWindowRequest = {

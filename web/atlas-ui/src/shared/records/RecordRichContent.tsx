@@ -20,11 +20,29 @@ export function RichContent({
 }) {
   const blocks = compact ? content.blocks.slice(0, 1) : content.blocks;
   return (
+    <RichBlocks
+      blocks={blocks}
+      keyPrefix={content.content_key}
+      onReference={onReference}
+    />
+  );
+}
+
+export function RichBlocks({
+  blocks,
+  keyPrefix,
+  onReference,
+}: {
+  blocks: CreatureSurfaceContentBlockView[];
+  keyPrefix: string;
+  onReference: ReferenceHandler;
+}) {
+  return (
     <div className="creature-sheet__rich-content">
       {blocks.map((block, index) => (
         <RichBlock
           block={block}
-          key={`${content.content_key}:${index}`}
+          key={`${keyPrefix}:${index}`}
           onReference={onReference}
         />
       ))}

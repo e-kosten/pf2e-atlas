@@ -1,7 +1,7 @@
 use atlas_record::{
     AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
     FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
-    project_creature_facts,
+    project_creature_facts, project_hazard_facts,
 };
 use diesel::SqliteConnection;
 use diesel::prelude::*;
@@ -13,7 +13,7 @@ use super::labels::{
 };
 use super::models::{
     ActorRecordRow, ItemRecordRow, RecordContentRow, RecordMetricRow, RecordRow, RecordTraitRow,
-    RecordsFtsRow, SpellRecordRow,
+    RecordsFtsRow,
 };
 use crate::IndexWriteError;
 use atlas_record::{RecordAlias, RemasterLink};
@@ -27,34 +27,42 @@ pub(super) fn write_records(
     canonical_record_keys: &std::collections::BTreeSet<String>,
 ) -> Result<(), IndexWriteError> {
     let retrieval_policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
-    let canonical_bodies_by_key = canonical_bodies
-        .iter()
-        .map(|body| match body {
-            RecordBody::Creature(creature) => (creature.identity.record_key.to_string(), body),
-        })
-        .collect::<std::collections::BTreeMap<_, _>>();
+    let canonical_bodies_by_key = canonical_bodies_by_key(records, canonical_bodies)?;
     let mut record_rows = Vec::new();
     let mut content_rows = Vec::new();
     let mut trait_rows = Vec::new();
     let mut actor_rows = Vec::new();
     let mut item_rows = Vec::new();
-    let mut spell_rows = Vec::new();
     let mut metric_rows = Vec::new();
     let mut fts_rows = Vec::new();
     for record in records {
         let record_key = record.identity.key.to_string();
-        let projected_creature_metrics;
-        let persisted_metrics = if record.classification.kind == atlas_domain::RecordKind::Creature
-        {
+        let projected_metrics;
+        let persisted_metrics = if matches!(
+            record.classification.kind,
+            atlas_domain::RecordKind::Creature | atlas_domain::RecordKind::Hazard
+        ) {
+            let expected_foundry_type = match record.classification.kind {
+                atlas_domain::RecordKind::Creature => atlas_record::FoundryRecordType::Npc,
+                atlas_domain::RecordKind::Hazard => atlas_record::FoundryRecordType::Hazard,
+                _ => unreachable!("guarded canonical family"),
+            };
+            if record.foundry.record_type != expected_foundry_type {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "{} record `{}` does not have the expected Foundry body kind",
+                    record.classification.kind.as_str(),
+                    record.identity.key
+                )));
+            }
             if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
                 return Err(IndexWriteError::WriteFailed(format!(
-                    "creature record `{}` retains forbidden generic document mechanics",
+                    "canonical record `{}` retains forbidden generic document mechanics",
                     record.identity.key
                 )));
             }
             if !record.mechanics.metrics.is_empty() {
                 return Err(IndexWriteError::WriteFailed(format!(
-                    "creature record `{}` retains forbidden generic metrics",
+                    "canonical record `{}` retains forbidden generic metrics",
                     record.identity.key
                 )));
             }
@@ -63,17 +71,89 @@ pub(super) fn write_records(
                 .copied()
                 .ok_or_else(|| {
                     IndexWriteError::WriteFailed(format!(
-                        "creature record `{}` is missing its required canonical body",
+                        "canonical record `{}` is missing its required canonical body",
                         record.identity.key
                     ))
                 })?;
-            let RecordBody::Creature(creature) = body;
-            projected_creature_metrics = project_creature_facts(creature).metrics;
-            projected_creature_metrics.as_slice()
+            projected_metrics = match (record.classification.kind, body) {
+                (atlas_domain::RecordKind::Creature, RecordBody::Creature(creature)) => {
+                    project_creature_facts(creature).metrics
+                }
+                (atlas_domain::RecordKind::Hazard, RecordBody::Hazard(hazard)) => {
+                    project_hazard_facts(hazard).metrics
+                }
+                (expected, actual) => {
+                    let actual = match actual {
+                        RecordBody::Creature(_) => "creature",
+                        RecordBody::Hazard(_) => "hazard",
+                        RecordBody::Spell(_) => "spell",
+                    };
+                    return Err(IndexWriteError::WriteFailed(format!(
+                        "{} record `{}` has an unexpected {actual} body",
+                        expected.as_str(),
+                        record.identity.key
+                    )));
+                }
+            };
+            projected_metrics.as_slice()
+        } else if record.classification.kind == atlas_domain::RecordKind::Spell {
+            if record.foundry.record_type != atlas_record::FoundryRecordType::Spell {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "spell record `{}` does not have the spell body kind",
+                    record.identity.key
+                )));
+            }
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "spell record `{}` is missing its required canonical body",
+                        record.identity.key
+                    ))
+                })?;
+            let Some(spell) = body.as_spell() else {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "spell record `{}` has a non-spell canonical body",
+                    record.identity.key
+                )));
+            };
+            if spell.identity.name != record.identity.name
+                || spell.identity.source_id.as_str() != record.identity.id().as_str()
+            {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "spell body identity for `{}` does not match its generic record owner",
+                    record.identity.key
+                )));
+            }
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical spell `{}` retains forbidden generic document mechanics",
+                    record.identity.key
+                )));
+            }
+            if !record.mechanics.metrics.is_empty() {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical spell `{}` retains forbidden generic metrics",
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
         } else {
+            if matches!(
+                record.foundry.record_type,
+                atlas_record::FoundryRecordType::Npc
+                    | atlas_record::FoundryRecordType::Hazard
+                    | atlas_record::FoundryRecordType::Spell
+            ) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "record `{}` has a canonical body kind that disagrees with its record kind",
+                    record.identity.key
+                )));
+            }
             if canonical_bodies_by_key.contains_key(&record_key) {
                 return Err(IndexWriteError::WriteFailed(format!(
-                    "non-creature record `{}` has an unexpected canonical creature body",
+                    "noncanonical record `{}` has an unexpected canonical body",
                     record.identity.key
                 )));
             }
@@ -201,6 +281,9 @@ pub(super) fn write_records(
                     owner_entity_id: None,
                     owner_occurrence_id: None,
                     owner_occurrence_authored_order: None,
+                    owner_hazard_entity_id: None,
+                    owner_hazard_occurrence_id: None,
+                    owner_hazard_occurrence_authored_order: None,
                     role: legacy_content_role(content.source_kind).to_string(),
                     origin_json: crate::artifact::canonical_json::encode(
                         &ContentOrigin::RecordField {
@@ -245,7 +328,9 @@ pub(super) fn write_records(
                 trait_value: trait_value.clone(),
             });
         }
-        if let Some(actor_data) = record.mechanics.actor() {
+        if !canonical_record_keys.contains(&record_key)
+            && let Some(actor_data) = record.mechanics.actor()
+        {
             actor_rows.push(ActorRecordRow {
                 record_key: record.identity.key.to_string(),
                 size: actor_data.size.clone(),
@@ -260,7 +345,9 @@ pub(super) fn write_records(
                 is_complex: actor_data.is_complex,
             });
         }
-        if let Some(item_data) = record.mechanics.item() {
+        if !canonical_record_keys.contains(&record_key)
+            && let Some(item_data) = record.mechanics.item()
+        {
             item_rows.push(ItemRecordRow {
                 record_key: record.identity.key.to_string(),
                 system_category: item_data.category.clone(),
@@ -272,23 +359,6 @@ pub(super) fn write_records(
                 bulk_value: item_data.bulk_value,
                 hands_requirement: item_data.hands_requirement.clone(),
                 damage_types_json: json_array(&item_data.damage_types)?,
-            });
-        }
-        if let Some(spell_data) = record.mechanics.spell() {
-            let defense = spell_data.defense.as_ref();
-            spell_rows.push(SpellRecordRow {
-                record_key: record.identity.key.to_string(),
-                traditions_json: json_array(&spell_data.traditions)?,
-                spell_kinds_json: json_array(&spell_data.kinds)?,
-                range_text: spell_data.range.as_ref().map(|range| range.text.clone()),
-                range_value: spell_data.range.as_ref().and_then(|range| range.distance),
-                target_text: spell_data.target.as_ref().map(|target| target.text.clone()),
-                area_type: spell_data.area.as_ref().and_then(|area| area.kind.clone()),
-                area_value: spell_data.area.as_ref().and_then(|area| area.value),
-                save_type: defense.and_then(|defense| defense.save.clone()),
-                sustained: spell_data.sustained,
-                basic_save: defense.is_some_and(|defense| defense.basic),
-                damage_types_json: json_array(&spell_data.damage_types)?,
             });
         }
         for (ordinal, metric) in persisted_metrics.iter().enumerate() {
@@ -366,12 +436,6 @@ pub(super) fn write_records(
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    for rows in spell_rows.chunks(super::INSERT_BATCH_ROWS) {
-        diesel::insert_into(crate::schema::spell_records::table)
-            .values(rows)
-            .execute(connection)
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    }
     for rows in metric_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::record_metrics::table)
             .values(rows)
@@ -385,6 +449,31 @@ pub(super) fn write_records(
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+fn canonical_bodies_by_key<'a>(
+    records: &[AtlasRecord],
+    canonical_bodies: &'a [RecordBody],
+) -> Result<std::collections::BTreeMap<String, &'a RecordBody>, IndexWriteError> {
+    let record_keys = records
+        .iter()
+        .map(|record| record.identity.key.to_string())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut bodies = std::collections::BTreeMap::new();
+    for body in canonical_bodies {
+        let key = body.record_key().to_string();
+        if !record_keys.contains(&key) {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "canonical body `{key}` has no matching record"
+            )));
+        }
+        if bodies.insert(key.clone(), body).is_some() {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "record `{key}` has multiple canonical bodies"
+            )));
+        }
+    }
+    Ok(bodies)
 }
 
 fn legacy_content_role(source_kind: atlas_record::ContentSourceKind) -> &'static str {

@@ -1,0 +1,34 @@
+{
+  "_id": "nonlexicalSpellMaps",
+  "name": "Nonlexical Spell Maps",
+  "type": "spell",
+  "system": {
+    "damage": {
+      "zeta-damage": { "formula": "1d6", "type": "force" },
+      "alpha-damage": { "formula": "1d4", "type": "spirit" },
+      "zeta-damage": { "formula": "2d6", "type": "force" }
+    },
+    "heightening": {
+      "levels": {
+        "8": { "target": { "value": "eight creatures" } },
+        "5": { "target": { "value": "five creatures" } }
+      },
+      "type": "fixed"
+    },
+    "level": { "value": 1 },
+    "overlays": {
+      "zeta-overlay": {
+        "overlayType": "override",
+        "sort": 2,
+        "system": { "range": { "value": "30 feet" } }
+      },
+      "alpha-overlay": {
+        "overlayType": "override",
+        "sort": 1,
+        "system": { "range": { "value": "touch" } }
+      }
+    },
+    "rules": [],
+    "traits": { "rarity": "common", "traditions": [], "value": [] }
+  }
+}

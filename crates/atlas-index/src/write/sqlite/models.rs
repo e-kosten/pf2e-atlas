@@ -87,6 +87,9 @@ pub(super) struct RecordContentRow {
     pub owner_entity_id: Option<String>,
     pub owner_occurrence_id: Option<String>,
     pub owner_occurrence_authored_order: Option<i64>,
+    pub owner_hazard_entity_id: Option<String>,
+    pub owner_hazard_occurrence_id: Option<String>,
+    pub owner_hazard_occurrence_authored_order: Option<i64>,
     pub role: String,
     pub origin_json: String,
     pub visibility: String,
@@ -182,6 +185,95 @@ pub(super) struct CanonicalCreatureRelationshipRow {
 }
 
 #[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_hazard_records)]
+pub(super) struct CanonicalHazardRecordRow {
+    pub record_key: String,
+    pub source_id: String,
+    pub name: String,
+    pub family: String,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_spell_records)]
+pub(super) struct CanonicalSpellRecordRow {
+    pub record_key: String,
+    pub source_id: String,
+    pub name: String,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_hazard_entities)]
+pub(super) struct CanonicalHazardEntityRow {
+    pub record_key: String,
+    pub entity_id: String,
+    pub family: String,
+    pub label: String,
+    pub image_json: String,
+    pub source_identity_json: String,
+    pub capability_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_hazard_occurrences)]
+pub(super) struct CanonicalHazardOccurrenceRow {
+    pub record_key: String,
+    pub occurrence_id: String,
+    pub entity_id: String,
+    pub identity_stability: String,
+    pub family: String,
+    pub authored_order: i64,
+    pub source_sort_json: String,
+    pub source_folder_json: String,
+    pub source_ordinal: i64,
+    pub contextual_label_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_hazard_relationships)]
+pub(super) struct CanonicalHazardRelationshipRow {
+    pub record_key: String,
+    pub relationship_id: String,
+    pub authored_order: i64,
+    pub source_occurrence_id: Option<String>,
+    pub source_occurrence_authored_order: Option<i64>,
+    pub relationship_kind: String,
+    pub target_kind: String,
+    pub target_entity_id: Option<String>,
+    pub target_occurrence_id: Option<String>,
+    pub target_occurrence_authored_order: Option<i64>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_consumable_spell_children)]
+pub(super) struct CanonicalConsumableSpellChildRow {
+    pub parent_record_key: String,
+    pub child_id: String,
+    pub authored_order: i64,
+    pub standalone_target_record_key: Option<String>,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::spell_traditions)]
+pub(super) struct SpellTraditionRow {
+    pub record_key: String,
+    pub authored_order: i64,
+    pub tradition: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::spell_damage_types)]
+pub(super) struct SpellDamageTypeRow {
+    pub record_key: String,
+    pub damage_key: String,
+    pub damage_authored_order: i64,
+    pub type_authored_order: i64,
+    pub damage_type: String,
+}
+
+#[derive(Insertable)]
 #[diesel(table_name = crate::schema::record_traits)]
 pub(super) struct RecordTraitRow {
     pub record_key: String,
@@ -233,8 +325,11 @@ pub(super) struct SpellRecordRow {
     pub area_value: Option<f64>,
     pub save_type: Option<String>,
     pub sustained: bool,
-    pub basic_save: bool,
+    pub basic_save: Option<bool>,
     pub damage_types_json: String,
+    pub rank: Option<i64>,
+    pub range_kind: Option<String>,
+    pub range_rule: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -293,6 +388,9 @@ pub(super) struct ReferenceOccurrenceRow {
     pub owner_entity_id: Option<String>,
     pub owner_occurrence_id: Option<String>,
     pub owner_occurrence_authored_order: Option<i64>,
+    pub owner_hazard_entity_id: Option<String>,
+    pub owner_hazard_occurrence_id: Option<String>,
+    pub owner_hazard_occurrence_authored_order: Option<i64>,
     pub role: String,
     pub origin_json: String,
     pub visibility: String,

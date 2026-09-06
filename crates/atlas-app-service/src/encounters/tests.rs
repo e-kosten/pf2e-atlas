@@ -13,7 +13,8 @@ use atlas_app_model::{
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
-    AddEncounterParticipant, EncounterParticipant, ParticipantKind, ParticipantSide,
+    AddEncounterParticipant, EncounterParticipant, ParticipantHazardState, ParticipantKind,
+    ParticipantSide, UpdateEncounterParticipant,
 };
 
 use crate::test_support::{encounter_fixture_worker, fixture_worker};
@@ -534,7 +535,7 @@ fn local_participant(
 }
 
 #[test]
-fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
+fn encounter_hazard_record_participant_uses_canonical_body_and_preserves_creatures() {
     let fixture = encounter_fixture_worker();
     let encounter = fixture
         .worker
@@ -592,6 +593,7 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
         assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
         assert!(edition.counterparts.is_empty());
         assert!(runtime(participant).defenses.is_some());
+        assert!(runtime(participant).hazard.is_none());
         assert!(runtime(participant).vitals.is_some());
         assert!(participant.reset.available);
         let spell_state = fixture
@@ -638,11 +640,342 @@ fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
         Some(30)
     );
     assert_eq!(hazard_vitals.current_hp, Some(30));
-    assert!(matches!(
-        hazard.record_view.presentation,
-        RecordSurfacePresentationView::Unavailable { .. }
-    ));
-    assert!(runtime(hazard).defenses.is_none());
+    let RecordSurfacePresentationView::Hazard { body } = &hazard.record_view.presentation else {
+        panic!("hazard participant should expose its tagged canonical static body");
+    };
+    assert_eq!(
+        body.activities
+            .as_ref()
+            .expect("hazard activities")
+            .iter()
+            .map(|activity| activity.occurrence_id.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "occurrence-action",
+            "occurrence-strike",
+            "occurrence-unsupported"
+        ]
+    );
+    assert_eq!(
+        body.lifecycle
+            .as_ref()
+            .and_then(|lifecycle| lifecycle.description.as_ref())
+            .and_then(|blocks| blocks.first()),
+        Some(
+            &atlas_app_model::CreatureSurfaceContentBlockView::Paragraph {
+                spans: vec![atlas_app_model::CreatureSurfaceContentInlineView::Text {
+                    text: "When noticed, roll a secret check and disable automatically."
+                        .to_string(),
+                }],
+            }
+        ),
+        "authored prose remains visible but does not become automation"
+    );
+    assert!(body.defenses.as_ref().is_some_and(|defenses| {
+        defenses.armor_class.is_none()
+            && defenses
+                .hit_points
+                .as_ref()
+                .is_some_and(|hp| hp.maximum.is_none())
+    }));
+    assert_eq!(
+        runtime(hazard)
+            .defenses
+            .as_ref()
+            .map(|defenses| defenses.armor_class.adjusted_value),
+        Some(22)
+    );
+    assert_eq!(
+        runtime(hazard)
+            .saves
+            .as_ref()
+            .and_then(|saves| saves.fortitude.as_ref())
+            .map(|save| save.adjusted_value),
+        Some(0),
+        "authored +0 saves remain present as numbers"
+    );
+    let hazard_runtime = runtime(hazard).hazard.as_ref().expect("hazard runtime");
+    assert_eq!(
+        hazard_runtime.state,
+        atlas_app_model::EncounterRuntimeHazardStateView::Active
+    );
+    assert_eq!(
+        hazard_runtime
+            .initiative_suggestion
+            .as_ref()
+            .map(|suggestion| suggestion.modifier.adjusted_value),
+        Some(12)
+    );
+    assert_eq!(
+        hazard_runtime
+            .initiative_suggestion
+            .as_ref()
+            .map(|suggestion| suggestion.statistic),
+        Some(atlas_app_model::EncounterRuntimeHazardInitiativeStatisticView::Stealth)
+    );
+    assert_eq!(
+        hazard_runtime
+            .detection_dc
+            .as_ref()
+            .map(|value| value.adjusted_value),
+        Some(22)
+    );
+    assert_eq!(
+        hazard_runtime
+            .broken_threshold
+            .as_ref()
+            .map(|value| value.adjusted_value),
+        Some(15)
+    );
+    assert_eq!(
+        hazard.initiative, None,
+        "suggestion is not stored as a roll"
+    );
+    assert!(runtime(hazard).awareness.is_none());
+    assert!(runtime(hazard).action_budget.is_none());
+    assert_eq!(
+        runtime(hazard)
+            .activities
+            .iter()
+            .map(|activity| (
+                activity.activity_id.as_str(),
+                activity.availability.as_ref().map(|value| value.available)
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            ("occurrence-action", Some(true)),
+            ("occurrence-strike", Some(true)),
+            ("occurrence-unsupported", Some(false)),
+        ],
+        "occurrence identity/order and per-activity availability are preserved"
+    );
+    assert_eq!(runtime(hazard).activities[1].rolls[0].adjusted_value, 11);
+    assert_eq!(runtime(hazard).activities[1].damage[0].formula, "1d8");
+    assert_eq!(runtime(hazard).activities[0].label, "Routine");
+    assert_eq!(runtime(hazard).activities[1].label, "Routine");
+    assert_ne!(
+        runtime(hazard).activities[0].activity_id,
+        runtime(hazard).activities[1].activity_id,
+        "duplicate labels retain distinct occurrence identity"
+    );
+    assert_eq!(
+        runtime(hazard)
+            .activities
+            .iter()
+            .map(|activity| activity.rolls.len())
+            .sum::<usize>(),
+        1,
+        "save numbers never fabricate save roll actions"
+    );
+
+    let local_hazard = local_participant(
+        &fixture,
+        &hazard_detail.encounter.slug,
+        &hazard.participant_key,
+    );
+    fixture
+        .worker
+        .local_state_store()
+        .expect("local state")
+        .encounters()
+        .update_participant(UpdateEncounterParticipant {
+            participant_key: local_hazard.participant_key.clone(),
+            display_name: local_hazard.display_name.clone(),
+            side: local_hazard.side,
+            participant_variant: local_hazard.participant_variant,
+            hazard_state: ParticipantHazardState::Disabled,
+            initiative: local_hazard.initiative,
+            max_hp: local_hazard.max_hp,
+            current_hp: local_hazard.current_hp,
+            temporary_hp: local_hazard.temporary_hp,
+            defeated: local_hazard.defeated,
+            hidden: local_hazard.hidden,
+            note: local_hazard.note.clone(),
+        })
+        .expect("disable")
+        .expect("hazard");
+    let disabled_detail = fixture
+        .worker
+        .encounter(&hazard_detail.encounter.slug)
+        .expect("disabled detail");
+    let disabled_hazard = disabled_detail
+        .participants
+        .iter()
+        .find(|participant| participant.participant_key == hazard.participant_key)
+        .expect("visible disabled hazard");
+    let disabled_runtime = runtime(disabled_hazard);
+    assert_eq!(
+        disabled_runtime.hazard.as_ref().map(|hazard| hazard.state),
+        Some(atlas_app_model::EncounterRuntimeHazardStateView::Disabled)
+    );
+    assert_eq!(
+        disabled_runtime
+            .activities
+            .iter()
+            .map(|activity| activity.availability.as_ref().map(|value| value.available))
+            .collect::<Vec<_>>(),
+        vec![Some(true), Some(true), Some(false)],
+        "manual hazard state never blankets sibling activity availability"
+    );
+
+    let null_detail = fixture
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: hazard_detail.encounter.slug.clone(),
+            record_ref: "hazards:nullHazard".to_string(),
+            quantity: 1,
+            initiative: None,
+        })
+        .expect("null hazard should add");
+    let null_hazard = null_detail
+        .participants
+        .iter()
+        .find(|participant| participant.record_key.as_deref() == Some("hazards:nullHazard"))
+        .expect("null hazard participant");
+    let null_vitals = runtime(null_hazard)
+        .vitals
+        .as_ref()
+        .expect("authored maximum HP remains available");
+    assert_eq!(
+        null_vitals
+            .maximum_hp
+            .as_ref()
+            .map(|value| value.adjusted_value),
+        Some(40)
+    );
+    assert_eq!(
+        null_vitals.current_hp, None,
+        "explicit Null current HP must not default from authored maximum HP"
+    );
+    assert_eq!(
+        runtime(null_hazard).activities[0]
+            .availability
+            .as_ref()
+            .map(|value| value.available),
+        Some(true),
+        "a malformed strike does not reject its action sibling"
+    );
+    let malformed_strike = &runtime(null_hazard).activities[1];
+    assert_eq!(
+        malformed_strike
+            .availability
+            .as_ref()
+            .map(|value| value.available),
+        Some(false)
+    );
+    assert!(
+        malformed_strike
+            .availability
+            .as_ref()
+            .and_then(|value| value.reason.as_deref())
+            .is_some_and(|reason| reason.contains("damage formula"))
+    );
+}
+
+#[test]
+fn encounter_hazard_disabled_stays_visible_and_skips_rotation_without_auto_advance() {
+    let fixture = fixture_worker();
+    let encounter = fixture
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Disabled Hazard".to_string(),
+            description: None,
+            note: None,
+        })
+        .expect("encounter")
+        .encounter;
+    let store = fixture.worker.local_state_store().expect("local state");
+    let hazard = store
+        .encounters()
+        .add_participant(
+            &encounter.slug,
+            AddEncounterParticipant {
+                record_key: None,
+                participant_kind: ParticipantKind::Hazard,
+                display_name: "Visible hazard".to_string(),
+                record_title_snapshot: None,
+                record_kind_snapshot: None,
+                side: ParticipantSide::Pc,
+                initiative: Some(20),
+                max_hp: None,
+                current_hp: None,
+                temporary_hp: 0,
+                note: None,
+            },
+        )
+        .expect("hazard participant");
+    let pc = store
+        .encounters()
+        .add_participant(&encounter.slug, pc("Hero", Some(10)))
+        .expect("pc participant");
+    store
+        .encounters()
+        .update_participant(UpdateEncounterParticipant {
+            participant_key: pc.participant_key.clone(),
+            display_name: pc.display_name.clone(),
+            side: pc.side,
+            participant_variant: pc.participant_variant,
+            hazard_state: pc.hazard_state,
+            initiative: pc.initiative,
+            max_hp: pc.max_hp,
+            current_hp: pc.current_hp,
+            temporary_hp: pc.temporary_hp,
+            defeated: true,
+            hidden: pc.hidden,
+            note: pc.note.clone(),
+        })
+        .expect("defeat pc")
+        .expect("pc remains");
+    store
+        .encounters()
+        .set_current_turn(&encounter.slug, Some(&hazard.participant_key))
+        .expect("set current hazard");
+    fixture
+        .worker
+        .update_encounter_participant(
+            &encounter.slug,
+            UpdateEncounterParticipantRequest {
+                participant_key: hazard.participant_key.clone(),
+                display_name: hazard.display_name.clone(),
+                side: atlas_app_model::EncounterParticipantSideView::Pc,
+                participant_variant: atlas_app_model::EncounterParticipantVariantView::Normal,
+                hazard_state: Some(atlas_app_model::EncounterRuntimeHazardStateView::Disabled),
+                initiative: hazard.initiative,
+                max_hp: hazard.max_hp,
+                current_hp: hazard.current_hp,
+                temporary_hp: hazard.temporary_hp,
+                defeated: hazard.defeated,
+                hidden: hazard.hidden,
+                note: hazard.note.clone(),
+            },
+        )
+        .expect("disable hazard");
+    let unchanged = store
+        .encounters()
+        .get_with_participants(&encounter.slug)
+        .expect("detail")
+        .expect("encounter");
+    assert_eq!(
+        unchanged.encounter.current_turn_participant_key.as_deref(),
+        Some(hazard.participant_key.as_str()),
+        "manual disable does not auto-advance"
+    );
+    assert!(unchanged.participants.iter().any(|participant| {
+        participant.participant_key == hazard.participant_key
+            && participant.hazard_state == ParticipantHazardState::Disabled
+    }));
+
+    let advanced = fixture
+        .worker
+        .set_encounter_turn(SetEncounterTurnRequest {
+            encounter_ref: encounter.slug,
+            participant_key: None,
+        })
+        .expect("advance");
+    assert_eq!(
+        advanced.current_turn_participant_key.as_deref(),
+        Some(pc.participant_key.as_str())
+    );
 }
 
 #[test]
@@ -1302,6 +1635,7 @@ fn participant_update(
         display_name: participant.display_name.clone(),
         side: participant_side_view(participant.side),
         participant_variant: participant_variant_view(participant.participant_variant),
+        hazard_state: None,
         initiative: participant.initiative,
         max_hp: participant.max_hp,
         current_hp: participant.current_hp,

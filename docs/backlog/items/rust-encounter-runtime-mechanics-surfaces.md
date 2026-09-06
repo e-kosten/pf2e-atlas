@@ -44,4 +44,4 @@ The implementation should:
 - [ADR 0036 candidate: Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
 - [Rust encounter actor context effects](./rust-encounter-actor-context-effects.md)
-- [Rust Foundry type mechanics parsers](./rust-foundry-type-mechanics-parsers.md)
+- [Rust Foundry type mechanics parsers](../history/items/rust-foundry-type-mechanics-parsers.md)

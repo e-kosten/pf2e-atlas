@@ -95,6 +95,7 @@ fn supported_basic_field(field: &str) -> bool {
             | "basic_save"
             | "sustained"
             | "damage_types"
+            | "spell_damage_types"
             | "range_value"
             | "area_type"
             | "area_value"
@@ -136,6 +137,7 @@ fn filter_field_label(field: &str) -> &'static str {
         "basic_save" => "Basic Save",
         "sustained" => "Sustained",
         "damage_types" => "Damage Type",
+        "spell_damage_types" => "Spell Damage Type",
         "range_value" => "Range",
         "area_type" => "Area Type",
         "area_value" => "Area Size",
@@ -391,6 +393,7 @@ fn field_group_id(field: &str) -> &'static str {
         "traditions" | "spell_kinds" | "save_type" | "basic_save" | "sustained" | "range_value"
         | "area_type" | "area_value" => "spells",
         "damage_types" => "spells_equipment",
+        "spell_damage_types" => "spells",
         "item_category" | "item_group" | "price_cp" | "bulk_value" | "hands" | "usage"
         | "base_item" => "equipment",
         "size" | "speed_types" | "languages" | "senses" | "immunities" | "resistances"

@@ -5,14 +5,26 @@ use std::process::Command;
 use atlas_ingest::{
     CoverageFailureCode, PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT,
     PF2E_SOURCE_PINNED_SIGNATURE, capture_registered_source_leaf_receipt,
-    evaluate_source_leaf_coverage, lint_source_leaf_ledger, parse_source_leaf_ledger,
+    capture_registered_spell_source_leaf_receipts, evaluate_source_leaf_coverage,
+    lint_source_leaf_ledger, parse_source_leaf_ledger,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 const LEDGER: &str = include_str!("../../../contracts/source-leaf-coverage/v1/actor-npc.yaml");
+const ITEM_SPELL_LEDGER: &str =
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-spell.yaml");
+const CONSUMABLE_SPELL_CHILD_LEDGER: &str =
+    include_str!("../../../contracts/source-leaf-coverage/v1/consumable-spell-child.yaml");
 const FIXTURE_ROOT: &str = "tests/fixtures/source-leaf-coverage/actor-npc";
+const HAZARD_LEDGERS: [&str; 4] = [
+    include_str!("../../../contracts/source-leaf-coverage/v1/actor-hazard.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-action-embedded-hazard.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-melee-embedded-hazard.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml"),
+];
+const HAZARD_FIXTURE_ROOT: &str = "tests/fixtures/hazards/pinned";
 
 #[derive(Debug, Deserialize)]
 struct ActorFixtureManifest {
@@ -359,6 +371,59 @@ fn actor_npc_ledger_is_exact_and_source_grounded() {
 }
 
 #[test]
+fn h2_spell_ledgers_are_exact_and_registered() {
+    let item = parse_source_leaf_ledger(ITEM_SPELL_LEDGER).expect("Item spell ledger parses");
+    let child = parse_source_leaf_ledger(CONSUMABLE_SPELL_CHILD_LEDGER)
+        .expect("consumable spell child ledger parses");
+    assert_eq!(item.type_id, "item--spell--top-level--root--root--root");
+    assert_eq!(item.leaves.len(), 100);
+    assert_eq!(
+        child.type_id,
+        "item--spell--child--item--consumable--consumable-system-spell"
+    );
+    assert_eq!(child.leaves.len(), 44);
+    assert!(
+        lint_source_leaf_ledger(&item).is_empty(),
+        "{:#?}",
+        lint_source_leaf_ledger(&item)
+    );
+    assert!(
+        lint_source_leaf_ledger(&child).is_empty(),
+        "{:#?}",
+        lint_source_leaf_ledger(&child)
+    );
+}
+
+#[test]
+fn h2_spell_pipeline_satisfies_accepted_b_and_c_owned_leaf_owners() {
+    let repository = require_pinned_repository();
+    let mut source_file_count = 0;
+    let mut compatible_sibling_group_count = 0;
+    let mut isolated_discriminator_group_count = 0;
+    let mut sqlite_cycle_count = 0;
+    let mut source_leaf_receipt_count = 0;
+    for source in [ITEM_SPELL_LEDGER, CONSUMABLE_SPELL_CHILD_LEDGER] {
+        let ledger = parse_source_leaf_ledger(source).expect("H2 ledger parses");
+        let (receipts, operations) =
+            capture_registered_spell_source_leaf_receipts(&ledger, &repository)
+                .expect("grouped pinned H2 production-pipeline receipts");
+        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
+        assert!(report.passed, "{:#?}", report.failures);
+        assert_eq!(report.receipt_count, receipts.len());
+        source_leaf_receipt_count += receipts.len();
+        source_file_count += operations.source_file_count;
+        compatible_sibling_group_count += operations.compatible_sibling_group_count;
+        isolated_discriminator_group_count += operations.isolated_discriminator_group_count;
+        sqlite_cycle_count += operations.sqlite_cycle_count();
+    }
+    assert_eq!(source_leaf_receipt_count, 151);
+    assert_eq!(source_file_count, 35);
+    assert_eq!(compatible_sibling_group_count, 35);
+    assert_eq!(isolated_discriminator_group_count, 10);
+    assert_eq!(sqlite_cycle_count, 80);
+}
+
+#[test]
 fn populated_intimidate_inventory_is_exactly_five_and_pin_digest_bound() {
     let repository = require_pinned_repository();
     let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_ROOT);
@@ -464,6 +529,54 @@ fn b1_creature_pipeline_satisfies_exact_promoted_owners() {
             .any(|failure| failure.code == CoverageFailureCode::BroadDeclaration),
         "a broad parent must not close the exact .mod leaf"
     );
+}
+
+#[test]
+fn h1_bc_hazard_ledgers_are_exact_and_portably_pin_bound() {
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR")).join(HAZARD_FIXTURE_ROOT);
+    for source in HAZARD_LEDGERS {
+        let ledger = parse_source_leaf_ledger(source).expect("hazard ledger parses");
+        assert!(
+            lint_source_leaf_ledger(&ledger).is_empty(),
+            "hazard ledger must satisfy the existing exact-leaf contract: {:#?}",
+            lint_source_leaf_ledger(&ledger)
+        );
+        for fixture in ledger.leaves.iter().flat_map(|leaf| &leaf.fixtures) {
+            let bytes = std::fs::read(fixture_root.join(&fixture.source_path))
+                .expect("checked-in selected hazard fixture exists");
+            assert_eq!(
+                format!("sha256:{:x}", Sha256::digest(&bytes)),
+                fixture.source_file_digest,
+                "{} checked-in fixture remains byte-identical to its pinned source blob",
+                fixture.case_id
+            );
+        }
+    }
+}
+
+#[test]
+fn h1_bc_hazard_pipeline_satisfies_selected_root_and_child_leaf_owners() {
+    let repository = require_pinned_repository();
+    for source in HAZARD_LEDGERS {
+        let ledger = parse_source_leaf_ledger(source).expect("hazard ledger parses");
+        let mut receipts = Vec::new();
+        for (leaf_index, leaf) in ledger.leaves.iter().enumerate() {
+            for fixture_index in 0..leaf.fixtures.len() {
+                receipts.push(
+                    capture_registered_source_leaf_receipt(
+                        &ledger,
+                        leaf_index,
+                        fixture_index,
+                        &repository,
+                    )
+                    .expect("pinned hazard production-pipeline receipt"),
+                );
+            }
+        }
+        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
+        assert!(report.passed, "{:#?}", report.failures);
+        assert_eq!(report.receipt_count, ledger.leaves.len());
+    }
 }
 
 #[test]

@@ -210,6 +210,7 @@ mod tests {
                 RecordProvenance::new(format!("fixtures/{record_key}.json")),
             ),
             body: None,
+            spell_children: Vec::new(),
         }
     }
 }

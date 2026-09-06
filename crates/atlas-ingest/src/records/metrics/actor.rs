@@ -4,7 +4,6 @@ use atlas_record::{MetricRow, MetricValue};
 use serde_json::Value;
 
 use super::add_defined_metric_number;
-use super::disable::extract_disable_metrics;
 use super::emit::{EmittedDynamicMetric, emit_dynamic_specs, emit_static_specs};
 use super::exact_metric_definition_key;
 use super::specs::{ACTOR_DYNAMIC_SPECS, ACTOR_STATIC_SPECS};
@@ -18,7 +17,6 @@ pub(super) fn extract_actor_metrics(raw: &Value) -> Result<Vec<MetricRow>, Strin
     add_best_worst_save_metrics(&mut metrics, &save_values)?;
     extract_skill_proficiency_metrics(raw, &mut metrics);
     extract_stealth_metrics(raw, &mut metrics)?;
-    extract_disable_metrics(raw, &mut metrics)?;
     Ok(metrics)
 }
 

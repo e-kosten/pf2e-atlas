@@ -1,0 +1,19 @@
+{
+  "_id": "HmKajQS0DP23bipp",
+  "name": "Planar Displacement",
+  "type": "spell",
+  "system": {
+    "area": { "type": "burst", "value": 20 },
+    "cost": { "value": "rare incense, precious metals, and purified chalk worth 500 gp" },
+    "level": { "value": 7 },
+    "range": { "value": "20 feet" },
+    "requirements": "planar key for the destination plane used as a locus",
+    "ritual": {
+      "primary": { "check": "Arcana (master), Nature (master), Occultism (master), or Religion (master)" },
+      "secondary": { "casters": 2, "checks": "Lore (related to the destination plane), Survival" }
+    },
+    "rules": [],
+    "time": { "value": "1 day" },
+    "traits": { "rarity": "uncommon", "traditions": [], "value": ["teleportation"] }
+  }
+}

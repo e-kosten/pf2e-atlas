@@ -1,4 +1,6 @@
-use atlas_local_state::{EncounterParticipant, ParticipantKind, ParticipantSide};
+use atlas_local_state::{
+    EncounterParticipant, ParticipantHazardState, ParticipantKind, ParticipantSide,
+};
 
 use crate::error::AppServiceResult;
 
@@ -88,7 +90,11 @@ pub(super) fn next_turn_after_removed(
 fn eligible_turn_participants(participants: &[EncounterParticipant]) -> Vec<&EncounterParticipant> {
     let active = participants
         .iter()
-        .filter(|participant| participant.initiative.is_some() && !participant.defeated)
+        .filter(|participant| {
+            participant.initiative.is_some()
+                && !participant.defeated
+                && !is_disabled_hazard(participant)
+        })
         .collect::<Vec<_>>();
     if !active.is_empty() {
         return active;
@@ -97,8 +103,14 @@ fn eligible_turn_participants(participants: &[EncounterParticipant]) -> Vec<&Enc
         .iter()
         .filter(|participant| {
             participant.initiative.is_some()
+                && !is_disabled_hazard(participant)
                 && (participant.participant_kind == ParticipantKind::Pc
                     || participant.side == ParticipantSide::Pc)
         })
         .collect()
+}
+
+fn is_disabled_hazard(participant: &EncounterParticipant) -> bool {
+    participant.participant_kind == ParticipantKind::Hazard
+        && participant.hazard_state == ParticipantHazardState::Disabled
 }

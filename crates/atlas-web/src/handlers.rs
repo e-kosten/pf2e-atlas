@@ -3,14 +3,14 @@ use atlas_app_model::{
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, CreateEncounterRequest,
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     EncounterSpellCastRequest, FilterSavedListRequest, OpenResultWindowRequest,
-    ReadResultWindowPageRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    ResetEncounterParticipantRequest, SetEncounterTurnRequest,
+    ReadResultWindowPageRequest, RecordDetailRequest, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantRequest, ResetEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use axum::Json;
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
 
 use crate::error::{WebError, parse_window_id};
@@ -400,9 +400,11 @@ pub(crate) async fn read_result_window_page(
 pub(crate) async fn record_detail(
     State(state): State<AtlasWebState>,
     Path(record_key): Path<String>,
+    query: Result<Query<RecordDetailRequest>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Query(request) = query.map_err(WebError::invalid_query)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.record_detail(&record_key)).await?,
+        call_service(state, move || service.record_detail(&record_key, request)).await?,
     ))
 }

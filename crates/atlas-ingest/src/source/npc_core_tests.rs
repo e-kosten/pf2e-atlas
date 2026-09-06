@@ -14,6 +14,10 @@ use super::npc_core::{
     NpcCoreDiagnosticDisposition, NpcCoreDiagnosticKind, NpcCoreDiagnosticOwner, convert_npc_core,
 };
 
+fn creature(body: &RecordBody) -> &atlas_record::CreatureRecord {
+    body.as_creature().expect("creature body")
+}
+
 #[test]
 fn night_hag_matches_approved_canonical_core_facts() {
     let source = parse(night_hag_source(), "pathfinder-bestiary:WQy7HBUcgDLsfVJd");
@@ -25,7 +29,7 @@ fn night_hag_matches_approved_canonical_core_facts() {
     .expect("Night Hag core conversion");
     assert!(converted.diagnostics.is_empty());
 
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = creature(&converted.body);
     assert_eq!(creature.identity.source_id.as_str(), "WQy7HBUcgDLsfVJd");
     assert_eq!(creature.identity.name, "Night Hag");
     assert_eq!(creature.level.value, FactValue::Value(9));
@@ -181,7 +185,7 @@ fn dense_core_preserves_skill_variants_lore_iwr_exceptions_and_movement_order() 
         &source,
     )
     .expect("dense conversion");
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = creature(&converted.body);
 
     let skills = creature.skills.value.as_value().expect("skills");
     assert_eq!(skills.len(), 2);
@@ -280,7 +284,7 @@ fn malformed_component_ids_use_portable_source_scoped_fallbacks_without_losing_s
         &source,
     )
     .expect("component-id problems preserve the enclosing creature");
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = creature(&converted.body);
     let movement = creature.movement.value.as_value().expect("movement");
 
     assert_eq!(movement.len(), 3);
@@ -368,7 +372,7 @@ fn malformed_component_ids_use_portable_source_scoped_fallbacks_without_losing_s
         &reordered,
     )
     .expect("reordered source-derived fallbacks");
-    let RecordBody::Creature(reordered) = &reordered.body;
+    let reordered = self::creature(&reordered.body);
     let air_walk = reordered
         .movement
         .value
@@ -406,7 +410,7 @@ fn conversion_preserves_missing_null_and_zero_without_prepared_defaults() {
         &source,
     )
     .expect("presence conversion");
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = self::creature(&converted.body);
     assert_eq!(creature.level.value, FactValue::Null);
     assert_eq!(creature.rarity.value, FactValue::Null);
     assert_eq!(creature.traits.value, FactValue::Null);
@@ -449,7 +453,7 @@ fn actor_root_facts_preserve_missing_null_value_and_serialized_state_boundaries(
     )
     .expect("actor-root value conversion");
     assert!(converted.diagnostics.is_empty());
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = creature(&converted.body);
     assert_eq!(
         creature.adjustment.value,
         FactValue::Value(CreatureAdjustment::Elite)
@@ -511,7 +515,7 @@ fn actor_root_facts_preserve_missing_null_value_and_serialized_state_boundaries(
         &null,
     )
     .expect("actor-root null conversion");
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = self::creature(&converted.body);
     assert_eq!(creature.adjustment.value, FactValue::Null);
     assert_eq!(creature.source_alliance.value, FactValue::Null);
     assert_eq!(creature.initiative.value, FactValue::Null);
@@ -530,7 +534,7 @@ fn actor_root_facts_preserve_missing_null_value_and_serialized_state_boundaries(
         &missing,
     )
     .expect("actor-root missing conversion");
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = self::creature(&converted.body);
     assert_eq!(creature.adjustment.value, FactValue::Missing);
     assert_eq!(creature.source_alliance.value, FactValue::Missing);
     assert_eq!(creature.initiative.value, FactValue::Missing);
@@ -553,7 +557,7 @@ fn maxx_drift_is_preserved_as_typed_unsupported_without_coercing_maximum() {
         &source,
     )
     .expect("maxx drift conversion");
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = creature(&converted.body);
     let focus = &creature.resources.value.as_value().expect("resources")[0];
     assert_eq!(
         focus.maximum,
@@ -669,7 +673,7 @@ fn malformed_and_unsupported_source_are_diagnosed_explicitly() {
                 && diagnostic.disposition == NpcCoreDiagnosticDisposition::TypedUnsupported
         }));
     }
-    let RecordBody::Creature(creature) = &converted.body;
+    let creature = creature(&converted.body);
     let unmodeled = creature
         .skills
         .value
@@ -732,7 +736,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "WQy7HBUcgDLsfVJd",
         "packs/pathfinder-bestiary/night-hag.json",
     );
-    let RecordBody::Creature(night_hag) = &night_hag.body;
+    let night_hag = creature(&night_hag.body);
     assert_eq!(night_hag.level.value, FactValue::Value(9));
     assert_eq!(night_hag.skills.value.as_value().expect("skills").len(), 6);
 
@@ -742,7 +746,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "fLLKuOXwPq1Iq0U4",
         "packs/pathfinder-monster-core/goblin-warrior.json",
     );
-    let RecordBody::Creature(goblin) = &goblin.body;
+    let goblin = creature(&goblin.body);
     assert_eq!(goblin.level.value, FactValue::Value(-1));
     assert_eq!(goblin.skills.value.as_value().expect("skills").len(), 4);
 
@@ -752,7 +756,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "qCKNT6U8O0su578A",
         "packs/pathfinder-npc-core/artisan/merchant.json",
     );
-    let RecordBody::Creature(merchant) = &merchant.body;
+    let merchant = creature(&merchant.body);
     let merchant_lore = merchant
         .skills
         .value
@@ -770,7 +774,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "BvYVgvlTcRbim4Xb",
         "packs/pathfinder-monster-core/fortune-dragon-young-spellcaster.json",
     );
-    let RecordBody::Creature(fortune_dragon) = &fortune_dragon.body;
+    let fortune_dragon = creature(&fortune_dragon.body);
     assert_eq!(
         fortune_dragon
             .movement
@@ -792,7 +796,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "dwzAEnCBpDWnZBWr",
         "packs/pathfinder-npc-core/devotee/acolyte-of-iomedae.json",
     );
-    let RecordBody::Creature(acolyte) = &acolyte.body;
+    let acolyte = creature(&acolyte.body);
     let focus = &acolyte.resources.value.as_value().expect("resources")[0];
     assert_eq!(focus.kind.as_str(), "focus");
     assert_eq!(
@@ -810,7 +814,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         diagnostic.source_field.starts_with("$.system.skills.")
             && diagnostic.source_field != "$.system.skills.performance.special[0]"
     }));
-    let RecordBody::Creature(oriole) = &oriole.body;
+    let oriole = creature(&oriole.body);
     assert_eq!(
         oriole
             .skills
@@ -841,7 +845,7 @@ fn pinned_approved_fixture_cores_match_the_source_contract() {
         "RUuUJtm8jAJ66z0Q",
         "packs/curtain-call-bestiary/book-3-bring-the-house-down/risen-nemesis.json",
     );
-    let RecordBody::Creature(risen_nemesis) = &risen_nemesis.body;
+    let risen_nemesis = creature(&risen_nemesis.body);
     let resistance = &risen_nemesis
         .defenses
         .value
@@ -871,7 +875,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "BgPshRvqaBvy4ulr",
         "packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json",
     );
-    let RecordBody::Creature(priest) = &priest.body;
+    let priest = creature(&priest.body);
     let abilities = priest
         .legacy_abilities
         .value
@@ -902,7 +906,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "azyIfDNNW44jY8YX",
         "packs/agents-of-edgewatch-bestiary/book-5-belly-of-the-black-whale/barrel-launcher.json",
     );
-    let RecordBody::Creature(barrel_launcher) = &barrel_launcher.body;
+    let barrel_launcher = creature(&barrel_launcher.body);
     assert_eq!(
         barrel_launcher.adjustment.value,
         FactValue::Value(CreatureAdjustment::Elite)
@@ -914,7 +918,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "XDt87cqF85zWnlC8",
         "packs/agents-of-edgewatch-bestiary/book-1-devil-at-the-dreaming-palace/siege-shard.json",
     );
-    let RecordBody::Creature(siege_shard) = &siege_shard.body;
+    let siege_shard = creature(&siege_shard.body);
     assert_eq!(
         siege_shard
             .defenses
@@ -931,7 +935,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "cnTAIcjKu01I7eJ0",
         "packs/quest-for-the-frozen-flame-bestiary/book-3-burning-tundra/arboreal-tar-tree.json",
     );
-    let RecordBody::Creature(tar_tree) = &tar_tree.body;
+    let tar_tree = creature(&tar_tree.body);
     let shield = tar_tree
         .defenses
         .value
@@ -952,7 +956,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "SxcJlOBouEOuH0AJ",
         "packs/spore-war-bestiary/book-3-a-voice-in-the-blight/queen-telandia-edasseril.json",
     );
-    let RecordBody::Creature(queen) = &queen.body;
+    let queen = creature(&queen.body);
     let CreatureSourceAlliance::Named(alliance) = queen
         .source_alliance
         .value
@@ -969,7 +973,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "3ry9WSvMMXHUe3kE",
         "packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/beluthus.json",
     );
-    let RecordBody::Creature(beluthus) = &beluthus.body;
+    let beluthus = creature(&beluthus.body);
     let CreatureInitiativeStatistic::Named(statistic) = beluthus
         .initiative
         .value
@@ -989,7 +993,7 @@ fn pinned_actor_root_disposition_fixtures_match_exact_source_facts() {
         "8jYqoyei7X2Bikb0",
         "packs/outlaws-of-alkenstar-bestiary/book-2-cradle-of-quartz/brighite-herexen.json",
     );
-    let RecordBody::Creature(herexen) = &herexen_conversion.body;
+    let herexen = creature(&herexen_conversion.body);
     let focus = &herexen.resources.value.as_value().expect("resources")[0];
     assert_eq!(
         focus.maximum,
@@ -1071,7 +1075,7 @@ fn pinned_component_id_failures_preserve_all_eight_parent_records() {
 
     for (pack, id, relative_path, source_type) in fixtures {
         let converted = convert_pinned(source_root, pack, id, relative_path);
-        let RecordBody::Creature(creature) = &converted.body;
+        let creature = creature(&converted.body);
         assert_eq!(
             creature.identity.record_key.to_string(),
             format!("{pack}:{id}")
