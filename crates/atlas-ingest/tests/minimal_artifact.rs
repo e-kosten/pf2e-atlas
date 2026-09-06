@@ -1029,13 +1029,17 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;
-    let (spell_taxonomy_terms, spell_mechanic_terms, spell_source_terms): (String, String, String) =
-        connection.query_row(
-            "SELECT taxonomy_terms, mechanic_terms, source_terms
+    let (spell_traits, spell_taxonomy_terms, spell_mechanic_terms, spell_source_terms): (
+        String,
+        String,
+        String,
+        String,
+    ) = connection.query_row(
+        "SELECT traits, taxonomy_terms, mechanic_terms, source_terms
          FROM records_fts WHERE record_key = 'spells:testSpell0001'",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )?;
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )?;
     let (actor_mechanic_terms, actor_metric_terms): (String, String) = connection.query_row(
         "SELECT mechanic_terms, metric_terms
          FROM records_fts WHERE record_key = 'bestiary:testActor0001'",
@@ -1075,6 +1079,11 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM actor_records", [], |row| row.get(0))?;
     let item_side_count: usize =
         connection.query_row("SELECT COUNT(*) FROM item_records", [], |row| row.get(0))?;
+    let spell_item_side_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM item_records WHERE record_key = 'spells:testSpell0001'",
+        [],
+        |row| row.get(0),
+    )?;
     let spell_side_count: usize =
         connection.query_row("SELECT COUNT(*) FROM spell_records", [], |row| row.get(0))?;
     let reference_edge_count: usize =
@@ -1196,8 +1205,10 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(action_source_terms.contains("Player Core"));
     assert!(action_source_terms.contains("Actions"));
     assert!(spell_taxonomy_terms.contains("spell"));
-    assert!(spell_taxonomy_terms.contains("cantrip"));
-    assert!(spell_mechanic_terms.contains("level 1"));
+    assert!(!spell_taxonomy_terms.contains("cantrip"));
+    assert!(spell_traits.contains("cantrip"));
+    assert!(spell_mechanic_terms.contains("rank 1"));
+    assert!(!spell_mechanic_terms.contains("level 1"));
     assert!(spell_mechanic_terms.contains("1st rank"));
     assert!(spell_mechanic_terms.contains("basic save"));
     assert!(spell_source_terms.contains("Spells"));
@@ -1217,7 +1228,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(metric_key_catalog_count >= 18);
     assert!(metric_value_catalog_count >= 3);
     assert_eq!(actor_side_count, 0);
-    assert_eq!(item_side_count, 4);
+    assert_eq!(item_side_count, 3);
+    assert_eq!(spell_item_side_count, 0);
     assert_eq!(spell_side_count, 1);
     assert_eq!(reference_edge_count, 1);
     assert_eq!(reference_to, "spells:testSpell0001");
@@ -1287,7 +1299,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_kinds, "[\"cantrip\"]");
     assert_eq!(spell_range_text, "30 feet");
     assert_eq!(spell_range_value, 30.0);
-    assert_eq!(spell_target_text, "1 willing creature");
+    assert_eq!(spell_target_text, "<p>1 willing creature</p>");
     assert_eq!(spell_save_type, "fortitude");
     assert_eq!(spell_basic_save, 1);
     assert_eq!(spell_damage_types, "[\"vitality\"]");
