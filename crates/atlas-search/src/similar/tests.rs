@@ -355,7 +355,11 @@ impl RecordReadIndex for FakeSimilarIndex {
                     .iter()
                     .find(|record| record.identity.key == *key)
                     .cloned()
-                    .map(|record| RetrievedRecord { record, body: None })
+                    .map(|record| RetrievedRecord {
+                        record,
+                        body: None,
+                        spell_children: Vec::new(),
+                    })
             })
             .collect())
     }

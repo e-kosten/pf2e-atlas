@@ -5,12 +5,12 @@ use serde_json::Value;
 use super::creature_core::parse_npc_core;
 use super::embedded::{ActorSpellcastingSource, parse_actor_spellcasting};
 use super::item::parse_item;
-use super::value::serialized_object;
 use super::{
-    ItemSource, NpcCoreSource, RawSourceJson, SerializedSourceObject, SourceDiagnostic,
-    SourceDiagnosticKind, SourceIdentity, SourceParentContext, SourcePresence,
-    SourceVersionMetadata, actual_shape, optional_array_of_objects, optional_integer,
-    optional_object, optional_string, required_object, required_string,
+    ItemSource, NpcCoreSource, RawSourceJson, SerializedSourceMember, SerializedSourceObject,
+    SerializedSourceValue, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
+    SourceParentContext, SourcePresence, SourceVersionMetadata, actual_shape,
+    optional_array_of_objects, optional_integer, optional_object, optional_string, required_object,
+    required_string,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -92,8 +92,8 @@ pub struct NpcSource {
     pub image: SourcePresence<String>,
     pub folder: SourcePresence<String>,
     pub sort: SourcePresence<i64>,
-    pub ownership: SourcePresence<SerializedSourceObject>,
-    pub effects: SourcePresence<Vec<SerializedSourceObject>>,
+    pub(crate) ownership: SourcePresence<SerializedSourceObject>,
+    pub(crate) effects: SourcePresence<Vec<SerializedSourceObject>>,
     pub items: SourcePresence<Vec<ItemSource>>,
     pub core: NpcCoreSource,
     pub(crate) spellcasting: SourcePresence<ActorSpellcastingSource>,
@@ -132,6 +132,24 @@ pub fn parse_npc_source(
     identity: SourceIdentity,
     raw: Value,
 ) -> Result<VersionedNpcSource, SourceDiagnostic> {
+    let serialized = SerializedSourceObject::from_json(&raw).ok_or_else(|| {
+        SourceDiagnostic::new(
+            SourceDiagnosticKind::MalformedShape,
+            &identity,
+            "$",
+            "Actor source object",
+            actual_shape(&raw),
+        )
+    })?;
+    parse_npc_source_from_serialized(version, identity, raw, &serialized)
+}
+
+pub(crate) fn parse_npc_source_from_serialized(
+    version: SourceVersionMetadata,
+    identity: SourceIdentity,
+    raw: Value,
+    serialized: &SerializedSourceObject,
+) -> Result<VersionedNpcSource, SourceDiagnostic> {
     let map = raw.as_object().ok_or_else(|| {
         SourceDiagnostic::new(
             SourceDiagnosticKind::MalformedShape,
@@ -155,7 +173,25 @@ pub fn parse_npc_source(
         ));
     }
     let system = required_object(map, "system", &identity, "$.system")?;
+    let serialized_system = match serialized.member("system") {
+        SerializedSourceMember::Value(SerializedSourceValue::Object(system)) => system,
+        _ => {
+            return Err(SourceDiagnostic::new(
+                SourceDiagnosticKind::MalformedShape,
+                &identity,
+                "$.system",
+                "one source object",
+                "missing, null, non-object, or duplicate source member",
+            ));
+        }
+    };
     let core = parse_npc_core(system, &identity)?;
+    let serialized_items = match serialized.member("items") {
+        SerializedSourceMember::Value(SerializedSourceValue::Array(items)) => {
+            Some(items.as_slice())
+        }
+        _ => None,
+    };
     let items = match map.get("items") {
         None => SourcePresence::Missing,
         Some(Value::Null) => SourcePresence::Null,
@@ -164,10 +200,23 @@ pub fn parse_npc_source(
                 .iter()
                 .enumerate()
                 .map(|(index, item)| {
+                    let serialized_item = serialized_items
+                        .and_then(|items| items.get(index))
+                        .and_then(SerializedSourceValue::object)
+                        .ok_or_else(|| {
+                            SourceDiagnostic::new(
+                                SourceDiagnosticKind::MalformedShape,
+                                &identity,
+                                format!("$.items[{index}]"),
+                                "one source object",
+                                "missing or non-object source member",
+                            )
+                        })?;
                     parse_item(
                         &identity,
                         Some(SourceParentContext::npc_items()),
                         item,
+                        serialized_item,
                         &format!("$.items[{index}]"),
                     )
                 })
@@ -196,8 +245,8 @@ pub fn parse_npc_source(
         items,
         core,
         spellcasting: parse_actor_spellcasting(system),
-        serialized: serialized_object(map),
-        system: serialized_object(system),
+        serialized: serialized.clone(),
+        system: serialized_system.clone(),
     };
 
     Ok(VersionedNpcSource {

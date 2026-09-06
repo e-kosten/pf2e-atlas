@@ -101,6 +101,9 @@ fn collect_document_reference_occurrences(
             owner_entity_id: None,
             owner_occurrence_id: None,
             owner_occurrence_authored_order: None,
+            owner_hazard_entity_id: None,
+            owner_hazard_occurrence_id: None,
+            owner_hazard_occurrence_authored_order: None,
             role: legacy_content_role(source_kind).to_string(),
             origin_json: crate::artifact::canonical_json::encode(
                 &atlas_record::ContentOrigin::RecordField {

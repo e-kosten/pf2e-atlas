@@ -204,7 +204,8 @@ fn lower_range(
     };
     let numeric_match = numeric_match(range)?;
     match canonical_field(field).as_str() {
-        "level" | "rank" => simple.level = Some(numeric_match),
+        "level" => simple.level = Some(numeric_match),
+        "rank" => simple.spell_rank = Some(numeric_match),
         "price" | "price_cp" => simple.price_cp = Some(numeric_match),
         other if let Some(field) = number_field(other) => {
             direct_nodes.push(SearchFilterNode::metadata(MetadataPredicate::Number {
@@ -346,6 +347,7 @@ fn set_field(field: &str) -> Option<MetadataSetField> {
         "traditions" => MetadataSetField::Traditions,
         "spell_kinds" => MetadataSetField::SpellKinds,
         "damage_types" => MetadataSetField::DamageTypes,
+        "spell_damage_types" => MetadataSetField::SpellDamageTypes,
         "languages" => MetadataSetField::Languages,
         "speed_types" => MetadataSetField::SpeedTypes,
         "senses" => MetadataSetField::Senses,

@@ -7,9 +7,9 @@ pub use model::{
     EncounterParticipantCondition, EncounterParticipantReset, EncounterParticipantResetDomain,
     EncounterParticipantSpellState, EncounterSpellResource, EncounterSpellResourceMutation,
     EncounterSpellResourceOperation, EncounterSpellResourceTarget, EncounterStatus,
-    EncounterWithParticipants, NewEncounter, ParticipantKind, ParticipantSide, ParticipantVariant,
-    ReorderEncounterParticipant, ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    EncounterWithParticipants, NewEncounter, ParticipantHazardState, ParticipantKind,
+    ParticipantSide, ParticipantVariant, ReorderEncounterParticipant, ReorderPlacement,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 pub use service::Encounters;
 

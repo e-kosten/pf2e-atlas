@@ -2583,7 +2583,7 @@ mod tests {
             .records
             .iter()
             .filter_map(|record| {
-                let RecordBody::Creature(creature) = record.facts.canonical_body.as_ref()?;
+                let creature = record.facts.canonical_body.as_ref()?.as_creature()?;
                 creature.embedded_entities.value.as_value()
             })
             .collect::<Vec<_>>();

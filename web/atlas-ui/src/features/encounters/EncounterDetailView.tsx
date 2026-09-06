@@ -323,7 +323,8 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
 function resetResultMessage(result: EncounterParticipantResetResultView): string {
   const reset = result.reset_domains.map(resetDomainLabel).join(", ");
   const preserved = result.preserved_domains.map(preservedDomainLabel).join(", ");
-  return `Creature reset. Restored ${reset}; preserved ${preserved}.`;
+  const kind = result.participant.participant_kind === "hazard" ? "Hazard" : "Creature";
+  return `${kind} reset. Restored ${reset}; preserved ${preserved}.`;
 }
 
 function mutationErrorMessage(error: unknown): string {
@@ -350,6 +351,7 @@ function resetDomainLabel(domain: EncounterParticipantResetDomainView): string {
     variant_adjustments: "variant",
     action_budget: "actions",
     spell_resources: "spell resources",
+    hazard_state: "hazard state",
   };
   return labels[domain];
 }

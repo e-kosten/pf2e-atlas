@@ -99,6 +99,7 @@ pub(super) fn participant_view(
             retrieved,
             RecordSurfaceProfileView::EncounterParticipant,
             Some(encounter_runtime),
+            None,
             remaster_lookup,
         )
     } else {

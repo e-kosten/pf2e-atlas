@@ -140,6 +140,7 @@ pub enum SourceLeafKind {
     Scalar,
     ArrayMember,
     MapMember,
+    NestedMember,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,6 +163,7 @@ pub enum MapKeyPolicy {
 pub enum SourceLeafDisposition {
     Promoted,
     ProvenanceOnly,
+    TypedUnsupported,
     Ignored,
     Deferred,
     Unconsumed,
@@ -382,6 +384,26 @@ pub fn lint_source_leaf_ledger(ledger: &SourceLeafCoverageLedger) -> Vec<Coverag
         }
         lint_leaf(leaf, identity, &mut failures);
     }
+    match accepted_prevalence() {
+        Ok(entries) => {
+            for entry in entries.iter().filter(|entry| {
+                entry.type_id == ledger.type_id && entry.selector == ledger.selector
+            }) {
+                let identity = entry.identity();
+                if !owners.contains(&identity) {
+                    failures.push(CoverageFailure::for_identity(
+                        CoverageFailureCode::SourcePrevalenceMismatch,
+                        identity,
+                        "digest-authenticated prevalence entry has no leaf declaration in its exact owning ledger",
+                    ));
+                }
+            }
+        }
+        Err(message) => failures.push(CoverageFailure::ledger(
+            CoverageFailureCode::SourcePrevalenceMismatch,
+            message,
+        )),
+    }
     failures
 }
 
@@ -434,21 +456,18 @@ fn lint_leaf(
         .normalized_path
         .split('.')
         .any(|segment| segment == "*");
-    if has_map_wildcard != (leaf.leaf_kind == SourceLeafKind::MapMember)
-        || has_map_wildcard != leaf.map_key_policy.is_some()
-    {
-        failures.push(CoverageFailure::for_identity(
-            CoverageFailureCode::BroadDeclaration,
-            identity.clone(),
-            "map paths, map-member shapes, and map key policies must agree exactly",
-        ));
-    }
     let has_array_member = leaf.normalized_path.contains("[]");
-    if has_array_member != (leaf.leaf_kind == SourceLeafKind::ArrayMember) {
+    let expected_kind = match (has_map_wildcard, has_array_member) {
+        (false, false) => SourceLeafKind::Scalar,
+        (false, true) => SourceLeafKind::ArrayMember,
+        (true, false) => SourceLeafKind::MapMember,
+        (true, true) => SourceLeafKind::NestedMember,
+    };
+    if leaf.leaf_kind != expected_kind || has_map_wildcard != leaf.map_key_policy.is_some() {
         failures.push(CoverageFailure::for_identity(
             CoverageFailureCode::BroadDeclaration,
             identity.clone(),
-            "array-member paths must declare array_member and only array-member paths may do so",
+            "scalar, array, map, and nested-member paths must agree with wildcard syntax and map key policy",
         ));
     }
     if let Some(MapKeyPolicy::ClosedVocabulary { keys }) = &leaf.map_key_policy
@@ -569,13 +588,6 @@ fn lint_leaf(
             message,
         )),
     }
-    if leaf.source_prevalence.occurrence_count < leaf.source_prevalence.record_count {
-        failures.push(CoverageFailure::for_identity(
-            CoverageFailureCode::InvalidContract,
-            identity.clone(),
-            "source occurrence count cannot be smaller than record count",
-        ));
-    }
     let fixture_records = leaf
         .fixtures
         .iter()
@@ -663,6 +675,36 @@ fn lint_leaf(
                 ));
             }
         }
+        SourceLeafDisposition::TypedUnsupported => {
+            if leaf.reader.reader_id.as_deref().is_none_or(str::is_empty) {
+                failures.push(CoverageFailure::for_identity(
+                    CoverageFailureCode::ReaderNotObserved,
+                    identity.clone(),
+                    "typed_unsupported requires an exact parser reader",
+                ));
+            }
+            for stage in [FinalOwnerStage::SourceDto, FinalOwnerStage::Canonical] {
+                if !stages.contains_key(&stage) {
+                    failures.push(CoverageFailure::for_identity(
+                        stage.mismatch_code(),
+                        identity.clone(),
+                        format!("typed_unsupported requires a {stage:?} final owner"),
+                    ));
+                }
+            }
+            if leaf
+                .surfaces
+                .decisions()
+                .into_iter()
+                .any(|surface| surface.disposition == SurfaceDisposition::Promoted)
+            {
+                failures.push(CoverageFailure::for_identity(
+                    CoverageFailureCode::UnconsumedLeaf,
+                    identity.clone(),
+                    "typed_unsupported cannot claim a promoted semantic surface",
+                ));
+            }
+        }
         SourceLeafDisposition::Ignored => {
             if !leaf.final_owners.is_empty()
                 || leaf
@@ -701,6 +743,7 @@ fn lint_leaf(
         leaf.disposition,
         SourceLeafDisposition::Promoted
             | SourceLeafDisposition::ProvenanceOnly
+            | SourceLeafDisposition::TypedUnsupported
             | SourceLeafDisposition::Ignored
     ) && leaf.reader.parity_case_ids.is_empty()
     {
@@ -784,6 +827,9 @@ fn has_exact_map_wildcard(path: &str) -> bool {
 mod tests {
     use super::*;
 
+    const ITEM_SPELL_LEDGER: &str =
+        include_str!("../../../../contracts/source-leaf-coverage/v1/item-spell.yaml");
+
     const LEDGER: &str = r#"
 contract_version: atlas-source-leaf-coverage/v1
 type_id: item--action--top-level--root--root--root
@@ -804,9 +850,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 466dd7ecfc6e5740f6470169307d5fb81e8abb3f585b06dba1b976784848c9bf
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
       entry_id: item-action-top-level-name@4cbdaa37
       record_count: 1169
       occurrence_count: 1169
@@ -847,6 +893,21 @@ leaves:
             ledger.selector.parent_context,
             SourceParentContextSelector::root()
         );
+    }
+
+    #[test]
+    fn lint_rejects_an_authenticated_inventory_leaf_missing_from_its_owning_ledger() {
+        let mut ledger = parse_source_leaf_ledger(ITEM_SPELL_LEDGER).expect("spell ledger");
+        let removed = ledger.leaves.pop().expect("one accepted spell leaf");
+        let failures = lint_source_leaf_ledger(&ledger);
+        assert!(failures.iter().any(|failure| {
+            failure.code == CoverageFailureCode::SourcePrevalenceMismatch
+                && failure
+                    .identity
+                    .as_ref()
+                    .is_some_and(|identity| identity.normalized_path == removed.normalized_path)
+                && failure.message.contains("has no leaf declaration")
+        }));
     }
 
     #[test]

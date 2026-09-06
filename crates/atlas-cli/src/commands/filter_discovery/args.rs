@@ -193,6 +193,7 @@ impl From<DiscoveryFilterOptions> for FilterOptions {
             references: options.references,
             referenced_by: options.referenced_by,
             metrics: Vec::new(),
+            ..FilterOptions::default()
         }
     }
 }

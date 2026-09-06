@@ -100,11 +100,7 @@ fn write_artifact(
         let canonical_record_keys = input
             .canonical_bodies
             .iter()
-            .map(|body| match body {
-                atlas_record::RecordBody::Creature(creature) => {
-                    creature.identity.record_key.to_string()
-                }
-            })
+            .map(|body| body.record_key().to_string())
             .collect::<std::collections::BTreeSet<_>>();
         artifact_progress("artifact_write", "Creating artifact schema");
         info!("creating artifact schema");
@@ -133,7 +129,12 @@ fn write_artifact(
             &canonical_record_keys,
         )?;
         artifact_progress("artifact_write", "Writing canonical record artifact");
-        write_canonical_records(connection, &input.canonical_bodies)?;
+        write_canonical_records(
+            connection,
+            &input.records,
+            &input.canonical_bodies,
+            &input.canonical_spell_children,
+        )?;
         artifact_progress("artifact_write", "Writing reference edges");
         info!(
             reference_edges = input.references.len(),
@@ -221,13 +222,12 @@ mod tests {
     use atlas_record::{
         ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, ContentSourceKind,
         ContentVisibility, DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow,
-        MetricValue, NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification,
-        RecordContent, RecordContentDocument, RecordDurationTiming, RecordIdentity,
-        RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
-        RecordTiming, RecordVariantMembership, RecordVisibility, RecordVisibilityReason,
-        ReferenceEdge, RemasterLink, RichDocument, RichNode, SpellArea, SpellDefense,
-        SpellMechanics, SpellRange, SpellTarget, VariantSource,
+        FoundryRecordInfo, FoundryRecordType, ItemMechanics, MetricRow, MetricValue,
+        NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
+        RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
+        RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+        RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
+        RemasterLink, RichDocument, RichNode, VariantSource,
     };
     use rusqlite::Connection;
 
@@ -262,6 +262,8 @@ mod tests {
         let pack_name = PackName::new("bestiary").expect("pack parses");
         let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
         record.classification.kind = RecordKind::Creature;
+        record.foundry.document_type = FoundryDocumentType::Actor;
+        record.foundry.record_type = FoundryRecordType::Npc;
         record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics::default());
 
         let error = write_fixture_records(&target_path, vec![record], Vec::new())
@@ -280,6 +282,8 @@ mod tests {
         let pack_name = PackName::new("bestiary").expect("pack parses");
         let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
         record.classification.kind = RecordKind::Creature;
+        record.foundry.document_type = FoundryDocumentType::Actor;
+        record.foundry.record_type = FoundryRecordType::Npc;
         record.mechanics.document = FoundryDocumentMechanics::None;
 
         let error = write_fixture_records(&target_path, vec![record], Vec::new())
@@ -344,7 +348,9 @@ mod tests {
             22,
             80,
             15,
-        );
+        ) else {
+            panic!("creature body")
+        };
         let projected = atlas_record::project_creature_facts(&creature).metrics;
         assert_eq!(summary.0, i64::try_from(projected.len())?);
         assert_eq!(
@@ -420,7 +426,7 @@ mod tests {
         assert!(
             unexpected
                 .to_string()
-                .contains("has an unexpected canonical creature body")
+                .contains("has an unexpected canonical body")
         );
     }
 
@@ -483,6 +489,7 @@ mod tests {
             }],
             records,
             canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references,
             aliases,
             remaster_links,
@@ -557,26 +564,6 @@ mod tests {
             .expect("item mechanics should round trip");
         assert_eq!(item.price_json.as_deref(), Some(r#"{"gp":1}"#));
         assert_eq!(item.price_cp, Some(100));
-        let spell = loaded
-            .mechanics
-            .spell()
-            .expect("spell mechanics should round trip");
-        assert_eq!(spell.traditions, vec!["arcane"]);
-        assert_eq!(spell.kinds, vec!["spell"]);
-        assert_eq!(
-            spell.range.as_ref().map(|range| range.text.as_str()),
-            Some("30 feet")
-        );
-        assert_eq!(
-            spell.target.as_ref().map(|target| target.text.as_str()),
-            Some("1 creature")
-        );
-        assert_eq!(
-            spell.area.as_ref().and_then(|area| area.kind.as_deref()),
-            Some("burst")
-        );
-        assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
-
         let connection = Connection::open(&target_path)?;
         let independent_visibility: (String, String, String, String, String, i64) = connection
             .query_row(
@@ -904,6 +891,7 @@ mod tests {
             packs: Vec::new(),
             records: Vec::new(),
             canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -951,6 +939,7 @@ mod tests {
             packs: Vec::new(),
             records: Vec::new(),
             canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -991,6 +980,7 @@ mod tests {
             }],
             records: Vec::new(),
             canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -1097,6 +1087,7 @@ mod tests {
             packs,
             records,
             canonical_bodies,
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links,
@@ -1296,27 +1287,6 @@ mod tests {
                     },
                 ],
                 document: FoundryDocumentMechanics::Item(ItemMechanics {
-                    foundry_type: Some(ItemTypeMechanics::Spell(SpellMechanics {
-                        traditions: vec!["arcane".to_string()],
-                        kinds: vec!["spell".to_string()],
-                        range: Some(SpellRange {
-                            text: "30 feet".to_string(),
-                            distance: Some(30.0),
-                        }),
-                        target: Some(SpellTarget {
-                            text: "1 creature".to_string(),
-                        }),
-                        area: Some(SpellArea {
-                            kind: Some("burst".to_string()),
-                            value: Some(10.0),
-                        }),
-                        defense: Some(SpellDefense {
-                            save: Some("will".to_string()),
-                            basic: true,
-                        }),
-                        sustained: true,
-                        damage_types: vec!["mental".to_string()],
-                    })),
                     category: Some("spell".to_string()),
                     base_item: Some("test-base".to_string()),
                     group: Some("test-group".to_string()),

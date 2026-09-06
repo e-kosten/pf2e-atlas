@@ -4,6 +4,7 @@ use atlas_record::{
 use serde_json::Value;
 
 use crate::records::SourceContentFact;
+use crate::source::hazard_entities::HazardResolvedItemIdentity;
 
 use super::{
     ContentParseDiagnostics, LocalizationResolver, parse_foundry_content_with_localization,
@@ -37,11 +38,13 @@ struct EmbeddedContentPointer {
     local_key: String,
     nested_source_id: String,
     authored_ordinal: usize,
+    identity_stability: Option<ContentIdentityStability>,
 }
 
 pub(super) fn extract_content_sources(
     raw: &Value,
     localization: Option<&dyn LocalizationResolver>,
+    hazard_identities: Option<&[HazardResolvedItemIdentity]>,
 ) -> SourceContentProjection {
     let source_description_raw = pointer_string(raw, "/system/description/value");
     let parsed_description = source_description_raw
@@ -62,7 +65,12 @@ pub(super) fn extract_content_sources(
         .filter(non_empty_document);
 
     let (supplemental_content, mut owned_content, supplemental_diagnostics) =
-        extract_supplemental_content(raw, source_description_raw.as_deref(), localization);
+        extract_supplemental_content(
+            raw,
+            source_description_raw.as_deref(),
+            localization,
+            hazard_identities,
+        );
     if let (Some(document), Some(parsed)) = (&description, &parsed_description) {
         owned_content.insert(
             0,
@@ -124,6 +132,7 @@ fn extract_supplemental_content(
     raw: &Value,
     source_description_raw: Option<&str>,
     localization: Option<&dyn LocalizationResolver>,
+    hazard_identities: Option<&[HazardResolvedItemIdentity]>,
 ) -> SupplementalContentExtraction {
     let mut accumulator = ContentAccumulator {
         content: Vec::new(),
@@ -213,12 +222,43 @@ fn extract_supplemental_content(
         localization,
         &mut accumulator,
     );
-    collect_embedded_item_content(raw, localization, &mut accumulator);
+    collect_embedded_item_content(raw, localization, hazard_identities, &mut accumulator);
+    collect_consumable_spell_content(raw, localization, &mut accumulator);
     (
         accumulator.content,
         accumulator.owned_content,
         accumulator.diagnostics,
     )
+}
+
+fn collect_consumable_spell_content(
+    raw: &Value,
+    localization: Option<&dyn LocalizationResolver>,
+    accumulator: &mut ContentAccumulator,
+) {
+    if string_field(raw, "type").as_deref() != Some("consumable") {
+        return;
+    }
+    let Some(spell) = raw.pointer("/system/spell") else {
+        return;
+    };
+    let Some(child_id) = string_field(spell, "_id") else {
+        return;
+    };
+    collect_embedded_content_at_pointer(
+        raw,
+        EmbeddedContentPointer {
+            pointer: "/system/spell/system/description/value",
+            source_kind: ContentSourceKind::EmbeddedSpellDescription,
+            label: string_field(spell, "name"),
+            local_key: embedded_item_content_key(&child_id, "spell-description"),
+            nested_source_id: child_id,
+            authored_ordinal: 0,
+            identity_stability: None,
+        },
+        localization,
+        accumulator,
+    );
 }
 
 fn collect_content_at_pointer(
@@ -260,6 +300,7 @@ fn collect_content_at_pointer(
 fn collect_embedded_item_content(
     raw: &Value,
     localization: Option<&dyn LocalizationResolver>,
+    hazard_identities: Option<&[HazardResolvedItemIdentity]>,
     accumulator: &mut ContentAccumulator,
 ) {
     let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
@@ -267,7 +308,18 @@ fn collect_embedded_item_content(
     };
     for (index, item) in items.iter().enumerate() {
         let label = string_field(item, "name");
-        let item_id = embedded_item_id(item, index);
+        let hazard_identity = hazard_identities.and_then(|identities| identities.get(index));
+        let item_id = hazard_identity
+            .map(|identity| identity.occurrence_id.as_str().to_string())
+            .unwrap_or_else(|| embedded_item_id(item, index));
+        let identity_stability = hazard_identity.map(|identity| match identity.stability {
+            atlas_record::HazardOccurrenceIdentityStability::StableSourceIdentity => {
+                ContentIdentityStability::StableSourceIdentity
+            }
+            atlas_record::HazardOccurrenceIdentityStability::UnstableAuthoredOrdinal => {
+                ContentIdentityStability::UnstableAuthoredOrdinal
+            }
+        });
         collect_embedded_content_at_pointer(
             item,
             EmbeddedContentPointer {
@@ -277,6 +329,7 @@ fn collect_embedded_item_content(
                 local_key: embedded_item_content_key(&item_id, "description"),
                 nested_source_id: item_id.clone(),
                 authored_ordinal: index,
+                identity_stability,
             },
             localization,
             accumulator,
@@ -290,6 +343,7 @@ fn collect_embedded_item_content(
                 local_key: embedded_item_content_key(&item_id, "gm-description"),
                 nested_source_id: item_id.clone(),
                 authored_ordinal: index,
+                identity_stability,
             },
             localization,
             accumulator,
@@ -303,6 +357,7 @@ fn collect_embedded_item_content(
                 local_key: embedded_item_content_key(&item_id, "spell-description"),
                 nested_source_id: item_id,
                 authored_ordinal: index,
+                identity_stability,
             },
             localization,
             accumulator,
@@ -324,12 +379,13 @@ fn collect_embedded_content_at_pointer(
         return;
     }
     accumulator.diagnostics.push(parsed.diagnostics.clone());
-    let identity_stability = raw
-        .get("_id")
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .map(|_| ContentIdentityStability::StableSourceIdentity)
-        .unwrap_or(ContentIdentityStability::UnstableAuthoredOrdinal);
+    let identity_stability = source.identity_stability.unwrap_or_else(|| {
+        raw.get("_id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(|_| ContentIdentityStability::StableSourceIdentity)
+            .unwrap_or(ContentIdentityStability::UnstableAuthoredOrdinal)
+    });
     let order = accumulator.owned_content.len() as u32;
     accumulator.owned_content.push(source_content_fact(
         source.local_key.clone(),
@@ -341,8 +397,7 @@ fn collect_embedded_content_at_pointer(
             json_path(source.pointer).trim_start_matches("$.")
         ),
         Some(source.nested_source_id),
-        (identity_stability == ContentIdentityStability::UnstableAuthoredOrdinal)
-            .then(|| source.authored_ordinal.to_string()),
+        Some(source.authored_ordinal.to_string()),
         order,
         source.label.clone(),
         parsed.document.clone(),

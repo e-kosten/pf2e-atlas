@@ -161,6 +161,10 @@ function EncounterParticipantSurface({
         ),
         header_actions: (
           <div className="encounter-participant-header-actions">
+            <HazardStateControl
+              participant={activeCurrent}
+              onUpdate={updateParticipant}
+            />
             <ParticipantVariantControl
               participant={activeCurrent}
               onUpdate={updateParticipant}
@@ -203,21 +207,52 @@ function ParticipantResetControl({
   onReset: () => void;
   participant: EncounterParticipantView;
 }) {
-  if (participant.participant_kind !== "creature" || !participant.reset.available) {
+  if (
+    !["creature", "hazard"].includes(participant.participant_kind) ||
+    !participant.reset.available
+  ) {
     return null;
   }
+  const kind = participant.participant_kind;
   return (
     <DangerActionButton
       aria-label={`Reset ${participant.display_name}`}
-      confirmContent="This restores the creature's mechanical encounter state to its creation baseline, including hit points, defeated state, conditions, initiative and turn state, variant adjustments, action budget, spell use, focus, and resources. Custom name, notes, and visibility are preserved. This cannot be undone."
-      confirmOkText="Reset creature"
+      confirmContent={`This restores the ${kind}'s mechanical encounter state to its creation baseline. Custom name, notes, and visibility are preserved. This cannot be undone.`}
+      confirmOkText={`Reset ${kind}`}
       confirmTitle={`Reset ${participant.display_name}?`}
       icon={<RotateCcw size={14} />}
       onConfirm={onReset}
       size="small"
     >
-      Reset creature
+      Reset {kind}
     </DangerActionButton>
+  );
+}
+
+function HazardStateControl({
+  onUpdate,
+  participant,
+}: {
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  participant: EncounterParticipantView;
+}) {
+  const state = participant.record_view.encounter?.hazard?.state;
+  if (participant.participant_kind !== "hazard" || !state) return null;
+  return (
+    <div className="encounter-variant-control">
+      <span>Hazard state</span>
+      <Select
+        aria-label="Hazard state"
+        className="encounter-variant-select"
+        onChange={(hazard_state) => onUpdate({ hazard_state })}
+        options={[
+          { label: "Active", value: "active" },
+          { label: "Disabled", value: "disabled" },
+        ]}
+        size="small"
+        value={state}
+      />
+    </div>
   );
 }
 

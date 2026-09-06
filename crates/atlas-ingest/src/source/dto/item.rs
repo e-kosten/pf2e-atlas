@@ -4,11 +4,11 @@ use serde_json::Value;
 
 use super::creature_core::{LoreSource, parse_lore_source};
 use super::embedded::{NpcEmbeddedItemSource, parse_npc_embedded_item};
-use super::value::serialized_object;
 use super::{
-    RawSourceJson, SerializedSourceObject, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
-    SourcePresence, SourceVersionMetadata, actual_shape, optional_array_of_objects,
-    optional_integer, optional_object, optional_string, required_object, required_string,
+    RawSourceJson, SerializedSourceMember, SerializedSourceObject, SerializedSourceValue,
+    SourceDiagnostic, SourceDiagnosticKind, SourceIdentity, SourcePresence, SourceVersionMetadata,
+    actual_shape, optional_array_of_objects, optional_integer, optional_object, optional_string,
+    required_object, required_string,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -189,8 +189,8 @@ pub struct FullItemSource {
     pub image: SourcePresence<String>,
     pub folder: SourcePresence<String>,
     pub sort: SourcePresence<i64>,
-    pub effects: SourcePresence<Vec<SerializedSourceObject>>,
-    pub flags: SourcePresence<SerializedSourceObject>,
+    pub(crate) effects: SourcePresence<Vec<SerializedSourceObject>>,
+    pub(crate) flags: SourcePresence<SerializedSourceObject>,
     pub parent_context: Option<SourceParentContext>,
     pub lore: Option<LoreSource>,
     pub(crate) compendium_source: SourcePresence<String>,
@@ -305,7 +305,16 @@ pub fn parse_item_source(
     parent_context: Option<SourceParentContext>,
     raw: Value,
 ) -> Result<VersionedItemSource, SourceDiagnostic> {
-    let source = parse_item(&identity, parent_context, &raw, "$")?;
+    let serialized = SerializedSourceObject::from_json(&raw).ok_or_else(|| {
+        SourceDiagnostic::new(
+            SourceDiagnosticKind::MalformedShape,
+            &identity,
+            "$",
+            "Item source object",
+            actual_shape(&raw),
+        )
+    })?;
+    let source = parse_item(&identity, parent_context, &raw, &serialized, "$")?;
     Ok(VersionedItemSource {
         version,
         source,
@@ -317,6 +326,7 @@ pub(crate) fn parse_item(
     identity: &SourceIdentity,
     parent_context: Option<SourceParentContext>,
     raw: &Value,
+    serialized: &SerializedSourceObject,
     json_path: &str,
 ) -> Result<ItemSource, SourceDiagnostic> {
     let map = raw.as_object().ok_or_else(|| {
@@ -345,6 +355,18 @@ pub(crate) fn parse_item(
         ));
     }
     let system = required_object(map, "system", identity, &format!("{json_path}.system"))?;
+    let serialized_system = match serialized.member("system") {
+        SerializedSourceMember::Value(SerializedSourceValue::Object(system)) => system,
+        _ => {
+            return Err(SourceDiagnostic::new(
+                SourceDiagnosticKind::MalformedShape,
+                identity,
+                format!("{json_path}.system"),
+                "one source object",
+                "missing, null, non-object, or duplicate source member",
+            ));
+        }
+    };
     let lore = (item_type == ItemType::Lore)
         .then(|| parse_lore_source(system, identity, &format!("{json_path}.system")))
         .transpose()?;
@@ -397,8 +419,8 @@ pub(crate) fn parse_item(
         embedded_relationships,
         relationship_unsupported,
         embedded,
-        serialized: serialized_object(map),
-        system: serialized_object(system),
+        serialized: serialized.clone(),
+        system: serialized_system.clone(),
     };
 
     Ok(match item_type {

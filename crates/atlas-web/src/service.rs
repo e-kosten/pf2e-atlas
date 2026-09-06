@@ -8,8 +8,8 @@ use atlas_app_model::{
     EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterParticipantResetResultView, EncounterParticipantView, EncounterSpellCastRequest,
     EncounterSpellCastResultView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
+    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailRequest,
+    RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
     ResetEncounterParticipantRequest, ResultWindowPage, SavedListCreateView, SavedListDetailView,
     SavedListIndexView, SavedListItemMutationView, SavedListUpdateView, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
@@ -74,7 +74,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: ReadResultWindowPageRequest,
     ) -> Result<ResultWindowPage, AppServiceError>;
 
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+    fn record_detail(
+        &self,
+        record_key: &str,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError>;
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
 
@@ -230,8 +234,12 @@ impl AtlasWebService for AtlasAppService {
         self.read_result_window_page(window_id, request)
     }
 
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
-        self.record_detail(record_key)
+    fn record_detail(
+        &self,
+        record_key: &str,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.record_detail(record_key, request)
     }
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {

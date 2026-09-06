@@ -1,8 +1,8 @@
-schema_version: "pf2e-source-leaf-prevalence/v1"
-source_contract_version: "pf2e-serialized-source/v1"
-source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
-source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-registry_sha256: "38da5a93e06f32e7c4374c968a02919a3b4f46f8e8a340ab9b92e6cd32f0ca1f"
+schema_version: pf2e-source-leaf-prevalence/v1
+source_contract_version: pf2e-serialized-source/v1
+source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
 entries:
   - entry_id: "actor-npc-top-level-ability-str-mod@4cbdaa37"
     type_id: "actor--npc--top-level--root--root--root"
@@ -62,3 +62,3210 @@ entries:
     normalized_path: "$.name"
     record_count: 1169
     occurrence_count: 1169
+  - entry_id: "actor-hazard-top-level-details-disable@4cbdaa37"
+    type_id: "actor--hazard--top-level--root--root--root"
+    selector: &actor_hazard_selector
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "Actor"
+      type_discriminator: "hazard"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.system.details.disable"
+    record_count: 1032
+    occurrence_count: 1029
+  - entry_id: "actor-hazard-top-level-image@4cbdaa37"
+    type_id: "actor--hazard--top-level--root--root--root"
+    selector: *actor_hazard_selector
+    normalized_path: "$.img"
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: "actor-hazard-top-level-folder@4cbdaa37"
+    type_id: "actor--hazard--top-level--root--root--root"
+    selector: *actor_hazard_selector
+    normalized_path: "$.folder"
+    record_count: 1032
+    occurrence_count: 793
+  - entry_id: "actor-hazard-top-level-hp-tempmax@4cbdaa37"
+    type_id: "actor--hazard--top-level--root--root--root"
+    selector: *actor_hazard_selector
+    normalized_path: "$.system.attributes.hp.tempmax"
+    record_count: 1032
+    occurrence_count: 174
+  - entry_id: "item-action-embedded-hazard-action-type@4cbdaa37"
+    type_id: "item--action--embedded--actor--hazard--actor-items"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "Item"
+      type_discriminator: "action"
+      role: "embedded"
+      parent_context:
+        document_class: "Actor"
+        type_discriminator: "hazard"
+        relationship_path: "Actor.items"
+    normalized_path: "$.system.actionType.value"
+    record_count: 1330
+    occurrence_count: 1330
+  - entry_id: "item-melee-embedded-hazard-damage-roll-damage@4cbdaa37"
+    type_id: "item--melee--embedded--actor--hazard--actor-items"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "Item"
+      type_discriminator: "melee"
+      role: "embedded"
+      parent_context:
+        document_class: "Actor"
+        type_discriminator: "hazard"
+        relationship_path: "Actor.items"
+    normalized_path: "$.system.damageRolls.*.damage"
+    record_count: 277
+    occurrence_count: 323
+  - entry_id: actor-id@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $._id
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-items-id@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[]._id
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-items-stats-compendiumsource@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[]._stats.compendiumSource
+    record_count: 1032
+    occurrence_count: 46
+  - entry_id: actor-items-img@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].img
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-items-name@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].name
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-items-sort@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].sort
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-items-system-description-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.description.value
+    record_count: 1032
+    occurrence_count: 1357
+  - entry_id: actor-items-system-publication-license@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.publication.license
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-items-system-publication-remaster@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.publication.remaster
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-items-system-publication-title@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.publication.title
+    record_count: 1032
+    occurrence_count: 24
+  - entry_id: actor-items-system-rules-critical@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].critical
+    record_count: 1032
+    occurrence_count: 3
+  - entry_id: actor-items-system-rules-damagetype@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].damageType
+    record_count: 1032
+    occurrence_count: 2
+  - entry_id: actor-items-system-rules-dicenumber@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].diceNumber
+    record_count: 1032
+    occurrence_count: 2
+  - entry_id: actor-items-system-rules-diesize@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].dieSize
+    record_count: 1032
+    occurrence_count: 2
+  - entry_id: actor-items-system-rules-key@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].key
+    record_count: 1032
+    occurrence_count: 49
+  - entry_id: actor-items-system-rules-mode@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].mode
+    record_count: 1032
+    occurrence_count: 37
+  - entry_id: actor-items-system-rules-outcome@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].outcome[]
+    record_count: 1032
+    occurrence_count: 3
+  - entry_id: actor-items-system-rules-path@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].path
+    record_count: 1032
+    occurrence_count: 3
+  - entry_id: actor-items-system-rules-radius@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].radius
+    record_count: 1032
+    occurrence_count: 4
+  - entry_id: actor-items-system-rules-selector@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].selector
+    record_count: 1032
+    occurrence_count: 5
+  - entry_id: actor-items-system-rules-slug@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].slug
+    record_count: 1032
+    occurrence_count: 4
+  - entry_id: actor-items-system-rules-text@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].text
+    record_count: 1032
+    occurrence_count: 2
+  - entry_id: actor-items-system-rules-title@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].title
+    record_count: 1032
+    occurrence_count: 1
+  - entry_id: effects-actor-context@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.effects
+    record_count: 1032
+    occurrence_count: 0
+  - entry_id: system-creaturetype-actor-context@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.creatureType
+    record_count: 1032
+    occurrence_count: 0
+  - entry_id: system-statuseffects-actor-context@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.statusEffects[]
+    record_count: 1032
+    occurrence_count: 0
+  - entry_id: system-saves-savedetail-actor-context@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.saves.*.saveDetail
+    record_count: 1032
+    occurrence_count: 0
+  - entry_id: folder-action-context@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.folder
+    record_count: 1330
+    occurrence_count: 0
+  - entry_id: folder-melee-context@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.folder
+    record_count: 277
+    occurrence_count: 0
+  - entry_id: folder-consumable-context@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.folder
+    record_count: 1
+    occurrence_count: 0
+  - entry_id: actor-items-system-rules-traits@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].traits[]
+    record_count: 1032
+    occurrence_count: 4
+  - entry_id: actor-items-system-rules-type@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].type
+    record_count: 1032
+    occurrence_count: 24
+  - entry_id: actor-items-system-rules-type-array-member@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].type[]
+    record_count: 1032
+    occurrence_count: 55
+  - entry_id: actor-items-system-rules-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].value
+    record_count: 1032
+    occurrence_count: 4
+  - entry_id: actor-items-system-rules-visibility@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.rules[].visibility
+    record_count: 1032
+    occurrence_count: 1
+  - entry_id: actor-items-system-slug@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.slug
+    record_count: 1032
+    occurrence_count: 34
+  - entry_id: actor-items-system-traits-rarity@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.traits.rarity
+    record_count: 1032
+    occurrence_count: 997
+  - entry_id: actor-items-system-traits-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].system.traits.value[]
+    record_count: 1032
+    occurrence_count: 1353
+  - entry_id: actor-items-type@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.items[].type
+    record_count: 1032
+    occurrence_count: 1608
+  - entry_id: actor-name@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.name
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-prototypetoken-name@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.prototypeToken.name
+    record_count: 1032
+    occurrence_count: 201
+  - entry_id: actor-system-attributes-ac-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.ac.value
+    record_count: 1032
+    occurrence_count: 1002
+  - entry_id: actor-system-attributes-emitssound@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.emitsSound
+    record_count: 1032
+    occurrence_count: 795
+  - entry_id: actor-system-attributes-hardness@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.hardness
+    record_count: 1032
+    occurrence_count: 1027
+  - entry_id: actor-system-attributes-hashealth@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.hasHealth
+    record_count: 1032
+    occurrence_count: 403
+  - entry_id: actor-system-attributes-hp-details@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.hp.details
+    record_count: 1032
+    occurrence_count: 91
+  - entry_id: actor-system-attributes-hp-max@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.hp.max
+    record_count: 1032
+    occurrence_count: 1027
+  - entry_id: actor-system-attributes-hp-temp@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.hp.temp
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-attributes-hp-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.hp.value
+    record_count: 1032
+    occurrence_count: 1027
+  - entry_id: actor-system-attributes-immunities-type@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.immunities[].type
+    record_count: 1032
+    occurrence_count: 954
+  - entry_id: actor-system-attributes-resistances-doublevs@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.resistances[].doubleVs[]
+    record_count: 1032
+    occurrence_count: 7
+  - entry_id: actor-system-attributes-resistances-exceptions@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.resistances[].exceptions[]
+    record_count: 1032
+    occurrence_count: 26
+  - entry_id: actor-system-attributes-resistances-type@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.resistances[].type
+    record_count: 1032
+    occurrence_count: 37
+  - entry_id: actor-system-attributes-resistances-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.resistances[].value
+    record_count: 1032
+    occurrence_count: 37
+  - entry_id: actor-system-attributes-stealth-details@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.stealth.details
+    record_count: 1032
+    occurrence_count: 865
+  - entry_id: actor-system-attributes-stealth-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.stealth.value
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-attributes-weaknesses-type@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.weaknesses[].type
+    record_count: 1032
+    occurrence_count: 132
+  - entry_id: actor-system-attributes-weaknesses-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.attributes.weaknesses[].value
+    record_count: 1032
+    occurrence_count: 132
+  - entry_id: actor-system-details-description@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.description
+    record_count: 1032
+    occurrence_count: 1026
+  - entry_id: actor-system-details-iscomplex@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.isComplex
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-details-level-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.level.value
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-details-publication-license@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.publication.license
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-details-publication-remaster@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.publication.remaster
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-details-publication-title@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.publication.title
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-details-reset@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.reset
+    record_count: 1032
+    occurrence_count: 591
+  - entry_id: actor-system-details-routine@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.details.routine
+    record_count: 1032
+    occurrence_count: 471
+  - entry_id: actor-system-saves-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.saves.*.value
+    record_count: 1032
+    occurrence_count: 3062
+  - entry_id: actor-system-traits-rarity@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.rarity
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-traits-size-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.size.value
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: actor-system-traits-value@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.value[]
+    record_count: 1032
+    occurrence_count: 1815
+  - entry_id: actor-type@4cbdaa37
+    type_id: actor--hazard--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Actor
+      type_discriminator: hazard
+      role: top_level
+      parent_context: {}
+    normalized_path: $.type
+    record_count: 1032
+    occurrence_count: 1032
+  - entry_id: action-system-actions-value@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.actions.value
+    record_count: 1330
+    occurrence_count: 89
+  - entry_id: action-system-category@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.category
+    record_count: 1330
+    occurrence_count: 415
+  - entry_id: action-system-deathnote@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.deathNote
+    record_count: 1330
+    occurrence_count: 2
+  - entry_id: action-system-frequency-max@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.frequency.max
+    record_count: 1330
+    occurrence_count: 4
+  - entry_id: action-system-frequency-per@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.frequency.per
+    record_count: 1330
+    occurrence_count: 4
+  - entry_id: action-system-frequency-value@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.frequency.value
+    record_count: 1330
+    occurrence_count: 2
+  - entry_id: action-system-selfeffect-uuid@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.selfEffect.uuid
+    record_count: 1330
+    occurrence_count: 0
+  - entry_id: action-system-selfeffect-name@4cbdaa37
+    type_id: item--action--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: action
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.selfEffect.name
+    record_count: 1330
+    occurrence_count: 0
+  - entry_id: melee-system-attackeffects-custom@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.attackEffects.custom
+    record_count: 277
+    occurrence_count: 4
+  - entry_id: melee-system-attackeffects-value@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.attackEffects.value[]
+    record_count: 277
+    occurrence_count: 51
+  - entry_id: melee-system-bonus-value@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.bonus.value
+    record_count: 277
+    occurrence_count: 277
+  - entry_id: melee-system-damagerolls-category@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.damageRolls.*.category
+    record_count: 277
+    occurrence_count: 21
+  - entry_id: melee-system-damagerolls-damagetype@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.damageRolls.*.damageType
+    record_count: 277
+    occurrence_count: 323
+  - entry_id: melee-system-weapontype-value@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.weaponType.value
+    record_count: 277
+    occurrence_count: 223
+  - entry_id: melee-system-attack-value@4cbdaa37
+    type_id: item--melee--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: melee
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.attack.value
+    record_count: 277
+    occurrence_count: 0
+  - entry_id: consumable-id@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $._id
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-img@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.img
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-name@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.name
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-sort@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.sort
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.type
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-baseitem@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.baseItem
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-bulk-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.bulk.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-category@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.category
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-containerid@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.containerId
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-damage@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.damage
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-description-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.description.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-equipped-carrytype@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.carryType
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-hardness@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.hardness
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-hp-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.max
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-hp-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-level-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.level.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-material-grade@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.material.grade
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-material-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.material.type
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-price-value-gp@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.price.value.gp
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-publication-license@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.license
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-publication-remaster@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.remaster
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-publication-title@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.title
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-quantity@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.quantity
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-size@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.size
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-slug@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.slug
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-traits-rarity@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.rarity
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-traits-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.value[]
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-usage-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.usage.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-uses-autodestroy@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.autoDestroy
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-uses-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.max
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: consumable-system-uses-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-id@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $._id
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-folder@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.folder
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-image@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.img
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-name@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.name
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-area-details@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.area.details
+    record_count: 1716
+    occurrence_count: 20
+  - entry_id: item-spell-top-level-system-area-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.area.type
+    record_count: 1716
+    occurrence_count: 378
+  - entry_id: item-spell-top-level-system-area-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.area.value
+    record_count: 1716
+    occurrence_count: 378
+  - entry_id: item-spell-top-level-system-cost-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.cost.value
+    record_count: 1716
+    occurrence_count: 112
+  - entry_id: item-spell-top-level-system-counteraction@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.counteraction
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-damage-key-applymod@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.damage.*.applyMod
+    record_count: 1716
+    occurrence_count: 504
+  - entry_id: item-spell-top-level-system-damage-key-category@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.damage.*.category
+    record_count: 1716
+    occurrence_count: 22
+  - entry_id: item-spell-top-level-damage-formula@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.damage.*.formula
+    record_count: 1716
+    occurrence_count: 509
+  - entry_id: item-spell-top-level-system-damage-key-kinds-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.damage.*.kinds[]
+    record_count: 1716
+    occurrence_count: 515
+  - entry_id: item-spell-top-level-system-damage-key-materials-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.damage.*.materials[]
+    record_count: 1716
+    occurrence_count: 4
+  - entry_id: item-spell-top-level-system-damage-key-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.damage.*.type
+    record_count: 1716
+    occurrence_count: 509
+  - entry_id: item-spell-top-level-system-defense-passive-statistic@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.defense.passive.statistic
+    record_count: 1716
+    occurrence_count: 11
+  - entry_id: item-spell-top-level-system-defense-save-basic@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.defense.save.basic
+    record_count: 1716
+    occurrence_count: 646
+  - entry_id: item-spell-top-level-system-defense-save-statistic@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.defense.save.statistic
+    record_count: 1716
+    occurrence_count: 646
+  - entry_id: item-spell-top-level-system-description-gm@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.description.gm
+    record_count: 1716
+    occurrence_count: 5
+  - entry_id: item-spell-top-level-system-description-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.description.value
+    record_count: 1716
+    occurrence_count: 1713
+  - entry_id: item-spell-top-level-system-duration-sustained@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.duration.sustained
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-duration-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.duration.value
+    record_count: 1716
+    occurrence_count: 1107
+  - entry_id: item-spell-top-level-system-heightening-area@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.area
+    record_count: 1716
+    occurrence_count: 106
+  - entry_id: item-spell-top-level-system-heightening-damage-key@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.damage.*
+    record_count: 1716
+    occurrence_count: 413
+  - entry_id: item-spell-top-level-system-heightening-interval@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.interval
+    record_count: 1716
+    occurrence_count: 392
+  - entry_id: item-spell-top-level-system-heightening-levels-key-area-areatype@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.area.areaType
+    record_count: 1716
+    occurrence_count: 13
+  - entry_id: item-spell-top-level-system-heightening-levels-key-area-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.area.type
+    record_count: 1716
+    occurrence_count: 31
+  - entry_id: item-spell-top-level-system-heightening-levels-key-area-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.area.value
+    record_count: 1716
+    occurrence_count: 32
+  - entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-applymod@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.damage.*.applyMod
+    record_count: 1716
+    occurrence_count: 68
+  - entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-category@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.damage.*.category
+    record_count: 1716
+    occurrence_count: 14
+  - entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-formula@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.damage.*.formula
+    record_count: 1716
+    occurrence_count: 68
+  - entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-kinds-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.damage.*.kinds[]
+    record_count: 1716
+    occurrence_count: 13
+  - entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.damage.*.type
+    record_count: 1716
+    occurrence_count: 68
+  - entry_id: item-spell-top-level-system-heightening-levels-key-range-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.range.value
+    record_count: 1716
+    occurrence_count: 38
+  - entry_id: item-spell-top-level-system-heightening-levels-key-target-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.target.value
+    record_count: 1716
+    occurrence_count: 86
+  - entry_id: item-spell-top-level-system-heightening-levels-key-time-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.time.value
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-heightening-levels-key-traits-value-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.levels.*.traits.value[]
+    record_count: 1716
+    occurrence_count: 2
+  - entry_id: item-spell-top-level-system-heightening-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.heightening.type
+    record_count: 1716
+    occurrence_count: 515
+  - entry_id: item-spell-top-level-rank@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.level.value
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-location@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.location
+    record_count: 1716
+    occurrence_count: 0
+  - entry_id: item-spell-top-level-system-overlays-key-id@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*._id
+    record_count: 1716
+    occurrence_count: 104
+  - entry_id: item-spell-top-level-system-overlays-key-name@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.name
+    record_count: 1716
+    occurrence_count: 93
+  - entry_id: item-spell-top-level-system-overlays-key-overlaytype@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.overlayType
+    record_count: 1716
+    occurrence_count: 158
+  - entry_id: item-spell-top-level-overlay-sort@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.sort
+    record_count: 1716
+    occurrence_count: 158
+  - entry_id: item-spell-top-level-system-overlays-key-system-area-areatype@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.area.areaType
+    record_count: 1716
+    occurrence_count: 8
+  - entry_id: item-spell-top-level-system-overlays-key-system-area-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.area.type
+    record_count: 1716
+    occurrence_count: 11
+  - entry_id: item-spell-top-level-system-overlays-key-system-area-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.area.value
+    record_count: 1716
+    occurrence_count: 28
+  - entry_id: item-spell-top-level-system-overlays-key-system-damage-key-applymod@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.damage.*.applyMod
+    record_count: 1716
+    occurrence_count: 40
+  - entry_id: item-spell-top-level-system-overlays-key-system-damage-key-category@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.damage.*.category
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-overlays-key-system-damage-key-formula@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.damage.*.formula
+    record_count: 1716
+    occurrence_count: 53
+  - entry_id: item-spell-top-level-system-overlays-key-system-damage-key-kinds-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.damage.*.kinds[]
+    record_count: 1716
+    occurrence_count: 31
+  - entry_id: item-spell-top-level-system-overlays-key-system-damage-key-materials-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.damage.*.materials[]
+    record_count: 1716
+    occurrence_count: 3
+  - entry_id: item-spell-top-level-system-overlays-key-system-damage-key-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.damage.*.type
+    record_count: 1716
+    occurrence_count: 74
+  - entry_id: item-spell-top-level-system-overlays-key-system-defense-save-basic@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.defense.save.basic
+    record_count: 1716
+    occurrence_count: 14
+  - entry_id: item-spell-top-level-system-overlays-key-system-defense-save-statistic@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.defense.save.statistic
+    record_count: 1716
+    occurrence_count: 14
+  - entry_id: item-spell-top-level-system-overlays-key-system-heightening-area@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.heightening.area
+    record_count: 1716
+    occurrence_count: 7
+  - entry_id: item-spell-top-level-system-overlays-key-system-heightening-damage-key@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.heightening.damage.*
+    record_count: 1716
+    occurrence_count: 57
+  - entry_id: item-spell-top-level-system-overlays-key-system-heightening-interval@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.heightening.interval
+    record_count: 1716
+    occurrence_count: 32
+  - entry_id: item-spell-top-level-system-overlays-key-system-heightening-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.heightening.type
+    record_count: 1716
+    occurrence_count: 32
+  - entry_id: item-spell-top-level-system-overlays-key-system-range-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.range.value
+    record_count: 1716
+    occurrence_count: 17
+  - entry_id: item-spell-top-level-system-overlays-key-system-target-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.target.value
+    record_count: 1716
+    occurrence_count: 21
+  - entry_id: item-spell-top-level-system-overlays-key-system-time-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.time.value
+    record_count: 1716
+    occurrence_count: 66
+  - entry_id: item-spell-top-level-system-overlays-key-system-traits-value-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.overlays.*.system.traits.value[]
+    record_count: 1716
+    occurrence_count: 124
+  - entry_id: item-spell-top-level-publication-license@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.publication.license
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-publication-remaster@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.publication.remaster
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-publication-title@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.publication.title
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-range-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.range.value
+    record_count: 1716
+    occurrence_count: 1154
+  - entry_id: item-spell-top-level-system-requirements@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.requirements
+    record_count: 1716
+    occurrence_count: 36
+  - entry_id: item-spell-top-level-system-ritual-primary-check@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.ritual.primary.check
+    record_count: 1716
+    occurrence_count: 134
+  - entry_id: item-spell-top-level-system-ritual-secondary-casters@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.ritual.secondary.casters
+    record_count: 1716
+    occurrence_count: 134
+  - entry_id: item-spell-top-level-system-ritual-secondary-checks@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.ritual.secondary.checks
+    record_count: 1716
+    occurrence_count: 118
+  - entry_id: item-spell-top-level-system-rules-member-damagetype@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].damageType
+    record_count: 1716
+    occurrence_count: 7
+  - entry_id: item-spell-top-level-system-rules-member-dicenumber@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].diceNumber
+    record_count: 1716
+    occurrence_count: 7
+  - entry_id: item-spell-top-level-system-rules-member-diesize@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].dieSize
+    record_count: 1716
+    occurrence_count: 5
+  - entry_id: item-spell-top-level-system-rules-member-domain@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].domain
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-hideifdisabled@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].hideIfDisabled
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-itemid@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].itemId
+    record_count: 1716
+    occurrence_count: 2
+  - entry_id: item-spell-top-level-rule-key@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].key
+    record_count: 1716
+    occurrence_count: 14
+  - entry_id: item-spell-top-level-system-rules-member-label@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].label
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-mode@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].mode
+    record_count: 1716
+    occurrence_count: 5
+  - entry_id: item-spell-top-level-system-rules-member-option@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].option
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-placement@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].placement
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-predicate-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].predicate[]
+    record_count: 1716
+    occurrence_count: 14
+  - entry_id: item-spell-top-level-system-rules-member-predicate-member-or-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].predicate[].or[]
+    record_count: 1716
+    occurrence_count: 2
+  - entry_id: item-spell-top-level-system-rules-member-property@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].property
+    record_count: 1716
+    occurrence_count: 5
+  - entry_id: item-spell-top-level-system-rules-member-selector@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].selector
+    record_count: 1716
+    occurrence_count: 7
+  - entry_id: item-spell-top-level-system-rules-member-selectors-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].selectors[]
+    record_count: 1716
+    occurrence_count: 4
+  - entry_id: item-spell-top-level-system-rules-member-slug@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].slug
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-suboptions-member-label@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].suboptions[].label
+    record_count: 1716
+    occurrence_count: 2
+  - entry_id: item-spell-top-level-system-rules-member-suboptions-member-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].suboptions[].value
+    record_count: 1716
+    occurrence_count: 2
+  - entry_id: item-spell-top-level-system-rules-member-toggleable@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].toggleable
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-uuid@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].uuid
+    record_count: 1716
+    occurrence_count: 1
+  - entry_id: item-spell-top-level-system-rules-member-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.rules[].value
+    record_count: 1716
+    occurrence_count: 5
+  - entry_id: item-spell-top-level-system-target-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.target.value
+    record_count: 1716
+    occurrence_count: 860
+  - entry_id: item-spell-top-level-system-time-value@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.time.value
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-traits-rarity@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.rarity
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: item-spell-top-level-system-traits-selected-key@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.selected.*
+    record_count: 1716
+    occurrence_count: 46
+  - entry_id: item-spell-top-level-system-traits-traditions-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.traditions[]
+    record_count: 1716
+    occurrence_count: 2363
+  - entry_id: item-spell-top-level-system-traits-value-member@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.system.traits.value[]
+    record_count: 1716
+    occurrence_count: 5983
+  - entry_id: item-spell-top-level-type@4cbdaa37
+    type_id: item--spell--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: top_level
+      parent_context: {}
+    normalized_path: $.type
+    record_count: 1716
+    occurrence_count: 1716
+  - entry_id: consumable-spell-child-id@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $._id
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-source-id@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.flags.core.sourceId
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-image@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.img
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-name@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.name
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-sort@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.sort
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-counteraction@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.counteraction
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-damage-key-applymod@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.damage.*.applyMod
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-damage-key-formula@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.damage.*.formula
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-damage-key-kinds-member@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.damage.*.kinds[]
+    record_count: 190
+    occurrence_count: 16
+  - entry_id: consumable-spell-child-system-damage-key-type@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.damage.*.type
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-defense-save-basic@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.defense.save.basic
+    record_count: 190
+    occurrence_count: 6
+  - entry_id: consumable-spell-child-system-defense-save-statistic@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.defense.save.statistic
+    record_count: 190
+    occurrence_count: 6
+  - entry_id: consumable-spell-child-system-description-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.description.value
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-duration-sustained@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.duration.sustained
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-heightening-damage-key@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.heightening.damage.*
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-heightening-interval@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.heightening.interval
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-heightening-type@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.heightening.type
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-level-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.level.value
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-heightened-rank@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.location.heightenedLevel
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-location-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.location.value
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-overlays-key-id@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*._id
+    record_count: 190
+    occurrence_count: 24
+  - entry_id: consumable-spell-child-system-overlays-key-name@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.name
+    record_count: 190
+    occurrence_count: 12
+  - entry_id: consumable-spell-child-system-overlays-key-overlaytype@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.overlayType
+    record_count: 190
+    occurrence_count: 24
+  - entry_id: consumable-spell-child-system-overlays-key-sort@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.sort
+    record_count: 190
+    occurrence_count: 24
+  - entry_id: consumable-spell-child-system-overlays-key-system-area-type@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.area.type
+    record_count: 190
+    occurrence_count: 6
+  - entry_id: consumable-spell-child-system-overlays-key-system-area-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.area.value
+    record_count: 190
+    occurrence_count: 6
+  - entry_id: consumable-spell-child-system-overlays-key-system-damage-key-formula@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.damage.*.formula
+    record_count: 190
+    occurrence_count: 6
+  - entry_id: consumable-spell-child-system-overlays-key-system-damage-key-kinds-member@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.damage.*.kinds[]
+    record_count: 190
+    occurrence_count: 12
+  - entry_id: consumable-spell-child-system-overlays-key-system-heightening-damage-key@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.heightening.damage.*
+    record_count: 190
+    occurrence_count: 6
+  - entry_id: consumable-spell-child-system-overlays-key-system-range-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.range.value
+    record_count: 190
+    occurrence_count: 18
+  - entry_id: consumable-spell-child-system-overlays-key-system-target-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.target.value
+    record_count: 190
+    occurrence_count: 12
+  - entry_id: consumable-spell-child-system-overlays-key-system-time-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.time.value
+    record_count: 190
+    occurrence_count: 24
+  - entry_id: consumable-spell-child-system-overlays-key-system-traits-value-member@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.overlays.*.system.traits.value[]
+    record_count: 190
+    occurrence_count: 72
+  - entry_id: consumable-spell-child-publication-license@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.publication.license
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-publication-remaster@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.publication.remaster
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-publication-title@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.publication.title
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-range-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.range.value
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-slug@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.slug
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-target-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.target.value
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-time-value@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.time.value
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-rarity@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.traits.rarity
+    record_count: 190
+    occurrence_count: 10
+  - entry_id: consumable-spell-child-system-traits-traditions-member@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.traits.traditions[]
+    record_count: 190
+    occurrence_count: 20
+  - entry_id: consumable-spell-child-system-traits-value-member@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.system.traits.value[]
+    record_count: 190
+    occurrence_count: 34
+  - entry_id: consumable-spell-child-type@4cbdaa37
+    type_id: item--spell--child--item--consumable--consumable-system-spell
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: spell
+      role: child
+      parent_context:
+        document_class: Item
+        type_discriminator: consumable
+        relationship_path: Consumable.system.spell
+    normalized_path: $.type
+    record_count: 190
+    occurrence_count: 10

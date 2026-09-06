@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{EncounterSpellCastAvailabilityView, EncounterSpellSpendTargetView, RecordSurfaceView};
+use crate::{
+    EncounterRuntimeHazardStateView, EncounterSpellCastAvailabilityView,
+    EncounterSpellSpendTargetView, RecordSurfaceView,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -265,6 +268,9 @@ pub struct UpdateEncounterParticipantRequest {
     pub side: EncounterParticipantSideView,
     pub participant_variant: EncounterParticipantVariantView,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hazard_state: Option<EncounterRuntimeHazardStateView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
     pub initiative: Option<i64>,
@@ -414,6 +420,7 @@ pub enum EncounterParticipantResetDomainView {
     VariantAdjustments,
     ActionBudget,
     SpellResources,
+    HazardState,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

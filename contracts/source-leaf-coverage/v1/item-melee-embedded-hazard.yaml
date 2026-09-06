@@ -1,0 +1,527 @@
+contract_version: "atlas-source-leaf-coverage/v1"
+type_id: "item--melee--embedded--actor--hazard--actor-items"
+source_pin:
+  upstream_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+  source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+selector:
+  source_contract_version: "pf2e-serialized-source/v1"
+  document_class: "Item"
+  type_discriminator: "melee"
+  role: "embedded"
+  parent_context:
+    document_class: "Actor"
+    type_discriminator: "hazard"
+    relationship_path: "Actor.items"
+leaves:
+  - normalized_path: "$.system.damageRolls.*.damage"
+    leaf_kind: "map_member"
+    expected_shapes: ["string"]
+    map_key_policy: {kind: "open_vocabulary_retained_identity"}
+    source_prevalence:
+      source_contract_version: "pf2e-serialized-source/v1"
+      source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
+      source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
+      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      inventory_version: "pf2e-source-leaf-prevalence/v1"
+      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      entry_id: "item-melee-embedded-hazard-damage-roll-damage@4cbdaa37"
+      record_count: 277
+      occurrence_count: 323
+    fixture_prevalence: {record_count: 1, occurrence_count: 1}
+    disposition: "promoted"
+    reader: {reader_id: "source::dto::HazardDamageSource::damage", parity_case_ids: ["acid-spray-primary-damage"]}
+    fixtures:
+      - {case_id: "acid-spray-primary-damage", record_key: "pfs-season-1-bestiary:mhKK0mhhI9V3OiUQ#item:3EJeaEsJhTMJqDGi", source_path: "packs/pfs-season-1-bestiary/1-00/acid-spray-fountain.json", source_file_digest: "sha256:21d7c082f1ebb844b7fc66bf491f8237b24f2b4e7bc97646d2e6954fe4cf9032", excerpt_digest: "sha256:8da66f86697197c665e375515d8f606b5faffcb2f094eff511679b148803140e", provenance: "pinned_source"}
+    final_owners:
+      - {stage: "source_dto", destination: "HazardDamageSource.damage"}
+      - {stage: "canonical", destination: "HazardStrikeCapability.damage_rolls[].damage"}
+      - {stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].embedded_entities.entities[].damage_rolls[].damage"}
+      - {stage: "artifact_hydration", destination: "RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.damage)"}
+    surfaces:
+      artifact: {disposition: "promoted", rationale: "atlas-index schema v4 persists and hydrates the exact canonical hazard leaf"}
+      search: {disposition: "deferred", rationale: "H1-E consumes typed strike projection"}
+      cli: {disposition: "deferred", rationale: "H1-E owns typed strike presentation"}
+      app: {disposition: "deferred", rationale: "H1-G owns static strike DTOs"}
+      ui: {disposition: "deferred", rationale: "H1-G renders strike damage"}
+      runtime: {disposition: "deferred", rationale: "H1-F consumes typed strike damage"}
+    rationale: "damageRolls is an authored identity-retaining map; key 0, source order, multiplicity, and exact damage text are canonical facts"
+    owner: "atlas-ingest::source::hazard_entities"
+    acceptance_checkpoint: "H1-B/C independent review"
+  - normalized_path: $.system.attackEffects.custom
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-attackeffects-custom@4cbdaa37
+      record_count: 277
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - melee-system-attackeffects-custom
+    fixtures:
+      - case_id: melee-system-attackeffects-custom
+        record_key: age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:uapfpdQSjUz13nBn
+        source_path: packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json
+        source_file_digest: sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef
+        excerpt_digest: sha256:12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.attackEffects.custom)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.attackEffects.custom]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.attackEffects.custom]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.attackEffects.custom]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The selected legacy attackEffects.custom value is the exact empty string; HazardStrikeCapability.unsupported_fields retains it separately from the supported ordered attackEffects.value list and does not infer an effect.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.folder
+    leaf_kind: scalar
+    expected_shapes:
+      - missing
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: folder-melee-context@4cbdaa37
+      record_count: 277
+      occurrence_count: 0
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: provenance_only
+    reader:
+      reader_id: source::dto::HazardSource::exact_provenance_leaf
+      parity_case_ids:
+        - folder-melee-context
+    fixtures:
+      - case_id: folder-melee-context
+        record_key: pfs-season-1-bestiary:mhKK0mhhI9V3OiUQ#item:3EJeaEsJhTMJqDGi
+        source_path: packs/pfs-season-1-bestiary/1-00/acid-spray-fountain.json
+        source_file_digest: sha256:21d7c082f1ebb844b7fc66bf491f8237b24f2b4e7bc97646d2e6954fe4cf9032
+        excerpt_digest: sha256:08990f0e45f705981f01520c023737eba668485b091bdb5ec17b57eec717a6cc
+        provenance: pinned_source
+    final_owners:
+      - stage: durable_provenance
+        destination: HazardEntity/HazardEntityOccurrence field ($.folder)
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      search:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      cli:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      app:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      ui:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+      runtime:
+        disposition: not_applicable
+        rationale: Exact empty source context is retained without gameplay or presentation semantics
+    rationale: The selected embedded Strike folder is null source-editor organization; HazardEntityOccurrence.source_folder preserves Null and typed presentation/mechanic projections are proven unchanged.
+    owner: atlas-ingest::source hazard B/C zero-context reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.attackEffects.value[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-attackeffects-value@4cbdaa37
+      record_count: 277
+      occurrence_count: 51
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - melee-system-attackeffects-value
+    fixtures:
+      - case_id: melee-system-attackeffects-value
+        record_key: pfs-season-1-bestiary:mhKK0mhhI9V3OiUQ#item:3EJeaEsJhTMJqDGi
+        source_path: packs/pfs-season-1-bestiary/1-00/acid-spray-fountain.json
+        source_file_digest: sha256:21d7c082f1ebb844b7fc66bf491f8237b24f2b4e7bc97646d2e6954fe4cf9032
+        excerpt_digest: sha256:4799f978707fb96a442f956f6d10b3e039a82ffa9008348d2556a4d54db61016
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.attackEffects.value[])
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.attackEffects.value[])
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.attackEffects.value[])
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.attackEffects.value[])
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.bonus.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-bonus-value@4cbdaa37
+      record_count: 277
+      occurrence_count: 277
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - melee-system-bonus-value
+    fixtures:
+      - case_id: melee-system-bonus-value
+        record_key: age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:uapfpdQSjUz13nBn
+        source_path: packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json
+        source_file_digest: sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef
+        excerpt_digest: sha256:f5ca38f748a1d6eaf726b8a42fb575c3c71f1864a8143301782de13da2d9202b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.bonus.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field ($.system.bonus.value)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field ($.system.bonus.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field ($.system.bonus.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.damageRolls.*.category
+    leaf_kind: map_member
+    expected_shapes:
+      - string
+    map_key_policy:
+      kind: open_vocabulary_retained_identity
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-damagerolls-category@4cbdaa37
+      record_count: 277
+      occurrence_count: 21
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - melee-system-damagerolls-category
+    fixtures:
+      - case_id: melee-system-damagerolls-category
+        record_key: the-slithering-bestiary:ILF7Azqi2TM6ktl9#item:GKCraZhfHY73oosv
+        source_path: packs/the-slithering-bestiary/scroll-shock-trap.json
+        source_file_digest: sha256:8773c92c8cada8b74c72b0c776d5d473b0747f5e473b5a96b659420db29d2b38
+        excerpt_digest: sha256:4cac24209ce68e4a24a7b0ac160f37f1394a19ab35e740f7cf7deda7c0cec573
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardDamageSource ($.system.damageRolls.*.category)
+      - stage: canonical
+        destination: HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.category)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.category)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.category)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.damageRolls.*.damageType
+    leaf_kind: map_member
+    expected_shapes:
+      - string
+    map_key_policy:
+      kind: open_vocabulary_retained_identity
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-damagerolls-damagetype@4cbdaa37
+      record_count: 277
+      occurrence_count: 323
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
+      parity_case_ids:
+        - melee-system-damagerolls-damagetype
+    fixtures:
+      - case_id: melee-system-damagerolls-damagetype
+        record_key: the-slithering-bestiary:ILF7Azqi2TM6ktl9#item:GKCraZhfHY73oosv
+        source_path: packs/the-slithering-bestiary/scroll-shock-trap.json
+        source_file_digest: sha256:8773c92c8cada8b74c72b0c776d5d473b0747f5e473b5a96b659420db29d2b38
+        excerpt_digest: sha256:ed5559aded1520fe5e444717b1d2123586a0b089ef39ee58f2ac6a2cc6621615
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardDamageSource ($.system.damageRolls.*.damageType)
+      - stage: canonical
+        destination: HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.damageType)
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.damageType)
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.damage_rolls[] ($.system.damageRolls.*.damageType)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: atlas-index schema v4 persists and hydrates this exact canonical hazard leaf
+      search:
+        disposition: deferred
+        rationale: H1-E consumes the typed projection where relevant
+      cli:
+        disposition: deferred
+        rationale: H1-E owns typed presentation where relevant
+      app:
+        disposition: deferred
+        rationale: H1-G owns the static DTO where relevant
+      ui:
+        disposition: deferred
+        rationale: H1-G owns typed presentation where relevant
+      runtime:
+        disposition: deferred
+        rationale: H1-F consumes only explicit mechanics
+    rationale: Exact authored leaf is parsed into a typed hazard owner with state, value, identity, order, and multiplicity preserved.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.weaponType.value
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-weapontype-value@4cbdaa37
+      record_count: 277
+      occurrence_count: 223
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - melee-system-weapontype-value
+    fixtures:
+      - case_id: melee-system-weapontype-value
+        record_key: age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:uapfpdQSjUz13nBn
+        source_path: packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json
+        source_file_digest: sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef
+        excerpt_digest: sha256:0fc58e3b2e83a4a0ad1a8b911703b9a35972903a02d96f905b185978f89dcf2e
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.weaponType.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.weaponType.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.weaponType.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.weaponType.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The selected legacy weaponType value ranged is absent from the pinned melee schema; HazardStrikeCapability.unsupported_fields retains it exactly and surfaces the unsupported limitation without inferring range or attack mode.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review
+  - normalized_path: $.system.attack.value
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      entry_id: melee-system-attack-value@4cbdaa37
+      record_count: 277
+      occurrence_count: 0
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      parity_case_ids:
+        - melee-system-attack-value
+    fixtures:
+      - case_id: melee-system-attack-value
+        record_key: age-of-ashes-bestiary:zNIjGSxkG8xyDLgR#item:uapfpdQSjUz13nBn
+        source_path: packs/age-of-ashes-bestiary/book-2-cult-of-cinders/dragon-pillar.json
+        source_file_digest: sha256:7401f9ea50dcd8a0bc3f24360faa2b7e7a1e19796fd9b46600a14e25d0cef2ef
+        excerpt_digest: sha256:12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: HazardItemSource typed system field ($.system.attack.value)
+      - stage: canonical
+        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.attack.value]
+      - stage: post_projection
+        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.attack.value]
+      - stage: artifact_hydration
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.attack.value]
+    surfaces:
+      artifact:
+        disposition: deferred
+        rationale: H1-D persists exact typed-unsupported evidence
+      search:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      cli:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      app:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      ui:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+      runtime:
+        disposition: not_applicable
+        rationale: Exact unsupported source/editor drift is not promoted on this surface
+    rationale: The selected legacy attack value is the exact empty string, while the supported strike modifier is system.bonus.value; HazardStrikeCapability.unsupported_fields retains the empty value/path without fabricating a second attack bonus.
+    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
+    acceptance_checkpoint: H1-B/C independent review

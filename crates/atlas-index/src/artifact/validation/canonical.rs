@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use atlas_record::{FactValue, MetricValue, RecordBody, project_creature_facts};
+use atlas_record::{
+    FactValue, HazardOccurrenceIdentityStability, HazardRelationshipKind, HazardRelationshipTarget,
+    MetricValue, RecordBody, project_creature_facts, project_hazard_facts,
+};
 use rusqlite::Connection;
 use rusqlite::types::ValueRef;
 use serde_json::{Value, json};
@@ -83,12 +86,24 @@ const PROJECTION_TABLES: &[(&str, &str)] = &[
         "record_key,relationship_order,source_occurrence_id,source_occurrence_authored_order,relationship_kind,target_kind,target_occurrence_id,target_occurrence_authored_order,target_source_id,source_path,contextual_label_json,lifecycle_json,execution",
     ),
     (
+        "canonical_hazard_entities",
+        "record_key,entity_id,family,label,image_json,source_identity_json,capability_json",
+    ),
+    (
+        "canonical_hazard_occurrences",
+        "record_key,occurrence_id,entity_id,identity_stability,family,authored_order,source_sort_json,source_folder_json,source_ordinal,contextual_label_json",
+    ),
+    (
+        "canonical_hazard_relationships",
+        "record_key,relationship_id,authored_order,source_occurrence_id,source_occurrence_authored_order,relationship_kind,target_kind,target_entity_id,target_occurrence_id,target_occurrence_authored_order",
+    ),
+    (
         "record_content",
-        "record_key,content_key,authored_order,identity_stability,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,role,origin_json,visibility,provenance_json,source_kind,contributes_to_search,contributes_to_references,label,content_json,content_hash,duplicate_status_json,diagnostics_json",
+        "record_key,content_key,authored_order,identity_stability,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,owner_hazard_entity_id,owner_hazard_occurrence_id,owner_hazard_occurrence_authored_order,role,origin_json,visibility,provenance_json,source_kind,contributes_to_search,contributes_to_references,label,content_json,content_hash,duplicate_status_json,diagnostics_json",
     ),
     (
         "reference_occurrences",
-        "record_key,content_key,content_authored_order,occurrence_ordinal,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,role,origin_json,visibility,provenance_json,target_kind,target_record_key,target_json,label,relation_kind",
+        "record_key,content_key,content_authored_order,occurrence_ordinal,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,owner_hazard_entity_id,owner_hazard_occurrence_id,owner_hazard_occurrence_authored_order,role,origin_json,visibility,provenance_json,target_kind,target_record_key,target_json,label,relation_kind",
     ),
     (
         "record_content_exclusions",
@@ -121,6 +136,10 @@ pub(crate) fn validate_canonical_records(
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
     validate_enums(connection, diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(());
+    }
+    validate_canonical_side_row_ownership(connection, diagnostics)?;
     if !diagnostics.is_empty() {
         return Ok(());
     }
@@ -175,7 +194,14 @@ pub(crate) fn validate_canonical_records(
                 continue;
             }
         };
-        let RecordBody::Creature(creature) = body;
+        let RecordBody::Creature(creature) = body else {
+            invalid(
+                diagnostics,
+                "canonical creature row contains a non-creature body",
+                &path,
+            );
+            continue;
+        };
         if creature.identity.record_key.to_string() != record_key
             || creature.identity.source_id.as_str() != source_id
             || creature.identity.name != name
@@ -195,6 +221,89 @@ pub(crate) fn validate_canonical_records(
             return Ok(());
         }
     }
+    validate_hazard_records(connection, &projections, diagnostics)?;
+    Ok(())
+}
+
+fn validate_hazard_records(
+    connection: &Connection,
+    projections: &ProjectionRows,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let expected_keys = text_column(
+        connection,
+        "SELECT record_key FROM records WHERE foundry_record_type = 'hazard' ORDER BY record_key",
+    )?;
+    let mut statement = connection
+        .prepare("SELECT record_key,source_id,name,family,canonical_json FROM canonical_hazard_records ORDER BY record_key")
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })
+        .map_err(query_failed)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(query_failed)?;
+    let actual_keys = rows.iter().map(|row| row.0.clone()).collect::<Vec<_>>();
+    if actual_keys != expected_keys {
+        mismatch(
+            diagnostics,
+            "canonical hazard coverage diverges from source hazard records",
+            "canonical_hazard_records.coverage",
+            expected_keys.len().to_string(),
+            actual_keys.len().to_string(),
+        );
+    }
+    for (record_key, source_id, name, family, json) in rows {
+        let path = format!("canonical_hazard_records[{record_key}].canonical_json");
+        let body = match canonical_json::decode::<RecordBody>(&json, &path) {
+            Ok(body) if canonical_json::encode(&body).is_ok_and(|encoded| encoded == json) => body,
+            Ok(_) => {
+                invalid(
+                    diagnostics,
+                    "typed JSON is not in canonical deterministic form",
+                    &path,
+                );
+                continue;
+            }
+            Err(error) => {
+                invalid(diagnostics, &error, &path);
+                continue;
+            }
+        };
+        let RecordBody::Hazard(hazard) = body else {
+            invalid(
+                diagnostics,
+                "canonical hazard table contains a non-hazard body",
+                &path,
+            );
+            continue;
+        };
+        if hazard.identity.record_key.to_string() != record_key
+            || hazard.identity.source_id.as_str() != source_id
+            || hazard.identity.name != name
+            || family != "hazard"
+        {
+            mismatch(
+                diagnostics,
+                "canonical hazard identity diverges from its relational row",
+                &record_key,
+                "hydrated identity".to_string(),
+                "relational identity".to_string(),
+            );
+        }
+        validate_unique_hazard_ids(&hazard, diagnostics);
+        reconcile_hazard(projections, &record_key, &hazard, diagnostics);
+        if !diagnostics.is_empty() {
+            return Ok(());
+        }
+    }
     Ok(())
 }
 
@@ -210,6 +319,10 @@ pub(super) fn validate_canonical_structure(
     if !diagnostics.is_empty() {
         return Ok(());
     }
+    validate_canonical_side_row_ownership(connection, diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(());
+    }
     validate_record_mechanics(connection, diagnostics)?;
     if !diagnostics.is_empty() {
         return Ok(());
@@ -217,11 +330,25 @@ pub(super) fn validate_canonical_structure(
 
     for (key, sql, message) in [
         (
+            "records.canonical_family_mismatch",
+            "SELECT COUNT(*)
+             FROM records r
+             WHERE (r.record_kind = 'creature' AND r.foundry_record_type <> 'npc')
+                OR (r.record_kind <> 'creature' AND r.foundry_record_type = 'npc')
+                OR (r.record_kind = 'hazard' AND r.foundry_record_type <> 'hazard')
+                OR (r.record_kind <> 'hazard' AND r.foundry_record_type = 'hazard')
+                OR (r.record_kind = 'spell' AND r.foundry_record_type <> 'spell')
+                OR (r.record_kind <> 'spell' AND r.foundry_record_type = 'spell')",
+            "canonical record kind and Foundry type must identify the same body family",
+        ),
+        (
             "canonical_creature_records.missing_npc_body",
             "SELECT COUNT(*)
              FROM records r
              LEFT JOIN canonical_creature_records c ON c.record_key = r.record_key
-             WHERE r.foundry_record_type = 'npc' AND c.record_key IS NULL",
+             WHERE r.record_kind = 'creature'
+               AND r.foundry_record_type = 'npc'
+               AND c.record_key IS NULL",
             "every NPC record must have one canonical creature body",
         ),
         (
@@ -229,8 +356,131 @@ pub(super) fn validate_canonical_structure(
             "SELECT COUNT(*)
              FROM canonical_creature_records c
              JOIN records r ON r.record_key = c.record_key
-             WHERE r.foundry_record_type <> 'npc'",
+             WHERE r.record_kind <> 'creature' OR r.foundry_record_type <> 'npc'",
             "non-NPC records must not have canonical creature bodies",
+        ),
+        (
+            "canonical_hazard_records.missing_hazard_body",
+            "SELECT COUNT(*)
+             FROM records r
+             LEFT JOIN canonical_hazard_records h ON h.record_key = r.record_key
+             WHERE r.record_kind = 'hazard'
+               AND r.foundry_record_type = 'hazard'
+               AND h.record_key IS NULL",
+            "every hazard record must have one canonical hazard body",
+        ),
+        (
+            "canonical_hazard_records.non_hazard_body",
+            "SELECT COUNT(*)
+             FROM canonical_hazard_records h
+             JOIN records r ON r.record_key = h.record_key
+             WHERE r.record_kind <> 'hazard' OR r.foundry_record_type <> 'hazard'",
+            "non-hazard records must not have canonical hazard bodies",
+        ),
+        (
+            "record_content_exclusions.noncanonical_owner",
+            "SELECT COUNT(*)
+             FROM record_content_exclusions e
+             WHERE NOT EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key=e.record_key)
+               AND NOT EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key=e.record_key)",
+            "content exclusions must belong to a canonical record body",
+        ),
+        (
+            "canonical_spell_records.missing_spell_body",
+            "SELECT COUNT(*)
+             FROM records r
+             LEFT JOIN canonical_spell_records s ON s.record_key = r.record_key
+             WHERE r.foundry_record_type = 'spell' AND s.record_key IS NULL",
+            "every spell record must have one canonical spell body",
+        ),
+        (
+            "canonical_spell_records.non_spell_body",
+            "SELECT COUNT(*)
+             FROM canonical_spell_records s
+             JOIN records r ON r.record_key = s.record_key
+             WHERE r.foundry_record_type <> 'spell' OR r.record_kind <> 'spell'",
+            "non-spell records must not have canonical spell bodies",
+        ),
+        (
+            "canonical_spell_records.missing_query_projection",
+            "SELECT COUNT(*)
+             FROM canonical_spell_records s
+             LEFT JOIN spell_records q ON q.record_key = s.record_key
+             WHERE q.record_key IS NULL",
+            "every canonical spell body must have one spell query projection",
+        ),
+        (
+            "spell_records.extra_query_projection",
+            "SELECT COUNT(*)
+             FROM spell_records q
+             LEFT JOIN canonical_spell_records s ON s.record_key = q.record_key
+             WHERE s.record_key IS NULL",
+            "spell query projections must be owned by canonical spell bodies",
+        ),
+        (
+            "canonical_consumable_spell_children.non_consumable_parent",
+            "SELECT COUNT(*)
+             FROM canonical_consumable_spell_children c
+             JOIN records r ON r.record_key = c.parent_record_key
+             WHERE r.foundry_record_type <> 'consumable'",
+            "canonical consumable spell children must belong to consumable records",
+        ),
+        (
+            "canonical_consumable_spell_children.non_contiguous_order",
+            "SELECT COUNT(*) FROM (
+               SELECT parent_record_key
+               FROM canonical_consumable_spell_children
+               GROUP BY parent_record_key
+               HAVING MIN(authored_order) <> 0 OR MAX(authored_order) <> COUNT(*) - 1
+             )",
+            "consumable spell child authored order must be contiguous from zero",
+        ),
+    ] {
+        let invalid: i64 = connection
+            .query_row(sql, [], |row| row.get(0))
+            .map_err(query_failed)?;
+        if invalid != 0 {
+            mismatch(
+                diagnostics,
+                message,
+                key,
+                "0 invalid rows".to_string(),
+                invalid.to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_canonical_side_row_ownership(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for (key, sql, message) in [
+        (
+            "actor_records.canonical_body_owner",
+            "SELECT COUNT(*)
+             FROM actor_records a
+             WHERE EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key = a.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key = a.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = a.record_key)",
+            "canonical creature, hazard, and spell records must not own generic actor rows",
+        ),
+        (
+            "item_records.canonical_body_owner",
+            "SELECT COUNT(*)
+             FROM item_records i
+             WHERE EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key = i.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key = i.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = i.record_key)",
+            "canonical creature, hazard, and spell records must not own generic item rows",
+        ),
+        (
+            "record_metrics.canonical_spell_owner",
+            "SELECT COUNT(*)
+             FROM record_metrics m
+             WHERE EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = m.record_key)",
+            "canonical spell records must not own generic metric rows",
         ),
     ] {
         let invalid: i64 = connection
@@ -392,6 +642,18 @@ fn reconcile(
                 None,
                 Some(id.as_str().to_string()),
             ),
+            atlas_record::ContentOwner::HazardEntity(id) => (
+                "hazard_entity".to_string(),
+                None,
+                Some(id.as_str().to_string()),
+                None,
+            ),
+            atlas_record::ContentOwner::HazardOccurrence(id) => (
+                "hazard_occurrence".to_string(),
+                None,
+                None,
+                Some(id.as_str().to_string()),
+            ),
         };
         let owner_order = owner_occurrence.as_deref().and_then(|id| {
             occurrence_order(
@@ -413,6 +675,9 @@ fn reconcile(
                 owner_entity,
                 owner_occurrence,
                 owner_order,
+                Value::Null,
+                Value::Null,
+                Value::Null,
                 content_role(document.role),
                 canonical_json::encode(&document.origin).unwrap_or_default(),
                 document.visibility.as_str(),
@@ -445,6 +710,9 @@ fn reconcile(
                     owner_entity,
                     owner_occurrence,
                     owner_order,
+                    Value::Null,
+                    Value::Null,
+                    Value::Null,
                     content_role(occurrence.role),
                     canonical_json::encode(&occurrence.origin).unwrap_or_default(),
                     occurrence.visibility.as_str(),
@@ -517,6 +785,286 @@ fn reconcile(
     }
 }
 
+fn reconcile_hazard(
+    rows: &ProjectionRows,
+    record_key: &str,
+    hazard: &atlas_record::HazardRecord,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    let mut expected = BTreeMap::<&'static str, BTreeSet<[u8; 32]>>::new();
+    let embedded = hazard.embedded_entities.typed();
+    let occurrences = embedded.map_or(&[][..], |value| value.occurrences.as_slice());
+    let occurrence_orders = occurrences
+        .iter()
+        .map(|occurrence| {
+            (
+                occurrence.id.as_str().to_string(),
+                i64::from(occurrence.authored_order),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    if let Some(embedded) = embedded {
+        for entity in &embedded.entities {
+            add_expected(
+                &mut expected,
+                "canonical_hazard_entities",
+                json!([
+                    record_key,
+                    entity.id.as_str(),
+                    entity.family.as_str(),
+                    entity.label,
+                    canonical_json::encode(&entity.image).unwrap_or_default(),
+                    canonical_json::encode(&entity.source_identity).unwrap_or_default(),
+                    canonical_json::encode(&entity.capability).unwrap_or_default()
+                ]),
+            );
+        }
+        for occurrence in &embedded.occurrences {
+            add_expected(
+                &mut expected,
+                "canonical_hazard_occurrences",
+                json!([
+                    record_key,
+                    occurrence.id.as_str(),
+                    occurrence.entity_id.as_str(),
+                    hazard_occurrence_stability(occurrence.identity_stability),
+                    occurrence.family.as_str(),
+                    i64::from(occurrence.authored_order),
+                    canonical_json::encode(&occurrence.source_sort).unwrap_or_default(),
+                    canonical_json::encode(&occurrence.source_folder).unwrap_or_default(),
+                    i64::from(occurrence.source_ordinal),
+                    canonical_json::encode(&occurrence.contextual_label).unwrap_or_default()
+                ]),
+            );
+        }
+    }
+    for relationship in &hazard.relationships {
+        let source_id = relationship
+            .source_occurrence_id
+            .as_ref()
+            .map(|id| id.as_str());
+        let source_order = source_id.and_then(|id| occurrence_orders.get(id).copied());
+        let (target_kind, target_entity, target_occurrence, target_order) =
+            match &relationship.target {
+                HazardRelationshipTarget::Entity(id) => ("entity", Some(id.as_str()), None, None),
+                HazardRelationshipTarget::Occurrence(id) => (
+                    "occurrence",
+                    None,
+                    Some(id.as_str()),
+                    occurrence_orders.get(id.as_str()).copied(),
+                ),
+            };
+        add_expected(
+            &mut expected,
+            "canonical_hazard_relationships",
+            json!([
+                record_key,
+                relationship.id.as_str(),
+                i64::from(relationship.authored_order),
+                source_id,
+                source_order,
+                hazard_relationship_kind(relationship.kind),
+                target_kind,
+                target_entity,
+                target_occurrence,
+                target_order
+            ]),
+        );
+    }
+    for document in &hazard.content.documents {
+        let (kind, owner_record, owner_entity, owner_occurrence) = match &document.owner {
+            atlas_record::ContentOwner::Record(key) => {
+                ("record", Some(key.to_string()), None, None)
+            }
+            atlas_record::ContentOwner::HazardEntity(id) => {
+                ("hazard_entity", None, Some(id.as_str().to_string()), None)
+            }
+            atlas_record::ContentOwner::HazardOccurrence(id) => (
+                "hazard_occurrence",
+                None,
+                None,
+                Some(id.as_str().to_string()),
+            ),
+            atlas_record::ContentOwner::CreatureEntity(_)
+            | atlas_record::ContentOwner::CreatureOccurrence(_) => {
+                invalid(
+                    diagnostics,
+                    "hazard content has a cross-family owner",
+                    record_key,
+                );
+                continue;
+            }
+        };
+        let owner_order = owner_occurrence
+            .as_deref()
+            .and_then(|id| occurrence_orders.get(id).copied());
+        add_expected(
+            &mut expected,
+            "record_content",
+            json!([
+                record_key,
+                document.id.content_key.as_str(),
+                i64::from(document.authored_order),
+                content_stability(document.identity_stability),
+                kind,
+                owner_record,
+                Value::Null,
+                Value::Null,
+                Value::Null,
+                owner_entity,
+                owner_occurrence,
+                owner_order,
+                content_role(document.role),
+                canonical_json::encode(&document.origin).unwrap_or_default(),
+                document.visibility.as_str(),
+                canonical_json::encode(&document.provenance).unwrap_or_default(),
+                document.source_kind.as_str(),
+                i64::from(document.source_kind.default_contributes_to_search()),
+                i64::from(
+                    document
+                        .source_kind
+                        .default_contributes_to_reference_occurrences()
+                ),
+                document.label,
+                canonical_json::encode(&document.document).unwrap_or_default(),
+                document.content_hash.as_str(),
+                canonical_json::encode(&document.duplicate_status).unwrap_or_default(),
+                canonical_json::encode(&document.diagnostics).unwrap_or_default()
+            ]),
+        );
+        for occurrence in &document.reference_occurrences {
+            add_expected(
+                &mut expected,
+                "reference_occurrences",
+                json!([
+                    record_key,
+                    document.id.content_key.as_str(),
+                    i64::from(document.authored_order),
+                    i64::from(occurrence.ordinal),
+                    kind,
+                    owner_record,
+                    Value::Null,
+                    Value::Null,
+                    Value::Null,
+                    owner_entity,
+                    owner_occurrence,
+                    owner_order,
+                    content_role(occurrence.role),
+                    canonical_json::encode(&occurrence.origin).unwrap_or_default(),
+                    occurrence.visibility.as_str(),
+                    canonical_json::encode(&occurrence.provenance).unwrap_or_default(),
+                    reference_target_kind(&occurrence.target),
+                    occurrence.target.record_key().map(ToString::to_string),
+                    serde_json::to_string(&occurrence.target).unwrap_or_default(),
+                    occurrence.label,
+                    occurrence.relation_kind.as_str()
+                ]),
+            );
+        }
+    }
+    for exclusion in &hazard.content.exclusions {
+        add_expected(
+            &mut expected,
+            "record_content_exclusions",
+            json!([
+                record_key,
+                exclusion.content_key.as_str(),
+                exclusion.relative_source_path,
+                exclusion.label,
+                exclusion_reason(exclusion.reason)
+            ]),
+        );
+    }
+    for (ordinal, metric) in project_hazard_facts(hazard).metrics.into_iter().enumerate() {
+        let (kind, number, text, boolean) = match metric.value {
+            MetricValue::Number(value) => ("number", Some(value), None, None),
+            MetricValue::Text(value) => ("text", None, Some(value), None),
+            MetricValue::Boolean(value) => ("boolean", None, None, Some(i64::from(value))),
+        };
+        add_expected(
+            &mut expected,
+            "record_metrics",
+            json!([
+                record_key,
+                i64::try_from(ordinal).unwrap_or(i64::MAX),
+                metric.domain.as_str(),
+                metric.key,
+                kind,
+                number,
+                text,
+                boolean
+            ]),
+        );
+    }
+    for &(table, _) in PROJECTION_TABLES {
+        let actual = rows.set(table, record_key);
+        let wanted = expected.remove(table).unwrap_or_default();
+        if actual != wanted {
+            mismatch(
+                diagnostics,
+                &format!(
+                    "{table} exact relational projection diverges from hydrated canonical truth"
+                ),
+                record_key,
+                format!("{} exact rows", wanted.len()),
+                format!(
+                    "{} rows; symmetric difference={}",
+                    actual.len(),
+                    actual.symmetric_difference(&wanted).count()
+                ),
+            );
+        }
+    }
+}
+
+fn validate_unique_hazard_ids(
+    hazard: &atlas_record::HazardRecord,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    if let Some(embedded) = hazard.embedded_entities.typed() {
+        unique(
+            embedded.entities.iter().map(|value| value.id.as_str()),
+            "duplicate canonical hazard entity ID",
+            diagnostics,
+        );
+        unique(
+            embedded.occurrences.iter().map(|value| value.id.as_str()),
+            "duplicate canonical hazard occurrence ID",
+            diagnostics,
+        );
+        unique(
+            embedded
+                .occurrences
+                .iter()
+                .map(|value| value.authored_order.to_string()),
+            "duplicate canonical hazard occurrence authored order",
+            diagnostics,
+        );
+    }
+    unique(
+        hazard.relationships.iter().map(|value| value.id.as_str()),
+        "duplicate canonical hazard relationship ID",
+        diagnostics,
+    );
+    unique(
+        hazard
+            .relationships
+            .iter()
+            .map(|value| value.authored_order.to_string()),
+        "duplicate canonical hazard relationship authored order",
+        diagnostics,
+    );
+    unique(
+        hazard
+            .content
+            .documents
+            .iter()
+            .map(|value| value.authored_order.to_string()),
+        "duplicate canonical hazard content authored order",
+        diagnostics,
+    );
+}
+
 fn add_expected(
     expected: &mut BTreeMap<&'static str, BTreeSet<[u8; 32]>>,
     table: &'static str,
@@ -547,6 +1095,19 @@ fn occurrence_stability(value: atlas_record::OccurrenceIdentityStability) -> &'s
         atlas_record::OccurrenceIdentityStability::UnstableOwnerFamilyOrdinal => {
             "unstable_owner_family_ordinal"
         }
+    }
+}
+
+fn hazard_occurrence_stability(value: HazardOccurrenceIdentityStability) -> &'static str {
+    match value {
+        HazardOccurrenceIdentityStability::StableSourceIdentity => "stable_source_identity",
+        HazardOccurrenceIdentityStability::UnstableAuthoredOrdinal => "unstable_authored_ordinal",
+    }
+}
+
+fn hazard_relationship_kind(value: HazardRelationshipKind) -> &'static str {
+    match value {
+        HazardRelationshipKind::Contains => "contains",
     }
 }
 fn relationship_kind(value: atlas_record::CreatureEntityRelationshipKind) -> &'static str {
@@ -710,8 +1271,20 @@ fn validate_enums(
             "SELECT COUNT(*) FROM canonical_creature_relationships WHERE relationship_kind NOT IN ('granted_by','item_grant','linked_weapon','prepared_spell') OR execution <> 'provenance_only'",
         ),
         (
+            "canonical_hazard_occurrences.family",
+            "SELECT COUNT(*) FROM canonical_hazard_occurrences WHERE family NOT IN ('action','strike','condition','effect','unsupported_child')",
+        ),
+        (
+            "canonical_hazard_relationships.kind",
+            "SELECT COUNT(*) FROM canonical_hazard_relationships WHERE relationship_kind <> 'contains' OR target_kind NOT IN ('entity','occurrence')",
+        ),
+        (
             "record_content.owner_kind",
-            "SELECT COUNT(*) FROM record_content WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence')",
+            "SELECT COUNT(*) FROM record_content WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence')",
+        ),
+        (
+            "reference_occurrences.owner_kind",
+            "SELECT COUNT(*) FROM reference_occurrences WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence')",
         ),
     ] {
         let count: i64 = connection

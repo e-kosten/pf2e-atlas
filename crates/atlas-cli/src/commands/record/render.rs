@@ -2,10 +2,14 @@ use atlas_domain::DetailLevel;
 use atlas_record::{
     CreatureActionCostJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
     CreatureContentJson, CreatureDamageJson, CreatureRollJson, CreatureSpellJson,
-    CreatureUnmodeledSkillAvailabilityJson, PresentationContent, PresentationContentBlock,
-    PresentationInline, RecordBlockJson, RecordEditionCounterpartLookupJson,
-    RecordEditionCounterpartRoleJson, RecordEditionStatusJson, RecordJson, RecordPresentationJson,
-    RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
+    CreatureUnmodeledSkillAvailabilityJson, HazardAvailabilityJson, PresentationContent,
+    PresentationContentBlock, PresentationInline, RecordBlockJson,
+    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionStatusJson,
+    RecordJson, RecordPresentationJson, RecordRelationshipDirectionJson,
+    RecordRelationshipLookupJson, SpellDamagePatchOperationJson, SpellFactJson,
+    SpellFormResultJson, SpellHeighteningJson, SpellPatchJson, SpellResolvedDefinitionJson,
+    SpellResolvedFieldJson, SpellRuleDetailJson, SpellRuleJson, SpellRulePredicateJson,
+    SpellTextPatchOperationJson,
 };
 
 use crate::terminal::TerminalStyle;
@@ -112,6 +116,35 @@ pub(super) fn render_record(
                 out.source_and_edition(record, edition.as_ref());
             }
             out.availability(detail, availability, unmodeled_skill_availability);
+        }
+        RecordPresentationJson::Hazard {
+            sections,
+            availability,
+            edition,
+            record_relationships,
+            ..
+        } => {
+            out.generic_sections(sections);
+            if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+                out.relationships(record_relationships.as_ref());
+            }
+            if detail == DetailLevel::Full {
+                out.source_and_edition(record, edition.as_ref());
+            }
+            out.hazard_availability(detail, availability);
+        }
+        RecordPresentationJson::Spell {
+            spell,
+            edition,
+            record_relationships,
+        } => {
+            out.spell_record(record, spell, detail);
+            if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+                out.relationships(record_relationships.as_ref());
+            }
+            if detail == DetailLevel::Full {
+                out.source_and_edition(record, edition.as_ref());
+            }
         }
         RecordPresentationJson::Unmigrated { sections, .. } => {
             out.generic_sections(sections);
@@ -260,6 +293,563 @@ impl Writer {
             && let Some(title) = source.publication_title.as_deref()
         {
             self.field("Source", title, 2);
+        }
+    }
+
+    fn spell_record(
+        &mut self,
+        record: &RecordJson,
+        spell: &atlas_record::SpellJson,
+        detail: DetailLevel,
+    ) {
+        if detail != DetailLevel::Description {
+            self.section("Classification");
+            if let Some(classification) = spell_fact(&spell.classification) {
+                if let Some(rank) = spell_fact(&classification.rank) {
+                    self.field("Rank", rank.to_string(), 2);
+                }
+                if let Some(traits) = spell_fact(&classification.traits) {
+                    self.list_field("Traits", traits, 2);
+                }
+                if let Some(traditions) = spell_fact(&classification.traditions) {
+                    self.list_field("Traditions", traditions, 2);
+                }
+            }
+            if let Some(rarity) = &record.rarity {
+                self.field("Rarity", rarity, 2);
+            }
+
+            if let Some(casting) = spell_fact(&spell.casting) {
+                self.section("Casting");
+                for (label, value) in [
+                    ("Time", spell_fact(&casting.time).map(String::as_str)),
+                    ("Cost", spell_fact(&casting.cost).map(String::as_str)),
+                    (
+                        "Requirements",
+                        spell_fact(&casting.requirements).map(String::as_str),
+                    ),
+                ] {
+                    if let Some(value) = value {
+                        self.field(label, value, 2);
+                    }
+                }
+                if spell_fact(&casting.counteraction).copied() == Some(true) {
+                    self.field("Counteraction", "yes", 2);
+                }
+            }
+
+            if let Some(targeting) = spell_fact(&spell.targeting) {
+                self.section("Targeting");
+                if let Some(target) = spell_fact(&targeting.target) {
+                    self.field("Target", target, 2);
+                }
+                if let Some(range) = spell_fact(&targeting.range) {
+                    self.field("Range", &range.authored_text, 2);
+                }
+                if let Some(area) = spell_fact(&targeting.area) {
+                    let area_text = [
+                        spell_fact(&area.value).map(ToString::to_string),
+                        spell_fact(&area.area_type).cloned(),
+                        spell_fact(&area.details).cloned(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                    self.field("Area", area_text, 2);
+                }
+            }
+
+            if let Some(defense) = spell_fact(&spell.defense) {
+                self.section("Defense");
+                if let Some(passive) = spell_fact(&defense.passive) {
+                    self.field("Passive", passive, 2);
+                }
+                if let Some(save) = spell_fact(&defense.save) {
+                    let mut value = spell_fact(&save.statistic).cloned().unwrap_or_default();
+                    if spell_fact(&save.basic).copied() == Some(true) {
+                        value.push_str(" (basic)");
+                    }
+                    self.field("Save", value, 2);
+                }
+            }
+
+            if let Some(damage) = spell_fact(&spell.damage) {
+                self.section("Damage");
+                for row in damage {
+                    let value = [
+                        spell_fact(&row.formula).cloned(),
+                        spell_fact(&row.damage_type).cloned(),
+                        spell_fact(&row.category).cloned(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                    self.field(&format!("Damage {}", row.key), value, 2);
+                    if let Some(kinds) = spell_fact(&row.kinds) {
+                        self.list_field(&format!("Damage {} kinds", row.key), kinds, 2);
+                    }
+                    if let Some(materials) = spell_fact(&row.materials) {
+                        self.list_field(&format!("Damage {} materials", row.key), materials, 2);
+                    }
+                    if let Some(value) = spell_fact(&row.apply_modifier) {
+                        self.field(
+                            &format!("Damage {} apply modifier", row.key),
+                            value.to_string(),
+                            2,
+                        );
+                    }
+                }
+            }
+
+            if let Some(duration) = spell_fact(&spell.duration) {
+                self.section("Duration");
+                if let Some(value) = spell_fact(&duration.value) {
+                    self.field("Duration", value, 2);
+                }
+                if spell_fact(&duration.sustained).copied() == Some(true) {
+                    self.field("Sustained", "yes", 2);
+                }
+            }
+
+            if let Some(heightening) = spell_fact(&spell.heightening) {
+                self.section("Heightening");
+                match heightening {
+                    SpellHeighteningJson::Interval {
+                        interval,
+                        area,
+                        damage,
+                    } => {
+                        if let Some(value) = spell_fact(interval) {
+                            self.field("Interval", format!("every {value} ranks"), 2);
+                        }
+                        if let Some(value) = spell_fact(area) {
+                            self.field("Area increase", value.to_string(), 2);
+                        }
+                        if let Some(values) = spell_fact(damage) {
+                            for value in values {
+                                self.field(
+                                    &format!("Damage increase {}", value.key),
+                                    &value.value,
+                                    2,
+                                );
+                            }
+                        }
+                    }
+                    SpellHeighteningJson::Fixed { layers } => {
+                        for layer in layers {
+                            let rank = spell_fact(&layer.rank)
+                                .map(|rank| format!("Rank {rank}"))
+                                .unwrap_or_else(|| "Unknown rank".to_string());
+                            self.field(&rank, layer.changed_fields.join(", "), 2);
+                            self.spell_patch(&layer.patch, 4);
+                        }
+                    }
+                }
+            }
+
+            if let Some(ritual) = spell_fact(&spell.ritual) {
+                self.section("Ritual");
+                if let Some(value) = spell_fact(&ritual.primary_check) {
+                    self.field("Primary check", value, 2);
+                }
+                if let Some(value) = spell_fact(&ritual.secondary_casters) {
+                    self.field("Secondary casters", value.to_string(), 2);
+                }
+                if let Some(value) = spell_fact(&ritual.secondary_checks) {
+                    self.field("Secondary checks", value, 2);
+                }
+            }
+
+            if let Some(rules) = spell_fact(&spell.rules)
+                && !rules.is_empty()
+            {
+                self.section("Rules");
+                for rule in rules {
+                    self.spell_rule(rule, 2);
+                }
+            }
+
+            if !spell.forms.is_empty() {
+                self.section("Forms");
+                for form in &spell.forms {
+                    self.bullet(
+                        format!("{} · rank {} · {}", form.label, form.cast_rank, form.id),
+                        2,
+                    );
+                    match &form.result {
+                        SpellFormResultJson::Available { definition } => {
+                            self.spell_form_definition(definition, 4);
+                        }
+                        SpellFormResultJson::Unavailable { message } => {
+                            self.field("Unavailable", message, 4);
+                        }
+                    }
+                }
+            }
+            if let Some(message) = &spell.form_catalog_unavailable {
+                self.section("Forms");
+                self.field("Unavailable", message, 2);
+            }
+        }
+
+        if matches!(detail, DetailLevel::Description | DetailLevel::Full) {
+            for document in &spell.content {
+                self.section(document.label.as_deref().unwrap_or("Description"));
+                self.render_content(&document.document, 2);
+            }
+        }
+    }
+
+    fn spell_form_definition(&mut self, definition: &SpellResolvedDefinitionJson, indent: usize) {
+        if !definition.applied_fixed_ranks.is_empty() {
+            self.field(
+                "Applied fixed ranks",
+                definition
+                    .applied_fixed_ranks
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                indent,
+            );
+        }
+        if let Some(classification) = resolved_spell_fact(&definition.classification) {
+            if let Some(rank) = spell_fact(&classification.rank) {
+                self.field("Rank", rank.to_string(), indent);
+            }
+            if let Some(traits) = spell_fact(&classification.traits) {
+                self.list_field("Traits", traits, indent);
+            }
+            if let Some(traditions) = spell_fact(&classification.traditions) {
+                self.list_field("Traditions", traditions, indent);
+            }
+        }
+        if let Some(casting) = resolved_spell_fact(&definition.casting) {
+            if let Some(value) = spell_fact(&casting.time) {
+                self.field("Time", value, indent);
+            }
+            if let Some(value) = spell_fact(&casting.cost) {
+                self.field("Cost", value, indent);
+            }
+            if let Some(value) = spell_fact(&casting.requirements) {
+                self.field("Requirements", value, indent);
+            }
+        }
+        if let Some(targeting) = resolved_spell_fact(&definition.targeting) {
+            if let Some(value) = spell_fact(&targeting.target) {
+                self.field("Target", value, indent);
+            }
+            if let Some(value) = spell_fact(&targeting.range) {
+                self.field("Range", &value.authored_text, indent);
+            }
+        }
+        if let Some(defense) = resolved_spell_fact(&definition.defense) {
+            if let Some(value) = spell_fact(&defense.passive) {
+                self.field("Passive", value, indent);
+            }
+            if let Some(save) = spell_fact(&defense.save)
+                && let Some(statistic) = spell_fact(&save.statistic)
+            {
+                let basic = if spell_fact(&save.basic).copied() == Some(true) {
+                    " (basic)"
+                } else {
+                    ""
+                };
+                self.field("Save", format!("{statistic}{basic}"), indent);
+            }
+        }
+        if let Some(damage) = resolved_spell_fact(&definition.damage) {
+            for row in damage {
+                let value = [
+                    spell_fact(&row.formula).cloned(),
+                    spell_fact(&row.damage_type).cloned(),
+                    spell_fact(&row.category).cloned(),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" ");
+                self.field("Damage", value, indent);
+                if let Some(kinds) = spell_fact(&row.kinds) {
+                    self.list_field("Damage kinds", kinds, indent);
+                }
+                if let Some(materials) = spell_fact(&row.materials) {
+                    self.list_field("Damage materials", materials, indent);
+                }
+                if let Some(value) = spell_fact(&row.apply_modifier) {
+                    self.field("Damage apply modifier", value.to_string(), indent);
+                }
+            }
+        }
+        if let Some(duration) = resolved_spell_fact(&definition.duration) {
+            if let Some(value) = spell_fact(&duration.value) {
+                self.field("Duration", value, indent);
+            }
+            if spell_fact(&duration.sustained).copied() == Some(true) {
+                self.field("Sustained", "yes", indent);
+            }
+        }
+        if let Some(rules) = resolved_spell_fact(&definition.rules) {
+            for rule in rules {
+                self.spell_rule(rule, indent);
+            }
+        }
+        for unavailable in [
+            resolved_spell_unavailable(&definition.classification),
+            resolved_spell_unavailable(&definition.casting),
+            resolved_spell_unavailable(&definition.targeting),
+            resolved_spell_unavailable(&definition.defense),
+            resolved_spell_unavailable(&definition.damage),
+            resolved_spell_unavailable(&definition.duration),
+            resolved_spell_unavailable(&definition.heightening),
+            resolved_spell_unavailable(&definition.rules),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            self.field("Unavailable", unavailable, indent);
+        }
+    }
+
+    fn spell_rule(&mut self, rule: &SpellRuleJson, indent: usize) {
+        let (kind, fields) = match &rule.rule {
+            SpellRuleDetailJson::DamageDice(value) => (
+                "Damage dice",
+                vec![
+                    ("Selector", spell_fact(&value.selector).cloned()),
+                    ("Dice", spell_fact(&value.dice_number).cloned()),
+                    ("Die size", spell_fact(&value.die_size).cloned()),
+                    ("Damage type", spell_fact(&value.damage_type).cloned()),
+                    (
+                        "Hide if disabled",
+                        spell_fact(&value.hide_if_disabled).map(ToString::to_string),
+                    ),
+                    ("Predicate", spell_predicate_text(&value.predicate)),
+                ],
+            ),
+            SpellRuleDetailJson::EphemeralEffect(value) => (
+                "Ephemeral effect",
+                vec![
+                    (
+                        "Selectors",
+                        spell_fact(&value.selectors).map(|v| v.join(", ")),
+                    ),
+                    ("UUID", spell_fact(&value.uuid).cloned()),
+                    ("Predicate", spell_predicate_text(&value.predicate)),
+                ],
+            ),
+            SpellRuleDetailJson::DamageAlteration(value) => (
+                "Damage alteration",
+                vec![
+                    ("Mode", spell_fact(&value.mode).cloned()),
+                    ("Property", spell_fact(&value.property).cloned()),
+                    (
+                        "Selectors",
+                        spell_fact(&value.selectors).map(|v| v.join(", ")),
+                    ),
+                    ("Slug", spell_fact(&value.slug).cloned()),
+                    ("Value", spell_fact(&value.value).cloned()),
+                    ("Predicate", spell_predicate_text(&value.predicate)),
+                ],
+            ),
+            SpellRuleDetailJson::RollOption(value) => ("Roll option", {
+                let mut fields = vec![
+                    ("Domain", spell_fact(&value.domain).cloned()),
+                    ("Label", spell_fact(&value.label).cloned()),
+                    ("Option", spell_fact(&value.option).cloned()),
+                    ("Placement", spell_fact(&value.placement).cloned()),
+                    (
+                        "Toggleable",
+                        spell_fact(&value.toggleable).map(ToString::to_string),
+                    ),
+                    ("Predicate", spell_predicate_text(&value.predicate)),
+                ];
+                if let Some(suboptions) = spell_fact(&value.suboptions) {
+                    fields.extend(suboptions.iter().enumerate().map(|(index, suboption)| {
+                        let label = spell_fact(&suboption.label).cloned().unwrap_or_default();
+                        let value = spell_fact(&suboption.value).cloned().unwrap_or_default();
+                        ("Suboption", Some(format!("{index}: {label} = {value}")))
+                    }));
+                }
+                fields
+            }),
+            SpellRuleDetailJson::ItemAlteration(value) => (
+                "Item alteration",
+                vec![
+                    ("Item", spell_fact(&value.item_id).cloned()),
+                    ("Mode", spell_fact(&value.mode).cloned()),
+                    ("Property", spell_fact(&value.property).cloned()),
+                    ("Value", spell_fact(&value.value).cloned()),
+                    ("Predicate", spell_predicate_text(&value.predicate)),
+                ],
+            ),
+            SpellRuleDetailJson::Unsupported(value) => (
+                "Unsupported rule",
+                vec![("Value", Some(value.value.clone()))],
+            ),
+        };
+        self.bullet(
+            format!("{} · {} · order {}", kind, rule.authored_key, rule.order),
+            indent,
+        );
+        for (label, value) in fields {
+            if let Some(value) = value {
+                self.field(label, value, indent + 2);
+            }
+        }
+    }
+
+    fn spell_patch(&mut self, patch: &SpellPatchJson, indent: usize) {
+        if let Some(classification) = spell_fact(&patch.classification) {
+            if let Some(rank) = spell_fact(&classification.rank) {
+                self.field("Rank", rank.to_string(), indent);
+            }
+            if let Some(traits) = spell_fact(&classification.traits) {
+                self.list_field("Traits", traits, indent);
+            }
+            if let Some(traditions) = spell_fact(&classification.traditions) {
+                self.list_field("Traditions", traditions, indent);
+            }
+        }
+        if let Some(casting) = spell_fact(&patch.casting) {
+            if let Some(value) = spell_fact(&casting.time) {
+                self.field("Time", value, indent);
+            }
+            if let Some(value) = spell_fact(&casting.cost) {
+                self.field("Cost", value, indent);
+            }
+            if let Some(value) = spell_fact(&casting.requirements) {
+                self.field("Requirements", value, indent);
+            }
+            if let Some(value) = spell_fact(&casting.counteraction) {
+                self.field("Counteraction", value.to_string(), indent);
+            }
+        }
+        if let Some(targeting) = spell_fact(&patch.targeting) {
+            if let Some(target) = spell_fact(&targeting.target) {
+                self.field("Target", target, indent);
+            }
+            if let Some(range) = spell_fact(&targeting.range) {
+                self.field("Range", &range.authored_text, indent);
+            }
+            if let Some(area) = spell_fact(&targeting.area) {
+                let value = [
+                    spell_fact(&area.value).map(ToString::to_string),
+                    spell_fact(&area.area_type).cloned(),
+                    spell_fact(&area.details).cloned(),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" ");
+                self.field("Area", value, indent);
+            }
+        }
+        if let Some(defense) = spell_fact(&patch.defense) {
+            if let Some(value) = spell_fact(&defense.passive) {
+                self.field("Passive", value, indent);
+            }
+            if let Some(save) = spell_fact(&defense.save) {
+                if let Some(value) = spell_fact(&save.statistic) {
+                    self.field("Save", value, indent);
+                }
+                if let Some(value) = spell_fact(&save.basic) {
+                    self.field("Basic save", value.to_string(), indent);
+                }
+            }
+        }
+        if let Some(damage) = spell_fact(&patch.damage) {
+            for member in &damage.members {
+                match &member.operation {
+                    SpellDamagePatchOperationJson::Merge(value) => {
+                        let text = [
+                            spell_fact(&value.formula).cloned(),
+                            spell_fact(&value.damage_type).cloned(),
+                            spell_fact(&value.category).cloned(),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                        self.field(&format!("Damage {}", member.key), text, indent);
+                        if let Some(kinds) = spell_fact(&value.kinds) {
+                            self.list_field(&format!("Damage {} kinds", member.key), kinds, indent);
+                        }
+                        if let Some(materials) = spell_fact(&value.materials) {
+                            self.list_field(
+                                &format!("Damage {} materials", member.key),
+                                materials,
+                                indent,
+                            );
+                        }
+                        if let Some(apply_modifier) = spell_fact(&value.apply_modifier) {
+                            self.field(
+                                &format!("Damage {} apply modifier", member.key),
+                                apply_modifier.to_string(),
+                                indent,
+                            );
+                        }
+                    }
+                    SpellDamagePatchOperationJson::Delete => {
+                        self.field(&format!("Damage {}", member.key), "delete", indent);
+                    }
+                    SpellDamagePatchOperationJson::Unsupported(value) => {
+                        self.field(
+                            &format!("Damage {}", member.key),
+                            format!("unsupported {}: {}", value.shape, value.value),
+                            indent,
+                        );
+                    }
+                }
+            }
+        }
+        if let Some(duration) = spell_fact(&patch.duration) {
+            if let Some(value) = spell_fact(&duration.value) {
+                self.field("Duration", value, indent);
+            }
+            if let Some(value) = spell_fact(&duration.sustained) {
+                self.field("Sustained", value.to_string(), indent);
+            }
+        }
+        if let Some(heightening) = spell_fact(&patch.heightening) {
+            if let Some(value) = spell_fact(&heightening.kind) {
+                self.field("Heightening", value, indent);
+            }
+            if let Some(value) = spell_fact(&heightening.interval) {
+                self.field("Heightening interval", value.to_string(), indent);
+            }
+            if let Some(value) = spell_fact(&heightening.area) {
+                self.field("Heightening area", value.to_string(), indent);
+            }
+            if let Some(damage) = spell_fact(&heightening.damage) {
+                for member in &damage.members {
+                    let label = format!("Heightening damage {}", member.key);
+                    match &member.operation {
+                        SpellTextPatchOperationJson::Merge(value) => {
+                            if let Some(value) = spell_fact(value) {
+                                self.field(&label, value, indent);
+                            }
+                        }
+                        SpellTextPatchOperationJson::Delete => {
+                            self.field(&label, "delete", indent);
+                        }
+                        SpellTextPatchOperationJson::Unsupported(value) => {
+                            self.field(
+                                &label,
+                                format!("unsupported {}: {}", value.shape, value.value),
+                                indent,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(rules) = spell_fact(&patch.rules) {
+            for rule in rules {
+                self.spell_rule(rule, indent);
+            }
         }
     }
 
@@ -970,6 +1560,25 @@ impl Writer {
         }
     }
 
+    fn hazard_availability(
+        &mut self,
+        detail: DetailLevel,
+        availability: &[HazardAvailabilityJson],
+    ) {
+        if !matches!(detail, DetailLevel::Standard | DetailLevel::Full) || availability.is_empty() {
+            return;
+        }
+        self.section("Data availability");
+        for row in availability {
+            self.lines
+                .push(format!("  {}", self.style.label(&row.field)));
+            if let Some(component_id) = &row.component_id {
+                self.field("Component ID", component_id, 4);
+            }
+            self.paragraph(&row.message, 4);
+        }
+    }
+
     fn generic_sections(&mut self, sections: &[atlas_record::RecordSectionJson]) {
         for section in sections {
             self.section(&section.title);
@@ -1004,6 +1613,47 @@ struct SpellRankGroup<'a> {
     rank: Option<i64>,
     maximum: Option<i64>,
     spells: Vec<&'a CreatureSpellJson>,
+}
+
+fn spell_fact<T>(value: &SpellFactJson<T>) -> Option<&T> {
+    match value {
+        SpellFactJson::Known(value) => Some(value),
+        SpellFactJson::Missing | SpellFactJson::Null | SpellFactJson::Unsupported(_) => None,
+    }
+}
+
+fn resolved_spell_fact<T>(value: &SpellResolvedFieldJson<T>) -> Option<&T> {
+    match value {
+        SpellResolvedFieldJson::Available { value } => spell_fact(value),
+        SpellResolvedFieldJson::Unavailable { .. } => None,
+    }
+}
+
+fn resolved_spell_unavailable<T>(value: &SpellResolvedFieldJson<T>) -> Option<String> {
+    match value {
+        SpellResolvedFieldJson::Available { .. } => None,
+        SpellResolvedFieldJson::Unavailable {
+            field,
+            source,
+            reason,
+        } => Some(format!("{field} from {source}: {reason}")),
+    }
+}
+
+fn spell_predicate_text(value: &SpellFactJson<Vec<SpellRulePredicateJson>>) -> Option<String> {
+    spell_fact(value).map(|values| {
+        values
+            .iter()
+            .map(|value| match value {
+                SpellRulePredicateJson::Term(value) => value.clone(),
+                SpellRulePredicateJson::Or(values) => format!("one of ({})", values.join(", ")),
+                SpellRulePredicateJson::Unsupported(value) => {
+                    format!("unsupported {}: {}", value.shape, value.value)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("; ")
+    })
 }
 
 fn spell_rank_groups<'a>(
@@ -1184,10 +1834,12 @@ pub(super) mod tests {
         CreatureRitualsJson, CreatureSkillJson, CreatureSkillSourceEntryJson,
         CreatureSpellSlotJson, CreatureSpellcastingEntryJson, CreatureSpellcastingJson,
         CreatureStrikeJson, CreatureUnmodeledSkillJson, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, RecordCanonicalRelationshipJson, RecordClassification,
+        FoundryRecordType, RecordBody, RecordCanonicalRelationshipJson, RecordClassification,
         RecordEditionContextJson, RecordEditionCounterpartJson, RecordIdentity, RecordJsonBase,
         RecordJsonOptions, RecordProvenance, RecordRelationshipProvenanceJson,
-        ReferenceRelationKind, RetrievedRecord, record_json,
+        ReferenceRelationKind, RetrievedRecord, SpellClassification, SpellIdentity,
+        SpellProvenance, SpellRangeValue, SpellRecord, SpellRitual, SpellSourceId,
+        SpellSourceValue, SpellTargeting, SpellTradition, SpellTrait, record_json,
     };
 
     #[test]
@@ -1260,6 +1912,234 @@ pub(super) mod tests {
         ];
 
         assert_eq!(inline_text(&spans), "Saving Throw Fortitude DC 28");
+    }
+
+    #[test]
+    fn canonical_spell_terminal_uses_authored_range_ritual_and_opaque_forms() {
+        let key = atlas_domain::RecordKey::parse("spells-srd:testSpell").expect("key");
+        let record = AtlasRecord::new(
+            RecordIdentity::new(key.clone(), "Planar Test"),
+            RecordClassification::new(atlas_domain::RecordKind::Spell),
+            FoundryRecordInfo::new(
+                "Spells",
+                FoundryDocumentType::Item,
+                FoundryRecordType::Spell,
+            ),
+            RecordProvenance::new("packs/spells/planar-test.json"),
+        );
+        let mut spell = SpellRecord::new(
+            SpellIdentity {
+                record_key: key,
+                source_id: SpellSourceId::new("testSpell").expect("source id"),
+                name: "Planar Test".to_string(),
+            },
+            SpellProvenance {
+                source_path: "packs/spells/planar-test.json".to_string(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "6.12.4".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+                standalone_location: atlas_record::FactValue::Null,
+            },
+        );
+        spell.definition.classification =
+            atlas_record::FactValue::Value(SpellSourceValue::Known(SpellClassification {
+                rank: atlas_record::FactValue::Value(SpellSourceValue::Known(7)),
+                traits: atlas_record::FactValue::Value(SpellSourceValue::Known(vec![
+                    SpellTrait::new("teleportation").expect("trait"),
+                ])),
+                traditions: atlas_record::FactValue::Value(SpellSourceValue::Known(vec![
+                    SpellTradition::new("arcane").expect("tradition"),
+                ])),
+            }));
+        spell.definition.targeting =
+            atlas_record::FactValue::Value(SpellSourceValue::Known(SpellTargeting {
+                target: atlas_record::FactValue::Null,
+                range: atlas_record::FactValue::Value(SpellSourceValue::Known(
+                    SpellRangeValue::from_authored_text("planetary"),
+                )),
+                area: atlas_record::FactValue::Null,
+            }));
+        spell.definition.ritual =
+            atlas_record::FactValue::Value(SpellSourceValue::Known(SpellRitual {
+                primary_check: atlas_record::FactValue::Value(SpellSourceValue::Known(
+                    "Arcana (master)".to_string(),
+                )),
+                secondary_casters: atlas_record::FactValue::Value(SpellSourceValue::Known(2)),
+                secondary_checks: atlas_record::FactValue::Value(SpellSourceValue::Known(
+                    "Survival".to_string(),
+                )),
+            }));
+        let retrieved = RetrievedRecord {
+            record,
+            body: Some(RecordBody::Spell(spell)),
+            spell_children: Vec::new(),
+        };
+        let json = record_json(
+            &retrieved,
+            RecordJsonOptions {
+                detail: DetailLevel::Standard,
+                include_source_json: false,
+            },
+        )
+        .expect("spell projects");
+        let rendered = render_record(&json, DetailLevel::Standard, 100, TerminalStyle::plain());
+
+        assert!(rendered.contains("Rank: 7"));
+        assert!(rendered.contains("Range: planetary"));
+        assert!(rendered.contains("Primary check: Arcana (master)"));
+        assert!(rendered.contains("Secondary casters: 2"));
+        assert!(rendered.contains("spell-form:"));
+        assert!(!rendered.contains("range_value"));
+    }
+
+    #[test]
+    fn spell_terminal_traverses_fixed_patch_and_rule_values() {
+        use atlas_record::{
+            SpellAreaJson, SpellCastingJson, SpellClassificationJson, SpellDamageDiceRuleJson,
+            SpellDamagePatchJson, SpellDamagePatchMemberJson, SpellDamagePatchSetJson,
+            SpellDefenseJson, SpellDurationJson, SpellHeighteningPatchJson,
+            SpellRollOptionRuleJson, SpellRuleSuboptionJson, SpellSaveJson, SpellTargetingJson,
+            SpellTextPatchMemberJson, SpellTextPatchSetJson,
+        };
+
+        fn missing<T>() -> SpellFactJson<T> {
+            SpellFactJson::Missing
+        }
+        let patch = SpellPatchJson {
+            classification: SpellFactJson::Known(SpellClassificationJson {
+                rank: missing(),
+                traits: SpellFactJson::Known(vec![
+                    "concentrate".to_string(),
+                    "manipulate".to_string(),
+                ]),
+                traditions: SpellFactJson::Known(vec!["divine".to_string()]),
+            }),
+            casting: SpellFactJson::Known(SpellCastingJson {
+                time: SpellFactJson::Known("3".to_string()),
+                cost: SpellFactJson::Known("1 offering".to_string()),
+                requirements: SpellFactJson::Known("peaceful remains".to_string()),
+                counteraction: SpellFactJson::Known(false),
+            }),
+            targeting: SpellFactJson::Known(SpellTargetingJson {
+                target: SpellFactJson::Known("1 corpse".to_string()),
+                range: missing(),
+                area: SpellFactJson::Known(SpellAreaJson {
+                    value: SpellFactJson::Known(10),
+                    area_type: SpellFactJson::Known("burst".to_string()),
+                    details: missing(),
+                }),
+            }),
+            defense: SpellFactJson::Known(SpellDefenseJson {
+                passive: SpellFactJson::Known("ac".to_string()),
+                save: SpellFactJson::Known(SpellSaveJson {
+                    statistic: SpellFactJson::Known("will".to_string()),
+                    basic: SpellFactJson::Known(false),
+                }),
+            }),
+            damage: SpellFactJson::Known(SpellDamagePatchSetJson {
+                members: vec![SpellDamagePatchMemberJson {
+                    key: "0".to_string(),
+                    order: 0,
+                    operation: SpellDamagePatchOperationJson::Merge(Box::new(
+                        SpellDamagePatchJson {
+                            formula: SpellFactJson::Known("4d4".to_string()),
+                            damage_type: SpellFactJson::Known("cold".to_string()),
+                            category: missing(),
+                            kinds: SpellFactJson::Known(vec!["damage".to_string()]),
+                            materials: SpellFactJson::Known(vec!["silver".to_string()]),
+                            apply_modifier: SpellFactJson::Known(false),
+                        },
+                    )),
+                }],
+            }),
+            duration: SpellFactJson::Known(SpellDurationJson {
+                value: SpellFactJson::Known("1 minute".to_string()),
+                sustained: SpellFactJson::Known(false),
+            }),
+            heightening: SpellFactJson::Known(SpellHeighteningPatchJson {
+                kind: SpellFactJson::Known("interval".to_string()),
+                interval: SpellFactJson::Known(2),
+                area: SpellFactJson::Known(5),
+                damage: SpellFactJson::Known(SpellTextPatchSetJson {
+                    members: vec![SpellTextPatchMemberJson {
+                        key: "0".to_string(),
+                        order: 0,
+                        operation: SpellTextPatchOperationJson::Merge(SpellFactJson::Known(
+                            "1d4".to_string(),
+                        )),
+                    }],
+                }),
+            }),
+            rules: missing(),
+            unsupported: Vec::new(),
+        };
+        let qi_rule = SpellRuleJson {
+            authored_key: "RollOption".to_string(),
+            order: 0,
+            rule: SpellRuleDetailJson::RollOption(Box::new(SpellRollOptionRuleJson {
+                domain: SpellFactJson::Known("all".to_string()),
+                label: SpellFactJson::Known("Heaven's Thunder".to_string()),
+                option: SpellFactJson::Known("heavens-thunder".to_string()),
+                placement: SpellFactJson::Known("spellcasting".to_string()),
+                predicate: missing(),
+                suboptions: SpellFactJson::Known(vec![SpellRuleSuboptionJson {
+                    label: SpellFactJson::Known("Electricity".to_string()),
+                    value: SpellFactJson::Known("electricity".to_string()),
+                }]),
+                toggleable: SpellFactJson::Known(true),
+            })),
+        };
+        let damage_dice_rule = SpellRuleJson {
+            authored_key: "DamageDice".to_string(),
+            order: 1,
+            rule: SpellRuleDetailJson::DamageDice(Box::new(SpellDamageDiceRuleJson {
+                selector: missing(),
+                predicate: missing(),
+                dice_number: missing(),
+                die_size: missing(),
+                damage_type: missing(),
+                hide_if_disabled: SpellFactJson::Known(false),
+            })),
+        };
+
+        let mut writer = Writer::new(120, TerminalStyle::plain());
+        writer.spell_patch(&patch, 0);
+        writer.spell_rule(&qi_rule, 0);
+        writer.spell_rule(&damage_dice_rule, 0);
+        let rendered = writer.finish();
+
+        for expected in [
+            "Traits: concentrate, manipulate",
+            "Traditions: divine",
+            "Time: 3",
+            "Cost: 1 offering",
+            "Requirements: peaceful remains",
+            "Counteraction: false",
+            "Target: 1 corpse",
+            "Area: 10 burst",
+            "Passive: ac",
+            "Save: will",
+            "Basic save: false",
+            "Damage 0: 4d4 cold",
+            "Damage 0 kinds: damage",
+            "Damage 0 materials: silver",
+            "Damage 0 apply modifier: false",
+            "Duration: 1 minute",
+            "Sustained: false",
+            "Heightening: interval",
+            "Heightening interval: 2",
+            "Heightening area: 5",
+            "Heightening damage 0: 1d4",
+            "Suboption: 0: Electricity = electricity",
+            "Toggleable: true",
+            "Hide if disabled: false",
+        ] {
+            assert!(
+                rendered.contains(expected),
+                "missing `{expected}` from:\n{rendered}"
+            );
+        }
+        assert!(!rendered.contains("authored_object_json"));
     }
 
     #[test]
@@ -1863,6 +2743,7 @@ pub(super) mod tests {
                     RecordProvenance::new("packs/bestiary/night-hag.json"),
                 ),
                 body: None,
+                spell_children: Vec::new(),
             };
             record_json(
                 &source_record,

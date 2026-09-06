@@ -73,6 +73,16 @@ impl FilterOptionExt for FilterOptions {
             || self.level.is_some()
             || self.min_level.is_some()
             || self.max_level.is_some()
+            || self.spell_rank.is_some()
+            || !self.spell_traditions.is_empty()
+            || !self.spell_range_texts.is_empty()
+            || !self.spell_target_texts.is_empty()
+            || !self.spell_area_types.is_empty()
+            || !self.spell_save_types.is_empty()
+            || self.spell_sustained.is_some()
+            || self.spell_basic_save.is_some()
+            || !self.spell_damage_types.is_empty()
+            || self.spell_range_feet.is_some()
             || self.price.is_some()
             || self.min_price.is_some()
             || self.max_price.is_some()
@@ -98,6 +108,26 @@ fn simple_filter_from_options(
             options.level.as_deref(),
             options.min_level,
             options.max_level,
+        )?,
+        spell_rank: parse_numeric_filter(
+            "--spell-rank",
+            options.spell_rank.as_deref(),
+            None,
+            None,
+        )?,
+        spell_traditions: options.spell_traditions.clone(),
+        spell_range_texts: options.spell_range_texts.clone(),
+        spell_target_texts: options.spell_target_texts.clone(),
+        spell_area_types: options.spell_area_types.clone(),
+        spell_save_types: options.spell_save_types.clone(),
+        spell_sustained: options.spell_sustained,
+        spell_basic_save: options.spell_basic_save,
+        spell_damage_types: options.spell_damage_types.clone(),
+        spell_range_feet: parse_numeric_filter(
+            "--spell-range-feet",
+            options.spell_range_feet.as_deref(),
+            None,
+            None,
         )?,
         price_cp: parse_numeric_filter(
             "--price",

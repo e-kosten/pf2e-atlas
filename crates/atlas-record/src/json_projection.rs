@@ -1,4 +1,6 @@
 mod creature;
+mod hazard;
+mod spell;
 
 use std::{collections::BTreeMap, ops::Deref};
 
@@ -22,6 +24,23 @@ pub use creature::{
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillAvailabilityJson,
     CreatureUnmodeledSkillJson, CreatureUseLimitJson,
+};
+pub use hazard::{
+    HazardAvailabilityJson, HazardAvailabilityStateJson, HazardContentProvenanceJson,
+    HazardOccurrenceProvenanceJson, HazardProvenanceJson,
+};
+pub use spell::{
+    SpellAreaJson, SpellCastingJson, SpellClassificationJson, SpellContentJson,
+    SpellDamageAlterationRuleJson, SpellDamageDiceRuleJson, SpellDamageJson, SpellDamagePatchJson,
+    SpellDamagePatchMemberJson, SpellDamagePatchOperationJson, SpellDamagePatchSetJson,
+    SpellDefenseJson, SpellDurationJson, SpellEphemeralEffectRuleJson, SpellFactJson,
+    SpellFixedHeighteningJson, SpellFormJson, SpellFormResultJson, SpellHeighteningDamageJson,
+    SpellHeighteningJson, SpellHeighteningPatchJson, SpellItemAlterationRuleJson, SpellJson,
+    SpellMemberProvenanceJson, SpellPatchJson, SpellProvenanceJson, SpellRangeJson,
+    SpellResolvedDefinitionJson, SpellResolvedFieldJson, SpellRitualJson, SpellRollOptionRuleJson,
+    SpellRuleDetailJson, SpellRuleJson, SpellRulePredicateJson, SpellRuleSuboptionJson,
+    SpellSaveJson, SpellTargetingJson, SpellTextPatchMemberJson, SpellTextPatchOperationJson,
+    SpellTextPatchSetJson, SpellUnsupportedFactJson, SpellUnsupportedValueJson,
 };
 
 use crate::{
@@ -424,6 +443,18 @@ pub enum RecordJsonError {
     UnexpectedCreatureBody {
         record_key: String,
     },
+    UnexpectedHazardBody {
+        record_key: String,
+    },
+    MissingHazardBody {
+        record_key: String,
+    },
+    MissingSpellBody {
+        record_key: String,
+    },
+    UnexpectedSpellBody {
+        record_key: String,
+    },
     EditionLookupSeedMismatch {
         record_key: String,
         record_remaster: bool,
@@ -442,6 +473,22 @@ impl std::fmt::Display for RecordJsonError {
             Self::UnexpectedCreatureBody { record_key } => write!(
                 formatter,
                 "retrieved non-creature record `{record_key}` has an unexpected canonical creature body"
+            ),
+            Self::UnexpectedHazardBody { record_key } => write!(
+                formatter,
+                "retrieved non-hazard record `{record_key}` has an unexpected canonical hazard body"
+            ),
+            Self::MissingHazardBody { record_key } => write!(
+                formatter,
+                "retrieved hazard record `{record_key}` is missing its canonical hazard body"
+            ),
+            Self::MissingSpellBody { record_key } => write!(
+                formatter,
+                "retrieved spell record `{record_key}` is missing its canonical spell body"
+            ),
+            Self::UnexpectedSpellBody { record_key } => write!(
+                formatter,
+                "retrieved non-spell record `{record_key}` has an unexpected canonical spell body"
             ),
             Self::EditionLookupSeedMismatch {
                 record_key,
@@ -549,6 +596,25 @@ pub enum RecordPresentationJson {
         unmodeled_skill_availability: Vec<CreatureUnmodeledSkillAvailabilityJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         availability_evidence: Option<Vec<CreatureAvailabilityEvidenceJson>>,
+    },
+    Hazard {
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        sections: Vec<RecordSectionJson>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        availability: Vec<HazardAvailabilityJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        provenance: Option<HazardProvenanceJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_relationships: Option<RecordRelationshipLookupJson>,
+    },
+    Spell {
+        spell: SpellJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_relationships: Option<RecordRelationshipLookupJson>,
     },
     Unmigrated {
         migration: UnmigratedRegistryJson,
@@ -694,6 +760,56 @@ pub fn record_json_with_context(
                 record_key: record.identity.key.to_string(),
             });
         }
+        (RecordKind::Hazard, Some(RecordBody::Hazard(hazard))) => {
+            let document = crate::build_hazard_presentation_document(hazard, |_| true);
+            let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
+            (
+                RecordPresentationJson::Hazard {
+                    sections: detailed_sections,
+                    availability: if options.detail != DetailLevel::Summary {
+                        hazard::availability(hazard)
+                    } else {
+                        Vec::new()
+                    },
+                    provenance: include_provenance_evidence.then(|| hazard::provenance(hazard)),
+                    edition: Some(edition.context_for(record)?),
+                    record_relationships: Some(relationships),
+                },
+                Vec::new(),
+            )
+        }
+        (RecordKind::Hazard, None) => {
+            return Err(RecordJsonError::MissingHazardBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, Some(RecordBody::Hazard(_))) => {
+            return Err(RecordJsonError::UnexpectedHazardBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (RecordKind::Spell, Some(RecordBody::Spell(spell))) => (
+            RecordPresentationJson::Spell {
+                spell: spell::spell_presentation(
+                    spell,
+                    options.detail,
+                    include_provenance_evidence,
+                ),
+                edition: Some(edition.context_for(record)?),
+                record_relationships: Some(relationships),
+            },
+            Vec::new(),
+        ),
+        (RecordKind::Spell, None) => {
+            return Err(RecordJsonError::MissingSpellBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, Some(RecordBody::Spell(_))) => {
+            return Err(RecordJsonError::UnexpectedSpellBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
         (_, None) => {
             let document = build_record_presentation_document(record);
             let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
@@ -734,7 +850,10 @@ pub fn record_json_with_context(
                         record,
                         options.detail,
                         include_provenance_evidence
-                            || record.classification.kind != RecordKind::Creature,
+                            || !matches!(
+                                record.classification.kind,
+                                RecordKind::Creature | RecordKind::Hazard
+                            ),
                     )
                 })
                 .flatten(),
@@ -775,11 +894,11 @@ fn unmigrated_registry(record: &AtlasRecord) -> UnmigratedRegistryJson {
     use crate::FoundryRecordType;
 
     let (family, plan_id) = match record.classification.kind {
-        // This private registry is called only from the non-creature branch in
-        // `record_json`; retain an explicit entry so the match stays total.
-        RecordKind::Creature => ("creature", "D2"),
-        RecordKind::Hazard => ("hazard", "H1"),
-        RecordKind::Spell => ("spell_or_ritual", "H2"),
+        // This private registry is called only for families without a canonical
+        // body; retain explicit canonical-family entries so the match stays total.
+        RecordKind::Creature | RecordKind::Hazard | RecordKind::Spell => {
+            unreachable!("canonical record families are rejected before unmigrated projection")
+        }
         RecordKind::Equipment => match record.foundry.record_type {
             FoundryRecordType::Weapon | FoundryRecordType::Ammo => ("weapon_or_ammunition", "H3"),
             FoundryRecordType::Armor | FoundryRecordType::Shield => ("armor_or_shield", "H4"),
@@ -1049,6 +1168,78 @@ mod tests {
                 }
             ),
             Err(RecordJsonError::UnexpectedCreatureBody { .. })
+        ));
+
+        let mut spell = fixture_record();
+        spell.record.classification.kind = RecordKind::Spell;
+        spell.record.identity.key = RecordKey::parse("spells-srd:test-spell").expect("spell key");
+        assert!(matches!(
+            record_json(
+                &spell,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                }
+            ),
+            Err(RecordJsonError::MissingSpellBody { .. })
+        ));
+        spell.body = Some(fixture_spell_body(spell.record.identity.key.clone()));
+        let spell_json = record_json(
+            &spell,
+            RecordJsonOptions {
+                detail: DetailLevel::Standard,
+                include_source_json: false,
+            },
+        )
+        .expect("canonical spell body projects");
+        assert!(matches!(
+            spell_json.presentation,
+            RecordPresentationJson::Spell { .. }
+        ));
+
+        let mut unexpected_spell = fixture_record();
+        unexpected_spell.body = Some(fixture_spell_body(
+            unexpected_spell.record.identity.key.clone(),
+        ));
+        assert!(matches!(
+            record_json(
+                &unexpected_spell,
+                RecordJsonOptions {
+                    detail: DetailLevel::Standard,
+                    include_source_json: false,
+                }
+            ),
+            Err(RecordJsonError::UnexpectedSpellBody { .. })
+        ));
+    }
+
+    #[test]
+    fn spell_json_localizes_unavailable_form_resolution() {
+        let mut record = fixture_record();
+        record.record.classification.kind = RecordKind::Spell;
+        record.record.identity.key = RecordKey::parse("spells-srd:test-spell").expect("spell key");
+        record.body = Some(fixture_spell_body(record.record.identity.key.clone()));
+        let Some(RecordBody::Spell(spell)) = record.body.as_mut() else {
+            panic!("spell body")
+        };
+        spell.definition.heightening = FactValue::Value(crate::SpellSourceValue::Known(
+            crate::SpellHeightening::Fixed(Vec::new()),
+        ));
+
+        let json = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Standard,
+                include_source_json: false,
+            },
+        )
+        .expect("spell presentation remains available");
+        let RecordPresentationJson::Spell { spell, .. } = json.presentation else {
+            panic!("spell presentation")
+        };
+        assert!(matches!(
+            spell.forms[0].result,
+            SpellFormResultJson::Unavailable { .. }
         ));
     }
 
@@ -1566,7 +1757,11 @@ mod tests {
     #[test]
     fn creature_content_placement_claims_once_and_preserves_owner_identity() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         let owner = creature.identity.record_key.clone();
         creature.content.documents = vec![
             owned_document(&owner, "general", ContentOwner::Record(owner.clone()), 0),
@@ -1684,7 +1879,11 @@ mod tests {
     fn missing_or_null_embedded_entities_keep_unclaimed_content_reachable_in_global_order() {
         for embedded_state in ["missing", "null"] {
             let mut retrieved = fixture_creature_record();
-            let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+            let creature = retrieved
+                .body
+                .as_mut()
+                .and_then(RecordBody::as_creature_mut)
+                .expect("creature body");
             creature.embedded_entities.value = if embedded_state == "missing" {
                 FactValue::Missing
             } else {
@@ -1768,7 +1967,11 @@ mod tests {
     #[test]
     fn every_content_bucket_uses_one_global_deterministic_order() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         let owner = creature.identity.record_key.clone();
         let jaws_entity = crate::CreatureEntityId::new("jaws").expect("entity");
         let jaws_occurrence = crate::CreatureOccurrenceId::new("jaws").expect("occurrence");
@@ -1865,7 +2068,11 @@ mod tests {
     #[test]
     fn repeated_same_target_occurrences_keep_identity_multiplicity_and_content() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         let owner = creature.identity.record_key.clone();
         let FactValue::Value(embedded) = &mut creature.embedded_entities.value else {
             panic!("embedded entities")
@@ -1924,7 +2131,11 @@ mod tests {
     #[test]
     fn association_mutation_fails_only_the_ambiguous_row() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         let owner = creature.identity.record_key.clone();
         let duplicate = owned_document(
             &owner,
@@ -1995,7 +2206,11 @@ mod tests {
     fn prefailed_occurrence_content_remains_reachable_once_in_full() {
         for case in ["missing-entity", "duplicate-entity", "duplicate-occurrence"] {
             let mut retrieved = fixture_creature_record();
-            let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+            let creature = retrieved
+                .body
+                .as_mut()
+                .and_then(RecordBody::as_creature_mut)
+                .expect("creature body");
             let owner = creature.identity.record_key.clone();
             let jaws = crate::CreatureEntityId::new("jaws").expect("entity");
             creature.content.documents = vec![owned_document(
@@ -2101,7 +2316,11 @@ mod tests {
     #[test]
     fn availability_distinguishes_required_absence_and_malformed_values() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         creature.perception.value = FactValue::Null;
         creature.adjustment.value = FactValue::Null;
         creature.languages.value = FactValue::Value(crate::CreatureLanguages {
@@ -2191,7 +2410,11 @@ mod tests {
     #[test]
     fn unmodeled_skill_availability_preserves_occurrence_order_multiplicity_and_presence() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         creature.skills.value = FactValue::Value(
             [
                 ("skill-value", 8, FactValue::Value(17)),
@@ -2247,7 +2470,11 @@ mod tests {
         assert_eq!(forward[1]["modifier"]["state"], "missing");
         assert_eq!(forward[2]["modifier"]["state"], "null");
 
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         let FactValue::Value(skills) = &mut creature.skills.value else {
             panic!("skills")
         };
@@ -2265,7 +2492,11 @@ mod tests {
     #[test]
     fn populated_unsupported_values_survive_as_complete_typed_causes() {
         let mut retrieved = fixture_creature_record();
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         creature.adjustment.value = FactValue::Value(crate::CreatureAdjustment::Unsupported(
             unsupported_value("mythic"),
         ));
@@ -2541,7 +2772,11 @@ mod tests {
             }));
         }
 
-        let RecordBody::Creature(creature) = retrieved.body.as_mut().expect("creature body");
+        let creature = retrieved
+            .body
+            .as_mut()
+            .and_then(RecordBody::as_creature_mut)
+            .expect("creature body");
         if let FactValue::Value(embedded) = &mut creature.embedded_entities.value {
             embedded.occurrences.reverse();
         }
@@ -2624,7 +2859,25 @@ mod tests {
         RetrievedRecord {
             record: fixture_base_record(),
             body: None,
+            spell_children: Vec::new(),
         }
+    }
+
+    fn fixture_spell_body(record_key: RecordKey) -> RecordBody {
+        RecordBody::Spell(crate::SpellRecord::new(
+            crate::SpellIdentity {
+                record_key,
+                source_id: crate::SpellSourceId::new("test-spell").expect("source id"),
+                name: "Test Spell".to_string(),
+            },
+            crate::SpellProvenance {
+                source_path: "packs/spells/test-spell.json".to_string(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "6.12.4".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+                standalone_location: FactValue::Missing,
+            },
+        ))
     }
 
     fn fixture_base_record() -> AtlasRecord {
@@ -2982,6 +3235,7 @@ mod tests {
         RetrievedRecord {
             record,
             body: Some(RecordBody::Creature(body)),
+            spell_children: Vec::new(),
         }
     }
 

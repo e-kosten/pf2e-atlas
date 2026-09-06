@@ -7,9 +7,10 @@ use std::process::Command;
 use atlas_app_model::{
     AddEncounterRecordParticipantRequest, CreateEncounterRequest, CreatureSurfaceContentBlockView,
     CreatureSurfaceContentInlineView, CreatureSurfaceContentView, CreatureSurfaceView,
-    EncounterParticipantSideView, EncounterParticipantVariantView, RecordSurfaceMetadataView,
-    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceView,
-    SurfaceUnavailableReasonView, SurfaceUnavailableView, UpdateEncounterParticipantRequest,
+    EncounterParticipantSideView, EncounterParticipantVariantView, RecordDetailRequest,
+    RecordSurfaceMetadataView, RecordSurfacePresentationView, RecordSurfaceProfileView,
+    RecordSurfaceView, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    UpdateEncounterParticipantRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_record::RecordBody;
@@ -273,11 +274,13 @@ fn export_e3_record_surface_final_samples() {
         night_hag,
         RecordSurfaceProfileView::SearchCompact,
         None,
+        None,
         &night_hag_remaster_lookup,
     );
     let giant_rat_compact = record_surface(
         giant_rat,
         RecordSurfaceProfileView::SearchCompact,
+        None,
         None,
         &giant_rat_remaster_lookup,
     );
@@ -285,10 +288,10 @@ fn export_e3_record_surface_final_samples() {
     assert_compact_surface(&giant_rat_compact);
 
     let night_hag_detail = service
-        .record_detail(NIGHT_HAG_KEY)
+        .record_detail(NIGHT_HAG_KEY, RecordDetailRequest::default())
         .expect("Night Hag detail should project");
     let giant_rat_detail = service
-        .record_detail(GIANT_RAT_KEY)
+        .record_detail(GIANT_RAT_KEY, RecordDetailRequest::default())
         .expect("Giant Rat detail should project");
     assert_detail_surface(&night_hag_detail.surface);
     assert_detail_surface(&giant_rat_detail.surface);
@@ -343,6 +346,7 @@ fn export_e3_record_surface_final_samples() {
                 display_name: "Night Hag — Elite".to_string(),
                 side: EncounterParticipantSideView::Enemy,
                 participant_variant: EncounterParticipantVariantView::Elite,
+                hazard_state: None,
                 initiative: night_hag_participant.initiative,
                 max_hp: maximum_hp,
                 current_hp: maximum_hp,
@@ -397,9 +401,9 @@ fn export_e3_record_surface_final_samples() {
     let concept_unavailable = RecordSurfaceView {
         metadata: RecordSurfaceMetadataView {
             record_key: None,
-            title: "CONCEPT MOCK — Unmigrated Record Family".to_string(),
-            kind: "hazard".to_string(),
-            kind_label: "Hazard".to_string(),
+            title: "CONCEPT MOCK — Unmigrated Rule Family".to_string(),
+            kind: "rule".to_string(),
+            kind_label: "Rule".to_string(),
             level: None,
             rarity: None,
             traits: Vec::new(),
@@ -410,7 +414,7 @@ fn export_e3_record_surface_final_samples() {
         presentation: RecordSurfacePresentationView::Unavailable {
             unavailable: SurfaceUnavailableView {
                 reason: SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
-                requested_kind: "hazard".to_string(),
+                requested_kind: "rule".to_string(),
                 message: "Typed record presentation is unavailable for this record family."
                     .to_string(),
             },
@@ -833,10 +837,10 @@ fn export_e3_activity_content_early_samples() {
     .expect("sample service should start from retained substrate");
 
     let night_hag = service
-        .record_detail(NIGHT_HAG_KEY)
+        .record_detail(NIGHT_HAG_KEY, RecordDetailRequest::default())
         .expect("Night Hag detail should project from retained artifact");
     let giant_rat = service
-        .record_detail(GIANT_RAT_KEY)
+        .record_detail(GIANT_RAT_KEY, RecordDetailRequest::default())
         .expect("Giant Rat detail should project from retained artifact");
     let night_hag_body = creature_surface_body(&night_hag.surface);
     let giant_rat_body = creature_surface_body(&giant_rat.surface);
@@ -1106,6 +1110,7 @@ fn export_e3_activity_content_early_samples() {
                 display_name: "Night Hag — Elite".to_string(),
                 side: EncounterParticipantSideView::Enemy,
                 participant_variant: EncounterParticipantVariantView::Elite,
+                hazard_state: None,
                 initiative: night_hag_participant.initiative,
                 max_hp: maximum_hp,
                 current_hp: maximum_hp,
@@ -2359,7 +2364,9 @@ fn write_delta_ledger(
 fn creature_surface_body(surface: &RecordSurfaceView) -> &CreatureSurfaceView {
     match &surface.presentation {
         RecordSurfacePresentationView::Creature { body } => body,
-        RecordSurfacePresentationView::Unavailable { .. } => {
+        RecordSurfacePresentationView::Hazard { .. }
+        | RecordSurfacePresentationView::Spell { .. }
+        | RecordSurfacePresentationView::Unavailable { .. } => {
             panic!("authentic creature sample should have a creature body")
         }
     }

@@ -387,10 +387,6 @@ impl RecordMechanics {
             FoundryDocumentMechanics::Actor(_) | FoundryDocumentMechanics::None => None,
         }
     }
-
-    pub fn spell(&self) -> Option<&SpellMechanics> {
-        self.item().and_then(ItemMechanics::spell)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -399,11 +395,6 @@ pub enum FoundryDocumentMechanics {
     Item(ItemMechanics),
     #[default]
     None,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ItemTypeMechanics {
-    Spell(SpellMechanics),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -643,7 +634,6 @@ pub struct ActorMechanics {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ItemMechanics {
-    pub foundry_type: Option<ItemTypeMechanics>,
     pub category: Option<String>,
     pub base_item: Option<String>,
     pub group: Option<String>,
@@ -653,50 +643,6 @@ pub struct ItemMechanics {
     pub bulk_value: Option<f64>,
     pub hands_requirement: Option<String>,
     pub damage_types: Vec<String>,
-}
-
-impl ItemMechanics {
-    pub fn spell(&self) -> Option<&SpellMechanics> {
-        match &self.foundry_type {
-            Some(ItemTypeMechanics::Spell(spell)) => Some(spell),
-            None => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SpellMechanics {
-    pub traditions: Vec<String>,
-    pub kinds: Vec<String>,
-    pub range: Option<SpellRange>,
-    pub target: Option<SpellTarget>,
-    pub area: Option<SpellArea>,
-    pub defense: Option<SpellDefense>,
-    pub sustained: bool,
-    pub damage_types: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct SpellRange {
-    pub text: String,
-    pub distance: Option<f64>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct SpellTarget {
-    pub text: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SpellArea {
-    pub kind: Option<String>,
-    pub value: Option<f64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SpellDefense {
-    pub save: Option<String>,
-    pub basic: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

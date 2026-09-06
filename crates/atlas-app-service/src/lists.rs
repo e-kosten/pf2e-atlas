@@ -883,7 +883,11 @@ mod tests {
             atlas_record::RecordProvenance::new(format!("fixtures/{record_key}.json")),
         );
         record.publication.remaster = remaster;
-        atlas_record::RetrievedRecord { record, body: None }
+        atlas_record::RetrievedRecord {
+            record,
+            body: None,
+            spell_children: Vec::new(),
+        }
     }
 
     #[test]

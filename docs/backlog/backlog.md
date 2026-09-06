@@ -14,7 +14,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Source-Faithful Contract State
 
-The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Its creature implementation now runs through the G1 direct cutover: canonical creature bodies are the only hydrated creature presentation/runtime source, while generic record mechanics remain bounded to non-creature families and one-way query metrics remain available for filtering and discovery. Later record families remain separate owned work and are not implied by the creature cutover.
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. Later record families remain separate owned work and are not implied by these cutovers; the combined final production and visual gate remains outstanding.
 
 The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
 
@@ -83,9 +83,6 @@ The contract preserves all 313 exact type-registry assignments, keeps non-creatu
 
 - [Rust side data and metric source fact convergence](./items/rust-side-data-metric-source-fact-convergence.md)
   Track cleanup for overlapping Rust side-table and metric projections. Status: proposed.
-
-- [Rust Foundry type mechanics parsers](./items/rust-foundry-type-mechanics-parsers.md)
-  Evaluate peer Foundry-type mechanics parsers for source facts currently exposed primarily through metrics. Status: proposed.
 
 - [Rust graph context deeper local graph](./items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.

@@ -7,6 +7,7 @@ mod inspect;
 mod metadata;
 mod read;
 mod schema;
+mod spell_query;
 mod sql;
 mod sqlite;
 #[cfg(any(test, feature = "test-support"))]

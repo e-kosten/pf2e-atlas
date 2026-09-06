@@ -50,6 +50,7 @@ pub struct EncounterParticipant {
     pub record_key: Option<String>,
     pub participant_kind: ParticipantKind,
     pub participant_variant: ParticipantVariant,
+    pub hazard_state: ParticipantHazardState,
     pub position: i64,
     pub display_name: String,
     pub record_title_snapshot: Option<String>,
@@ -74,6 +75,29 @@ pub enum ParticipantVariant {
     Normal,
     Elite,
     Weak,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantHazardState {
+    Active,
+    Disabled,
+}
+
+impl ParticipantHazardState {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Disabled => "disabled",
+        }
+    }
+
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "disabled" => Self::Disabled,
+            _ => Self::Active,
+        }
+    }
 }
 
 impl ParticipantVariant {
@@ -245,6 +269,7 @@ pub enum EncounterParticipantResetDomain {
     VariantAdjustments,
     ActionBudget,
     SpellResources,
+    HazardState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,6 +311,7 @@ pub struct UpdateEncounterParticipant {
     pub display_name: String,
     pub side: ParticipantSide,
     pub participant_variant: ParticipantVariant,
+    pub hazard_state: ParticipantHazardState,
     pub initiative: Option<i64>,
     pub max_hp: Option<i64>,
     pub current_hp: Option<i64>,

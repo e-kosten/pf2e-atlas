@@ -4,9 +4,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use atlas_index::SqliteIndexReader;
 use atlas_index::test_support::{
-    create_minimal_artifact_schema, insert_artifact_metadata_entries, insert_minimal_artifact_rows,
-    insert_minimal_canonical_npc_projection, legacy_minilm_metadata_entries,
-    refresh_fixture_metric_summary, write_bound_test_manifest,
+    FixtureHazardNumber, FixtureHazardProjection, create_minimal_artifact_schema,
+    insert_artifact_metadata_entries, insert_minimal_artifact_rows,
+    insert_minimal_canonical_hazard_projection, insert_minimal_canonical_npc_projection,
+    legacy_minilm_metadata_entries, write_bound_test_manifest,
 };
 use rusqlite::Connection;
 
@@ -98,7 +99,7 @@ fn insert_encounter_fixture_rows(
     )?;
     connection.execute(
         "INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
-             VALUES ('hazards', 'Hazards', 'Actor', 'packs/hazards', 'packs/hazards', 1)",
+             VALUES ('hazards', 'Hazards', 'Actor', 'packs/hazards', 'packs/hazards', 2)",
         [],
     )?;
     connection.execute(
@@ -117,6 +118,19 @@ fn insert_encounter_fixture_rows(
             pack_label: "Actors",
             document_type: "Actor",
             foundry_record_type: "npc",
+        },
+    )?;
+    insert_record(
+        connection,
+        FixtureRecord {
+            record_key: "hazards:nullHazard",
+            id: "nullHazard",
+            name: "Null Hazard",
+            record_kind: "hazard",
+            pack_name: "hazards",
+            pack_label: "Hazards",
+            document_type: "Actor",
+            foundry_record_type: "hazard",
         },
     )?;
     insert_record(
@@ -150,8 +164,32 @@ fn insert_encounter_fixture_rows(
         "UPDATE records SET level = 5 WHERE record_key = 'actors:testCreature'",
         [],
     )?;
-    insert_number_metric(connection, "hazards:testHazard", "hp.max", 30.0)?;
-    refresh_fixture_metric_summary(connection, "hazards:testHazard")?;
+    insert_minimal_canonical_hazard_projection(
+        connection,
+        "hazards:testHazard",
+        FixtureHazardProjection {
+            level: 5,
+            armor_class: 22,
+            current_hit_points: FixtureHazardNumber::Value(30),
+            maximum_hit_points: FixtureHazardNumber::Value(30),
+            stealth_modifier: 12,
+            saves: (Some(0), Some(8), Some(4)),
+            malformed_strike: false,
+        },
+    )?;
+    insert_minimal_canonical_hazard_projection(
+        connection,
+        "hazards:nullHazard",
+        FixtureHazardProjection {
+            level: 1,
+            armor_class: 14,
+            current_hit_points: FixtureHazardNumber::Null,
+            maximum_hit_points: FixtureHazardNumber::Value(40),
+            stealth_modifier: 0,
+            saves: (None, None, None),
+            malformed_strike: true,
+        },
+    )?;
     Ok(())
 }
 
@@ -199,21 +237,6 @@ fn insert_record(
               source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content
              ) VALUES (?1, ?2, '', '', '', '', '', '', '', '', ?2, '', '', '')",
         (record.record_key, record.name),
-    )?;
-    Ok(())
-}
-
-fn insert_number_metric(
-    connection: &Connection,
-    record_key: &str,
-    metric_key: &str,
-    value: f64,
-) -> Result<(), Box<dyn std::error::Error>> {
-    connection.execute(
-        "INSERT INTO record_metrics (
-             record_key, metric_domain, metric_key, value_type, number_value
-         ) VALUES (?1, 'actor', ?2, 'number', ?3)",
-        (record_key, metric_key, value),
     )?;
     Ok(())
 }

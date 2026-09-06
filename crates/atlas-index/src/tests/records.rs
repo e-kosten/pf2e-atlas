@@ -164,39 +164,6 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     assert_eq!(item.hands_requirement.as_deref(), Some("1"));
     assert_eq!(item.damage_types, vec!["slashing"]);
 
-    let spell = record
-        .mechanics
-        .spell()
-        .expect("spell mechanics should hydrate");
-    assert_eq!(spell.traditions, vec!["arcane"]);
-    assert_eq!(spell.kinds, vec!["spell"]);
-    assert_eq!(
-        spell.range.as_ref().map(|range| range.text.as_str()),
-        Some("30 feet")
-    );
-    assert_eq!(
-        spell.range.as_ref().and_then(|range| range.distance),
-        Some(30.0)
-    );
-    assert_eq!(
-        spell.target.as_ref().map(|target| target.text.as_str()),
-        Some("1 creature")
-    );
-    assert_eq!(
-        spell.area.as_ref().and_then(|area| area.kind.as_deref()),
-        Some("burst")
-    );
-    assert_eq!(spell.area.as_ref().and_then(|area| area.value), Some(10.0));
-    assert_eq!(
-        spell
-            .defense
-            .as_ref()
-            .and_then(|defense| defense.save.as_deref()),
-        Some("will")
-    );
-    assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
-    assert_eq!(spell.damage_types, vec!["mental"]);
-
     assert_eq!(record.content.documents.len(), 1);
     assert_eq!(
         record.content.documents[0].source_kind,

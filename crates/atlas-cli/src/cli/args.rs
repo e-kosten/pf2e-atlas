@@ -72,6 +72,50 @@ pub(crate) struct FilterOptions {
     #[arg(long = "max-level", help = "Filter to records at or below this level")]
     pub(crate) max_level: Option<f64>,
     #[arg(
+        long = "spell-rank",
+        help = "Filter to an exact spell rank or inclusive range"
+    )]
+    pub(crate) spell_rank: Option<String>,
+    #[arg(
+        long = "tradition",
+        help = "Filter to a spell tradition; repeat for alternatives"
+    )]
+    pub(crate) spell_traditions: Vec<String>,
+    #[arg(
+        long = "spell-range-text",
+        help = "Filter to exact authored spell range text"
+    )]
+    pub(crate) spell_range_texts: Vec<String>,
+    #[arg(
+        long = "spell-target",
+        help = "Filter to exact authored spell target text"
+    )]
+    pub(crate) spell_target_texts: Vec<String>,
+    #[arg(
+        long = "spell-area",
+        help = "Filter to a spell area type; repeat for alternatives"
+    )]
+    pub(crate) spell_area_types: Vec<String>,
+    #[arg(
+        long = "spell-save",
+        help = "Filter to a spell save type; repeat for alternatives"
+    )]
+    pub(crate) spell_save_types: Vec<String>,
+    #[arg(long = "spell-sustained", help = "Filter by sustained spell state")]
+    pub(crate) spell_sustained: Option<bool>,
+    #[arg(long = "spell-basic-save", help = "Filter by basic-save spell state")]
+    pub(crate) spell_basic_save: Option<bool>,
+    #[arg(
+        long = "spell-damage-type",
+        help = "Filter to a spell damage type; repeat for alternatives"
+    )]
+    pub(crate) spell_damage_types: Vec<String>,
+    #[arg(
+        long = "spell-range-feet",
+        help = "Filter by numeric feet from the named spell-range derivation rule"
+    )]
+    pub(crate) spell_range_feet: Option<String>,
+    #[arg(
         long = "price",
         help = "Filter to an exact price in copper pieces or inclusive range such as 100..500"
     )]

@@ -1393,7 +1393,7 @@ fn occurrence_content(
 ) -> Option<Vec<CreatureContentJson>> {
     let values = placement
         .documents_for_occurrence(creature, &occurrence.id)
-        .map(|document| {
+        .filter_map(|document| {
             content_json(
                 document,
                 detail == DetailLevel::Full && include_provenance_evidence,
@@ -1417,7 +1417,7 @@ fn all_content(
     documents.sort_by_key(|document| (document.authored_order, document.id.content_key.as_str()));
     let values = documents
         .into_iter()
-        .map(|document| {
+        .filter_map(|document| {
             content_json(
                 document,
                 detail == DetailLevel::Full && include_provenance_evidence,
@@ -1427,8 +1427,11 @@ fn all_content(
     (!values.is_empty()).then_some(values)
 }
 
-fn content_json(document: &crate::OwnedRichContentDocument, full: bool) -> CreatureContentJson {
-    CreatureContentJson {
+fn content_json(
+    document: &crate::OwnedRichContentDocument,
+    full: bool,
+) -> Option<CreatureContentJson> {
+    Some(CreatureContentJson {
         content_key: document.id.content_key.as_str().to_string(),
         owner: match &document.owner {
             ContentOwner::Record(key) => CreatureContentOwnerJson::Record {
@@ -1440,6 +1443,7 @@ fn content_json(document: &crate::OwnedRichContentDocument, full: bool) -> Creat
             ContentOwner::CreatureOccurrence(id) => CreatureContentOwnerJson::Occurrence {
                 occurrence_id: id.as_str().to_string(),
             },
+            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => return None,
         },
         role: content_role(document.role),
         authored_order: document.authored_order,
@@ -1453,7 +1457,7 @@ fn content_json(document: &crate::OwnedRichContentDocument, full: bool) -> Creat
             field_family: document.provenance.field_or_pointer_family.clone(),
             nested_source_id: document.provenance.nested_source_id.clone(),
         }),
-    }
+    })
 }
 
 fn content_role(value: ContentRole) -> &'static str {

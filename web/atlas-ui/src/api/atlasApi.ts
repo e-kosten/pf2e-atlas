@@ -25,6 +25,7 @@ import type {
   FilterValueListView,
   OpenResultWindowRequest,
   ReadResultWindowPageRequest,
+  RecordDetailRequest,
   RecordDetailView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
@@ -104,8 +105,22 @@ export async function readResultWindowPage(
   return normalizeResultWindowPage(page);
 }
 
-export async function getRecordDetail(recordKey: string): Promise<RecordDetailView> {
-  return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+export async function getRecordDetail(
+  recordKey: string,
+  request: RecordDetailRequest = {},
+  signal?: AbortSignal,
+): Promise<RecordDetailView> {
+  const query = new URLSearchParams();
+  if (request.spell_form_id !== undefined) {
+    query.set("spell_form_id", request.spell_form_id);
+  }
+  if (request.spell_cast_rank !== undefined) {
+    query.set("spell_cast_rank", safeIntegerPathSegment(request.spell_cast_rank));
+  }
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}${suffix}`, {
+    signal,
+  });
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {

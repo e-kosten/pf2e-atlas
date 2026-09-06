@@ -1388,6 +1388,7 @@ mod tests {
             record_key: Some("actors:test-spellcaster".to_string()),
             participant_kind: ParticipantKind::Creature,
             participant_variant: ParticipantVariant::Normal,
+            hazard_state: atlas_local_state::ParticipantHazardState::Active,
             position: 1,
             display_name: "Spellcaster".to_string(),
             record_title_snapshot: Some("Spellcaster".to_string()),
@@ -1413,6 +1414,7 @@ mod tests {
 
     fn runtime_with_resources(resource_ids: &[&str], maximum: i64) -> EncounterRuntimeView {
         EncounterRuntimeView {
+            hazard: None,
             level: None,
             vitals: None,
             defenses: None,

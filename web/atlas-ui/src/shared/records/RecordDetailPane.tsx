@@ -1,6 +1,9 @@
 import { Alert, Empty, Skeleton } from "antd";
+import { useState } from "react";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordSurface } from "./RecordSurface";
+import type { SpellFormSelection } from "./SpellRecordSurface";
+import { useRecordDetail } from "./useRecordDetail";
 
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
 
@@ -33,11 +36,19 @@ export function RecordDetailPane({
           <Skeleton active paragraph={{ rows: 8 }} title />
         </div>
       ) : detail ? (
-        <RecordSurface
-          surface={detail.surface}
-          onReference={onReference}
-          showTitle={showTitle}
-        />
+        detail.surface.presentation.presentation_type === "spell" ? (
+          <SelectableSpellDetail
+            detail={detail}
+            onReference={onReference}
+            showTitle={showTitle}
+          />
+        ) : (
+          <RecordSurface
+            surface={detail.surface}
+            onReference={onReference}
+            showTitle={showTitle}
+          />
+        )
       ) : (
         <Empty
           className="detail-state"
@@ -65,4 +76,83 @@ export function RecordDetailPane({
       ))}
     </section>
   );
+}
+
+function SelectableSpellDetail({
+  detail,
+  onReference,
+  showTitle,
+}: {
+  detail: RecordDetailView;
+  onReference: (recordKey: string) => void;
+  showTitle: boolean;
+}) {
+  const recordKey = detail.surface.metadata.record_key;
+  const [requestedSelection, setRequestedSelection] = useState<
+    (SpellFormSelection & { recordKey: string }) | undefined
+  >();
+  const selection =
+    recordKey && requestedSelection?.recordKey === recordKey
+      ? requestedSelection
+      : undefined;
+  const selectedDetail = useRecordDetail(
+    recordKey && selection ? recordKey : null,
+    selection,
+  );
+  const selectedSurface = matchingSelectedSpellSurface(
+    selectedDetail.data,
+    recordKey,
+    selection,
+  );
+
+  return (
+    <>
+      <RecordSurface
+        key={recordKey}
+        onReference={onReference}
+        onSpellFormSelection={
+          recordKey
+            ? (nextSelection) => {
+                setRequestedSelection({ ...nextSelection, recordKey });
+              }
+            : undefined
+        }
+        showTitle={showTitle}
+        spellCatalog={detail.surface}
+        spellFormSelection={selection}
+        spellFormSelectionLoading={selectedDetail.isFetching}
+        surface={selectedSurface ?? detail.surface}
+      />
+      {selectedDetail.error ? (
+        <Alert
+          className="detail-state__error"
+          description={selectedDetail.error.message}
+          message="Unable to resolve this spell form"
+          showIcon
+          type="error"
+        />
+      ) : null}
+    </>
+  );
+}
+
+function matchingSelectedSpellSurface(
+  selectedDetail: RecordDetailView | undefined,
+  recordKey: string | undefined,
+  selection: SpellFormSelection | undefined,
+) {
+  if (
+    !selectedDetail ||
+    !recordKey ||
+    !selection ||
+    selectedDetail.surface.metadata.record_key !== recordKey
+  ) {
+    return undefined;
+  }
+  const presentation = selectedDetail.surface.presentation;
+  if (presentation.presentation_type !== "spell") return undefined;
+  const selected = presentation.body.selected_form;
+  return selected?.id === selection.formId && selected.cast_rank === selection.castRank
+    ? selectedDetail.surface
+    : undefined;
 }

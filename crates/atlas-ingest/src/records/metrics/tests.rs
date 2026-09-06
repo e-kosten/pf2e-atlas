@@ -248,50 +248,6 @@ fn source_specs_emit_dynamic_pattern_metrics() {
     );
 }
 
-#[test]
-fn extracts_disable_dc_and_rank_metrics_from_hazard_checks() {
-    let raw = serde_json::json!({
-        "system": {
-            "details": {
-                "disable": "@Check[thievery|dc:27] (expert) to disable the lock @Check[crafting|dc:30] or Thievery (master) to jam the gears"
-            }
-        }
-    });
-
-    let metrics = extract_actor_metrics(&raw).expect("actor metrics extract");
-
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::disable::DC_MIN),
-        27.0,
-    );
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::disable::DC_MAX),
-        30.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_dc_min_key("thievery"),
-        27.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_dc_max_key("thievery"),
-        30.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_rank_min_key("thievery"),
-        3.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_dc_min_key("crafting"),
-        30.0,
-    );
-}
-
 fn assert_number_metric(metrics: &[MetricRow], key: &str, expected: f64) {
     let actual = metrics.iter().find_map(|metric| {
         if metric.domain == MetricDomain::Actor

@@ -95,6 +95,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Superseded
 
+- [Rust Foundry type mechanics parsers](./items/rust-foundry-type-mechanics-parsers.md)
+  Canonical creature, hazard, and standalone-spell bodies supersede the proposed generic peer-parser family; later family migrations require their own typed owner and direct cutover. Status: superseded.
+
 - [Node-era backlog retirement](./items/node-era-backlog-retirement.md)
   Implementation-specific terminal, tagging, and transport backlog entries were retired from the active backlog and consolidated into Rust-era CLI, skill, Ratatui, and derived-tag follow-up items. Status: superseded.
 

@@ -8,9 +8,174 @@ mod support;
 use support::json::{ok_data, record_sections};
 use support::path::temp_source_root;
 use support::source::{
-    write_ambiguous_action_source, write_creature_preview_source, write_record_search_source,
-    write_tooling_collision_source,
+    write_ambiguous_action_source, write_creature_preview_source, write_hazard_source,
+    write_record_search_source, write_tooling_collision_source,
 };
+
+#[test]
+fn hazard_record_uses_typed_json_text_search_filters_and_provenance()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-hazard-record-contract");
+    write_hazard_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .args(["--no-embeddings", "--json"])
+        .output()?;
+    assert!(
+        build_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build_output.stderr)
+    );
+
+    let get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "hazards:BHq5wpQU8hQEke8D",
+            "--detail",
+            "full",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(get_output.status.success());
+    let get_json: Value = serde_json::from_slice(&get_output.stdout)?;
+    let record = &ok_data(&get_json)["record"];
+    assert_eq!(record["presentation_type"], "hazard");
+    assert_eq!(record["level"], 0);
+    assert_eq!(record["rarity"], "common");
+    assert_eq!(record["source"]["publication_title"], "Pathfinder GM Core");
+    assert_eq!(record["source"]["publication_remaster"], true);
+    assert!(record.get("migration").is_none());
+    let rendered = serde_json::to_string(record)?;
+    for expected in [
+        "Detection DC",
+        "Broken Threshold",
+        "Fortitude",
+        "Pitfall",
+        "Trigger",
+        "Effect",
+        "Reset",
+    ] {
+        assert!(
+            rendered.contains(expected),
+            "missing {expected}: {rendered}"
+        );
+    }
+    assert!(!rendered.contains("publication_license"));
+    assert!(!rendered.contains("actor_effects"));
+    assert!(!rendered.contains("img"));
+    let availability = record["availability"]
+        .as_array()
+        .expect("hazard availability");
+    assert!(
+        availability
+            .iter()
+            .any(|row| { row["field"] == "action.actions" && row["state"] == "null" })
+    );
+    assert!(availability.iter().any(|row| {
+        row["field"]
+            .as_str()
+            .is_some_and(|field| field.starts_with("entity.unsupported."))
+            && row["state"] == "unsupported"
+    }));
+
+    let text_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "hazards:BHq5wpQU8hQEke8D",
+            "--detail",
+            "full",
+            "--index",
+        ])
+        .arg(&index_path)
+        .output()?;
+    assert!(text_output.status.success());
+    let text = String::from_utf8(text_output.stdout)?;
+    assert!(text.contains("Detection DC: 18"));
+    assert!(text.contains("Broken Threshold: 6"));
+    assert!(text.contains("Will: +0"));
+    assert!(text.contains("Trigger"));
+    assert!(text.contains("Effect"));
+
+    let search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "mechanical",
+            "--retrieval",
+            "fts",
+            "--kind",
+            "hazard",
+            "--metric",
+            "ac.value=10",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(
+        search_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&search_output.stdout)
+    );
+    let search_json: Value = serde_json::from_slice(&search_output.stdout)?;
+    let search = ok_data(&search_json);
+    assert_eq!(search["pagination"]["total"], 1);
+    assert_eq!(
+        search["results"][0]["record"]["presentation_type"],
+        "hazard"
+    );
+
+    let provenance_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "provenance",
+            "hazards:BHq5wpQU8hQEke8D",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(provenance_output.status.success());
+    let provenance_json: Value = serde_json::from_slice(&provenance_output.stdout)?;
+    let provenance = ok_data(&provenance_json);
+    assert_eq!(
+        provenance["hazard_provenance"]["convenience_rule_id"],
+        "pf2e-hazard-conveniences"
+    );
+    assert_eq!(
+        provenance["hazard_provenance"]["publication_license"],
+        "ORC"
+    );
+    assert_eq!(
+        provenance["hazard_provenance"]["occurrences"][0]["family"],
+        "action"
+    );
+    assert!(
+        provenance["hazard_provenance"]["content"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty())
+    );
+    assert_eq!(provenance["references"]["lookup_performed"], true);
+    assert!(
+        provenance["references"]["edges"]
+            .as_array()
+            .is_some_and(|edges| edges.iter().any(|edge| {
+                edge["direction"] == "outgoing"
+                    && edge["to_record_key"] == "actionspf2e:grabEdgeTest0001"
+            }))
+    );
+    assert!(!serde_json::to_string(provenance)?.contains("image"));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
 
 fn assert_no_internal_creature_locators(record: &Value) {
     fn reject_named_debug_fields(value: &Value) {

@@ -28,6 +28,7 @@ pub(crate) fn record_summary(
             record,
             RecordSurfaceProfileView::SearchCompact,
             None,
+            None,
             remaster_lookup,
         ),
     }
@@ -35,6 +36,7 @@ pub(crate) fn record_summary(
 
 pub(crate) fn record_detail(
     record: &RetrievedRecord,
+    spell_selection: Option<(atlas_record::SpellFormId, u8)>,
     remaster_lookup: &VerifiedRemasterLookup,
 ) -> AppServiceResult<RecordDetailView> {
     Ok(RecordDetailView {
@@ -42,6 +44,7 @@ pub(crate) fn record_detail(
             record,
             RecordSurfaceProfileView::RecordDetail,
             None,
+            spell_selection,
             remaster_lookup,
         ),
     })

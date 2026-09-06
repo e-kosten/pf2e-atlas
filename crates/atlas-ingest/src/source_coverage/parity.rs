@@ -158,6 +158,7 @@ fn evaluate_declaration(
         }
         SourceLeafDisposition::Promoted
         | SourceLeafDisposition::ProvenanceOnly
+        | SourceLeafDisposition::TypedUnsupported
         | SourceLeafDisposition::Ignored => {}
     }
 
@@ -165,6 +166,7 @@ fn evaluate_declaration(
         let code = match declaration.disposition {
             SourceLeafDisposition::Promoted => CoverageFailureCode::ReaderNotObserved,
             SourceLeafDisposition::ProvenanceOnly => CoverageFailureCode::ProvenanceNotDurable,
+            SourceLeafDisposition::TypedUnsupported => CoverageFailureCode::ReaderNotObserved,
             SourceLeafDisposition::Ignored => CoverageFailureCode::FixtureNotSourceGrounded,
             SourceLeafDisposition::Deferred | SourceLeafDisposition::Unconsumed => return,
         };
@@ -282,7 +284,9 @@ fn validate_receipt_set(
         }
     }
     for ordinals in array_ordinals.values() {
-        if ordinals.iter().copied().ne(0..ordinals.len()) {
+        let conditional_rule_member = identity.normalized_path.contains(".rules[].")
+            && !identity.normalized_path.ends_with(".key");
+        if !conditional_rule_member && ordinals.iter().copied().ne(0..ordinals.len()) {
             failures.push(CoverageFailure::for_identity(
                 CoverageFailureCode::ReceiptSetMismatch,
                 identity.clone(),
@@ -344,6 +348,22 @@ fn evaluate_receipt(
                     CoverageFailureCode::ReaderNotObserved,
                     identity.clone(),
                     "the declared parser accessor did not generate this receipt",
+                ));
+            }
+            compare_final_owners(declaration, receipt, identity, failures);
+        }
+        SourceLeafDisposition::TypedUnsupported => {
+            if receipt.reader_purpose() != SourceAccessorPurpose::Parser
+                || Some(receipt.reader_id()) != declaration.reader.reader_id.as_deref()
+                || receipt
+                    .source()
+                    .as_value()
+                    .is_none_or(|value| value.unsupported.is_none())
+            {
+                failures.push(CoverageFailure::for_identity(
+                    CoverageFailureCode::ReaderNotObserved,
+                    identity.clone(),
+                    "typed-unsupported evidence requires exact parser output carrying the unsupported value",
                 ));
             }
             compare_final_owners(declaration, receipt, identity, failures);
@@ -459,6 +479,13 @@ fn source_value_is_well_formed(source: &SourcePresence<SourceLeafValue>) -> bool
                 .is_some_and(|member| !member.is_empty())
                 && value.ordinal.is_none()
         }
+        Some(SourceMemberKind::Nested) => {
+            value
+                .member_identity
+                .as_deref()
+                .is_some_and(|member| !member.is_empty())
+                && value.ordinal.is_some()
+        }
     }
 }
 
@@ -491,6 +518,9 @@ fn shape_is_allowed(
                 }
                 Some(SourceMemberKind::Map) => {
                     declaration.leaf_kind == super::SourceLeafKind::MapMember
+                }
+                Some(SourceMemberKind::Nested) => {
+                    declaration.leaf_kind == super::SourceLeafKind::NestedMember
                 }
             };
             declaration.expected_shapes.contains(&value_shape) && member_allowed
@@ -543,6 +573,17 @@ fn compare_final_owners(
                 code,
                 identity.clone(),
                 format!("wrong accessor-bound {:?} owner", expected.stage),
+            ));
+            continue;
+        }
+        if !observation.mutation_changed_value() {
+            failures.push(CoverageFailure::for_identity(
+                code,
+                identity.clone(),
+                format!(
+                    "{:?} owner did not observe the selected source mutation",
+                    expected.stage
+                ),
             ));
             continue;
         }
@@ -675,6 +716,13 @@ mod tests {
         assert_eq!(
             parity_mismatches(&text, &number),
             Some(vec!["type", "value"])
+        );
+        let authored_remaster = scalar(json!(true), SourceJsonType::Boolean);
+        let inverted_but_changing_owner = scalar(json!(false), SourceJsonType::Boolean);
+        assert_eq!(
+            parity_mismatches(&authored_remaster, &inverted_but_changing_owner),
+            Some(vec!["value"]),
+            "an owner mutation digest is not parity when its extracted value is wrong"
         );
 
         let mut expected = match scalar(json!(4), SourceJsonType::Number) {

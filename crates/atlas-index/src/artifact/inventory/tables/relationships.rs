@@ -38,11 +38,19 @@ pub mod reference_occurrences {
 
         pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
         pub const CONTENT_KEY: Column = Column::new(TABLE, "content_key");
+        pub const CONTENT_AUTHORED_ORDER: Column = Column::new(TABLE, "content_authored_order");
         pub const OCCURRENCE_ORDINAL: Column = Column::new(TABLE, "occurrence_ordinal");
         pub const OWNER_KIND: Column = Column::new(TABLE, "owner_kind");
         pub const OWNER_RECORD_KEY: Column = Column::new(TABLE, "owner_record_key");
         pub const OWNER_ENTITY_ID: Column = Column::new(TABLE, "owner_entity_id");
         pub const OWNER_OCCURRENCE_ID: Column = Column::new(TABLE, "owner_occurrence_id");
+        pub const OWNER_OCCURRENCE_AUTHORED_ORDER: Column =
+            Column::new(TABLE, "owner_occurrence_authored_order");
+        pub const OWNER_HAZARD_ENTITY_ID: Column = Column::new(TABLE, "owner_hazard_entity_id");
+        pub const OWNER_HAZARD_OCCURRENCE_ID: Column =
+            Column::new(TABLE, "owner_hazard_occurrence_id");
+        pub const OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER: Column =
+            Column::new(TABLE, "owner_hazard_occurrence_authored_order");
         pub const ROLE: Column = Column::new(TABLE, "role");
         pub const ORIGIN_JSON: Column = Column::new(TABLE, "origin_json");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
@@ -57,11 +65,16 @@ pub mod reference_occurrences {
     pub const ALL_COLUMNS: &[Column] = &[
         columns::RECORD_KEY,
         columns::CONTENT_KEY,
+        columns::CONTENT_AUTHORED_ORDER,
         columns::OCCURRENCE_ORDINAL,
         columns::OWNER_KIND,
         columns::OWNER_RECORD_KEY,
         columns::OWNER_ENTITY_ID,
         columns::OWNER_OCCURRENCE_ID,
+        columns::OWNER_OCCURRENCE_AUTHORED_ORDER,
+        columns::OWNER_HAZARD_ENTITY_ID,
+        columns::OWNER_HAZARD_OCCURRENCE_ID,
+        columns::OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER,
         columns::ROLE,
         columns::ORIGIN_JSON,
         columns::VISIBILITY,

@@ -28,6 +28,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         validate_v3_tables(connection)?;
         validate_v6_tables(connection)?;
         validate_v7_tables(connection)?;
+        validate_v8_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -103,6 +104,7 @@ fn create_v7_schema(connection: &Connection) -> LocalStateResult<()> {
           record_key TEXT,
           participant_kind TEXT NOT NULL,
           participant_variant TEXT NOT NULL DEFAULT 'normal',
+          hazard_state TEXT NOT NULL DEFAULT 'active' CHECK (hazard_state IN ('active', 'disabled')),
           position INTEGER NOT NULL,
           display_name TEXT NOT NULL,
           record_title_snapshot TEXT,
@@ -150,6 +152,7 @@ fn create_v7_schema(connection: &Connection) -> LocalStateResult<()> {
         CREATE TABLE encounter_participant_baselines (
           participant_id INTEGER PRIMARY KEY,
           participant_variant TEXT NOT NULL,
+          hazard_state TEXT NOT NULL DEFAULT 'active' CHECK (hazard_state IN ('active', 'disabled')),
           initiative INTEGER,
           initiative_order INTEGER NOT NULL,
           max_hp INTEGER,
@@ -250,36 +253,71 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
             migrate_v3_to_v4(connection)?;
             migrate_v4_to_v5(connection)?;
             migrate_v5_to_v6(connection)?;
-            migrate_v6_to_v7(connection)
+            migrate_v6_to_v7(connection)?;
+            migrate_v7_to_v8(connection)
         }
         "2" => {
             migrate_v2_to_v3(connection)?;
             migrate_v3_to_v4(connection)?;
             migrate_v4_to_v5(connection)?;
             migrate_v5_to_v6(connection)?;
-            migrate_v6_to_v7(connection)
+            migrate_v6_to_v7(connection)?;
+            migrate_v7_to_v8(connection)
         }
         "3" => {
             migrate_v3_to_v4(connection)?;
             migrate_v4_to_v5(connection)?;
             migrate_v5_to_v6(connection)?;
-            migrate_v6_to_v7(connection)
+            migrate_v6_to_v7(connection)?;
+            migrate_v7_to_v8(connection)
         }
         "4" => {
             migrate_v4_to_v5(connection)?;
             migrate_v5_to_v6(connection)?;
-            migrate_v6_to_v7(connection)
+            migrate_v6_to_v7(connection)?;
+            migrate_v7_to_v8(connection)
         }
         "5" => {
             migrate_v5_to_v6(connection)?;
-            migrate_v6_to_v7(connection)
+            migrate_v6_to_v7(connection)?;
+            migrate_v7_to_v8(connection)
         }
-        "6" => migrate_v6_to_v7(connection),
+        "6" => {
+            migrate_v6_to_v7(connection)?;
+            migrate_v7_to_v8(connection)
+        }
+        "7" => migrate_v7_to_v8(connection),
         _ => Err(LocalStateError::UnsupportedMetadata {
             key: METADATA_SCHEMA_VERSION,
             value: schema_version,
         }),
     }
+}
+
+fn migrate_v7_to_v8(connection: &Connection) -> LocalStateResult<()> {
+    if !column_exists(connection, ENCOUNTER_PARTICIPANTS_TABLE, "hazard_state")? {
+        connection.execute_batch(
+            "ALTER TABLE encounter_participants
+               ADD COLUMN hazard_state TEXT NOT NULL DEFAULT 'active'
+               CHECK (hazard_state IN ('active', 'disabled'));",
+        )?;
+    }
+    if !column_exists(
+        connection,
+        ENCOUNTER_PARTICIPANT_BASELINES_TABLE,
+        "hazard_state",
+    )? {
+        connection.execute_batch(
+            "ALTER TABLE encounter_participant_baselines
+               ADD COLUMN hazard_state TEXT NOT NULL DEFAULT 'active'
+               CHECK (hazard_state IN ('active', 'disabled'));",
+        )?;
+    }
+    connection.execute(
+        "UPDATE local_state_metadata SET value = '8' WHERE key = 'schema_version'",
+        [],
+    )?;
+    Ok(())
 }
 
 fn migrate_v6_to_v7(connection: &Connection) -> LocalStateResult<()> {
@@ -588,6 +626,20 @@ fn validate_v7_tables(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
+fn validate_v8_tables(connection: &Connection) -> LocalStateResult<()> {
+    for table in [
+        ENCOUNTER_PARTICIPANTS_TABLE,
+        ENCOUNTER_PARTICIPANT_BASELINES_TABLE,
+    ] {
+        if !column_exists(connection, table, "hazard_state")? {
+            return Err(LocalStateError::IncompatibleSchema(format!(
+                "missing required {table}.hazard_state column"
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn table_exists(connection: &Connection, table: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
@@ -824,6 +876,72 @@ mod tests {
                 |row| row.get::<_, i64>(0),
             )?,
             0
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn v7_database_migrates_participants_and_baselines_to_active_hazard_state()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_path("v7-hazard-state-migration");
+        let participant_key;
+        {
+            let store = LocalStateStore::open(&path)?;
+            store.encounters().create(NewEncounter {
+                slug: "legacy-hazard".to_string(),
+                name: "Legacy Hazard".to_string(),
+                description: None,
+                note: None,
+            })?;
+            participant_key = store
+                .encounters()
+                .add_participant(
+                    "legacy-hazard",
+                    AddEncounterParticipant {
+                        record_key: None,
+                        participant_kind: ParticipantKind::Hazard,
+                        display_name: "Legacy hazard".to_string(),
+                        record_title_snapshot: None,
+                        record_kind_snapshot: None,
+                        side: ParticipantSide::Hazard,
+                        initiative: Some(12),
+                        max_hp: Some(20),
+                        current_hp: Some(20),
+                        temporary_hp: 0,
+                        note: None,
+                    },
+                )?
+                .participant_key;
+            drop(store);
+            let connection = Connection::open(&path)?;
+            connection.execute_batch(
+                "ALTER TABLE encounter_participant_baselines DROP COLUMN hazard_state;
+                 ALTER TABLE encounter_participants DROP COLUMN hazard_state;
+                 UPDATE local_state_metadata SET value = '7' WHERE key = 'schema_version';",
+            )?;
+        }
+
+        let store = LocalStateStore::open(&path)?;
+        let participant = store
+            .encounters()
+            .get_with_participants("legacy-hazard")?
+            .expect("encounter")
+            .participants
+            .into_iter()
+            .next()
+            .expect("participant");
+        assert_eq!(participant.participant_key, participant_key);
+        assert_eq!(
+            participant.hazard_state,
+            crate::ParticipantHazardState::Active
+        );
+        assert_eq!(
+            store
+                .encounters()
+                .reset_participant(&participant_key)?
+                .participant
+                .hazard_state,
+            crate::ParticipantHazardState::Active
         );
         Ok(())
     }

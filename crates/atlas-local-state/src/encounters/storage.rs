@@ -8,9 +8,9 @@ use super::model::{
     EncounterParticipantCondition, EncounterParticipantReset, EncounterParticipantResetDomain,
     EncounterParticipantSpellState, EncounterSpellResource, EncounterSpellResourceMutation,
     EncounterSpellResourceOperation, EncounterSpellResourceTarget, EncounterStatus,
-    EncounterWithParticipants, NewEncounter, ParticipantKind, ParticipantSide, ParticipantVariant,
-    ReorderEncounterParticipant, ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    EncounterWithParticipants, NewEncounter, ParticipantHazardState, ParticipantKind,
+    ParticipantSide, ParticipantVariant, ReorderEncounterParticipant, ReorderPlacement,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 use crate::slug::validate_slug;
 use crate::{LocalStateError, LocalStateResult};
@@ -152,12 +152,12 @@ pub(crate) fn add_participant(
         let participant_key = new_participant_key();
         let result = connection.execute(
             "INSERT INTO encounter_participants (
-                encounter_id, participant_key, record_key, participant_kind, participant_variant, position,
+                encounter_id, participant_key, record_key, participant_kind, participant_variant, hazard_state, position,
                 display_name, record_title_snapshot, record_kind_snapshot, side,
                 initiative, initiative_order, max_hp, current_hp, temporary_hp,
                 defeated, hidden, note, created_at, updated_at
              )
-             VALUES (?1, ?2, ?3, ?4, 'normal', ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16)",
+             VALUES (?1, ?2, ?3, ?4, 'normal', 'active', ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16)",
             params![
                 encounter_id,
                 participant_key,
@@ -197,10 +197,10 @@ pub(crate) fn capture_participant_baseline(
     let now = now_rfc3339()?;
     let inserted = connection.execute(
         "INSERT INTO encounter_participant_baselines (
-            participant_id, participant_variant, initiative, initiative_order,
+            participant_id, participant_variant, hazard_state, initiative, initiative_order,
             max_hp, current_hp, temporary_hp, defeated, captured_at
          )
-         SELECT id, participant_variant, initiative, initiative_order,
+         SELECT id, participant_variant, hazard_state, initiative, initiative_order,
                 max_hp, current_hp, temporary_hp, defeated, ?1
          FROM encounter_participants
          WHERE participant_key = ?2",
@@ -247,7 +247,7 @@ fn reset_participant_inner(
     let baseline = connection
         .query_row(
             "SELECT participant.encounter_id, participant.id, participant.initiative,
-                    baseline.participant_variant, baseline.initiative,
+                    baseline.participant_variant, baseline.hazard_state, baseline.initiative,
                     baseline.initiative_order, baseline.max_hp, baseline.current_hp,
                     baseline.temporary_hp, baseline.defeated
              FROM encounter_participants participant
@@ -261,12 +261,13 @@ fn reset_participant_inner(
                     row.get::<_, i64>(1)?,
                     row.get::<_, Option<i64>>(2)?,
                     row.get::<_, String>(3)?,
-                    row.get::<_, Option<i64>>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, Option<i64>>(6)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<i64>>(5)?,
+                    row.get::<_, i64>(6)?,
                     row.get::<_, Option<i64>>(7)?,
-                    row.get::<_, i64>(8)?,
-                    row.get::<_, bool>(9)?,
+                    row.get::<_, Option<i64>>(8)?,
+                    row.get::<_, i64>(9)?,
+                    row.get::<_, bool>(10)?,
                 ))
             },
         )
@@ -276,6 +277,7 @@ fn reset_participant_inner(
         participant_id,
         old_initiative,
         baseline_variant,
+        baseline_hazard_state,
         baseline_initiative,
         baseline_order,
         baseline_max_hp,
@@ -299,12 +301,13 @@ fn reset_participant_inner(
     let now = now_rfc3339()?;
     connection.execute(
         "UPDATE encounter_participants
-         SET participant_variant = ?1, initiative = ?2, initiative_order = ?3,
-             max_hp = ?4, current_hp = ?5, temporary_hp = ?6, defeated = ?7,
-             updated_at = ?8
-         WHERE id = ?9",
+         SET participant_variant = ?1, hazard_state = ?2, initiative = ?3, initiative_order = ?4,
+             max_hp = ?5, current_hp = ?6, temporary_hp = ?7, defeated = ?8,
+             updated_at = ?9
+         WHERE id = ?10",
         params![
             baseline_variant,
+            baseline_hazard_state,
             baseline_initiative,
             temporary_order,
             baseline_max_hp,
@@ -370,6 +373,7 @@ fn reset_participant_inner(
             EncounterParticipantResetDomain::VariantAdjustments,
             EncounterParticipantResetDomain::ActionBudget,
             EncounterParticipantResetDomain::SpellResources,
+            EncounterParticipantResetDomain::HazardState,
         ],
     })
 }
@@ -399,14 +403,15 @@ pub(crate) fn update_participant(
     let now = now_rfc3339()?;
     let updated = connection.execute(
         "UPDATE encounter_participants
-         SET display_name = ?1, side = ?2, participant_variant = ?3,
-             initiative = ?4, initiative_order = ?5, max_hp = ?6, current_hp = ?7,
-             temporary_hp = ?8, defeated = ?9, hidden = ?10, note = ?11, updated_at = ?12
-         WHERE participant_key = ?13",
+         SET display_name = ?1, side = ?2, participant_variant = ?3, hazard_state = ?4,
+             initiative = ?5, initiative_order = ?6, max_hp = ?7, current_hp = ?8,
+             temporary_hp = ?9, defeated = ?10, hidden = ?11, note = ?12, updated_at = ?13
+         WHERE participant_key = ?14",
         params![
             participant.display_name,
             participant.side.as_str(),
             participant.participant_variant.as_str(),
+            participant.hazard_state.as_str(),
             participant.initiative,
             initiative_order,
             participant.max_hp,
@@ -673,7 +678,7 @@ fn participants(
 ) -> LocalStateResult<Vec<EncounterParticipant>> {
     let mut statement = connection.prepare(
         "SELECT participant.participant_key, participant.record_key, participant.participant_kind,
-                participant.participant_variant, participant.position, participant.display_name,
+                participant.participant_variant, participant.hazard_state, participant.position, participant.display_name,
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
@@ -714,27 +719,29 @@ fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
 fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterParticipant> {
     let participant_kind: String = row.get(2)?;
     let participant_variant: String = row.get(3)?;
-    let side: String = row.get(8)?;
+    let hazard_state: String = row.get(4)?;
+    let side: String = row.get(9)?;
     Ok(EncounterParticipant {
         participant_key: row.get(0)?,
         record_key: row.get(1)?,
         participant_kind: ParticipantKind::from_str(&participant_kind),
         participant_variant: ParticipantVariant::from_str(&participant_variant),
-        position: row.get(4)?,
-        display_name: row.get(5)?,
-        record_title_snapshot: row.get(6)?,
-        record_kind_snapshot: row.get(7)?,
+        hazard_state: ParticipantHazardState::from_str(&hazard_state),
+        position: row.get(5)?,
+        display_name: row.get(6)?,
+        record_title_snapshot: row.get(7)?,
+        record_kind_snapshot: row.get(8)?,
         side: ParticipantSide::from_str(&side),
-        initiative: row.get(9)?,
-        initiative_order: row.get(10)?,
-        max_hp: row.get(11)?,
-        current_hp: row.get(12)?,
-        temporary_hp: row.get(13)?,
-        defeated: row.get(14)?,
-        hidden: row.get(15)?,
-        note: row.get(16)?,
-        created_at: row.get(17)?,
-        updated_at: row.get(18)?,
+        initiative: row.get(10)?,
+        initiative_order: row.get(11)?,
+        max_hp: row.get(12)?,
+        current_hp: row.get(13)?,
+        temporary_hp: row.get(14)?,
+        defeated: row.get(15)?,
+        hidden: row.get(16)?,
+        note: row.get(17)?,
+        created_at: row.get(18)?,
+        updated_at: row.get(19)?,
         conditions: Vec::new(),
     })
 }
@@ -745,7 +752,7 @@ pub(crate) fn participant(
 ) -> LocalStateResult<Option<EncounterParticipant>> {
     let mut statement = connection.prepare(
         "SELECT participant.participant_key, participant.record_key, participant.participant_kind,
-                participant.participant_variant, participant.position, participant.display_name,
+                participant.participant_variant, participant.hazard_state, participant.position, participant.display_name,
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,

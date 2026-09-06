@@ -5,6 +5,10 @@ mod creature;
 mod creature_content_placement;
 mod creature_entities;
 mod creature_projection;
+mod hazard;
+mod hazard_projection;
+#[cfg(test)]
+mod hazard_tests;
 mod json_projection;
 mod mechanics;
 pub mod metrics;
@@ -18,6 +22,7 @@ mod presentation_recipe_tests;
 mod reference_policy;
 mod retrieval_policy;
 mod retrieved_record;
+mod spell;
 
 pub use content::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,
@@ -71,6 +76,30 @@ pub use creature_entities::{
     UnsupportedMechanicNote,
 };
 pub use creature_projection::{CreatureFactProjection, project_creature_facts};
+pub use hazard::{
+    HazardActionCapability, HazardActionCategory, HazardActionCount, HazardActionType,
+    HazardActiveEffectLikeRule, HazardAuraRule, HazardCapability, HazardComplexity,
+    HazardComponentId, HazardConditionCapability, HazardDamageCategory, HazardDamageDiceRule,
+    HazardDefenses, HazardDetection, HazardDiagnosticCode, HazardEffectCapability,
+    HazardEmbeddedEntities, HazardEmitsSound, HazardEntity, HazardEntityFamily, HazardEntityId,
+    HazardEntityOccurrence, HazardEntitySourceIdentity, HazardExpectedShape, HazardFact,
+    HazardFactProvenance, HazardFlatModifierRule, HazardFrequency, HazardFrequencyInterval,
+    HazardHitPoints, HazardIdentity, HazardImmunityRule, HazardItemCommon, HazardIwr,
+    HazardLifecycle, HazardNoteRule, HazardOccurrenceId, HazardOccurrenceIdentityStability,
+    HazardProvenance, HazardProvenanceValue, HazardPublication, HazardRecord, HazardRelationship,
+    HazardRelationshipId, HazardRelationshipKind, HazardRelationshipTarget, HazardRuleElement,
+    HazardRuleMode, HazardRuleType, HazardSaveKind, HazardSaves, HazardSelfEffect, HazardSize,
+    HazardSourceId, HazardSourceShape, HazardSourceValue, HazardStrikeCapability,
+    HazardStrikeDamage, HazardTrait, HazardUnsupportedChildCapability, HazardUnsupportedFact,
+    HazardUnsupportedField, HazardUnsupportedOwner, HazardUnsupportedRule, HazardUnsupportedValue,
+    InvalidHazardComponentId, InvalidHazardEntityId, InvalidHazardOccurrenceId,
+    InvalidHazardRelationshipId, InvalidHazardSlug, InvalidHazardSourceId,
+};
+pub use hazard_projection::{
+    HAZARD_CONVENIENCE_RULE_ID, HAZARD_CONVENIENCE_RULE_VERSION, HazardConvenienceProjection,
+    HazardFactProjection, HazardInitiativeStatistic, HazardInitiativeSuggestion,
+    build_hazard_presentation_document, project_hazard_conveniences, project_hazard_facts,
+};
 pub use json_projection::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
     CreatureAvailabilityEvidenceJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
@@ -87,14 +116,27 @@ pub use json_projection::{
     CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillAvailabilityJson,
-    CreatureUnmodeledSkillJson, CreatureUseLimitJson, RecordBlockJson,
-    RecordCanonicalRelationshipJson, RecordEditionContextJson, RecordEditionCounterpartJson,
-    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionLookup,
-    RecordEditionLookupError, RecordEditionStatusJson, RecordJson, RecordJsonBase,
-    RecordJsonContext, RecordJsonError, RecordJsonOptions, RecordPresentationJson,
-    RecordRelationshipContextError, RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
-    RecordRelationshipProvenanceJson, RecordSectionJson, UnmigratedRegistryJson,
-    VerifiedRecordEditionLookup, record_json, record_json_with_context,
+    CreatureUnmodeledSkillJson, CreatureUseLimitJson, HazardAvailabilityJson,
+    HazardAvailabilityStateJson, HazardContentProvenanceJson, HazardOccurrenceProvenanceJson,
+    HazardProvenanceJson, RecordBlockJson, RecordCanonicalRelationshipJson,
+    RecordEditionContextJson, RecordEditionCounterpartJson, RecordEditionCounterpartLookupJson,
+    RecordEditionCounterpartRoleJson, RecordEditionLookup, RecordEditionLookupError,
+    RecordEditionStatusJson, RecordJson, RecordJsonBase, RecordJsonContext, RecordJsonError,
+    RecordJsonOptions, RecordPresentationJson, RecordRelationshipContextError,
+    RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
+    RecordRelationshipProvenanceJson, RecordSectionJson, SpellAreaJson, SpellCastingJson,
+    SpellClassificationJson, SpellContentJson, SpellDamageAlterationRuleJson,
+    SpellDamageDiceRuleJson, SpellDamageJson, SpellDamagePatchJson, SpellDamagePatchMemberJson,
+    SpellDamagePatchOperationJson, SpellDamagePatchSetJson, SpellDefenseJson, SpellDurationJson,
+    SpellEphemeralEffectRuleJson, SpellFactJson, SpellFixedHeighteningJson, SpellFormJson,
+    SpellFormResultJson, SpellHeighteningDamageJson, SpellHeighteningJson,
+    SpellHeighteningPatchJson, SpellItemAlterationRuleJson, SpellJson, SpellMemberProvenanceJson,
+    SpellPatchJson, SpellProvenanceJson, SpellRangeJson, SpellResolvedDefinitionJson,
+    SpellResolvedFieldJson, SpellRitualJson, SpellRollOptionRuleJson, SpellRuleDetailJson,
+    SpellRuleJson, SpellRulePredicateJson, SpellRuleSuboptionJson, SpellSaveJson,
+    SpellTargetingJson, SpellTextPatchMemberJson, SpellTextPatchOperationJson,
+    SpellTextPatchSetJson, SpellUnsupportedFactJson, SpellUnsupportedValueJson,
+    UnmigratedRegistryJson, VerifiedRecordEditionLookup, record_json, record_json_with_context,
 };
 pub use mechanics::{
     AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,
@@ -112,12 +154,11 @@ pub use model::{
     ActivationTimeSourceField, ActivityRollAbility, ActorMechanics, AliasSource, AtlasRecord,
     AtlasRecordSet, DamageEffectKind, DefaultRetrievalVisibility, DurationTimeSourceField,
     FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-    ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue, NormalizedTime,
-    RecordActivationTiming, RecordAlias, RecordClassification, RecordContent, RecordDurationTiming,
-    RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements,
-    RecordTaxonomy, RecordTiming, RecordVariantMembership, RecordVisibility,
-    RecordVisibilityReason, ReferenceEdge, RemasterLink, SpellArea, SpellDefense, SpellMechanics,
-    SpellRange, SpellTarget, VariantSource,
+    ItemMechanics, MetricRow, MetricValue, NormalizedTime, RecordActivationTiming, RecordAlias,
+    RecordClassification, RecordContent, RecordDurationTiming, RecordIdentity, RecordMechanics,
+    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
+    RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge, RemasterLink,
+    VariantSource,
 };
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationContent,
@@ -141,3 +182,24 @@ pub use retrieval_policy::{
     RetrievalRationale,
 };
 pub use retrieved_record::RetrievedRecord;
+pub use spell::{
+    ConsumableSpellChild, ConsumableSpellLocation, ConsumableSpellSourceContext,
+    InvalidSpellIdentity, ResolvedSpellForm, SPELL_RANGE_DERIVATION_RULE, SpellAreaPatch,
+    SpellAreaType, SpellAreaValue, SpellCasting, SpellCastingPatch, SpellChildId,
+    SpellClassification, SpellClassificationPatch, SpellDamage, SpellDamageAlterationRule,
+    SpellDamageDiceRule, SpellDamagePatch, SpellDefensePatch, SpellDefenseValue, SpellDefinition,
+    SpellDuration, SpellDurationPatch, SpellEphemeralEffectRule, SpellFact,
+    SpellFixedHeighteningLayer, SpellFormContext, SpellFormField, SpellFormId,
+    SpellFormPatchSource, SpellFormSelectionError, SpellFormUnavailable,
+    SpellFormUnavailableReason, SpellHeightening, SpellHeighteningPatch, SpellHeighteningType,
+    SpellIdentity, SpellIntervalHeightening, SpellItemAlterationRule, SpellKeyedPatch,
+    SpellKeyedPatchMember, SpellKeyedPatchOperation, SpellLegacyAreaType, SpellNumericRange,
+    SpellNumericRangeKind, SpellOrderedMember, SpellOverlay, SpellOverlayId,
+    SpellOverlayOrderError, SpellOverlayOrderFailure, SpellOverlayType, SpellPatch,
+    SpellProvenance, SpellRangeValue, SpellRecord, SpellResolvedField, SpellRitual,
+    SpellRollOptionRule, SpellRule, SpellRuleElement, SpellRulePredicate, SpellRuleSuboption,
+    SpellSave, SpellSavePatch, SpellSourceContext, SpellSourceId, SpellSourceValue,
+    SpellStandaloneTarget, SpellStatistic, SpellTargeting, SpellTargetingPatch, SpellTextPatch,
+    SpellTradition, SpellTrait, SpellUnsupportedPatchField, SpellUnsupportedRule,
+    SpellUnsupportedRulePredicate, SpellUnsupportedSourceFact, SpellUnsupportedSourceField,
+};

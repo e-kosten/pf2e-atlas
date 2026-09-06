@@ -1,8 +1,9 @@
 use atlas_record::{
     CreatureAvailabilityEvidenceJson, CreatureContentJson, CreatureContentOwnerJson,
     CreatureContentProvenanceJson, CreatureFactProvenanceJson, CreatureOccurrenceProvenanceJson,
-    CreatureProvenanceJson, RecordEditionContextJson, RecordEditionCounterpartLookupJson,
-    RecordEditionCounterpartRoleJson, RecordEditionStatusJson, RecordJson, RecordPresentationJson,
+    CreatureProvenanceJson, HazardProvenanceJson, RecordEditionContextJson,
+    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionStatusJson,
+    RecordJson, RecordPresentationJson, SpellProvenanceJson,
 };
 use atlas_search::GraphContextResult;
 use serde::Serialize;
@@ -14,6 +15,9 @@ pub(super) struct RecordProvenanceData {
     pub kind: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub record_provenance: Option<CreatureProvenanceJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hazard_provenance: Option<HazardProvenanceJson>,
+    pub spell_provenance: Option<SpellProvenanceJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edition: Option<RecordEditionContextJson>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -122,6 +126,8 @@ pub(super) fn provenance_data(
         name: record.name.clone(),
         kind: record.kind,
         record_provenance: None,
+        hazard_provenance: None,
+        spell_provenance: None,
         edition: None,
         occurrences: Vec::new(),
         prepared_spells: Vec::new(),
@@ -131,6 +137,21 @@ pub(super) fn provenance_data(
         availability_evidence: Vec::new(),
         references: reference_provenance(graph),
     };
+    if let RecordPresentationJson::Hazard {
+        provenance,
+        edition,
+        ..
+    } = &record.presentation
+    {
+        data.hazard_provenance = provenance.clone();
+        data.edition = edition.clone();
+        return data;
+    }
+    if let RecordPresentationJson::Spell { spell, edition, .. } = &record.presentation {
+        data.spell_provenance = spell.provenance.clone();
+        data.edition = edition.clone();
+        return data;
+    }
     let RecordPresentationJson::Creature {
         strikes,
         actions,
@@ -366,6 +387,17 @@ fn reference_provenance(graph: Option<&GraphContextResult>) -> ReferenceProvenan
     references
 }
 
+fn spell_fact_text<T: std::fmt::Display>(value: &atlas_record::SpellFactJson<T>) -> String {
+    match value {
+        atlas_record::SpellFactJson::Missing => "missing".to_string(),
+        atlas_record::SpellFactJson::Null => "null".to_string(),
+        atlas_record::SpellFactJson::Known(value) => value.to_string(),
+        atlas_record::SpellFactJson::Unsupported(value) => {
+            format!("unsupported {} ({})", value.value, value.reason)
+        }
+    }
+}
+
 pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
     let mut lines = vec![
         data.name.clone(),
@@ -384,6 +416,88 @@ pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
         ]);
         for (label, fact) in fact_rows(provenance) {
             lines.push(format!("    {label}: {}", fact_text(fact)));
+        }
+    }
+    if let Some(provenance) = &data.hazard_provenance {
+        lines.extend([
+            String::new(),
+            "Hazard provenance".to_string(),
+            format!("  Source path: {}", provenance.source_path),
+            format!("  Contract: {}", provenance.source_contract_version),
+            format!("  System: {}", provenance.source_system_version),
+            format!("  Upstream commit: {}", provenance.source_upstream_commit),
+            format!(
+                "  Convenience projection: {} v{}",
+                provenance.convenience_rule_id, provenance.convenience_rule_version
+            ),
+        ]);
+        if let Some(license) = &provenance.publication_license {
+            lines.push(format!("  Publication license: {license}"));
+        }
+        if !provenance.occurrences.is_empty() {
+            lines.push("  Occurrences".to_string());
+            for occurrence in &provenance.occurrences {
+                lines.push(format!(
+                    "    {}: {} -> {} (order {}, source ordinal {}, {})",
+                    occurrence.family,
+                    occurrence.id,
+                    occurrence.entity_id,
+                    occurrence.authored_order,
+                    occurrence.source_ordinal,
+                    occurrence.identity_stability
+                ));
+            }
+        }
+        if !provenance.content.is_empty() {
+            lines.push("  Content ownership".to_string());
+            for content in &provenance.content {
+                lines.push(format!(
+                    "    {}: {} ({}, {}, {})",
+                    content.content_key,
+                    content.owner,
+                    content.role,
+                    content.visibility,
+                    content.content_hash
+                ));
+            }
+        }
+        if !provenance.unsupported_fields.is_empty() {
+            lines.push(format!(
+                "  Unsupported source fields: {}",
+                provenance.unsupported_fields.len()
+            ));
+        }
+    }
+    if let Some(provenance) = &data.spell_provenance {
+        lines.extend([
+            String::new(),
+            "Spell provenance".to_string(),
+            format!("  Source ID: {}", provenance.source_id),
+            format!("  Source path: {}", provenance.source_path),
+            format!("  Contract: {}", provenance.source_contract_version),
+            format!("  System: {}", provenance.source_system_version),
+            format!("  Upstream commit: {}", provenance.source_upstream_commit),
+        ]);
+        lines.push(format!("  Image: {}", spell_fact_text(&provenance.image)));
+        lines.push(format!(
+            "  Publication license: {}",
+            spell_fact_text(&provenance.publication_license)
+        ));
+        lines.push(format!(
+            "  Standalone location: {}",
+            spell_fact_text(&provenance.standalone_location)
+        ));
+        for member in &provenance.members {
+            lines.push(format!(
+                "  {} {} at {} (order {}, {} state)",
+                member.field, member.authored_key, member.source_path, member.order, member.state
+            ));
+        }
+        for fact in &provenance.unsupported {
+            lines.push(format!(
+                "  Unsupported {} at {} ({}): {}",
+                fact.field, fact.source_path, fact.authored_key, fact.value.value
+            ));
         }
     }
     if let Some(edition) = &data.edition {
@@ -831,6 +945,7 @@ mod tests {
                 RecordProvenance::new(format!("fixtures/{key}.json")),
             ),
             body: None,
+            spell_children: Vec::new(),
         }
     }
 

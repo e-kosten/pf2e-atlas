@@ -281,7 +281,11 @@ function RuntimeActionBudget({
   );
 }
 
-function RuntimeVitals({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
+export function RuntimeVitals({
+  runtime,
+}: {
+  runtime: EncounterRuntimeView | undefined;
+}) {
   const vitals = runtime?.vitals;
   if (!vitals) return <span className="record-surface__muted">No runtime vitals</span>;
   return (
@@ -294,7 +298,11 @@ function RuntimeVitals({ runtime }: { runtime: EncounterRuntimeView | undefined 
   );
 }
 
-function RuntimeConditions({ runtime }: { runtime: EncounterRuntimeView | undefined }) {
+export function RuntimeConditions({
+  runtime,
+}: {
+  runtime: EncounterRuntimeView | undefined;
+}) {
   if (!runtime?.conditions?.length) {
     return <span className="record-surface__muted">No active conditions</span>;
   }
@@ -406,7 +414,7 @@ function RuntimeCommunication({ body }: { body: CreatureSurfaceView }) {
   );
 }
 
-function RuntimeActivities({
+export function RuntimeActivities({
   activityType,
   onReference,
   runtime,
@@ -1366,7 +1374,7 @@ function formatIwrList(values: CreatureSurfaceIwrView[] | undefined) {
     .join(", ");
 }
 
-function RuntimeAutomationLimitations({
+export function RuntimeAutomationLimitations({
   runtime,
 }: {
   runtime: EncounterRuntimeView | undefined;

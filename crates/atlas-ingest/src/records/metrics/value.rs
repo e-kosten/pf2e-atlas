@@ -1,11 +1,5 @@
 use serde_json::Value;
 
-pub(crate) fn first_number_like_at_paths(raw: &Value, pointers: &[&str]) -> Option<f64> {
-    pointers
-        .iter()
-        .find_map(|pointer| number_like_at_pointer(raw, pointer))
-}
-
 pub(super) fn number_at_pointer(raw: &Value, pointer: &str) -> Option<f64> {
     raw.pointer(pointer).and_then(value_as_f64)
 }

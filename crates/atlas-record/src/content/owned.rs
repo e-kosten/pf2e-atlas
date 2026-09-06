@@ -5,7 +5,10 @@ use super::{
     ContentSourceKind, ContentVisibility, FoundryLinkBehavior, RichDocument, RichLinkTarget,
     iter_foundry_links, render_plain_text,
 };
-use crate::{CreatureEntityFamily, CreatureEntityId, CreatureOccurrenceId};
+use crate::{
+    CreatureEntityFamily, CreatureEntityId, CreatureOccurrenceId, HazardEntityFamily,
+    HazardEntityId, HazardOccurrenceId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct OwnedRichContent {
@@ -74,6 +77,8 @@ pub enum ContentOwner {
     Record(RecordKey),
     CreatureEntity(CreatureEntityId),
     CreatureOccurrence(CreatureOccurrenceId),
+    HazardEntity(HazardEntityId),
+    HazardOccurrence(HazardOccurrenceId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -96,6 +101,11 @@ pub enum ContentOrigin {
     },
     EmbeddedEntityField {
         family: CreatureEntityFamily,
+        nested_source_id: Option<String>,
+        relative_source_path: String,
+    },
+    HazardEmbeddedEntityField {
+        family: HazardEntityFamily,
         nested_source_id: Option<String>,
         relative_source_path: String,
     },

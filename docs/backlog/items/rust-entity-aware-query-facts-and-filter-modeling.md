@@ -70,6 +70,6 @@ The product-facing query contract should be:
 - [Artifact contract](../../architecture/artifact-contract.md)
 - [Architecture decision index](../../architecture/decisions/README.md)
 - [Rust Side Data And Metric Source Fact Convergence](./rust-side-data-metric-source-fact-convergence.md)
-- [Rust Foundry Type Mechanics Parsers](./rust-foundry-type-mechanics-parsers.md)
+- [Rust Foundry Type Mechanics Parsers](../history/items/rust-foundry-type-mechanics-parsers.md)
 - [Rust Web Filter UX Expansion](./rust-web-filter-ux-expansion.md)
 - [Rust Web Filter State Policy Hardening](./rust-web-filter-state-policy-hardening.md)

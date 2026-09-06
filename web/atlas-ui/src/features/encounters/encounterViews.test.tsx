@@ -598,6 +598,50 @@ describe("encounter views", () => {
     );
   }, 10_000);
 
+  it("updates typed hazard state without hiding the current participant or its reset", async () => {
+    const detail = encounterDetailFixture();
+    const participant = hazardParticipantFixture(detail.participants[0]);
+    if (participant.record_view.encounter) {
+      participant.record_view.encounter.vitals = undefined;
+    }
+    const onUpdate = vi.fn();
+    render(
+      <EncounterInspectorPane
+        conditionDefinitions={conditionDefinitionsFixture().conditions}
+        currentTurnParticipantKey={participant.participant_key}
+        onAddCondition={vi.fn()}
+        onOpenRecordFullPage={vi.fn()}
+        onRemoveCondition={vi.fn()}
+        onResetParticipant={vi.fn()}
+        onSpellCast={vi.fn()}
+        onUpdate={onUpdate}
+        onUpdateCondition={vi.fn()}
+        participant={participant}
+        participants={[participant]}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    expect(screen.getByText("Current turn")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reset Hidden Pit" }),
+    ).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Hazard state" }));
+    fireEvent.click(await screen.findByText("Disabled"));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        participant_key: participant.participant_key,
+        hazard_state: "disabled",
+      }),
+    );
+    expect(screen.getByText("Current turn")).toBeInTheDocument();
+    expect(screen.getAllByText("Disabled").length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText("Hazard action content remains available.").length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
   it("hides reset for legacy participants without inventing a baseline", () => {
     const detail = encounterDetailFixture();
     const participant = {
@@ -1331,6 +1375,111 @@ type ParticipantRuntimeOverrides = Partial<EncounterParticipantView> & {
   max_hp?: number;
   temporary_hp?: number;
 };
+
+function hazardParticipantFixture(
+  source: EncounterParticipantView,
+): EncounterParticipantView {
+  const provenance = { source: { source_type: "canonical_record" as const } };
+  return {
+    ...source,
+    participant_kind: "hazard",
+    display_name: "Hidden Pit",
+    side: "hazard",
+    record_key: "hazards:hidden-pit",
+    record_view: {
+      metadata: {
+        record_key: "hazards:hidden-pit",
+        title: "Hidden Pit",
+        kind: "hazard",
+        kind_label: "Hazard",
+        level: 1,
+        traits: ["trap"],
+      },
+      profile: "encounter_participant",
+      presentation: {
+        presentation_type: "hazard",
+        body: {
+          complexity: "complex",
+          lifecycle: {
+            description: [
+              {
+                block_type: "paragraph",
+                spans: [
+                  {
+                    span_type: "text",
+                    text: "Hazard action content remains available.",
+                  },
+                ],
+              },
+            ],
+          },
+          provenance: {
+            source_path: "packs/hazards/hidden-pit.json",
+            source_contract_version: "v1",
+            source_system_version: "7",
+            source_upstream_commit: "fixture",
+            convenience_rule_id: "pf2e-hazard-conveniences",
+            convenience_rule_version: 1,
+            image: { state: "missing" },
+            publication_license: { state: "missing" },
+          },
+        },
+      },
+      encounter: {
+        hazard: {
+          state: "active",
+          convenience_rule_id: "pf2e-hazard-conveniences",
+          convenience_rule_version: 1,
+        },
+        vitals: {
+          maximum_hp: {
+            label: "Maximum HP",
+            base_value: 30,
+            adjusted_value: 30,
+            provenance,
+          },
+          current_hp: 30,
+          temporary_hp: 0,
+        },
+        activities: [
+          {
+            activity_id: "occurrence-action",
+            label: "Routine",
+            kind: "other",
+            usage: "unlimited",
+            availability: { available: true, provenance },
+            content: [
+              {
+                content_key: "routine",
+                role: "embedded_capability",
+                authored_order: 0,
+                blocks: [
+                  {
+                    block_type: "paragraph",
+                    spans: [
+                      {
+                        span_type: "text",
+                        text: "Hazard action content remains available.",
+                      },
+                    ],
+                  },
+                ],
+                content_hash: "fixture",
+                visibility: "gm",
+                provenance: {
+                  source_record_key: "hazards:hidden-pit",
+                  relative_source_path: "fixture.json",
+                  field_family: "embedded.description",
+                },
+              },
+            ],
+            provenance,
+          },
+        ],
+      },
+    },
+  };
+}
 
 function encounterDetailFixture(
   currentTurnParticipantKey: string | undefined = "participant_a",

@@ -4,9 +4,9 @@ use atlas_domain::{PackName, Rarity, RecordId, RecordKey};
 use atlas_record::{
     ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
     FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-    ItemTypeMechanics, RecordActivationTiming, RecordBody, RecordClassification, RecordContent,
-    RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance,
-    RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
+    RecordActivationTiming, RecordClassification, RecordContent, RecordContentDocument,
+    RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
+    RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
 };
 use serde_json::Value;
 
@@ -52,7 +52,14 @@ use crate::error::IngestError;
 use crate::records::metrics;
 use crate::records::{LoadedSourceRecord, SourceConstructionFacts, SourceRecordFacts};
 use crate::source::ManifestPack;
-use crate::source::dto::{SourceIdentity, parse_npc_source, pinned_source_version_metadata};
+#[cfg(test)]
+use crate::source::dto::parse_serialized_source_object;
+use crate::source::dto::{
+    LegacyDuplicateDisposition, SerializedSourceMember, SerializedSourceObject,
+    SerializedSourceValue, SourceIdentity, SpellDocumentSource, parse_hazard_source,
+    parse_npc_source_from_serialized, parse_spell_document_source, pinned_source_version_metadata,
+};
+use crate::source::hazard_core::{HazardCoreConversion, convert_hazard_core};
 use crate::source::mechanics;
 use crate::source::npc_core::{NpcCoreConversion, convert_npc_core};
 use crate::source::npc_entities::collect_npc_embedded_candidates;
@@ -65,11 +72,32 @@ pub(crate) fn normalize_record(
     raw: Value,
     localization: Option<&dyn LocalizationResolver>,
 ) -> Result<LoadedSourceRecord, IngestError> {
-    let id = string_field(&raw, "_id").ok_or_else(|| normalization_error(path, "missing _id"))?;
-    let name =
-        string_field(&raw, "name").ok_or_else(|| normalization_error(path, "missing name"))?;
-    let record_type =
-        string_field(&raw, "type").unwrap_or_else(|| manifest_pack.document_type.clone());
+    let source = SerializedSourceObject::from_json(&raw)
+        .ok_or_else(|| normalization_error(path, "source document root must be an object"))?;
+    normalize_record_from_source(
+        manifest_pack,
+        pack_name,
+        path,
+        source_root,
+        source,
+        localization,
+    )
+}
+
+pub(crate) fn normalize_record_from_source(
+    manifest_pack: &ManifestPack,
+    pack_name: &PackName,
+    path: &Path,
+    source_root: &Path,
+    source: SerializedSourceObject,
+    localization: Option<&dyn LocalizationResolver>,
+) -> Result<LoadedSourceRecord, IngestError> {
+    let id = source_string(&source, "_id", path)?
+        .ok_or_else(|| normalization_error(path, "missing _id"))?;
+    let name = source_string(&source, "name", path)?
+        .ok_or_else(|| normalization_error(path, "missing name"))?;
+    let record_type = source_string(&source, "type", path)?
+        .unwrap_or_else(|| manifest_pack.document_type.clone());
     let id = RecordId::new(id)
         .map_err(|error| normalization_error(path, &format!("invalid _id: {error}")))?;
     let key = RecordKey::new(pack_name.clone(), id.clone());
@@ -88,12 +116,59 @@ pub(crate) fn normalize_record(
                 ),
             )
         })?;
+    let spell_source = (manifest_pack.document_type == "Item"
+        && matches!(record_type.as_str(), "spell" | "consumable"))
+    .then(|| {
+        parse_spell_document_source(
+            &source,
+            &SourceIdentity::new(key.to_string(), source_path.clone()),
+        )
+        .map_err(|error| normalization_error(path, &error.to_string()))
+    })
+    .transpose()?
+    .flatten();
+    let hazard = manifest_pack.document_type == "Actor" && record_type == "hazard";
+    let hazard_melee_damage_paths = if hazard {
+        hazard_melee_damage_rolls_paths(&source)
+    } else {
+        Vec::new()
+    };
+    let mut duplicate_policy = |object_path: &str, key: &str| {
+        if spell_source
+            .as_ref()
+            .is_some_and(|spell| spell_duplicate_is_retained(spell, object_path, key))
+            || hazard_melee_damage_paths
+                .iter()
+                .any(|path| path == object_path)
+        {
+            LegacyDuplicateDisposition::OmitAfterFamilyRetention
+        } else {
+            LegacyDuplicateDisposition::Reject
+        }
+    };
+    let raw = source
+        .to_legacy_json(&mut duplicate_policy)
+        .map_err(|error| normalization_error(path, &error.to_string()))?;
     let npc_source = if manifest_pack.document_type == "Actor" && record_type == "npc" {
         Some(
-            parse_npc_source(
+            parse_npc_source_from_serialized(
                 pinned_source_version_metadata(),
                 SourceIdentity::new(key.to_string(), source_path.clone()),
                 raw.clone(),
+                &source,
+            )
+            .map_err(|error| normalization_error(path, &error.to_string()))?,
+        )
+    } else {
+        None
+    };
+    let hazard_source = if manifest_pack.document_type == "Actor" && record_type == "hazard" {
+        Some(
+            parse_hazard_source(
+                pinned_source_version_metadata(),
+                SourceIdentity::new(key.to_string(), source_path.clone()),
+                raw.clone(),
+                &source,
             )
             .map_err(|error| normalization_error(path, &error.to_string()))?,
         )
@@ -106,12 +181,28 @@ pub(crate) fn normalize_record(
         .map(|source| convert_npc_core(key.clone(), &source_path, source))
         .transpose()
         .map_err(|error| normalization_error(path, &error.to_string()))?;
+    let hazard_conversion = hazard_source
+        .as_ref()
+        .map(|source| convert_hazard_core(key.clone(), &source_path, source, localization))
+        .transpose()
+        .map_err(|error| normalization_error(path, &error.to_string()))?;
     let canonical_creature = npc_conversion.as_ref().map(|conversion| {
-        let RecordBody::Creature(creature) = &conversion.body;
-        creature
+        conversion
+            .body
+            .creature()
+            .expect("NPC conversion always produces a creature body")
     });
+    let canonical_hazard =
+        hazard_conversion
+            .as_ref()
+            .and_then(|conversion| match &conversion.body {
+                atlas_record::RecordBody::Hazard(hazard) => Some(hazard),
+                atlas_record::RecordBody::Creature(_) | atlas_record::RecordBody::Spell(_) => None,
+            });
     let level = if let Some(creature) = canonical_creature {
         creature.level.value.as_value().copied()
+    } else if let Some(hazard) = canonical_hazard {
+        hazard.level.typed().copied()
     } else {
         pointer_i64(&raw, "/system/level/value").or_else(|| {
             (manifest_pack.document_type == "Actor")
@@ -121,6 +212,8 @@ pub(crate) fn normalize_record(
     };
     let rarity = if let Some(creature) = canonical_creature {
         creature.rarity.value.as_value().cloned()
+    } else if let Some(hazard) = canonical_hazard {
+        hazard.rarity.typed().copied()
     } else {
         normalized_pointer_string(&raw, "/system/traits/rarity")
             .map(|value| {
@@ -138,6 +231,17 @@ pub(crate) fn normalize_record(
             .traits
             .value
             .as_value()
+            .map(|traits| {
+                traits
+                    .iter()
+                    .map(|value| value.as_str().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else if let Some(hazard) = canonical_hazard {
+        hazard
+            .traits
+            .typed()
             .map(|traits| {
                 traits
                     .iter()
@@ -167,29 +271,39 @@ pub(crate) fn normalize_record(
     let duration = system_duration_value
         .as_deref()
         .and_then(normalize_time_text);
-    let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
-        .map_err(|message| normalization_error(path, &message))?;
-    let actor_data = (manifest_pack.document_type == "Actor" && record_type != "npc")
-        .then(|| mechanics::extract_actor_mechanics(&raw, localization));
-    let item_data = (manifest_pack.document_type == "Item").then(|| {
-        mechanics::extract_item_mechanics(
-            &raw,
-            system_category.clone(),
-            system_base_item.clone(),
-            system_group.clone(),
-            system_usage.clone(),
-            system_price_json.clone(),
-            price_cp,
-        )
-    });
-    let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
-        .then(|| mechanics::extract_spell_mechanics(&raw, &traits, localization));
+    let metrics = if hazard_source.is_some() || record_kind == atlas_domain::RecordKind::Spell {
+        Vec::new()
+    } else {
+        metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
+            .map_err(|message| normalization_error(path, &message))?
+    };
+    let actor_data =
+        (manifest_pack.document_type == "Actor" && record_type != "npc" && record_type != "hazard")
+            .then(|| mechanics::extract_actor_mechanics(&raw, localization));
+    let item_data = (manifest_pack.document_type == "Item"
+        && record_kind != atlas_domain::RecordKind::Spell)
+        .then(|| {
+            mechanics::extract_item_mechanics(
+                &raw,
+                system_category.clone(),
+                system_base_item.clone(),
+                system_group.clone(),
+                system_usage.clone(),
+                system_price_json.clone(),
+                price_cp,
+            )
+        });
     let publication_title = if let Some(creature) = canonical_creature {
         creature
             .publication
             .value
             .as_value()
             .and_then(|publication| publication.title.as_value().cloned())
+    } else if let Some(hazard) = canonical_hazard {
+        hazard
+            .publication
+            .typed()
+            .and_then(|publication| publication.title.typed().cloned())
     } else {
         pointer_string(&raw, "/system/publication/title")
             .or_else(|| pointer_string(&raw, "/system/details/publication/title"))
@@ -201,12 +315,21 @@ pub(crate) fn normalize_record(
             .as_value()
             .and_then(|publication| publication.remaster.as_value().copied())
             .unwrap_or(false)
+    } else if let Some(hazard) = canonical_hazard {
+        hazard
+            .publication
+            .typed()
+            .and_then(|publication| publication.remaster.typed().copied())
+            .unwrap_or(false)
     } else {
         pointer_bool(&raw, "/system/publication/remaster")
             .or_else(|| pointer_bool(&raw, "/system/details/publication/remaster"))
             .unwrap_or(false)
     };
-    let content_sources = extract_content_sources(&raw, localization);
+    let hazard_identities = hazard_conversion
+        .as_ref()
+        .map(|conversion| conversion.embedded_identities.as_slice());
+    let content_sources = extract_content_sources(&raw, localization, hazard_identities);
     let mut source_facts = SourceRecordFacts {
         slug: normalized_pointer_string(&raw, "/system/slug"),
         compendium_source: normalized_pointer_string(&raw, "/_stats/compendiumSource"),
@@ -233,8 +356,14 @@ pub(crate) fn normalize_record(
                         | ContentSourceKind::EmbeddedSpellDescription
                 )
         })
+        .filter(|document| {
+            !matches!(
+                spell_source.as_ref(),
+                Some(SpellDocumentSource::ConsumableChild(_))
+            ) || document.source_kind != ContentSourceKind::EmbeddedSpellDescription
+        })
         .collect::<Vec<_>>();
-    source_facts.embedded_items = extract_embedded_item_facts(&raw, &key);
+    source_facts.embedded_items = extract_embedded_item_facts(&raw, &key, hazard_identities);
     attach_embedded_content_refs(
         &mut source_facts.embedded_items,
         &source_facts.source_content,
@@ -278,8 +407,7 @@ pub(crate) fn normalize_record(
     content_documents.extend(std::mem::take(&mut supplemental_content));
     let document_mechanics = if let Some(actor) = actor_data {
         FoundryDocumentMechanics::Actor(actor)
-    } else if let Some(mut item) = item_data {
-        item.foundry_type = spell_data.map(ItemTypeMechanics::Spell);
+    } else if let Some(item) = item_data {
         FoundryDocumentMechanics::Item(item)
     } else {
         FoundryDocumentMechanics::None
@@ -323,13 +451,32 @@ pub(crate) fn normalize_record(
         variant: None,
         visibility: RecordVisibility::default(),
     };
-    let (canonical_body, npc_core_diagnostics) = npc_conversion
-        .map(
-            |NpcCoreConversion {
-                 body, diagnostics, ..
-             }| (Some(body), diagnostics),
-        )
-        .unwrap_or_default();
+    let (mut canonical_body, npc_core_diagnostics, hazard_diagnostics) =
+        if let Some(NpcCoreConversion {
+            body, diagnostics, ..
+        }) = npc_conversion
+        {
+            (Some(body), diagnostics, Vec::new())
+        } else if let Some(HazardCoreConversion {
+            body,
+            diagnostics,
+            embedded_identities: _,
+        }) = hazard_conversion
+        {
+            (Some(body), Vec::new(), diagnostics)
+        } else {
+            (None, Vec::new(), Vec::new())
+        };
+    if let Some(SpellDocumentSource::Standalone(source)) = spell_source.clone() {
+        canonical_body = Some(
+            super::spells::convert_standalone_spell(
+                record.identity.key.clone(),
+                &record.provenance.source_path,
+                source,
+            )
+            .map_err(|message| normalization_error(path, &message))?,
+        );
+    }
     let facts = SourceConstructionFacts {
         content_parse_diagnostics: content_sources
             .diagnostics
@@ -338,19 +485,225 @@ pub(crate) fn normalize_record(
             .collect(),
         source_facts,
         npc_source,
+        hazard_source,
+        spell_source,
         canonical_body,
+        canonical_spell_children: Vec::new(),
         npc_core_diagnostics,
         npc_embedded_candidates,
         npc_embedded_diagnostics: Vec::new(),
+        hazard_diagnostics,
         generated_affliction_role: None,
     };
 
     Ok(LoadedSourceRecord::new(record, facts))
 }
 
+#[cfg(test)]
+pub(crate) fn normalize_record_from_source_bytes(
+    manifest_pack: &ManifestPack,
+    pack_name: &PackName,
+    path: &Path,
+    source_root: &Path,
+    source_bytes: &[u8],
+    localization: Option<&dyn LocalizationResolver>,
+) -> Result<LoadedSourceRecord, IngestError> {
+    let source = parse_serialized_source_object(source_bytes)
+        .map_err(|error| normalization_error(path, &error))?;
+    normalize_record_from_source(
+        manifest_pack,
+        pack_name,
+        path,
+        source_root,
+        source,
+        localization,
+    )
+}
+
+fn source_string(
+    source: &SerializedSourceObject,
+    key: &str,
+    path: &Path,
+) -> Result<Option<String>, IngestError> {
+    match source.member(key) {
+        SerializedSourceMember::Missing | SerializedSourceMember::Null => Ok(None),
+        SerializedSourceMember::Value(value) => {
+            value.string().map(str::to_string).map(Some).ok_or_else(|| {
+                normalization_error(path, &format!("source member `{key}` must be a string"))
+            })
+        }
+        SerializedSourceMember::Duplicate(values) => Err(normalization_error(
+            path,
+            &format!(
+                "duplicate source identity/discriminator member `{key}`: [{}]",
+                values
+                    .iter()
+                    .map(|value| value.compact_json())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        )),
+    }
+}
+
+fn spell_duplicate_is_retained(spell: &SpellDocumentSource, object_path: &str, key: &str) -> bool {
+    if key == "gm"
+        && matches!(
+            object_path,
+            "/system/description" | "/system/spell/system/description"
+        )
+    {
+        return false;
+    }
+    match spell {
+        SpellDocumentSource::Standalone(_) => {
+            object_path.is_empty() && key == "img" || within_pointer_subtree(object_path, "/system")
+        }
+        SpellDocumentSource::ConsumableChild(_) => {
+            object_path == "/system/spell" && key == "img"
+                || within_pointer_subtree(object_path, "/system/spell/system")
+        }
+    }
+}
+
+fn within_pointer_subtree(path: &str, root: &str) -> bool {
+    path == root
+        || path
+            .strip_prefix(root)
+            .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
+fn hazard_melee_damage_rolls_paths(source: &SerializedSourceObject) -> Vec<String> {
+    let SerializedSourceMember::Value(SerializedSourceValue::Array(items)) = source.member("items")
+    else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .enumerate()
+        .filter_map(|(source_ordinal, item)| {
+            let item = item.object()?;
+            matches!(
+                item.member("type"),
+                SerializedSourceMember::Value(value) if value.string() == Some("melee")
+            )
+            .then(|| format!("/items/{source_ordinal}/system/damageRolls"))
+        })
+        .collect()
+}
+
 pub(crate) fn normalization_error(path: &Path, message: &str) -> IngestError {
     IngestError::RecordNormalizationFailed {
         path: path.display().to_string(),
         message: message.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod lossless_source_tests {
+    use super::*;
+
+    fn item_pack() -> ManifestPack {
+        ManifestPack {
+            name: "spells-srd".to_string(),
+            label: "Spells".to_string(),
+            document_type: "Item".to_string(),
+            path: "packs/spells".to_string(),
+        }
+    }
+
+    fn actor_pack() -> ManifestPack {
+        ManifestPack {
+            name: "hazards".to_string(),
+            label: "Hazards".to_string(),
+            document_type: "Actor".to_string(),
+            path: "packs/hazards".to_string(),
+        }
+    }
+
+    fn normalization_failure(pack: &ManifestPack, source: &[u8]) -> String {
+        normalize_record_from_source_bytes(
+            pack,
+            &PackName::new(pack.name.clone()).expect("pack"),
+            Path::new("packs/duplicate.json"),
+            Path::new("."),
+            source,
+            None,
+        )
+        .expect_err("unowned duplicate must fail")
+        .to_string()
+    }
+
+    #[test]
+    fn duplicate_root_dispatch_discriminator_fails_before_legacy_projection() {
+        let source_root = Path::new(".");
+        let path = Path::new("packs/spells/duplicate-type.json");
+        let error = normalize_record_from_source_bytes(
+            &item_pack(),
+            &PackName::new("spells-srd").expect("pack"),
+            path,
+            source_root,
+            br#"{"_id":"duplicateType","name":"Duplicate Type","type":"spell","type":"consumable","system":{}}"#,
+            None,
+        )
+        .expect_err("duplicate root type must fail");
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate source identity/discriminator member `type`")
+        );
+    }
+
+    #[test]
+    fn standalone_spell_rejects_unowned_root_duplicate() {
+        let error = normalization_failure(
+            &item_pack(),
+            br#"{"_id":"s","name":"S","type":"spell","folder":"first","folder":"second","system":{"rules":[]}}"#,
+        );
+        assert!(error.contains("duplicate source member at /folder"));
+    }
+
+    #[test]
+    fn consumable_spell_rejects_unowned_child_envelope_duplicate() {
+        let error = normalization_failure(
+            &item_pack(),
+            br#"{"_id":"c","name":"C","type":"consumable","system":{"spell":{"_id":"s","name":"S","type":"spell","sort":1,"sort":2,"system":{"rules":[]}}}}"#,
+        );
+        assert!(error.contains("duplicate source member at /system/spell/sort"));
+    }
+
+    #[test]
+    fn consumable_spell_rejects_spell_prefix_neighbor_duplicate() {
+        let error = normalization_failure(
+            &item_pack(),
+            br#"{"_id":"c","name":"C","type":"consumable","system":{"spell":{"_id":"s","name":"S","type":"spell","system":{"rules":[]}},"spellbook":{"value":1,"value":2}}}"#,
+        );
+        assert!(error.contains("duplicate source member at /system/spellbook/value"));
+    }
+
+    #[test]
+    fn hazard_rejects_non_melee_damage_map_duplicate() {
+        let error = normalization_failure(
+            &actor_pack(),
+            br#"{"_id":"h","name":"H","type":"hazard","items":[{"_id":"a","name":"A","type":"action","system":{"damageRolls":{"same":{"damage":"1d6"},"same":{"damage":"2d6"}}}}],"system":{}}"#,
+        );
+        assert!(error.contains("duplicate source member at /items/0/system/damageRolls/same"));
+    }
+
+    #[test]
+    fn spell_rejects_duplicate_gm_content_owned_by_legacy_projection() {
+        for (source, path) in [
+            (
+                &br#"{"_id":"s","name":"S","type":"spell","system":{"description":{"gm":"first","gm":"second","value":"public"},"rules":[]}}"#[..],
+                "/system/description/gm",
+            ),
+            (
+                &br#"{"_id":"c","name":"C","type":"consumable","system":{"spell":{"_id":"s","name":"S","type":"spell","system":{"description":{"gm":"first","gm":"second","value":"public"},"rules":[]}}}}"#[..],
+                "/system/spell/system/description/gm",
+            ),
+        ] {
+            let error = normalization_failure(&item_pack(), source);
+            assert!(error.contains(&format!("duplicate source member at {path}")));
+        }
     }
 }

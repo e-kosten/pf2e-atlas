@@ -238,6 +238,12 @@ pub fn place_creature_content_for_families(
     }
 
     for (index, document) in creature.content.documents.iter().enumerate() {
+        if matches!(
+            document.owner,
+            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_)
+        ) {
+            continue;
+        }
         placement.all.push(index);
         match &document.owner {
             ContentOwner::Record(_) => {
@@ -254,6 +260,9 @@ pub fn place_creature_content_for_families(
                 .entry(owner.clone())
                 .or_default()
                 .push(index),
+            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => {
+                unreachable!("hazard-owned content is excluded from creature content placement")
+            }
         }
         let matches = candidates
             .iter()
@@ -263,6 +272,7 @@ pub fn place_creature_content_for_families(
                 ContentOwner::CreatureEntity(owner) => {
                     matches!(&occurrence.target, CreatureEntityTarget::ActorOwned(target) if target == owner)
                 }
+                ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => false,
             })
             .copied()
             .collect::<Vec<_>>();
