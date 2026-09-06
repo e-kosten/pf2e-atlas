@@ -400,7 +400,7 @@ mod tests {
     };
     use serde_json::{Value, json};
 
-    use super::finalize_npc_owned_content;
+    use super::{finalize_npc_owned_content, finalize_spell_owned_content};
     use crate::records::LoadedSourceRecord;
     use crate::records::references::{build_record_reference_index, resolve_content_references};
     use crate::source::ManifestPack;
@@ -446,6 +446,7 @@ mod tests {
         let index = build_record_reference_index(&records);
         finalize_npc_embedded_entities(&mut records, &index);
         finalize_npc_owned_content(&mut records);
+        finalize_spell_owned_content(&mut records);
         resolve_content_references(&mut records, &index);
 
         let creature = records[0]
@@ -511,8 +512,24 @@ mod tests {
             render_plain_text(&spell_content.document),
             "Actor-local Fireball wording."
         );
+        let canonical_spell_content = records[1]
+            .facts
+            .canonical_body
+            .as_ref()
+            .and_then(RecordBody::as_spell)
+            .expect("canonical spell body")
+            .definition
+            .content
+            .documents
+            .iter()
+            .find(|content| content.id.content_key.as_str() == "description")
+            .expect("canonical spell description");
+        assert!(matches!(
+            &canonical_spell_content.owner,
+            ContentOwner::Record(record_key) if record_key.to_string() == "spells:fireball"
+        ));
         assert_eq!(
-            render_plain_text(&records[1].record.content.documents[0].document),
+            render_plain_text(&canonical_spell_content.document),
             "Canonical Fireball wording."
         );
         assert!(

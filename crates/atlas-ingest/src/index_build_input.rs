@@ -482,22 +482,17 @@ mod tests {
         assert!(extra_report.diagnostics.iter().any(|diagnostic| {
             diagnostic.key.as_deref() == Some("canonical_creature_records.non_npc_body")
         }));
-        let all_error = extra_reader.load_hydrated_records().unwrap_err();
-        assert!(
-            all_error
-                .to_string()
-                .contains("incompatible classification/foundry kinds"),
-            "unexpected hydration error: {all_error}"
-        );
-        let keyed_error = extra_reader
-            .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
-            .unwrap_err();
-        assert!(
-            keyed_error
-                .to_string()
-                .contains("incompatible classification/foundry kinds"),
-            "unexpected keyed hydration error: {keyed_error}"
-        );
+        for error in [
+            extra_reader.load_hydrated_records().unwrap_err(),
+            extra_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&npc_key))
+                .unwrap_err(),
+        ] {
+            assert_eq!(
+                error.to_string(),
+                "record data is invalid: creature record `bestiary:actor` has Foundry type `action` instead of `npc`"
+            );
+        }
         remove_test_artifact(&extra)?;
         remove_test_artifact(&path)?;
         Ok(())
@@ -717,13 +712,17 @@ mod tests {
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.key.as_deref() == Some("canonical_hazard_records.missing_hazard_body")
         }));
-        assert!(
+        for error in [
+            missing_reader.load_hydrated_records().unwrap_err(),
             missing_reader
                 .load_hydrated_records_by_key(std::slice::from_ref(&hazard_key))
-                .unwrap_err()
-                .to_string()
-                .contains("missing its required hazard body")
-        );
+                .unwrap_err(),
+        ] {
+            assert_eq!(
+                error.to_string(),
+                "record data is invalid: canonical hazard `hazards:BHq5wpQU8hQEke8D` is missing its required body"
+            );
+        }
         remove_test_artifact(&missing)?;
 
         let wrong_kind = copy_for_corruption(&path, "hazard-wrong-record-kind")?;
