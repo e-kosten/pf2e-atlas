@@ -239,13 +239,13 @@
 
 .spell-sheet__form-section {
   min-width: 0;
-  width: min(100%, 380px);
+  width: min(100%, 720px);
   margin-inline-start: auto;
 }
 
 .spell-sheet__form-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(70px, 90px) auto;
+  grid-template-columns: minmax(0, 1fr) 240px;
   gap: 8px;
   align-items: end;
 }
@@ -1131,27 +1131,16 @@
   min-width: 0;
 }
 .spell-sheet__form-section {
-  flex: 0 1 380px;
-}
-.spell-sheet__summary {
-  min-width: 0;
-  padding-block: 12px;
-  border-block: 1px solid var(--line);
-}
-.spell-sheet__quick-effect {
-  font-size: 1.25rem;
-  margin: 0 0 8px;
-  color: var(--text);
-}
-.spell-sheet__quick-casting {
-  margin: 0;
+  flex: 1 1 620px;
+  max-width: 720px;
 }
 .spell-sheet__selection-summary {
   display: grid;
   margin-top: 6px;
 }
 .spell-sheet__selection-status {
-  min-height: 2.5em;
+  height: 3.75em;
+  overflow: auto;
   line-height: 1.25;
   font-size: 12px;
 }
@@ -1211,9 +1200,6 @@
   line-height: 1.2;
   letter-spacing: normal;
 }
-.spell-sheet__quick-casting .action-glyph {
-  margin-inline-end: 6px;
-}
 
 .hazard-sheet__detection-value {
   display: flex;
@@ -1223,4 +1209,52 @@
 }
 .hazard-sheet__detection-value .creature-sheet__rich-content > p {
   margin: 0;
+}
+
+.spell-sheet__rank-actions {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  align-items: end;
+  gap: 8px;
+}
+.spell-sheet__form-control {
+  min-width: 0;
+}
+.spell-sheet__form-option {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.spell-sheet__form-select {
+  height: auto;
+  min-height: 32px;
+}
+.spell-sheet__form-select .ant-select-selection-item,
+.spell-sheet__form-select .ant-select-content {
+  white-space: normal;
+  height: auto;
+  min-height: 30px;
+  line-height: 1.4;
+  align-content: center;
+}
+.spell-sheet__applied-selection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+.spell-sheet__resolved-definition {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 18px;
+  gap: 18px;
+}
+@container (max-width: 650px) {
+  .spell-sheet__form-section {
+    max-width: none;
+  }
+  .spell-sheet__form-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .spell-sheet__rank-actions {
+    grid-template-columns: 80px 80px 80px;
+  }
 }

@@ -113,9 +113,7 @@ describe("RecordDetailPane", () => {
 
     expect(screen.getByText("3d4 Cold")).toBeInTheDocument();
     expect(screen.getByText("20-foot burst")).toBeInTheDocument();
-    expect(
-      screen.getByText("Showing Refreshed base spell at rank 3."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Applied rank 3")).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("3");
     expect(screen.queryByText("2d4 Cold")).not.toBeInTheDocument();
     expect(screen.queryByText("15-foot burst")).not.toBeInTheDocument();
@@ -209,7 +207,7 @@ describe("RecordDetailPane", () => {
       await screen.findByRole("button", { name: "Backlink Caster" }),
     ).toBeInTheDocument();
     expect(screen.getByText("8d4 Cold")).toBeInTheDocument();
-    expect(screen.getByText("Showing Base spell at rank 5.")).toBeInTheDocument();
+    expect(screen.getByText("Applied rank 5")).toBeInTheDocument();
     expect(getRecordDetail).toHaveBeenCalledWith(
       "spells-srd:rime-slick",
       {
@@ -335,6 +333,21 @@ describe("RecordDetailPane", () => {
     pending.get(5)!.resolve(rimeDetail(5, "8d4", [5], 30));
     await waitFor(() => expect(screen.getByText("14d4 Cold")).toBeInTheDocument());
     expect(screen.queryByText("8d4 Cold")).not.toBeInTheDocument();
+
+    fireEvent.change(rankInput, { target: { value: "10" } });
+    fireEvent.click(resolveButton);
+    await waitFor(() => expect(pending.has(10)).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await waitFor(() => expect(pending.has(2)).toBe(true));
+    expect(pending.get(10)?.signal.aborted).toBe(true);
+    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    pending.get(2)!.resolve(rimeDetail(2));
+    expect(await screen.findByText("Applied rank 2")).toBeInTheDocument();
+    expect(screen.getByText("2d4 Cold")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    pending.get(10)!.resolve(rimeDetail(10, "20d4", [5, 8], 90));
+    await waitFor(() => expect(screen.getByText("Applied rank 2")).toBeInTheDocument());
+    expect(screen.queryByText("20d4 Cold")).not.toBeInTheDocument();
   });
 
   it("updates Heal forms in the same main regions without exposing form identities", async () => {
@@ -356,8 +369,8 @@ describe("RecordDetailPane", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(await screen.findByText("2 actions")).toBeInTheDocument();
     expect(screen.getAllByText("Living creature").length).toBeGreaterThanOrEqual(1);
-    for (const heading of ["Casting", "Range & targets", "Effect"]) {
-      expect(screen.getAllByRole("heading", { name: heading })).toHaveLength(1);
+    for (const label of ["Spell casting", "Spell range and targets", "Spell damage"]) {
+      expect(screen.getAllByLabelText(label)).toHaveLength(1);
     }
 
     await chooseSpellForm("3 actions — 30-foot emanation");
@@ -395,9 +408,7 @@ describe("RecordDetailPane", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Selected rank could not be resolved",
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Showing Base spell at rank 5.",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Applied rank 5");
     expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toBe(rankInput);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByText("8d4 Cold")).toBeInTheDocument();
