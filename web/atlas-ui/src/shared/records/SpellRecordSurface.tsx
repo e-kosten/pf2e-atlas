@@ -553,10 +553,7 @@ function FormsSection({
       >
         <div className="spell-sheet__applied-selection">
           <span>Applied rank {body.effective_form.cast_rank}</span>
-          <Tag
-            color="gold"
-            style={{ visibility: appliedModified ? "visible" : "hidden" }}
-          >
+          <Tag style={{ visibility: appliedModified ? "visible" : "hidden" }}>
             Modified from default
           </Tag>
         </div>
