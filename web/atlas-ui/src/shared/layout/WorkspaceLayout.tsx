@@ -1,6 +1,6 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button, Drawer, Space } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import { PaneFrame, ResizablePaneGroup } from "./PaneLayout";
 import type { ResizablePaneItem } from "./PaneLayout";
@@ -53,6 +53,7 @@ export function WorkspaceLayout({
 }: WorkspaceLayoutProps) {
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterLauncher = useRef<React.ElementRef<typeof Button>>(null);
   const [resultsForRecord, setResultsForRecord] = useState<string | null>(null);
   useEffect(() => {
     if (!responsiveSearch) return;
@@ -119,6 +120,7 @@ export function WorkspaceLayout({
             content: (
               <WorkspacePane
                 collapsed={effectiveCollapsed.filter}
+                pane="filter"
                 headerActions={filterHeaderActions}
                 label={paneLabels.filter}
                 onToggle={() => togglePane("filter")}
@@ -144,6 +146,7 @@ export function WorkspaceLayout({
             content: (
               <WorkspacePane
                 collapsed={effectiveCollapsed.results}
+                pane="results"
                 headerActions={resultsHeaderActions}
                 label={paneLabels.results}
                 onToggle={() => togglePane("results")}
@@ -170,6 +173,7 @@ export function WorkspaceLayout({
               content: (
                 <WorkspacePane
                   collapsed={effectiveCollapsed.detail}
+                  pane="detail"
                   headerActions={detailHeaderActions}
                   label={paneLabels.detail}
                   onToggle={() => togglePane("detail")}
@@ -204,7 +208,7 @@ export function WorkspaceLayout({
         <div className="search-workspace__toolbar">
           {searchControls}
           <Space wrap>
-            <Button onClick={() => setFiltersOpen(true)}>
+            <Button ref={filterLauncher} onClick={() => setFiltersOpen(true)}>
               {activeFilterCount ? `Filters (${activeFilterCount})` : "Filters"}
             </Button>
             {narrow && selectedRecordKey ? (
@@ -220,6 +224,9 @@ export function WorkspaceLayout({
         </div>
       ) : null}
       <Drawer
+        afterOpenChange={(open) => {
+          if (!open) filterLauncher.current?.focus();
+        }}
         title="Search filters"
         open={compact && filtersOpen}
         onClose={() => setFiltersOpen(false)}
@@ -267,12 +274,14 @@ function twoPaneResultsColumn(collapsed: Record<PaneKey, boolean>): string {
 }
 
 function WorkspacePane({
+  pane,
   children,
   collapsed,
   headerActions,
   label,
   onToggle,
 }: {
+  pane: PaneKey;
   children: React.ReactNode;
   collapsed: boolean;
   headerActions?: React.ReactNode;
@@ -281,9 +290,7 @@ function WorkspacePane({
 }) {
   return (
     <PaneFrame
-      className={
-        collapsed ? "workspace-pane workspace-pane--collapsed" : "workspace-pane"
-      }
+      className={`workspace-pane workspace-pane--${pane}${collapsed ? " workspace-pane--collapsed" : ""}`}
       headerActions={
         <>
           {!collapsed && headerActions}

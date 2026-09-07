@@ -110,10 +110,10 @@
     display: flex;
     flex-direction: column;
   }
-  .workspace-grid--detail > :first-child {
+  .workspace-grid--detail > .workspace-pane--results {
     display: none;
   }
-  .workspace-grid--results > :last-child {
+  .workspace-grid--results > .workspace-pane--detail {
     display: none;
   }
   .search-workspace__toolbar {
