@@ -305,6 +305,8 @@ it.each([1440, 1024, 390])(
         <Harness />
       </QueryClientProvider>,
     );
+    expect(document.querySelector(".workspace-pane--results")).not.toBeNull();
+    expect(document.querySelector(".workspace-pane--detail")).toBeNull();
     if (width <= 1100) {
       expect(
         screen.queryByText("Records that reference: Heal"),
@@ -315,6 +317,14 @@ it.each([1440, 1024, 390])(
     expect(chip).toBeVisible();
     expect(chip.closest(".filter-panel")).not.toBeNull();
     expect(chip.closest(".search-workspace__toolbar")).toBeNull();
+    if (width <= 1100) {
+      const drawer = screen.getByRole("dialog").closest(".ant-drawer")!;
+      fireEvent.keyDown(drawer, { key: "Escape", keyCode: 27 });
+      const launcher = screen.getByRole("button", { name: "Filters (1)" });
+      await waitFor(() => expect(launcher).toHaveFocus());
+      expect(location.search).toContain("reference-record");
+      fireEvent.click(launcher);
+    }
     const remove = screen.getByRole("button", {
       name: "Remove relationship filter for Heal",
     });
