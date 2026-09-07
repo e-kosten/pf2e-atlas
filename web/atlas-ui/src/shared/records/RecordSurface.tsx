@@ -1,4 +1,4 @@
-import { Alert, Typography } from "antd";
+import { Alert, Tag } from "antd";
 import { memo } from "react";
 import type {
   EncounterSpellCastRequest,
@@ -67,9 +67,7 @@ export const RecordSurface = memo(function RecordSurface({
       >
         <RecordHeader metadata={surface.metadata} showTitle={showTitle} />
         {compact ? (
-          <Typography.Text type="secondary">
-            Detailed view not yet available.
-          </Typography.Text>
+          <Tag>Summary only</Tag>
         ) : (
           <Alert
             description="Search for another record or follow a linked reference."

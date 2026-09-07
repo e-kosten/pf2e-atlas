@@ -3,3 +3,7 @@ Exact unmodified source records from pinned PF2e4cbdaa37d6c33e9519561bae2c59a23e
 - `packs/pfs-season-4-bestiary/4-09/fireball-rune.json`: id `Rq4b1pFU36QDkW7c`, SHA256 `3863ce1da0f93fe8cfdf420ec76ebbe316b2f6a1f89f4a90c1642fc6bfef6c99`
 - `packs/hazards/hidden-pit.json`: id `BHq5wpQU8hQEke8D`, SHA256 `645d9d31313903e6afa81eb7191a4e011cf5bd74c17304c4f190275a5e1359c3`
 - `packs/spells/dispel-magic.json`: exact pinned `packs/spells/2nd-rank/dispel-magic.json` reference target, SHA256 `763000d838be11bcb5ab0beafd5f681ea391868711e01246e34daaf504a3488f`
+
+- `packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json`: exact pinned source for record-surface Damage policy, SHA256 `6560ba176f07c15d490b0c8eef5308d890c07150eb53dd4900524a4f903b600e`.
+
+- `packs/age-of-ashes-bestiary/book-3-tomorrow-must-burn/tree-of-dreadful-dreams.json`: exact pinned source for record-surface Damage policy, SHA256 `1d67476b2ed2bb93ba732c7fe06f2c4b4a5b58b96c87a9cf771cd82d05a02f61`.

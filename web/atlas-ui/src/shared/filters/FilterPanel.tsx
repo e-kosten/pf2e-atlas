@@ -47,6 +47,7 @@ import {
   type FilterSelectOption,
   type FilterPanelState,
 } from "./filterControls";
+import { ReferenceFilterChip } from "./ReferenceFilterChip";
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
 
 export function FilterPanel({ workspace }: { workspace: SearchWorkspaceState }) {
@@ -108,6 +109,33 @@ export function FilterControls({
                 />
               </Tooltip>
             </div>
+          </Form.Item>
+        ) : null}
+        {search.relationship || search.relationshipInvalid ? (
+          <Form.Item label="Relationship">
+            {search.relationshipInvalid ? (
+              <Tag color="error">
+                Invalid reference filter
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() =>
+                    setSearch({
+                      ...search,
+                      relationship: undefined,
+                      relationshipInvalid: undefined,
+                    })
+                  }
+                >
+                  Remove reference filter
+                </Button>
+              </Tag>
+            ) : search.relationship ? (
+              <ReferenceFilterChip
+                relationship={search.relationship}
+                onRemove={() => setSearch({ ...search, relationship: undefined })}
+              />
+            ) : null}
           </Form.Item>
         ) : null}
         <Collapse

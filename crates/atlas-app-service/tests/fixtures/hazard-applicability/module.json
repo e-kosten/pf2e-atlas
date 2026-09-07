@@ -17,6 +17,18 @@
       "label": "Spells",
       "type": "Item",
       "path": "packs/spells"
+    },
+    {
+      "name": "agents-of-edgewatch-bestiary",
+      "label": "Edgewatch",
+      "type": "Actor",
+      "path": "packs/agents-of-edgewatch-bestiary"
+    },
+    {
+      "name": "age-of-ashes-bestiary",
+      "label": "Age of Ashes",
+      "type": "Actor",
+      "path": "packs/age-of-ashes-bestiary"
     }
   ]
 }

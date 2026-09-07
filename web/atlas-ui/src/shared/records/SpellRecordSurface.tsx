@@ -184,21 +184,27 @@ export function SpellSearchCompactSurface({
 
 function CastingSection({
   traditions,
+  ritual,
   value,
 }: {
   traditions?: SpellFactView<string[]>;
+  ritual: SpellFactView<SpellRitualView>;
   value: SpellFactView<SpellCastingView>;
 }) {
   const casting = meaningfulKnown(value);
-  if (!casting) return null;
   const items = [
-    casting.action_cost
+    casting?.action_cost
       ? item("time", "Cast", <ActionGlyph cost={casting.action_cost} />)
-      : factItem("time", "Cast", casting.time),
-    factItem("cost", "Cost", casting.cost),
-    factItem("requirements", "Requirements", casting.requirements),
-    factItem("counteraction", "Counteraction", casting.counteraction, formatBoolean),
+      : casting
+        ? factItem("time", "Cast", casting.time)
+        : null,
+    casting ? factItem("cost", "Cost", casting.cost) : null,
+    casting ? factItem("requirements", "Requirements", casting.requirements) : null,
+    casting
+      ? factItem("counteraction", "Counteraction", casting.counteraction, formatBoolean)
+      : null,
     traditions ? factItem("traditions", "Traditions", traditions, formatList) : null,
+    ...ritualFactItems(ritual),
   ].filter((entry): entry is RecordKeyValueItem => entry !== null);
   if (!items.length) return null;
   return (
@@ -230,9 +236,17 @@ function RangeAndTargetsSection({
   const items = [
     targetingValue ? factItem("target", "Targets", targetingValue.target) : null,
     range?.authored_text.trim()
-      ? item("range", "Range", range.authored_text.trim())
+      ? {
+          ...item("range", "Range", range.authored_text.trim()),
+          rowClassName: "spell-sheet__primary-fact",
+        }
       : null,
-    areaText(area) ? item("area", "Area", areaText(area)) : null,
+    areaText(area)
+      ? {
+          ...item("area", "Area", areaText(area)),
+          rowClassName: "spell-sheet__primary-fact",
+        }
+      : null,
     defenseValue ? factItem("passive", "Defense", defenseValue.passive) : null,
     saveStatistic
       ? item(
@@ -425,6 +439,7 @@ function FormsSection({
 }) {
   const initialForm = catalog.forms.find((form) => form.id === body.effective_form.id);
   const [draftFormId, setDraftFormId] = useState<string | undefined>(initialForm?.id);
+  const [rankNotice, setRankNotice] = useState("");
   const [draftRank, setDraftRank] = useState<number | null>(
     body.effective_form.cast_rank,
   );
@@ -468,7 +483,10 @@ function FormsSection({
     (body.effective_form.id === selection.formId &&
       body.effective_form.cast_rank === selection.castRank);
   return (
-    <section className="spell-sheet__form-section" aria-label="Form & rank">
+    <section
+      className={`spell-sheet__form-section${catalog.forms.length === 1 ? " spell-sheet__form-section--static" : ""}`}
+      aria-label="Form & rank"
+    >
       <div
         aria-busy={loading}
         aria-label="Resolve spell form"
@@ -491,7 +509,17 @@ function FormsSection({
               onChange={(formId) => {
                 setDraftFormId(formId);
                 const form = catalog.forms.find((candidate) => candidate.id === formId);
-                if (form) setDraftRank(form.minimum_cast_rank);
+                if (
+                  form &&
+                  (draftRank === null ||
+                    draftRank < form.minimum_cast_rank ||
+                    draftRank > 255)
+                ) {
+                  setDraftRank(form.minimum_cast_rank);
+                  setRankNotice(
+                    `Cast rank reset to ${form.minimum_cast_rank}, the minimum for this form.`,
+                  );
+                } else setRankNotice("");
               }}
               options={catalog.forms.map((form) => ({
                 label: form.label,
@@ -510,7 +538,10 @@ function FormsSection({
               aria-label="Cast rank"
               max={255}
               min={draftForm?.minimum_cast_rank ?? 0}
-              onChange={(rank) => setDraftRank(rank)}
+              onChange={(rank) => {
+                setDraftRank(rank);
+                setRankNotice("");
+              }}
               placeholder="Rank"
               precision={0}
               value={draftRank}
@@ -532,6 +563,7 @@ function FormsSection({
             disabled={!canReset}
             onClick={() => {
               if (defaultForm) {
+                setRankNotice("");
                 setDraftFormId(defaultForm.id);
                 setDraftRank(defaultForm.minimum_cast_rank);
                 onSelectionChange({
@@ -569,7 +601,7 @@ function FormsSection({
                 ? `${requested ?? "The selected form"} is unavailable.`
                 : !matchesRequest
                   ? "The returned result did not match the requested form and rank."
-                  : null}
+                  : rankNotice || null}
         </Typography.Text>
       </div>
     </section>
@@ -599,7 +631,11 @@ function ResolvedDefinition({
   const rules = availableFact(definition.rules);
   return (
     <section aria-label="Spell mechanics" className="spell-sheet__resolved-definition">
-      <CastingSection value={casting} traditions={traditions} />
+      <CastingSection
+        value={casting}
+        traditions={traditions}
+        ritual={definition.ritual}
+      />
       <RangeAndTargetsSection
         defense={defense}
         duration={duration}
@@ -610,7 +646,7 @@ function ResolvedDefinition({
         appliedFixedRanks={definition.applied_fixed_ranks}
         value={heightening}
       />
-      <SecondaryMechanics ritual={definition.ritual} rules={rules} />
+      <SecondaryMechanics rules={rules} />
     </section>
   );
 }
@@ -619,25 +655,9 @@ function availableFact<T>(value: SpellResolvedFieldView<T>): SpellFactView<T> {
   return value.state === "available" ? value.value : { state: "missing" };
 }
 
-function SecondaryMechanics({
-  ritual,
-  rules,
-}: {
-  ritual: SpellFactView<SpellRitualView>;
-  rules: SpellFactView<SpellRuleView[]>;
-}) {
-  const ritualItems = ritualFactItems(ritual);
+function SecondaryMechanics({ rules }: { rules: SpellFactView<SpellRuleView[]> }) {
   const ruleValues = meaningfulKnown(rules);
   const items = [
-    ritualItems.length
-      ? {
-          key: "ritual",
-          label: "Ritual requirements",
-          children: (
-            <RecordKeyValueList ariaLabel="Ritual checks" items={ritualItems} />
-          ),
-        }
-      : null,
     ruleValues
       ? {
           key: "rules",

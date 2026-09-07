@@ -45,7 +45,7 @@ use atlas_record::{
     CreatureRoll, CreatureRollKind, CreatureSize, CreatureSourceScalar, CreatureSpellPreparation,
     CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue, PresentationContent,
     PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord, SenseAcuity,
-    format_creature_frequency, place_creature_content_for_families, project_presentation_content,
+    format_creature_frequency, place_creature_content_for_families, project_record_surface_content,
     render_plain_text,
 };
 
@@ -3345,7 +3345,7 @@ fn content(
 pub(crate) fn content_view(
     document: &atlas_record::OwnedRichContentDocument,
 ) -> Option<CreatureSurfaceContentView> {
-    let blocks = project_content(project_presentation_content(&document.document));
+    let blocks = project_content(project_record_surface_content(&document.document));
     (!blocks.is_empty()).then(|| CreatureSurfaceContentView {
         content_key: document.id.content_key.as_str().to_string(),
         role: content_role(document.role),
@@ -4450,6 +4450,141 @@ mod tests {
                     FactValue::Missing
                 ));
             }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn source_backed_hazard_damage_surface_keeps_canonical_and_search_inputs_unchanged()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let artifact = TemporarySpellSurfaceArtifact::new()?;
+        build_artifact(BuildArtifactOptions {
+            source_root: Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/hazard-applicability"),
+            output_path: artifact.artifact.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: false,
+            embedding_batch_size: 8,
+        })?;
+        let retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+            SqliteIndexReader::open_read_only(&artifact.artifact)?,
+        );
+        for (key, natural) in [
+            ("hazards:BHq5wpQU8hQEke8D", "10 bludgeoning"),
+            (
+                "agents-of-edgewatch-bestiary:u1cuwAE3xzhYW4Mi",
+                "5d6 poison",
+            ),
+            (
+                "age-of-ashes-bestiary:HbgvZUYFJd2VfwmQ",
+                "(1d10+12) bludgeoning",
+            ),
+        ] {
+            let key = RecordKey::parse(key)?;
+            let record = retrieval
+                .get_record(GetRecordRequest { record_key: &key })?
+                .expect("hazard");
+            let Some(RecordBody::Hazard(hazard)) = record.body.as_ref() else {
+                panic!("hazard")
+            };
+            let before = hazard.clone();
+            let semantic_inputs = || {
+                let fts = atlas_record::build_search_fts_projection(
+                    &record.record,
+                    &[],
+                    record.body.as_ref(),
+                );
+                let search = atlas_record::build_search_presentation_document_with_content_filter(
+                    &record.record,
+                    record.body.as_ref(),
+                    |_| false,
+                );
+                let embedding =
+                    atlas_embedding::render_presentation_document_for_embedding(&search);
+                let hash = atlas_embedding::hash_document_embedding_input(&embedding);
+                let units = atlas_embedding::build_document_embedding_units(&[
+                    atlas_embedding::DocumentEmbeddingSource {
+                        record_key: key.to_string(),
+                        record_name: record.record.identity.name.clone(),
+                        document: search.clone(),
+                        aliases: Vec::new(),
+                        content_documents: hazard
+                            .content
+                            .documents
+                            .iter()
+                            .filter(|doc| {
+                                matches!(
+                                    doc.duplicate_status,
+                                    atlas_record::DuplicateContentStatus::Unique
+                                )
+                            })
+                            .map(|doc| atlas_embedding::DocumentEmbeddingContentSource {
+                                source_kind: doc.source_kind,
+                                label: doc.label.clone(),
+                                document: doc.document.clone(),
+                            })
+                            .collect(),
+                    },
+                ]);
+                (fts, search, embedding, hash, units)
+            };
+            let semantic_before = semantic_inputs();
+            let inputs = hazard
+                .content
+                .documents
+                .iter()
+                .map(|doc| {
+                    (
+                        atlas_record::ContentHash::for_document(&doc.document),
+                        atlas_record::render_plain_text(&doc.document),
+                        atlas_record::project_presentation_content(&doc.document),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let view = crate::hazard_surface::hazard_surface(
+                hazard,
+                RecordSurfaceProfileView::RecordDetail,
+                None,
+            );
+            let serialized = serde_json::to_string(&view)?;
+            assert!(serialized.contains(natural), "{key}: missing {natural}");
+            assert!(!serialized.contains("damage damage"));
+            assert_eq!(*hazard, before);
+            let after = hazard
+                .content
+                .documents
+                .iter()
+                .map(|doc| {
+                    (
+                        atlas_record::ContentHash::for_document(&doc.document),
+                        atlas_record::render_plain_text(&doc.document),
+                        atlas_record::project_presentation_content(&doc.document),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(inputs, after);
+            assert_eq!(semantic_before, semantic_inputs());
+            assert!(
+                semantic_before.0.body.contains("[bludgeoning]")
+                    || semantic_before.0.embedded_content.contains("[bludgeoning]")
+                    || semantic_before.0.embedded_content.contains("[poison]")
+            );
+            assert!(
+                semantic_before
+                    .4
+                    .iter()
+                    .any(|unit| unit.input_text.contains("[bludgeoning]")
+                        || unit.input_text.contains("[poison]"))
+            );
+            assert!(
+                inputs
+                    .iter()
+                    .any(|(_, plain, _)| plain.contains("[bludgeoning]")
+                        || plain.contains("[poison]")),
+                "default text still has authored formula"
+            );
         }
         Ok(())
     }

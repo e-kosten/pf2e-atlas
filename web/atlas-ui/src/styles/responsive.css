@@ -32,8 +32,27 @@
   }
 
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 8px;
+    padding: 10px;
+  }
+
+  .topbar__identity p {
+    font-size: 11px;
+  }
+  .topbar__actions {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 4px;
+  }
+  .topbar__nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    width: 100%;
+    line-height: 36px;
   }
 
   .topbar__actions {

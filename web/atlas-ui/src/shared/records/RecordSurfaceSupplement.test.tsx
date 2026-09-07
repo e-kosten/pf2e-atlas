@@ -166,3 +166,54 @@ it.each(["backlinks", "outgoing"] as const)(
     expect(params.has("q")).toBe(false);
   },
 );
+
+it.each(["outgoing", "backlinks"] as const)(
+  "renders %s linked names once without repeated edge targets",
+  (direction) => {
+    const record = {
+      record_key: "spells:linked",
+      title: "Linked spell",
+      kind: "spell",
+    };
+    const section: References["outgoing"] = {
+      state: "available",
+      requested_limit: 8,
+      records: [record],
+      edges: [
+        {
+          from_record_key: direction === "outgoing" ? "spells:seed" : record.record_key,
+          to_record_key: direction === "outgoing" ? record.record_key : "spells:seed",
+          display_text: "Repeated target",
+          reference_text: "Repeated target",
+          source: {
+            kind: "description",
+            visibility: "public",
+            relation_kind: "reference",
+          },
+        },
+      ],
+      total_records: 1,
+      total_edges: 1,
+      truncated: false,
+    };
+    const empty: References["outgoing"] = {
+      state: "available",
+      requested_limit: 8,
+      records: [],
+      edges: [],
+      total_records: 0,
+      total_edges: 0,
+      truncated: false,
+    };
+    render(
+      <RecordSurfaceReferences
+        onReference={vi.fn()}
+        references={{ outgoing: empty, backlinks: empty, [direction]: section }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "References" }));
+    expect(screen.getAllByText("Linked spell")).toHaveLength(1);
+    expect(screen.queryByText("Repeated target")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Showing 0 of/)).not.toBeInTheDocument();
+  },
+);

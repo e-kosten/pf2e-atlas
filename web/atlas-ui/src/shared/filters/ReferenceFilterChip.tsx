@@ -21,11 +21,14 @@ export function ReferenceFilterChip({
         : "Record not found";
   return (
     <Tag>
-      {relationship.direction === "incoming" ? "References" : "Referenced by"}: {label}
+      {relationship.direction === "incoming"
+        ? "Records that reference"
+        : "Records referenced by"}
+      : {label}
       <Button
         type="text"
         size="small"
-        aria-label="Remove reference filter"
+        aria-label={`Remove relationship filter for ${label}`}
         icon={<CloseOutlined />}
         onClick={onRemove}
       />

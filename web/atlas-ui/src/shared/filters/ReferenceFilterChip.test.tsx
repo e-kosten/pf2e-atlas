@@ -19,14 +19,18 @@ it("uses the exact server record label and offers an accessible removal", async 
       />
     </QueryClientProvider>,
   );
-  expect(await screen.findByText("References: Fireball")).toBeInTheDocument();
+  expect(
+    await screen.findByText("Records that reference: Fireball"),
+  ).toBeInTheDocument();
   expect(getRecordDetail).toHaveBeenCalledWith(
     "spells:seed",
     undefined,
     expect.any(AbortSignal),
   );
   expect(screen.queryByText(/spells:seed/)).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Remove reference filter" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Remove relationship filter for Fireball" }),
+  );
   expect(remove).toHaveBeenCalledOnce();
 });
 
@@ -45,7 +49,7 @@ it("does not attribute a mismatched response label or expose a missing raw key",
     </QueryClientProvider>,
   );
   expect(
-    await screen.findByText("Referenced by: Record not found"),
+    await screen.findByText("Records referenced by: Record not found"),
   ).toBeInTheDocument();
   expect(screen.queryByText(/Wrong label|spells:missing/)).not.toBeInTheDocument();
 });

@@ -291,7 +291,7 @@ it("shows typed missing-record recovery once without record actions or raw ident
 });
 
 it.each([1440, 1024, 390])(
-  "keeps the exact reference filter visible and removable at %ipx",
+  "owns the exact relationship in the filter pane or drawer at %ipx",
   async (width) => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
     history.replaceState(
@@ -305,12 +305,25 @@ it.each([1440, 1024, 390])(
         <Harness />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText("References: Heal")).toBeVisible();
-    const remove = screen.getByRole("button", { name: "Remove reference filter" });
+    if (width <= 1100) {
+      expect(
+        screen.queryByText("Records that reference: Heal"),
+      ).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Filters (1)" }));
+    }
+    const chip = await screen.findByText("Records that reference: Heal");
+    expect(chip).toBeVisible();
+    expect(chip.closest(".filter-panel")).not.toBeNull();
+    expect(chip.closest(".search-workspace__toolbar")).toBeNull();
+    const remove = screen.getByRole("button", {
+      name: "Remove relationship filter for Heal",
+    });
     expect(remove).toBeVisible();
     fireEvent.click(remove);
     await waitFor(() =>
-      expect(screen.queryByText("References: Heal")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByText("Records that reference: Heal"),
+      ).not.toBeInTheDocument(),
     );
     expect(location.search).not.toContain("reference-record");
   },

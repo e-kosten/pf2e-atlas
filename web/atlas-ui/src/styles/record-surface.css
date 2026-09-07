@@ -1258,3 +1258,42 @@
     grid-template-columns: 80px 80px 80px;
   }
 }
+
+.spell-sheet__form-section--static {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+}
+.spell-sheet__form-section--static .spell-sheet__form-controls {
+  grid-template-columns: max-content 240px;
+}
+.spell-sheet__primary-fact dd {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.spell-sheet__member-list .record-key-value-list {
+  font-size: 0.85rem;
+}
+.record-surface-references__empty {
+  color: var(--muted);
+  margin-block: 4px;
+}
+@container (max-width: 650px) {
+  .spell-sheet__heading {
+    gap: 8px;
+  }
+  .spell-sheet__resolved-definition {
+    gap: 14px;
+  }
+  .spell-sheet__form-section--static {
+    flex-basis: auto;
+  }
+}
+
+.record-surface-references__directions:has(> .record-surface-references__empty) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.filter-panel .ant-tag {
+  white-space: normal;
+}

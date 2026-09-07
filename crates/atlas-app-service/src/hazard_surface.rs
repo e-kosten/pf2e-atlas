@@ -18,7 +18,7 @@ use atlas_record::{
     HazardRuleType, HazardSaveKind, HazardSize, HazardSourceMetadataFact, HazardSourceValue,
     HazardUnsupportedField, PublicationLicense, RichDocument, project_hazard_attack_effects,
     project_hazard_attack_mode, project_hazard_conveniences, project_hazard_source_metadata,
-    project_hazard_strike_action_cost, project_presentation_content,
+    project_hazard_strike_action_cost, project_record_surface_content,
 };
 
 pub(crate) fn hazard_surface(
@@ -1175,7 +1175,7 @@ fn lifecycle_document(
     // authored link state; no resolved identity is manufactured.
     let document = document.map_or(authored, |document| &document.document);
     non_empty(crate::surface::project_content(
-        project_presentation_content(document),
+        project_record_surface_content(document),
     ))
 }
 
@@ -1186,7 +1186,7 @@ fn rich_document(
     unavailable: &mut Vec<HazardSurfaceUnavailableView>,
 ) -> Option<Vec<atlas_app_model::CreatureSurfaceContentBlockView>> {
     typed_fact(fact, field, component_id, unavailable)
-        .map(project_presentation_content)
+        .map(project_record_surface_content)
         .map(crate::surface::project_content)
         .and_then(non_empty)
 }
@@ -1280,9 +1280,10 @@ fn push_unsupported_fields(
             fact_id: Some(format!("unsupported:{}:{ordinal}", component_id.unwrap_or("record"))),
             state: HazardSurfaceUnavailableStateView::Unsupported,
             field: field.to_string(), component_id: component_id.map(str::to_string),
-            message: if matches!(unsupported.field, HazardUnsupportedField::UnsupportedChildField(_)) {
-                "Consumable inventory and equipment mechanics are not supported; the authored content remains readable."
-            } else { "This authored hazard fact is retained but not supported on this surface." }.to_string(),
+            message: format!("{} {} contains {} that is not modeled as gameplay on this surface. Its authored content remains readable; the exact value and source location are retained in provenance.",
+                if matches!(unsupported.field, HazardUnsupportedField::UnsupportedChildField(_)) { "Content-only component fact" } else { "Additional authored fact" },
+                ordinal + 1,
+                crate::record_policy::hazard_source_shape_label(unsupported.value.actual_shape)),
         });
     }
 }
@@ -1442,6 +1443,47 @@ mod tests {
             .expect("view");
         assert_eq!(view.applicability.structure, Applicable);
         assert_eq!((view.armor_class, view.hardness), (Some(0), Some(0)));
+    }
+
+    #[test]
+    fn auxiliary_attack_issue_does_not_discredit_the_gameplay_bonus() {
+        let mut hazard = source_metadata_fixture(false);
+        let entity = &mut embedded_mut(&mut hazard).entities[0];
+        let owner = HazardUnsupportedOwner::Entity(entity.id.clone());
+        let HazardCapability::Strike(strike) = &mut entity.capability else {
+            panic!("strike")
+        };
+        strike.bonus = typed(14, "/items/0/system/bonus/value");
+        strike.source_metadata.attack = malformed("/items/0/system/attack/value", "\"\"", owner);
+        let FactValue::Value(HazardSourceValue::Unsupported(value)) =
+            &mut strike.source_metadata.attack.value
+        else {
+            panic!("unsupported")
+        };
+        value.actual_shape = HazardSourceShape::String;
+        value.expected_shape = HazardExpectedShape::Integer;
+        let surface = record_surface_for(hazard);
+        let issue = surface
+            .issues
+            .as_ref()
+            .expect("issues")
+            .iter()
+            .find(|issue| issue.fact_label.as_deref() == Some("Strike source attack"))
+            .expect("attack issue");
+        assert!(issue.message.contains("text where an integer is expected"));
+        assert!(
+            issue
+                .message
+                .contains("does not supply the displayed attack bonus")
+        );
+        let atlas_app_model::RecordSurfacePresentationView::Hazard { body } = surface.presentation
+        else {
+            panic!("hazard")
+        };
+        assert_eq!(
+            body.activities.expect("activities")[0].attack_bonus,
+            Some(14)
+        );
     }
 
     #[test]
