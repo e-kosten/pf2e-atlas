@@ -38,6 +38,8 @@ Interactive search exposes a bounded optional relationship constraint through `B
 
 Hazard structural applicability is a computed `atlas-record` presentation policy, separate from the stored `HazardRecord`, source `hasHealth`, and search/embedding projections. App defenses expose health and structural applicability states plus the rule identity. Only known zero HP maximum together with known zero AC proves structural inapplicability; positive maximum or supported nonzero AC proves applicability, and incomplete/invalid inputs remain unknown. Ordinary UI omits only the proven-inapplicable AC/HP/hardness/BT statistics, preserving saves (including zero), IWR and authored HP notes. No applicability state is written into the artifact.
 
+Hazard lifecycle app spans use the canonical record-owned content document for the exact lifecycle field, where ingest has already resolved reference identities. Typed lifecycle fact availability still governs omission and issues; absent owned content preserves only the authored link state. The projection never resolves links through graph joins or display text, and does not alter graph inclusion or persisted content.
+
 ## Checkpoint B Source-Faithful Target
 
 The source-faithful record contract in [ADRs 0033-0036](./decisions/README.md) was approved at Checkpoint B. Implementation remains dependency-ordered: authorization of the exact contract does not pre-approve later family work or allow one slice to edit another owner's paths.

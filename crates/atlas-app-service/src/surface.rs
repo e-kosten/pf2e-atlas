@@ -4413,6 +4413,17 @@ mod tests {
                 RecordSurfaceProfileView::RecordDetail,
                 None,
             );
+            if key.to_string() == "pfs-season-4-bestiary:Rq4b1pFU36QDkW7c" {
+                let disable =
+                    serde_json::to_value(&view.lifecycle.as_ref().expect("lifecycle").disable)?;
+                let text = disable.to_string();
+                assert!(
+                    text.contains("spells-srd:9HpwDN4MYQJnW0LG"),
+                    "resolved Disable link: {text}"
+                );
+                assert!(text.contains("Dispel Magic"));
+                assert!(text.contains("counteract DC 20"));
+            }
             let defenses = view.defenses.expect("defenses");
             assert_eq!(defenses.applicability.structure, expected);
             if expected == atlas_app_model::HazardSurfaceApplicabilityStateView::Inapplicable {

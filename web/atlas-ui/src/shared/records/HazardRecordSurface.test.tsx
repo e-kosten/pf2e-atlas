@@ -59,6 +59,33 @@ describe("HazardRecordSurface", () => {
 
   beforeEach(() => vi.clearAllMocks());
 
+  it("routes a resolved Disable reference to its exact record", () => {
+    const surface = hazardSurface("record_detail");
+    hazardBody(surface).lifecycle = {
+      disable: [
+        {
+          block_type: "paragraph",
+          spans: [
+            {
+              span_type: "reference",
+              label: "Dispel Magic",
+              record_key: "spells-srd:9HpwDN4MYQJnW0LG",
+              embedded: false,
+            },
+            {
+              span_type: "text",
+              text: " (3rd rank; counteract DC 20) to counteract the rune.",
+            },
+          ],
+        },
+      ],
+    };
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+    fireEvent.click(screen.getByRole("link", { name: "Dispel Magic" }));
+    expect(onReference).toHaveBeenCalledWith("spells-srd:9HpwDN4MYQJnW0LG");
+    expect(screen.getByText(/counteract DC 20/)).toBeInTheDocument();
+  });
+
   it("groups authored detection qualifiers with their DC without changing Disable", () => {
     const surface = hazardSurface("record_detail");
     const body = hazardBody(surface);
