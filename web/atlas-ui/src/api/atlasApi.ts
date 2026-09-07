@@ -83,9 +83,11 @@ export async function discoverFilterValues(
 
 export async function openResultWindow(
   request: OpenResultWindowRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>("/api/result-windows", {
     method: "POST",
+    signal,
     body: jsonBody(request),
   });
   return normalizeResultWindowPage(page);
@@ -94,11 +96,13 @@ export async function openResultWindow(
 export async function readResultWindowPage(
   windowId: bigint,
   request: ReadResultWindowPageRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>(
     `/api/result-windows/${windowId.toString()}/page`,
     {
       method: "POST",
+      signal,
       body: jsonBody(request),
     },
   );

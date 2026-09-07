@@ -71,6 +71,7 @@ export function HazardDetailSurface({
       <HazardGeneralContent body={body} onReference={onReference} />
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
+        recordKey={metadata.record_key}
         loading={referencesLoading}
         onDisclosureOpen={onReferencesOpen}
         onRequestLimit={onReferenceLimit}
@@ -236,7 +237,6 @@ function HazardOverview({
       body.complexity && formatSlug(body.complexity),
     ),
     textItem("size", "Size", body.size && formatSlug(body.size)),
-    textItem("sound", "Detectable by hearing", formatEmitsSound(body)),
   ].filter((item): item is RecordKeyValueItem => item !== null);
   const description = body.lifecycle?.description;
   if (!facts.length && !description?.length) return null;
@@ -261,11 +261,29 @@ function HazardDetectionAndDisable({
   body: HazardSurfaceView;
   onReference: ReferenceHandler;
 }) {
-  const facts = [
-    numberItem("stealth", "Stealth", body.detection?.stealth_modifier, true),
-    numberItem("detection", "Detection DC", body.detection?.difficulty_class),
-  ].filter((item): item is RecordKeyValueItem => item !== null);
   const detectionDetails = body.detection?.details;
+  const detectionDc = body.detection?.difficulty_class;
+  const facts = [
+    detectionDc !== undefined
+      ? {
+          key: "detection",
+          label: "Detection DC",
+          value: (
+            <div className="hazard-sheet__detection-value">
+              <span>{detectionDc}</span>
+              {detectionDetails?.length ? (
+                <RichBlocks
+                  blocks={detectionDetails}
+                  keyPrefix="hazard-detection"
+                  onReference={onReference}
+                />
+              ) : null}
+            </div>
+          ),
+        }
+      : null,
+    numberItem("stealth", "Stealth", body.detection?.stealth_modifier, true),
+  ].filter((item): item is RecordKeyValueItem => item !== null);
   const disable = body.lifecycle?.disable;
   if (!facts.length && !detectionDetails?.length && !disable?.length) return null;
   return (
@@ -273,11 +291,14 @@ function HazardDetectionAndDisable({
       {facts.length ? (
         <RecordKeyValueList ariaLabel="Hazard detection" items={facts} />
       ) : null}
-      <LifecycleBlock
-        blocks={detectionDetails}
-        keyPrefix="hazard-detection"
-        onReference={onReference}
-      />
+      {detectionDc === undefined ? (
+        <LifecycleBlock
+          blocks={detectionDetails}
+          keyPrefix="hazard-detection"
+          onReference={onReference}
+          title="Detection details"
+        />
+      ) : null}
       {disable?.length ? (
         <div className="hazard-sheet__lifecycle-entry">
           <h4>Disable</h4>
@@ -707,6 +728,13 @@ function HazardSourceDisclosure({
     textItem("publication", "Publication", metadata.source?.publication_title),
     textItem("pack", "Source pack", metadata.source?.pack_label),
     license.state === "value" ? textItem("license", "License", license.value) : null,
+    body.emits_sound
+      ? textItem(
+          "foundry-hearing",
+          "Foundry hearing setting",
+          String(body.emits_sound.value),
+        )
+      : null,
     ...metadataFacts,
   ].filter((item): item is RecordKeyValueItem => item !== null);
   if (!sourceFacts.length) return null;
@@ -860,13 +888,4 @@ function hazardAttackEffectLabel(
     case "independent_limbs":
       return "Independent limbs";
   }
-}
-
-function formatEmitsSound(body: HazardSurfaceView): string | undefined {
-  if (!body.emits_sound) return undefined;
-  return body.emits_sound.sound_type === "boolean"
-    ? body.emits_sound.value
-      ? "Always — eligible for hearing detection; other detection conditions still apply."
-      : "Never — not eligible for hearing detection."
-    : "During encounters — eligible for hearing detection while participating in a started encounter. Other detection conditions still apply; this does not describe an audio clip or guarantee discovery.";
 }

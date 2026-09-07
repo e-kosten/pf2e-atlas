@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
-import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
   getReadiness,
   getRecordDetail,
@@ -142,11 +142,14 @@ export function useSearchWorkspace({
     queryFn: getReadiness,
   });
 
-  const resultsQuery = useQuery({
+  const resultsQuery = useQuery<ResultWindowPage>({
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
     enabled: canRunResultSearch,
-    placeholderData: keepPreviousData,
-    queryFn: async () => {
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === activeSearchExecutionToken
+        ? previousData
+        : undefined,
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now();
       if (
         pageNumber === 1 ||
@@ -155,7 +158,9 @@ export function useSearchWorkspace({
         try {
           const page = await openResultWindow(
             buildOpenRequest(activeSearch, pageNumber),
+            signal,
           );
+          if (signal.aborted) throw new DOMException("Request aborted", "AbortError");
           setResultWindow({
             searchExecutionToken: activeSearchExecutionToken,
             windowId: page.window_id,
@@ -170,9 +175,13 @@ export function useSearchWorkspace({
         }
       }
       try {
-        return await readResultWindowPage(resultWindow.windowId, {
-          page: { number: pageNumber, size: activeSearch.pageSize },
-        });
+        return await readResultWindowPage(
+          resultWindow.windowId,
+          {
+            page: { number: pageNumber, size: activeSearch.pageSize },
+          },
+          signal,
+        );
       } finally {
         setLastResultRequest({
           durationMs: elapsedMilliseconds(startedAt),
@@ -190,7 +199,7 @@ export function useSearchWorkspace({
 
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
-    enabled,
+    enabled: enabled && !activeSearch.relationshipInvalid,
     hiddenFieldIds: search.hiddenFilterIds,
     queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
     retainedValueQueryKeyPrefix: ["filter-discovery"],
@@ -232,6 +241,14 @@ export function useSearchWorkspace({
   }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
+    if (
+      JSON.stringify(next.relationship) !== JSON.stringify(search.relationship) ||
+      next.relationshipInvalid !== search.relationshipInvalid
+    ) {
+      dispatch({ type: "url.restored", search: next, selectedRecordKey: null });
+      history.pushState(null, "", `${searchPath(null)}${searchStateQueryString(next)}`);
+      return;
+    }
     dispatch({ type: "search.changed", search: next });
     const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
     history.replaceState(null, "", url);

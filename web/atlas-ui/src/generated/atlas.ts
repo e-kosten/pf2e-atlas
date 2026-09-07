@@ -286,3 +286,5 @@ export type { UpdateEncounterParticipantConditionRequest } from "../../../../cra
 export type { UpdateEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterParticipantRequest";
 export type { UpdateEncounterRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterRequest";
 export type { UpdateSavedListRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListRequest";
+export type { RelationshipConstraint } from "../../../../crates/atlas-app-model/bindings/RelationshipConstraint";
+export type { ReferenceSearchDirection } from "../../../../crates/atlas-app-model/bindings/ReferenceSearchDirection";

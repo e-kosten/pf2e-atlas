@@ -106,7 +106,9 @@ export function RecordSurfaceReferences({
   onRequestLimit,
   onReference,
   references,
+  recordKey,
 }: {
+  recordKey?: string;
   loading?: boolean;
   onDisclosureOpen?: () => void;
   onRequestLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
@@ -131,6 +133,7 @@ export function RecordSurfaceReferences({
           ) : (
             <div className="record-surface-references__directions">
               <ReferenceDirection
+                recordKey={recordKey}
                 direction="outgoing"
                 onRequestLimit={onRequestLimit}
                 onReference={onReference}
@@ -138,6 +141,7 @@ export function RecordSurfaceReferences({
                 title="References"
               />
               <ReferenceDirection
+                recordKey={recordKey}
                 direction="backlinks"
                 onRequestLimit={onRequestLimit}
                 onReference={onReference}
@@ -158,12 +162,14 @@ export function RecordSurfaceReferences({
 }
 
 function ReferenceDirection({
+  recordKey,
   direction,
   onRequestLimit,
   onReference,
   section,
   title,
 }: {
+  recordKey?: string;
   direction: "backlinks" | "outgoing";
   onRequestLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   onReference: (recordKey: string) => void;
@@ -234,15 +240,26 @@ function ReferenceDirection({
       {capped ? (
         <p className="record-surface-references__cap">
           Atlas currently exposes up to {section.requested_limit} linked records.{" "}
-          <Button
-            type="link"
-            onClick={() =>
-              navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
-            }
-          >
-            Search records
-          </Button>
         </p>
+      ) : null}
+      {recordKey && section.total_records > 0 ? (
+        <Button
+          type="link"
+          onClick={() =>
+            navigateToAtlasRoute({
+              kind: "search",
+              selectedRecordKey: null,
+              relationship: {
+                direction: direction === "backlinks" ? "incoming" : "outgoing",
+                record_key: recordKey,
+              },
+            })
+          }
+        >
+          {direction === "backlinks"
+            ? "See all referencing records"
+            : "See all referenced records"}
+        </Button>
       ) : null}
       {direction === "backlinks" && section.records.length ? (
         <p>Records that reference this record.</p>

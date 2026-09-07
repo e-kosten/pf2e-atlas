@@ -1,6 +1,7 @@
-import { Input, Tag } from "antd";
+import { Button, Input, Tag } from "antd";
 import { ExternalLink } from "lucide-react";
 import { AddToListButton } from "../lists/AddToListButton";
+import { ReferenceFilterChip } from "../../shared/filters/ReferenceFilterChip";
 import { FilterPanel } from "../../shared/filters/FilterPanel";
 import { ResultTable } from "./ResultTable";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
@@ -35,6 +36,32 @@ export function SearchView({ workspace }: SearchViewProps) {
               })
             }
           />
+          {workspace.search.relationshipInvalid ? (
+            <Tag color="error">
+              Invalid reference filter
+              <Button
+                type="text"
+                size="small"
+                onClick={() =>
+                  workspace.setSearch({
+                    ...workspace.search,
+                    relationship: undefined,
+                    relationshipInvalid: undefined,
+                  })
+                }
+              >
+                Remove reference filter
+              </Button>
+            </Tag>
+          ) : null}
+          {workspace.search.relationship ? (
+            <ReferenceFilterChip
+              relationship={workspace.search.relationship}
+              onRemove={() =>
+                workspace.setSearch({ ...workspace.search, relationship: undefined })
+              }
+            />
+          ) : null}
           {workspace.search.filterClauses.length ? (
             <Tag>{workspace.search.filterClauses.length} active filters</Tag>
           ) : null}

@@ -484,6 +484,7 @@ mod tests {
         StoredResultWindow {
             mode: ResultWindowMode::ListRecords {
                 filter: Some(BasicSearchFilter {
+                    relationship: None,
                     clauses: Vec::new(),
                 }),
                 sort: atlas_app_model::RecordListSortView::RecordKey,

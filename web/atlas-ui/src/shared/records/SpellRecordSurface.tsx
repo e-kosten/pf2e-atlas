@@ -125,6 +125,7 @@ export function SpellDetailSurface({
       />
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
+        recordKey={metadata.record_key}
         loading={referencesLoading}
         onDisclosureOpen={onReferencesOpen}
         onRequestLimit={onReferenceLimit}

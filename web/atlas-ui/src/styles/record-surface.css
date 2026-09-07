@@ -1214,3 +1214,13 @@
 .spell-sheet__quick-casting .action-glyph {
   margin-inline-end: 6px;
 }
+
+.hazard-sheet__detection-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+.hazard-sheet__detection-value .creature-sheet__rich-content > p {
+  margin: 0;
+}

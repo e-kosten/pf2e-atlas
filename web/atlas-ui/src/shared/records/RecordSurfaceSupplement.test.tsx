@@ -115,3 +115,46 @@ it("keeps large issue groups compact while exposing every retained fact", () => 
   fireEvent.click(screen.getByRole("button", { name: "20 affected facts" }));
   expect(container.querySelectorAll("[data-fact-id]")).toHaveLength(20);
 });
+
+it.each(["backlinks", "outgoing"] as const)(
+  "opens exact %s search beyond the panel cap",
+  (direction) => {
+    history.replaceState(null, "", "/records/spells:seed?q=wrong-name");
+    const section: References["outgoing"] = {
+      state: "available",
+      requested_limit: 50,
+      records: [],
+      edges: [],
+      total_records: 61,
+      total_edges: 122,
+      truncated: true,
+    };
+    render(
+      <RecordSurfaceReferences
+        recordKey="spells:seed"
+        onReference={vi.fn()}
+        references={{
+          outgoing: { state: "not_requested" },
+          backlinks: { state: "not_requested" },
+          [direction]: section,
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "References" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name:
+          direction === "backlinks"
+            ? "See all referencing records"
+            : "See all referenced records",
+      }),
+    );
+    const params = new URLSearchParams(location.search);
+    expect(location.pathname).toBe("/search");
+    expect(params.get("reference-record")).toBe("spells:seed");
+    expect(params.get("reference-direction")).toBe(
+      direction === "backlinks" ? "incoming" : "outgoing",
+    );
+    expect(params.has("q")).toBe(false);
+  },
+);
