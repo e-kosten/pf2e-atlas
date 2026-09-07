@@ -1036,6 +1036,7 @@ mod tests {
                 list_ref: "research".to_string(),
                 query: None,
                 filter: Some(BasicSearchFilter {
+                    relationship: None,
                     clauses: vec![FilterClause {
                         id: "kind-include_any".to_string(),
                         field: "kind".to_string(),

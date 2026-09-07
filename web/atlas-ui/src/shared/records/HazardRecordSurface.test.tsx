@@ -15,6 +15,39 @@ const runtimeProvenance: RuntimeFactProvenanceView = {
 describe("HazardRecordSurface", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("groups authored detection qualifiers with their DC without changing Disable", () => {
+    const surface = hazardSurface("record_detail");
+    const body = hazardBody(surface);
+    body.detection = {
+      difficulty_class: 24,
+      stealth_modifier: 14,
+      details: paragraph("(expert)"),
+    };
+    body.lifecycle = { disable: paragraph("Thievery DC 22 (expert)") };
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+    const detection = screen.getByLabelText("Hazard detection");
+    const dcRow = within(detection)
+      .getByText("Detection DC")
+      .closest(".record-key-value-list__row");
+    expect(dcRow).toHaveTextContent("24(expert)");
+    expect(screen.getByText("Thievery DC 22 (expert)")).toBeInTheDocument();
+    expect(screen.getAllByText("(expert)")).toHaveLength(1);
+  });
+
+  it("keeps the Foundry hearing setting only in explicit provenance", () => {
+    const surface = hazardSurface("record_detail");
+    hazardBody(surface).emits_sound = { sound_type: "named", value: "encounter" };
+    render(<RecordSurface onReference={onReference} surface={surface} />);
+    expect(
+      screen.queryByText(/Detectable by hearing|During encounters/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Foundry hearing setting")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Source & provenance"));
+    expect(screen.getByLabelText("Hazard provenance")).toHaveTextContent(
+      "Foundry hearing settingencounter",
+    );
+  });
+
   it("presents Hidden Pit defenses, graph references, typed issues, and secondary provenance without internal identity", () => {
     const surface = hazardSurface("record_detail");
     const body = hazardBody(surface);

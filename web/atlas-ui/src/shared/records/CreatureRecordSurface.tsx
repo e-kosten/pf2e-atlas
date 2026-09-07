@@ -85,6 +85,7 @@ export function CreatureDetailSurface({
       </div>
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
+        recordKey={metadata.record_key}
         loading={referencesLoading}
         onDisclosureOpen={onReferencesOpen}
         onRequestLimit={onReferenceLimit}

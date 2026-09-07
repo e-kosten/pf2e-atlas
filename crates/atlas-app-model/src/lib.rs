@@ -38,7 +38,8 @@ pub use filter::{
     FilterClauseOperator, FilterControlView, FilterDiscoveryContext, FilterEditorFieldView,
     FilterEditorGroupView, FilterEditorView, FilterFieldApplicability, FilterFieldPlacement,
     FilterRange, FilterValidationCode, FilterValidationMessage, FilterValidationResult,
-    FilterValueListView, FilterValueOption, MetricComparison,
+    FilterValueListView, FilterValueOption, MetricComparison, ReferenceSearchDirection,
+    RelationshipConstraint,
 };
 pub use hazard_surface::*;
 pub use list::{

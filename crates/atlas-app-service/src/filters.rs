@@ -191,6 +191,7 @@ mod tests {
         let worker = &fixture.worker;
         let context = FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![FilterClause {
                     id: "kind-include_any".to_string(),
                     field: "kind".to_string(),
@@ -243,6 +244,7 @@ mod tests {
             .discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 context: FilterDiscoveryContext::Filtered {
                     filter: BasicSearchFilter {
+                        relationship: None,
                         clauses: vec![filter_clause("pack_label", "Missing")],
                     },
                 },
@@ -284,6 +286,7 @@ mod tests {
         let worker = &fixture.worker;
         let context = FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![
                     filter_clause("kind", "rule"),
                     filter_clause("pack_label", "Missing"),

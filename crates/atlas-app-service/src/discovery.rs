@@ -642,7 +642,10 @@ mod tests {
         let values = filter_value_list_view(
             "rarity",
             &FilterDiscoveryContext::Filtered {
-                filter: BasicSearchFilter { clauses: vec![] },
+                filter: BasicSearchFilter {
+                    relationship: None,
+                    clauses: vec![],
+                },
             },
             FilterValueDiscovery {
                 field: "rarity".to_string(),
@@ -688,7 +691,10 @@ mod tests {
         let values = filter_value_list_view(
             "size",
             &FilterDiscoveryContext::Filtered {
-                filter: BasicSearchFilter { clauses: vec![] },
+                filter: BasicSearchFilter {
+                    relationship: None,
+                    clauses: vec![],
+                },
             },
             FilterValueDiscovery {
                 field: "size".to_string(),
@@ -741,6 +747,7 @@ mod tests {
     fn value_projection_preserves_counts_selection_and_boolean_labels() {
         let context = FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![FilterClause {
                     id: "pack-include_any".to_string(),
                     field: "pack".to_string(),
@@ -787,7 +794,10 @@ mod tests {
         let remaster = filter_value_list_view(
             "publication_remaster",
             &FilterDiscoveryContext::Filtered {
-                filter: BasicSearchFilter { clauses: vec![] },
+                filter: BasicSearchFilter {
+                    relationship: None,
+                    clauses: vec![],
+                },
             },
             FilterValueDiscovery {
                 field: "publication_remaster".to_string(),
@@ -814,6 +824,7 @@ mod tests {
     fn metric_key_values_project_labels_counts_and_selection() {
         let context = FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![FilterClause {
                     id: "metric-metric_compare".to_string(),
                     field: "metric".to_string(),

@@ -12,6 +12,34 @@ import {
 } from "./searchState";
 
 describe("searchState", () => {
+  it.each(["incoming", "outgoing"] as const)(
+    "round-trips an exact %s reference constraint into search and discovery",
+    (direction) => {
+      const relationship = { direction, record_key: "spells-srd:exact-key" };
+      const state = { ...DEFAULT_SEARCH_STATE, relationship };
+      const restored = decodeSearchStateFromParams(
+        new URLSearchParams(searchStateQueryString(state)),
+      );
+      expect(restored.relationship).toEqual(relationship);
+      expect(restored.query).toBe("");
+      expect(hasExecutableSearch(restored)).toBe(true);
+      expect(buildOpenRequest(restored, 3)).toMatchObject({
+        mode: { kind: "list_records", filter: { clauses: [], relationship } },
+        page: { number: 3, size: 25 },
+      });
+      expect(buildFilterDiscoveryContext(restored)).toEqual({
+        kind: "filtered",
+        filter: { clauses: [], relationship },
+      });
+      expect(decodeSearchState(encodeSearchState(state)).relationship).toEqual(
+        relationship,
+      );
+      expect(encodeSearchExecutionState(state)).not.toBe(
+        encodeSearchExecutionState(DEFAULT_SEARCH_STATE),
+      );
+    },
+  );
+
   it("builds a browse request with clause filters, sort, and page data", () => {
     const request = buildOpenRequest(DEFAULT_SEARCH_STATE, 3);
 
@@ -494,4 +522,20 @@ describe("searchState", () => {
       decodeSearchState(encodeURIComponent(JSON.stringify({ pageSize: 250 }))).pageSize,
     ).toBe(100);
   });
+});
+
+it("does not broaden a malformed reference URL into an ordinary text search", () => {
+  for (const query of [
+    "q=Fireball&reference-direction=wrong&reference-record=spells:seed",
+    "q=Fireball&reference-direction=incoming",
+    "reference-direction=incoming&reference-record=a&reference-record=b",
+  ]) {
+    const state = decodeSearchStateFromParams(new URLSearchParams(query));
+    expect(state.relationshipInvalid).toBe(true);
+    expect(hasExecutableSearch(state)).toBe(false);
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state)))
+        .relationshipInvalid,
+    ).toBe(true);
+  }
 });
