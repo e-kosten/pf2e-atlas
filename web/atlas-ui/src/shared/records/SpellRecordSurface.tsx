@@ -211,7 +211,7 @@ function SpellQuickFacts({ definition }: { definition: SpellResolvedDefinitionVi
           casting?.action_cost
             ? actionCostLabel(casting.action_cost)
             : casting && meaningfulKnown(casting.time),
-          range && `Range ${range.authored_text}`,
+          range?.authored_text.trim() && `Range ${range.authored_text.trim()}`,
           areaText(area),
           statistic &&
             `${save && knownValue(save.basic) === true ? "Basic " : ""}${formatSlug(statistic)}`,

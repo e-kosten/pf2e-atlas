@@ -57,7 +57,8 @@
   --panel-padding: 14px;
 }
 
-:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+:where(button, a, input, select, textarea, [tabindex]):focus-visible,
+.atlas-app .ant-collapse .ant-collapse-header:focus {
   outline: 2px solid var(--accent-text);
   outline-offset: 3px;
 }

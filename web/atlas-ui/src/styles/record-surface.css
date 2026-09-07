@@ -1151,6 +1151,9 @@
 .spell-sheet__summary .spell-sheet__form-section {
   background: none;
   padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
 }
 .spell-sheet__summary .spell-sheet__form-controls {
   display: flex;
@@ -1158,7 +1161,7 @@
   gap: 8px;
 }
 .spell-sheet__summary .spell-sheet__form-control {
-  flex: 1 1 100px;
+  flex: 1 1 140px;
   min-width: 0;
 }
 .spell-sheet__member-heading {
@@ -1210,4 +1213,23 @@
 .result-table--record-surfaces .record-surface-search__identity {
   min-width: 0;
   flex: 1 1 180px;
+}
+
+.result-table--record-surfaces {
+  min-width: 0;
+}
+.record-surface--unavailable.record-surface--search-compact {
+  gap: 8px;
+}
+.record-surface--unavailable.record-surface--search-compact .creature-sheet__header {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.record-surface--unavailable.record-surface--search-compact h2 {
+  font-size: 16px;
+  line-height: 1.2;
+  letter-spacing: normal;
+}
+.spell-sheet__quick-casting .action-glyph {
+  margin-inline-end: 6px;
 }

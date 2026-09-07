@@ -1,4 +1,4 @@
-import { Alert } from "antd";
+import { Alert, Typography } from "antd";
 import { memo } from "react";
 import type {
   EncounterSpellCastRequest,
@@ -60,15 +60,24 @@ export const RecordSurface = memo(function RecordSurface({
   slots = {},
 }: RecordSurfaceProps) {
   if (surface.presentation.presentation_type === "unavailable") {
+    const compact = surface.profile === "search_compact";
     return (
-      <article className="record-surface record-surface--unavailable">
+      <article
+        className={`record-surface record-surface--unavailable${compact ? " record-surface--search-compact" : ""}`}
+      >
         <RecordHeader metadata={surface.metadata} showTitle={showTitle} />
-        <Alert
-          description="Search for another record or follow a linked reference."
-          message="A detailed view of this record is not available yet."
-          showIcon
-          type="info"
-        />
+        {compact ? (
+          <Typography.Text type="secondary">
+            Detailed view not yet available.
+          </Typography.Text>
+        ) : (
+          <Alert
+            description="Search for another record or follow a linked reference."
+            message="A detailed view of this record is not available yet."
+            showIcon
+            type="info"
+          />
+        )}
       </article>
     );
   }

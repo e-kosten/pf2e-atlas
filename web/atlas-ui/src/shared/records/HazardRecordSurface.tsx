@@ -456,7 +456,9 @@ function HazardActivityHeading({ activity }: { activity: HazardSurfaceActivityVi
   return (
     <Space size="small" wrap>
       <strong>{activity.label}</strong>
-      {activity.action_cost ? <ActionGlyph cost={activity.action_cost} /> : null}
+      {activity.action_cost && activity.action_cost.cost_type !== "passive" ? (
+        <ActionGlyph cost={activity.action_cost} />
+      ) : null}
       <Tag>
         {activity.attack_mode
           ? `${formatSlug(activity.attack_mode)} Strike`
