@@ -11,6 +11,12 @@
       "label": "Hazards",
       "type": "Actor",
       "path": "packs/hazards"
+    },
+    {
+      "name": "spells-srd",
+      "label": "Spells",
+      "type": "Item",
+      "path": "packs/spells"
     }
   ]
 }

@@ -223,25 +223,33 @@ pub(crate) fn hazard_surface(
         .then(|| {
             typed_fact(&hazard.lifecycle, "lifecycle", None, &mut unavailable).map(|lifecycle| {
                 HazardSurfaceLifecycleView {
-                    description: rich_document(
+                    description: lifecycle_document(
+                        hazard,
+                        ContentSourceKind::DetailsFieldDescription,
                         &lifecycle.description,
                         "lifecycle.description",
                         None,
                         &mut unavailable,
                     ),
-                    disable: rich_document(
+                    disable: lifecycle_document(
+                        hazard,
+                        ContentSourceKind::Disable,
                         &lifecycle.disable,
                         "lifecycle.disable",
                         None,
                         &mut unavailable,
                     ),
-                    routine: rich_document(
+                    routine: lifecycle_document(
+                        hazard,
+                        ContentSourceKind::Routine,
                         &lifecycle.routine,
                         "lifecycle.routine",
                         None,
                         &mut unavailable,
                     ),
-                    reset: rich_document(
+                    reset: lifecycle_document(
+                        hazard,
+                        ContentSourceKind::Reset,
                         &lifecycle.reset,
                         "lifecycle.reset",
                         None,
@@ -1146,6 +1154,29 @@ fn iwr(
                 .collect::<Vec<_>>()
         })
         .and_then(non_empty)
+}
+
+// Resolution enriches owned content, while lifecycle facts retain authored documents.
+// Read the exact record-owned field; never infer a target from labels or graph edges.
+fn lifecycle_document(
+    hazard: &HazardRecord,
+    source_kind: ContentSourceKind,
+    fact: &HazardFact<RichDocument>,
+    field: &str,
+    component_id: Option<&str>,
+    unavailable: &mut Vec<HazardSurfaceUnavailableView>,
+) -> Option<Vec<atlas_app_model::CreatureSurfaceContentBlockView>> {
+    let authored = typed_fact(fact, field, component_id, unavailable)?;
+    let document = hazard.content.documents.iter().find(|document| {
+        document.source_kind == source_kind
+            && matches!(&document.owner, ContentOwner::Record(key) if key == &hazard.identity.record_key)
+    });
+    // A source fact without an owned document remains readable, with only its
+    // authored link state; no resolved identity is manufactured.
+    let document = document.map_or(authored, |document| &document.document);
+    non_empty(crate::surface::project_content(
+        project_presentation_content(document),
+    ))
 }
 
 fn rich_document(
