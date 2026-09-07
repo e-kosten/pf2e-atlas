@@ -13,6 +13,50 @@ const runtimeProvenance: RuntimeFactProvenanceView = {
 };
 
 describe("HazardRecordSurface", () => {
+  it.each(["inapplicable", "applicable", "unknown"] as const)(
+    "gates only structural statistics for %s applicability",
+    (structure) => {
+      const surface = hazardSurface("record_detail");
+      const body = hazardBody(surface);
+      body.defenses = {
+        applicability: {
+          health: "inapplicable",
+          structure,
+          rule_id: "pf2e-hazard-structural-applicability",
+          rule_version: 1,
+        },
+        armor_class: 0,
+        hardness: 0,
+        hit_points: {
+          current: 0,
+          maximum: 0,
+          broken_threshold: 0,
+          details: paragraph("Independent structural note"),
+        },
+        saves: { fortitude: 0, reflex: 0, will: 0 },
+        immunities: [
+          {
+            component_id: "fire",
+            authored_order: 0,
+            kind: "fire",
+            exceptions: [],
+            double_vs: [],
+          },
+        ],
+      };
+      render(<RecordSurface onReference={onReference} surface={surface} />);
+      const stats = screen.getByLabelText("Hazard defense statistics");
+      for (const label of ["AC", "HP", "Hardness", "BT"]) {
+        if (structure === "inapplicable")
+          expect(within(stats).queryByText(label)).toBeNull();
+        else expect(within(stats).getByText(label)).toBeInTheDocument();
+      }
+      expect(within(stats).getAllByText("+0")).toHaveLength(3);
+      expect(screen.getByText("Independent structural note")).toBeInTheDocument();
+      expect(screen.getByText("Fire")).toBeInTheDocument();
+    },
+  );
+
   beforeEach(() => vi.clearAllMocks());
 
   it("groups authored detection qualifiers with their DC without changing Disable", () => {
@@ -262,6 +306,12 @@ describe("HazardRecordSurface", () => {
     });
     const body = hazardBody(surface);
     body.defenses = {
+      applicability: {
+        health: "applicable",
+        structure: "applicable",
+        rule_id: "pf2e-hazard-structural-applicability",
+        rule_version: 1,
+      },
       armor_class: 24,
       hardness: 14,
       hit_points: {
@@ -305,6 +355,12 @@ describe("HazardRecordSurface", () => {
     });
     const body = hazardBody(surface);
     body.defenses = {
+      applicability: {
+        health: "applicable",
+        structure: "applicable",
+        rule_id: "pf2e-hazard-structural-applicability",
+        rule_version: 1,
+      },
       armor_class: 24,
       hit_points: { current: 56, maximum: 56, temporary: 0, broken_threshold: 28 },
       saves: { fortitude: 14, reflex: 13, will: 0 },
@@ -598,6 +654,12 @@ function hazardSurface(
           details: paragraph("A concealed opening is difficult to notice."),
         },
         defenses: {
+          applicability: {
+            health: "applicable",
+            structure: "applicable",
+            rule_id: "pf2e-hazard-structural-applicability",
+            rule_version: 1,
+          },
           armor_class: 22,
           hardness: 10,
           hit_points: {

@@ -1,0 +1,16 @@
+{
+  "packs": [
+    {
+      "name": "pfs-season-4-bestiary",
+      "label": "Season 4",
+      "type": "Actor",
+      "path": "packs/pfs-season-4-bestiary"
+    },
+    {
+      "name": "hazards",
+      "label": "Hazards",
+      "type": "Actor",
+      "path": "packs/hazards"
+    }
+  ]
+}

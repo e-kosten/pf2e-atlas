@@ -4374,6 +4374,75 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn source_backed_hazard_applicability_preserves_authored_zero_and_missing_flags()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let artifact = TemporarySpellSurfaceArtifact::new()?;
+        build_artifact(BuildArtifactOptions {
+            source_root: Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/hazard-applicability"),
+            output_path: artifact.artifact.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: false,
+            embedding_batch_size: 8,
+        })?;
+        let retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+            SqliteIndexReader::open_read_only(&artifact.artifact)?,
+        );
+        for (key, expected) in [
+            (
+                "pfs-season-4-bestiary:Rq4b1pFU36QDkW7c",
+                atlas_app_model::HazardSurfaceApplicabilityStateView::Inapplicable,
+            ),
+            (
+                "hazards:BHq5wpQU8hQEke8D",
+                atlas_app_model::HazardSurfaceApplicabilityStateView::Applicable,
+            ),
+        ] {
+            let key = RecordKey::parse(key)?;
+            let record = retrieval
+                .get_record(GetRecordRequest { record_key: &key })?
+                .expect("hazard fixture");
+            let Some(RecordBody::Hazard(hazard)) = record.body.as_ref() else {
+                panic!("hazard body")
+            };
+            let view = crate::hazard_surface::hazard_surface(
+                hazard,
+                RecordSurfaceProfileView::RecordDetail,
+                None,
+            );
+            let defenses = view.defenses.expect("defenses");
+            assert_eq!(defenses.applicability.structure, expected);
+            if expected == atlas_app_model::HazardSurfaceApplicabilityStateView::Inapplicable {
+                assert_eq!(defenses.armor_class, Some(0));
+                assert_eq!(defenses.hardness, Some(0));
+                let hp = defenses.hit_points.expect("HP");
+                assert_eq!(
+                    (hp.current, hp.maximum, hp.temporary, hp.broken_threshold),
+                    (Some(0), Some(0), Some(0), Some(0))
+                );
+                let saves = defenses.saves.expect("saves");
+                assert_eq!(
+                    (saves.fortitude, saves.reflex, saves.will),
+                    (Some(0), Some(0), Some(0))
+                );
+                assert!(matches!(
+                    hazard
+                        .defenses
+                        .typed()
+                        .expect("defenses")
+                        .source_metadata
+                        .has_health
+                        .value,
+                    FactValue::Missing
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn retrieve_spell(
         retrieval: &AtlasRetrievalService,
         record_key: &str,

@@ -92,6 +92,7 @@ pub struct HazardSurfaceDetectionView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct HazardSurfaceDefensesView {
+    pub applicability: HazardSurfaceDefenseApplicabilityView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, with = "crate::json_integer::optional")]
     #[ts(optional, type = "number")]
@@ -115,6 +116,24 @@ pub struct HazardSurfaceDefensesView {
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub resistances: Option<Vec<HazardSurfaceIwrView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct HazardSurfaceDefenseApplicabilityView {
+    pub health: HazardSurfaceApplicabilityStateView,
+    pub structure: HazardSurfaceApplicabilityStateView,
+    pub rule_id: String,
+    pub rule_version: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum HazardSurfaceApplicabilityStateView {
+    Applicable,
+    Inapplicable,
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

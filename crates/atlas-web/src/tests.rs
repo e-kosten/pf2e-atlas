@@ -2486,6 +2486,12 @@ fn hazard_record_surface() -> RecordSurfaceView {
                 details: None,
             }),
             defenses: Some(atlas_app_model::HazardSurfaceDefensesView {
+                applicability: atlas_app_model::HazardSurfaceDefenseApplicabilityView {
+                    health: atlas_app_model::HazardSurfaceApplicabilityStateView::Unknown,
+                    structure: atlas_app_model::HazardSurfaceApplicabilityStateView::Unknown,
+                    rule_id: "pf2e-hazard-structural-applicability".into(),
+                    rule_version: 1,
+                },
                 armor_class: Some(22),
                 hardness: None,
                 hit_points: None,

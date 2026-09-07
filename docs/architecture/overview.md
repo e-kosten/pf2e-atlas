@@ -36,6 +36,8 @@ Canonical Spell bodies remain attached to `RetrievedRecord` across keyed lookup,
 
 Interactive search exposes a bounded optional relationship constraint through `BasicSearchFilter`: incoming selects records that link to an exact record key; outgoing selects records linked from that key. App-service validates the key and lowers to the existing domain `LinksTo`/`LinkedFrom` predicates. Search and field/value discovery retain the same constraint and graph policy. The browser owns URL state and renders a label from keyed server detail; it never searches by that label or enumerates graph pages to simulate a filter. This query/transport composition does not change artifact contents or compatibility.
 
+Hazard structural applicability is a computed `atlas-record` presentation policy, separate from the stored `HazardRecord`, source `hasHealth`, and search/embedding projections. App defenses expose health and structural applicability states plus the rule identity. Only known zero HP maximum together with known zero AC proves structural inapplicability; positive maximum or supported nonzero AC proves applicability, and incomplete/invalid inputs remain unknown. Ordinary UI omits only the proven-inapplicable AC/HP/hardness/BT statistics, preserving saves (including zero), IWR and authored HP notes. No applicability state is written into the artifact.
+
 ## Checkpoint B Source-Faithful Target
 
 The source-faithful record contract in [ADRs 0033-0036](./decisions/README.md) was approved at Checkpoint B. Implementation remains dependency-ordered: authorization of the exact contract does not pre-approve later family work or allow one slice to edit another owner's paths.
