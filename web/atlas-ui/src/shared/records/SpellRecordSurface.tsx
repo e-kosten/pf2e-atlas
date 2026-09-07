@@ -1,4 +1,4 @@
-import { Alert, Button, Collapse, InputNumber, Select, Space, Tag } from "antd";
+import { Button, Collapse, InputNumber, Select, Space, Tag, Typography } from "antd";
 import { useState } from "react";
 import type React from "react";
 import type {
@@ -95,36 +95,34 @@ export function SpellDetailSurface({
   };
   return (
     <article className="record-surface record-surface--record-detail spell-sheet">
-      <RecordHeader
-        levelLabel="Rank"
-        metadata={headerMetadata}
-        onReference={onReference}
-        showTitle={showTitle}
-      />
-      <div className="spell-sheet__workspace">
-        <aside className="spell-sheet__summary" aria-label="Spell quick facts">
-          {definition ? <SpellQuickFacts definition={definition} /> : null}
-          <FormsSection
-            key={`${metadata.record_key}:${body.effective_form.id}:${body.effective_form.cast_rank}`}
-            body={body}
-            catalog={catalog}
-            loading={selectionLoading}
-            onSelectionChange={onSelectionChange}
-            selection={selection}
-            selectionError={selectionError}
-            selectionUnavailable={selectionUnavailable}
-          />
-        </aside>
-        <div className="spell-sheet__main">
-          <FormResult result={effective.result} />
-          <NarrativeSection
-            content={content}
-            headingId="spell-overview"
-            onReference={onReference}
-            title="Authored overview"
-          />
-        </div>
+      <div className="spell-sheet__heading">
+        <RecordHeader
+          levelLabel="Rank"
+          metadata={headerMetadata}
+          onReference={onReference}
+          showTitle={showTitle}
+        />
+        <FormsSection
+          key={metadata.record_key}
+          body={body}
+          catalog={catalog}
+          loading={selectionLoading}
+          onSelectionChange={onSelectionChange}
+          selection={selection}
+          selectionError={selectionError}
+          selectionUnavailable={selectionUnavailable}
+        />
       </div>
+      <div className="spell-sheet__summary" aria-label="Spell quick facts">
+        {definition ? <SpellQuickFacts definition={definition} /> : null}
+      </div>
+      <FormResult result={effective.result} />
+      <NarrativeSection
+        content={content}
+        headingId="spell-description"
+        onReference={onReference}
+        title="Description"
+      />
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
         loading={referencesLoading}
@@ -326,21 +324,9 @@ function DamageList({ damage }: { damage: SpellDamageView[] }) {
             </strong>
           </div>
           {damageQualifiers(member).length ? (
-            <Collapse
-              ghost
-              size="small"
-              items={[
-                {
-                  key: "qualifiers",
-                  label: "Effect details",
-                  children: (
-                    <RecordKeyValueList
-                      ariaLabel={`${member.label} qualifiers`}
-                      items={damageQualifiers(member)}
-                    />
-                  ),
-                },
-              ]}
+            <RecordKeyValueList
+              ariaLabel={`${member.label} qualifiers`}
+              items={damageQualifiers(member)}
             />
           ) : null}
         </li>
@@ -361,10 +347,15 @@ function damageSummary(damage: SpellDamageView) {
 
 function damageQualifiers(damage: SpellDamageView): RecordKeyValueItem[] {
   return [
-    factItem("category", "Category", damage.category, formatSlug),
-    factItem("kinds", "Kinds", damage.kinds, formatList),
-    factItem("materials", "Materials", damage.materials, formatList),
-    factItem("apply-modifier", "Apply modifier", damage.apply_modifier, formatBoolean),
+    factItem("category", "Damage category", damage.category, formatSlug),
+    factItem("kinds", "Effect type", damage.kinds, formatList),
+    factItem("materials", "Damage materials", damage.materials, formatList),
+    factItem(
+      "apply-modifier",
+      "Spellcasting ability modifier",
+      damage.apply_modifier,
+      formatBoolean,
+    ),
   ].filter((entry): entry is RecordKeyValueItem => entry !== null);
 }
 
@@ -486,6 +477,25 @@ function FormsSection({
   const [draftRank, setDraftRank] = useState<number | null>(
     body.effective_form.cast_rank,
   );
+  const [previousEffective, setPreviousEffective] = useState({
+    formId: body.effective_form.id,
+    castRank: body.effective_form.cast_rank,
+  });
+  if (
+    previousEffective.formId !== body.effective_form.id ||
+    previousEffective.castRank !== body.effective_form.cast_rank
+  ) {
+    setPreviousEffective({
+      formId: body.effective_form.id,
+      castRank: body.effective_form.cast_rank,
+    });
+    // Follow a refreshed base until the user has requested a selection. Selected
+    // responses must not remount controls or overwrite a newer local draft.
+    if (!selection) {
+      setDraftFormId(initialForm?.id);
+      setDraftRank(body.effective_form.cast_rank);
+    }
+  }
   if (!onSelectionChange || !catalog.forms.length) return null;
   const draftForm = catalog.forms.find((form) => form.id === draftFormId);
   const displayed = selectionLabel(catalog, body.effective_form);
@@ -495,7 +505,7 @@ function FormsSection({
     (body.effective_form.id === selection.formId &&
       body.effective_form.cast_rank === selection.castRank);
   return (
-    <SurfaceSection className="spell-sheet__form-section" title="Form & rank">
+    <section className="spell-sheet__form-section" aria-label="Form & rank">
       <div
         aria-busy={loading}
         aria-label="Resolve spell form"
@@ -547,42 +557,29 @@ function FormsSection({
           Apply
         </Button>
       </div>
-      <p aria-live="polite" className="spell-sheet__selection-summary">
-        Showing {displayed}.
-      </p>
-      {loading && selection ? (
-        <Alert
-          description={`Showing ${displayed} until the requested result is available.`}
-          message={`Resolving ${requested ?? "selected form"}.`}
-          showIcon
-          type="info"
-        />
-      ) : null}
-      {!loading && selectionError ? (
-        <Alert
-          description={`${selectionError} Showing ${displayed}.`}
-          message="Unable to resolve the selected form"
-          showIcon
-          type="error"
-        />
-      ) : null}
-      {!loading && !selectionError && selectionUnavailable ? (
-        <Alert
-          description={`Showing ${displayed}.`}
-          message={`${requested ?? "The selected form"} is unavailable.`}
-          showIcon
-          type="warning"
-        />
-      ) : null}
-      {!loading && !selectionError && !selectionUnavailable && !matchesRequest ? (
-        <Alert
-          description={`Showing ${displayed}.`}
-          message="The returned result did not match the requested form and rank."
-          showIcon
-          type="warning"
-        />
-      ) : null}
-    </SurfaceSection>
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="spell-sheet__selection-summary"
+      >
+        <span>Showing {displayed}.</span>
+        <Typography.Text
+          type={!loading && selectionError ? "danger" : "secondary"}
+          className="spell-sheet__selection-status"
+        >
+          {loading && selection
+            ? `Resolving ${requested ?? "selected form"}.`
+            : selectionError
+              ? `Unable to resolve the selected form. ${selectionError}`
+              : selectionUnavailable
+                ? `${requested ?? "The selected form"} is unavailable.`
+                : !matchesRequest
+                  ? "The returned result did not match the requested form and rank."
+                  : null}
+        </Typography.Text>
+      </div>
+    </section>
   );
 }
 
