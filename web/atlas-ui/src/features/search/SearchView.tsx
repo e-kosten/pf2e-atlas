@@ -1,3 +1,4 @@
+import { Input, Tag } from "antd";
 import { ExternalLink } from "lucide-react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterPanel } from "../../shared/filters/FilterPanel";
@@ -20,12 +21,31 @@ type SearchViewProps = {
 export function SearchView({ workspace }: SearchViewProps) {
   return (
     <WorkspaceLayout
+      responsiveSearch
+      searchControls={
+        <div className="search-workspace__query">
+          <Input.Search
+            aria-label="Search records"
+            value={workspace.search.query}
+            onChange={(event) =>
+              workspace.setSearch({
+                ...workspace.search,
+                query: event.target.value,
+                mode: event.target.value.trim() ? "text_search" : "browse",
+              })
+            }
+          />
+          {workspace.search.filterClauses.length ? (
+            <Tag>{workspace.search.filterClauses.length} active filters</Tag>
+          ) : null}
+        </div>
+      }
       filter={<FilterPanel workspace={workspace} />}
       results={<ResultTable workspace={workspace} />}
       resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
       selectedRecordKey={workspace.selectedRecordKey}
       detailHeaderActions={
-        workspace.selectedRecordKey ? (
+        workspace.selectedRecordKey && workspace.recordDetail ? (
           <>
             <AddToListButton recordKey={workspace.selectedRecordKey} />
             <PaneIconLink
@@ -49,7 +69,9 @@ export function SearchView({ workspace }: SearchViewProps) {
       detail={
         <RecordDetailPane
           detail={workspace.recordDetail}
+          errors={[workspace.detailError]}
           loading={workspace.detailLoading}
+          stale={workspace.detailRefreshing}
           onReference={workspace.selectRecord}
         />
       }

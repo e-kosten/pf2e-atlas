@@ -43,6 +43,18 @@ pub struct HazardStrikeActionCostProjection {
     pub basis: HazardEntityFamily,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum HazardAttackEffect {
+    NoMultipleAttackPenalty,
+    IndependentLimbs,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HazardAttackEffectsProjection {
+    pub effects: Vec<HazardAttackEffect>,
+    pub has_unmodeled: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HazardHasHealthConsistency {
     Consistent,
@@ -514,6 +526,34 @@ pub fn project_hazard_strike_action_cost(
         rule_id: PF2E_STRIKE_ACTION_COST_RULE_ID,
         rule_version: PF2E_STRIKE_ACTION_COST_RULE_VERSION,
         basis: HazardEntityFamily::Strike,
+    })
+}
+
+pub fn project_hazard_attack_effects(
+    entity: &HazardEntity,
+) -> Option<HazardAttackEffectsProjection> {
+    let HazardCapability::Strike(strike) = &entity.capability else {
+        return None;
+    };
+    let authored = strike.attack_effects.typed()?;
+    let mut effects = Vec::new();
+    let mut has_unmodeled = false;
+    for value in authored {
+        let effect = match value.as_str() {
+            "no-map" => HazardAttackEffect::NoMultipleAttackPenalty,
+            "independent-limbs" => HazardAttackEffect::IndependentLimbs,
+            _ => {
+                has_unmodeled = true;
+                continue;
+            }
+        };
+        if !effects.contains(&effect) {
+            effects.push(effect);
+        }
+    }
+    Some(HazardAttackEffectsProjection {
+        effects,
+        has_unmodeled,
     })
 }
 

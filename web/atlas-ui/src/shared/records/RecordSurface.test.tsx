@@ -959,7 +959,7 @@ describe("RecordSurface", () => {
     ).toHaveLength(1);
     fireEvent.click(screen.getByText("References", { exact: true }));
     expect(onReferencesOpen).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("1 record · 1 reference")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1 of 1 record")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dream Message" }));
     expect(onReference).toHaveBeenLastCalledWith("spells:dream-message");
 

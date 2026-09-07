@@ -53,6 +53,9 @@ pub struct SpellClassificationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SpellCastingView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub action_cost: Option<crate::CreatureSurfaceActionCostView>,
     pub time: SpellFactView<String>,
     pub cost: SpellFactView<String>,
     pub requirements: SpellFactView<String>,
@@ -372,6 +375,7 @@ pub enum SpellFormPatchSourceView {
     Base,
     Overlay,
     FixedHeightening,
+    IntervalHeightening,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -383,6 +387,10 @@ pub enum SpellFormFieldUnavailableReasonView {
     IncompatibleHeightening,
     UnknownFixedRank,
     FixedRankKeyMismatch,
+    InvalidInterval,
+    IntervalMemberUnavailable,
+    IntervalFormulaUnsupported,
+    IntervalOverflow,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

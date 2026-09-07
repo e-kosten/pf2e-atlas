@@ -681,3 +681,35 @@ fn test_document(key: &str, name: &str) -> RecordPresentationDocument {
         ],
     }
 }
+
+#[test]
+fn template_distance_reaches_embedding_text_and_semantic_hash_without_mutating_content() {
+    let template = RichDocument::new(vec![RichNode::Foundry {
+        node: atlas_record::FoundryNode::Template {
+            label: None,
+            shape: Some("emanation".into()),
+            options: BTreeMap::from([("distance".into(), "30".into())]),
+        },
+    }]);
+    let structural_hash = atlas_record::ContentHash::for_document(&template);
+    let source = |document| DocumentEmbeddingSource {
+        record_key: "packs:template".into(),
+        record_name: "Template".into(),
+        document: test_document("packs:template", "Template"),
+        aliases: Vec::new(),
+        content_documents: vec![DocumentEmbeddingContentSource {
+            source_kind: atlas_record::ContentSourceKind::Description,
+            label: Some("Description".into()),
+            document,
+        }],
+    };
+    let rendered = build_document_embedding_units(&[source(template.clone())]);
+    let historical =
+        build_document_embedding_units(&[source(RichDocument::new(vec![text_node("emanation")]))]);
+    assert!(rendered[0].input_text.contains("30-foot emanation"));
+    assert_ne!(rendered[0].input_hash, historical[0].input_hash);
+    assert_eq!(
+        atlas_record::ContentHash::for_document(&template),
+        structural_hash
+    );
+}

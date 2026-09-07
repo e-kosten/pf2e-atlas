@@ -100,17 +100,18 @@ pub use hazard::{
     InvalidHazardRelationshipId, InvalidHazardSlug, InvalidHazardSourceId,
 };
 pub use hazard_projection::{
-    HAZARD_CONVENIENCE_RULE_ID, HAZARD_CONVENIENCE_RULE_VERSION, HazardAttackMode,
-    HazardAttackModeProjection, HazardConvenienceProjection, HazardFactProjection,
-    HazardHasHealthConsistency, HazardInitiativeStatistic, HazardInitiativeSuggestion,
-    HazardSourceMetadataFact, HazardSourceMetadataField, HazardSourceMetadataIssue,
-    HazardSourceMetadataIssueKind, HazardSourceMetadataProjection,
-    HazardStrikeActionCostProjection, HazardWeaponTypeConsistency, PF2E_HAZARD_ATTACK_MODE_RULE_ID,
-    PF2E_HAZARD_ATTACK_MODE_RULE_VERSION, PF2E_STRIKE_ACTION_COST_RULE_ID,
-    PF2E_STRIKE_ACTION_COST_RULE_VERSION, build_hazard_presentation_document,
-    project_hazard_attack_mode, project_hazard_conveniences, project_hazard_facts,
-    project_hazard_has_health_consistency, project_hazard_source_metadata,
-    project_hazard_strike_action_cost, project_hazard_weapon_type_consistency,
+    HAZARD_CONVENIENCE_RULE_ID, HAZARD_CONVENIENCE_RULE_VERSION, HazardAttackEffect,
+    HazardAttackEffectsProjection, HazardAttackMode, HazardAttackModeProjection,
+    HazardConvenienceProjection, HazardFactProjection, HazardHasHealthConsistency,
+    HazardInitiativeStatistic, HazardInitiativeSuggestion, HazardSourceMetadataFact,
+    HazardSourceMetadataField, HazardSourceMetadataIssue, HazardSourceMetadataIssueKind,
+    HazardSourceMetadataProjection, HazardStrikeActionCostProjection, HazardWeaponTypeConsistency,
+    PF2E_HAZARD_ATTACK_MODE_RULE_ID, PF2E_HAZARD_ATTACK_MODE_RULE_VERSION,
+    PF2E_STRIKE_ACTION_COST_RULE_ID, PF2E_STRIKE_ACTION_COST_RULE_VERSION,
+    build_hazard_presentation_document, project_hazard_attack_effects, project_hazard_attack_mode,
+    project_hazard_conveniences, project_hazard_facts, project_hazard_has_health_consistency,
+    project_hazard_source_metadata, project_hazard_strike_action_cost,
+    project_hazard_weapon_type_consistency,
 };
 pub use json_projection::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
@@ -188,8 +189,8 @@ pub use presentation_policy::{
     FactRequirement, SpellPresentationIssue, SpellPresentationIssueField,
     SpellPresentationIssuePlacement, classify_fact_presentation, classify_spell_fact,
     classify_spell_json_fact, merge_spell_presentation_issues, project_resolved_spell_form_label,
-    project_spell_form_result_presentation_issues, project_spell_json_presentation_issues,
-    project_spell_presentation_issues,
+    project_spell_action_cost, project_spell_form_result_presentation_issues,
+    project_spell_json_presentation_issues, project_spell_presentation_issues,
 };
 pub use presentation_recipe::{
     build_record_presentation_document, build_record_presentation_document_with_content_filter,

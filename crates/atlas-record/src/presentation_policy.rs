@@ -1351,9 +1351,50 @@ fn never_empty<T>(_value: &T) -> bool {
     false
 }
 
+/// Recognizable action costs from the canonical authored casting-time vocabulary.
+/// Other casting durations remain authored text.
+pub fn project_spell_action_cost(
+    casting: &crate::SpellCasting,
+) -> Option<crate::CreatureActionCost> {
+    use crate::{CreatureActionCost, FactValue, SpellSourceValue};
+    let FactValue::Value(SpellSourceValue::Known(time)) = &casting.time else {
+        return None;
+    };
+    match time.as_str() {
+        "1" => Some(CreatureActionCost::Actions(1)),
+        "2" => Some(CreatureActionCost::Actions(2)),
+        "3" => Some(CreatureActionCost::Actions(3)),
+        "reaction" => Some(CreatureActionCost::Reaction),
+        "free" => Some(CreatureActionCost::FreeAction),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spell_action_cost_accepts_only_the_canonical_casting_vocabulary() {
+        use crate::CreatureActionCost;
+        for (time, expected) in [
+            ("1", Some(CreatureActionCost::Actions(1))),
+            ("2", Some(CreatureActionCost::Actions(2))),
+            ("3", Some(CreatureActionCost::Actions(3))),
+            ("reaction", Some(CreatureActionCost::Reaction)),
+            ("free", Some(CreatureActionCost::FreeAction)),
+            ("10 minutes", None),
+            ("1 or 2", None),
+            (" 2", None),
+            ("Reaction", None),
+        ] {
+            let casting = crate::SpellCasting {
+                time: known(time.to_string()),
+                ..Default::default()
+            };
+            assert_eq!(super::project_spell_action_cost(&casting), expected);
+        }
+    }
 
     #[test]
     fn shared_fact_policy_covers_optional_required_and_provenance_states() {

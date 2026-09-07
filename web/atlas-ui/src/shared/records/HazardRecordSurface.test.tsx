@@ -191,9 +191,9 @@ describe("HazardRecordSurface", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "References" }));
     expect(onReferencesOpen).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("3 records · 4 references")).toBeInTheDocument();
-    expect(screen.getAllByText("Limit 8")).toHaveLength(1);
-    expect(screen.getByText("More available")).toBeInTheDocument();
+    expect(screen.getByText(/Showing .* of 3 records/)).toBeInTheDocument();
+    expect(screen.queryByText("Limit 8")).not.toBeInTheDocument();
+    expect(screen.queryByText("More available")).not.toBeInTheDocument();
     expect(
       screen.getByText("Backlink lookup is temporarily unavailable."),
     ).toBeInTheDocument();
@@ -340,7 +340,11 @@ describe("HazardRecordSurface", () => {
       "Terrifying Visions",
     ]);
     expect(screen.getByText("One action")).toHaveClass("sr-only");
-    expect(screen.getByText("Reaction")).toHaveClass("sr-only");
+    expect(
+      screen
+        .getAllByText("Reaction")
+        .some((node) => node.classList.contains("sr-only")),
+    ).toBe(true);
     expect(
       screen.queryByText(/tree-branch|tree-constrict|Entity |Occurrence /),
     ).toBeNull();

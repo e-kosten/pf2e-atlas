@@ -31,6 +31,7 @@ export function CreatureDetailSurface({
   metadata,
   onReference,
   onReferencesOpen,
+  onReferenceLimit,
   references,
   referencesLoading,
   showTitle,
@@ -40,6 +41,7 @@ export function CreatureDetailSurface({
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
   onReferencesOpen?: () => void;
+  onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   references: NonNullable<RecordSurfaceView["references"]> | undefined;
   referencesLoading?: boolean;
   showTitle: boolean;
@@ -85,6 +87,7 @@ export function CreatureDetailSurface({
       <RecordSurfaceReferences
         loading={referencesLoading}
         onDisclosureOpen={onReferencesOpen}
+        onRequestLimit={onReferenceLimit}
         onReference={onReference}
         references={references}
       />

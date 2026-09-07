@@ -1,4 +1,6 @@
-import { Alert, Empty, Skeleton } from "antd";
+import { AtlasApiError } from "../../api/atlasApi";
+import { navigateToAtlasRoute } from "../../app/routes";
+import { Alert, Button, Empty, Skeleton, Space } from "antd";
 import { useState } from "react";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordSurface } from "./RecordSurface";
@@ -27,25 +29,93 @@ export function RecordDetailPane({
   stale?: boolean;
 }) {
   const recordKey = detail?.surface.metadata.record_key;
-  const [referenceRecordKey, setReferenceRecordKey] = useState<string>();
+  const [referenceRequest, setReferenceRequest] = useState<{
+    recordKey: string;
+    outgoingLimit: number;
+    backlinkLimit: number;
+  }>();
   const referencesRequested =
-    recordKey !== undefined && referenceRecordKey === recordKey;
+    recordKey !== undefined && referenceRequest?.recordKey === recordKey;
   const referenceDetail = useRecordDetail(
     referencesRequested ? recordKey : null,
     undefined,
     {
-      reference_outgoing_limit: 8,
-      reference_backlink_limit: 8,
+      reference_outgoing_limit: referenceRequest?.outgoingLimit ?? 8,
+      reference_backlink_limit: referenceRequest?.backlinkLimit ?? 8,
     },
   );
+  function openReferences() {
+    if (!recordKey) return;
+    if (referencesRequested) {
+      void referenceDetail.refetch();
+      return;
+    }
+    setReferenceRequest({ recordKey, outgoingLimit: 8, backlinkLimit: 8 });
+  }
+  function expandReferences(direction: "outgoing" | "backlinks", limit: number) {
+    if (!recordKey) return;
+    if (
+      referencesRequested &&
+      (direction === "outgoing"
+        ? referenceRequest.outgoingLimit
+        : referenceRequest.backlinkLimit) === limit
+    ) {
+      void referenceDetail.refetch();
+      return;
+    }
+    setReferenceRequest((current) => {
+      const matching = current?.recordKey === recordKey ? current : undefined;
+      return {
+        recordKey,
+        outgoingLimit:
+          direction === "outgoing" ? limit : (matching?.outgoingLimit ?? 8),
+        backlinkLimit:
+          direction === "backlinks" ? limit : (matching?.backlinkLimit ?? 8),
+      };
+    });
+  }
   const referenceSurface = referenceDetail.data?.surface;
   const loadedReferences =
-    referenceSurface && referenceSurface.metadata.record_key === recordKey
+    referenceSurface &&
+    referenceSurface.metadata.record_key === recordKey &&
+    referenceSectionMatches(
+      referenceSurface.references?.outgoing,
+      referenceRequest?.outgoingLimit,
+    ) &&
+    referenceSectionMatches(
+      referenceSurface.references?.backlinks,
+      referenceRequest?.backlinkLimit,
+    )
       ? referenceSurface.references
       : undefined;
   const visibleErrors = errors.filter((error): error is Error | { message: string } =>
     Boolean(error),
   );
+  const notFound = visibleErrors.some(
+    (error) =>
+      error instanceof AtlasApiError && error.appError?.code === "record_not_found",
+  );
+  if (notFound && !detail)
+    return (
+      <section className="detail-state" aria-label="Record not found">
+        <Alert
+          type="info"
+          showIcon
+          message="This record could not be found"
+          description="Try searching for its name or return to the previous page."
+        />
+        <Space>
+          <Button
+            onClick={() =>
+              navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
+            }
+          >
+            Search
+          </Button>
+          <Button onClick={() => history.back()}>Back</Button>
+        </Space>
+      </section>
+    );
   return (
     <section aria-busy={loading || stale} className="detail-panel">
       {loading ? (
@@ -57,7 +127,8 @@ export function RecordDetailPane({
           <SelectableSpellDetail
             detail={detail}
             onReference={onReference}
-            onReferencesOpen={() => setReferenceRecordKey(recordKey)}
+            onReferencesOpen={openReferences}
+            onReferenceLimit={expandReferences}
             references={loadedReferences ?? detail.surface.references}
             referencesLoading={
               referencesRequested &&
@@ -67,7 +138,8 @@ export function RecordDetailPane({
           />
         ) : (
           <RecordSurface
-            onReferencesOpen={() => setReferenceRecordKey(recordKey)}
+            onReferencesOpen={openReferences}
+            onReferenceLimit={expandReferences}
             referenceLoading={
               referencesRequested &&
               (referenceDetail.isLoading || referenceDetail.isFetching)
@@ -78,7 +150,7 @@ export function RecordDetailPane({
             showTitle={showTitle}
           />
         )
-      ) : (
+      ) : visibleErrors.length ? null : (
         <Empty
           className="detail-state"
           description={emptyMessage ?? "Select a result to inspect it."}
@@ -89,6 +161,7 @@ export function RecordDetailPane({
         <Alert
           className="detail-state__stale"
           message="Refreshing this record…"
+          description="Keeping the last valid selection visible."
           showIcon
           type="info"
         />
@@ -106,7 +179,8 @@ export function RecordDetailPane({
       {referencesRequested && referenceDetail.error ? (
         <Alert
           className="detail-state__error"
-          description={referenceDetail.error.message}
+          description="Try loading the linked records again."
+          action={<Button onClick={() => void referenceDetail.refetch()}>Retry</Button>}
           message="Unable to load linked records"
           showIcon
           type="error"
@@ -120,6 +194,7 @@ function SelectableSpellDetail({
   detail,
   onReference,
   onReferencesOpen,
+  onReferenceLimit,
   references,
   referencesLoading,
   showTitle,
@@ -127,6 +202,7 @@ function SelectableSpellDetail({
   detail: RecordDetailView;
   onReference: (recordKey: string) => void;
   onReferencesOpen?: () => void;
+  onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   references: RecordDetailView["surface"]["references"];
   referencesLoading?: boolean;
   showTitle: boolean;
@@ -156,6 +232,9 @@ function SelectableSpellDetail({
   const selectedSurface = spellSurfaceHasAvailableResult(selectedResponseSurface)
     ? selectedResponseSurface
     : undefined;
+  if (selectedSurface && retainedSurface !== selectedSurface) {
+    setRetainedSurface(selectedSurface);
+  }
   const displayedSurface = selectedSurface ?? retainedForRecord;
   const selectedUnavailable =
     selectedResponseSurface?.presentation.presentation_type === "spell" &&
@@ -170,6 +249,7 @@ function SelectableSpellDetail({
       key={recordKey}
       onReference={onReference}
       onReferencesOpen={onReferencesOpen}
+      onReferenceLimit={onReferenceLimit}
       onSpellFormSelection={
         recordKey
           ? (nextSelection) => {
@@ -219,4 +299,15 @@ function matchingSelectedSpellSurface(
   return selected.id === selection.formId && selected.cast_rank === selection.castRank
     ? selectedDetail.surface
     : undefined;
+}
+
+function referenceSectionMatches(
+  section:
+    | NonNullable<RecordDetailView["surface"]["references"]>["outgoing"]
+    | undefined,
+  limit: number | undefined,
+) {
+  return section?.state === "not_requested"
+    ? limit === 0
+    : section?.requested_limit === limit;
 }

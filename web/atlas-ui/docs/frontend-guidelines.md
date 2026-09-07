@@ -60,3 +60,11 @@ npm --prefix web/atlas-ui run verify
 ```
 
 For refactors, run focused tests for touched surfaces first, then the full verify.
+
+## Record readability and validation
+
+Spell details prioritize selected-form damage and core casting facts, with a compact form/rank panel that stacks above mechanics at constrained widths. A sole Base form is static. Authored overview and effect qualifiers remain available as secondary content. Background record refetch keeps the last valid selected form mounted; selected responses must match record, form and rank, and reference responses must match record and both requested limits. Typed unavailable/error responses retain the last valid selected mechanics while exposing recovery.
+
+Search moves filters into an Ant Drawer at1100px and below, retains query and filter counts, and switches between results/detail at760px and below. Links, focus indicators and primary control text use theme semantic tokens and must be checked in both themes. References use server-provided next limits and expose the terminal50-record cap honestly. Issue grouping preserves each distinct typed fact and renders server-owned subject/component labels.
+
+Use Safari MCP in a separate tab to inspect the exact candidate at1440,1024 and390px, dark/light and keyboard navigation, before independent review. Fix obvious in-scope defects and preserve screenshot/interaction evidence bound to candidate bytes and URL. No AO Browser wait or alternate-runtime screenshot substitutes for this gate.

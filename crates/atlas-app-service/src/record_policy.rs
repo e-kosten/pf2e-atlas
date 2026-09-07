@@ -4,7 +4,8 @@ use atlas_app_model::{
     CreatureSurfaceDomainUnavailableView, CreatureSurfaceUnavailableDomainsView,
     CreatureSurfaceUnavailableFieldView, CreatureSurfaceUnavailableStateView,
     HazardSurfaceUnavailableStateView, HazardSurfaceView, RecordSurfaceIssueCodeView,
-    RecordSurfaceIssuePlacementView, RecordSurfaceIssueView, RecordSurfacePresentationView,
+    RecordSurfaceIssuePlacementView, RecordSurfaceIssueSubjectView, RecordSurfaceIssueTargetView,
+    RecordSurfaceIssueView, RecordSurfacePresentationView,
 };
 use atlas_record::{
     FactIssueKind, FactPresentationDisposition, FactPresentationRole, FactPresentationState,
@@ -32,8 +33,11 @@ pub(crate) fn record_surface_issues(
         }
         (RecordSurfacePresentationView::Unavailable { .. }, _) => {
             issues.push(RecordSurfaceIssueView {
+                fact_id: None,
                 code: RecordSurfaceIssueCodeView::Unavailable,
                 placement: RecordSurfaceIssuePlacementView::Record,
+                subject: None,
+                fact_label: None,
                 message: "This record does not have an available typed presentation.".to_string(),
             })
         }
@@ -171,6 +175,7 @@ fn hazard_issues(
     for issue in metadata.issues {
         metadata_issue_keys.insert((issue.field_key(), issue.component_id().map(str::to_string)));
         issues.push(RecordSurfaceIssueView {
+            fact_id: None,
             code: match issue.kind {
                 HazardSourceMetadataIssueKind::Malformed => RecordSurfaceIssueCodeView::Malformed,
                 HazardSourceMetadataIssueKind::HasHealthConflict
@@ -198,6 +203,11 @@ fn hazard_issues(
                 }
                 HazardSourceMetadataField::TokenName => RecordSurfaceIssuePlacementView::Record,
             },
+            subject: issue
+                .entity_id
+                .as_ref()
+                .and_then(|entity_id| hazard_issue_subject(hazard, entity_id.as_str())),
+            fact_label: Some(hazard_metadata_fact_label(issue.field).to_string()),
             message: issue.message().to_string(),
         });
     }
@@ -213,18 +223,28 @@ fn hazard_issues(
             HazardSurfaceUnavailableStateView::Null => FactPresentationState::Null,
             HazardSurfaceUnavailableStateView::Unsupported => FactPresentationState::Unsupported,
         };
-        push_policy_issue(
-            issues,
+        let FactPresentationDisposition::Issue(kind) = classify_fact_presentation(
             FactPresentationRole::Gameplay,
             state,
             FactRequirement::Optional,
-            if unavailable.component_id.is_some() {
+        ) else {
+            continue;
+        };
+        issues.push(RecordSurfaceIssueView {
+            fact_id: unavailable.fact_id.clone(),
+            code: issue_code(kind),
+            placement: if unavailable.component_id.is_some() {
                 RecordSurfaceIssuePlacementView::Activity
             } else {
                 RecordSurfaceIssuePlacementView::Record
             },
-            &unavailable.message,
-        );
+            subject: unavailable
+                .component_id
+                .as_deref()
+                .and_then(|component_id| hazard_issue_subject(hazard, component_id)),
+            fact_label: hazard_unavailable_fact_label(&unavailable.field).map(str::to_string),
+            message: unavailable.message.clone(),
+        });
     }
 }
 
@@ -238,8 +258,11 @@ fn spell_issues(
         merge_spell_presentation_issues(projected, selected.iter().copied())
             .into_iter()
             .map(|issue| RecordSurfaceIssueView {
+                fact_id: None,
                 code: issue_code(issue.kind),
                 placement: spell_issue_placement(issue.placement()),
+                subject: None,
+                fact_label: Some(issue.field.label().to_string()),
                 message: issue.message(),
             }),
     );
@@ -281,10 +304,74 @@ fn push_policy_issue(
         return;
     };
     issues.push(RecordSurfaceIssueView {
+        fact_id: None,
         code: issue_code(kind),
         placement,
+        subject: None,
+        fact_label: None,
         message: message.to_string(),
     });
+}
+
+fn hazard_issue_subject(
+    hazard: &atlas_record::HazardRecord,
+    component_id: &str,
+) -> Option<RecordSurfaceIssueSubjectView> {
+    let embedded = hazard.embedded_entities.typed()?;
+    let occurrence = embedded.occurrences.iter().find(|occurrence| {
+        occurrence.id.as_str() == component_id || occurrence.entity_id.as_str() == component_id
+    })?;
+    let entity = embedded
+        .entities
+        .iter()
+        .find(|entity| entity.id == occurrence.entity_id)?;
+    let label = occurrence
+        .contextual_label
+        .typed()
+        .cloned()
+        .unwrap_or_else(|| entity.label.clone());
+    Some(RecordSurfaceIssueSubjectView {
+        label,
+        target: Some(RecordSurfaceIssueTargetView::Activity {
+            occurrence_id: occurrence.id.as_str().to_string(),
+        }),
+    })
+}
+
+fn hazard_metadata_fact_label(field: HazardSourceMetadataField) -> &'static str {
+    match field {
+        HazardSourceMetadataField::TokenName => "Token name",
+        HazardSourceMetadataField::HasHealth => "Health compatibility",
+        HazardSourceMetadataField::TemporaryMaximum => "Temporary maximum HP",
+        HazardSourceMetadataField::SaveDetail(atlas_record::HazardSaveKind::Fortitude) => {
+            "Fortitude source note"
+        }
+        HazardSourceMetadataField::SaveDetail(atlas_record::HazardSaveKind::Reflex) => {
+            "Reflex source note"
+        }
+        HazardSourceMetadataField::SaveDetail(atlas_record::HazardSaveKind::Will) => {
+            "Will source note"
+        }
+        HazardSourceMetadataField::ItemRarity => "Component rarity",
+        HazardSourceMetadataField::ItemLineage => "Component lineage",
+        HazardSourceMetadataField::StrikeAttack => "Strike source attack",
+        HazardSourceMetadataField::StrikeWeaponType => "Strike source mode",
+        HazardSourceMetadataField::StrikeAttackEffectsCustom => "Custom attack effect",
+    }
+}
+
+fn hazard_unavailable_fact_label(field: &str) -> Option<&'static str> {
+    match field {
+        "activity.attack_effects" => Some("Attack effect"),
+        "activity.action.unexpected" => Some("Authored action field"),
+        "activity.strike.unexpected" => Some("Authored strike field"),
+        "activity.condition.unexpected" => Some("Authored condition field"),
+        "activity.effect.unexpected" => Some("Authored effect field"),
+        "activity.unsupported_child.field" => Some("Content-only component field"),
+        "activity.child_type" => Some("Content-only component type"),
+        "activity.rules" => Some("Activity rule"),
+        _ => None,
+    }
 }
 
 fn issue_code(kind: FactIssueKind) -> RecordSurfaceIssueCodeView {

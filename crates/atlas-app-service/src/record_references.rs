@@ -3,7 +3,9 @@ use atlas_app_model::{
     RecordSurfaceReferenceSectionView, RecordSurfaceReferenceSourceView,
     RecordSurfaceReferencesView,
 };
-use atlas_search::{GraphContextResult, GraphContextSection, SearchError, SearchErrorKind};
+use atlas_search::{
+    GraphContextResult, GraphContextSection, MAX_GRAPH_CONTEXT_LIMIT, SearchError, SearchErrorKind,
+};
 
 pub(crate) fn project_record_references(
     result: GraphContextResult,
@@ -61,6 +63,7 @@ fn project_section(
     };
     RecordSurfaceReferenceSectionView::Available {
         requested_limit,
+        next_limit: next_reference_limit(requested_limit, total_records, section.truncated),
         records: section
             .records
             .into_iter()
@@ -89,6 +92,14 @@ fn project_section(
         total_edges,
         truncated: section.truncated,
     }
+}
+
+fn next_reference_limit(requested_limit: u8, total_records: u32, truncated: bool) -> Option<u8> {
+    let cap = u8::try_from(MAX_GRAPH_CONTEXT_LIMIT).ok()?;
+    if !truncated || u32::from(requested_limit) >= total_records || requested_limit >= cap {
+        return None;
+    }
+    Some(requested_limit.saturating_mul(2).min(cap))
 }
 
 fn unavailable_section(
@@ -129,6 +140,15 @@ mod tests {
 
     use super::*;
     use crate::test_support::encounter_fixture_worker;
+
+    #[test]
+    fn reference_expansion_stops_at_the_product_cap() {
+        for (current, next) in [(8, Some(16)), (16, Some(32)), (32, Some(50)), (50, None)] {
+            assert_eq!(super::next_reference_limit(current, 75, true), next);
+        }
+        assert_eq!(super::next_reference_limit(8, 8, false), None);
+        assert_eq!(super::next_reference_limit(16, 12, true), None);
+    }
 
     #[test]
     fn record_references_preserve_graph_order_totals_and_truncation_for_every_family() {
@@ -197,11 +217,13 @@ mod tests {
                 total_records,
                 total_edges,
                 truncated,
+                next_limit,
             } = projected.outgoing
             else {
                 panic!("outgoing references should be available");
             };
             assert_eq!(requested_limit, 8);
+            assert_eq!(next_limit, Some(16));
             assert_eq!(
                 records
                     .iter()

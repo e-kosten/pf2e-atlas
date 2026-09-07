@@ -144,7 +144,7 @@ describe("AtlasApp routing", () => {
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
     vi.clearAllMocks();
-    fireEvent.click(screen.getByRole("link", { name: "Open full page" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Open full page" }));
 
     await waitFor(() => expect(window.location.pathname).toBe("/records/spell%3Aheal"));
     expect(window.location.search).toBe("");
@@ -163,7 +163,7 @@ describe("AtlasApp routing", () => {
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add to saved list" }));
     const dialog = await screen.findByRole("dialog", { name: "Add to List" });
     const selector = within(dialog).getByRole("combobox");
     fireEvent.mouseDown(selector);

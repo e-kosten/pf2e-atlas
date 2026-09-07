@@ -636,6 +636,7 @@ mod tests {
     fn record_reference_not_requested_has_no_invented_totals() {
         let references = RecordSurfaceReferencesView {
             outgoing: RecordSurfaceReferenceSectionView::Available {
+                next_limit: None,
                 requested_limit: 8,
                 records: Vec::new(),
                 edges: Vec::new(),
@@ -712,6 +713,7 @@ mod tests {
                     content: None,
                     relationships: None,
                     unavailable_fields: Some(vec![HazardSurfaceUnavailableView {
+                        fact_id: None,
                         state: HazardSurfaceUnavailableStateView::Null,
                         field: "defenses.hit_points.current".to_string(),
                         component_id: None,

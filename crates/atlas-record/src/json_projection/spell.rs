@@ -1849,6 +1849,7 @@ fn patch_source(value: SpellFormPatchSource) -> &'static str {
         SpellFormPatchSource::Base => "base",
         SpellFormPatchSource::Overlay => "overlay",
         SpellFormPatchSource::FixedHeightening => "fixed_heightening",
+        SpellFormPatchSource::IntervalHeightening => "interval_heightening",
     }
 }
 

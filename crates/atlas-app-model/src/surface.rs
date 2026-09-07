@@ -23,9 +23,35 @@ pub struct RecordSurfaceView {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RecordSurfaceIssueView {
+    // Opaque identity for a distinct retained fact; never display as a label.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub fact_id: Option<String>,
     pub code: RecordSurfaceIssueCodeView,
     pub placement: RecordSurfaceIssuePlacementView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub subject: Option<RecordSurfaceIssueSubjectView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub fact_label: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceIssueSubjectView {
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub target: Option<RecordSurfaceIssueTargetView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(tag = "target_type", rename_all = "snake_case")]
+#[ts(tag = "target_type", rename_all = "snake_case")]
+pub enum RecordSurfaceIssueTargetView {
+    Activity { occurrence_id: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -76,6 +102,9 @@ pub enum RecordSurfaceReferenceSectionView {
     NotRequested,
     Available {
         requested_limit: u8,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        next_limit: Option<u8>,
         records: Vec<RecordSurfaceReferenceRecordView>,
         edges: Vec<RecordSurfaceReferenceEdgeView>,
         total_records: u32,

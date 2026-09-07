@@ -3,10 +3,11 @@ import type { CreatureSurfaceActionCostView } from "./CreatureSurfaceActionCostV
 import type { CreatureSurfaceContentView } from "./CreatureSurfaceContentView";
 import type { CreatureSurfaceDamageView } from "./CreatureSurfaceDamageView";
 import type { HazardSurfaceActivityTypeView } from "./HazardSurfaceActivityTypeView";
+import type { HazardSurfaceAttackEffectView } from "./HazardSurfaceAttackEffectView";
 import type { HazardSurfaceAttackModeView } from "./HazardSurfaceAttackModeView";
 import type { HazardSurfaceFrequencyView } from "./HazardSurfaceFrequencyView";
 import type { HazardSurfaceOccurrenceIdentityStabilityView } from "./HazardSurfaceOccurrenceIdentityStabilityView";
 import type { HazardSurfaceRuleView } from "./HazardSurfaceRuleView";
 import type { HazardSurfaceSelfEffectView } from "./HazardSurfaceSelfEffectView";
 
-export type HazardSurfaceActivityView = { occurrence_id: string, entity_id: string, authored_order: number, source_ordinal: number, identity_stability: HazardSurfaceOccurrenceIdentityStabilityView, label: string, activity_type: HazardSurfaceActivityTypeView, child_type?: string, traits?: Array<string>, attack_mode?: HazardSurfaceAttackModeView, action_cost?: CreatureSurfaceActionCostView, frequency?: HazardSurfaceFrequencyView, category?: string, death_note?: boolean, self_effect?: HazardSurfaceSelfEffectView, attack_bonus?: number, attack_effects?: Array<string>, damage?: Array<CreatureSurfaceDamageView>, rules?: Array<HazardSurfaceRuleView>, content?: Array<CreatureSurfaceContentView>, };
+export type HazardSurfaceActivityView = { occurrence_id: string, entity_id: string, authored_order: number, source_ordinal: number, identity_stability: HazardSurfaceOccurrenceIdentityStabilityView, label: string, activity_type: HazardSurfaceActivityTypeView, child_type?: string, traits?: Array<string>, attack_mode?: HazardSurfaceAttackModeView, action_cost?: CreatureSurfaceActionCostView, frequency?: HazardSurfaceFrequencyView, category?: string, death_note?: boolean, self_effect?: HazardSurfaceSelfEffectView, attack_bonus?: number, attack_effects?: Array<HazardSurfaceAttackEffectView>, damage?: Array<CreatureSurfaceDamageView>, rules?: Array<HazardSurfaceRuleView>, content?: Array<CreatureSurfaceContentView>, };

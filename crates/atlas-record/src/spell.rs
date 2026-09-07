@@ -179,7 +179,7 @@ impl SpellDefinition {
         if let Some(overlay) = selected_overlay {
             resolved.apply_patch(&overlay.patch, SpellFormPatchSource::Overlay);
         }
-        resolved.apply_fixed_heightening();
+        resolved.apply_rank_heightening(base_rank);
         Ok(resolved)
     }
 
@@ -813,6 +813,7 @@ pub enum SpellFormPatchSource {
     Base,
     Overlay,
     FixedHeightening,
+    IntervalHeightening,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -822,6 +823,10 @@ pub enum SpellFormUnavailableReason {
     IncompatibleHeightening,
     UnknownFixedRank(String),
     FixedRankKeyMismatch { key: String, rank: u8 },
+    InvalidInterval,
+    IntervalMemberUnavailable,
+    IntervalFormulaUnsupported,
+    IntervalOverflow,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -947,6 +952,21 @@ impl ResolvedSpellForm {
         }
     }
 
+    fn apply_rank_heightening(&mut self, base_rank: Option<u8>) {
+        let heightening = match &self.heightening {
+            SpellResolvedField::Available(FactValue::Value(SpellSourceValue::Known(value))) => {
+                value.clone()
+            }
+            _ => return,
+        };
+        match heightening {
+            SpellHeightening::Fixed(_) => self.apply_fixed_heightening(),
+            SpellHeightening::Interval(interval) => {
+                self.apply_interval_heightening(base_rank, &interval)
+            }
+        }
+    }
+
     fn apply_fixed_heightening(&mut self) {
         let heightening = match &self.heightening {
             SpellResolvedField::Available(FactValue::Value(SpellSourceValue::Known(
@@ -1010,6 +1030,105 @@ impl ResolvedSpellForm {
         for (rank, _, patch) in applicable {
             self.apply_patch(&patch, SpellFormPatchSource::FixedHeightening);
             self.applied_fixed_ranks.push(rank);
+        }
+    }
+
+    fn apply_interval_heightening(
+        &mut self,
+        base_rank: Option<u8>,
+        interval: &SpellIntervalHeightening,
+    ) {
+        let interval_rank = match &interval.interval {
+            FactValue::Value(SpellSourceValue::Known(value)) if *value > 0 => *value,
+            FactValue::Missing
+            | FactValue::Null
+            | FactValue::Value(SpellSourceValue::Known(_))
+            | FactValue::Value(SpellSourceValue::Unsupported(_)) => {
+                self.mark_interval_fields_unavailable(
+                    interval,
+                    SpellFormUnavailableReason::InvalidInterval,
+                );
+                return;
+            }
+        };
+        let Some(base_rank) = base_rank else {
+            self.mark_interval_fields_unavailable(
+                interval,
+                SpellFormUnavailableReason::InvalidInterval,
+            );
+            return;
+        };
+        let Some(rank_delta) = self.context.cast_rank.checked_sub(base_rank) else {
+            self.mark_interval_fields_unavailable(
+                interval,
+                SpellFormUnavailableReason::InvalidInterval,
+            );
+            return;
+        };
+        let steps = rank_delta / interval_rank;
+        if steps == 0 {
+            return;
+        }
+
+        match &interval.area {
+            FactValue::Value(SpellSourceValue::Known(increment)) => {
+                if let Err(reason) = apply_interval_area(&mut self.targeting, *increment, steps) {
+                    self.mark_unavailable(
+                        SpellFormField::Targeting,
+                        SpellFormPatchSource::IntervalHeightening,
+                        reason,
+                    );
+                }
+            }
+            FactValue::Value(SpellSourceValue::Unsupported(_)) => self.mark_unavailable(
+                SpellFormField::Targeting,
+                SpellFormPatchSource::IntervalHeightening,
+                SpellFormUnavailableReason::IntervalMemberUnavailable,
+            ),
+            FactValue::Missing | FactValue::Null => {}
+        }
+        match &interval.damage {
+            FactValue::Value(SpellSourceValue::Known(increments)) if !increments.is_empty() => {
+                if let Err(reason) = apply_interval_damage(&mut self.damage, increments, steps) {
+                    self.mark_unavailable(
+                        SpellFormField::Damage,
+                        SpellFormPatchSource::IntervalHeightening,
+                        reason,
+                    );
+                }
+            }
+            FactValue::Value(SpellSourceValue::Unsupported(_)) => self.mark_unavailable(
+                SpellFormField::Damage,
+                SpellFormPatchSource::IntervalHeightening,
+                SpellFormUnavailableReason::IntervalMemberUnavailable,
+            ),
+            FactValue::Missing | FactValue::Null | FactValue::Value(SpellSourceValue::Known(_)) => {
+            }
+        }
+    }
+
+    fn mark_interval_fields_unavailable(
+        &mut self,
+        interval: &SpellIntervalHeightening,
+        reason: SpellFormUnavailableReason,
+    ) {
+        if matches!(&interval.area, FactValue::Value(_)) {
+            self.mark_unavailable(
+                SpellFormField::Targeting,
+                SpellFormPatchSource::IntervalHeightening,
+                reason.clone(),
+            );
+        }
+        if match &interval.damage {
+            FactValue::Value(SpellSourceValue::Known(values)) => !values.is_empty(),
+            FactValue::Value(SpellSourceValue::Unsupported(_)) => true,
+            FactValue::Missing | FactValue::Null => false,
+        } {
+            self.mark_unavailable(
+                SpellFormField::Damage,
+                SpellFormPatchSource::IntervalHeightening,
+                reason,
+            );
         }
     }
 
@@ -1078,6 +1197,9 @@ impl ResolvedSpellForm {
         source: SpellFormPatchSource,
         reason: SpellFormUnavailableReason,
     ) {
+        if source == SpellFormPatchSource::IntervalHeightening && self.field_is_unavailable(field) {
+            return;
+        }
         let unavailable = SpellFormUnavailable {
             field,
             source,
@@ -1102,6 +1224,194 @@ impl ResolvedSpellForm {
             SpellFormField::Rules => self.rules = SpellResolvedField::Unavailable(unavailable),
         }
     }
+
+    fn field_is_unavailable(&self, field: SpellFormField) -> bool {
+        match field {
+            SpellFormField::Classification => {
+                matches!(self.classification, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Casting => {
+                matches!(self.casting, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Targeting => {
+                matches!(self.targeting, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Defense => {
+                matches!(self.defense, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Damage => {
+                matches!(self.damage, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Duration => {
+                matches!(self.duration, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Heightening => {
+                matches!(self.heightening, SpellResolvedField::Unavailable(_))
+            }
+            SpellFormField::Rules => {
+                matches!(self.rules, SpellResolvedField::Unavailable(_))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct IntervalFormula {
+    dice: u64,
+    sides: u64,
+    flat: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IntervalFormulaParseError {
+    Unsupported,
+    Overflow,
+}
+
+fn parse_interval_formula(value: &str) -> Result<IntervalFormula, IntervalFormulaParseError> {
+    if value.is_empty() || value.bytes().any(|byte| byte.is_ascii_whitespace()) {
+        return Err(IntervalFormulaParseError::Unsupported);
+    }
+    let Some((dice, remainder)) = value.split_once('d') else {
+        return Err(IntervalFormulaParseError::Unsupported);
+    };
+    if dice.is_empty() || !dice.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(IntervalFormulaParseError::Unsupported);
+    }
+    let (sides, flat) = match remainder.split_once('+') {
+        Some((sides, flat)) => {
+            if flat.is_empty() || !flat.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err(IntervalFormulaParseError::Unsupported);
+            }
+            (sides, Some(flat))
+        }
+        None => (remainder, None),
+    };
+    if sides.is_empty()
+        || !sides.bytes().all(|byte| byte.is_ascii_digit())
+        || sides.contains('d')
+        || sides.contains('+')
+    {
+        return Err(IntervalFormulaParseError::Unsupported);
+    }
+    let dice = dice
+        .parse::<u64>()
+        .map_err(|_| IntervalFormulaParseError::Overflow)?;
+    let sides = sides
+        .parse::<u64>()
+        .map_err(|_| IntervalFormulaParseError::Overflow)?;
+    let flat = flat
+        .map(str::parse::<u64>)
+        .transpose()
+        .map_err(|_| IntervalFormulaParseError::Overflow)?
+        .unwrap_or(0);
+    if dice == 0 || sides == 0 {
+        return Err(IntervalFormulaParseError::Unsupported);
+    }
+    Ok(IntervalFormula { dice, sides, flat })
+}
+
+fn interval_formula_reason(error: IntervalFormulaParseError) -> SpellFormUnavailableReason {
+    match error {
+        IntervalFormulaParseError::Unsupported => {
+            SpellFormUnavailableReason::IntervalFormulaUnsupported
+        }
+        IntervalFormulaParseError::Overflow => SpellFormUnavailableReason::IntervalOverflow,
+    }
+}
+
+fn apply_interval_area(
+    resolved: &mut SpellResolvedField<SpellFact<SpellTargeting>>,
+    increment: u32,
+    steps: u8,
+) -> Result<(), SpellFormUnavailableReason> {
+    let SpellResolvedField::Available(current) = resolved else {
+        return Ok(());
+    };
+    let FactValue::Value(SpellSourceValue::Known(targeting)) = current else {
+        return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+    };
+    let FactValue::Value(SpellSourceValue::Known(area)) = &targeting.area else {
+        return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+    };
+    let FactValue::Value(SpellSourceValue::Known(value)) = &area.value else {
+        return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+    };
+    let increment = increment
+        .checked_mul(u32::from(steps))
+        .ok_or(SpellFormUnavailableReason::IntervalOverflow)?;
+    let value = value
+        .checked_add(increment)
+        .ok_or(SpellFormUnavailableReason::IntervalOverflow)?;
+    let mut targeting = targeting.clone();
+    let FactValue::Value(SpellSourceValue::Known(area)) = &mut targeting.area else {
+        return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+    };
+    area.value = FactValue::Value(SpellSourceValue::Known(value));
+    *current = FactValue::Value(SpellSourceValue::Known(targeting));
+    Ok(())
+}
+
+fn apply_interval_damage(
+    resolved: &mut SpellResolvedField<SpellFact<Vec<SpellOrderedMember<SpellDamage>>>>,
+    increments: &[SpellOrderedMember<String>],
+    steps: u8,
+) -> Result<(), SpellFormUnavailableReason> {
+    let SpellResolvedField::Available(current) = resolved else {
+        return Ok(());
+    };
+    let FactValue::Value(SpellSourceValue::Known(current_members)) = current else {
+        return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+    };
+    let mut increment_counts = BTreeMap::new();
+    for increment in increments {
+        *increment_counts
+            .entry(increment.key.as_str())
+            .or_insert(0_u32) += 1;
+    }
+    let mut members = current_members.clone();
+    for increment in increments {
+        if increment_counts.get(increment.key.as_str()).copied() != Some(1) {
+            return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+        }
+        let mut matches = members
+            .iter_mut()
+            .filter(|member| member.key == increment.key);
+        let Some(member) = matches.next() else {
+            return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+        };
+        if matches.next().is_some() {
+            return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+        }
+        let FactValue::Value(SpellSourceValue::Known(base_formula)) = &member.value.formula else {
+            return Err(SpellFormUnavailableReason::IntervalMemberUnavailable);
+        };
+        let base = parse_interval_formula(base_formula).map_err(interval_formula_reason)?;
+        let increment_formula =
+            parse_interval_formula(&increment.value).map_err(interval_formula_reason)?;
+        if base.sides != increment_formula.sides {
+            return Err(SpellFormUnavailableReason::IntervalFormulaUnsupported);
+        }
+        let step_count = u64::from(steps);
+        let dice = increment_formula
+            .dice
+            .checked_mul(step_count)
+            .and_then(|value| base.dice.checked_add(value))
+            .ok_or(SpellFormUnavailableReason::IntervalOverflow)?;
+        let flat = increment_formula
+            .flat
+            .checked_mul(step_count)
+            .and_then(|value| base.flat.checked_add(value))
+            .ok_or(SpellFormUnavailableReason::IntervalOverflow)?;
+        let formula = if flat == 0 {
+            format!("{dice}d{}", base.sides)
+        } else {
+            format!("{dice}d{}+{flat}", base.sides)
+        };
+        member.value.formula = FactValue::Value(SpellSourceValue::Known(formula));
+    }
+    *current = FactValue::Value(SpellSourceValue::Known(members));
+    Ok(())
 }
 
 impl SpellPatch {
@@ -1191,10 +1501,15 @@ fn known_fact<T>(fact: &SpellFact<T>) -> Option<&T> {
 }
 
 fn has_rank_dependent_heightening(heightening: &SpellFact<SpellHeightening>) -> bool {
-    matches!(
-        heightening,
-        FactValue::Value(SpellSourceValue::Known(SpellHeightening::Fixed(_)))
-    )
+    match heightening {
+        FactValue::Value(SpellSourceValue::Known(SpellHeightening::Fixed(_))) => true,
+        FactValue::Value(SpellSourceValue::Known(SpellHeightening::Interval(value))) => {
+            !matches!(&value.interval, FactValue::Missing | FactValue::Null)
+        }
+        FactValue::Missing
+        | FactValue::Null
+        | FactValue::Value(SpellSourceValue::Unsupported(_)) => false,
+    }
 }
 
 fn fact_has_unsupported<T>(fact: &SpellFact<T>) -> bool {
@@ -1308,11 +1623,9 @@ fn duration_has_unsupported(duration: &SpellFact<SpellDuration>) -> bool {
 
 fn heightening_has_unsupported(heightening: &SpellFact<SpellHeightening>) -> bool {
     match heightening {
-        FactValue::Value(SpellSourceValue::Known(SpellHeightening::Interval(value))) => {
-            fact_has_unsupported(&value.interval)
-                || fact_has_unsupported(&value.area)
-                || fact_has_unsupported(&value.damage)
-        }
+        // Interval members have independent affected-field failures during rank resolution.
+        // Retain their typed evidence for the shared presentation issue owner.
+        FactValue::Value(SpellSourceValue::Known(SpellHeightening::Interval(_))) => false,
         FactValue::Value(SpellSourceValue::Known(SpellHeightening::Fixed(_))) => false,
         other => fact_has_unsupported(other),
     }
@@ -2089,7 +2402,8 @@ mod tests {
         assert_base_unavailable!(form.targeting);
         assert_base_unavailable!(form.defense);
         assert_base_unavailable!(form.damage);
-        assert_base_unavailable!(form.heightening);
+        // Interval evidence stays typed; zero steps do not evaluate its increments.
+        assert!(matches!(form.heightening, SpellResolvedField::Available(_)));
         assert!(matches!(form.casting, SpellResolvedField::Available(_)));
     }
 
@@ -2444,7 +2758,7 @@ mod tests {
     }
 
     #[test]
-    fn interval_heightening_keeps_authored_increments_without_evaluation() {
+    fn interval_heightening_evaluates_selected_rank_and_keeps_authored_increments() {
         let interval = SpellHeightening::Interval(SpellIntervalHeightening {
             interval: known(1),
             area: known(5),
@@ -2459,7 +2773,7 @@ mod tests {
             .resolve_form(
                 SpellFormId::base(&spell.identity.record_key),
                 SpellFormContext {
-                    cast_rank: 9,
+                    cast_rank: 3,
                     overlay_id: None,
                 },
             )
@@ -2476,5 +2790,426 @@ mod tests {
             Some("1d8")
         );
         assert!(form.applied_fixed_ranks.is_empty());
+        let SpellResolvedField::Available(FactValue::Value(SpellSourceValue::Known(damage))) =
+            form.damage
+        else {
+            panic!("resolved damage")
+        };
+        assert_eq!(
+            known_fact(&damage[0].value.formula).map(String::as_str),
+            Some("3d8")
+        );
+    }
+
+    #[test]
+    fn interval_heightening_uses_post_overlay_members_and_multiplies_flat_values() {
+        let interval = SpellHeightening::Interval(SpellIntervalHeightening {
+            interval: known(1),
+            area: FactValue::Missing,
+            damage: known(vec![SpellOrderedMember {
+                key: "0".to_string(),
+                authored_order: 0,
+                value: "1d8+8".to_string(),
+            }]),
+        });
+        let mut overlay = touch_overlay();
+        overlay.patch.damage = known(SpellKeyedPatch {
+            members: vec![SpellKeyedPatchMember {
+                key: "0".to_string(),
+                authored_order: 0,
+                operation: SpellKeyedPatchOperation::Merge(SpellDamagePatch {
+                    formula: known("1d8+8".to_string()),
+                    ..SpellDamagePatch::default()
+                }),
+            }],
+        });
+        let spell = fixture_spell(interval, vec![overlay.clone()]);
+        let form = spell
+            .resolve_form(
+                overlay.form_id(&record_key()),
+                SpellFormContext {
+                    cast_rank: 3,
+                    overlay_id: Some(overlay.overlay_id),
+                },
+            )
+            .expect("Living-like selected form");
+        let SpellResolvedField::Available(FactValue::Value(SpellSourceValue::Known(damage))) =
+            form.damage
+        else {
+            panic!("resolved damage")
+        };
+        assert_eq!(
+            known_fact(&damage[0].value.formula).map(String::as_str),
+            Some("3d8+24")
+        );
+        assert!(form.applied_fixed_ranks.is_empty());
+    }
+
+    #[test]
+    fn interval_heightening_is_strict_atomic_and_field_local() {
+        for formula in ["1D8", " 1d8", "1d8 ", "+1d8", "1d8-1", "1d8+1+1", "1d8x"] {
+            let mut spell = fixture_spell(
+                SpellHeightening::Interval(SpellIntervalHeightening {
+                    interval: known(1),
+                    area: known(5),
+                    damage: known(vec![SpellOrderedMember {
+                        key: "0".to_string(),
+                        authored_order: 0,
+                        value: formula.to_string(),
+                    }]),
+                }),
+                Vec::new(),
+            );
+            let FactValue::Value(SpellSourceValue::Known(targeting)) =
+                &mut spell.definition.targeting
+            else {
+                panic!("fixture targeting")
+            };
+            targeting.area = known(SpellAreaValue {
+                value: known(0),
+                ..SpellAreaValue::default()
+            });
+            let form = spell
+                .resolve_form(
+                    SpellFormId::base(&record_key()),
+                    SpellFormContext {
+                        cast_rank: 2,
+                        overlay_id: None,
+                    },
+                )
+                .expect("localized interval failure");
+            assert!(matches!(
+                form.damage,
+                SpellResolvedField::Unavailable(SpellFormUnavailable {
+                    source: SpellFormPatchSource::IntervalHeightening,
+                    reason: SpellFormUnavailableReason::IntervalFormulaUnsupported,
+                    ..
+                })
+            ));
+            let SpellResolvedField::Available(FactValue::Value(SpellSourceValue::Known(targeting))) =
+                form.targeting
+            else {
+                panic!("targeting stays available")
+            };
+            let FactValue::Value(SpellSourceValue::Known(area)) = targeting.area else {
+                panic!("area stays available")
+            };
+            assert_eq!(known_fact(&area.value), Some(&5));
+        }
+    }
+
+    #[test]
+    fn interval_heightening_requires_unique_exact_member_and_preserves_prior_unavailable() {
+        let interval = SpellHeightening::Interval(SpellIntervalHeightening {
+            interval: known(1),
+            area: FactValue::Missing,
+            damage: known(vec![SpellOrderedMember {
+                key: "missing".to_string(),
+                authored_order: 0,
+                value: "1d8".to_string(),
+            }]),
+        });
+        let spell = fixture_spell(interval, Vec::new());
+        let form = spell
+            .resolve_form(
+                SpellFormId::base(&record_key()),
+                SpellFormContext {
+                    cast_rank: 2,
+                    overlay_id: None,
+                },
+            )
+            .expect("localized association failure");
+        assert!(matches!(
+            form.damage,
+            SpellResolvedField::Unavailable(SpellFormUnavailable {
+                source: SpellFormPatchSource::IntervalHeightening,
+                reason: SpellFormUnavailableReason::IntervalMemberUnavailable,
+                ..
+            })
+        ));
+
+        let mut spell = fixture_spell(
+            SpellHeightening::Interval(SpellIntervalHeightening {
+                interval: known(1),
+                area: FactValue::Missing,
+                damage: known(vec![SpellOrderedMember {
+                    key: "0".to_string(),
+                    authored_order: 0,
+                    value: "1d8".to_string(),
+                }]),
+            }),
+            Vec::new(),
+        );
+        spell.definition.damage = FactValue::Value(SpellSourceValue::Unsupported(unsupported(
+            "base damage unavailable",
+        )));
+        let form = spell
+            .resolve_form(
+                SpellFormId::base(&record_key()),
+                SpellFormContext {
+                    cast_rank: 2,
+                    overlay_id: None,
+                },
+            )
+            .expect("base unavailable remains localized");
+        assert!(matches!(
+            form.damage,
+            SpellResolvedField::Unavailable(SpellFormUnavailable {
+                source: SpellFormPatchSource::Base,
+                reason: SpellFormUnavailableReason::UnsupportedPatch,
+                ..
+            })
+        ));
+    }
+    #[test]
+    fn interval_absent_increments_are_noop_and_unsupported_members_are_independent() {
+        for absent in [FactValue::Missing, FactValue::Null] {
+            let mut spell = interval_fixture(known(1), "1d8");
+            let FactValue::Value(SpellSourceValue::Known(SpellHeightening::Interval(interval))) =
+                &mut spell.definition.heightening
+            else {
+                panic!("interval")
+            };
+            interval.area = absent.clone();
+            interval.damage = match absent {
+                FactValue::Missing => FactValue::Missing,
+                _ => FactValue::Null,
+            };
+            let form = resolve_interval(&spell, 5);
+            assert_eq!(
+                form.damage,
+                SpellResolvedField::Available(spell.definition.damage.clone())
+            );
+            assert_eq!(
+                form.targeting,
+                SpellResolvedField::Available(spell.definition.targeting.clone())
+            );
+        }
+        let mut spell = interval_fixture(known(1), "1d8");
+        let FactValue::Value(SpellSourceValue::Known(SpellHeightening::Interval(interval))) =
+            &mut spell.definition.heightening
+        else {
+            panic!("interval")
+        };
+        interval.area = FactValue::Value(SpellSourceValue::Unsupported(unsupported(
+            "unknown area increment",
+        )));
+        let form = resolve_interval(&spell, 3);
+        assert!(matches!(
+            form.targeting,
+            SpellResolvedField::Unavailable(SpellFormUnavailable {
+                source: SpellFormPatchSource::IntervalHeightening,
+                reason: SpellFormUnavailableReason::IntervalMemberUnavailable,
+                ..
+            })
+        ));
+        let SpellResolvedField::Available(value) = form.damage else {
+            panic!("independent damage")
+        };
+        assert_eq!(
+            known_fact(&known_fact(&value).expect("members")[0].value.formula).expect("formula"),
+            "3d8"
+        );
+        let zero = resolve_interval(&spell, 1);
+        assert_eq!(
+            zero.targeting,
+            SpellResolvedField::Available(spell.definition.targeting.clone())
+        );
+    }
+
+    fn interval_fixture(interval: SpellFact<u8>, increment: &str) -> SpellRecord {
+        fixture_spell(
+            SpellHeightening::Interval(SpellIntervalHeightening {
+                interval,
+                area: FactValue::Missing,
+                damage: known(vec![SpellOrderedMember {
+                    key: "0".into(),
+                    authored_order: 0,
+                    value: increment.into(),
+                }]),
+            }),
+            Vec::new(),
+        )
+    }
+
+    fn resolve_interval(spell: &SpellRecord, rank: u8) -> ResolvedSpellForm {
+        spell
+            .resolve_form(
+                SpellFormId::base(&record_key()),
+                SpellFormContext {
+                    cast_rank: rank,
+                    overlay_id: None,
+                },
+            )
+            .expect("field-local resolution")
+    }
+
+    #[test]
+    fn interval_floor_steps_zero_and_authored_facts_are_preserved() {
+        let spell = interval_fixture(known(2), "1d8+8");
+        let authored = spell.clone();
+        for (rank, expected) in [(1, "1d8"), (2, "1d8"), (3, "2d8+8"), (6, "3d8+16")] {
+            let form = resolve_interval(&spell, rank);
+            let SpellResolvedField::Available(value) = &form.damage else {
+                panic!("available damage")
+            };
+            assert_eq!(
+                known_fact(&known_fact(value).expect("members")[0].value.formula).expect("formula"),
+                expected
+            );
+            assert!(form.applied_fixed_ranks.is_empty());
+            if rank <= 2 {
+                assert_eq!(value, &spell.definition.damage);
+            }
+        }
+        assert_eq!(spell, authored);
+    }
+
+    #[test]
+    fn interval_grammar_and_checked_arithmetic_have_precise_reasons() {
+        for formula in [
+            "0d8", "1d0", "1d8+-1", "1d8+", "1d8+2d8", "1d8\t", "1d8\n", "1 d8", "@rank", "1d6",
+            "１d8", "1d8+−1",
+        ] {
+            let form = resolve_interval(&interval_fixture(known(1), formula), 3);
+            assert!(
+                matches!(
+                    form.damage,
+                    SpellResolvedField::Unavailable(SpellFormUnavailable {
+                        source: SpellFormPatchSource::IntervalHeightening,
+                        reason: SpellFormUnavailableReason::IntervalFormulaUnsupported,
+                        ..
+                    })
+                ),
+                "{formula}"
+            );
+        }
+        for formula in [
+            "18446744073709551616d8",
+            "18446744073709551615d8",
+            "1d8+18446744073709551615",
+        ] {
+            let form = resolve_interval(&interval_fixture(known(1), formula), 3);
+            assert!(
+                matches!(
+                    form.damage,
+                    SpellResolvedField::Unavailable(SpellFormUnavailable {
+                        source: SpellFormPatchSource::IntervalHeightening,
+                        reason: SpellFormUnavailableReason::IntervalOverflow,
+                        ..
+                    })
+                ),
+                "{formula}"
+            );
+        }
+        for interval in [known(0), FactValue::Missing, FactValue::Null] {
+            let form = resolve_interval(&interval_fixture(interval, "1d8"), 3);
+            assert!(matches!(
+                form.damage,
+                SpellResolvedField::Unavailable(SpellFormUnavailable {
+                    source: SpellFormPatchSource::IntervalHeightening,
+                    reason: SpellFormUnavailableReason::InvalidInterval,
+                    ..
+                })
+            ));
+        }
+    }
+
+    #[test]
+    fn interval_associations_are_atomic_and_preserve_unaffected_members() {
+        let spell = interval_fixture(known(1), "1d8");
+        let mut damage = spell.definition.damage.clone();
+        let FactValue::Value(SpellSourceValue::Known(members)) = &mut damage else {
+            panic!("members")
+        };
+        let mut other = members[0].clone();
+        other.key = "other".into();
+        other.authored_order = 9;
+        other.value.formula = known("authored variable formula".into());
+        members.push(other.clone());
+        let increments = vec![SpellOrderedMember {
+            key: "0".into(),
+            authored_order: 0,
+            value: "1d8".into(),
+        }];
+        let mut resolved = SpellResolvedField::Available(damage.clone());
+        apply_interval_damage(&mut resolved, &increments, 2).expect("supported association");
+        let SpellResolvedField::Available(value) = &resolved else {
+            panic!("damage")
+        };
+        assert_eq!(&known_fact(value).expect("members")[1], &other);
+        for bad in ["missing", "other", "0"] {
+            let mut increments = increments.clone();
+            increments.push(SpellOrderedMember {
+                key: bad.into(),
+                authored_order: 1,
+                value: "1d8".into(),
+            });
+            let mut resolved = SpellResolvedField::Available(damage.clone());
+            let before = resolved.clone();
+            assert!(apply_interval_damage(&mut resolved, &increments, 2).is_err());
+            assert_eq!(resolved, before, "no partially updated damage for {bad}");
+        }
+        let FactValue::Value(SpellSourceValue::Known(members)) = &mut damage else {
+            panic!("members")
+        };
+        members.push(members[0].clone());
+        let mut resolved = SpellResolvedField::Available(damage);
+        assert_eq!(
+            apply_interval_damage(&mut resolved, &increments, 2),
+            Err(SpellFormUnavailableReason::IntervalMemberUnavailable)
+        );
+    }
+
+    #[test]
+    fn interval_area_checked_failure_does_not_erase_damage_and_overlay_rank_is_not_base() {
+        let mut spell = interval_fixture(known(1), "1d8");
+        let FactValue::Value(SpellSourceValue::Known(SpellHeightening::Interval(interval))) =
+            &mut spell.definition.heightening
+        else {
+            panic!("interval")
+        };
+        interval.area = known(u32::MAX);
+        let FactValue::Value(SpellSourceValue::Known(targeting)) = &mut spell.definition.targeting
+        else {
+            panic!("targeting")
+        };
+        targeting.area = known(SpellAreaValue {
+            value: known(30),
+            ..Default::default()
+        });
+        let form = resolve_interval(&spell, 3);
+        assert!(matches!(
+            form.targeting,
+            SpellResolvedField::Unavailable(SpellFormUnavailable {
+                source: SpellFormPatchSource::IntervalHeightening,
+                reason: SpellFormUnavailableReason::IntervalOverflow,
+                ..
+            })
+        ));
+        assert!(matches!(form.damage, SpellResolvedField::Available(_)));
+        let mut overlay = touch_overlay();
+        overlay.patch.classification = known(SpellClassificationPatch {
+            rank: known(2),
+            ..Default::default()
+        });
+        let id = overlay.overlay_id.clone();
+        spell.definition.overlays = known(vec![overlay]);
+        let form = spell
+            .resolve_form(
+                SpellFormId::overlay(&record_key(), &id),
+                SpellFormContext {
+                    cast_rank: 3,
+                    overlay_id: Some(id),
+                },
+            )
+            .expect("overlay");
+        let SpellResolvedField::Available(value) = &form.damage else {
+            panic!("damage")
+        };
+        assert_eq!(
+            known_fact(&known_fact(value).expect("members")[0].value.formula),
+            Some(&"3d8".to_string())
+        );
     }
 }
