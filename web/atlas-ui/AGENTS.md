@@ -52,3 +52,5 @@ npm --prefix web/atlas-ui run verify
 ```
 
 For narrow refactors, also run focused tests for the touched surface before the full verify.
+
+Frontend implementers must validate the matching candidate with Safari MCP in a separate tab after affected automated checks, inspecting desktop1440, intermediate1024 and narrow390 layouts, dark/light themes and keyboard interactions. Fix obvious in-scope defects before independent review. Record exact candidate/URL, screenshots, interactions and limitations. Safari MCP is independent of the AO Browser panel: do not wait for AO Browser capabilities or substitute reviewer screenshots. Preserve unrelated tabs, protected runtimes and saved state. Browser validation grants no runtime/build/publication authority.

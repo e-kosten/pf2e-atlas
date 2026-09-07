@@ -27,6 +27,7 @@ import {
 type RecordSurfaceProps = {
   onReference: (recordKey: string) => void;
   onReferencesOpen?: () => void;
+  onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   onSpellFormSelection?: (selection: SpellFormSelection) => void;
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   showTitle?: boolean;
@@ -44,6 +45,7 @@ type RecordSurfaceProps = {
 export const RecordSurface = memo(function RecordSurface({
   onReference,
   onReferencesOpen,
+  onReferenceLimit,
   onSpellFormSelection,
   onSpellCast,
   showTitle = true,
@@ -62,8 +64,8 @@ export const RecordSurface = memo(function RecordSurface({
       <article className="record-surface record-surface--unavailable">
         <RecordHeader metadata={surface.metadata} showTitle={showTitle} />
         <Alert
-          description={surface.presentation.unavailable.message}
-          message="This record family is not available in the typed record surface yet."
+          description="Search for another record or follow a linked reference."
+          message="A detailed view of this record is not available yet."
           showIcon
           type="info"
         />
@@ -95,6 +97,7 @@ export const RecordSurface = memo(function RecordSurface({
         metadata={surface.metadata}
         onReference={onReference}
         onReferencesOpen={onReferencesOpen}
+        onReferenceLimit={onReferenceLimit}
         references={references ?? surface.references}
         referencesLoading={referenceLoading}
         showTitle={showTitle}
@@ -119,6 +122,7 @@ export const RecordSurface = memo(function RecordSurface({
         metadata={surface.metadata}
         onReference={onReference}
         onReferencesOpen={onReferencesOpen}
+        onReferenceLimit={onReferenceLimit}
         onSelectionChange={onSpellFormSelection}
         references={references ?? surface.references}
         referencesLoading={referenceLoading}
@@ -156,6 +160,7 @@ export const RecordSurface = memo(function RecordSurface({
       metadata={surface.metadata}
       onReference={onReference}
       onReferencesOpen={onReferencesOpen}
+      onReferenceLimit={onReferenceLimit}
       references={references ?? surface.references}
       referencesLoading={referenceLoading}
       showTitle={showTitle}

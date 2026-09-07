@@ -27,7 +27,7 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
     assert_eq!(actual["message"], "artifact metadata is valid");
     assert_eq!(
         actual["artifact_contract_version"],
-        "pf2e-atlas-artifact/v7"
+        "pf2e-atlas-artifact/v8"
     );
     assert_eq!(actual["schema_version"], "4");
     assert_eq!(actual["source_signature"], "foundry-pf2e:fixture");
@@ -313,7 +313,7 @@ fn assert_metadata_failure(value: &serde_json::Value, path: &std::path::Path, co
         value["message"],
         "artifact metadata is incompatible with this runtime"
     );
-    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v7");
+    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v8");
 }
 
 fn assert_diagnostic(

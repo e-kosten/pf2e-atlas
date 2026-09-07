@@ -73,7 +73,13 @@ function themeConfig(scheme: ResolvedColorScheme): ThemeConfig {
       borderRadius: atlasTheme.radius.md,
       colorInfo: primary,
       colorLink: link,
+      colorLinkHover: link,
+      colorLinkActive: link,
+      colorTextDescription:
+        scheme === "dark" ? `${COLOR_PREFIX}bfbfbf` : `${COLOR_PREFIX}595959`,
       colorPrimary: primary,
+      colorTextLightSolid:
+        scheme === "dark" ? `${COLOR_PREFIX}141414` : `${COLOR_PREFIX}ffffff`,
       controlHeight: atlasTheme.controlHeight,
       fontFamily: atlasTheme.fontFamily,
     },

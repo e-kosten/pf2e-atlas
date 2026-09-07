@@ -476,7 +476,7 @@ unit_enum_json!(SpellOverlayType { Override => "override" });
 unit_enum_json!(SpellUnsupportedSourceField { SystemMember => "system_member", ProvenanceMember => "provenance_member", ClassificationMember => "classification_member", CastingMember => "casting_member", TargetingMember => "targeting_member", DefenseMember => "defense_member", DurationMember => "duration_member", LocationMember => "location_member", LegacyTraitSelection => "legacy_trait_selection", AreaMember => "area_member", DamageMember => "damage_member", HeighteningMember => "heightening_member", OverlayMember => "overlay_member", RitualMember => "ritual_member" });
 unit_enum_json!(SpellHeighteningType { Interval => "interval" });
 unit_enum_json!(SpellFormField { Classification => "classification", Casting => "casting", Targeting => "targeting", Defense => "defense", Damage => "damage", Duration => "duration", Heightening => "heightening", Rules => "rules" });
-unit_enum_json!(SpellFormPatchSource { Base => "base", Overlay => "overlay", FixedHeightening => "fixed_heightening" });
+unit_enum_json!(SpellFormPatchSource { Base => "base", Overlay => "overlay", FixedHeightening => "fixed_heightening", IntervalHeightening => "interval_heightening" });
 
 impl<T: CanonicalJson> CanonicalJson for HazardSourceValue<T> {
     fn to_canonical_json(&self) -> Value {

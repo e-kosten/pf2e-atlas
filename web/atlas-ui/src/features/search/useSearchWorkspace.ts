@@ -75,6 +75,8 @@ export type SearchWorkspaceState = {
   resultsLoading: boolean;
   resultsRefreshing: boolean;
   detailLoading: boolean;
+  detailRefreshing: boolean;
+  detailError: Error | null;
   filterDiscoveryLoading: boolean;
   diagnostics: AtlasWorkspaceDiagnostics;
   errorMessage: string | null;
@@ -198,10 +200,10 @@ export function useSearchWorkspace({
 
   const detailQuery = useQuery({
     queryKey: ["record-detail", selectedRecordKey],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now();
       try {
-        return await getRecordDetail(selectedRecordKey!);
+        return await getRecordDetail(selectedRecordKey!, undefined, signal);
       } finally {
         setLastDetailRequest({
           durationMs: elapsedMilliseconds(startedAt),
@@ -278,7 +280,6 @@ export function useSearchWorkspace({
 
   const errorMessage =
     messageFromError(resultsQuery.error) ??
-    messageFromError(detailQuery.error) ??
     filterDiscovery.errorMessage ??
     messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
@@ -310,7 +311,9 @@ export function useSearchWorkspace({
     readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
-    detailLoading: detailQuery.isLoading || detailQuery.isFetching,
+    detailError: detailQuery.error,
+    detailLoading: detailQuery.isLoading,
+    detailRefreshing: detailQuery.isFetching && !detailQuery.isLoading,
     filterDiscoveryLoading: filterDiscovery.loading,
     diagnostics: {
       activeWindowId,

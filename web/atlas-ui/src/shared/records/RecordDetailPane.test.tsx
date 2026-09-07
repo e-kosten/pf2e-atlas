@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type React from "react";
 import type {
   RecordDetailView,
@@ -18,7 +18,10 @@ import { getRecordDetail } from "../../api/atlasApi";
 import { recordDetailFixture } from "../../test/recordFixtures";
 import { RecordDetailPane } from "./RecordDetailPane";
 
-vi.mock("../../api/atlasApi", () => ({ getRecordDetail: vi.fn() }));
+vi.mock("../../api/atlasApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  getRecordDetail: vi.fn(),
+}));
 
 describe("RecordDetailPane", () => {
   beforeEach(() => vi.resetAllMocks());
@@ -63,7 +66,9 @@ describe("RecordDetailPane", () => {
       />,
     );
 
-    expect(screen.getByText("This saved record is unresolved.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("This saved record is unresolved."),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Unable to load detail")).toBeInTheDocument();
   });
 
@@ -144,6 +149,38 @@ describe("RecordDetailPane", () => {
     ).toBeInTheDocument();
   });
 
+  it.each(["outgoing", "backlinks"] as const)(
+    "rejects a reference response with a mismatched %s limit",
+    async (direction) => {
+      const response = hazardReferenceDetail(true);
+      const section = response.surface.references![direction];
+      if (section.state !== "available") throw new Error("available references");
+      section.requested_limit = 16;
+      vi.mocked(getRecordDetail).mockResolvedValue(response);
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={client}>
+          <RecordDetailPane
+            detail={hazardReferenceDetail(false)}
+            loading={false}
+            onReference={vi.fn()}
+          />
+        </QueryClientProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "References" }));
+      await act(async () => {
+        await client.refetchQueries({
+          queryKey: ["record-detail", "hazards:hidden-pit", null, null, 8, 8],
+          exact: true,
+        });
+      });
+      await waitFor(() => expect(client.isFetching()).toBe(0));
+      expect(
+        screen.queryByRole("button", { name: "Backlink Hazard" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("keeps the selected spell form and rank while loading common references", async () => {
     vi.mocked(getRecordDetail).mockImplementation((_recordKey, request) => {
       if (request?.reference_backlink_limit === 8) {
@@ -158,9 +195,9 @@ describe("RecordDetailPane", () => {
       <RecordDetailPane detail={rimeDetail()} loading={false} onReference={vi.fn()} />,
     );
 
-    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
-    await screen.findByRole("listbox");
-    fireEvent.click(document.querySelector(".ant-select-item-option-content")!);
+    expect(
+      screen.queryByRole("combobox", { name: "Spell form" }),
+    ).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
       target: { value: "5" },
     });
@@ -193,7 +230,9 @@ describe("RecordDetailPane", () => {
 
   it("does not attach a late reference supplement after switching records", async () => {
     const pending = new Map<string, (detail: RecordDetailView) => void>();
-    vi.mocked(getRecordDetail).mockImplementation((recordKey, request) => {
+    let referenceSignal: AbortSignal | undefined;
+    vi.mocked(getRecordDetail).mockImplementation((recordKey, request, signal) => {
+      referenceSignal = signal;
       if (request?.reference_backlink_limit !== 8) {
         throw new Error("expected a reference request");
       }
@@ -217,6 +256,7 @@ describe("RecordDetailPane", () => {
         <RecordDetailPane detail={second} loading={false} onReference={vi.fn()} />
       </QueryClientProvider>,
     );
+    expect(referenceSignal?.aborted).toBe(true);
     pending.get("hazards:hidden-pit")!(hazardReferenceDetail(true));
 
     await waitFor(() =>
@@ -256,11 +296,9 @@ describe("RecordDetailPane", () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
-    await screen.findByRole("listbox");
-    const formOption = document.querySelector(".ant-select-item-option-content");
-    expect(formOption).not.toBeNull();
-    fireEvent.click(formOption!);
+    expect(
+      screen.queryByRole("combobox", { name: "Spell form" }),
+    ).not.toBeInTheDocument();
     const rankInput = screen.getByRole("spinbutton", { name: "Cast rank" });
     fireEvent.change(rankInput, { target: { value: "5" } });
     expect(rankInput).toHaveValue("5");
@@ -399,9 +437,9 @@ describe("RecordDetailPane", () => {
 });
 
 async function selectBaseForm() {
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
-  await screen.findByRole("listbox");
-  fireEvent.click(document.querySelector(".ant-select-item-option-content")!);
+  expect(
+    screen.queryByRole("combobox", { name: "Spell form" }),
+  ).not.toBeInTheDocument();
   return screen.getByRole("spinbutton", { name: "Cast rank" });
 }
 
@@ -450,7 +488,15 @@ function hazardReferenceDetail(withBacklink: boolean): RecordDetailView {
         },
       },
       references: {
-        outgoing: { state: "not_requested" },
+        outgoing: {
+          state: "available",
+          requested_limit: 8,
+          records: [],
+          edges: [],
+          total_records: 0,
+          total_edges: 0,
+          truncated: false,
+        },
         backlinks: withBacklink
           ? {
               state: "available",
@@ -487,7 +533,15 @@ function hazardReferenceDetail(withBacklink: boolean): RecordDetailView {
 function spellReferenceDetail(): RecordDetailView {
   const detail = rimeDetail(5, "8d4", [5], 30);
   detail.surface.references = {
-    outgoing: { state: "not_requested" },
+    outgoing: {
+      state: "available",
+      requested_limit: 8,
+      records: [],
+      edges: [],
+      total_records: 0,
+      total_edges: 0,
+      truncated: false,
+    },
     backlinks: {
       state: "available",
       requested_limit: 8,

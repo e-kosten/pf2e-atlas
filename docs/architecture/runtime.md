@@ -292,3 +292,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 - Child embeddings remain overflow-only. Broader body/structured child indexing is deferred to [Rust RichDocument child retrieval policy](../backlog/items/rust-rich-document-child-retrieval-policy.md) and requires a separate measured approval.
 - Tag rows are intentionally deferred until the accepted [tagging architecture](./tagging.md) is implemented. The target runtime table family is `record_tags`, written during regular `atlas index build` from validated YAML catalog and assignment files.
 - Search quality tuning and optional broad corpus diagnostics remain follow-up tools, not required parity gates or reasons to reintroduce raw JSON scanning or duplicate markup parsing.
+
+### Renderer compatibility and selected forms
+
+Central Template rendering is part of artifact contract8 (schema4, manifest envelope3 carrying8): persisted FTS and embedding semantics must agree with runtime presentation, so contract7 requires a rebuild. Structural canonical content hashes and source provenance remain independent of renderer text. Selected spell forms are resolved only by atlas-record from captured authored base rank, localized base facts, the chosen overlay and exactly one fixed/interval branch. Checked interval arithmetic is field-local, exact-keyed and atomic for Damage; no app or HTTP consumer independently evaluates it.

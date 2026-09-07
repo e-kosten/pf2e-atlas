@@ -286,8 +286,12 @@ pub(crate) fn foundry_node_display_text(node: &FoundryNode) -> String {
         FoundryNode::InlineCommand {
             label, arguments, ..
         } => label_text(label).unwrap_or_else(|| arguments.clone()),
-        FoundryNode::Template { label, shape, .. } => label_text(label)
-            .or_else(|| shape.clone())
+        FoundryNode::Template {
+            label,
+            shape,
+            options,
+        } => label_text(label)
+            .or_else(|| template_display_text(shape.as_deref(), options))
             .unwrap_or_default(),
         FoundryNode::ActionGlyph { action } => action.clone(),
         FoundryNode::Trait { label, traits } => {
@@ -311,6 +315,26 @@ pub(crate) fn foundry_node_display_text(node: &FoundryNode) -> String {
             .or_else(|| body.clone())
             .unwrap_or_else(|| name.clone()),
     }
+}
+
+fn template_display_text(
+    shape: Option<&str>,
+    options: &std::collections::BTreeMap<String, String>,
+) -> Option<String> {
+    let shape = shape.filter(|shape| matches!(*shape, "burst" | "cone" | "emanation" | "line"))?;
+    let Some(distance) = options.get("distance") else {
+        return Some(shape.to_string());
+    };
+    if distance.is_empty() || !distance.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Some(shape.to_string());
+    }
+    let Ok(distance) = distance.parse::<u32>() else {
+        return Some(shape.to_string());
+    };
+    if distance == 0 {
+        return Some(shape.to_string());
+    }
+    Some(format!("{distance}-foot {shape}"))
 }
 
 fn check_display_text(
@@ -460,5 +484,61 @@ mod tests {
 
         assert_eq!(render_plain_text(&document), expected);
         assert_eq!(render_markdown_like(&document), expected);
+    }
+
+    #[test]
+    fn template_display_uses_typed_shape_and_distance_without_overriding_labels() {
+        let template = |shape: Option<&str>, distance: Option<&str>, label: Option<&str>| {
+            let mut options = BTreeMap::new();
+            if let Some(distance) = distance {
+                options.insert("distance".to_string(), distance.to_string());
+            }
+            RichDocument::new(vec![RichNode::Foundry {
+                node: FoundryNode::Template {
+                    shape: shape.map(str::to_string),
+                    options,
+                    label: label.map(|text| {
+                        vec![RichNode::Text {
+                            text: text.to_string(),
+                        }]
+                    }),
+                },
+            }])
+        };
+
+        let document = template(Some("emanation"), Some("30"), None);
+        let authored = document.clone();
+        let hash = crate::ContentHash::for_document(&document);
+        assert_eq!(
+            crate::render_presentation_content_plain_text(&crate::project_presentation_content(
+                &document
+            )),
+            "30-foot emanation"
+        );
+        assert_eq!(document, authored);
+        assert_eq!(crate::ContentHash::for_document(&document), hash);
+        for render in [render_plain_text, render_markdown_like] {
+            assert_eq!(
+                render(&template(Some("emanation"), Some("30"), None)),
+                "30-foot emanation"
+            );
+            assert_eq!(render(&template(Some("burst"), None, None)), "burst");
+            assert_eq!(
+                render(&template(Some("emanation"), Some("many"), None)),
+                "emanation"
+            );
+            assert_eq!(
+                render(&template(Some("future-shape"), Some("30"), None)),
+                ""
+            );
+            assert_eq!(
+                render(&template(
+                    Some("emanation"),
+                    Some("30"),
+                    Some("Nearby allies")
+                )),
+                "Nearby allies"
+            );
+        }
     }
 }

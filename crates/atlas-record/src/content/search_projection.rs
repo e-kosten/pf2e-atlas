@@ -1309,6 +1309,71 @@ mod tests {
     }
 
     #[test]
+    fn canonical_template_distance_is_indexed_without_changing_owned_content() {
+        use crate::*;
+        let record = base_record();
+        let key = record.identity.key.clone();
+        let document = RichDocument::new(vec![RichNode::Foundry {
+            node: FoundryNode::Template {
+                label: None,
+                shape: Some("emanation".into()),
+                options: std::collections::BTreeMap::from([("distance".into(), "30".into())]),
+            },
+        }]);
+        let owned = OwnedRichContentDocument::new(
+            ContentId::new(
+                key.clone(),
+                ContentKey::new("description").expect("content key"),
+            ),
+            ContentIdentityStability::StableSourceIdentity,
+            ContentOwner::Record(key.clone()),
+            ContentRole::PrimaryDescription,
+            ContentOrigin::RecordField {
+                source_kind: ContentSourceKind::Description,
+                relative_source_path: "system.description.value".into(),
+            },
+            ContentVisibility::Public,
+            ContentProvenance {
+                source_record_key: key.clone(),
+                relative_source_path: "packs/spells/test.json".into(),
+                field_or_pointer_family: "system.description.value".into(),
+                nested_source_id: None,
+                authored_ordinal_or_range: None,
+                authored_label: None,
+            },
+            ContentSourceKind::Description,
+            0,
+            None,
+            document,
+            DuplicateContentStatus::Unique,
+            Vec::new(),
+        );
+        let mut spell = SpellRecord::new(
+            SpellIdentity {
+                record_key: key,
+                source_id: SpellSourceId::new("TestRecord").expect("source id"),
+                name: "Template spell".into(),
+            },
+            SpellProvenance {
+                source_path: "packs/spells/test.json".into(),
+                source_contract_version: "fixture".into(),
+                source_system_version: "fixture".into(),
+                source_upstream_commit: "fixture".into(),
+                standalone_location: FactValue::Missing,
+            },
+        );
+        spell.definition.content.documents.push(owned.clone());
+        let body = RecordBody::Spell(spell);
+        let projection = build_search_fts_projection(&record, &[], Some(&body));
+        assert_eq!(projection.body, "30-foot emanation");
+        assert!(projection.references.is_empty());
+        let RecordBody::Spell(spell) = body else {
+            panic!("spell")
+        };
+        assert_eq!(spell.definition.content.documents[0], owned);
+    }
+
+    #[test]
     fn canonical_spell_body_blocks_generic_mechanics_from_search_and_presentation() {
         let mut record = base_record();
         record.mechanics.document = FoundryDocumentMechanics::Item(ItemMechanics {

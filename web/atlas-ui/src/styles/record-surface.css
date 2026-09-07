@@ -1126,3 +1126,88 @@
     display: grid;
   }
 }
+
+/* Product-specific spell summary and effective mechanics share one responsive sheet. */
+.spell-sheet__workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: var(--panel-gap);
+  align-items: start;
+}
+.spell-sheet__summary {
+  min-width: 0;
+  padding: var(--panel-padding);
+  background: var(--panel-subtle);
+  border-radius: var(--radius-md);
+}
+.spell-sheet__main {
+  min-width: 0;
+}
+.spell-sheet__quick-effect {
+  font-size: 1.25rem;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+.spell-sheet__summary .spell-sheet__form-section {
+  background: none;
+  padding: 12px 0 0;
+}
+.spell-sheet__summary .spell-sheet__form-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.spell-sheet__summary .spell-sheet__form-control {
+  flex: 1 1 100px;
+  min-width: 0;
+}
+.spell-sheet__member-heading {
+  justify-content: flex-start;
+  gap: 8px;
+}
+.spell-sheet__member-heading strong {
+  font-size: 1.1rem;
+}
+@container (max-width: 700px) {
+  .spell-sheet__workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .spell-sheet__workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.spell-sheet {
+  container-type: inline-size;
+}
+
+.record-surface .encounter-runtime-activity-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.record-surface .encounter-runtime-activity-details p {
+  margin-block: 3px;
+}
+.record-surface-references__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.record-surface-references__list > li {
+  flex: 0 1 auto;
+}
+.result-table--record-surfaces table {
+  table-layout: fixed;
+  width: 100%;
+}
+.result-table--record-surfaces .record-surface--search-compact {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.result-table--record-surfaces .record-surface-search__identity {
+  min-width: 0;
+  flex: 1 1 180px;
+}

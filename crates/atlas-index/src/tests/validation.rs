@@ -13,6 +13,32 @@ use super::{
 use crate::{ArtifactValidationFamily, SqliteIndexReader, ValidationCode, ValidationStatus};
 
 #[test]
+fn contract_v7_is_rejected_even_with_current_schema() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("ux8-old-contract");
+    create_valid_artifact_database_with_override(
+        &path,
+        artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
+        "pf2e-atlas-artifact/v7",
+    )?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::UnsupportedContractVersion);
+    assert_eq!(crate::ARTIFACT_SCHEMA_VERSION, "4");
+    assert_eq!(
+        crate::ARTIFACT_MANIFEST_VERSION,
+        "pf2e-atlas-artifact-manifest/v3"
+    );
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.expected.as_deref() == Some("pf2e-atlas-artifact/v8"))
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("valid");
     create_valid_artifact_database(&path)?;

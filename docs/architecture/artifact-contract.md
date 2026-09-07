@@ -26,7 +26,7 @@ side facts are already one-way projections from `CreatureRecord`, and current di
 consume those same projections; C1 persists them without reinterpreting raw source. D1 remains
 responsible for later search projection and duplicate-ranking policy.
 
-The v7 contract writer publishes a v3 manifest only after the completed temporary SQLite artifact passes cheap compatibility checks and produces its transfer digest. Deep validation remains explicit supplementary tooling. `atlas-index::read` decodes canonical typed bodies and consumable children and exposes canonical-body and combined hydrated-record reads; no other crate owns complete hydration. Old artifacts receive explicit rebuild guidance and are never upgraded in place.
+The v8 contract writer publishes a v3 manifest only after the completed temporary SQLite artifact passes cheap compatibility checks and produces its transfer digest. Deep validation remains explicit supplementary tooling. `atlas-index::read` decodes canonical typed bodies and consumable children and exposes canonical-body and combined hydrated-record reads; no other crate owns complete hydration. Old artifacts receive explicit rebuild guidance and are never upgraded in place.
 
 Hazard canonical bodies persist named typed source metadata separately from gameplay projections. Health compatibility, deprecated temporary maximum HP, save detail, child rarity and lineage, token naming, and residual Strike fields round-trip through canonical JSON with their presence and unsupported states intact. Trait-derived attack mode, the two bounded compatibility comparisons, and the Strike-family action-cost rule are recomputed nonpersistently and do not add SQLite columns or manifest fields.
 
@@ -37,7 +37,7 @@ Typed visibility/provenance and product retrieval disposition are separate. `rec
 The supported contract version is:
 
 ```text
-pf2e-atlas-artifact/v7
+pf2e-atlas-artifact/v8
 ```
 
 The SQLite schema version for this active development artifact family is:
@@ -65,7 +65,7 @@ Required keys:
 
 | Key | Required value or rule |
 | --- | --- |
-| `artifact_contract_version` | `pf2e-atlas-artifact/v7` |
+| `artifact_contract_version` | `pf2e-atlas-artifact/v8` |
 | `schema_version` | `4` |
 | `source_kind` | `foundry-pf2e` |
 | `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |

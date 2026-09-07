@@ -31,18 +31,20 @@ export function RecordView({ route }: RecordViewProps) {
       primary={
         <RecordPane
           actions={
-            <>
-              <AddToListButton recordKey={route.recordKey} />
-              <RouteLink
-                route={{
-                  kind: "reader",
-                  recordKey: route.recordKey,
-                  previewRecordKey: null,
-                }}
-              >
-                Reader view
-              </RouteLink>
-            </>
+            detail.data ? (
+              <>
+                <AddToListButton recordKey={route.recordKey} />
+                <RouteLink
+                  route={{
+                    kind: "reader",
+                    recordKey: route.recordKey,
+                    previewRecordKey: null,
+                  }}
+                >
+                  Reader view
+                </RouteLink>
+              </>
+            ) : null
           }
           title="Record Detail"
         >
@@ -69,12 +71,14 @@ export function ReaderView({ route }: ReaderViewProps) {
       primary={
         <RecordPane
           actions={
-            <>
-              <AddToListButton recordKey={route.recordKey} />
-              <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
-                Detail page
-              </RouteLink>
-            </>
+            detail.data ? (
+              <>
+                <AddToListButton recordKey={route.recordKey} />
+                <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
+                  Detail page
+                </RouteLink>
+              </>
+            ) : null
           }
           title="Reader"
         >
@@ -96,7 +100,8 @@ export function ReaderView({ route }: ReaderViewProps) {
       auxiliary={
         <RecordPane
           actions={
-            route.previewRecordKey && (
+            route.previewRecordKey &&
+            preview.data && (
               <>
                 <AddToListButton recordKey={route.previewRecordKey} />
                 <RouteIconLink

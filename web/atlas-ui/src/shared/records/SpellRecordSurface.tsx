@@ -34,6 +34,7 @@ import {
   RecordSurfaceIssues,
   RecordSurfaceReferences,
 } from "./RecordSurfaceSupplement";
+import { ActionGlyph, actionCostLabel } from "./ActionGlyph";
 import { formatRank, formatSlug } from "./recordFormatting";
 
 export type SpellFormSelection = {
@@ -48,6 +49,7 @@ type SpellDetailSurfaceProps = {
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
   onReferencesOpen?: () => void;
+  onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   onSelectionChange?: (selection: SpellFormSelection) => void;
   references: NonNullable<RecordSurfaceView["references"]> | undefined;
   referencesLoading?: boolean;
@@ -65,6 +67,7 @@ export function SpellDetailSurface({
   metadata,
   onReference,
   onReferencesOpen,
+  onReferenceLimit,
   onSelectionChange,
   references,
   referencesLoading,
@@ -98,27 +101,35 @@ export function SpellDetailSurface({
         onReference={onReference}
         showTitle={showTitle}
       />
-      <NarrativeSection
-        content={content}
-        headingId="spell-overview"
-        onReference={onReference}
-        title="Overview"
-      />
-      <FormsSection
-        key={`${metadata.record_key}:${body.effective_form.id}:${body.effective_form.cast_rank}`}
-        body={body}
-        catalog={catalog}
-        loading={selectionLoading}
-        onSelectionChange={onSelectionChange}
-        selection={selection}
-        selectionError={selectionError}
-        selectionUnavailable={selectionUnavailable}
-      />
-      <FormResult result={effective.result} />
+      <div className="spell-sheet__workspace">
+        <aside className="spell-sheet__summary" aria-label="Spell quick facts">
+          {definition ? <SpellQuickFacts definition={definition} /> : null}
+          <FormsSection
+            key={`${metadata.record_key}:${body.effective_form.id}:${body.effective_form.cast_rank}`}
+            body={body}
+            catalog={catalog}
+            loading={selectionLoading}
+            onSelectionChange={onSelectionChange}
+            selection={selection}
+            selectionError={selectionError}
+            selectionUnavailable={selectionUnavailable}
+          />
+        </aside>
+        <div className="spell-sheet__main">
+          <FormResult result={effective.result} />
+          <NarrativeSection
+            content={content}
+            headingId="spell-overview"
+            onReference={onReference}
+            title="Authored overview"
+          />
+        </div>
+      </div>
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
         loading={referencesLoading}
         onDisclosureOpen={onReferencesOpen}
+        onRequestLimit={onReferenceLimit}
         onReference={onReference}
         references={references}
       />
@@ -175,6 +186,53 @@ export function SpellSearchCompactSurface({
   );
 }
 
+function SpellQuickFacts({ definition }: { definition: SpellResolvedDefinitionView }) {
+  const casting = meaningfulKnown(availableFact(definition.casting));
+  const targeting = meaningfulKnown(availableFact(definition.targeting));
+  const defense = meaningfulKnown(availableFact(definition.defense));
+  const damage = meaningfulKnown(availableFact(definition.damage));
+  const save = defense && meaningfulKnown(defense.save);
+  const statistic = save && meaningfulKnown(save.statistic);
+  const range = targeting && meaningfulKnown(targeting.range);
+  const area = targeting && meaningfulKnown(targeting.area);
+  const ritual = ritualFactItems(definition.ritual);
+  return (
+    <>
+      {damage?.map((member, index) => (
+        <p className="spell-sheet__quick-effect" key={index}>
+          <strong>
+            <span>{damageSummary(member)}</span> {member.label.toLowerCase()}
+          </strong>
+        </p>
+      ))}
+      <p className="spell-sheet__quick-casting">
+        {casting?.action_cost ? <ActionGlyph cost={casting.action_cost} /> : null}
+        {[
+          casting?.action_cost
+            ? actionCostLabel(casting.action_cost)
+            : casting && meaningfulKnown(casting.time),
+          range && `Range ${range.authored_text}`,
+          areaText(area),
+          statistic &&
+            `${save && knownValue(save.basic) === true ? "Basic " : ""}${formatSlug(statistic)}`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+      {ritual.length ? (
+        <div aria-label="Ritual casting requirements">
+          <strong>Ritual requirements</strong>
+          {ritual.map((entry) => (
+            <p key={entry.key}>
+              {entry.label}: {entry.value}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function CastingSection({
   traditions,
   value,
@@ -185,7 +243,9 @@ function CastingSection({
   const casting = meaningfulKnown(value);
   if (!casting) return null;
   const items = [
-    factItem("time", "Cast", casting.time),
+    casting.action_cost
+      ? item("time", "Cast", <ActionGlyph cost={casting.action_cost} />)
+      : factItem("time", "Cast", casting.time),
     factItem("cost", "Cost", casting.cost),
     factItem("requirements", "Requirements", casting.requirements),
     factItem("counteraction", "Counteraction", casting.counteraction, formatBoolean),
@@ -261,13 +321,28 @@ function DamageList({ damage }: { damage: SpellDamageView[] }) {
       {damage.map((member, index) => (
         <li key={`${member.label}:${index}`}>
           <div className="spell-sheet__member-heading">
-            <strong>{member.label}</strong>
-            <span>{damageSummary(member)}</span>
+            <strong>
+              {damageSummary(member)} {member.label.toLowerCase()}
+            </strong>
           </div>
-          <RecordKeyValueList
-            ariaLabel={`${member.label} qualifiers`}
-            items={damageQualifiers(member)}
-          />
+          {damageQualifiers(member).length ? (
+            <Collapse
+              ghost
+              size="small"
+              items={[
+                {
+                  key: "qualifiers",
+                  label: "Effect details",
+                  children: (
+                    <RecordKeyValueList
+                      ariaLabel={`${member.label} qualifiers`}
+                      items={damageQualifiers(member)}
+                    />
+                  ),
+                },
+              ]}
+            />
+          ) : null}
         </li>
       ))}
     </ol>
@@ -428,21 +503,25 @@ function FormsSection({
       >
         <div className="spell-sheet__form-control">
           <span>Form</span>
-          <Select
-            aria-label="Spell form"
-            onChange={(formId) => {
-              setDraftFormId(formId);
-              const form = catalog.forms.find((candidate) => candidate.id === formId);
-              if (form) setDraftRank(form.minimum_cast_rank);
-            }}
-            options={catalog.forms.map((form) => ({
-              label: form.label,
-              value: form.id,
-            }))}
-            placeholder="Choose a form"
-            value={draftFormId}
-            virtual={false}
-          />
+          {catalog.forms.length === 1 ? (
+            <strong>{catalog.forms[0].label}</strong>
+          ) : (
+            <Select
+              aria-label="Spell form"
+              onChange={(formId) => {
+                setDraftFormId(formId);
+                const form = catalog.forms.find((candidate) => candidate.id === formId);
+                if (form) setDraftRank(form.minimum_cast_rank);
+              }}
+              options={catalog.forms.map((form) => ({
+                label: form.label,
+                value: form.id,
+              }))}
+              placeholder="Choose a form"
+              value={draftFormId}
+              virtual={false}
+            />
+          )}
         </div>
         <div className="spell-sheet__form-control">
           <span>Cast rank</span>

@@ -51,6 +51,8 @@ function workspace(
     resultsLoading: false,
     resultsRefreshing: false,
     detailLoading: false,
+    detailRefreshing: false,
+    detailError: null,
     filterDiscoveryLoading: false,
     diagnostics: {
       activeWindowId: "1",

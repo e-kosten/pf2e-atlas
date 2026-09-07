@@ -137,3 +137,7 @@ Git commands that mutate repository state must never be run in parallel within t
 ## Configuration & Data Notes
 
 Default repo-local data paths are `vendor/pf2e`, `.cache/hf-models`, and `.cache/pf2e-index.sqlite` when `--path-mode repo` is selected. The default global path mode uses platform cache paths under `pf2e-atlas`. If the PF2E checkout, embedding model, or artifact schema changes, run `atlas setup` or the relevant `atlas index` command.
+
+## Browser Validation Handoffs
+
+Frontend task packets must require implementer Safari MCP self-validation of the exact candidate in a separate tab before independent review, followed by independent reviewer tabs. Follow `web/atlas-ui/AGENTS.md` for viewport, theme, keyboard and evidence requirements. Do not wait for AO Browser capability or equate automated/HTTP checks with Safari acceptance. Existing runtime and saved-state authorization boundaries remain in force.

@@ -3,4 +3,4 @@ import type { AppErrorCode } from "./AppErrorCode";
 import type { RecordSurfaceReferenceEdgeView } from "./RecordSurfaceReferenceEdgeView";
 import type { RecordSurfaceReferenceRecordView } from "./RecordSurfaceReferenceRecordView";
 
-export type RecordSurfaceReferenceSectionView = { "state": "not_requested" } | { "state": "available", requested_limit: number, records: Array<RecordSurfaceReferenceRecordView>, edges: Array<RecordSurfaceReferenceEdgeView>, total_records: number, total_edges: number, truncated: boolean, } | { "state": "unavailable", requested_limit: number, code: AppErrorCode, message: string, };
+export type RecordSurfaceReferenceSectionView = { "state": "not_requested" } | { "state": "available", requested_limit: number, next_limit?: number, records: Array<RecordSurfaceReferenceRecordView>, edges: Array<RecordSurfaceReferenceEdgeView>, total_records: number, total_edges: number, truncated: boolean, } | { "state": "unavailable", requested_limit: number, code: AppErrorCode, message: string, };

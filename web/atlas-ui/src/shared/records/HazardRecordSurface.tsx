@@ -1,4 +1,4 @@
-import { Alert, Collapse, Space, Tag } from "antd";
+import { Alert, Collapse, Space, Tag, Typography } from "antd";
 import type React from "react";
 import type {
   EncounterRuntimeView,
@@ -38,6 +38,7 @@ export function HazardDetailSurface({
   metadata,
   onReference,
   onReferencesOpen,
+  onReferenceLimit,
   references,
   referencesLoading,
   showTitle,
@@ -47,6 +48,7 @@ export function HazardDetailSurface({
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
   onReferencesOpen?: () => void;
+  onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   references: RecordSurfaceReferences | undefined;
   referencesLoading?: boolean;
   showTitle: boolean;
@@ -61,6 +63,9 @@ export function HazardDetailSurface({
       <HazardOverview body={body} onReference={onReference} />
       <HazardDetectionAndDisable body={body} onReference={onReference} />
       <HazardDefensesPanel defenses={body.defenses} onReference={onReference} />
+      {body.lifecycle?.routine?.length ? (
+        <Typography.Link href="#hazard-operation">Jump to routine</Typography.Link>
+      ) : null}
       <HazardActivities activities={body.activities} onReference={onReference} />
       <HazardOperation lifecycle={body.lifecycle} onReference={onReference} />
       <HazardGeneralContent body={body} onReference={onReference} />
@@ -68,6 +73,7 @@ export function HazardDetailSurface({
       <RecordSurfaceReferences
         loading={referencesLoading}
         onDisclosureOpen={onReferencesOpen}
+        onRequestLimit={onReferenceLimit}
         onReference={onReference}
         references={references}
       />
@@ -230,7 +236,7 @@ function HazardOverview({
       body.complexity && formatSlug(body.complexity),
     ),
     textItem("size", "Size", body.size && formatSlug(body.size)),
-    textItem("sound", "Emits sound", formatEmitsSound(body)),
+    textItem("sound", "Detectable by hearing", formatEmitsSound(body)),
   ].filter((item): item is RecordKeyValueItem => item !== null);
   const description = body.lifecycle?.description;
   if (!facts.length && !description?.length) return null;
@@ -401,6 +407,7 @@ function HazardOperation({
   if (!present.length) return null;
   return (
     <SurfaceSection title="Operation">
+      <span id="hazard-operation" />
       {present.map(([key, label, blocks]) => (
         <div className="hazard-sheet__lifecycle-entry" key={key}>
           <h4>{label}</h4>
@@ -434,7 +441,9 @@ function HazardActivities({
           key: activity.occurrence_id,
           label: <HazardActivityHeading activity={activity} />,
           children: (
-            <HazardActivityDetails activity={activity} onReference={onReference} />
+            <div id={`hazard-activity-${activity.occurrence_id}`}>
+              <HazardActivityDetails activity={activity} onReference={onReference} />
+            </div>
           ),
         }))}
         size="small"
@@ -453,7 +462,11 @@ function HazardActivityHeading({ activity }: { activity: HazardSurfaceActivityVi
           ? `${formatSlug(activity.attack_mode)} Strike`
           : activity.activity_type === "unsupported_child"
             ? "Content only"
-            : formatSlug(activity.activity_type)}
+            : activity.action_cost?.cost_type === "reaction"
+              ? "Reaction"
+              : activity.action_cost?.cost_type === "passive"
+                ? "Passive"
+                : formatSlug(activity.activity_type)}
       </Tag>
       {activity.attack_bonus !== undefined ? (
         <span>Attack {formatSigned(activity.attack_bonus)}</span>
@@ -487,7 +500,9 @@ function HazardActivityDetails({
       ) : null}
       {activity.frequency ? <p>{formatFrequency(activity.frequency)}</p> : null}
       {activity.attack_effects?.length ? (
-        <p>Effects: {activity.attack_effects.join(", ")}</p>
+        <p>
+          Effects: {activity.attack_effects.map(hazardAttackEffectLabel).join(", ")}
+        </p>
       ) : null}
       {activity.damage?.map((damage) => (
         <p key={damage.damage_id}>
@@ -770,6 +785,10 @@ function sourceMetadataItem(
 ): RecordKeyValueItem | null {
   if (fact.value.state !== "typed") return null;
   const key = `${fact.field}:${index}`;
+  const component =
+    "component_label" in fact && fact.component_label
+      ? `${fact.component_label} · `
+      : "";
   switch (fact.field) {
     case "token_name":
       return textItem(key, "Token name", fact.value.value.trim() || undefined);
@@ -790,21 +809,29 @@ function sourceMetadataItem(
     case "item_rarity":
       return textItem(
         key,
-        "Component rarity",
+        `${component}Component rarity`,
         fact.value.value.trim() ? formatSlug(fact.value.value) : undefined,
       );
     case "item_lineage":
       return fact.value.value.compendium_source.state === "typed"
-        ? textItem(key, "Component lineage", "Compendium source recorded")
+        ? textItem(key, `${component}Component lineage`, "Compendium source recorded")
         : null;
     case "strike_attack":
-      return textItem(key, "Strike source attack", formatSigned(fact.value.value));
+      return textItem(
+        key,
+        `${component}Strike source attack`,
+        formatSigned(fact.value.value),
+      );
     case "strike_weapon_type":
-      return textItem(key, "Strike source mode", formatSlug(fact.value.value));
+      return textItem(
+        key,
+        `${component}Strike source mode`,
+        formatSlug(fact.value.value),
+      );
     case "strike_attack_effects_custom":
       return textItem(
         key,
-        "Custom attack effect",
+        `${component}Custom attack effect`,
         fact.value.value.trim() || undefined,
       );
   }
@@ -822,11 +849,22 @@ function formatFrequency(
     .join(" per ");
 }
 
+function hazardAttackEffectLabel(
+  effect: NonNullable<HazardSurfaceActivityView["attack_effects"]>[number],
+) {
+  switch (effect) {
+    case "no_multiple_attack_penalty":
+      return "No multiple attack penalty";
+    case "independent_limbs":
+      return "Independent limbs";
+  }
+}
+
 function formatEmitsSound(body: HazardSurfaceView): string | undefined {
   if (!body.emits_sound) return undefined;
   return body.emits_sound.sound_type === "boolean"
     ? body.emits_sound.value
-      ? "Yes"
-      : "No"
-    : body.emits_sound.value;
+      ? "Always — eligible for hearing detection; other detection conditions still apply."
+      : "Never — not eligible for hearing detection."
+    : "During encounters — eligible for hearing detection while participating in a started encounter. Other detection conditions still apply; this does not describe an audio clip or guarantee discovery.";
 }

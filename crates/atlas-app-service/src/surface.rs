@@ -159,8 +159,11 @@ pub(crate) fn unavailable_participant_surface(
             "No canonical record body is available for this participant.",
         ),
         issues: Some(vec![atlas_app_model::RecordSurfaceIssueView {
+            fact_id: None,
             code: atlas_app_model::RecordSurfaceIssueCodeView::Unavailable,
             placement: atlas_app_model::RecordSurfaceIssuePlacementView::Record,
+            subject: None,
+            fact_label: None,
             message: "This participant does not have an available typed record presentation."
                 .to_string(),
         }]),
@@ -414,6 +417,16 @@ fn spell_classification(
 
 fn spell_casting(value: &atlas_record::SpellCasting) -> atlas_app_model::SpellCastingView {
     atlas_app_model::SpellCastingView {
+        action_cost: atlas_record::project_spell_action_cost(value).and_then(|cost| match cost {
+            CreatureActionCost::Actions(count) => {
+                Some(CreatureSurfaceActionCostView::Actions { count })
+            }
+            CreatureActionCost::Reaction => Some(CreatureSurfaceActionCostView::Reaction),
+            CreatureActionCost::FreeAction => Some(CreatureSurfaceActionCostView::FreeAction),
+            CreatureActionCost::Passive
+            | CreatureActionCost::Time(_)
+            | CreatureActionCost::Unsupported(_) => None,
+        }),
         time: spell_fact(&value.time, Clone::clone),
         cost: spell_fact(&value.cost, Clone::clone),
         requirements: spell_fact(&value.requirements, Clone::clone),
@@ -945,6 +958,9 @@ fn spell_resolved_field<T, U>(
                         atlas_record::SpellFormPatchSource::FixedHeightening => {
                             atlas_app_model::SpellFormPatchSourceView::FixedHeightening
                         }
+                        atlas_record::SpellFormPatchSource::IntervalHeightening => {
+                            atlas_app_model::SpellFormPatchSourceView::IntervalHeightening
+                        }
                     },
                     reason: match unavailable.reason {
                         atlas_record::SpellFormUnavailableReason::UnsupportedPatch => {
@@ -961,6 +977,18 @@ fn spell_resolved_field<T, U>(
                         }
                         atlas_record::SpellFormUnavailableReason::FixedRankKeyMismatch { .. } => {
                             atlas_app_model::SpellFormFieldUnavailableReasonView::FixedRankKeyMismatch
+                        }
+                        atlas_record::SpellFormUnavailableReason::InvalidInterval => {
+                            atlas_app_model::SpellFormFieldUnavailableReasonView::InvalidInterval
+                        }
+                        atlas_record::SpellFormUnavailableReason::IntervalMemberUnavailable => {
+                            atlas_app_model::SpellFormFieldUnavailableReasonView::IntervalMemberUnavailable
+                        }
+                        atlas_record::SpellFormUnavailableReason::IntervalFormulaUnsupported => {
+                            atlas_app_model::SpellFormFieldUnavailableReasonView::IntervalFormulaUnsupported
+                        }
+                        atlas_record::SpellFormUnavailableReason::IntervalOverflow => {
+                            atlas_app_model::SpellFormFieldUnavailableReasonView::IntervalOverflow
                         }
                     },
                 },

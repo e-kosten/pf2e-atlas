@@ -463,7 +463,9 @@ describe("SpellRecordSurface", () => {
     expect(
       screen.getAllByRole("heading", { name: "Range & targets" }).length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("combobox", { name: "Spell form" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Spell form" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Showing Base spell at rank 8.")).toBeInTheDocument();
 
     const unknown = rimeSelected(5, [5], "8d4", 30);

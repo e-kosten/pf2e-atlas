@@ -285,6 +285,7 @@ dependencies = [
  "atlas-app-model",
  "atlas-app-service",
  "atlas-domain",
+ "atlas-ingest",
  "atlas-record",
  "axum",
  "rust-embed",

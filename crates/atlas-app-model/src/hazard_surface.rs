@@ -231,7 +231,7 @@ pub struct HazardSurfaceActivityView {
     pub attack_bonus: Option<i64>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
-    pub attack_effects: Option<Vec<String>>,
+    pub attack_effects: Option<Vec<HazardSurfaceAttackEffectView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub damage: Option<Vec<CreatureSurfaceDamageView>>,
@@ -252,6 +252,14 @@ pub enum HazardSurfaceActivityTypeView {
     Condition,
     Effect,
     UnsupportedChild,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum HazardSurfaceAttackEffectView {
+    NoMultipleAttackPenalty,
+    IndependentLimbs,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -404,6 +412,10 @@ pub enum HazardSurfaceRelationshipTargetView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct HazardSurfaceUnavailableView {
+    // Opaque identity for a distinct retained fact; never display as a label.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub fact_id: Option<String>,
     pub state: HazardSurfaceUnavailableStateView,
     pub field: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -455,23 +467,38 @@ pub enum HazardSurfaceSourceMetadataFactView {
     },
     ItemRarity {
         entity_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        component_label: Option<String>,
         value: HazardSurfaceSourceFactView<String>,
     },
     ItemLineage {
         entity_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        component_label: Option<String>,
         value: HazardSurfaceSourceFactView<HazardSurfaceItemLineageView>,
     },
     StrikeAttack {
         entity_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        component_label: Option<String>,
         #[ts(type = "HazardSurfaceSourceFactView<number>")]
         value: HazardSurfaceSourceFactView<i64>,
     },
     StrikeWeaponType {
         entity_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        component_label: Option<String>,
         value: HazardSurfaceSourceFactView<HazardSurfaceAttackModeView>,
     },
     StrikeAttackEffectsCustom {
         entity_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        component_label: Option<String>,
         value: HazardSurfaceSourceFactView<String>,
     },
 }
