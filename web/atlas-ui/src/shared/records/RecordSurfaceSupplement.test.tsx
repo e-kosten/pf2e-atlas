@@ -71,7 +71,7 @@ it("requests the server next limit and exposes an honest terminal cap", () => {
   );
   expect(screen.queryByRole("button", { name: "View more" })).not.toBeInTheDocument();
   expect(
-    screen.getByText(/Atlas currently exposes up to 50 linked records/),
+    screen.getByText(/This panel shows up to 50 linked records/),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /next page/i })).not.toBeInTheDocument();
 });

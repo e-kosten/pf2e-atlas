@@ -36,36 +36,42 @@ export function SearchView({ workspace }: SearchViewProps) {
               })
             }
           />
-          {workspace.search.relationshipInvalid ? (
-            <Tag color="error">
-              Invalid reference filter
-              <Button
-                type="text"
-                size="small"
-                onClick={() =>
-                  workspace.setSearch({
-                    ...workspace.search,
-                    relationship: undefined,
-                    relationshipInvalid: undefined,
-                  })
-                }
-              >
-                Remove reference filter
-              </Button>
-            </Tag>
-          ) : null}
-          {workspace.search.relationship ? (
-            <ReferenceFilterChip
-              relationship={workspace.search.relationship}
-              onRemove={() =>
-                workspace.setSearch({ ...workspace.search, relationship: undefined })
-              }
-            />
-          ) : null}
           {workspace.search.filterClauses.length ? (
             <Tag>{workspace.search.filterClauses.length} active filters</Tag>
           ) : null}
         </div>
+      }
+      activeSearchFilter={
+        workspace.search.relationship || workspace.search.relationshipInvalid ? (
+          <div className="search-workspace__query">
+            {workspace.search.relationshipInvalid ? (
+              <Tag color="error">
+                Invalid reference filter
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() =>
+                    workspace.setSearch({
+                      ...workspace.search,
+                      relationship: undefined,
+                      relationshipInvalid: undefined,
+                    })
+                  }
+                >
+                  Remove reference filter
+                </Button>
+              </Tag>
+            ) : null}
+            {workspace.search.relationship ? (
+              <ReferenceFilterChip
+                relationship={workspace.search.relationship}
+                onRemove={() =>
+                  workspace.setSearch({ ...workspace.search, relationship: undefined })
+                }
+              />
+            ) : null}
+          </div>
+        ) : null
       }
       filter={<FilterPanel workspace={workspace} />}
       results={<ResultTable workspace={workspace} />}

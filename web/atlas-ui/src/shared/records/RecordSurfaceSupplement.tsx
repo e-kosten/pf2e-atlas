@@ -239,7 +239,7 @@ function ReferenceDirection({
       </div>
       {capped ? (
         <p className="record-surface-references__cap">
-          Atlas currently exposes up to {section.requested_limit} linked records.{" "}
+          This panel shows up to {section.requested_limit} linked records.
         </p>
       ) : null}
       {recordKey && section.total_records > 0 ? (

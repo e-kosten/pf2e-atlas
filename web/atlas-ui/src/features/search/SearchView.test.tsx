@@ -8,6 +8,11 @@ import { useSearchWorkspace } from "./useSearchWorkspace";
 vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   getRecordDetail: vi.fn(),
+  openResultWindow: vi.fn().mockResolvedValue({
+    window_id: 1,
+    rows: [],
+    page: { number: 1, size: 25, total: 0n, has_more: false },
+  }),
   getReadiness: vi.fn().mockResolvedValue({ status: "ready", message: "Ready" }),
   discoverFilterEditor: vi
     .fn()
@@ -284,3 +289,29 @@ it("shows typed missing-record recovery once without record actions or raw ident
   ).not.toBeInTheDocument();
   expect(screen.queryByText(/missing spells:heal/)).not.toBeInTheDocument();
 });
+
+it.each([1440, 1024, 390])(
+  "keeps the exact reference filter visible and removable at %ipx",
+  async (width) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+    history.replaceState(
+      null,
+      "",
+      "/search?reference-direction=incoming&reference-record=spells%3Aheal",
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <Harness />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("References: Heal")).toBeVisible();
+    const remove = screen.getByRole("button", { name: "Remove reference filter" });
+    expect(remove).toBeVisible();
+    fireEvent.click(remove);
+    await waitFor(() =>
+      expect(screen.queryByText("References: Heal")).not.toBeInTheDocument(),
+    );
+    expect(location.search).not.toContain("reference-record");
+  },
+);
