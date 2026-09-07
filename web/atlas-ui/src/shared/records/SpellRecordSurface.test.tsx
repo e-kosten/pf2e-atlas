@@ -22,6 +22,33 @@ const missing = { state: "missing" as const };
 const known = <T,>(value: T) => ({ state: "known" as const, value });
 
 describe("SpellRecordSurface", () => {
+  it("shows typed gameplay qualifiers without an Effect details disclosure", () => {
+    const definition = plainSpellDefinition();
+    definition.damage = known([
+      {
+        label: "Damage",
+        formula: known("2d6"),
+        damage_type: known("fire"),
+        category: known("persistent"),
+        kinds: known(["damage"]),
+        materials: known(["silver"]),
+        apply_modifier: known(false),
+      },
+    ]);
+    render(
+      <RecordSurface
+        onReference={vi.fn()}
+        surface={spellSurface("Test", definition, [baseForm("base")])}
+      />,
+    );
+    const qualifiers = screen.getByLabelText("Damage qualifiers");
+    expect(qualifiers).toHaveTextContent("Damage categoryPersistent");
+    expect(qualifiers).toHaveTextContent("Effect typeDamage");
+    expect(qualifiers).toHaveTextContent("Damage materialsSilver");
+    expect(qualifiers).toHaveTextContent("Spellcasting ability modifierNo");
+    expect(screen.queryByText("Effect details")).not.toBeInTheDocument();
+  });
+
   it("omits an authored empty range from quick facts while preserving the area", () => {
     const definition = plainSpellDefinition();
     definition.targeting = known({

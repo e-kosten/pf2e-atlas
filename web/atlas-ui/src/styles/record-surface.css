@@ -238,17 +238,15 @@
 }
 
 .spell-sheet__form-section {
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--active-border);
-  border-radius: var(--radius-md);
-  background: var(--active-bg);
+  min-width: 0;
+  width: min(100%, 380px);
+  margin-inline-start: auto;
 }
 
 .spell-sheet__form-controls {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(100px, 140px) auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 90px) auto;
+  gap: 8px;
   align-items: end;
 }
 
@@ -279,12 +277,6 @@
 
 .spell-sheet__resolved-definition {
   gap: 22px;
-}
-
-@media (max-width: 760px) {
-  .spell-sheet__form-controls {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .creature-sheet__facts-column {
@@ -1127,42 +1119,41 @@
   }
 }
 
-/* Product-specific spell summary and effective mechanics share one responsive sheet. */
-.spell-sheet__workspace {
-  display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: var(--panel-gap);
+/* Spell mechanics use the pane width; controls belong to the heading. */
+.spell-sheet__heading {
+  display: flex;
+  flex-wrap: wrap;
   align-items: start;
+  gap: 12px 24px;
+}
+.spell-sheet__heading > .creature-sheet__header {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.spell-sheet__form-section {
+  flex: 0 1 380px;
 }
 .spell-sheet__summary {
   min-width: 0;
-  padding: var(--panel-padding);
-  background: var(--panel-subtle);
-  border-radius: var(--radius-md);
-}
-.spell-sheet__main {
-  min-width: 0;
+  padding-block: 12px;
+  border-block: 1px solid var(--line);
 }
 .spell-sheet__quick-effect {
   font-size: 1.25rem;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--text);
 }
-.spell-sheet__summary .spell-sheet__form-section {
-  background: none;
-  padding: 12px 0 0;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
+.spell-sheet__quick-casting {
+  margin: 0;
 }
-.spell-sheet__summary .spell-sheet__form-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.spell-sheet__selection-summary {
+  display: grid;
+  margin-top: 6px;
 }
-.spell-sheet__summary .spell-sheet__form-control {
-  flex: 1 1 140px;
-  min-width: 0;
+.spell-sheet__selection-status {
+  min-height: 2.5em;
+  line-height: 1.25;
+  font-size: 12px;
 }
 .spell-sheet__member-heading {
   justify-content: flex-start;
@@ -1170,16 +1161,6 @@
 }
 .spell-sheet__member-heading strong {
   font-size: 1.1rem;
-}
-@container (max-width: 700px) {
-  .spell-sheet__workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-@media (max-width: 760px) {
-  .spell-sheet__workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 .spell-sheet {
   container-type: inline-size;

@@ -257,9 +257,7 @@ it("retains the last valid selected response after same-key refresh becomes unav
     await client.refetchQueries({ queryKey, exact: true });
   });
   expect(await screen.findByText("3d8+24")).toBeInTheDocument();
-  expect(
-    screen.getByText("Showing Base at rank 3.", { selector: "p" }),
-  ).toBeInTheDocument();
+  expect(screen.getByText("Showing Base at rank 3.")).toBeInTheDocument();
   vi.mocked(getRecordDetail).mockRejectedValueOnce(new Error("Refresh failed"));
   await act(async () => {
     await client.refetchQueries({ queryKey, exact: true });
