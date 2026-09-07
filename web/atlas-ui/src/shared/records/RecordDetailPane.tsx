@@ -26,6 +26,23 @@ export function RecordDetailPane({
   showTitle?: boolean;
   stale?: boolean;
 }) {
+  const recordKey = detail?.surface.metadata.record_key;
+  const [referenceRecordKey, setReferenceRecordKey] = useState<string>();
+  const referencesRequested =
+    recordKey !== undefined && referenceRecordKey === recordKey;
+  const referenceDetail = useRecordDetail(
+    referencesRequested ? recordKey : null,
+    undefined,
+    {
+      reference_outgoing_limit: 8,
+      reference_backlink_limit: 8,
+    },
+  );
+  const referenceSurface = referenceDetail.data?.surface;
+  const loadedReferences =
+    referenceSurface && referenceSurface.metadata.record_key === recordKey
+      ? referenceSurface.references
+      : undefined;
   const visibleErrors = errors.filter((error): error is Error | { message: string } =>
     Boolean(error),
   );
@@ -40,10 +57,22 @@ export function RecordDetailPane({
           <SelectableSpellDetail
             detail={detail}
             onReference={onReference}
+            onReferencesOpen={() => setReferenceRecordKey(recordKey)}
+            references={loadedReferences ?? detail.surface.references}
+            referencesLoading={
+              referencesRequested &&
+              (referenceDetail.isLoading || referenceDetail.isFetching)
+            }
             showTitle={showTitle}
           />
         ) : (
           <RecordSurface
+            onReferencesOpen={() => setReferenceRecordKey(recordKey)}
+            referenceLoading={
+              referencesRequested &&
+              (referenceDetail.isLoading || referenceDetail.isFetching)
+            }
+            references={loadedReferences ?? detail.surface.references}
             surface={detail.surface}
             onReference={onReference}
             showTitle={showTitle}
@@ -74,6 +103,15 @@ export function RecordDetailPane({
           type="error"
         />
       ))}
+      {referencesRequested && referenceDetail.error ? (
+        <Alert
+          className="detail-state__error"
+          description={referenceDetail.error.message}
+          message="Unable to load linked records"
+          showIcon
+          type="error"
+        />
+      ) : null}
     </section>
   );
 }
@@ -81,16 +119,23 @@ export function RecordDetailPane({
 function SelectableSpellDetail({
   detail,
   onReference,
+  onReferencesOpen,
+  references,
+  referencesLoading,
   showTitle,
 }: {
   detail: RecordDetailView;
   onReference: (recordKey: string) => void;
+  onReferencesOpen?: () => void;
+  references: RecordDetailView["surface"]["references"];
+  referencesLoading?: boolean;
   showTitle: boolean;
 }) {
   const recordKey = detail.surface.metadata.record_key;
   const [requestedSelection, setRequestedSelection] = useState<
     (SpellFormSelection & { recordKey: string }) | undefined
   >();
+  const [retainedSurface, setRetainedSurface] = useState(detail.surface);
   const selection =
     recordKey && requestedSelection?.recordKey === recordKey
       ? requestedSelection
@@ -99,40 +144,59 @@ function SelectableSpellDetail({
     recordKey && selection ? recordKey : null,
     selection,
   );
-  const selectedSurface = matchingSelectedSpellSurface(
+  const selectedResponseSurface = matchingSelectedSpellSurface(
     selectedDetail.data,
     recordKey,
     selection,
   );
+  const retainedForRecord =
+    selection && retainedSurface.metadata.record_key === recordKey
+      ? retainedSurface
+      : detail.surface;
+  const selectedSurface = spellSurfaceHasAvailableResult(selectedResponseSurface)
+    ? selectedResponseSurface
+    : undefined;
+  const displayedSurface = selectedSurface ?? retainedForRecord;
+  const selectedUnavailable =
+    selectedResponseSurface?.presentation.presentation_type === "spell" &&
+    selectedResponseSurface.presentation.body.effective_form.result.state ===
+      "unavailable";
+  const visibleSurface = selectedUnavailable
+    ? { ...displayedSurface, issues: selectedResponseSurface?.issues }
+    : displayedSurface;
 
   return (
-    <>
-      <RecordSurface
-        key={recordKey}
-        onReference={onReference}
-        onSpellFormSelection={
-          recordKey
-            ? (nextSelection) => {
-                setRequestedSelection({ ...nextSelection, recordKey });
-              }
-            : undefined
-        }
-        showTitle={showTitle}
-        spellCatalog={detail.surface}
-        spellFormSelection={selection}
-        spellFormSelectionLoading={selectedDetail.isFetching}
-        surface={selectedSurface ?? detail.surface}
-      />
-      {selectedDetail.error ? (
-        <Alert
-          className="detail-state__error"
-          description={selectedDetail.error.message}
-          message="Unable to resolve this spell form"
-          showIcon
-          type="error"
-        />
-      ) : null}
-    </>
+    <RecordSurface
+      key={recordKey}
+      onReference={onReference}
+      onReferencesOpen={onReferencesOpen}
+      onSpellFormSelection={
+        recordKey
+          ? (nextSelection) => {
+              setRetainedSurface(displayedSurface);
+              setRequestedSelection({ ...nextSelection, recordKey });
+            }
+          : undefined
+      }
+      showTitle={showTitle}
+      referenceLoading={referencesLoading}
+      references={references}
+      spellCatalog={detail.surface}
+      spellFormSelection={selection}
+      spellFormSelectionError={selectedDetail.error?.message}
+      spellFormSelectionLoading={selectedDetail.isFetching}
+      spellFormSelectionUnavailable={selectedUnavailable}
+      surface={visibleSurface}
+    />
+  );
+}
+
+function spellSurfaceHasAvailableResult(
+  surface: RecordDetailView["surface"] | undefined,
+) {
+  return (
+    surface?.presentation.presentation_type === "spell" &&
+    surface.presentation.body.effective_form.result.state === "available"
   );
 }
 
@@ -151,8 +215,8 @@ function matchingSelectedSpellSurface(
   }
   const presentation = selectedDetail.surface.presentation;
   if (presentation.presentation_type !== "spell") return undefined;
-  const selected = presentation.body.selected_form;
-  return selected?.id === selection.formId && selected.cast_rank === selection.castRank
+  const selected = presentation.body.effective_form;
+  return selected.id === selection.formId && selected.cast_rank === selection.castRank
     ? selectedDetail.surface
     : undefined;
 }

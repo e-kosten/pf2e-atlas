@@ -1578,9 +1578,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - consumable-system-traits-rarity
     fixtures:
@@ -1594,15 +1594,15 @@ leaves:
       - stage: source_dto
         destination: HazardItemSource typed system field ($.system.traits.rarity)
       - stage: canonical
-        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.traits.rarity]
+        destination: HazardItemCommon.rarity
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.traits.rarity]
+        destination: IndexBuildInput.canonical_bodies[].HazardItemCommon.rarity
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.traits.rarity]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardItemCommon.rarity
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists validated child rarity metadata
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -1618,9 +1618,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The exact consumable rarity common is item metadata distinct from the typed parent hazard rarity; UnsupportedChild.unsupported_fields retains it without silently merging the two records.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The exact consumable rarity common is item metadata distinct from the typed parent hazard rarity; HazardItemCommon.rarity retains it without making the unsupported consumable executable or merging it with the parent record.
+    owner: atlas-record::HazardItemCommon
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.system.traits.value[]
     leaf_kind: array_member
     expected_shapes:

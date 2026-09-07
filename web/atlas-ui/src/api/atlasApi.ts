@@ -117,6 +117,18 @@ export async function getRecordDetail(
   if (request.spell_cast_rank !== undefined) {
     query.set("spell_cast_rank", safeIntegerPathSegment(request.spell_cast_rank));
   }
+  if (request.reference_outgoing_limit !== undefined) {
+    query.set(
+      "reference_outgoing_limit",
+      safeIntegerPathSegment(request.reference_outgoing_limit),
+    );
+  }
+  if (request.reference_backlink_limit !== undefined) {
+    query.set(
+      "reference_backlink_limit",
+      safeIntegerPathSegment(request.reference_backlink_limit),
+    );
+  }
   const suffix = query.size ? `?${query.toString()}` : "";
   return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}${suffix}`, {
     signal,

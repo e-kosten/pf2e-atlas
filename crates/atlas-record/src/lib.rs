@@ -16,6 +16,7 @@ mod model;
 mod presentation;
 mod presentation_content;
 mod presentation_format;
+mod presentation_policy;
 mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
@@ -80,25 +81,36 @@ pub use hazard::{
     HazardActionCapability, HazardActionCategory, HazardActionCount, HazardActionType,
     HazardActiveEffectLikeRule, HazardAuraRule, HazardCapability, HazardComplexity,
     HazardComponentId, HazardConditionCapability, HazardDamageCategory, HazardDamageDiceRule,
-    HazardDefenses, HazardDetection, HazardDiagnosticCode, HazardEffectCapability,
-    HazardEmbeddedEntities, HazardEmitsSound, HazardEntity, HazardEntityFamily, HazardEntityId,
-    HazardEntityOccurrence, HazardEntitySourceIdentity, HazardExpectedShape, HazardFact,
-    HazardFactProvenance, HazardFlatModifierRule, HazardFrequency, HazardFrequencyInterval,
-    HazardHitPoints, HazardIdentity, HazardImmunityRule, HazardItemCommon, HazardIwr,
-    HazardLifecycle, HazardNoteRule, HazardOccurrenceId, HazardOccurrenceIdentityStability,
-    HazardProvenance, HazardProvenanceValue, HazardPublication, HazardRecord, HazardRelationship,
+    HazardDefenseSourceMetadata, HazardDefenses, HazardDetection, HazardDiagnosticCode,
+    HazardEffectCapability, HazardEmbeddedEntities, HazardEmitsSound, HazardEntity,
+    HazardEntityFamily, HazardEntityId, HazardEntityOccurrence, HazardEntitySourceIdentity,
+    HazardExpectedShape, HazardFact, HazardFactProvenance, HazardFlatModifierRule, HazardFrequency,
+    HazardFrequencyInterval, HazardHitPointSourceMetadata, HazardHitPoints, HazardIdentity,
+    HazardImmunityRule, HazardItemCommon, HazardItemLineage, HazardIwr, HazardLifecycle,
+    HazardNoteRule, HazardOccurrenceId, HazardOccurrenceIdentityStability, HazardProvenance,
+    HazardProvenanceValue, HazardPublication, HazardRecord, HazardRelationship,
     HazardRelationshipId, HazardRelationshipKind, HazardRelationshipTarget, HazardRuleElement,
-    HazardRuleMode, HazardRuleType, HazardSaveKind, HazardSaves, HazardSelfEffect, HazardSize,
-    HazardSourceId, HazardSourceShape, HazardSourceValue, HazardStrikeCapability,
-    HazardStrikeDamage, HazardTrait, HazardUnsupportedChildCapability, HazardUnsupportedFact,
-    HazardUnsupportedField, HazardUnsupportedOwner, HazardUnsupportedRule, HazardUnsupportedValue,
+    HazardRuleMode, HazardRuleType, HazardSaveKind, HazardSaveSourceMetadata, HazardSaves,
+    HazardSelfEffect, HazardSize, HazardSourceAttackMode, HazardSourceFactIdentity, HazardSourceId,
+    HazardSourceShape, HazardSourceValue, HazardStrikeCapability, HazardStrikeDamage,
+    HazardStrikeSourceMetadata, HazardTokenSourceMetadata, HazardTrait,
+    HazardUnsupportedChildCapability, HazardUnsupportedFact, HazardUnsupportedField,
+    HazardUnsupportedOwner, HazardUnsupportedRule, HazardUnsupportedValue,
     InvalidHazardComponentId, InvalidHazardEntityId, InvalidHazardOccurrenceId,
     InvalidHazardRelationshipId, InvalidHazardSlug, InvalidHazardSourceId,
 };
 pub use hazard_projection::{
-    HAZARD_CONVENIENCE_RULE_ID, HAZARD_CONVENIENCE_RULE_VERSION, HazardConvenienceProjection,
-    HazardFactProjection, HazardInitiativeStatistic, HazardInitiativeSuggestion,
-    build_hazard_presentation_document, project_hazard_conveniences, project_hazard_facts,
+    HAZARD_CONVENIENCE_RULE_ID, HAZARD_CONVENIENCE_RULE_VERSION, HazardAttackMode,
+    HazardAttackModeProjection, HazardConvenienceProjection, HazardFactProjection,
+    HazardHasHealthConsistency, HazardInitiativeStatistic, HazardInitiativeSuggestion,
+    HazardSourceMetadataFact, HazardSourceMetadataField, HazardSourceMetadataIssue,
+    HazardSourceMetadataIssueKind, HazardSourceMetadataProjection,
+    HazardStrikeActionCostProjection, HazardWeaponTypeConsistency, PF2E_HAZARD_ATTACK_MODE_RULE_ID,
+    PF2E_HAZARD_ATTACK_MODE_RULE_VERSION, PF2E_STRIKE_ACTION_COST_RULE_ID,
+    PF2E_STRIKE_ACTION_COST_RULE_VERSION, build_hazard_presentation_document,
+    project_hazard_attack_mode, project_hazard_conveniences, project_hazard_facts,
+    project_hazard_has_health_consistency, project_hazard_source_metadata,
+    project_hazard_strike_action_cost, project_hazard_weapon_type_consistency,
 };
 pub use json_projection::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
@@ -117,11 +129,12 @@ pub use json_projection::{
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillAvailabilityJson,
     CreatureUnmodeledSkillJson, CreatureUseLimitJson, HazardAvailabilityJson,
-    HazardAvailabilityStateJson, HazardContentProvenanceJson, HazardOccurrenceProvenanceJson,
-    HazardProvenanceJson, RecordBlockJson, RecordCanonicalRelationshipJson,
-    RecordEditionContextJson, RecordEditionCounterpartJson, RecordEditionCounterpartLookupJson,
-    RecordEditionCounterpartRoleJson, RecordEditionLookup, RecordEditionLookupError,
-    RecordEditionStatusJson, RecordJson, RecordJsonBase, RecordJsonContext, RecordJsonError,
+    HazardAvailabilityStateJson, HazardContentProvenanceJson, HazardDefenseTerminalFact,
+    HazardOccurrenceProvenanceJson, HazardProvenanceJson, RecordBlockJson,
+    RecordCanonicalRelationshipJson, RecordEditionContextJson, RecordEditionCounterpartJson,
+    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionLookup,
+    RecordEditionLookupError, RecordEditionStatusJson, RecordFactJson,
+    RecordFactTerminalPresentation, RecordJson, RecordJsonBase, RecordJsonContext, RecordJsonError,
     RecordJsonOptions, RecordPresentationJson, RecordRelationshipContextError,
     RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
     RecordRelationshipProvenanceJson, RecordSectionJson, SpellAreaJson, SpellCastingJson,
@@ -129,7 +142,7 @@ pub use json_projection::{
     SpellDamageDiceRuleJson, SpellDamageJson, SpellDamagePatchJson, SpellDamagePatchMemberJson,
     SpellDamagePatchOperationJson, SpellDamagePatchSetJson, SpellDefenseJson, SpellDurationJson,
     SpellEphemeralEffectRuleJson, SpellFactJson, SpellFixedHeighteningJson, SpellFormJson,
-    SpellFormResultJson, SpellHeighteningDamageJson, SpellHeighteningJson,
+    SpellFormLabelKind, SpellFormResultJson, SpellHeighteningDamageJson, SpellHeighteningJson,
     SpellHeighteningPatchJson, SpellItemAlterationRuleJson, SpellJson, SpellMemberProvenanceJson,
     SpellPatchJson, SpellProvenanceJson, SpellRangeJson, SpellResolvedDefinitionJson,
     SpellResolvedFieldJson, SpellRitualJson, SpellRollOptionRuleJson, SpellRuleDetailJson,
@@ -170,6 +183,14 @@ pub use presentation_content::{
     project_presentation_content, render_presentation_content_plain_text,
 };
 pub use presentation_format::{CreatureFrequencyPeriod, format_creature_frequency, format_size};
+pub use presentation_policy::{
+    FactIssueKind, FactPresentationDisposition, FactPresentationRole, FactPresentationState,
+    FactRequirement, SpellPresentationIssue, SpellPresentationIssueField,
+    SpellPresentationIssuePlacement, classify_fact_presentation, classify_spell_fact,
+    classify_spell_json_fact, merge_spell_presentation_issues, project_resolved_spell_form_label,
+    project_spell_form_result_presentation_issues, project_spell_json_presentation_issues,
+    project_spell_presentation_issues,
+};
 pub use presentation_recipe::{
     build_record_presentation_document, build_record_presentation_document_with_content_filter,
 };

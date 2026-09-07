@@ -8,11 +8,10 @@ use atlas_domain::{DetailLevel, PackName, RecordKey};
 use atlas_record::{
     AtlasRecord, ConsumableSpellChild, ContentHash, ContentSourceKind, CreatureRecord,
     CreatureSkillKind, FactValue, HazardActionType, HazardCapability, HazardEntitySourceIdentity,
-    HazardRecord, HazardSourceValue as CanonicalHazardSourceValue, HazardUnsupportedField,
-    OwnedRichContentDocument, PublicationLicense, RecordBody, RecordJson, RecordJsonOptions,
-    RecordPresentationJson, RichDocument, RichLinkTarget, SpellDefinition, SpellFact, SpellRecord,
-    SpellSourceContext, SpellSourceValue, UnsupportedSourceValue, record_json,
-    visit_foundry_links_mut,
+    HazardRecord, HazardSourceValue as CanonicalHazardSourceValue, OwnedRichContentDocument,
+    PublicationLicense, RecordBody, RecordJson, RecordJsonOptions, RecordPresentationJson,
+    RichDocument, RichLinkTarget, SpellDefinition, SpellFact, SpellRecord, SpellSourceContext,
+    SpellSourceValue, UnsupportedSourceValue, record_json, visit_foundry_links_mut,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -3550,53 +3549,43 @@ fn capture_hazard_temporary_maximum(
     *target = Value::from(value + 101);
     let actual = run_hazard_pipeline(&fixture, fixture.raw.clone(), ledger, &identity)?;
     let mutation = run_hazard_pipeline(&fixture, mutated_raw, ledger, &identity)?;
-    let source = unsupported_number_leaf(value, "legacy hazard hp.tempmax field");
-    let source_mutation = unsupported_number_leaf(value + 101, "legacy hazard hp.tempmax field");
-    let hydration_source = dto_hazard_unsupported_number(
-        &hazard_hit_points(&actual.hydration_source_dto)?.temporary_maximum,
-        "legacy hazard hp.tempmax field",
-    );
-    let hydration_source_mutation = dto_hazard_unsupported_number(
-        &hazard_hit_points(&mutation.hydration_source_dto)?.temporary_maximum,
-        "legacy hazard hp.tempmax field",
-    );
+    let source = number_leaf(value);
+    let source_mutation = number_leaf(value + 101);
+    let hydration_source =
+        dto_hazard_number(&hazard_hit_points(&actual.hydration_source_dto)?.temporary_maximum);
+    let hydration_source_mutation =
+        dto_hazard_number(&hazard_hit_points(&mutation.hydration_source_dto)?.temporary_maximum);
     let observations = vec![
         presence_stage(
             FinalOwnerStage::SourceDto,
             "HazardHitPointsSource.temporary_maximum",
             "source::dto::parse_hazard_source",
-            dto_hazard_unsupported_number(
-                &hazard_hit_points(&actual.source_dto)?.temporary_maximum,
-                "legacy hazard hp.tempmax field",
-            ),
-            &dto_hazard_unsupported_number(
-                &hazard_hit_points(&mutation.source_dto)?.temporary_maximum,
-                "legacy hazard hp.tempmax field",
-            ),
+            dto_hazard_number(&hazard_hit_points(&actual.source_dto)?.temporary_maximum),
+            &dto_hazard_number(&hazard_hit_points(&mutation.source_dto)?.temporary_maximum),
         )?,
         presence_stage(
             FinalOwnerStage::Canonical,
-            "HazardHitPoints.unsupported_fields[HitPointsTempMax]",
+            "HazardHitPoints.source_metadata.temporary_maximum",
             "source::hazard_core::convert_hit_points",
-            hazard_tempmax_unsupported(&actual.canonical)?,
-            &hazard_tempmax_unsupported(&mutation.canonical)?,
+            hazard_tempmax_source_metadata(&actual.canonical)?,
+            &hazard_tempmax_source_metadata(&mutation.canonical)?,
         )?,
         presence_stage(
             FinalOwnerStage::PostProjection,
-            "IndexBuildInput.canonical_bodies[].defenses.hit_points.unsupported_fields[HitPointsTempMax]",
+            "IndexBuildInput.canonical_bodies[].defenses.hit_points.source_metadata.temporary_maximum",
             "index_build_input::index_build_input",
-            hazard_tempmax_unsupported(&actual.post_projection)?,
-            &hazard_tempmax_unsupported(&mutation.post_projection)?,
+            hazard_tempmax_source_metadata(&actual.post_projection)?,
+            &hazard_tempmax_source_metadata(&mutation.post_projection)?,
         )?,
         owner_presence_stage(
             FinalOwnerStage::ArtifactHydration,
-            "RetrievedRecord.body.RecordBody::Hazard.HazardRecord detection/defenses field.unsupported_fields[$.system.attributes.hp.tempmax]",
+            "RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.hit_points.source_metadata.temporary_maximum",
             "SqliteIndexReader::load_hydrated_records_by_key grouped hazard hp.tempmax",
             &hydration_source,
             &hydration_source_mutation,
             (
-                hazard_tempmax_unsupported(&actual.hydration)?,
-                Some(hazard_tempmax_unsupported(&mutation.hydration)?),
+                hazard_tempmax_source_metadata(&actual.hydration)?,
+                Some(hazard_tempmax_source_metadata(&mutation.hydration)?),
             ),
             (
                 &owner_fingerprint("baseline hydrated defenses", &actual.hydration.defenses),
@@ -4574,6 +4563,16 @@ fn hazard_exact_leaf_destinations(
                 "HazardRecord identity/provenance field",
             )
         };
+    if let Some((canonical, post_projection, hydration)) =
+        named_hazard_source_metadata_destinations(selector, path)
+    {
+        return HazardExactLeafDestinations {
+            source: format!("{source_owner} ({path})"),
+            canonical: canonical.to_string(),
+            post_projection: post_projection.to_string(),
+            hydration: hydration.to_string(),
+        };
+    }
     let canonical = if disposition == HazardExactDisposition::TypedUnsupported {
         format!("{canonical_owner}.unsupported_fields[{path}]")
     } else {
@@ -4584,6 +4583,69 @@ fn hazard_exact_leaf_destinations(
         post_projection: format!("IndexBuildInput.canonical_bodies[].{canonical}"),
         hydration: format!("RetrievedRecord.body.RecordBody::Hazard.{canonical}"),
         canonical,
+    }
+}
+
+fn named_hazard_source_metadata_destinations(
+    selector: &SourceLeafSelector,
+    path: &str,
+) -> Option<(&'static str, &'static str, &'static str)> {
+    let local_path = path
+        .strip_prefix("$.items[]")
+        .or_else(|| path.strip_prefix('$'))
+        .unwrap_or(path);
+    match path {
+        "$.prototypeToken.name" => Some((
+            "HazardRecord.provenance.token.name",
+            "IndexBuildInput.canonical_bodies[].HazardRecord.provenance.token.name",
+            "RetrievedRecord.body.RecordBody::Hazard.HazardRecord.provenance.token.name",
+        )),
+        "$.system.attributes.hasHealth" => Some((
+            "HazardDefenses.source_metadata.has_health",
+            "IndexBuildInput.canonical_bodies[].HazardRecord.defenses.source_metadata.has_health",
+            "RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.source_metadata.has_health",
+        )),
+        "$.system.attributes.hp.tempmax" => Some((
+            "HazardHitPoints.source_metadata.temporary_maximum",
+            "IndexBuildInput.canonical_bodies[].defenses.hit_points.source_metadata.temporary_maximum",
+            "RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.hit_points.source_metadata.temporary_maximum",
+        )),
+        "$.system.saves.*.saveDetail" => Some((
+            "HazardSaves.source_metadata save-specific detail fact",
+            "IndexBuildInput.canonical_bodies[].HazardRecord.defenses.saves.source_metadata",
+            "RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.saves.source_metadata",
+        )),
+        _ if selector.role == SourceDocumentRole::Embedded || path.starts_with("$.items[]") => {
+            match local_path {
+                "._stats.compendiumSource" => Some((
+                    "HazardItemCommon.lineage.compendium_source",
+                    "IndexBuildInput.canonical_bodies[].HazardItemCommon.lineage.compendium_source",
+                    "RetrievedRecord.body.RecordBody::Hazard.HazardItemCommon.lineage.compendium_source",
+                )),
+                ".system.traits.rarity" => Some((
+                    "HazardItemCommon.rarity",
+                    "IndexBuildInput.canonical_bodies[].HazardItemCommon.rarity",
+                    "RetrievedRecord.body.RecordBody::Hazard.HazardItemCommon.rarity",
+                )),
+                ".system.attack.value" => Some((
+                    "HazardStrikeCapability.source_metadata.attack",
+                    "IndexBuildInput.canonical_bodies[].HazardStrikeCapability.source_metadata.attack",
+                    "RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.source_metadata.attack",
+                )),
+                ".system.weaponType.value" => Some((
+                    "HazardStrikeCapability.source_metadata.weapon_type",
+                    "IndexBuildInput.canonical_bodies[].HazardStrikeCapability.source_metadata.weapon_type",
+                    "RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.source_metadata.weapon_type",
+                )),
+                ".system.attackEffects.custom" => Some((
+                    "HazardStrikeCapability.source_metadata.attack_effects_custom",
+                    "IndexBuildInput.canonical_bodies[].HazardStrikeCapability.source_metadata.attack_effects_custom",
+                    "RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.source_metadata.attack_effects_custom",
+                )),
+                _ => None,
+            }
+        }
+        _ => None,
     }
 }
 
@@ -5062,7 +5124,11 @@ fn exact_hazard_source_value(
                 }
             },
         ),
-        "$._stats.compendiumSource" | "$.prototypeToken.name" => Ok(owner_leaf_value(
+        "$.prototypeToken.name" => {
+            let token = dto_typed(&source.prototype_token, "HazardSource.prototype_token")?;
+            dto_field_owner_value(&token.name, occurrence, disposition, json_owner_value)
+        }
+        "$._stats.compendiumSource" => Ok(owner_leaf_value(
             occurrence,
             disposition,
             exact_summary_value(&source.unclaimed, &occurrence.pointer)?,
@@ -5343,7 +5409,11 @@ fn exact_hazard_source_fingerprint(
         "$.system.attributes.emitsSound" => {
             owner_fingerprint("HazardSource.emits_sound", &source.emits_sound)
         }
-        "$._stats.compendiumSource" | "$.prototypeToken.name" => exact_summary_fingerprint(
+        "$.prototypeToken.name" => {
+            let token = dto_typed(&source.prototype_token, "HazardSource.prototype_token")?;
+            owner_fingerprint("HazardTokenSourceMetadata.name", &token.name)
+        }
+        "$._stats.compendiumSource" => exact_summary_fingerprint(
             &source.unclaimed,
             &occurrence.pointer,
             "HazardSource.unclaimed",
@@ -5536,7 +5606,7 @@ fn exact_hazard_item_source_fingerprint(
         .or_else(|| path.strip_prefix('$'))
         .unwrap_or(path);
     if disposition == HazardExactDisposition::TypedUnsupported
-        && (selector.type_discriminator == "consumable" || local_path == "._stats.compendiumSource")
+        && selector.type_discriminator == "consumable"
     {
         return exact_summary_fingerprint(
             &item.unclaimed,
@@ -5581,7 +5651,10 @@ fn exact_hazard_item_source_fingerprint(
             owner_fingerprint("HazardItemCommonSource.traits", &item.common.traits)
         }
         ".system.traits.rarity" => {
-            owner_fingerprint("HazardStrikeSource.trait_rarity", &item.strike.trait_rarity)
+            owner_fingerprint("HazardItemCommonSource.rarity", &item.common.rarity)
+        }
+        "._stats.compendiumSource" => {
+            owner_fingerprint("HazardItemCommonSource.lineage", &item.common.lineage)
         }
         ".system.actionType.value" => {
             owner_fingerprint("HazardActionSource.action_type", &item.action.action_type)
@@ -5720,7 +5793,7 @@ fn exact_hazard_item_source_value(
         )?;
     }
     if disposition == HazardExactDisposition::TypedUnsupported
-        && (selector.type_discriminator == "consumable" || local_path == "._stats.compendiumSource")
+        && selector.type_discriminator == "consumable"
     {
         return Ok(owner_leaf_value(
             occurrence,
@@ -5772,11 +5845,20 @@ fn exact_hazard_item_source_value(
             dto_array_member_owner_value(&item.common.traits, occurrence, disposition)
         }
         ".system.traits.rarity" => dto_field_owner_value(
-            &item.strike.trait_rarity,
+            &item.common.rarity,
             occurrence,
             disposition,
             json_owner_value,
         ),
+        "._stats.compendiumSource" => {
+            let lineage = dto_typed(&item.common.lineage, "HazardItemCommonSource.lineage")?;
+            dto_field_owner_value(
+                &lineage.compendium_source,
+                occurrence,
+                disposition,
+                json_owner_value,
+            )
+        }
         ".system.actionType.value" => dto_field_owner_value(
             &item.action.action_type,
             occurrence,
@@ -6188,6 +6270,27 @@ fn canonical_array_member_fact_owner_value<T>(
     }
 }
 
+fn is_named_hazard_source_metadata_path(path: &str) -> bool {
+    let local_path = path
+        .strip_prefix("$.items[]")
+        .or_else(|| path.strip_prefix('$'))
+        .unwrap_or(path);
+    matches!(
+        path,
+        "$.prototypeToken.name"
+            | "$.system.attributes.hasHealth"
+            | "$.system.attributes.hp.tempmax"
+            | "$.system.saves.*.saveDetail"
+    ) || matches!(
+        local_path,
+        "._stats.compendiumSource"
+            | ".system.traits.rarity"
+            | ".system.attack.value"
+            | ".system.weaponType.value"
+            | ".system.attackEffects.custom"
+    )
+}
+
 fn exact_hazard_canonical_value(
     hazard: &HazardRecord,
     identity: &SourceLeafIdentity,
@@ -6197,7 +6300,9 @@ fn exact_hazard_canonical_value(
     let path = identity.normalized_path.as_str();
     verify_canonical_item_collection_if_leaf(hazard, path, occurrence)?;
     verify_canonical_save_collection_if_leaf(hazard, path, occurrence)?;
-    if disposition == HazardExactDisposition::TypedUnsupported {
+    if disposition == HazardExactDisposition::TypedUnsupported
+        && !is_named_hazard_source_metadata_path(path)
+    {
         return exact_hazard_unsupported_value(hazard, occurrence, disposition);
     }
     if identity.selector.role == SourceDocumentRole::Embedded {
@@ -6280,6 +6385,15 @@ fn exact_hazard_canonical_value(
                     }
                 }
             })
+        }
+        "$.prototypeToken.name" => {
+            let token = hazard.provenance.token.typed().ok_or_else(|| {
+                error(
+                    CoverageFailureCode::CanonicalMismatch,
+                    "HazardProvenance.token is not typed",
+                )
+            })?;
+            canonical_fact_owner_value(&token.name, occurrence, disposition, json_owner_value)
         }
         _ if path.starts_with("$.system.traits.") => match path {
             "$.system.traits.value[]" => canonical_array_member_fact_owner_value(
@@ -6382,7 +6496,9 @@ fn exact_hazard_canonical_fingerprint(
     disposition: HazardExactDisposition,
 ) -> Result<String, CoverageContractError> {
     let path = identity.normalized_path.as_str();
-    if disposition == HazardExactDisposition::TypedUnsupported {
+    if disposition == HazardExactDisposition::TypedUnsupported
+        && !is_named_hazard_source_metadata_path(path)
+    {
         return exact_hazard_unsupported_fingerprint(hazard, &occurrence.pointer);
     }
     if identity.selector.role == SourceDocumentRole::Embedded {
@@ -6418,6 +6534,9 @@ fn exact_hazard_canonical_fingerprint(
         }
         "$.system.attributes.emitsSound" => {
             owner_fingerprint("HazardRecord.emits_sound", &hazard.emits_sound)
+        }
+        "$.prototypeToken.name" => {
+            owner_fingerprint("HazardProvenance.token", &hazard.provenance.token)
         }
         _ if path.starts_with("$.system.traits.") => match path {
             "$.system.traits.value[]" => owner_fingerprint("HazardRecord.traits", &hazard.traits),
@@ -6517,6 +6636,10 @@ fn exact_hazard_defense_canonical_fingerprint(
         "$.system.attributes.hardness" => {
             owner_fingerprint("HazardDefenses.hardness", &defenses.hardness)
         }
+        "$.system.attributes.hasHealth" => owner_fingerprint(
+            "HazardDefenseSourceMetadata.has_health",
+            &defenses.source_metadata.has_health,
+        ),
         _ if path.starts_with("$.system.attributes.hp.") => {
             let hit_points = defenses.hit_points.typed().ok_or_else(|| {
                 error(
@@ -6537,21 +6660,42 @@ fn exact_hazard_defense_canonical_fingerprint(
                 "$.system.attributes.hp.details" => {
                     owner_fingerprint("HazardHitPoints.details", &hit_points.details)
                 }
+                "$.system.attributes.hp.tempmax" => owner_fingerprint(
+                    "HazardHitPointSourceMetadata.temporary_maximum",
+                    &hit_points.source_metadata.temporary_maximum,
+                ),
                 _ => return unknown_hazard_accessor("canonical", path),
             }
         }
-        "$.system.saves.*.value" => {
+        "$.system.saves.*.value" | "$.system.saves.*.saveDetail" => {
             let saves = defenses.saves.typed().ok_or_else(|| {
                 error(
                     CoverageFailureCode::CanonicalMismatch,
                     "HazardDefenses.saves is not typed",
                 )
             })?;
-            match pointer_member_after(&occurrence.pointer, "saves")?.as_str() {
-                "fortitude" => owner_fingerprint("HazardSaves.fortitude", &saves.fortitude),
-                "reflex" => owner_fingerprint("HazardSaves.reflex", &saves.reflex),
-                "will" => owner_fingerprint("HazardSaves.will", &saves.will),
-                kind => return unknown_hazard_accessor("canonical save", kind),
+            match (
+                pointer_member_after(&occurrence.pointer, "saves")?.as_str(),
+                path.ends_with(".saveDetail"),
+            ) {
+                ("fortitude", false) => {
+                    owner_fingerprint("HazardSaves.fortitude", &saves.fortitude)
+                }
+                ("reflex", false) => owner_fingerprint("HazardSaves.reflex", &saves.reflex),
+                ("will", false) => owner_fingerprint("HazardSaves.will", &saves.will),
+                ("fortitude", true) => owner_fingerprint(
+                    "HazardSaveSourceMetadata.fortitude_detail",
+                    &saves.source_metadata.fortitude_detail,
+                ),
+                ("reflex", true) => owner_fingerprint(
+                    "HazardSaveSourceMetadata.reflex_detail",
+                    &saves.source_metadata.reflex_detail,
+                ),
+                ("will", true) => owner_fingerprint(
+                    "HazardSaveSourceMetadata.will_detail",
+                    &saves.source_metadata.will_detail,
+                ),
+                _ => return unknown_hazard_accessor("canonical save", path),
             }
         }
         _ if path.starts_with("$.system.attributes.immunities[]")
@@ -6620,6 +6764,12 @@ fn exact_hazard_defense_canonical_value(
             disposition,
             json_owner_value,
         ),
+        "$.system.attributes.hasHealth" => canonical_fact_owner_value(
+            &defenses.source_metadata.has_health,
+            occurrence,
+            disposition,
+            json_owner_value,
+        ),
         _ if path.starts_with("$.system.attributes.hp.") => {
             let hit_points = defenses.hit_points.typed().ok_or_else(|| {
                 error(
@@ -6649,23 +6799,64 @@ fn exact_hazard_defense_canonical_value(
                 "$.system.attributes.hp.details" => {
                     canonical_rich_owner_value(&hit_points.details, occurrence, disposition)
                 }
+                "$.system.attributes.hp.tempmax" => canonical_fact_owner_value(
+                    &hit_points.source_metadata.temporary_maximum,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
                 _ => unknown_hazard_accessor("canonical value", path),
             }
         }
-        "$.system.saves.*.value" => {
+        "$.system.saves.*.value" | "$.system.saves.*.saveDetail" => {
             let saves = defenses.saves.typed().ok_or_else(|| {
                 error(
                     CoverageFailureCode::CanonicalMismatch,
                     "HazardDefenses.saves is not typed",
                 )
             })?;
-            let fact = match pointer_member_after(&occurrence.pointer, "saves")?.as_str() {
-                "fortitude" => &saves.fortitude,
-                "reflex" => &saves.reflex,
-                "will" => &saves.will,
-                kind => return unknown_hazard_accessor("canonical save value", kind),
-            };
-            canonical_fact_owner_value(fact, occurrence, disposition, json_owner_value)
+            match (
+                pointer_member_after(&occurrence.pointer, "saves")?.as_str(),
+                path.ends_with(".saveDetail"),
+            ) {
+                ("fortitude", false) => canonical_fact_owner_value(
+                    &saves.fortitude,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
+                ("reflex", false) => canonical_fact_owner_value(
+                    &saves.reflex,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
+                ("will", false) => canonical_fact_owner_value(
+                    &saves.will,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
+                ("fortitude", true) => canonical_fact_owner_value(
+                    &saves.source_metadata.fortitude_detail,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
+                ("reflex", true) => canonical_fact_owner_value(
+                    &saves.source_metadata.reflex_detail,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
+                ("will", true) => canonical_fact_owner_value(
+                    &saves.source_metadata.will_detail,
+                    occurrence,
+                    disposition,
+                    json_owner_value,
+                ),
+                _ => unknown_hazard_accessor("canonical save value", path),
+            }
         }
         _ if path.starts_with("$.system.attributes.immunities[]")
             || path.starts_with("$.system.attributes.weaknesses[]")
@@ -6803,6 +6994,14 @@ fn exact_hazard_item_canonical_fingerprint(
             "HazardItemCommon.traits",
             &hazard_capability_common(&entity.capability).traits,
         ),
+        ".system.traits.rarity" => owner_fingerprint(
+            "HazardItemCommon.rarity",
+            &hazard_capability_common(&entity.capability).rarity,
+        ),
+        "._stats.compendiumSource" => owner_fingerprint(
+            "HazardItemCommon.lineage",
+            &hazard_capability_common(&entity.capability).lineage,
+        ),
         ".system.actionType.value"
         | ".system.actions.value"
         | ".system.category"
@@ -6816,6 +7015,9 @@ fn exact_hazard_item_canonical_fingerprint(
         }
         ".system.bonus.value"
         | ".system.attackEffects.value[]"
+        | ".system.attack.value"
+        | ".system.weaponType.value"
+        | ".system.attackEffects.custom"
         | ".system.damageRolls.*.damage"
         | ".system.damageRolls.*.damageType"
         | ".system.damageRolls.*.category" => {
@@ -6940,6 +7142,29 @@ fn exact_hazard_item_canonical_value(
             disposition,
             |value| Ok(Value::String(value.as_str().to_string())),
         ),
+        ".system.traits.rarity" => canonical_fact_owner_value(
+            &hazard_capability_common(&entity.capability).rarity,
+            occurrence,
+            disposition,
+            |value| Ok(Value::String(value.as_str().to_string())),
+        ),
+        "._stats.compendiumSource" => {
+            let lineage = hazard_capability_common(&entity.capability)
+                .lineage
+                .typed()
+                .ok_or_else(|| {
+                    error(
+                        CoverageFailureCode::CanonicalMismatch,
+                        "HazardItemCommon.lineage is not typed",
+                    )
+                })?;
+            canonical_fact_owner_value(
+                &lineage.compendium_source,
+                occurrence,
+                disposition,
+                json_owner_value,
+            )
+        }
         ".system.actionType.value"
         | ".system.actions.value"
         | ".system.category"
@@ -6956,6 +7181,9 @@ fn exact_hazard_item_canonical_value(
         ),
         ".system.bonus.value"
         | ".system.attackEffects.value[]"
+        | ".system.attack.value"
+        | ".system.weaponType.value"
+        | ".system.attackEffects.custom"
         | ".system.damageRolls.*.damage"
         | ".system.damageRolls.*.damageType"
         | ".system.damageRolls.*.category" => exact_hazard_strike_canonical_value(
@@ -7098,6 +7326,32 @@ fn exact_hazard_strike_canonical_value(
         }
         ".system.attackEffects.value[]" => canonical_array_member_fact_owner_value(
             &strike.attack_effects,
+            occurrence,
+            disposition,
+            json_owner_value,
+        ),
+        ".system.attack.value" => canonical_fact_owner_value(
+            &strike.source_metadata.attack,
+            occurrence,
+            disposition,
+            json_owner_value,
+        ),
+        ".system.weaponType.value" => canonical_fact_owner_value(
+            &strike.source_metadata.weapon_type,
+            occurrence,
+            disposition,
+            |value| {
+                Ok(Value::String(
+                    match value {
+                        atlas_record::HazardSourceAttackMode::Melee => "melee",
+                        atlas_record::HazardSourceAttackMode::Ranged => "ranged",
+                    }
+                    .to_string(),
+                ))
+            },
+        ),
+        ".system.attackEffects.custom" => canonical_fact_owner_value(
+            &strike.source_metadata.attack_effects_custom,
             occurrence,
             disposition,
             json_owner_value,
@@ -7263,23 +7517,21 @@ fn verify_canonical_save_collection_if_leaf(
     let candidates = [
         (
             "fortitude",
-            atlas_record::HazardSaveKind::Fortitude,
             &saves.fortitude,
+            &saves.source_metadata.fortitude_detail,
         ),
         (
             "reflex",
-            atlas_record::HazardSaveKind::Reflex,
             &saves.reflex,
+            &saves.source_metadata.reflex_detail,
         ),
-        ("will", atlas_record::HazardSaveKind::Will, &saves.will),
+        ("will", &saves.will, &saves.source_metadata.will_detail),
     ];
     let present = candidates
         .into_iter()
-        .filter(|(_, kind, fact)| {
-            !matches!(fact.value, FactValue::Missing)
-                || saves.unsupported_fields.iter().any(|unsupported| {
-                    unsupported.field == atlas_record::HazardUnsupportedField::SaveDetail(*kind)
-                })
+        .filter(|(_, value, detail)| {
+            !matches!(value.value, FactValue::Missing)
+                || !matches!(detail.value, FactValue::Missing)
         })
         .collect::<Vec<_>>();
     let authored_order = present
@@ -7377,6 +7629,18 @@ fn exact_hazard_strike_canonical_fingerprint(
         ".system.attackEffects.value[]" => owner_fingerprint(
             "HazardStrikeCapability.attack_effects",
             &strike.attack_effects,
+        ),
+        ".system.attack.value" => owner_fingerprint(
+            "HazardStrikeSourceMetadata.attack",
+            &strike.source_metadata.attack,
+        ),
+        ".system.weaponType.value" => owner_fingerprint(
+            "HazardStrikeSourceMetadata.weapon_type",
+            &strike.source_metadata.weapon_type,
+        ),
+        ".system.attackEffects.custom" => owner_fingerprint(
+            "HazardStrikeSourceMetadata.attack_effects_custom",
+            &strike.source_metadata.attack_effects_custom,
         ),
         _ if path.starts_with(".system.damageRolls.*.") => {
             let damage_rolls = strike.damage_rolls.typed().ok_or_else(|| {
@@ -7779,29 +8043,8 @@ fn exact_hazard_unsupported_fact<'a>(
     hazard: &'a HazardRecord,
     pointer: &str,
 ) -> Result<&'a atlas_record::HazardUnsupportedFact, CoverageContractError> {
-    let mut facts = hazard.unsupported_fields.iter().collect::<Vec<_>>();
-    if let Some(defenses) = hazard.defenses.typed() {
-        facts.extend(defenses.unsupported_fields.iter());
-        if let Some(hit_points) = defenses.hit_points.typed() {
-            facts.extend(hit_points.unsupported_fields.iter());
-        }
-        if let Some(saves) = defenses.saves.typed() {
-            facts.extend(saves.unsupported_fields.iter());
-        }
-    }
-    if let Some(entities) = hazard.embedded_entities.typed() {
-        for entity in &entities.entities {
-            let unsupported = match &entity.capability {
-                HazardCapability::Action(value) => &value.unsupported_fields,
-                HazardCapability::Strike(value) => &value.unsupported_fields,
-                HazardCapability::Condition(value) => &value.unsupported_fields,
-                HazardCapability::Effect(value) => &value.unsupported_fields,
-                HazardCapability::UnsupportedChild(value) => &value.unsupported_fields,
-            };
-            facts.extend(unsupported.iter());
-        }
-    }
-    let fact = facts
+    let fact = hazard
+        .unsupported_facts()
         .into_iter()
         .find(|fact| fact.value.relative_source_path == pointer)
         .ok_or_else(|| {
@@ -8817,25 +9060,20 @@ fn hazard_rich_document_leaf(
     Ok(string_leaf(source_text.to_string()))
 }
 
-fn dto_hazard_unsupported_number(
-    source: &HazardSourceField<i64>,
-    reason: &str,
-) -> SourcePresence<SourceLeafValue> {
+fn dto_hazard_number(source: &HazardSourceField<i64>) -> SourcePresence<SourceLeafValue> {
     match source {
         SourcePresence::Missing => SourcePresence::Missing,
         SourcePresence::Null => SourcePresence::Null,
-        SourcePresence::Value(DtoHazardSourceValue::Typed(value)) => {
-            unsupported_number_leaf(*value, reason)
-        }
+        SourcePresence::Value(DtoHazardSourceValue::Typed(value)) => number_leaf(*value),
         SourcePresence::Value(DtoHazardSourceValue::Unsupported(value)) => unsupported_scalar_leaf(
             serde_json::from_str(&value.value).unwrap_or(Value::Null),
             SourceJsonType::Number,
-            reason,
+            "unexpected hazard source number shape",
         ),
     }
 }
 
-fn hazard_tempmax_unsupported(
+fn hazard_tempmax_source_metadata(
     hazard: &HazardRecord,
 ) -> Result<SourcePresence<SourceLeafValue>, CoverageContractError> {
     let defenses = hazard.defenses.typed().ok_or_else(|| {
@@ -8850,27 +9088,18 @@ fn hazard_tempmax_unsupported(
             "canonical hazard hit points are not typed",
         )
     })?;
-    let unsupported = hit_points
-        .unsupported_fields
-        .iter()
-        .find(|fact| fact.field == HazardUnsupportedField::HitPointsTempMax)
-        .ok_or_else(|| {
-            error(
-                CoverageFailureCode::CanonicalMismatch,
-                "canonical hazard omitted typed-unsupported hp.tempmax",
+    Ok(match &hit_points.source_metadata.temporary_maximum.value {
+        FactValue::Missing => SourcePresence::Missing,
+        FactValue::Null => SourcePresence::Null,
+        FactValue::Value(CanonicalHazardSourceValue::Typed(value)) => number_leaf(*value),
+        FactValue::Value(CanonicalHazardSourceValue::Unsupported(value)) => {
+            unsupported_scalar_leaf(
+                serde_json::from_str(&value.exact_json).unwrap_or(Value::Null),
+                SourceJsonType::Number,
+                "unexpected canonical hazard hp.tempmax shape",
             )
-        })?;
-    let value: Value = serde_json::from_str(&unsupported.value.exact_json).map_err(|message| {
-        error(
-            CoverageFailureCode::CanonicalMismatch,
-            format!("canonical hazard tempmax exact JSON is invalid: {message}"),
-        )
-    })?;
-    Ok(unsupported_scalar_leaf(
-        value,
-        SourceJsonType::Number,
-        "legacy hazard hp.tempmax field",
-    ))
+        }
+    })
 }
 
 fn hazard_action_type(
@@ -9482,10 +9711,6 @@ fn hazard_map_string_leaf(key: &str, value: String) -> SourcePresence<SourceLeaf
         multiplicity: 1,
         unsupported: None,
     })
-}
-
-fn unsupported_number_leaf(value: i64, reason: &str) -> SourcePresence<SourceLeafValue> {
-    unsupported_scalar_leaf(Value::from(value), SourceJsonType::Number, reason)
 }
 
 fn unsupported_scalar_leaf(

@@ -64,7 +64,21 @@ describe("atlasApi", () => {
     );
   });
 
-  it("keeps the default record-detail request free of spell selection state", async () => {
+  it("preserves explicit record-reference limits in the detail query", async () => {
+    const fetchMock = mockFetch({ surface: {} });
+
+    await getRecordDetail("spells-srd:heal", {
+      reference_outgoing_limit: 0,
+      reference_backlink_limit: 8,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/spells-srd%3Aheal?reference_outgoing_limit=0&reference_backlink_limit=8",
+      expect.any(Object),
+    );
+  });
+
+  it("keeps omitted spell selection and reference limits out of record detail", async () => {
     const fetchMock = mockFetch({ surface: {} });
 
     await getRecordDetail("spells-srd:heal");
@@ -86,6 +100,20 @@ describe("atlasApi", () => {
       message: "Request numeric field exceeds JSON safe integer range",
     });
   });
+
+  it.each(["reference_outgoing_limit", "reference_backlink_limit"] as const)(
+    "rejects an unsafe %s before record-detail transport",
+    async (field) => {
+      await expect(
+        getRecordDetail("spells-srd:heal", {
+          [field]: Number.MAX_SAFE_INTEGER + 1,
+        }),
+      ).rejects.toMatchObject({
+        name: "AtlasApiError",
+        message: "Request numeric field exceeds JSON safe integer range",
+      });
+    },
+  );
 
   it("posts result-window requests as JSON and normalizes bigint fields", async () => {
     const fetchMock = mockFetch(resultWindowPayload());

@@ -1,21 +1,24 @@
 use atlas_app_model::{
     CreatureSurfaceActionCostView, CreatureSurfaceDamageView, HazardSurfaceActivityTypeView,
-    HazardSurfaceActivityView, HazardSurfaceComplexityView, HazardSurfaceDefensesView,
-    HazardSurfaceDetectionView, HazardSurfaceEmitsSoundView, HazardSurfaceFrequencyView,
-    HazardSurfaceHitPointsView, HazardSurfaceIwrView, HazardSurfaceLifecycleView,
-    HazardSurfaceOccurrenceIdentityStabilityView, HazardSurfaceProvenanceTextView,
-    HazardSurfaceProvenanceView, HazardSurfaceRelationshipTargetView,
-    HazardSurfaceRelationshipView, HazardSurfaceRuleView, HazardSurfaceSavesView,
-    HazardSurfaceSelfEffectView, HazardSurfaceSizeView, HazardSurfaceUnavailableStateView,
-    HazardSurfaceUnavailableView, HazardSurfaceView, RecordSurfaceProfileView,
+    HazardSurfaceActivityView, HazardSurfaceAttackModeView, HazardSurfaceComplexityView,
+    HazardSurfaceDefensesView, HazardSurfaceDetectionView, HazardSurfaceEmitsSoundView,
+    HazardSurfaceFrequencyView, HazardSurfaceHitPointsView, HazardSurfaceIwrView,
+    HazardSurfaceLifecycleView, HazardSurfaceOccurrenceIdentityStabilityView,
+    HazardSurfaceProvenanceTextView, HazardSurfaceProvenanceView, HazardSurfaceRuleView,
+    HazardSurfaceSaveKindView, HazardSurfaceSavesView, HazardSurfaceSelfEffectView,
+    HazardSurfaceSizeView, HazardSurfaceSourceFactView, HazardSurfaceSourceMetadataFactView,
+    HazardSurfaceUnavailableStateView, HazardSurfaceUnavailableView, HazardSurfaceView,
+    RecordSurfaceProfileView,
 };
 use atlas_record::{
-    ContentOwner, ContentSourceKind, FactValue, HazardActionType, HazardCapability,
-    HazardComplexity, HazardEmitsSound, HazardEntity, HazardEntityOccurrence, HazardFact,
-    HazardFrequencyInterval, HazardItemCommon, HazardIwr, HazardOccurrenceIdentityStability,
-    HazardRecord, HazardRelationshipTarget, HazardRuleElement, HazardRuleMode, HazardRuleType,
-    HazardSize, HazardSourceValue, HazardUnsupportedField, PublicationLicense, RichDocument,
-    project_hazard_conveniences, project_presentation_content,
+    ContentOwner, ContentSourceKind, FactValue, HazardActionType, HazardAttackMode,
+    HazardCapability, HazardComplexity, HazardEmitsSound, HazardEntity, HazardEntityOccurrence,
+    HazardFact, HazardFrequencyInterval, HazardItemCommon, HazardIwr,
+    HazardOccurrenceIdentityStability, HazardRecord, HazardRuleElement, HazardRuleMode,
+    HazardRuleType, HazardSaveKind, HazardSize, HazardSourceMetadataFact, HazardSourceValue,
+    HazardUnsupportedField, PublicationLicense, RichDocument, project_hazard_attack_mode,
+    project_hazard_conveniences, project_hazard_source_metadata, project_hazard_strike_action_cost,
+    project_presentation_content,
 };
 
 pub(crate) fn hazard_surface(
@@ -27,6 +30,7 @@ pub(crate) fn hazard_surface(
     let compact = profile == RecordSurfaceProfileView::SearchCompact;
     let encounter = profile == RecordSurfaceProfileView::EncounterParticipant;
     let conveniences = project_hazard_conveniences(hazard);
+    let source_metadata = project_hazard_source_metadata(hazard);
     let mut unavailable = Vec::new();
 
     let complexity = typed_fact(&hazard.complexity, "complexity", None, &mut unavailable)
@@ -95,98 +99,86 @@ pub(crate) fn hazard_surface(
                 None,
                 &mut unavailable,
             )
-            .map(|hit_points| {
-                push_unsupported_fields(&hit_points.unsupported_fields, None, &mut unavailable);
-                HazardSurfaceHitPointsView {
-                    current: (!encounter)
-                        .then(|| {
-                            typed_fact(
-                                &hit_points.current,
-                                "defenses.hit_points.current",
-                                None,
-                                &mut unavailable,
-                            )
-                            .copied()
-                        })
-                        .flatten(),
-                    maximum: (!encounter)
-                        .then(|| {
-                            typed_fact(
-                                &hit_points.maximum,
-                                "defenses.hit_points.maximum",
-                                None,
-                                &mut unavailable,
-                            )
-                            .copied()
-                        })
-                        .flatten(),
-                    temporary: detail
-                        .then(|| {
-                            typed_fact(
-                                &hit_points.temporary,
-                                "defenses.hit_points.temporary",
-                                None,
-                                &mut unavailable,
-                            )
-                            .copied()
-                        })
-                        .flatten(),
-                    broken_threshold: (!encounter)
-                        .then_some(conveniences.broken_threshold)
-                        .flatten(),
-                    details: (detail || encounter)
-                        .then(|| {
-                            rich_document(
-                                &hit_points.details,
-                                "defenses.hit_points.details",
-                                None,
-                                &mut unavailable,
-                            )
-                        })
-                        .flatten(),
-                }
+            .map(|hit_points| HazardSurfaceHitPointsView {
+                current: (!encounter)
+                    .then(|| {
+                        typed_fact(
+                            &hit_points.current,
+                            "defenses.hit_points.current",
+                            None,
+                            &mut unavailable,
+                        )
+                        .copied()
+                    })
+                    .flatten(),
+                maximum: (!encounter)
+                    .then(|| {
+                        typed_fact(
+                            &hit_points.maximum,
+                            "defenses.hit_points.maximum",
+                            None,
+                            &mut unavailable,
+                        )
+                        .copied()
+                    })
+                    .flatten(),
+                temporary: detail
+                    .then(|| {
+                        typed_fact(
+                            &hit_points.temporary,
+                            "defenses.hit_points.temporary",
+                            None,
+                            &mut unavailable,
+                        )
+                        .copied()
+                    })
+                    .flatten(),
+                broken_threshold: (!encounter)
+                    .then_some(conveniences.broken_threshold)
+                    .flatten(),
+                details: (detail || encounter)
+                    .then(|| {
+                        rich_document(
+                            &hit_points.details,
+                            "defenses.hit_points.details",
+                            None,
+                            &mut unavailable,
+                        )
+                    })
+                    .flatten(),
             });
             let saves = typed_fact(&defenses.saves, "defenses.saves", None, &mut unavailable).map(
-                |saves| {
-                    push_unsupported_fields(&saves.unsupported_fields, None, &mut unavailable);
-                    HazardSurfaceSavesView {
-                        fortitude: (!encounter)
-                            .then(|| {
-                                typed_fact(
-                                    &saves.fortitude,
-                                    "defenses.saves.fortitude",
-                                    None,
-                                    &mut unavailable,
-                                )
+                |saves| HazardSurfaceSavesView {
+                    fortitude: (!encounter)
+                        .then(|| {
+                            typed_fact(
+                                &saves.fortitude,
+                                "defenses.saves.fortitude",
+                                None,
+                                &mut unavailable,
+                            )
+                            .copied()
+                        })
+                        .flatten(),
+                    reflex: (!encounter)
+                        .then(|| {
+                            typed_fact(
+                                &saves.reflex,
+                                "defenses.saves.reflex",
+                                None,
+                                &mut unavailable,
+                            )
+                            .copied()
+                        })
+                        .flatten(),
+                    will: (!encounter)
+                        .then(|| {
+                            typed_fact(&saves.will, "defenses.saves.will", None, &mut unavailable)
                                 .copied()
-                            })
-                            .flatten(),
-                        reflex: (!encounter)
-                            .then(|| {
-                                typed_fact(
-                                    &saves.reflex,
-                                    "defenses.saves.reflex",
-                                    None,
-                                    &mut unavailable,
-                                )
-                                .copied()
-                            })
-                            .flatten(),
-                        will: (!encounter)
-                            .then(|| {
-                                typed_fact(
-                                    &saves.will,
-                                    "defenses.saves.will",
-                                    None,
-                                    &mut unavailable,
-                                )
-                                .copied()
-                            })
-                            .flatten(),
-                    }
+                        })
+                        .flatten(),
                 },
             );
-            push_unsupported_fields(&defenses.unsupported_fields, None, &mut unavailable);
             HazardSurfaceDefensesView {
                 armor_class: (!encounter)
                     .then(|| {
@@ -262,9 +254,6 @@ pub(crate) fn hazard_surface(
     let activities = (detail || encounter)
         .then(|| activities(hazard, &mut unavailable))
         .flatten();
-    let relationships = (detail || encounter)
-        .then(|| relationships(hazard))
-        .flatten();
     let content = (detail || encounter)
         .then(|| general_content(hazard))
         .flatten();
@@ -285,6 +274,15 @@ pub(crate) fn hazard_surface(
                 None,
             );
         }
+        for issue in &source_metadata.issues {
+            push_unavailable_message(
+                &mut unavailable,
+                HazardSurfaceUnavailableStateView::Unsupported,
+                issue.field_key(),
+                issue.component_id(),
+                issue.message(),
+            );
+        }
     }
 
     HazardSurfaceView {
@@ -297,7 +295,7 @@ pub(crate) fn hazard_surface(
         lifecycle,
         activities,
         content,
-        relationships,
+        relationships: None,
         unavailable_fields: non_empty(unavailable),
         provenance: HazardSurfaceProvenanceView {
             source_path: hazard.provenance.source_path.clone(),
@@ -308,7 +306,142 @@ pub(crate) fn hazard_surface(
             convenience_rule_version: conveniences.rule_version,
             image: provenance_text(&hazard.provenance.image),
             publication_license: publication_license(hazard),
+            source_metadata: source_metadata
+                .facts
+                .into_iter()
+                .map(source_metadata_fact)
+                .collect(),
         },
+    }
+}
+
+fn source_metadata_fact(fact: HazardSourceMetadataFact) -> HazardSurfaceSourceMetadataFactView {
+    match fact {
+        HazardSourceMetadataFact::TokenName { value } => {
+            HazardSurfaceSourceMetadataFactView::TokenName {
+                value: source_fact(value, |value| value),
+            }
+        }
+        HazardSourceMetadataFact::HasHealth { value } => {
+            HazardSurfaceSourceMetadataFactView::HasHealth {
+                value: source_fact(value, |value| value),
+            }
+        }
+        HazardSourceMetadataFact::TemporaryMaximum { value } => {
+            HazardSurfaceSourceMetadataFactView::TemporaryMaximum {
+                value: source_fact(value, |value| value),
+            }
+        }
+        HazardSourceMetadataFact::SaveDetail { save, value } => {
+            HazardSurfaceSourceMetadataFactView::SaveDetail {
+                save: match save {
+                    HazardSaveKind::Fortitude => HazardSurfaceSaveKindView::Fortitude,
+                    HazardSaveKind::Reflex => HazardSurfaceSaveKindView::Reflex,
+                    HazardSaveKind::Will => HazardSurfaceSaveKindView::Will,
+                },
+                value: source_fact(value, |value| value),
+            }
+        }
+        HazardSourceMetadataFact::ItemRarity { entity_id, value } => {
+            HazardSurfaceSourceMetadataFactView::ItemRarity {
+                entity_id: entity_id.as_str().to_string(),
+                value: source_fact(value, |value| value.as_str().to_string()),
+            }
+        }
+        HazardSourceMetadataFact::ItemLineage { entity_id, value } => {
+            HazardSurfaceSourceMetadataFactView::ItemLineage {
+                entity_id: entity_id.as_str().to_string(),
+                value: source_fact(value, |value| {
+                    atlas_app_model::HazardSurfaceItemLineageView {
+                        compendium_source: Box::new(source_fact(
+                            value.compendium_source,
+                            |value| value,
+                        )),
+                    }
+                }),
+            }
+        }
+        HazardSourceMetadataFact::StrikeAttack { entity_id, value } => {
+            HazardSurfaceSourceMetadataFactView::StrikeAttack {
+                entity_id: entity_id.as_str().to_string(),
+                value: source_fact(value, |value| value),
+            }
+        }
+        HazardSourceMetadataFact::StrikeWeaponType { entity_id, value } => {
+            HazardSurfaceSourceMetadataFactView::StrikeWeaponType {
+                entity_id: entity_id.as_str().to_string(),
+                value: source_fact(value, |value| match value {
+                    atlas_record::HazardSourceAttackMode::Melee => {
+                        atlas_app_model::HazardSurfaceAttackModeView::Melee
+                    }
+                    atlas_record::HazardSourceAttackMode::Ranged => {
+                        atlas_app_model::HazardSurfaceAttackModeView::Ranged
+                    }
+                }),
+            }
+        }
+        HazardSourceMetadataFact::StrikeAttackEffectsCustom { entity_id, value } => {
+            HazardSurfaceSourceMetadataFactView::StrikeAttackEffectsCustom {
+                entity_id: entity_id.as_str().to_string(),
+                value: source_fact(value, |value| value),
+            }
+        }
+    }
+}
+
+fn source_fact<T, U>(
+    fact: HazardFact<T>,
+    map: impl FnOnce(T) -> U,
+) -> HazardSurfaceSourceFactView<U> {
+    let source_path = fact.provenance.relative_source_path;
+    match fact.value {
+        FactValue::Missing => HazardSurfaceSourceFactView::Missing { source_path },
+        FactValue::Null => HazardSurfaceSourceFactView::Null { source_path },
+        FactValue::Value(HazardSourceValue::Typed(value)) => HazardSurfaceSourceFactView::Typed {
+            source_path,
+            value: map(value),
+        },
+        FactValue::Value(HazardSourceValue::Unsupported(value)) => {
+            HazardSurfaceSourceFactView::Unsupported {
+                source_path,
+                exact_json: value.exact_json,
+                expected_shape: expected_shape(value.expected_shape),
+                actual_shape: source_shape(value.actual_shape),
+            }
+        }
+    }
+}
+
+fn expected_shape(
+    value: atlas_record::HazardExpectedShape,
+) -> atlas_app_model::HazardSurfaceExpectedShapeView {
+    use atlas_app_model::HazardSurfaceExpectedShapeView as View;
+    match value {
+        atlas_record::HazardExpectedShape::Any => View::Any,
+        atlas_record::HazardExpectedShape::Boolean => View::Boolean,
+        atlas_record::HazardExpectedShape::Integer => View::Integer,
+        atlas_record::HazardExpectedShape::String => View::String,
+        atlas_record::HazardExpectedShape::StringOrBoolean => View::StringOrBoolean,
+        atlas_record::HazardExpectedShape::StringOrArray => View::StringOrArray,
+        atlas_record::HazardExpectedShape::Array => View::Array,
+        atlas_record::HazardExpectedShape::Object => View::Object,
+        atlas_record::HazardExpectedShape::ClosedVocabulary => View::ClosedVocabulary,
+        atlas_record::HazardExpectedShape::RichDocument => View::RichDocument,
+    }
+}
+
+fn source_shape(
+    value: atlas_record::HazardSourceShape,
+) -> atlas_app_model::HazardSurfaceSourceShapeView {
+    use atlas_app_model::HazardSurfaceSourceShapeView as View;
+    match value {
+        atlas_record::HazardSourceShape::Missing => View::Missing,
+        atlas_record::HazardSourceShape::Null => View::Null,
+        atlas_record::HazardSourceShape::Boolean => View::Boolean,
+        atlas_record::HazardSourceShape::Number => View::Number,
+        atlas_record::HazardSourceShape::String => View::String,
+        atlas_record::HazardSourceShape::Array => View::Array,
+        atlas_record::HazardSourceShape::Object => View::Object,
     }
 }
 
@@ -589,6 +722,19 @@ fn activity(
         unavailable,
     );
     push_unsupported_fields(entity_unsupported_fields(entity), component_id, unavailable);
+    let strike_action_cost = project_hazard_strike_action_cost(entity);
+    let attack_mode = strike_action_cost
+        .as_ref()
+        .and_then(|_| project_hazard_attack_mode(entity))
+        .map(|projection| match projection.mode {
+            HazardAttackMode::Melee => HazardSurfaceAttackModeView::Melee,
+            HazardAttackMode::Ranged => HazardSurfaceAttackModeView::Ranged,
+        });
+    let action_cost = action_cost.or_else(|| {
+        strike_action_cost.map(|projection| CreatureSurfaceActionCostView::Actions {
+            count: projection.cost.value(),
+        })
+    });
     HazardSurfaceActivityView {
         occurrence_id: occurrence.id.as_str().to_string(),
         entity_id: occurrence.entity_id.as_str().to_string(),
@@ -613,6 +759,7 @@ fn activity(
         activity_type,
         child_type,
         traits,
+        attack_mode,
         action_cost,
         frequency,
         category,
@@ -907,36 +1054,6 @@ fn general_content(
     )
 }
 
-fn relationships(hazard: &HazardRecord) -> Option<Vec<HazardSurfaceRelationshipView>> {
-    let mut relationships = hazard.relationships.iter().collect::<Vec<_>>();
-    relationships.sort_by_key(|relationship| relationship.authored_order);
-    non_empty(
-        relationships
-            .into_iter()
-            .map(|relationship| HazardSurfaceRelationshipView {
-                relationship_id: relationship.id.as_str().to_string(),
-                authored_order: relationship.authored_order,
-                source_occurrence_id: relationship
-                    .source_occurrence_id
-                    .as_ref()
-                    .map(|id| id.as_str().to_string()),
-                target: match &relationship.target {
-                    HazardRelationshipTarget::Entity(id) => {
-                        HazardSurfaceRelationshipTargetView::Entity {
-                            entity_id: id.as_str().to_string(),
-                        }
-                    }
-                    HazardRelationshipTarget::Occurrence(id) => {
-                        HazardSurfaceRelationshipTargetView::Occurrence {
-                            occurrence_id: id.as_str().to_string(),
-                        }
-                    }
-                },
-            })
-            .collect(),
-    )
-}
-
 fn iwr(
     fact: &HazardFact<Vec<HazardIwr>>,
     field: &str,
@@ -1047,22 +1164,32 @@ fn push_unavailable(
     field: &str,
     component_id: Option<&str>,
 ) {
+    let message = match state {
+        HazardSurfaceUnavailableStateView::Missing => {
+            "This canonical hazard field was not authored."
+        }
+        HazardSurfaceUnavailableStateView::Null => {
+            "This canonical hazard field was explicitly null."
+        }
+        HazardSurfaceUnavailableStateView::Unsupported => {
+            "This authored hazard field is retained but not supported on this surface."
+        }
+    };
+    push_unavailable_message(unavailable, state, field, component_id, message);
+}
+
+fn push_unavailable_message(
+    unavailable: &mut Vec<HazardSurfaceUnavailableView>,
+    state: HazardSurfaceUnavailableStateView,
+    field: &str,
+    component_id: Option<&str>,
+    message: &str,
+) {
     let value = HazardSurfaceUnavailableView {
         state,
         field: field.to_string(),
         component_id: component_id.map(str::to_string),
-        message: match state {
-            HazardSurfaceUnavailableStateView::Missing => {
-                "This canonical hazard field was not authored."
-            }
-            HazardSurfaceUnavailableStateView::Null => {
-                "This canonical hazard field was explicitly null."
-            }
-            HazardSurfaceUnavailableStateView::Unsupported => {
-                "This authored hazard field is retained but not supported on this surface."
-            }
-        }
-        .to_string(),
+        message: message.to_string(),
     };
     if !unavailable.contains(&value) {
         unavailable.push(value);
@@ -1142,19 +1269,554 @@ fn non_empty<T>(values: Vec<T>) -> Option<Vec<T>> {
 fn unsupported_field_name(field: &HazardUnsupportedField) -> &'static str {
     match field {
         HazardUnsupportedField::HazardUnexpected(_) => "hazard.unexpected",
-        HazardUnsupportedField::DefensesHasHealth => "defenses.has_health",
-        HazardUnsupportedField::HitPointsTempMax => "defenses.hit_points.temp_max",
-        HazardUnsupportedField::SaveDetail(_) => "defenses.save.detail",
         HazardUnsupportedField::ActionUnexpected(_) => "activity.action.unexpected",
         HazardUnsupportedField::StrikeUnexpected(_) => "activity.strike.unexpected",
-        HazardUnsupportedField::StrikeAttack => "activity.strike.attack",
-        HazardUnsupportedField::StrikeWeaponType => "activity.strike.weapon_type",
-        HazardUnsupportedField::StrikeAttackEffectsCustom => {
-            "activity.strike.attack_effects.custom"
-        }
-        HazardUnsupportedField::StrikeTraitRarity => "activity.strike.trait_rarity",
         HazardUnsupportedField::ConditionUnexpected(_) => "activity.condition.unexpected",
         HazardUnsupportedField::EffectUnexpected(_) => "activity.effect.unexpected",
         HazardUnsupportedField::UnsupportedChildField(_) => "activity.unsupported_child.field",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_domain::{Rarity, RecordKey, RecordKind};
+    use atlas_record::{
+        FactValue, HazardActionCapability, HazardActionCount, HazardActionType, HazardCapability,
+        HazardDefenseSourceMetadata, HazardDefenses, HazardDiagnosticCode, HazardEmbeddedEntities,
+        HazardEntity, HazardEntityFamily, HazardEntityId, HazardEntityOccurrence,
+        HazardEntitySourceIdentity, HazardExpectedShape, HazardFact, HazardHitPointSourceMetadata,
+        HazardHitPoints, HazardIdentity, HazardItemCommon, HazardItemLineage, HazardOccurrenceId,
+        HazardOccurrenceIdentityStability, HazardProvenance, HazardRecord,
+        HazardSaveSourceMetadata, HazardSaves, HazardSourceAttackMode, HazardSourceId,
+        HazardSourceShape, HazardSourceValue, HazardStrikeCapability, HazardStrikeSourceMetadata,
+        HazardTokenSourceMetadata, HazardTrait, HazardUnsupportedOwner, HazardUnsupportedValue,
+        OwnedRichContent, RecordBody, RetrievedRecord,
+    };
+    use atlas_search::RemasterLinksResult;
+
+    use super::{RecordSurfaceProfileView, hazard_surface};
+
+    #[test]
+    fn app_hazard_diagnostics_consume_only_actionable_canonical_source_metadata_issues() {
+        let benign = hazard_surface(
+            &source_metadata_fixture(false),
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        );
+        assert!(source_metadata_fields(&benign).is_empty());
+        let benign_provenance = serde_json::to_value(&benign.provenance.source_metadata)
+            .expect("typed hazard source provenance");
+        let benign_facts = benign_provenance.as_array().expect("metadata fact array");
+        assert_eq!(benign_facts.len(), 11);
+        assert!(benign_facts.iter().any(|fact| {
+            fact["field"] == "has_health"
+                && fact["value"]["state"] == "typed"
+                && fact["value"]["value"] == true
+                && fact["value"]["source_path"] == "/system/attributes/hasHealth"
+        }));
+        assert!(benign_facts.iter().any(|fact| {
+            fact["field"] == "item_rarity"
+                && fact["entity_id"] == "metadata-strike"
+                && fact["value"]["value"] == "common"
+        }));
+        assert!(benign_facts.iter().any(|fact| {
+            fact["field"] == "item_lineage"
+                && fact["value"]["value"]["compendium_source"]["value"]
+                    == "Compendium.pf2e.hazards.Item.fixture"
+        }));
+
+        let actionable = hazard_surface(
+            &source_metadata_fixture(true),
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        );
+        let fields = source_metadata_fields(&actionable);
+        assert_eq!(fields.len(), 7);
+        for expected in [
+            "provenance.token.name",
+            "defenses.source_metadata.has_health",
+            "defenses.hit_points.source_metadata.temporary_maximum",
+            "defenses.saves.source_metadata.fortitude_detail",
+            "activity.source_metadata.rarity",
+            "activity.strike.source_metadata.weapon_type",
+            "activity.strike.source_metadata.attack_effects_custom",
+        ] {
+            assert_eq!(
+                fields
+                    .iter()
+                    .filter(|field| field.as_str() == expected)
+                    .count(),
+                1,
+                "{expected} should reach the app once"
+            );
+        }
+        let unavailable = actionable
+            .unavailable_fields
+            .as_ref()
+            .expect("actionable diagnostics");
+        assert!(
+            unavailable
+                .iter()
+                .filter(|entry| {
+                    entry.field.contains("source_metadata")
+                        || entry.field == "provenance.token.name"
+                })
+                .all(|entry| {
+                    !entry.message.contains("/system/")
+                        && !entry.message.contains("/items/")
+                        && entry.state
+                            == atlas_app_model::HazardSurfaceUnavailableStateView::Unsupported
+                })
+        );
+        let actionable_provenance = serde_json::to_value(&actionable.provenance.source_metadata)
+            .expect("actionable source provenance");
+        assert!(
+            actionable_provenance
+                .as_array()
+                .expect("metadata fact array")
+                .iter()
+                .any(|fact| {
+                    fact["field"] == "token_name"
+                        && fact["value"]["state"] == "unsupported"
+                        && fact["value"]["exact_json"] == "17"
+                        && fact["value"]["actual_shape"] == "number"
+                })
+        );
+
+        let benign = record_surface_for(source_metadata_fixture(false));
+        assert!(benign.issues.is_none());
+        let actionable = record_surface_for(source_metadata_fixture(true));
+        let issues = actionable.issues.expect("actionable outer issues");
+        assert_eq!(issues.len(), 7);
+        assert!(issues.iter().all(|issue| {
+            !issue.message.contains("/system/")
+                && !issue.message.contains("/items/")
+                && !issue.message.contains("metadata-strike")
+        }));
+    }
+
+    #[test]
+    fn hazard_strike_activity_uses_only_canonical_mode_and_action_cost_projections() {
+        let acid = hazard_activity_fixture(
+            "Acid Spray Fountain",
+            "Acid Spray",
+            typed(Vec::new(), "/items/0/system/traits/value"),
+            HazardSourceAttackMode::Melee,
+        );
+        let acid = only_activity(hazard_surface(
+            &acid,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        ));
+        assert_eq!(
+            acid.attack_mode,
+            Some(atlas_app_model::HazardSurfaceAttackModeView::Melee)
+        );
+        assert_eq!(
+            acid.action_cost,
+            Some(atlas_app_model::CreatureSurfaceActionCostView::Actions { count: 1 })
+        );
+
+        let dragon = hazard_activity_fixture(
+            "Dragon Pillar",
+            "Eye Beam",
+            typed(
+                vec![HazardTrait::new("range-120").expect("trait")],
+                "/items/0/system/traits/value",
+            ),
+            HazardSourceAttackMode::Ranged,
+        );
+        let dragon = only_activity(hazard_surface(
+            &dragon,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        ));
+        assert_eq!(
+            dragon.attack_mode,
+            Some(atlas_app_model::HazardSurfaceAttackModeView::Ranged)
+        );
+        assert_eq!(
+            dragon.action_cost,
+            Some(atlas_app_model::CreatureSurfaceActionCostView::Actions { count: 1 })
+        );
+
+        let mut unsupported = source_metadata_fixture(false);
+        let unsupported_owner = embedded_mut(&mut unsupported).entities[0].id.clone();
+        let HazardCapability::Strike(strike) =
+            &mut embedded_mut(&mut unsupported).entities[0].capability
+        else {
+            panic!("strike fixture")
+        };
+        strike.common.traits = malformed(
+            "/items/0/system/traits/value",
+            "17",
+            HazardUnsupportedOwner::Entity(unsupported_owner),
+        );
+        let unsupported =
+            hazard_surface(&unsupported, RecordSurfaceProfileView::RecordDetail, None);
+        let unsupported_activity = unsupported
+            .activities
+            .as_ref()
+            .and_then(|activities| activities.first())
+            .expect("activity");
+        assert_eq!(unsupported_activity.attack_mode, None);
+        assert_eq!(
+            unsupported_activity.action_cost,
+            Some(atlas_app_model::CreatureSurfaceActionCostView::Actions { count: 1 })
+        );
+        assert_eq!(
+            unsupported
+                .unavailable_fields
+                .iter()
+                .flatten()
+                .filter(|issue| issue.field == "activity.traits")
+                .count(),
+            1
+        );
+
+        let mut missing_traits = source_metadata_fixture(false);
+        let HazardCapability::Strike(strike) =
+            &mut embedded_mut(&mut missing_traits).entities[0].capability
+        else {
+            panic!("strike fixture")
+        };
+        strike.common.traits = missing("/items/0/system/traits/value");
+        let missing_traits = only_activity(hazard_surface(
+            &missing_traits,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        ));
+        assert_eq!(missing_traits.attack_mode, None);
+        assert_eq!(
+            missing_traits.action_cost,
+            Some(atlas_app_model::CreatureSurfaceActionCostView::Actions { count: 1 })
+        );
+
+        let mut authored_action = source_metadata_fixture(false);
+        let embedded = embedded_mut(&mut authored_action);
+        let common = match &embedded.entities[0].capability {
+            HazardCapability::Strike(strike) => strike.common.clone(),
+            _ => panic!("strike fixture"),
+        };
+        embedded.entities[0].family = HazardEntityFamily::Action;
+        embedded.entities[0].capability =
+            HazardCapability::Action(Box::new(HazardActionCapability {
+                common,
+                action_type: typed(HazardActionType::Action, "/items/0/system/actionType/value"),
+                actions: typed(HazardActionCount::Two, "/items/0/system/actions/value"),
+                category: missing("/items/0/system/category"),
+                death_note: missing("/items/0/system/deathNote"),
+                frequency: missing("/items/0/system/frequency"),
+                self_effect: missing("/items/0/system/selfEffect"),
+                unsupported_fields: Vec::new(),
+            }));
+        embedded.occurrences[0].family = HazardEntityFamily::Action;
+        let authored_action = only_activity(hazard_surface(
+            &authored_action,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        ));
+        assert_eq!(authored_action.attack_mode, None);
+        assert_eq!(
+            authored_action.action_cost,
+            Some(atlas_app_model::CreatureSurfaceActionCostView::Actions { count: 2 })
+        );
+
+        let mut mismatched_family = source_metadata_fixture(false);
+        let embedded = embedded_mut(&mut mismatched_family);
+        embedded.entities[0].family = HazardEntityFamily::Action;
+        embedded.occurrences[0].family = HazardEntityFamily::Action;
+        let mismatched_family = only_activity(hazard_surface(
+            &mismatched_family,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+        ));
+        assert_eq!(mismatched_family.attack_mode, None);
+        assert_eq!(mismatched_family.action_cost, None);
+    }
+
+    fn only_activity(
+        view: atlas_app_model::HazardSurfaceView,
+    ) -> atlas_app_model::HazardSurfaceActivityView {
+        view.activities
+            .expect("activities")
+            .into_iter()
+            .next()
+            .expect("activity")
+    }
+
+    fn embedded_mut(hazard: &mut HazardRecord) -> &mut HazardEmbeddedEntities {
+        let FactValue::Value(HazardSourceValue::Typed(embedded)) =
+            &mut hazard.embedded_entities.value
+        else {
+            panic!("typed embedded fixture")
+        };
+        embedded
+    }
+
+    fn hazard_activity_fixture(
+        record_name: &str,
+        activity_name: &str,
+        traits: HazardFact<Vec<HazardTrait>>,
+        source_mode: HazardSourceAttackMode,
+    ) -> HazardRecord {
+        let mut hazard = source_metadata_fixture(false);
+        hazard.identity.name = record_name.to_string();
+        let embedded = embedded_mut(&mut hazard);
+        embedded.occurrences[0].contextual_label =
+            typed(activity_name.to_string(), "/items/0/name");
+        let HazardCapability::Strike(strike) = &mut embedded.entities[0].capability else {
+            panic!("strike fixture")
+        };
+        strike.common.traits = traits;
+        strike.source_metadata.weapon_type = typed(source_mode, "/items/0/system/weaponType/value");
+        hazard
+    }
+
+    fn record_surface_for(hazard: HazardRecord) -> atlas_app_model::RecordSurfaceView {
+        let fixture = crate::test_support::encounter_fixture_worker();
+        let mut record = fixture
+            .worker
+            .get_records(vec![
+                RecordKey::parse("actions:testAction1").expect("fixture key"),
+            ])
+            .expect("fixture record should load")
+            .pop()
+            .expect("fixture record should exist");
+        record.record.identity.key = hazard.identity.record_key.clone();
+        record.record.identity.name = hazard.identity.name.clone();
+        record.record.classification.kind = RecordKind::Hazard;
+        record.body = Some(RecordBody::Hazard(hazard));
+        record_surface(&record)
+    }
+
+    fn record_surface(record: &RetrievedRecord) -> atlas_app_model::RecordSurfaceView {
+        let remaster_lookup =
+            crate::retrieval::VerifiedRemasterLookup::from_test_result(RemasterLinksResult {
+                seed: record.clone(),
+                links: Vec::new(),
+            });
+        crate::surface::record_surface(
+            record,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+            None,
+            &remaster_lookup,
+        )
+    }
+
+    fn source_metadata_fields(view: &atlas_app_model::HazardSurfaceView) -> Vec<String> {
+        view.unavailable_fields
+            .iter()
+            .flatten()
+            .filter(|entry| {
+                entry.field.contains("source_metadata") || entry.field == "provenance.token.name"
+            })
+            .map(|entry| entry.field.clone())
+            .collect()
+    }
+
+    fn source_metadata_fixture(actionable: bool) -> HazardRecord {
+        let record_key = RecordKey::parse("hazards:metadata-fixture").expect("record key");
+        let entity_id = HazardEntityId::new("metadata-strike").expect("entity id");
+        let rarity = if actionable {
+            malformed(
+                "/items/0/system/traits/rarity",
+                "42",
+                HazardUnsupportedOwner::Entity(entity_id.clone()),
+            )
+        } else {
+            typed(Rarity::Common, "/items/0/system/traits/rarity")
+        };
+        let common = HazardItemCommon {
+            description: missing("/items/0/system/description/value"),
+            publication: missing("/items/0/system/publication"),
+            rules: typed(Vec::new(), "/items/0/system/rules"),
+            slug: missing("/items/0/system/slug"),
+            traits: typed(
+                vec![HazardTrait::new("range-120").expect("trait")],
+                "/items/0/system/traits/value",
+            ),
+            rarity,
+            lineage: typed(
+                HazardItemLineage {
+                    compendium_source: typed(
+                        "Compendium.pf2e.hazards.Item.fixture".to_string(),
+                        "/items/0/_stats/compendiumSource",
+                    ),
+                },
+                "/items/0/_stats",
+            ),
+        };
+        let strike = HazardEntity {
+            id: entity_id.clone(),
+            family: HazardEntityFamily::Strike,
+            label: "Metadata Strike".to_string(),
+            image: missing("/items/0/img"),
+            source_identity: HazardEntitySourceIdentity::Stable {
+                source_id: HazardSourceId::new("metadata-strike").expect("source id"),
+            },
+            capability: HazardCapability::Strike(Box::new(HazardStrikeCapability {
+                common,
+                bonus: typed(10, "/items/0/system/bonus/value"),
+                attack_effects: typed(Vec::new(), "/items/0/system/attackEffects/value"),
+                damage_rolls: typed(Vec::new(), "/items/0/system/damageRolls"),
+                source_metadata: HazardStrikeSourceMetadata {
+                    attack: missing("/items/0/system/attack/value"),
+                    weapon_type: typed(
+                        if actionable {
+                            HazardSourceAttackMode::Melee
+                        } else {
+                            HazardSourceAttackMode::Ranged
+                        },
+                        "/items/0/system/weaponType/value",
+                    ),
+                    attack_effects_custom: typed(
+                        if actionable {
+                            "corrosive mist".to_string()
+                        } else {
+                            String::new()
+                        },
+                        "/items/0/system/attackEffects/custom",
+                    ),
+                },
+                unsupported_fields: Vec::new(),
+            })),
+        };
+        let token_name = if actionable {
+            malformed(
+                "/prototypeToken/name",
+                "17",
+                HazardUnsupportedOwner::Record(record_key.clone()),
+            )
+        } else {
+            typed("Metadata Fixture".to_string(), "/prototypeToken/name")
+        };
+        HazardRecord {
+            identity: HazardIdentity {
+                record_key: record_key.clone(),
+                source_id: HazardSourceId::new("metadata-fixture").expect("source id"),
+                name: "Metadata Fixture".to_string(),
+            },
+            level: missing("/system/details/level/value"),
+            rarity: missing("/system/traits/rarity"),
+            traits: missing("/system/traits/value"),
+            size: missing("/system/traits/size/value"),
+            publication: missing("/system/details/publication"),
+            complexity: missing("/system/details/isComplex"),
+            detection: missing("/system/attributes/stealth"),
+            defenses: typed(
+                HazardDefenses {
+                    armor_class: missing("/system/attributes/ac/value"),
+                    hardness: missing("/system/attributes/hardness"),
+                    hit_points: typed(
+                        HazardHitPoints {
+                            current: typed(12, "/system/attributes/hp/value"),
+                            maximum: typed(12, "/system/attributes/hp/max"),
+                            temporary: typed(0, "/system/attributes/hp/temp"),
+                            details: missing("/system/attributes/hp/details"),
+                            source_metadata: HazardHitPointSourceMetadata {
+                                temporary_maximum: typed(
+                                    if actionable { 9 } else { 0 },
+                                    "/system/attributes/hp/tempmax",
+                                ),
+                            },
+                        },
+                        "/system/attributes/hp",
+                    ),
+                    saves: typed(
+                        HazardSaves {
+                            fortitude: missing("/system/saves/fortitude/value"),
+                            reflex: missing("/system/saves/reflex/value"),
+                            will: missing("/system/saves/will/value"),
+                            source_metadata: HazardSaveSourceMetadata {
+                                fortitude_detail: typed(
+                                    if actionable {
+                                        "against forced movement".to_string()
+                                    } else {
+                                        String::new()
+                                    },
+                                    "/system/saves/fortitude/saveDetail",
+                                ),
+                                reflex_detail: typed(
+                                    String::new(),
+                                    "/system/saves/reflex/saveDetail",
+                                ),
+                                will_detail: typed(String::new(), "/system/saves/will/saveDetail"),
+                            },
+                        },
+                        "/system/saves",
+                    ),
+                    immunities: missing("/system/attributes/immunities"),
+                    weaknesses: missing("/system/attributes/weaknesses"),
+                    resistances: missing("/system/attributes/resistances"),
+                    source_metadata: HazardDefenseSourceMetadata {
+                        has_health: typed(!actionable, "/system/attributes/hasHealth"),
+                    },
+                },
+                "/system/attributes",
+            ),
+            lifecycle: missing("/system/details"),
+            emits_sound: missing("/system/attributes/emitsSound"),
+            embedded_entities: typed(
+                HazardEmbeddedEntities {
+                    entities: vec![strike],
+                    occurrences: vec![HazardEntityOccurrence {
+                        id: HazardOccurrenceId::new("metadata-strike-occurrence")
+                            .expect("occurrence id"),
+                        owner_record_key: record_key.clone(),
+                        entity_id,
+                        family: HazardEntityFamily::Strike,
+                        authored_order: 0,
+                        source_sort: typed(0, "/items/0/sort"),
+                        source_folder: missing("/items/0/folder"),
+                        source_ordinal: 0,
+                        contextual_label: typed("Metadata Strike".to_string(), "/items/0/name"),
+                        identity_stability: HazardOccurrenceIdentityStability::StableSourceIdentity,
+                    }],
+                },
+                "/items",
+            ),
+            content: OwnedRichContent::default(),
+            relationships: Vec::new(),
+            unsupported_fields: Vec::new(),
+            provenance: HazardProvenance {
+                source_path: "packs/hazards/metadata-fixture.json".to_string(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "fixture".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+                source_folder: missing("/folder"),
+                image: missing("/img"),
+                source_creature_type: missing("/system/creatureType"),
+                source_status_effects: missing("/system/statusEffects"),
+                actor_effects: missing("/effects"),
+                token: typed(
+                    HazardTokenSourceMetadata { name: token_name },
+                    "/prototypeToken",
+                ),
+            },
+        }
+    }
+
+    fn typed<T>(value: T, path: impl Into<String>) -> HazardFact<T> {
+        HazardFact::source(FactValue::Value(HazardSourceValue::Typed(value)), path)
+    }
+
+    fn missing<T>(path: impl Into<String>) -> HazardFact<T> {
+        HazardFact::source(FactValue::Missing, path)
+    }
+
+    fn malformed<T>(path: &str, exact_json: &str, owner: HazardUnsupportedOwner) -> HazardFact<T> {
+        HazardFact::source(
+            FactValue::Value(HazardSourceValue::Unsupported(HazardUnsupportedValue {
+                exact_json: exact_json.to_string(),
+                expected_shape: HazardExpectedShape::String,
+                actual_shape: HazardSourceShape::Number,
+                relative_source_path: path.to_string(),
+                owner,
+                diagnostic_code: HazardDiagnosticCode::UnexpectedShape,
+            })),
+            path,
+        )
     }
 }

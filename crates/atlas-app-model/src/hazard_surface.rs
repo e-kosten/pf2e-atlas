@@ -209,6 +209,9 @@ pub struct HazardSurfaceActivityView {
     pub traits: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub attack_mode: Option<HazardSurfaceAttackModeView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub action_cost: Option<CreatureSurfaceActionCostView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -429,6 +432,122 @@ pub struct HazardSurfaceProvenanceView {
     pub convenience_rule_version: u32,
     pub image: HazardSurfaceProvenanceTextView,
     pub publication_license: HazardSurfaceProvenanceTextView,
+    pub source_metadata: Vec<HazardSurfaceSourceMetadataFactView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "field", rename_all = "snake_case")]
+#[ts(tag = "field", rename_all = "snake_case")]
+pub enum HazardSurfaceSourceMetadataFactView {
+    TokenName {
+        value: HazardSurfaceSourceFactView<String>,
+    },
+    HasHealth {
+        value: HazardSurfaceSourceFactView<bool>,
+    },
+    TemporaryMaximum {
+        #[ts(type = "HazardSurfaceSourceFactView<number>")]
+        value: HazardSurfaceSourceFactView<i64>,
+    },
+    SaveDetail {
+        save: HazardSurfaceSaveKindView,
+        value: HazardSurfaceSourceFactView<String>,
+    },
+    ItemRarity {
+        entity_id: String,
+        value: HazardSurfaceSourceFactView<String>,
+    },
+    ItemLineage {
+        entity_id: String,
+        value: HazardSurfaceSourceFactView<HazardSurfaceItemLineageView>,
+    },
+    StrikeAttack {
+        entity_id: String,
+        #[ts(type = "HazardSurfaceSourceFactView<number>")]
+        value: HazardSurfaceSourceFactView<i64>,
+    },
+    StrikeWeaponType {
+        entity_id: String,
+        value: HazardSurfaceSourceFactView<HazardSurfaceAttackModeView>,
+    },
+    StrikeAttackEffectsCustom {
+        entity_id: String,
+        value: HazardSurfaceSourceFactView<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(tag = "state", rename_all = "snake_case")]
+pub enum HazardSurfaceSourceFactView<T> {
+    Missing {
+        source_path: String,
+    },
+    Null {
+        source_path: String,
+    },
+    Typed {
+        source_path: String,
+        value: T,
+    },
+    Unsupported {
+        source_path: String,
+        exact_json: String,
+        expected_shape: HazardSurfaceExpectedShapeView,
+        actual_shape: HazardSurfaceSourceShapeView,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct HazardSurfaceItemLineageView {
+    pub compendium_source: Box<HazardSurfaceSourceFactView<String>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum HazardSurfaceSaveKindView {
+    Fortitude,
+    Reflex,
+    Will,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum HazardSurfaceAttackModeView {
+    Melee,
+    Ranged,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum HazardSurfaceExpectedShapeView {
+    Any,
+    Boolean,
+    Integer,
+    String,
+    StringOrBoolean,
+    StringOrArray,
+    Array,
+    Object,
+    ClosedVocabulary,
+    RichDocument,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum HazardSurfaceSourceShapeView {
+    Missing,
+    Null,
+    Boolean,
+    Number,
+    String,
+    Array,
+    Object,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

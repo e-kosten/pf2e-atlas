@@ -832,6 +832,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "conditionitems:TBSHQspnbcqxsmjL",
+        undefined,
+        expect.any(AbortSignal),
       ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
@@ -1422,6 +1424,7 @@ function hazardParticipantFixture(
             convenience_rule_version: 1,
             image: { state: "missing" },
             publication_license: { state: "missing" },
+            source_metadata: [],
           },
         },
       },

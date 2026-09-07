@@ -45,7 +45,7 @@ describe("record route views", () => {
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(screen.queryByText("spell:heal")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /References & Source/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Source & provenance/ }));
     expect(screen.getByText("spell:heal")).toBeInTheDocument();
     expect(screen.getByText("Reader view")).toBeInTheDocument();
   });

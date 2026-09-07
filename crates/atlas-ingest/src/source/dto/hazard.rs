@@ -33,7 +33,13 @@ pub(crate) struct HazardSource {
     pub(crate) status_effects: HazardSourceField<Vec<String>>,
     pub(crate) items: HazardSourceField<Vec<HazardItemSource>>,
     pub(crate) effects: HazardSourceField<Vec<ValueSummary>>,
+    pub(crate) prototype_token: HazardSourceField<HazardTokenSourceMetadata>,
     pub(crate) unclaimed: Vec<ValueSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HazardTokenSourceMetadata {
+    pub(crate) name: HazardSourceField<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +142,13 @@ pub(crate) struct HazardItemCommonSource {
     pub(crate) rules: HazardSourceField<Vec<ValueSummary>>,
     pub(crate) slug: HazardSourceField<String>,
     pub(crate) traits: HazardSourceField<Vec<String>>,
+    pub(crate) rarity: HazardSourceField<String>,
+    pub(crate) lineage: HazardSourceField<HazardItemLineageSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HazardItemLineageSource {
+    pub(crate) compendium_source: HazardSourceField<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,7 +182,6 @@ pub(crate) struct HazardStrikeSource {
     pub(crate) attack: HazardSourceField<i64>,
     pub(crate) weapon_type: HazardSourceField<String>,
     pub(crate) attack_effects_custom: HazardSourceField<String>,
-    pub(crate) trait_rarity: HazardSourceField<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -279,6 +291,9 @@ pub(crate) fn parse_hazard_source(
         status_effects: string_array_field(&raw, "/system/statusEffects", "/system/statusEffects"),
         items: items_field(&raw, serialized, &identity)?,
         effects: summaries_field(&raw, "/effects"),
+        prototype_token: object_field(&raw, "/prototypeToken", |token| HazardTokenSourceMetadata {
+            name: string_field_with_path(token, "/name", "/prototypeToken/name"),
+        }),
         unclaimed: collect_unclaimed_root(&raw),
     };
 
@@ -460,6 +475,20 @@ fn parse_item(
             "/system/traits/value",
             &format!("{base}/system/traits/value"),
         ),
+        rarity: string_field_with_path(
+            item,
+            "/system/traits/rarity",
+            &format!("{base}/system/traits/rarity"),
+        ),
+        lineage: object_field_with_path(item, "/_stats", &format!("{base}/_stats"), |stats| {
+            HazardItemLineageSource {
+                compendium_source: string_field_with_path(
+                    stats,
+                    "/compendiumSource",
+                    &format!("{base}/_stats/compendiumSource"),
+                ),
+            }
+        }),
     };
     let action = HazardActionSource {
         action_type: string_field_with_path(
@@ -548,11 +577,6 @@ fn parse_item(
             item,
             "/system/attackEffects/custom",
             &format!("{base}/system/attackEffects/custom"),
-        ),
-        trait_rarity: string_field_with_path(
-            item,
-            "/system/traits/rarity",
-            &format!("{base}/system/traits/rarity"),
         ),
     };
     Ok(HazardItemSource {
@@ -828,6 +852,7 @@ fn root_claimed_paths() -> Vec<&'static str> {
         "/items/**",
         "/effects",
         "/effects/**",
+        "/prototypeToken/name",
         "/system/traits/value",
         "/system/traits/value/**",
         "/system/traits/rarity",
@@ -887,6 +912,8 @@ fn item_claimed_paths(item_type: Option<&str>) -> Vec<&'static str> {
         "/system/slug",
         "/system/traits/value",
         "/system/traits/value/**",
+        "/system/traits/rarity",
+        "/_stats/compendiumSource",
     ];
     match item_type {
         Some("action") => paths.extend([
@@ -902,8 +929,11 @@ fn item_claimed_paths(item_type: Option<&str>) -> Vec<&'static str> {
         ]),
         Some("melee") => paths.extend([
             "/system/bonus/value",
+            "/system/attack/value",
+            "/system/weaponType/value",
             "/system/attackEffects/value",
             "/system/attackEffects/value/**",
+            "/system/attackEffects/custom",
             "/system/damageRolls",
             "/system/damageRolls/**",
         ]),

@@ -225,7 +225,11 @@ describe("list views", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:nested",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");

@@ -37,7 +37,6 @@ pub(crate) struct SourceConstructionFacts {
     pub(crate) npc_core_diagnostics: Vec<NpcCoreDiagnostic>,
     pub(crate) npc_embedded_candidates: Option<NpcEmbeddedCandidates>,
     pub(crate) npc_embedded_diagnostics: Vec<NpcEmbeddedDiagnostic>,
-    pub(crate) hazard_diagnostics: Vec<atlas_record::HazardUnsupportedFact>,
     pub(crate) generated_affliction_role: Option<GeneratedAfflictionRole>,
 }
 
@@ -54,7 +53,6 @@ impl SourceConstructionFacts {
             npc_core_diagnostics: Vec::new(),
             npc_embedded_candidates: None,
             npc_embedded_diagnostics: Vec::new(),
-            hazard_diagnostics: Vec::new(),
             generated_affliction_role: None,
         }
     }

@@ -39,4 +39,10 @@ pub struct RecordDetailRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "number")]
     pub spell_cast_rank: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub reference_outgoing_limit: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub reference_backlink_limit: Option<u8>,
 }

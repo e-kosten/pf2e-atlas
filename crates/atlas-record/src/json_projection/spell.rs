@@ -14,6 +14,8 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SpellJson {
+    #[serde(skip)]
+    pub(crate) presentation_issues: Vec<crate::SpellPresentationIssue>,
     pub classification: SpellFactJson<SpellClassificationJson>,
     pub casting: SpellFactJson<SpellCastingJson>,
     pub targeting: SpellFactJson<SpellTargetingJson>,
@@ -307,10 +309,19 @@ pub struct SpellRuleSuboptionJson {
 pub struct SpellFormJson {
     pub id: String,
     pub label: String,
+    #[serde(skip)]
+    pub label_kind: SpellFormLabelKind,
     pub order: u32,
     pub cast_rank: u8,
     pub kind: &'static str,
     pub result: SpellFormResultJson,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpellFormLabelKind {
+    Base,
+    Authored,
+    Derived,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -411,6 +422,7 @@ pub(super) fn spell_presentation(
         Vec::new()
     };
     SpellJson {
+        presentation_issues: crate::presentation_policy::spell_source_note_issues(spell),
         classification: map_fact(&definition.classification, classification_json),
         casting: map_fact(&definition.casting, casting_json),
         targeting: map_fact(&definition.targeting, targeting_json),
@@ -826,7 +838,7 @@ fn spell_forms(spell: &SpellRecord) -> (Vec<SpellFormJson>, Option<String>) {
     let mut forms = vec![form_json(
         spell,
         base_id,
-        "Base".to_string(),
+        ("Base".to_string(), SpellFormLabelKind::Base),
         0,
         cast_rank,
         None,
@@ -835,11 +847,10 @@ fn spell_forms(spell: &SpellRecord) -> (Vec<SpellFormJson>, Option<String>) {
     match spell.ordered_overlays() {
         Ok(overlays) => {
             forms.extend(overlays.into_iter().enumerate().map(|(index, overlay)| {
-                let label = overlay_label(overlay, index);
                 form_json(
                     spell,
                     overlay.form_id(&spell.identity.record_key),
-                    label,
+                    overlay_label(overlay, index),
                     u32::try_from(index + 1).unwrap_or(u32::MAX),
                     cast_rank,
                     Some(overlay),
@@ -858,12 +869,13 @@ fn spell_forms(spell: &SpellRecord) -> (Vec<SpellFormJson>, Option<String>) {
 fn form_json(
     spell: &SpellRecord,
     id: SpellFormId,
-    label: String,
+    label: (String, SpellFormLabelKind),
     order: u32,
     cast_rank: u8,
     overlay: Option<&SpellOverlay>,
     kind: &'static str,
 ) -> SpellFormJson {
+    let (label, label_kind) = label;
     let context = SpellFormContext {
         cast_rank,
         overlay_id: overlay.map(|value| value.overlay_id.clone()),
@@ -879,6 +891,7 @@ fn form_json(
     SpellFormJson {
         id: id.as_str().to_string(),
         label,
+        label_kind,
         order,
         cast_rank,
         kind,
@@ -886,7 +899,7 @@ fn form_json(
     }
 }
 
-fn resolved_definition_json(value: ResolvedSpellForm) -> SpellResolvedDefinitionJson {
+pub(super) fn resolved_definition_json(value: ResolvedSpellForm) -> SpellResolvedDefinitionJson {
     SpellResolvedDefinitionJson {
         applied_fixed_ranks: value.applied_fixed_ranks,
         classification: resolved_field(value.classification, classification_json),
@@ -1780,10 +1793,15 @@ fn base_rank(spell: &SpellRecord) -> Option<u8> {
     }
 }
 
-fn overlay_label(overlay: &SpellOverlay, index: usize) -> String {
+fn overlay_label(overlay: &SpellOverlay, index: usize) -> (String, SpellFormLabelKind) {
     match &overlay.name {
-        FactValue::Value(SpellSourceValue::Known(name)) if !name.trim().is_empty() => name.clone(),
-        _ => format!("Overlay {}", index + 1),
+        FactValue::Value(SpellSourceValue::Known(name)) if !name.trim().is_empty() => {
+            (name.clone(), SpellFormLabelKind::Authored)
+        }
+        _ => (
+            format!("Overlay {}", index + 1),
+            SpellFormLabelKind::Derived,
+        ),
     }
 }
 

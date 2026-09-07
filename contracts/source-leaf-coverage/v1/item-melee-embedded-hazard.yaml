@@ -64,9 +64,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - melee-system-attackeffects-custom
     fixtures:
@@ -80,15 +80,15 @@ leaves:
       - stage: source_dto
         destination: HazardItemSource typed system field ($.system.attackEffects.custom)
       - stage: canonical
-        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.attackEffects.custom]
+        destination: HazardStrikeCapability.source_metadata.attack_effects_custom
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.attackEffects.custom]
+        destination: IndexBuildInput.canonical_bodies[].HazardStrikeCapability.source_metadata.attack_effects_custom
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.attackEffects.custom]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.source_metadata.attack_effects_custom
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists named typed Strike source metadata
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -104,9 +104,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The selected legacy attackEffects.custom value is the exact empty string; HazardStrikeCapability.unsupported_fields retains it separately from the supported ordered attackEffects.value list and does not infer an effect.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The selected attackEffects.custom value is the exact empty string; HazardStrikeCapability.source_metadata retains it separately from the supported ordered attackEffects.value list and does not infer an effect. Future nonempty text remains an explicit modeling limitation.
+    owner: atlas-record::HazardStrikeSourceMetadata
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.folder
     leaf_kind: scalar
     expected_shapes:
@@ -422,9 +422,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - melee-system-weapontype-value
     fixtures:
@@ -438,15 +438,15 @@ leaves:
       - stage: source_dto
         destination: HazardItemSource typed system field ($.system.weaponType.value)
       - stage: canonical
-        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.weaponType.value]
+        destination: HazardStrikeCapability.source_metadata.weapon_type
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.weaponType.value]
+        destination: IndexBuildInput.canonical_bodies[].HazardStrikeCapability.source_metadata.weapon_type
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.weaponType.value]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.source_metadata.weapon_type
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists typed Strike compatibility metadata
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -462,9 +462,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The selected legacy weaponType value ranged is absent from the pinned melee schema; HazardStrikeCapability.unsupported_fields retains it exactly and surfaces the unsupported limitation without inferring range or attack mode.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The selected weaponType value ranged is compatibility evidence; HazardStrikeCapability.source_metadata retains it for the bounded trait-derived mode comparison and never uses it to infer or fall back to attack mode.
+    owner: atlas-record::HazardStrikeSourceMetadata
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.system.attack.value
     leaf_kind: scalar
     expected_shapes:
@@ -498,15 +498,15 @@ leaves:
       - stage: source_dto
         destination: HazardItemSource typed system field ($.system.attack.value)
       - stage: canonical
-        destination: HazardCapability typed or unsupported field.unsupported_fields[$.system.attack.value]
+        destination: HazardStrikeCapability.source_metadata.attack
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.system.attack.value]
+        destination: IndexBuildInput.canonical_bodies[].HazardStrikeCapability.source_metadata.attack
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.system.attack.value]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardStrikeCapability.source_metadata.attack
     surfaces:
       artifact:
         disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        rationale: Artifact contract v7 persists this exact diagnostic in named Strike source metadata
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -522,6 +522,6 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The selected legacy attack value is the exact empty string, while the supported strike modifier is system.bonus.value; HazardStrikeCapability.unsupported_fields retains the empty value/path without fabricating a second attack bonus.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The selected attack value is the exact wrong-shaped empty string, while the supported strike modifier is system.bonus.value; HazardStrikeCapability.source_metadata.attack retains the genuine typed diagnostic without fabricating a second attack bonus.
+    owner: atlas-record::HazardStrikeSourceMetadata
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval

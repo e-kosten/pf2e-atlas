@@ -435,10 +435,10 @@ pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
             lines.push(format!("  Publication license: {license}"));
         }
         if !provenance.occurrences.is_empty() {
-            lines.push("  Occurrences".to_string());
+            lines.push("  Component membership".to_string());
             for occurrence in &provenance.occurrences {
                 lines.push(format!(
-                    "    {}: {} -> {} (order {}, source ordinal {}, {})",
+                    "    {}: occurrence {} belongs to entity {} (authored order {}, source ordinal {}, {})",
                     occurrence.family,
                     occurrence.id,
                     occurrence.entity_id,
@@ -798,6 +798,54 @@ mod tests {
         assert!(text.contains("Source value: {\"value\":0}"));
         assert!(!text.contains("source_json"));
         write_review_sample("night-hag-injected-provenance.txt", &text);
+    }
+
+    #[test]
+    fn hazard_text_provenance_labels_internal_links_as_component_membership() {
+        let data = RecordProvenanceData {
+            key: "hazards:Acid-Spray-Fountain".to_string(),
+            name: "Acid Spray Fountain".to_string(),
+            kind: "hazard",
+            record_provenance: None,
+            hazard_provenance: Some(atlas_record::HazardProvenanceJson {
+                source_path: "packs/hazards/acid-spray-fountain.json".to_string(),
+                source_contract_version: "pf2e-serialized-source/v1".to_string(),
+                source_system_version: "6.12.4".to_string(),
+                source_upstream_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce".to_string(),
+                convenience_rule_id: "pf2e-hazard-conveniences",
+                convenience_rule_version: 1,
+                publication_license: None,
+                occurrences: vec![atlas_record::HazardOccurrenceProvenanceJson {
+                    id: "strike-occurrence".to_string(),
+                    entity_id: "strike-entity".to_string(),
+                    family: "strike",
+                    authored_order: 2,
+                    source_ordinal: 4,
+                    identity_stability: "stable_source_identity",
+                }],
+                content: Vec::new(),
+                source_metadata: Vec::new(),
+                unsupported_fields: Vec::new(),
+                unsupported_rules: Vec::new(),
+                identity_diagnostics: Vec::new(),
+            }),
+            spell_provenance: None,
+            edition: None,
+            occurrences: Vec::new(),
+            prepared_spells: Vec::new(),
+            unmodeled_skills: Vec::new(),
+            content: Vec::new(),
+            embedded_relationships: Vec::new(),
+            availability_evidence: Vec::new(),
+            references: ReferenceProvenance::default(),
+        };
+
+        let text = render_provenance(&data);
+        assert!(text.contains("Component membership"));
+        assert!(text.contains(
+            "strike: occurrence strike-occurrence belongs to entity strike-entity (authored order 2, source ordinal 4, stable_source_identity)"
+        ));
+        assert!(!text.contains("strike-occurrence -> strike-entity"));
     }
 
     #[test]

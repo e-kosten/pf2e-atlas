@@ -1,20 +1,521 @@
 use std::collections::BTreeMap;
 
-use atlas_domain::{MetricDomain, RecordKind};
+use atlas_domain::{MetricDomain, Rarity, RecordKind};
+use serde::Serialize;
 
 use crate::{
-    ContentOwner, FoundryNode, HazardActionCapability, HazardActionType, HazardCapability,
-    HazardComplexity, HazardDefenses, HazardEmitsSound, HazardEntity, HazardEntityOccurrence,
-    HazardFact, HazardFrequency, HazardFrequencyInterval, HazardItemCommon, HazardIwr,
-    HazardRecord, HazardRuleElement, HazardRuleType, HazardStrikeCapability, HazardStrikeDamage,
-    HazardUnsupportedFact, HazardUnsupportedField, MetricValue, OwnedRichContentDocument,
-    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
-    PresentationSection, PresentationSectionKind, RecordPresentationDocument, RichDocument,
-    RichNode, metrics, project_presentation_content,
+    ContentOwner, FactValue, FoundryNode, HazardActionCapability, HazardActionCount,
+    HazardActionType, HazardCapability, HazardComplexity, HazardDefenses, HazardEmitsSound,
+    HazardEntity, HazardEntityFamily, HazardEntityId, HazardEntityOccurrence, HazardFact,
+    HazardFrequency, HazardFrequencyInterval, HazardItemCommon, HazardItemLineage, HazardIwr,
+    HazardRecord, HazardRuleElement, HazardRuleType, HazardSaveKind, HazardSourceAttackMode,
+    HazardSourceValue, HazardStrikeCapability, HazardStrikeDamage, MetricValue,
+    OwnedRichContentDocument, PresentationBadge, PresentationBadgeKind, PresentationBlock,
+    PresentationFact, PresentationSection, PresentationSectionKind, RecordPresentationDocument,
+    RichDocument, RichNode, metrics, project_presentation_content,
 };
 
 pub const HAZARD_CONVENIENCE_RULE_ID: &str = "pf2e-hazard-conveniences";
 pub const HAZARD_CONVENIENCE_RULE_VERSION: u32 = 1;
+pub const PF2E_HAZARD_ATTACK_MODE_RULE_ID: &str = "pf2e-hazard-strike-trait-mode";
+pub const PF2E_HAZARD_ATTACK_MODE_RULE_VERSION: u32 = 1;
+pub const PF2E_STRIKE_ACTION_COST_RULE_ID: &str = "pf2e-strike-action-cost";
+pub const PF2E_STRIKE_ACTION_COST_RULE_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum HazardAttackMode {
+    Melee,
+    Ranged,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HazardAttackModeProjection {
+    pub mode: HazardAttackMode,
+    pub rule_id: &'static str,
+    pub rule_version: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HazardStrikeActionCostProjection {
+    pub cost: HazardActionCount,
+    pub rule_id: &'static str,
+    pub rule_version: u32,
+    pub basis: HazardEntityFamily,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HazardHasHealthConsistency {
+    Consistent,
+    Conflict {
+        source_has_health: bool,
+        derived_has_health: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HazardWeaponTypeConsistency {
+    Consistent,
+    Conflict {
+        source_weapon_type: HazardSourceAttackMode,
+        derived_mode: HazardAttackMode,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "field", rename_all = "snake_case")]
+pub enum HazardSourceMetadataFact {
+    TokenName {
+        value: HazardFact<String>,
+    },
+    HasHealth {
+        value: HazardFact<bool>,
+    },
+    TemporaryMaximum {
+        value: HazardFact<i64>,
+    },
+    SaveDetail {
+        save: HazardSaveKind,
+        value: HazardFact<String>,
+    },
+    ItemRarity {
+        entity_id: HazardEntityId,
+        value: HazardFact<Rarity>,
+    },
+    ItemLineage {
+        entity_id: HazardEntityId,
+        value: HazardFact<HazardItemLineage>,
+    },
+    StrikeAttack {
+        entity_id: HazardEntityId,
+        value: HazardFact<i64>,
+    },
+    StrikeWeaponType {
+        entity_id: HazardEntityId,
+        value: HazardFact<HazardSourceAttackMode>,
+    },
+    StrikeAttackEffectsCustom {
+        entity_id: HazardEntityId,
+        value: HazardFact<String>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HazardSourceMetadataField {
+    TokenName,
+    HasHealth,
+    TemporaryMaximum,
+    SaveDetail(HazardSaveKind),
+    ItemRarity,
+    ItemLineage,
+    StrikeAttack,
+    StrikeWeaponType,
+    StrikeAttackEffectsCustom,
+}
+
+impl HazardSourceMetadataField {
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::TokenName => "provenance.token.name",
+            Self::HasHealth => "defenses.source_metadata.has_health",
+            Self::TemporaryMaximum => "defenses.hit_points.source_metadata.temporary_maximum",
+            Self::SaveDetail(HazardSaveKind::Fortitude) => {
+                "defenses.saves.source_metadata.fortitude_detail"
+            }
+            Self::SaveDetail(HazardSaveKind::Reflex) => {
+                "defenses.saves.source_metadata.reflex_detail"
+            }
+            Self::SaveDetail(HazardSaveKind::Will) => "defenses.saves.source_metadata.will_detail",
+            Self::ItemRarity => "activity.source_metadata.rarity",
+            Self::ItemLineage => "activity.source_metadata.lineage",
+            Self::StrikeAttack => "activity.strike.source_metadata.attack",
+            Self::StrikeWeaponType => "activity.strike.source_metadata.weapon_type",
+            Self::StrikeAttackEffectsCustom => {
+                "activity.strike.source_metadata.attack_effects_custom"
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HazardSourceMetadataIssueKind {
+    Malformed,
+    HasHealthConflict,
+    NonZeroTemporaryMaximum,
+    NonEmptySaveDetail,
+    WeaponTypeConflict,
+    NonEmptyAttackEffectsCustom,
+}
+
+impl HazardSourceMetadataIssueKind {
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::Malformed => {
+                "This hazard source metadata value is malformed and is retained in provenance."
+            }
+            Self::HasHealthConflict => {
+                "Stored health metadata conflicts with typed maximum hit points."
+            }
+            Self::NonZeroTemporaryMaximum => {
+                "A nonzero temporary-maximum HP source value is retained for reassessment."
+            }
+            Self::NonEmptySaveDetail => {
+                "Hazard save detail is present but is not modeled as gameplay."
+            }
+            Self::WeaponTypeConflict => {
+                "Stored attack-mode metadata conflicts with the trait-derived strike mode."
+            }
+            Self::NonEmptyAttackEffectsCustom => {
+                "Custom attack-effect text is present but is not modeled as gameplay."
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HazardSourceMetadataIssue {
+    pub kind: HazardSourceMetadataIssueKind,
+    pub field: HazardSourceMetadataField,
+    pub entity_id: Option<HazardEntityId>,
+}
+
+impl HazardSourceMetadataIssue {
+    pub const fn field_key(&self) -> &'static str {
+        self.field.key()
+    }
+
+    pub fn component_id(&self) -> Option<&str> {
+        self.entity_id.as_ref().map(HazardEntityId::as_str)
+    }
+
+    pub const fn message(&self) -> &'static str {
+        self.kind.message()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HazardSourceMetadataProjection {
+    pub facts: Vec<HazardSourceMetadataFact>,
+    pub issues: Vec<HazardSourceMetadataIssue>,
+}
+
+pub fn project_hazard_source_metadata(hazard: &HazardRecord) -> HazardSourceMetadataProjection {
+    let mut facts = Vec::new();
+    let mut issues = Vec::new();
+
+    let token_name = token_name_fact(hazard);
+    push_malformed_issue(
+        &mut issues,
+        HazardSourceMetadataField::TokenName,
+        None,
+        &token_name,
+    );
+    facts.push(HazardSourceMetadataFact::TokenName { value: token_name });
+
+    if let Some(defenses) = hazard.defenses.typed() {
+        push_malformed_issue(
+            &mut issues,
+            HazardSourceMetadataField::HasHealth,
+            None,
+            &defenses.source_metadata.has_health,
+        );
+        facts.push(HazardSourceMetadataFact::HasHealth {
+            value: defenses.source_metadata.has_health.clone(),
+        });
+        if matches!(
+            project_hazard_has_health_consistency(hazard),
+            Some(HazardHasHealthConsistency::Conflict { .. })
+        ) {
+            issues.push(HazardSourceMetadataIssue {
+                kind: HazardSourceMetadataIssueKind::HasHealthConflict,
+                field: HazardSourceMetadataField::HasHealth,
+                entity_id: None,
+            });
+        }
+
+        if let Some(hit_points) = defenses.hit_points.typed() {
+            let temporary_maximum = &hit_points.source_metadata.temporary_maximum;
+            push_malformed_issue(
+                &mut issues,
+                HazardSourceMetadataField::TemporaryMaximum,
+                None,
+                temporary_maximum,
+            );
+            if temporary_maximum.typed().is_some_and(|value| *value != 0) {
+                issues.push(HazardSourceMetadataIssue {
+                    kind: HazardSourceMetadataIssueKind::NonZeroTemporaryMaximum,
+                    field: HazardSourceMetadataField::TemporaryMaximum,
+                    entity_id: None,
+                });
+            }
+            facts.push(HazardSourceMetadataFact::TemporaryMaximum {
+                value: temporary_maximum.clone(),
+            });
+        }
+
+        if let Some(saves) = defenses.saves.typed() {
+            for (save, value) in [
+                (
+                    HazardSaveKind::Fortitude,
+                    &saves.source_metadata.fortitude_detail,
+                ),
+                (HazardSaveKind::Reflex, &saves.source_metadata.reflex_detail),
+                (HazardSaveKind::Will, &saves.source_metadata.will_detail),
+            ] {
+                let field = HazardSourceMetadataField::SaveDetail(save);
+                push_malformed_issue(&mut issues, field, None, value);
+                if value.typed().is_some_and(|value| !value.is_empty()) {
+                    issues.push(HazardSourceMetadataIssue {
+                        kind: HazardSourceMetadataIssueKind::NonEmptySaveDetail,
+                        field,
+                        entity_id: None,
+                    });
+                }
+                facts.push(HazardSourceMetadataFact::SaveDetail {
+                    save,
+                    value: value.clone(),
+                });
+            }
+        }
+    }
+
+    if let Some(embedded) = hazard.embedded_entities.typed() {
+        for entity in &embedded.entities {
+            let common = entity_common(entity);
+            push_malformed_issue(
+                &mut issues,
+                HazardSourceMetadataField::ItemRarity,
+                Some(&entity.id),
+                &common.rarity,
+            );
+            facts.push(HazardSourceMetadataFact::ItemRarity {
+                entity_id: entity.id.clone(),
+                value: common.rarity.clone(),
+            });
+
+            push_malformed_issue(
+                &mut issues,
+                HazardSourceMetadataField::ItemLineage,
+                Some(&entity.id),
+                &common.lineage,
+            );
+            if let Some(lineage) = common.lineage.typed() {
+                push_malformed_issue(
+                    &mut issues,
+                    HazardSourceMetadataField::ItemLineage,
+                    Some(&entity.id),
+                    &lineage.compendium_source,
+                );
+            }
+            facts.push(HazardSourceMetadataFact::ItemLineage {
+                entity_id: entity.id.clone(),
+                value: common.lineage.clone(),
+            });
+
+            if let HazardCapability::Strike(strike) = &entity.capability {
+                for (field, malformed) in [
+                    (
+                        HazardSourceMetadataField::StrikeAttack,
+                        is_malformed(&strike.source_metadata.attack),
+                    ),
+                    (
+                        HazardSourceMetadataField::StrikeWeaponType,
+                        is_malformed(&strike.source_metadata.weapon_type),
+                    ),
+                    (
+                        HazardSourceMetadataField::StrikeAttackEffectsCustom,
+                        is_malformed(&strike.source_metadata.attack_effects_custom),
+                    ),
+                ] {
+                    if malformed {
+                        issues.push(HazardSourceMetadataIssue {
+                            kind: HazardSourceMetadataIssueKind::Malformed,
+                            field,
+                            entity_id: Some(entity.id.clone()),
+                        });
+                    }
+                }
+                if matches!(
+                    project_hazard_weapon_type_consistency(entity),
+                    Some(HazardWeaponTypeConsistency::Conflict { .. })
+                ) {
+                    issues.push(HazardSourceMetadataIssue {
+                        kind: HazardSourceMetadataIssueKind::WeaponTypeConflict,
+                        field: HazardSourceMetadataField::StrikeWeaponType,
+                        entity_id: Some(entity.id.clone()),
+                    });
+                }
+                if strike
+                    .source_metadata
+                    .attack_effects_custom
+                    .typed()
+                    .is_some_and(|value| !value.is_empty())
+                {
+                    issues.push(HazardSourceMetadataIssue {
+                        kind: HazardSourceMetadataIssueKind::NonEmptyAttackEffectsCustom,
+                        field: HazardSourceMetadataField::StrikeAttackEffectsCustom,
+                        entity_id: Some(entity.id.clone()),
+                    });
+                }
+                facts.extend([
+                    HazardSourceMetadataFact::StrikeAttack {
+                        entity_id: entity.id.clone(),
+                        value: strike.source_metadata.attack.clone(),
+                    },
+                    HazardSourceMetadataFact::StrikeWeaponType {
+                        entity_id: entity.id.clone(),
+                        value: strike.source_metadata.weapon_type.clone(),
+                    },
+                    HazardSourceMetadataFact::StrikeAttackEffectsCustom {
+                        entity_id: entity.id.clone(),
+                        value: strike.source_metadata.attack_effects_custom.clone(),
+                    },
+                ]);
+            }
+        }
+    }
+
+    HazardSourceMetadataProjection { facts, issues }
+}
+
+fn token_name_fact(hazard: &HazardRecord) -> HazardFact<String> {
+    match &hazard.provenance.token.value {
+        FactValue::Missing => HazardFact::source(
+            FactValue::Missing,
+            hazard
+                .provenance
+                .token
+                .provenance
+                .relative_source_path
+                .clone(),
+        ),
+        FactValue::Null => HazardFact::source(
+            FactValue::Null,
+            hazard
+                .provenance
+                .token
+                .provenance
+                .relative_source_path
+                .clone(),
+        ),
+        FactValue::Value(HazardSourceValue::Typed(token)) => token.name.clone(),
+        FactValue::Value(HazardSourceValue::Unsupported(value)) => HazardFact::source(
+            FactValue::Value(HazardSourceValue::Unsupported(value.clone())),
+            hazard
+                .provenance
+                .token
+                .provenance
+                .relative_source_path
+                .clone(),
+        ),
+    }
+}
+
+fn entity_common(entity: &HazardEntity) -> &HazardItemCommon {
+    match &entity.capability {
+        HazardCapability::Action(value) => &value.common,
+        HazardCapability::Strike(value) => &value.common,
+        HazardCapability::Condition(value) => &value.common,
+        HazardCapability::Effect(value) => &value.common,
+        HazardCapability::UnsupportedChild(value) => &value.common,
+    }
+}
+
+fn is_malformed<T>(fact: &HazardFact<T>) -> bool {
+    matches!(
+        fact.value,
+        FactValue::Value(HazardSourceValue::Unsupported(_))
+    )
+}
+
+fn push_malformed_issue<T>(
+    issues: &mut Vec<HazardSourceMetadataIssue>,
+    field: HazardSourceMetadataField,
+    entity_id: Option<&HazardEntityId>,
+    fact: &HazardFact<T>,
+) {
+    if is_malformed(fact) {
+        issues.push(HazardSourceMetadataIssue {
+            kind: HazardSourceMetadataIssueKind::Malformed,
+            field,
+            entity_id: entity_id.cloned(),
+        });
+    }
+}
+
+pub fn project_hazard_has_health_consistency(
+    hazard: &HazardRecord,
+) -> Option<HazardHasHealthConsistency> {
+    let defenses = hazard.defenses.typed()?;
+    let source_has_health = *defenses.source_metadata.has_health.typed()?;
+    let maximum = *defenses.hit_points.typed()?.maximum.typed()?;
+    let derived_has_health = maximum > 0;
+    Some(if source_has_health == derived_has_health {
+        HazardHasHealthConsistency::Consistent
+    } else {
+        HazardHasHealthConsistency::Conflict {
+            source_has_health,
+            derived_has_health,
+        }
+    })
+}
+
+pub fn project_hazard_attack_mode(entity: &HazardEntity) -> Option<HazardAttackModeProjection> {
+    let HazardCapability::Strike(strike) = &entity.capability else {
+        return None;
+    };
+    let traits = strike.common.traits.typed()?;
+    let mode = if traits
+        .iter()
+        .any(|value| value.as_str().starts_with("range-"))
+    {
+        HazardAttackMode::Ranged
+    } else {
+        HazardAttackMode::Melee
+    };
+    Some(HazardAttackModeProjection {
+        mode,
+        rule_id: PF2E_HAZARD_ATTACK_MODE_RULE_ID,
+        rule_version: PF2E_HAZARD_ATTACK_MODE_RULE_VERSION,
+    })
+}
+
+pub fn project_hazard_weapon_type_consistency(
+    entity: &HazardEntity,
+) -> Option<HazardWeaponTypeConsistency> {
+    let HazardCapability::Strike(strike) = &entity.capability else {
+        return None;
+    };
+    let source_weapon_type = *strike.source_metadata.weapon_type.typed()?;
+    let derived_mode = project_hazard_attack_mode(entity)?.mode;
+    let consistent = matches!(
+        (source_weapon_type, derived_mode),
+        (HazardSourceAttackMode::Melee, HazardAttackMode::Melee)
+            | (HazardSourceAttackMode::Ranged, HazardAttackMode::Ranged)
+    );
+    Some(if consistent {
+        HazardWeaponTypeConsistency::Consistent
+    } else {
+        HazardWeaponTypeConsistency::Conflict {
+            source_weapon_type,
+            derived_mode,
+        }
+    })
+}
+
+pub fn project_hazard_strike_action_cost(
+    entity: &HazardEntity,
+) -> Option<HazardStrikeActionCostProjection> {
+    matches!(
+        (&entity.family, &entity.capability),
+        (HazardEntityFamily::Strike, HazardCapability::Strike(_))
+    )
+    .then_some(HazardStrikeActionCostProjection {
+        cost: HazardActionCount::One,
+        rule_id: PF2E_STRIKE_ACTION_COST_RULE_ID,
+        rule_version: PF2E_STRIKE_ACTION_COST_RULE_VERSION,
+        basis: HazardEntityFamily::Strike,
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HazardConvenienceProjection {
@@ -728,7 +1229,6 @@ fn push_action_presentation(
     action: &HazardActionCapability,
 ) {
     push_common_presentation(output, prefix, &action.common);
-    push_source_rarity_limitation(output, prefix, &action.unsupported_fields);
     if let Some(value) = action.actions.typed() {
         push_owned_text_fact(
             output,
@@ -805,7 +1305,6 @@ fn push_strike_presentation(
     strike: &HazardStrikeCapability,
 ) {
     push_common_presentation(output, prefix, &strike.common);
-    push_source_rarity_limitation(output, prefix, &strike.unsupported_fields);
     if let Some(value) = strike.bonus.typed() {
         push_owned_text_fact(
             output,
@@ -845,39 +1344,6 @@ fn push_strike_presentation(
                 );
             }
         }
-    }
-}
-
-fn push_source_rarity_limitation(
-    output: &mut Vec<PresentationFact>,
-    prefix: &str,
-    unsupported: &[HazardUnsupportedFact],
-) {
-    let value = unsupported.iter().find_map(|fact| {
-        let is_rarity = matches!(fact.field, HazardUnsupportedField::StrikeTraitRarity)
-            || matches!(
-                &fact.field,
-                HazardUnsupportedField::ActionUnexpected(path)
-                    if path.ends_with("traits/rarity") || path.ends_with("traits.rarity")
-            );
-        is_rarity
-            .then(|| {
-                fact.value
-                    .exact_json
-                    .strip_prefix('"')
-                    .and_then(|value| value.strip_suffix('"'))
-                    .filter(|value| !value.contains('\\'))
-                    .map(ToOwned::to_owned)
-            })
-            .flatten()
-    });
-    if let Some(value) = value {
-        push_owned_text_fact(
-            output,
-            &format!("{prefix}.source_rarity_unsupported"),
-            "Source Rarity (unsupported)",
-            &value,
-        );
     }
 }
 

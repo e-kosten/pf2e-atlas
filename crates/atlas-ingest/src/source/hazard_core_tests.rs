@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use atlas_domain::{PackName, Rarity};
 use atlas_record::{
-    FactValue, HazardComplexity, HazardSourceShape, HazardSourceValue, RecordBody,
-    render_plain_text,
+    FactValue, HazardCapability, HazardComplexity, HazardDiagnosticCode, HazardExpectedShape,
+    HazardSourceShape, HazardSourceValue, HazardUnsupportedOwner, RecordBody, render_plain_text,
 };
 use serde_json::Value;
 
@@ -44,19 +44,115 @@ fn hazard_core_hidden_pit_is_source_faithful_without_generic_mechanics() {
     let defenses = hazard.defenses.typed().expect("defenses");
     assert_eq!(defenses.armor_class.typed(), Some(&10));
     assert_eq!(defenses.hardness.typed(), Some(&3));
+    assert_eq!(defenses.source_metadata.has_health.typed(), Some(&true));
     assert_eq!(
         defenses
-            .hit_points
-            .typed()
-            .expect("hit points")
-            .maximum
-            .typed(),
-        Some(&12)
+            .source_metadata
+            .has_health
+            .provenance
+            .relative_source_path,
+        "/system/attributes/hasHealth"
     );
+    let hit_points = defenses.hit_points.typed().expect("hit points");
+    assert_eq!(hit_points.maximum.typed(), Some(&12));
+    assert_eq!(hit_points.temporary.typed(), Some(&0));
     assert_eq!(
-        defenses.saves.typed().expect("saves").will.typed(),
+        hit_points.source_metadata.temporary_maximum.typed(),
         Some(&0)
     );
+    assert_ne!(
+        hit_points.temporary.provenance.relative_source_path,
+        hit_points
+            .source_metadata
+            .temporary_maximum
+            .provenance
+            .relative_source_path
+    );
+    let saves = defenses.saves.typed().expect("saves");
+    assert_eq!(saves.will.typed(), Some(&0));
+    for (detail, path) in [
+        (
+            &saves.source_metadata.fortitude_detail,
+            "/system/saves/fortitude/saveDetail",
+        ),
+        (
+            &saves.source_metadata.reflex_detail,
+            "/system/saves/reflex/saveDetail",
+        ),
+        (
+            &saves.source_metadata.will_detail,
+            "/system/saves/will/saveDetail",
+        ),
+    ] {
+        assert_eq!(detail.typed(), Some(&String::new()));
+        assert_eq!(detail.provenance.relative_source_path, path);
+    }
+    let action = hazard
+        .embedded_entities
+        .typed()
+        .expect("embedded")
+        .entities
+        .iter()
+        .find_map(|entity| match &entity.capability {
+            HazardCapability::Action(action) => Some(action),
+            _ => None,
+        })
+        .expect("Hidden Pit action");
+    assert_eq!(action.common.rarity.typed(), Some(&Rarity::Common));
+    assert_eq!(
+        action.common.rarity.provenance.relative_source_path,
+        "/items/0/system/traits/rarity"
+    );
+    let mut classified_source_paths = vec![
+        defenses
+            .source_metadata
+            .has_health
+            .provenance
+            .relative_source_path
+            .as_str(),
+        hit_points
+            .source_metadata
+            .temporary_maximum
+            .provenance
+            .relative_source_path
+            .as_str(),
+        saves
+            .source_metadata
+            .fortitude_detail
+            .provenance
+            .relative_source_path
+            .as_str(),
+        saves
+            .source_metadata
+            .reflex_detail
+            .provenance
+            .relative_source_path
+            .as_str(),
+        saves
+            .source_metadata
+            .will_detail
+            .provenance
+            .relative_source_path
+            .as_str(),
+        action
+            .common
+            .rarity
+            .provenance
+            .relative_source_path
+            .as_str(),
+    ];
+    classified_source_paths.sort_unstable();
+    classified_source_paths.dedup();
+    assert_eq!(classified_source_paths.len(), 6);
+    assert!(hazard.unsupported_facts().iter().all(|fact| !matches!(
+        fact.value.relative_source_path.as_str(),
+        "/system/attributes/hasHealth"
+            | "/system/attributes/hp/tempmax"
+            | "/system/saves/fortitude/saveDetail"
+            | "/system/saves/reflex/saveDetail"
+            | "/system/saves/will/saveDetail"
+            | "/items/0/system/traits/rarity"
+    )));
     let lifecycle = hazard.lifecycle.typed().expect("lifecycle");
     assert!(render_plain_text(lifecycle.disable.typed().expect("disable")).contains("Thievery"));
     assert!(render_plain_text(lifecycle.reset.typed().expect("reset")).contains("reset manually"));
@@ -72,6 +168,130 @@ fn hazard_core_hidden_pit_is_source_faithful_without_generic_mechanics() {
         hazard.provenance.actor_effects.value,
         FactValue::Missing
     ));
+}
+
+#[test]
+fn hazard_source_metadata_preserves_nonzero_and_nonempty_values_and_rejects_bad_shapes() {
+    let relative = "packs/hazards/hidden-pit.json";
+    let mut raw = read_raw(relative);
+    raw["system"]["attributes"]["hp"]["tempmax"] = Value::from(9);
+    raw["system"]["saves"]["fortitude"]["saveDetail"] =
+        Value::String("future authored detail".to_string());
+    raw["system"]["attributes"]["hasHealth"] = Value::String("yes".to_string());
+    raw["items"][0]["system"]["traits"]["rarity"] = Value::String("mythic".to_string());
+
+    let loaded = normalize_raw("hazards", relative, raw);
+    let RecordBody::Hazard(hazard) = loaded.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    let defenses = hazard.defenses.typed().expect("defenses");
+    let hp = defenses.hit_points.typed().expect("hp");
+    assert_eq!(hp.source_metadata.temporary_maximum.typed(), Some(&9));
+    assert_eq!(hp.temporary.typed(), Some(&0));
+    assert_eq!(
+        defenses
+            .saves
+            .typed()
+            .expect("saves")
+            .source_metadata
+            .fortitude_detail
+            .typed(),
+        Some(&"future authored detail".to_string())
+    );
+    let FactValue::Value(HazardSourceValue::Unsupported(has_health)) =
+        &defenses.source_metadata.has_health.value
+    else {
+        panic!("wrong-shaped hasHealth must remain unsupported")
+    };
+    assert_eq!(has_health.exact_json, "\"yes\"");
+    assert_eq!(has_health.expected_shape, HazardExpectedShape::Boolean);
+    assert_eq!(has_health.actual_shape, HazardSourceShape::String);
+    assert_eq!(
+        has_health.relative_source_path,
+        "/system/attributes/hasHealth"
+    );
+    assert_eq!(
+        has_health.owner,
+        HazardUnsupportedOwner::Record(hazard.identity.record_key.clone())
+    );
+    assert_eq!(
+        has_health.diagnostic_code,
+        HazardDiagnosticCode::UnexpectedShape
+    );
+
+    let action = hazard
+        .embedded_entities
+        .typed()
+        .expect("embedded")
+        .entities
+        .iter()
+        .find_map(|entity| match &entity.capability {
+            HazardCapability::Action(action) => Some(action),
+            _ => None,
+        })
+        .expect("action");
+    let FactValue::Value(HazardSourceValue::Unsupported(rarity)) = &action.common.rarity.value
+    else {
+        panic!("invalid rarity must remain unsupported")
+    };
+    assert_eq!(rarity.exact_json, "\"mythic\"");
+    assert_eq!(rarity.expected_shape, HazardExpectedShape::ClosedVocabulary);
+    assert_eq!(rarity.actual_shape, HazardSourceShape::String);
+    assert_eq!(
+        rarity.diagnostic_code,
+        HazardDiagnosticCode::InvalidCanonicalValue
+    );
+}
+
+#[test]
+fn token_name_source_metadata_preserves_missing_null_value_and_unsupported() {
+    let relative = "packs/hazards/hidden-pit.json";
+    let mut typed_raw = read_raw(relative);
+    typed_raw["prototypeToken"] = serde_json::json!({"name": "Hidden Pit Token"});
+    let typed = normalize_raw("hazards", relative, typed_raw);
+    let RecordBody::Hazard(typed) = typed.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    assert_eq!(
+        typed.provenance.token.typed().expect("token").name.typed(),
+        Some(&"Hidden Pit Token".to_string())
+    );
+
+    let missing = normalize_raw("hazards", relative, read_raw(relative));
+    let RecordBody::Hazard(missing) = missing.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    assert!(matches!(missing.provenance.token.value, FactValue::Missing));
+
+    let mut null = read_raw(relative);
+    null["prototypeToken"] = Value::Null;
+    let null = normalize_raw("hazards", relative, null);
+    let RecordBody::Hazard(null) = null.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    assert!(matches!(null.provenance.token.value, FactValue::Null));
+
+    let mut malformed = read_raw(relative);
+    malformed["prototypeToken"] = serde_json::json!({"name": 7});
+    let malformed = normalize_raw("hazards", relative, malformed);
+    let RecordBody::Hazard(malformed) = malformed.facts.canonical_body.as_ref().expect("hazard")
+    else {
+        panic!("hazard")
+    };
+    let FactValue::Value(HazardSourceValue::Unsupported(value)) = &malformed
+        .provenance
+        .token
+        .typed()
+        .expect("token")
+        .name
+        .value
+    else {
+        panic!("malformed token name")
+    };
+    assert_eq!(value.exact_json, "7");
+    assert_eq!(value.expected_shape, HazardExpectedShape::String);
+    assert_eq!(value.actual_shape, HazardSourceShape::Number);
+    assert_eq!(value.diagnostic_code, HazardDiagnosticCode::UnexpectedShape);
 }
 
 #[test]
@@ -192,6 +412,11 @@ fn normalize_raw(pack: &str, relative: &str, raw: Value) -> crate::records::Load
         None,
     )
     .expect("hazard normalization")
+}
+
+fn read_raw(relative: &str) -> Value {
+    serde_json::from_slice(&std::fs::read(source_root().join(relative)).expect("fixture source"))
+        .expect("fixture JSON")
 }
 
 fn source_root() -> PathBuf {

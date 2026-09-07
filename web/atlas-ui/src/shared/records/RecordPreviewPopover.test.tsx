@@ -32,7 +32,11 @@ describe("RecordPreviewPopover", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Open preview" }));
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("actors:goblin"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "actors:goblin",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
     const header = document.querySelector<HTMLElement>(".preview-popover__header");
@@ -44,7 +48,11 @@ describe("RecordPreviewPopover", () => {
 
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:nested",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     await waitFor(() =>
       expect(within(header!).getByText("Nested Rule")).toBeInTheDocument(),

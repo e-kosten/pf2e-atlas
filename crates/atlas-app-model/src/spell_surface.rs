@@ -6,11 +6,9 @@ use crate::CreatureSurfaceContentView;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SpellSurfaceView {
-    pub definition: SpellDefinitionSurfaceView,
+    pub family: SpellFamilyView,
     pub forms: Vec<SpellFormView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub selected_form: Option<SpellSelectedFormView>,
+    pub effective_form: SpellEffectiveFormView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub form_catalog_unavailable: Option<SpellFormCatalogUnavailableReasonView>,
@@ -18,18 +16,12 @@ pub struct SpellSurfaceView {
     pub content: Vec<CreatureSurfaceContentView>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct SpellDefinitionSurfaceView {
-    pub classification: SpellFactView<SpellClassificationView>,
-    pub casting: SpellFactView<SpellCastingView>,
-    pub targeting: SpellFactView<SpellTargetingView>,
-    pub defense: SpellFactView<SpellDefenseView>,
-    pub damage: SpellFactView<Vec<SpellDamageView>>,
-    pub duration: SpellFactView<SpellDurationView>,
-    pub heightening: SpellFactView<SpellHeighteningView>,
-    pub ritual: SpellFactView<SpellRitualView>,
-    pub rules: SpellFactView<Vec<SpellRuleView>>,
+#[ts(rename_all = "snake_case")]
+pub enum SpellFamilyView {
+    Spell,
+    Ritual,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -107,8 +99,7 @@ pub struct SpellSaveView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SpellDamageView {
-    pub key: String,
-    pub order: u32,
+    pub label: String,
     pub formula: SpellFactView<String>,
     pub damage_type: SpellFactView<String>,
     pub category: SpellFactView<String>,
@@ -141,105 +132,55 @@ pub enum SpellHeighteningView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SpellHeighteningDamageView {
-    pub key: String,
-    pub order: u32,
+    pub label: String,
     pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SpellFixedHeighteningView {
-    pub order: u32,
     pub rank: SpellSourceValueView<u8>,
-    pub patch: SpellPatchView,
+    pub changes: Vec<SpellFixedHeighteningChangeView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "field", rename_all = "snake_case")]
+#[ts(tag = "field", rename_all = "snake_case")]
+pub enum SpellFixedHeighteningChangeView {
+    Classification,
+    Casting,
+    Targeting,
+    Defense,
+    Effect {
+        operation: SpellEffectChangeOperationView,
+        label: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        value: Option<SpellEffectChangeView>,
+    },
+    Duration,
+    Heightening,
+    Rules,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct SpellPatchView {
-    pub classification: SpellFactView<SpellClassificationView>,
-    pub casting: SpellFactView<SpellCastingView>,
-    pub targeting: SpellFactView<SpellTargetingView>,
-    pub defense: SpellFactView<SpellDefenseView>,
-    pub damage: SpellFactView<SpellDamagePatchSetView>,
-    pub duration: SpellFactView<SpellDurationView>,
-    pub heightening: SpellFactView<SpellHeighteningPatchView>,
-    pub rules: SpellFactView<Vec<SpellRuleView>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub unsupported_fields: Vec<SpellFormFieldView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct SpellDamagePatchSetView {
-    pub members: Vec<SpellDamagePatchMemberView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct SpellDamagePatchMemberView {
-    pub key: String,
-    pub order: u32,
-    pub operation: SpellDamagePatchOperationView,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "operation", content = "value", rename_all = "snake_case")]
-#[ts(tag = "operation", content = "value", rename_all = "snake_case")]
-pub enum SpellDamagePatchOperationView {
-    Merge(SpellDamagePatchView),
+#[ts(rename_all = "snake_case")]
+pub enum SpellEffectChangeOperationView {
+    Merge,
     Delete,
     Unsupported,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct SpellDamagePatchView {
+pub struct SpellEffectChangeView {
     pub formula: SpellFactView<String>,
     pub damage_type: SpellFactView<String>,
     pub category: SpellFactView<String>,
     pub kinds: SpellFactView<Vec<String>>,
     pub materials: SpellFactView<Vec<String>>,
     pub apply_modifier: SpellFactView<bool>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct SpellHeighteningPatchView {
-    pub kind: SpellFactView<SpellHeighteningTypeView>,
-    pub interval: SpellFactView<u8>,
-    pub area: SpellFactView<u32>,
-    pub damage: SpellFactView<SpellTextPatchSetView>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum SpellHeighteningTypeView {
-    Interval,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct SpellTextPatchSetView {
-    pub members: Vec<SpellTextPatchMemberView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct SpellTextPatchMemberView {
-    pub key: String,
-    pub order: u32,
-    pub operation: SpellTextPatchOperationView,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "operation", content = "value", rename_all = "snake_case")]
-#[ts(tag = "operation", content = "value", rename_all = "snake_case")]
-pub enum SpellTextPatchOperationView {
-    Merge(SpellFactView<String>),
-    Delete,
-    Unsupported,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -343,17 +284,13 @@ pub struct SpellFormView {
     pub id: String,
     pub label: String,
     pub order: u32,
-    pub cast_rank: u8,
+    pub minimum_cast_rank: u8,
     pub kind: SpellFormKindView,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub authored_patch: Option<SpellPatchView>,
-    pub result: SpellFormResultView,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct SpellSelectedFormView {
+pub struct SpellEffectiveFormView {
     pub id: String,
     pub cast_rank: u8,
     pub result: SpellFormResultView,
@@ -390,6 +327,7 @@ pub struct SpellResolvedDefinitionView {
     pub damage: SpellResolvedFieldView<Vec<SpellDamageView>>,
     pub duration: SpellResolvedFieldView<SpellDurationView>,
     pub heightening: SpellResolvedFieldView<SpellHeighteningView>,
+    pub ritual: SpellFactView<SpellRitualView>,
     pub rules: SpellResolvedFieldView<Vec<SpellRuleView>>,
 }
 

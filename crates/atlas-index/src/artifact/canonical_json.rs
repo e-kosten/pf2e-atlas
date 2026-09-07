@@ -453,6 +453,7 @@ unit_enum_json!(HazardDiagnosticCode { UnexpectedShape => "unexpected_shape", Un
 unit_enum_json!(HazardSize { Tiny => "tiny", Small => "small", Medium => "medium", Large => "large", Huge => "huge", Gargantuan => "gargantuan" });
 unit_enum_json!(HazardComplexity { Simple => "simple", Complex => "complex" });
 unit_enum_json!(HazardSaveKind { Fortitude => "fortitude", Reflex => "reflex", Will => "will" });
+unit_enum_json!(HazardSourceAttackMode { Melee => "melee", Ranged => "ranged" });
 unit_enum_json!(HazardOccurrenceIdentityStability { StableSourceIdentity => "stable_source_identity", UnstableAuthoredOrdinal => "unstable_authored_ordinal" });
 unit_enum_json!(HazardActionType { Action => "action", Reaction => "reaction", Free => "free", Passive => "passive" });
 unit_enum_json!(HazardActionCount { One => "one", Two => "two", Three => "three" });
@@ -714,19 +715,12 @@ impl CanonicalJson for HazardUnsupportedField {
             Self::HazardUnexpected(value) => {
                 tagged("hazard_unexpected", Some(value.to_canonical_json()))
             }
-            Self::DefensesHasHealth => tagged("defenses_has_health", None),
-            Self::HitPointsTempMax => tagged("hit_points_temp_max", None),
-            Self::SaveDetail(value) => tagged("save_detail", Some(value.to_canonical_json())),
             Self::ActionUnexpected(value) => {
                 tagged("action_unexpected", Some(value.to_canonical_json()))
             }
             Self::StrikeUnexpected(value) => {
                 tagged("strike_unexpected", Some(value.to_canonical_json()))
             }
-            Self::StrikeAttack => tagged("strike_attack", None),
-            Self::StrikeWeaponType => tagged("strike_weapon_type", None),
-            Self::StrikeAttackEffectsCustom => tagged("strike_attack_effects_custom", None),
-            Self::StrikeTraitRarity => tagged("strike_trait_rarity", None),
             Self::ConditionUnexpected(value) => {
                 tagged("condition_unexpected", Some(value.to_canonical_json()))
             }
@@ -744,23 +738,12 @@ impl CanonicalJson for HazardUnsupportedField {
             (kind, Some(value)) if kind == "hazard_unexpected" => {
                 String::from_canonical_json(value, path).map(Self::HazardUnexpected)
             }
-            (kind, None) if kind == "defenses_has_health" => Ok(Self::DefensesHasHealth),
-            (kind, None) if kind == "hit_points_temp_max" => Ok(Self::HitPointsTempMax),
-            (kind, Some(value)) if kind == "save_detail" => {
-                HazardSaveKind::from_canonical_json(value, path).map(Self::SaveDetail)
-            }
             (kind, Some(value)) if kind == "action_unexpected" => {
                 String::from_canonical_json(value, path).map(Self::ActionUnexpected)
             }
             (kind, Some(value)) if kind == "strike_unexpected" => {
                 String::from_canonical_json(value, path).map(Self::StrikeUnexpected)
             }
-            (kind, None) if kind == "strike_attack" => Ok(Self::StrikeAttack),
-            (kind, None) if kind == "strike_weapon_type" => Ok(Self::StrikeWeaponType),
-            (kind, None) if kind == "strike_attack_effects_custom" => {
-                Ok(Self::StrikeAttackEffectsCustom)
-            }
-            (kind, None) if kind == "strike_trait_rarity" => Ok(Self::StrikeTraitRarity),
             (kind, Some(value)) if kind == "condition_unexpected" => {
                 String::from_canonical_json(value, path).map(Self::ConditionUnexpected)
             }
@@ -812,8 +795,10 @@ struct_json!(HazardProvenance {
     image,
     source_creature_type,
     source_status_effects,
-    actor_effects
+    actor_effects,
+    token
 });
+struct_json!(HazardTokenSourceMetadata { name });
 struct_json!(HazardProvenanceValue {
     authored_order,
     exact_json,
@@ -847,20 +832,27 @@ struct_json!(HazardDefenses {
     immunities,
     weaknesses,
     resistances,
-    unsupported_fields
+    source_metadata
 });
+struct_json!(HazardDefenseSourceMetadata { has_health });
 struct_json!(HazardHitPoints {
     current,
     maximum,
     temporary,
     details,
-    unsupported_fields
+    source_metadata
 });
+struct_json!(HazardHitPointSourceMetadata { temporary_maximum });
 struct_json!(HazardSaves {
     fortitude,
     reflex,
     will,
-    unsupported_fields
+    source_metadata
+});
+struct_json!(HazardSaveSourceMetadata {
+    fortitude_detail,
+    reflex_detail,
+    will_detail
 });
 struct_json!(HazardIwr {
     id,
@@ -905,8 +897,11 @@ struct_json!(HazardItemCommon {
     publication,
     rules,
     slug,
-    traits
+    traits,
+    rarity,
+    lineage
 });
+struct_json!(HazardItemLineage { compendium_source });
 struct_json!(HazardImmunityRule {
     authored_order,
     mode,
@@ -972,7 +967,13 @@ struct_json!(HazardStrikeCapability {
     bonus,
     attack_effects,
     damage_rolls,
+    source_metadata,
     unsupported_fields
+});
+struct_json!(HazardStrikeSourceMetadata {
+    attack,
+    weapon_type,
+    attack_effects_custom
 });
 struct_json!(HazardStrikeDamage {
     source_key,
@@ -2644,6 +2645,22 @@ mod tests {
     }
 
     #[test]
+    fn hazard_source_attack_mode_codec_is_closed_and_round_trips() {
+        for mode in [
+            HazardSourceAttackMode::Melee,
+            HazardSourceAttackMode::Ranged,
+        ] {
+            let encoded = encode(&mode).expect("attack mode encode");
+            assert_eq!(
+                decode::<HazardSourceAttackMode>(&encoded, "attack mode")
+                    .expect("attack mode decode"),
+                mode
+            );
+        }
+        assert!(decode::<HazardSourceAttackMode>("\"future\"", "attack mode").is_err());
+    }
+
+    #[test]
     fn hazard_canonical_json_validates_ids_slugs_and_recomputes_content_derivations() {
         let body = RecordBody::Hazard(codec_hazard_fixture());
         let encoded = encode(&body).expect("hazard body encodes");
@@ -2790,6 +2807,7 @@ mod tests {
                 source_creature_type: missing_hazard_fact("/system/creatureType"),
                 source_status_effects: missing_hazard_fact("/system/statusEffects"),
                 actor_effects: missing_hazard_fact("/effects"),
+                token: missing_hazard_fact("/prototypeToken"),
             },
         }
     }

@@ -4,9 +4,11 @@ import type { SpellClassificationView } from "./SpellClassificationView";
 import type { SpellDamageView } from "./SpellDamageView";
 import type { SpellDefenseView } from "./SpellDefenseView";
 import type { SpellDurationView } from "./SpellDurationView";
+import type { SpellFactView } from "./SpellFactView";
 import type { SpellHeighteningView } from "./SpellHeighteningView";
 import type { SpellResolvedFieldView } from "./SpellResolvedFieldView";
+import type { SpellRitualView } from "./SpellRitualView";
 import type { SpellRuleView } from "./SpellRuleView";
 import type { SpellTargetingView } from "./SpellTargetingView";
 
-export type SpellResolvedDefinitionView = { applied_fixed_ranks: Array<number>, classification: SpellResolvedFieldView<SpellClassificationView>, casting: SpellResolvedFieldView<SpellCastingView>, targeting: SpellResolvedFieldView<SpellTargetingView>, defense: SpellResolvedFieldView<SpellDefenseView>, damage: SpellResolvedFieldView<Array<SpellDamageView>>, duration: SpellResolvedFieldView<SpellDurationView>, heightening: SpellResolvedFieldView<SpellHeighteningView>, rules: SpellResolvedFieldView<Array<SpellRuleView>>, };
+export type SpellResolvedDefinitionView = { applied_fixed_ranks: Array<number>, classification: SpellResolvedFieldView<SpellClassificationView>, casting: SpellResolvedFieldView<SpellCastingView>, targeting: SpellResolvedFieldView<SpellTargetingView>, defense: SpellResolvedFieldView<SpellDefenseView>, damage: SpellResolvedFieldView<Array<SpellDamageView>>, duration: SpellResolvedFieldView<SpellDurationView>, heightening: SpellResolvedFieldView<SpellHeighteningView>, ritual: SpellFactView<SpellRitualView>, rules: SpellResolvedFieldView<Array<SpellRuleView>>, };

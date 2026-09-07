@@ -9,9 +9,112 @@ pub struct RecordSurfaceView {
     pub metadata: RecordSurfaceMetadataView,
     pub profile: RecordSurfaceProfileView,
     pub presentation: RecordSurfacePresentationView,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub issues: Option<Vec<RecordSurfaceIssueView>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub references: Option<RecordSurfaceReferencesView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub encounter: Option<EncounterRuntimeView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceIssueView {
+    pub code: RecordSurfaceIssueCodeView,
+    pub placement: RecordSurfaceIssuePlacementView,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum RecordSurfaceIssueCodeView {
+    RequiredMissing,
+    RequiredNull,
+    RequiredEmpty,
+    Unsupported,
+    Malformed,
+    Ambiguous,
+    Unavailable,
+    Unmodeled,
+    SourceConsistencyConflict,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum RecordSurfaceIssuePlacementView {
+    Record,
+    Classification,
+    Defenses,
+    Activity,
+    Casting,
+    Targeting,
+    Damage,
+    Duration,
+    Heightening,
+    Ritual,
+    Rules,
+    Forms,
+    References,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceReferencesView {
+    pub outgoing: RecordSurfaceReferenceSectionView,
+    pub backlinks: RecordSurfaceReferenceSectionView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[ts(tag = "state", rename_all = "snake_case")]
+pub enum RecordSurfaceReferenceSectionView {
+    NotRequested,
+    Available {
+        requested_limit: u8,
+        records: Vec<RecordSurfaceReferenceRecordView>,
+        edges: Vec<RecordSurfaceReferenceEdgeView>,
+        total_records: u32,
+        total_edges: u32,
+        truncated: bool,
+    },
+    Unavailable {
+        requested_limit: u8,
+        code: crate::AppErrorCode,
+        message: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceReferenceRecordView {
+    pub record_key: String,
+    pub title: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceReferenceEdgeView {
+    pub from_record_key: String,
+    pub to_record_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub display_text: Option<String>,
+    pub reference_text: String,
+    pub source: RecordSurfaceReferenceSourceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct RecordSurfaceReferenceSourceView {
+    pub kind: String,
+    pub visibility: String,
+    pub relation_kind: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

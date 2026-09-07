@@ -164,7 +164,7 @@ fn hidden_pit_uses_canonical_hazard_presentation_and_fts() {
     ));
     assert!(!has_fact(&presentation, "License", "ORC"));
     assert!(!has_fact(&presentation, "License", "OGL"));
-    assert!(has_fact(
+    assert!(!has_fact(
         &presentation,
         "Source Rarity (unsupported)",
         "common"
@@ -409,7 +409,7 @@ fn hazard_projection_includes_structured_action_and_iwr_details() {
 }
 
 #[test]
-fn hazard_strike_retains_ordered_damage_and_selected_legacy_drift() {
+fn hazard_strike_retains_ordered_damage_and_named_source_metadata() {
     let mut hazard = hidden_pit_source_fixture();
     let owner_record_key = hazard.identity.record_key.clone();
     let FactValue::Value(HazardSourceValue::Typed(embedded)) = &mut hazard.embedded_entities.value
@@ -418,37 +418,6 @@ fn hazard_strike_retains_ordered_damage_and_selected_legacy_drift() {
     };
     let entity_id = HazardEntityId::new("synthetic-strike").expect("entity id");
     let occurrence_id = HazardOccurrenceId::new("synthetic-strike").expect("occurrence id");
-    let legacy = [
-        (
-            HazardUnsupportedField::StrikeAttack,
-            "/items/1/system/attack",
-        ),
-        (
-            HazardUnsupportedField::StrikeWeaponType,
-            "/items/1/system/weaponType",
-        ),
-        (
-            HazardUnsupportedField::StrikeAttackEffectsCustom,
-            "/items/1/system/attackEffects/custom",
-        ),
-        (
-            HazardUnsupportedField::StrikeTraitRarity,
-            "/items/1/system/traits/rarity",
-        ),
-    ]
-    .into_iter()
-    .map(|(field, path)| HazardUnsupportedFact {
-        field,
-        value: unsupported_value(
-            "null",
-            HazardExpectedShape::ClosedVocabulary,
-            HazardSourceShape::Null,
-            path,
-            HazardUnsupportedOwner::Entity(entity_id.clone()),
-            HazardDiagnosticCode::LegacyField,
-        ),
-    })
-    .collect();
     embedded.entities.push(HazardEntity {
         id: entity_id.clone(),
         family: HazardEntityFamily::Strike,
@@ -468,7 +437,15 @@ fn hazard_strike_retains_ordered_damage_and_selected_legacy_drift() {
                 ],
                 "/items/1/system/damageRolls",
             ),
-            unsupported_fields: legacy,
+            source_metadata: HazardStrikeSourceMetadata {
+                attack: typed(8, "/items/1/system/attack/value"),
+                weapon_type: typed(
+                    HazardSourceAttackMode::Melee,
+                    "/items/1/system/weaponType/value",
+                ),
+                attack_effects_custom: typed(String::new(), "/items/1/system/attackEffects/custom"),
+            },
+            unsupported_fields: Vec::new(),
         })),
     });
     embedded.occurrences.push(HazardEntityOccurrence {
@@ -496,7 +473,8 @@ fn hazard_strike_retains_ordered_damage_and_selected_legacy_drift() {
             .collect::<Vec<_>>(),
         vec!["0", "1"]
     );
-    assert_eq!(strike.unsupported_fields.len(), 4);
+    assert!(strike.unsupported_fields.is_empty());
+    assert_eq!(strike.source_metadata.attack.typed(), Some(&8));
 
     let presentation = build_hazard_presentation_document(&hazard, |_| true);
     assert!(has_fact(&presentation, "Strike Bonus", "+8"));
@@ -518,6 +496,569 @@ fn hazard_strike_retains_ordered_damage_and_selected_legacy_drift() {
             "missing structured strike term {expected}"
         );
     }
+}
+
+#[test]
+fn bounded_hazard_consistency_and_strike_rules_use_only_typed_family_owners() {
+    let mut hazard = hidden_pit_source_fixture();
+    assert_eq!(
+        project_hazard_has_health_consistency(&hazard),
+        Some(HazardHasHealthConsistency::Consistent)
+    );
+    let mut defenses = hazard.defenses.typed().expect("defenses").clone();
+    defenses.source_metadata.has_health = typed(false, "/system/attributes/hasHealth");
+    hazard.defenses = typed(defenses.clone(), "/system/attributes");
+    assert_eq!(
+        project_hazard_has_health_consistency(&hazard),
+        Some(HazardHasHealthConsistency::Conflict {
+            source_has_health: false,
+            derived_has_health: true,
+        })
+    );
+    let mut hit_points = defenses.hit_points.typed().expect("hp").clone();
+    hit_points.maximum = typed(0, "/system/attributes/hp/max");
+    defenses.hit_points = typed(hit_points, "/system/attributes/hp");
+    hazard.defenses = typed(defenses.clone(), "/system/attributes");
+    assert_eq!(
+        project_hazard_has_health_consistency(&hazard),
+        Some(HazardHasHealthConsistency::Consistent)
+    );
+    defenses.source_metadata.has_health =
+        HazardFact::source(FactValue::Null, "/system/attributes/hasHealth");
+    hazard.defenses = typed(defenses, "/system/attributes");
+    assert_eq!(project_hazard_has_health_consistency(&hazard), None);
+
+    let mut strike = synthetic_strike_entity();
+    assert_eq!(
+        project_hazard_attack_mode(&strike).map(|projection| projection.mode),
+        Some(HazardAttackMode::Melee)
+    );
+    assert_eq!(
+        project_hazard_weapon_type_consistency(&strike),
+        Some(HazardWeaponTypeConsistency::Consistent)
+    );
+    let cost = project_hazard_strike_action_cost(&strike).expect("Strike family cost");
+    assert_eq!(cost.cost, HazardActionCount::One);
+    assert_eq!(cost.basis, HazardEntityFamily::Strike);
+
+    let HazardCapability::Strike(capability) = &mut strike.capability else {
+        panic!("strike")
+    };
+    capability.common.traits = typed(
+        vec![HazardTrait::new("range-120").expect("trait")],
+        "/items/1/system/traits/value",
+    );
+    assert_eq!(
+        project_hazard_attack_mode(&strike).map(|projection| projection.mode),
+        Some(HazardAttackMode::Ranged)
+    );
+    assert_eq!(
+        project_hazard_weapon_type_consistency(&strike),
+        Some(HazardWeaponTypeConsistency::Conflict {
+            source_weapon_type: HazardSourceAttackMode::Melee,
+            derived_mode: HazardAttackMode::Ranged,
+        })
+    );
+
+    let HazardCapability::Strike(capability) = &mut strike.capability else {
+        panic!("strike")
+    };
+    capability.common.traits =
+        HazardFact::source(FactValue::Missing, "/items/1/system/traits/value");
+    capability.source_metadata.weapon_type = typed(
+        HazardSourceAttackMode::Ranged,
+        "/items/1/system/weaponType/value",
+    );
+    strike.label = "Misleading Ranged Strike".to_string();
+    assert_eq!(project_hazard_attack_mode(&strike), None);
+    assert_eq!(project_hazard_weapon_type_consistency(&strike), None);
+    assert!(project_hazard_strike_action_cost(&strike).is_some());
+
+    let HazardCapability::Strike(capability) = &mut strike.capability else {
+        panic!("strike")
+    };
+    capability.common.traits = HazardFact::source(FactValue::Null, "/items/1/system/traits/value");
+    assert_eq!(project_hazard_attack_mode(&strike), None);
+    let HazardCapability::Strike(capability) = &mut strike.capability else {
+        panic!("strike")
+    };
+    capability.common.traits = unsupported(
+        "\"range-120\"",
+        HazardExpectedShape::Array,
+        HazardSourceShape::String,
+        "/items/1/system/traits/value",
+        HazardUnsupportedOwner::Entity(strike.id.clone()),
+        HazardDiagnosticCode::UnexpectedShape,
+    );
+    assert_eq!(project_hazard_attack_mode(&strike), None);
+    assert!(project_hazard_strike_action_cost(&strike).is_some());
+
+    let strike_owner = strike.id.clone();
+    let HazardCapability::Strike(capability) = &mut strike.capability else {
+        panic!("strike")
+    };
+    capability.common.traits = typed(Vec::new(), "/items/1/system/traits/value");
+    capability.source_metadata.weapon_type = unsupported(
+        "\"future\"",
+        HazardExpectedShape::ClosedVocabulary,
+        HazardSourceShape::String,
+        "/items/1/system/weaponType/value",
+        HazardUnsupportedOwner::Entity(strike_owner),
+        HazardDiagnosticCode::InvalidCanonicalValue,
+    );
+    assert_eq!(
+        project_hazard_attack_mode(&strike).map(|projection| projection.mode),
+        Some(HazardAttackMode::Melee)
+    );
+    assert_eq!(project_hazard_weapon_type_consistency(&strike), None);
+
+    let mut action = hidden_pit_source_fixture()
+        .embedded_entities
+        .typed()
+        .expect("embedded")
+        .entities[0]
+        .clone();
+    action.label = "Strike".to_string();
+    assert!(project_hazard_strike_action_cost(&action).is_none());
+}
+
+#[test]
+fn hazard_source_metadata_projection_preserves_values_and_localizes_only_actionable_issues() {
+    let benign = hazard_source_metadata_fixture(false);
+    let benign_projection = project_hazard_source_metadata(&benign);
+    assert!(benign_projection.issues.is_empty());
+    let benign_json = serde_json::to_value(&benign_projection.facts).expect("metadata JSON");
+    let benign_facts = benign_json.as_array().expect("metadata facts");
+    let fact = |field: &str| {
+        benign_facts
+            .iter()
+            .find(|fact| fact["field"] == field)
+            .unwrap_or_else(|| panic!("missing {field} source metadata"))
+    };
+    assert_eq!(
+        fact("token_name")["value"]["value"]["value"]["value"],
+        "Hidden Pit"
+    );
+    assert_eq!(
+        fact("token_name")["value"]["provenance"]["relativeSourcePath"],
+        "/prototypeToken/name"
+    );
+    assert_eq!(fact("has_health")["value"]["value"]["value"]["value"], true);
+    assert_eq!(
+        fact("temporary_maximum")["value"]["value"]["value"]["value"],
+        0
+    );
+    assert_eq!(fact("save_detail")["value"]["value"]["value"]["value"], "");
+    assert_eq!(
+        fact("item_rarity")["value"]["value"]["value"]["value"],
+        "common"
+    );
+    assert_eq!(
+        fact("item_lineage")["value"]["value"]["value"]["value"]["compendiumSource"]["value"]["state"],
+        "null"
+    );
+    assert_eq!(fact("strike_attack")["value"]["value"]["state"], "missing");
+
+    let actionable = hazard_source_metadata_fixture(true);
+    let projection = project_hazard_source_metadata(&actionable);
+    assert_eq!(projection.issues.len(), 7);
+    for field in [
+        "provenance.token.name",
+        "defenses.source_metadata.has_health",
+        "defenses.hit_points.source_metadata.temporary_maximum",
+        "defenses.saves.source_metadata.fortitude_detail",
+        "activity.source_metadata.rarity",
+        "activity.strike.source_metadata.weapon_type",
+        "activity.strike.source_metadata.attack_effects_custom",
+    ] {
+        assert_eq!(
+            projection
+                .issues
+                .iter()
+                .filter(|issue| issue.field_key() == field)
+                .count(),
+            1,
+            "{field} should produce one localized issue"
+        );
+    }
+    let facts = serde_json::to_value(&projection.facts).expect("metadata JSON");
+    let facts = facts.as_array().expect("metadata facts");
+    let has_health = facts
+        .iter()
+        .find(|fact| fact["field"] == "has_health")
+        .expect("has-health metadata");
+    assert_eq!(
+        has_health["value"]["value"]["value"]["value"], false,
+        "a conflicting false source value must remain exact"
+    );
+    let token = facts
+        .iter()
+        .find(|fact| fact["field"] == "token_name")
+        .expect("token metadata");
+    assert_eq!(token["value"]["value"]["value"]["value"]["exactJson"], "17");
+    assert_eq!(
+        token["value"]["value"]["value"]["value"]["relativeSourcePath"],
+        "/prototypeToken/name"
+    );
+    let rarity = facts
+        .iter()
+        .find(|fact| fact["field"] == "item_rarity" && fact["entity_id"] == "lY83oUjx0DLxDByK")
+        .expect("child rarity metadata");
+    assert_eq!(
+        rarity["value"]["value"]["value"]["value"]["exactJson"],
+        "42"
+    );
+    assert_eq!(
+        rarity["value"]["value"]["value"]["value"]["relativeSourcePath"],
+        "/items/0/system/traits/rarity"
+    );
+    let custom = facts
+        .iter()
+        .find(|fact| fact["field"] == "strike_attack_effects_custom")
+        .expect("custom attack effects metadata");
+    assert_eq!(custom["value"]["value"]["value"]["value"], "corrosive mist");
+    let entity_fact_order = facts
+        .iter()
+        .filter_map(|fact| {
+            fact.get("entity_id").map(|entity_id| {
+                (
+                    fact["field"].as_str().expect("field"),
+                    entity_id.as_str().expect("entity id"),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        entity_fact_order,
+        vec![
+            ("item_rarity", "lY83oUjx0DLxDByK"),
+            ("item_lineage", "lY83oUjx0DLxDByK"),
+            ("item_rarity", "synthetic-strike-rule"),
+            ("item_lineage", "synthetic-strike-rule"),
+            ("strike_attack", "synthetic-strike-rule"),
+            ("strike_weapon_type", "synthetic-strike-rule"),
+            ("strike_attack_effects_custom", "synthetic-strike-rule"),
+        ],
+        "source-authored entity order must remain stable in provenance"
+    );
+}
+
+#[test]
+fn hazard_record_json_uses_canonical_source_metadata_for_provenance_and_availability() {
+    let benign_hazard = hazard_source_metadata_fixture(false);
+    let benign = RetrievedRecord {
+        record: atlas_record_for(&benign_hazard),
+        body: Some(RecordBody::Hazard(benign_hazard)),
+        spell_children: Vec::new(),
+    };
+    let ordinary = serde_json::to_value(
+        record_json(
+            &benign,
+            RecordJsonOptions {
+                detail: atlas_domain::DetailLevel::Standard,
+                include_source_json: false,
+            },
+        )
+        .expect("ordinary hazard JSON"),
+    )
+    .expect("ordinary hazard value");
+    assert!(ordinary.get("provenance").is_none());
+    assert!(
+        ordinary["availability"]
+            .as_array()
+            .is_none_or(|availability| {
+                availability.iter().all(|entry| {
+                    !entry["field"].as_str().is_some_and(|field| {
+                        field.contains("source_metadata")
+                            || field == "provenance.token.name"
+                            || field == "entity.unsupported.action.unexpected.traits.rarity"
+                    })
+                })
+            })
+    );
+    let benign_with_provenance = serde_json::to_value(
+        record_json_with_context(
+            &benign,
+            RecordJsonOptions {
+                detail: atlas_domain::DetailLevel::Full,
+                include_source_json: false,
+            },
+            RecordJsonContext::without_lookups(&benign.record).with_provenance_evidence(),
+        )
+        .expect("benign hazard provenance JSON"),
+    )
+    .expect("benign hazard provenance value");
+    let benign_availability = benign_with_provenance["availability"]
+        .as_array()
+        .expect("benign availability");
+    assert!(benign_availability.iter().all(|entry| {
+        !entry["field"].as_str().is_some_and(|field| {
+            field.contains("source_metadata")
+                || field == "provenance.token.name"
+                || field == "entity.unsupported.action.unexpected.traits.rarity"
+        })
+    }));
+    assert!(benign_availability.iter().any(|entry| {
+        entry["field"] == "entity.unsupported.action.unexpected./items/0/system/traits/selected"
+            && entry["state"] == "unsupported"
+    }));
+    let benign_metadata = benign_with_provenance["provenance"]["source_metadata"]
+        .as_array()
+        .expect("benign source metadata provenance");
+    assert!(benign_metadata.iter().any(|fact| {
+        fact["field"] == "token_name" && fact["value"]["value"]["value"]["value"] == "Hidden Pit"
+    }));
+    assert!(benign_metadata.iter().any(|fact| {
+        fact["field"] == "temporary_maximum" && fact["value"]["value"]["value"]["value"] == 0
+    }));
+    assert!(benign_metadata.iter().any(|fact| {
+        fact["field"] == "save_detail"
+            && fact["save"] == "fortitude"
+            && fact["value"]["value"]["value"]["value"] == ""
+    }));
+    assert_eq!(
+        benign_metadata
+            .iter()
+            .filter(|fact| {
+                fact["field"] == "item_rarity"
+                    && fact["entity_id"] == "lY83oUjx0DLxDByK"
+                    && fact["value"]["value"]["value"]["support"] == "typed"
+                    && fact["value"]["value"]["value"]["value"] == "common"
+                    && fact["value"]["provenance"]["relativeSourcePath"]
+                        == "/items/0/system/traits/rarity"
+            })
+            .count(),
+        1
+    );
+    let benign_unsupported = benign_with_provenance["provenance"]["unsupported_fields"]
+        .as_array()
+        .expect("benign genuine unsupported fields");
+    assert!(benign_unsupported.iter().any(|fact| {
+        fact["field"]["kind"] == "action_unexpected"
+            && fact["field"]["value"] == "/items/0/system/traits/selected"
+            && fact["value"]["exactJson"] == "{}"
+            && fact["value"]["relativeSourcePath"] == "/items/0/system/traits/selected"
+    }));
+    assert!(benign_unsupported.iter().all(|fact| {
+        fact["field"]["value"] != "traits.rarity"
+            && fact["value"]["relativeSourcePath"] != "/items/0/system/traits/rarity"
+            && fact["value"]["exactJson"] != "\"common\""
+    }));
+
+    let hazard = hazard_source_metadata_fixture(true);
+    let retrieved = RetrievedRecord {
+        record: atlas_record_for(&hazard),
+        body: Some(RecordBody::Hazard(hazard)),
+        spell_children: Vec::new(),
+    };
+    let value = serde_json::to_value(
+        record_json_with_context(
+            &retrieved,
+            RecordJsonOptions {
+                detail: atlas_domain::DetailLevel::Full,
+                include_source_json: false,
+            },
+            RecordJsonContext::without_lookups(&retrieved.record).with_provenance_evidence(),
+        )
+        .expect("hazard provenance JSON"),
+    )
+    .expect("hazard provenance value");
+    let availability = value["availability"].as_array().expect("availability");
+    for field in [
+        "provenance.token.name",
+        "activity.source_metadata.rarity",
+        "defenses.hit_points.source_metadata.temporary_maximum",
+        "activity.strike.source_metadata.weapon_type",
+    ] {
+        assert_eq!(
+            availability
+                .iter()
+                .filter(|entry| entry["field"] == field)
+                .count(),
+            1,
+            "{field} should reach public availability once"
+        );
+    }
+    let source_metadata = value["provenance"]["source_metadata"]
+        .as_array()
+        .expect("source metadata provenance");
+    assert_eq!(
+        source_metadata
+            .iter()
+            .filter(|fact| fact["field"] == "token_name")
+            .count(),
+        1
+    );
+    assert!(source_metadata.iter().any(|fact| {
+        fact["field"] == "token_name"
+            && fact["value"]["value"]["value"]["value"]["exactJson"] == "17"
+    }));
+    assert_eq!(
+        source_metadata
+            .iter()
+            .filter(|fact| {
+                fact["field"] == "item_rarity" && fact["entity_id"] == "lY83oUjx0DLxDByK"
+            })
+            .count(),
+        1
+    );
+    assert!(source_metadata.iter().any(|fact| {
+        fact["field"] == "item_rarity"
+            && fact["entity_id"] == "lY83oUjx0DLxDByK"
+            && fact["value"]["value"]["value"]["value"]["exactJson"] == "42"
+    }));
+    assert!(source_metadata.iter().any(|fact| {
+        fact["field"] == "temporary_maximum" && fact["value"]["value"]["value"]["value"] == 9
+    }));
+    let unsupported_fields = value["provenance"]["unsupported_fields"]
+        .as_array()
+        .expect("genuine unsupported fields");
+    assert!(unsupported_fields.iter().any(|fact| {
+        fact["field"]["kind"] == "action_unexpected"
+            && fact["field"]["value"] == "/items/0/system/traits/selected"
+            && fact["value"]["exactJson"] == "{}"
+            && fact["value"]["relativeSourcePath"] == "/items/0/system/traits/selected"
+            && fact["value"]["owner"]["kind"] == "entity"
+            && fact["value"]["owner"]["value"] == "lY83oUjx0DLxDByK"
+    }));
+    assert!(unsupported_fields.iter().all(|fact| {
+        fact["field"]["value"] != "traits.rarity"
+            && fact["value"]["relativeSourcePath"] != "/items/0/system/traits/rarity"
+            && fact["value"]["exactJson"] != "\"common\""
+            && fact["value"]["exactJson"] != "17"
+            && fact["value"]["exactJson"] != "42"
+    }));
+}
+
+#[test]
+fn hazard_record_json_carries_typed_terminal_annotations_without_changing_machine_json() {
+    let mut hazard = hazard_source_metadata_fixture(false);
+    let owner_record_key = hazard.identity.record_key.clone();
+    let FactValue::Value(HazardSourceValue::Typed(embedded)) = &mut hazard.embedded_entities.value
+    else {
+        panic!("embedded entities")
+    };
+    let strike = embedded
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id.as_str() == "synthetic-strike-rule")
+        .expect("synthetic strike");
+    let HazardCapability::Strike(strike) = &mut strike.capability else {
+        panic!("strike capability")
+    };
+    strike.damage_rolls = typed(
+        vec![strike_damage("0", 0, "2d8", "piercing")],
+        "/items/1/system/damageRolls",
+    );
+    embedded.occurrences.push(HazardEntityOccurrence {
+        id: HazardOccurrenceId::new("synthetic-strike-occurrence").expect("occurrence id"),
+        owner_record_key,
+        entity_id: HazardEntityId::new("synthetic-strike-rule").expect("entity id"),
+        family: HazardEntityFamily::Strike,
+        authored_order: 1,
+        source_sort: typed(200_000, "/items/1/sort"),
+        source_folder: HazardFact::source(FactValue::Null, "/items/1/folder"),
+        source_ordinal: 1,
+        contextual_label: typed("Melee Strike".to_string(), "/items/1/name"),
+        identity_stability: HazardOccurrenceIdentityStability::StableSourceIdentity,
+    });
+    let retrieved = RetrievedRecord {
+        record: atlas_record_for(&hazard),
+        body: Some(RecordBody::Hazard(hazard)),
+        spell_children: Vec::new(),
+    };
+    let json = record_json(
+        &retrieved,
+        RecordJsonOptions {
+            detail: atlas_domain::DetailLevel::Standard,
+            include_source_json: false,
+        },
+    )
+    .expect("hazard JSON");
+    let machine = serde_json::to_value(&json).expect("hazard machine JSON");
+    let machine_text = serde_json::to_string(&machine).expect("hazard machine text");
+    assert!(!machine_text.contains("\"terminal\""));
+    assert!(!machine_text.contains("\"human_label\""));
+    assert!(!machine_text.contains("\"human_message\""));
+    assert!(machine_text.contains("\"hit_points.temporary\""));
+    assert!(machine_text.contains("\"value\":\"0\""));
+
+    let RecordPresentationJson::Hazard {
+        sections,
+        availability,
+        ..
+    } = &json.presentation
+    else {
+        panic!("hazard presentation")
+    };
+    let facts = sections
+        .iter()
+        .flat_map(|section| &section.blocks)
+        .flat_map(|block| match block {
+            RecordBlockJson::FactList { facts } => facts.as_slice(),
+            RecordBlockJson::Prose { .. }
+            | RecordBlockJson::Content { .. }
+            | RecordBlockJson::Relationships { .. } => &[],
+        })
+        .collect::<Vec<_>>();
+    let terminal = |key: &str| {
+        facts
+            .iter()
+            .find(|fact| fact.key == key)
+            .and_then(|fact| fact.terminal)
+    };
+    assert_eq!(
+        terminal("armor_class"),
+        Some(RecordFactTerminalPresentation::HazardDefense(
+            HazardDefenseTerminalFact::ArmorClass(10)
+        ))
+    );
+    assert_eq!(
+        terminal("hit_points.current"),
+        Some(RecordFactTerminalPresentation::HazardDefense(
+            HazardDefenseTerminalFact::HitPointsCurrent(12)
+        ))
+    );
+    assert_eq!(
+        terminal("hit_points.maximum"),
+        Some(RecordFactTerminalPresentation::HazardDefense(
+            HazardDefenseTerminalFact::HitPointsMaximum(12)
+        ))
+    );
+    assert_eq!(
+        terminal("hit_points.temporary"),
+        Some(RecordFactTerminalPresentation::HazardDefense(
+            HazardDefenseTerminalFact::HitPointsTemporary(0)
+        ))
+    );
+    assert_eq!(
+        terminal("hit_points.broken_threshold"),
+        Some(RecordFactTerminalPresentation::HazardDefense(
+            HazardDefenseTerminalFact::BrokenThreshold(6)
+        ))
+    );
+    assert_eq!(
+        terminal("save.will"),
+        Some(RecordFactTerminalPresentation::HazardDefense(
+            HazardDefenseTerminalFact::Will(0)
+        ))
+    );
+    assert_eq!(
+        terminal("activity.synthetic-strike-occurrence"),
+        Some(RecordFactTerminalPresentation::HazardStrike {
+            mode: Some("Melee"),
+            action_cost: Some(1),
+        })
+    );
+    assert_eq!(
+        terminal("activity.synthetic-strike-occurrence.damage.0"),
+        Some(RecordFactTerminalPresentation::HazardDamage)
+    );
+    assert!(availability.iter().any(|entry| {
+        entry.field == "entity.unsupported.action.unexpected./items/0/system/traits/selected"
+            && entry.human_label == "Action source fact"
+            && !entry.human_message.contains("/items/")
+    }));
 }
 
 #[test]
@@ -593,14 +1134,16 @@ fn hidden_pit_source_fixture() -> HazardRecord {
         frequency: HazardFact::source(FactValue::Null, "/items/0/system/frequency"),
         self_effect: HazardFact::source(FactValue::Null, "/items/0/system/selfEffect"),
         unsupported_fields: vec![HazardUnsupportedFact {
-            field: HazardUnsupportedField::ActionUnexpected("traits.rarity".to_string()),
+            field: HazardUnsupportedField::ActionUnexpected(
+                "/items/0/system/traits/selected".to_string(),
+            ),
             value: unsupported_value(
-                "\"common\"",
-                HazardExpectedShape::ClosedVocabulary,
-                HazardSourceShape::String,
-                "/items/0/system/traits/rarity",
+                "{}",
+                HazardExpectedShape::Any,
+                HazardSourceShape::Object,
+                "/items/0/system/traits/selected",
                 HazardUnsupportedOwner::Entity(action_id.clone()),
-                HazardDiagnosticCode::LegacyField,
+                HazardDiagnosticCode::UnsupportedValue,
             ),
         }],
     };
@@ -789,17 +1332,9 @@ fn hidden_pit_source_fixture() -> HazardRecord {
                         maximum: typed(12, "/system/attributes/hp/max"),
                         temporary: typed(0, "/system/attributes/hp/temp"),
                         details: typed(RichDocument::default(), "/system/attributes/hp/details"),
-                        unsupported_fields: vec![HazardUnsupportedFact {
-                            field: HazardUnsupportedField::HitPointsTempMax,
-                            value: unsupported_value(
-                                "0",
-                                HazardExpectedShape::Integer,
-                                HazardSourceShape::Number,
-                                "/system/attributes/hp/tempmax",
-                                HazardUnsupportedOwner::Record(record_key.clone()),
-                                HazardDiagnosticCode::LegacyField,
-                            ),
-                        }],
+                        source_metadata: HazardHitPointSourceMetadata {
+                            temporary_maximum: typed(0, "/system/attributes/hp/tempmax"),
+                        },
                     },
                     "/system/attributes/hp",
                 ),
@@ -808,24 +1343,14 @@ fn hidden_pit_source_fixture() -> HazardRecord {
                         fortitude: typed(1, "/system/saves/fortitude/value"),
                         reflex: typed(1, "/system/saves/reflex/value"),
                         will: typed(0, "/system/saves/will/value"),
-                        unsupported_fields: [
-                            (HazardSaveKind::Fortitude, "fortitude"),
-                            (HazardSaveKind::Reflex, "reflex"),
-                            (HazardSaveKind::Will, "will"),
-                        ]
-                        .into_iter()
-                        .map(|(kind, slug)| HazardUnsupportedFact {
-                            field: HazardUnsupportedField::SaveDetail(kind),
-                            value: unsupported_value(
-                                "\"\"",
-                                HazardExpectedShape::String,
-                                HazardSourceShape::String,
-                                &format!("/system/saves/{slug}/saveDetail"),
-                                HazardUnsupportedOwner::Record(record_key.clone()),
-                                HazardDiagnosticCode::LegacyField,
+                        source_metadata: HazardSaveSourceMetadata {
+                            fortitude_detail: typed(
+                                String::new(),
+                                "/system/saves/fortitude/saveDetail",
                             ),
-                        })
-                        .collect(),
+                            reflex_detail: typed(String::new(), "/system/saves/reflex/saveDetail"),
+                            will_detail: typed(String::new(), "/system/saves/will/saveDetail"),
+                        },
                     },
                     "/system/saves",
                 ),
@@ -841,17 +1366,9 @@ fn hidden_pit_source_fixture() -> HazardRecord {
                     FactValue::Missing,
                     "/system/attributes/resistances",
                 ),
-                unsupported_fields: vec![HazardUnsupportedFact {
-                    field: HazardUnsupportedField::DefensesHasHealth,
-                    value: unsupported_value(
-                        "true",
-                        HazardExpectedShape::Boolean,
-                        HazardSourceShape::Boolean,
-                        "/system/attributes/hasHealth",
-                        HazardUnsupportedOwner::Record(record_key.clone()),
-                        HazardDiagnosticCode::UnsupportedValue,
-                    ),
-                }],
+                source_metadata: HazardDefenseSourceMetadata {
+                    has_health: typed(true, "/system/attributes/hasHealth"),
+                },
             },
             "/system/attributes",
         ),
@@ -877,6 +1394,12 @@ fn hidden_pit_source_fixture() -> HazardRecord {
             source_creature_type: typed(String::new(), "/system/creatureType"),
             source_status_effects: typed(Vec::new(), "/system/statusEffects"),
             actor_effects: HazardFact::source(FactValue::Missing, "/effects"),
+            token: typed(
+                HazardTokenSourceMetadata {
+                    name: typed("Hidden Pit".to_string(), "/prototypeToken/name"),
+                },
+                "/prototypeToken",
+            ),
         },
     }
 }
@@ -898,6 +1421,119 @@ fn item_common() -> HazardItemCommon {
         rules: typed(Vec::new(), "/items/0/system/rules"),
         slug: HazardFact::source(FactValue::Null, "/items/0/system/slug"),
         traits: typed(Vec::new(), "/items/0/system/traits/value"),
+        rarity: typed(Rarity::Common, "/items/0/system/traits/rarity"),
+        lineage: typed(
+            HazardItemLineage {
+                compendium_source: HazardFact::source(
+                    FactValue::Null,
+                    "/items/0/_stats/compendiumSource",
+                ),
+            },
+            "/items/0/_stats",
+        ),
+    }
+}
+
+fn hazard_source_metadata_fixture(actionable: bool) -> HazardRecord {
+    let mut hazard = hidden_pit_source_fixture();
+    let mut strike = synthetic_strike_entity();
+    if actionable {
+        let record_owner = HazardUnsupportedOwner::Record(hazard.identity.record_key.clone());
+        hazard.provenance.token = typed(
+            HazardTokenSourceMetadata {
+                name: unsupported(
+                    "17",
+                    HazardExpectedShape::String,
+                    HazardSourceShape::Number,
+                    "/prototypeToken/name",
+                    record_owner,
+                    HazardDiagnosticCode::UnexpectedShape,
+                ),
+            },
+            "/prototypeToken",
+        );
+
+        let mut defenses = hazard.defenses.typed().expect("defenses").clone();
+        defenses.source_metadata.has_health = typed(false, "/system/attributes/hasHealth");
+        let mut hit_points = defenses.hit_points.typed().expect("hit points").clone();
+        hit_points.source_metadata.temporary_maximum = typed(9, "/system/attributes/hp/tempmax");
+        defenses.hit_points = typed(hit_points, "/system/attributes/hp");
+        let mut saves = defenses.saves.typed().expect("saves").clone();
+        saves.source_metadata.fortitude_detail = typed(
+            "against forced movement".to_string(),
+            "/system/saves/fortitude/saveDetail",
+        );
+        defenses.saves = typed(saves, "/system/saves");
+        hazard.defenses = typed(defenses, "/system/attributes");
+
+        let FactValue::Value(HazardSourceValue::Typed(embedded)) =
+            &mut hazard.embedded_entities.value
+        else {
+            panic!("embedded entities")
+        };
+        let action = &mut embedded.entities[0];
+        let action_id = action.id.clone();
+        let HazardCapability::Action(action) = &mut action.capability else {
+            panic!("action")
+        };
+        action.common.rarity = unsupported(
+            "42",
+            HazardExpectedShape::ClosedVocabulary,
+            HazardSourceShape::Number,
+            "/items/0/system/traits/rarity",
+            HazardUnsupportedOwner::Entity(action_id),
+            HazardDiagnosticCode::UnexpectedShape,
+        );
+
+        let HazardCapability::Strike(capability) = &mut strike.capability else {
+            panic!("strike")
+        };
+        capability.common.traits = typed(
+            vec![HazardTrait::new("range-120").expect("trait")],
+            "/items/1/system/traits/value",
+        );
+        capability.source_metadata.weapon_type = typed(
+            HazardSourceAttackMode::Melee,
+            "/items/1/system/weaponType/value",
+        );
+        capability.source_metadata.attack_effects_custom = typed(
+            "corrosive mist".to_string(),
+            "/items/1/system/attackEffects/custom",
+        );
+    }
+    let FactValue::Value(HazardSourceValue::Typed(embedded)) = &mut hazard.embedded_entities.value
+    else {
+        panic!("embedded entities")
+    };
+    embedded.entities.push(strike);
+    hazard
+}
+
+fn synthetic_strike_entity() -> HazardEntity {
+    let id = HazardEntityId::new("synthetic-strike-rule").expect("entity id");
+    HazardEntity {
+        id: id.clone(),
+        family: HazardEntityFamily::Strike,
+        label: "Melee Strike".to_string(),
+        image: HazardFact::source(FactValue::Missing, "/items/1/img"),
+        source_identity: HazardEntitySourceIdentity::Stable {
+            source_id: HazardSourceId::new("synthetic-strike-rule").expect("source id"),
+        },
+        capability: HazardCapability::Strike(Box::new(HazardStrikeCapability {
+            common: item_common(),
+            bonus: typed(8, "/items/1/system/bonus/value"),
+            attack_effects: typed(Vec::new(), "/items/1/system/attackEffects/value"),
+            damage_rolls: typed(Vec::new(), "/items/1/system/damageRolls"),
+            source_metadata: HazardStrikeSourceMetadata {
+                attack: HazardFact::source(FactValue::Missing, "/items/1/system/attack/value"),
+                weapon_type: typed(
+                    HazardSourceAttackMode::Melee,
+                    "/items/1/system/weaponType/value",
+                ),
+                attack_effects_custom: typed(String::new(), "/items/1/system/attackEffects/custom"),
+            },
+            unsupported_fields: Vec::new(),
+        })),
     }
 }
 

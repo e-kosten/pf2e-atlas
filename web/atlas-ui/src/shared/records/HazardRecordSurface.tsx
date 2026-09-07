@@ -4,13 +4,14 @@ import type {
   EncounterRuntimeView,
   HazardSurfaceActivityView,
   HazardSurfaceDefensesView,
-  HazardSurfaceIwrView,
   HazardSurfaceLifecycleView,
   HazardSurfaceRuleView,
+  HazardSurfaceSourceMetadataFactView,
   HazardSurfaceView,
   RecordSurfaceMetadataView,
+  RecordSurfaceView,
 } from "../../generated/atlas";
-import { ActionGlyph, actionCostLabel } from "./ActionGlyph";
+import { ActionGlyph } from "./ActionGlyph";
 import { RecordHeader, SurfaceSection, TraitRow } from "./CreatureRecordSurface";
 import {
   RuntimeActivities,
@@ -20,18 +21,34 @@ import {
   type EncounterRecordSurfaceSlots,
 } from "./EncounterRecordSurface";
 import { RichBlocks, RichContent, type ReferenceHandler } from "./RecordRichContent";
+import { DefenseIwrList, DefenseStats } from "./RecordDefensePrimitives";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
+import {
+  RecordSurfaceIssues,
+  RecordSurfaceReferences,
+} from "./RecordSurfaceSupplement";
 import { formatSigned, formatSlug } from "./recordFormatting";
+
+type RecordSurfaceIssue = NonNullable<RecordSurfaceView["issues"]>[number];
+type RecordSurfaceReferences = NonNullable<RecordSurfaceView["references"]>;
 
 export function HazardDetailSurface({
   body,
+  issues,
   metadata,
   onReference,
+  onReferencesOpen,
+  references,
+  referencesLoading,
   showTitle,
 }: {
   body: HazardSurfaceView;
+  issues: RecordSurfaceIssue[] | undefined;
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
+  onReferencesOpen?: () => void;
+  references: RecordSurfaceReferences | undefined;
+  referencesLoading?: boolean;
   showTitle: boolean;
 }) {
   return (
@@ -41,24 +58,19 @@ export function HazardDetailSurface({
         onReference={onReference}
         showTitle={showTitle}
       />
-      <LifecycleBlock
-        blocks={body.lifecycle?.description}
-        keyPrefix="hazard-description"
-        onReference={onReference}
-      />
-      <div className="creature-sheet__facts-grid">
-        <div className="creature-sheet__facts-column creature-sheet__facts-column--primary">
-          <HazardSummary body={body} onReference={onReference} />
-          <HazardDefenses defenses={body.defenses} onReference={onReference} />
-        </div>
-        <div className="creature-sheet__facts-column creature-sheet__facts-column--secondary">
-          <HazardLifecycle lifecycle={body.lifecycle} onReference={onReference} />
-        </div>
-      </div>
+      <HazardOverview body={body} onReference={onReference} />
+      <HazardDetectionAndDisable body={body} onReference={onReference} />
+      <HazardDefensesPanel defenses={body.defenses} onReference={onReference} />
       <HazardActivities activities={body.activities} onReference={onReference} />
+      <HazardOperation lifecycle={body.lifecycle} onReference={onReference} />
       <HazardGeneralContent body={body} onReference={onReference} />
-      <HazardRelationships body={body} />
-      <HazardAvailability body={body} />
+      <RecordSurfaceIssues issues={issues} />
+      <RecordSurfaceReferences
+        loading={referencesLoading}
+        onDisclosureOpen={onReferencesOpen}
+        onReference={onReference}
+        references={references}
+      />
       <HazardSourceDisclosure body={body} metadata={metadata} />
     </article>
   );
@@ -117,12 +129,14 @@ export function HazardSearchCompactSurface({
 
 export function HazardEncounterSurface({
   body,
+  issues,
   metadata,
   onReference,
   runtime,
   slots,
 }: {
   body: HazardSurfaceView;
+  issues: RecordSurfaceIssue[] | undefined;
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
   runtime: EncounterRuntimeView | undefined;
@@ -196,13 +210,13 @@ export function HazardEncounterSurface({
         title="Description"
       />
       <HazardGeneralContent body={body} onReference={onReference} />
-      <HazardAvailability body={body} />
+      <RecordSurfaceIssues issues={issues} />
       <HazardSourceDisclosure body={body} metadata={metadata} />
     </article>
   );
 }
 
-function HazardSummary({
+function HazardOverview({
   body,
   onReference,
 }: {
@@ -216,26 +230,63 @@ function HazardSummary({
       body.complexity && formatSlug(body.complexity),
     ),
     textItem("size", "Size", body.size && formatSlug(body.size)),
-    numberItem("stealth", "Stealth", body.detection?.stealth_modifier, true),
-    numberItem("detection", "Detection DC", body.detection?.difficulty_class),
     textItem("sound", "Emits sound", formatEmitsSound(body)),
   ].filter((item): item is RecordKeyValueItem => item !== null);
-  if (!facts.length && !body.detection?.details?.length) return null;
+  const description = body.lifecycle?.description;
+  if (!facts.length && !description?.length) return null;
   return (
-    <SurfaceSection title="Hazard">
-      {facts.length ? (
-        <RecordKeyValueList ariaLabel="Hazard facts" items={facts} />
-      ) : null}
+    <SurfaceSection title="Overview">
       <LifecycleBlock
-        blocks={body.detection?.details}
-        keyPrefix="hazard-detection"
+        blocks={description}
+        keyPrefix="hazard-description"
         onReference={onReference}
       />
+      {facts.length ? (
+        <RecordKeyValueList ariaLabel="Hazard overview facts" items={facts} />
+      ) : null}
     </SurfaceSection>
   );
 }
 
-function HazardDefenses({
+function HazardDetectionAndDisable({
+  body,
+  onReference,
+}: {
+  body: HazardSurfaceView;
+  onReference: ReferenceHandler;
+}) {
+  const facts = [
+    numberItem("stealth", "Stealth", body.detection?.stealth_modifier, true),
+    numberItem("detection", "Detection DC", body.detection?.difficulty_class),
+  ].filter((item): item is RecordKeyValueItem => item !== null);
+  const detectionDetails = body.detection?.details;
+  const disable = body.lifecycle?.disable;
+  if (!facts.length && !detectionDetails?.length && !disable?.length) return null;
+  return (
+    <SurfaceSection title="Detection & disable">
+      {facts.length ? (
+        <RecordKeyValueList ariaLabel="Hazard detection" items={facts} />
+      ) : null}
+      <LifecycleBlock
+        blocks={detectionDetails}
+        keyPrefix="hazard-detection"
+        onReference={onReference}
+      />
+      {disable?.length ? (
+        <div className="hazard-sheet__lifecycle-entry">
+          <h4>Disable</h4>
+          <RichBlocks
+            blocks={disable}
+            keyPrefix="hazard-disable"
+            onReference={onReference}
+          />
+        </div>
+      ) : null}
+    </SurfaceSection>
+  );
+}
+
+function HazardDefensesPanel({
   defenses,
   onReference,
 }: {
@@ -244,31 +295,55 @@ function HazardDefenses({
 }) {
   if (!defenses) return null;
   const hp = defenses.hit_points;
-  const saves = defenses.saves;
-  const facts: RecordKeyValueItem[] = [
-    numberItem("ac", "Armor Class", defenses.armor_class),
-    numberItem("hardness", "Hardness", defenses.hardness),
-    numberItem("hp", "Hit Points", hp?.current),
-    numberItem("maximum-hp", "Maximum HP", hp?.maximum),
-    numberItem("temporary-hp", "Temporary HP", hp?.temporary),
-    numberItem("broken-threshold", "Broken Threshold", hp?.broken_threshold),
-    numberItem("fortitude", "Fortitude", saves?.fortitude, true),
-    numberItem("reflex", "Reflex", saves?.reflex, true),
-    numberItem("will", "Will", saves?.will, true),
-    iwrItem("immunities", "Immunities", defenses.immunities),
-    iwrItem("weaknesses", "Weaknesses", defenses.weaknesses),
-    iwrItem("resistances", "Resistances", defenses.resistances),
-  ].filter((item): item is RecordKeyValueItem => item !== null);
-  if (!facts.length && !hp?.details?.length) return null;
+  const stats = [
+    { key: "ac", label: "AC", value: defenses.armor_class },
+    {
+      key: "hp",
+      label: "HP",
+      qualifier:
+        hp?.temporary !== undefined && hp.temporary !== 0
+          ? `${formatSigned(hp.temporary)} temporary`
+          : undefined,
+      value: hazardHitPoints(hp),
+    },
+    { key: "hardness", label: "Hardness", value: defenses.hardness },
+    { key: "broken-threshold", label: "BT", value: hp?.broken_threshold },
+    {
+      key: "fortitude",
+      label: "Fort",
+      signed: true,
+      value: defenses.saves?.fortitude,
+    },
+    {
+      key: "reflex",
+      label: "Ref",
+      signed: true,
+      value: defenses.saves?.reflex,
+    },
+    { key: "will", label: "Will", signed: true, value: defenses.saves?.will },
+  ];
+  const hasStats = stats.some((stat) => stat.value !== undefined);
+  const hasIwr = Boolean(
+    defenses.immunities?.length ||
+    defenses.weaknesses?.length ||
+    defenses.resistances?.length,
+  );
+  if (!hasStats && !hasIwr && !hp?.details?.length) return null;
   return (
-    <SurfaceSection title="Defenses">
-      {facts.length ? (
-        <RecordKeyValueList ariaLabel="Hazard defenses" items={facts} />
-      ) : null}
+    <SurfaceSection
+      className="creature-sheet__panel--defenses hazard-sheet__defenses"
+      title="Defenses & Structure"
+    >
+      <DefenseStats ariaLabel="Hazard defense statistics" values={stats} />
       <LifecycleBlock
         blocks={hp?.details}
         keyPrefix="hazard-hit-points"
         onReference={onReference}
+      />
+      <DefenseIwrList
+        immunities={defenses.immunities}
+        resistances={defenses.resistances}
+        weaknesses={defenses.weaknesses}
       />
     </SurfaceSection>
   );
@@ -310,6 +385,38 @@ function HazardLifecycle({
   );
 }
 
+function HazardOperation({
+  lifecycle,
+  onReference,
+}: {
+  lifecycle: HazardSurfaceLifecycleView | undefined;
+  onReference: ReferenceHandler;
+}) {
+  if (!lifecycle) return null;
+  const items = [
+    ["routine", "Routine", lifecycle.routine],
+    ["reset", "Reset", lifecycle.reset],
+  ] as const;
+  const present = items.filter(([, , blocks]) => blocks?.length);
+  if (!present.length) return null;
+  return (
+    <SurfaceSection title="Operation">
+      {present.map(([key, label, blocks]) => (
+        <div className="hazard-sheet__lifecycle-entry" key={key}>
+          <h4>{label}</h4>
+          {blocks?.length ? (
+            <RichBlocks
+              blocks={blocks}
+              keyPrefix={`hazard-${key}`}
+              onReference={onReference}
+            />
+          ) : null}
+        </div>
+      ))}
+    </SurfaceSection>
+  );
+}
+
 function HazardActivities({
   activities,
   onReference,
@@ -341,9 +448,15 @@ function HazardActivityHeading({ activity }: { activity: HazardSurfaceActivityVi
     <Space size="small" wrap>
       <strong>{activity.label}</strong>
       {activity.action_cost ? <ActionGlyph cost={activity.action_cost} /> : null}
-      <Tag>{formatSlug(activity.activity_type)}</Tag>
+      <Tag>
+        {activity.attack_mode
+          ? `${formatSlug(activity.attack_mode)} Strike`
+          : activity.activity_type === "unsupported_child"
+            ? "Content only"
+            : formatSlug(activity.activity_type)}
+      </Tag>
       {activity.attack_bonus !== undefined ? (
-        <span>{formatSigned(activity.attack_bonus)}</span>
+        <span>Attack {formatSigned(activity.attack_bonus)}</span>
       ) : null}
     </Space>
   );
@@ -365,19 +478,12 @@ function HazardActivityDetails({
           ))}
         </Space>
       ) : null}
-      {activity.action_cost ? <p>{actionCostLabel(activity.action_cost)}</p> : null}
-      {activity.child_type ? <p>Source type: {activity.child_type}</p> : null}
       {activity.category ? <p>Category: {formatSlug(activity.category)}</p> : null}
       {activity.death_note !== undefined ? (
         <p>Death note: {activity.death_note ? "Yes" : "No"}</p>
       ) : null}
       {activity.self_effect ? (
-        <p>
-          Self effect: {activity.self_effect.label ?? "Unlabeled"}
-          {activity.self_effect.target_uuid
-            ? ` (${activity.self_effect.target_uuid})`
-            : ""}
-        </p>
+        <p>Self effect: {activity.self_effect.label ?? "Linked effect"}</p>
       ) : null}
       {activity.frequency ? <p>{formatFrequency(activity.frequency)}</p> : null}
       {activity.attack_effects?.length ? (
@@ -404,7 +510,6 @@ function HazardActivityDetails({
           onReference={onReference}
         />
       ))}
-      <small>Occurrence {activity.occurrence_id}</small>
     </div>
   );
 }
@@ -427,8 +532,8 @@ function HazardRule({
     case "active_effect_like":
       return (
         <p>
-          Active effect{rule.mode ? ` (${rule.mode})` : ""}: {rule.path ?? "—"}
-          {rule.value !== undefined ? ` = ${rule.value ? "true" : "false"}` : ""}
+          Active effect{rule.mode ? ` (${formatSlug(rule.mode)})` : ""}
+          {rule.value !== undefined ? `: ${rule.value ? "enabled" : "disabled"}` : ""}
         </p>
       );
     case "aura":
@@ -436,7 +541,6 @@ function HazardRule({
         <p>
           Aura:{" "}
           {rule.radius !== undefined ? `${rule.radius} feet` : "radius unavailable"}
-          {rule.slug ? ` (${rule.slug})` : ""}
           {rule.traits?.length ? `; ${rule.traits.join(", ")}` : ""}
         </p>
       );
@@ -444,7 +548,7 @@ function HazardRule({
       return (
         <p>
           Damage dice:{" "}
-          {[rule.dice_number, rule.die_size, rule.damage_type, rule.selector]
+          {[rule.dice_number, rule.die_size, rule.damage_type]
             .filter((value) => value !== undefined)
             .join(" ") || "—"}
           {rule.critical !== undefined
@@ -457,7 +561,6 @@ function HazardRule({
         <p>
           Flat modifier: {rule.value === undefined ? "—" : formatSigned(rule.value)}
           {rule.damage_type ? ` ${rule.damage_type}` : ""}
-          {rule.selector ? ` (${rule.selector})` : ""}
           {rule.critical !== undefined
             ? `; critical ${rule.critical ? "yes" : "no"}`
             : ""}
@@ -478,7 +581,7 @@ function HazardRule({
         </div>
       );
     case "unsupported":
-      return <p>Unsupported authored rule</p>;
+      return null;
   }
 }
 
@@ -491,37 +594,62 @@ function HazardRuntimeFacts({
 }) {
   const hazard = runtime?.hazard;
   if (!runtime || !hazard) return null;
-  const facts: RecordKeyValueItem[] = [
-    numberItem("ac", "Armor Class", runtime.defenses?.armor_class.adjusted_value),
-    numberItem(
-      "fortitude",
-      "Fortitude",
-      runtime.saves?.fortitude?.adjusted_value,
-      true,
-    ),
-    numberItem("reflex", "Reflex", runtime.saves?.reflex?.adjusted_value, true),
-    numberItem("will", "Will", runtime.saves?.will?.adjusted_value, true),
-    numberItem("hardness", "Hardness", body.defenses?.hardness),
-    numberItem("detection", "Detection DC", hazard.detection_dc?.adjusted_value),
-    numberItem(
-      "broken-threshold",
-      "Broken Threshold",
-      hazard.broken_threshold?.adjusted_value,
-    ),
-    hazard.initiative_suggestion
-      ? textItem(
-          "initiative-suggestion",
-          "Initiative suggestion",
-          `${formatSlug(hazard.initiative_suggestion.statistic)} ${formatSigned(hazard.initiative_suggestion.modifier.adjusted_value)}`,
-        )
-      : null,
-    iwrItem("immunities", "Immunities", body.defenses?.immunities),
-    iwrItem("weaknesses", "Weaknesses", body.defenses?.weaknesses),
-    iwrItem("resistances", "Resistances", body.defenses?.resistances),
-  ].filter((item): item is RecordKeyValueItem => item !== null);
-  return facts.length ? (
+  const stats = [
+    {
+      key: "ac",
+      label: "AC",
+      value: runtime.defenses?.armor_class.adjusted_value,
+    },
+    { key: "hardness", label: "Hardness", value: body.defenses?.hardness },
+    {
+      key: "broken-threshold",
+      label: "BT",
+      value: hazard.broken_threshold?.adjusted_value,
+    },
+    {
+      key: "fortitude",
+      label: "Fort",
+      signed: true,
+      value: runtime.saves?.fortitude?.adjusted_value,
+    },
+    {
+      key: "reflex",
+      label: "Ref",
+      signed: true,
+      value: runtime.saves?.reflex?.adjusted_value,
+    },
+    {
+      key: "will",
+      label: "Will",
+      signed: true,
+      value: runtime.saves?.will?.adjusted_value,
+    },
+    {
+      key: "detection",
+      label: "Detection DC",
+      value: hazard.detection_dc?.adjusted_value,
+    },
+  ];
+  const hasStats = stats.some((stat) => stat.value !== undefined);
+  const hasIwr = Boolean(
+    body.defenses?.immunities?.length ||
+    body.defenses?.weaknesses?.length ||
+    body.defenses?.resistances?.length,
+  );
+  return hasStats || hasIwr || hazard.initiative_suggestion ? (
     <SurfaceSection title="Hazard runtime">
-      <RecordKeyValueList ariaLabel="Hazard runtime facts" items={facts} />
+      <DefenseStats ariaLabel="Hazard runtime statistics" values={stats} />
+      {hazard.initiative_suggestion ? (
+        <p className="creature-sheet__detail-note">
+          Initiative suggestion: {formatSlug(hazard.initiative_suggestion.statistic)}{" "}
+          {formatSigned(hazard.initiative_suggestion.modifier.adjusted_value)}
+        </p>
+      ) : null}
+      <DefenseIwrList
+        immunities={body.defenses?.immunities}
+        resistances={body.defenses?.resistances}
+        weaknesses={body.defenses?.weaknesses}
+      />
     </SurfaceSection>
   ) : null;
 }
@@ -547,60 +675,6 @@ function HazardGeneralContent({
   );
 }
 
-function HazardRelationships({ body }: { body: HazardSurfaceView }) {
-  if (!body.relationships?.length) return null;
-  return (
-    <SurfaceSection title="Relationships">
-      <ul>
-        {body.relationships.map((relationship) => {
-          const target =
-            relationship.target.target_type === "entity"
-              ? `Entity ${relationship.target.entity_id}`
-              : `Occurrence ${relationship.target.occurrence_id}`;
-          return (
-            <li key={relationship.relationship_id}>
-              {target}
-              {relationship.source_occurrence_id
-                ? ` from ${relationship.source_occurrence_id}`
-                : ""}
-            </li>
-          );
-        })}
-      </ul>
-    </SurfaceSection>
-  );
-}
-
-function HazardAvailability({ body }: { body: HazardSurfaceView }) {
-  if (!body.unavailable_fields?.length) return null;
-  return (
-    <Collapse
-      className="record-surface__secondary"
-      ghost
-      items={[
-        {
-          key: "availability",
-          label: "Data availability",
-          children: (
-            <ul className="encounter-runtime-limitations">
-              {body.unavailable_fields.map((unavailable, index) => (
-                <li
-                  key={`${unavailable.field}:${unavailable.component_id ?? "record"}:${index}`}
-                >
-                  <Tag>{formatSlug(unavailable.state)}</Tag>
-                  <span>{unavailable.message}</span>
-                  <small>{unavailable.field}</small>
-                </li>
-              ))}
-            </ul>
-          ),
-        },
-      ]}
-      size="small"
-    />
-  );
-}
-
 function HazardSourceDisclosure({
   body,
   metadata,
@@ -609,6 +683,16 @@ function HazardSourceDisclosure({
   metadata: RecordSurfaceMetadataView;
 }) {
   const license = body.provenance.publication_license;
+  const metadataFacts = body.provenance.source_metadata
+    .map(sourceMetadataItem)
+    .filter((item): item is RecordKeyValueItem => item !== null);
+  const sourceFacts = [
+    textItem("publication", "Publication", metadata.source?.publication_title),
+    textItem("pack", "Source pack", metadata.source?.pack_label),
+    license.state === "value" ? textItem("license", "License", license.value) : null,
+    ...metadataFacts,
+  ].filter((item): item is RecordKeyValueItem => item !== null);
+  if (!sourceFacts.length) return null;
   return (
     <Collapse
       className="record-surface__secondary"
@@ -616,30 +700,12 @@ function HazardSourceDisclosure({
       items={[
         {
           key: "source",
-          label: "References & Source",
+          label: "Source & provenance",
           children: (
             <RecordKeyValueList
-              ariaLabel="Hazard source"
-              items={[
-                {
-                  key: "pack",
-                  label: "Pack",
-                  value: metadata.source?.pack_label ?? "—",
-                },
-                {
-                  key: "path",
-                  label: "Source path",
-                  value: body.provenance.source_path,
-                },
-                {
-                  key: "license",
-                  label: "License",
-                  value:
-                    license.state === "value"
-                      ? license.value
-                      : formatSlug(license.state),
-                },
-              ]}
+              ariaLabel="Hazard provenance"
+              items={sourceFacts}
+              labelWidth="provenance"
             />
           ),
         },
@@ -686,28 +752,62 @@ function textItem(
   return value === undefined ? null : { key, label, value };
 }
 
-function iwrItem(
-  key: string,
-  label: string,
-  values: HazardSurfaceIwrView[] | undefined,
-): RecordKeyValueItem | null {
-  if (!values?.length) return null;
-  return {
-    key,
-    label,
-    value: values.map(formatIwr).join(", "),
-  };
+function hazardHitPoints(
+  hitPoints: HazardSurfaceDefensesView["hit_points"],
+): string | undefined {
+  if (!hitPoints) return undefined;
+  const { current, maximum } = hitPoints;
+  if (maximum !== undefined && (current === undefined || current === maximum)) {
+    return maximum.toString();
+  }
+  if (current !== undefined && maximum !== undefined) return `${current}/${maximum}`;
+  return current?.toString();
 }
 
-function formatIwr(value: HazardSurfaceIwrView) {
-  return [
-    formatSlug(value.kind),
-    value.amount,
-    value.exceptions?.length ? `except ${value.exceptions.join(", ")}` : undefined,
-    value.double_vs?.length ? `double vs ${value.double_vs.join(", ")}` : undefined,
-  ]
-    .filter((part) => part !== undefined)
-    .join(" ");
+function sourceMetadataItem(
+  fact: HazardSurfaceSourceMetadataFactView,
+  index: number,
+): RecordKeyValueItem | null {
+  if (fact.value.state !== "typed") return null;
+  const key = `${fact.field}:${index}`;
+  switch (fact.field) {
+    case "token_name":
+      return textItem(key, "Token name", fact.value.value.trim() || undefined);
+    case "has_health":
+      return textItem(
+        key,
+        "Health compatibility",
+        fact.value.value ? "Health present" : "No health",
+      );
+    case "temporary_maximum":
+      return textItem(key, "Temporary maximum", fact.value.value.toString());
+    case "save_detail":
+      return textItem(
+        key,
+        `${formatSlug(fact.save)} source note`,
+        fact.value.value.trim() || undefined,
+      );
+    case "item_rarity":
+      return textItem(
+        key,
+        "Component rarity",
+        fact.value.value.trim() ? formatSlug(fact.value.value) : undefined,
+      );
+    case "item_lineage":
+      return fact.value.value.compendium_source.state === "typed"
+        ? textItem(key, "Component lineage", "Compendium source recorded")
+        : null;
+    case "strike_attack":
+      return textItem(key, "Strike source attack", formatSigned(fact.value.value));
+    case "strike_weapon_type":
+      return textItem(key, "Strike source mode", formatSlug(fact.value.value));
+    case "strike_attack_effects_custom":
+      return textItem(
+        key,
+        "Custom attack effect",
+        fact.value.value.trim() || undefined,
+      );
+  }
 }
 
 function formatFrequency(

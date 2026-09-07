@@ -233,6 +233,8 @@ pub fn insert_minimal_canonical_hazard_projection(
         },
         slug: typed!("source-only-slug".to_string(), "$.system.slug"),
         traits: missing!("$.system.traits.value"),
+        rarity: missing!("$.system.traits.rarity"),
+        lineage: missing!("$._stats"),
     };
     let action_id = atlas_record::HazardEntityId::new("fixture-action").map_err(|_| "action id")?;
     let strike_id = atlas_record::HazardEntityId::new("fixture-strike").map_err(|_| "strike id")?;
@@ -297,6 +299,11 @@ pub fn insert_minimal_canonical_hazard_projection(
                         }],
                         "$.system.damageRolls"
                     ),
+                    source_metadata: atlas_record::HazardStrikeSourceMetadata {
+                        attack: missing!("$.system.attack.value"),
+                        weapon_type: missing!("$.system.weaponType.value"),
+                        attack_effects_custom: missing!("$.system.attackEffects.custom"),
+                    },
                     unsupported_fields: Vec::new(),
                 },
             )),
@@ -391,7 +398,9 @@ pub fn insert_minimal_canonical_hazard_projection(
                         maximum: number_fact(maximum_hit_points, "$.system.attributes.hp.max",),
                         temporary: missing!("$.system.attributes.hp.temp"),
                         details: missing!("$.system.attributes.hp.details"),
-                        unsupported_fields: Vec::new(),
+                        source_metadata: atlas_record::HazardHitPointSourceMetadata {
+                            temporary_maximum: missing!("$.system.attributes.hp.tempmax"),
+                        },
                     },
                     "$.system.attributes.hp"
                 ),
@@ -409,14 +418,20 @@ pub fn insert_minimal_canonical_hazard_projection(
                             || missing!("$.system.saves.will.value"),
                             |value| typed!(value, "$.system.saves.will.value"),
                         ),
-                        unsupported_fields: Vec::new(),
+                        source_metadata: atlas_record::HazardSaveSourceMetadata {
+                            fortitude_detail: missing!("$.system.saves.fortitude.saveDetail"),
+                            reflex_detail: missing!("$.system.saves.reflex.saveDetail"),
+                            will_detail: missing!("$.system.saves.will.saveDetail"),
+                        },
                     },
                     "$.system.saves"
                 ),
                 immunities: missing!("$.system.attributes.immunities"),
                 weaknesses: missing!("$.system.attributes.weaknesses"),
                 resistances: missing!("$.system.attributes.resistances"),
-                unsupported_fields: Vec::new(),
+                source_metadata: atlas_record::HazardDefenseSourceMetadata {
+                    has_health: missing!("$.system.attributes.hasHealth"),
+                },
             },
             "$.system.attributes"
         ),
@@ -456,6 +471,7 @@ pub fn insert_minimal_canonical_hazard_projection(
             source_creature_type: missing!("$.system.attributes.emitsSound"),
             source_status_effects: missing!("$.statuses"),
             actor_effects: missing!("$.effects"),
+            token: missing!("$.prototypeToken"),
         },
     };
     let metrics = atlas_record::project_hazard_facts(&hazard).metrics;
