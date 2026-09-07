@@ -208,7 +208,7 @@ fn hazard_issues(
                 .as_ref()
                 .and_then(|entity_id| hazard_issue_subject(hazard, entity_id.as_str())),
             fact_label: Some(hazard_metadata_fact_label(issue.field).to_string()),
-            message: issue.message().to_string(),
+            message: hazard_metadata_issue_message(hazard, &issue),
         });
     }
 
@@ -336,6 +336,60 @@ fn hazard_issue_subject(
             occurrence_id: occurrence.id.as_str().to_string(),
         }),
     })
+}
+
+fn hazard_metadata_issue_message(
+    hazard: &atlas_record::HazardRecord,
+    issue: &atlas_record::HazardSourceMetadataIssue,
+) -> String {
+    if issue.kind != HazardSourceMetadataIssueKind::Malformed {
+        return issue.message().to_string();
+    }
+    if issue.field == HazardSourceMetadataField::StrikeAttack {
+        let value = hazard
+            .embedded_entities
+            .typed()
+            .and_then(|embedded| {
+                embedded
+                    .entities
+                    .iter()
+                    .find(|entity| Some(&entity.id) == issue.entity_id.as_ref())
+            })
+            .and_then(|entity| match &entity.capability {
+                atlas_record::HazardCapability::Strike(strike) => {
+                    match &strike.source_metadata.attack.value {
+                        atlas_record::FactValue::Value(
+                            atlas_record::HazardSourceValue::Unsupported(value),
+                        ) => Some(value),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            });
+        let shape = value
+            .map(|value| hazard_source_shape_label(value.actual_shape))
+            .unwrap_or("an unsupported value");
+        return format!(
+            "The extra source attack field contains {shape} where an integer is expected. It does not supply the displayed attack bonus; that bonus comes from the separate gameplay attack field. The original value is retained in Source & provenance."
+        );
+    }
+    format!(
+        "{} has an unsupported source value. It is retained in Source & provenance and is not used as a gameplay fallback.",
+        hazard_metadata_fact_label(issue.field)
+    )
+}
+
+pub(crate) fn hazard_source_shape_label(shape: atlas_record::HazardSourceShape) -> &'static str {
+    use atlas_record::HazardSourceShape;
+    match shape {
+        HazardSourceShape::Missing => "a missing value",
+        HazardSourceShape::Null => "an explicit null",
+        HazardSourceShape::Boolean => "a yes/no value",
+        HazardSourceShape::Number => "a number",
+        HazardSourceShape::String => "text",
+        HazardSourceShape::Array => "a list",
+        HazardSourceShape::Object => "a structured value",
+    }
 }
 
 fn hazard_metadata_fact_label(field: HazardSourceMetadataField) -> &'static str {

@@ -17,7 +17,7 @@ type WorkspaceLayoutProps = {
   filter: React.ReactNode;
   responsiveSearch?: boolean;
   searchControls?: React.ReactNode;
-  activeSearchFilter?: React.ReactNode;
+  activeFilterCount?: number;
   filterHeaderActions?: React.ReactNode;
   results: React.ReactNode;
   resultsHeaderActions?: React.ReactNode;
@@ -40,7 +40,7 @@ export function WorkspaceLayout({
   filter,
   responsiveSearch = false,
   searchControls,
-  activeSearchFilter,
+  activeFilterCount = 0,
   filterHeaderActions,
   results,
   resultsHeaderActions,
@@ -200,24 +200,23 @@ export function WorkspaceLayout({
         compact ? "search-workspace search-workspace--compact" : "search-workspace"
       }
     >
-      {compact || activeSearchFilter ? (
+      {compact ? (
         <div className="search-workspace__toolbar">
-          {compact ? searchControls : null}
-          {activeSearchFilter}
-          {compact ? (
-            <Space wrap>
-              <Button onClick={() => setFiltersOpen(true)}>Filters</Button>
-              {narrow && selectedRecordKey ? (
-                <Button
-                  onClick={() =>
-                    setResultsForRecord(showDetail ? selectedRecordKey : null)
-                  }
-                >
-                  {showDetail ? "Back to results" : "Show selected record"}
-                </Button>
-              ) : null}
-            </Space>
-          ) : null}
+          {searchControls}
+          <Space wrap>
+            <Button onClick={() => setFiltersOpen(true)}>
+              {activeFilterCount ? `Filters (${activeFilterCount})` : "Filters"}
+            </Button>
+            {narrow && selectedRecordKey ? (
+              <Button
+                onClick={() =>
+                  setResultsForRecord(showDetail ? selectedRecordKey : null)
+                }
+              >
+                {showDetail ? "Back to results" : "Show selected record"}
+              </Button>
+            ) : null}
+          </Space>
         </div>
       ) : null}
       <Drawer

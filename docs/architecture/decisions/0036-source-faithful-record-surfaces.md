@@ -46,3 +46,7 @@ Search, CLI, app, and UI can differ in projection shape while deriving from one 
 Spell action glyphs and hazard no-multiple-attack-penalty/independent-limbs labels consume closed projections from atlas-record. Unknown effects remain typed issues; clients do not prettify source slugs. Hazard ordinary supplemental content omits the description already owned by the primary lifecycle surface, while canonical content, FTS and provenance retain it.
 
 Common reference responses carry server-owned next limits8,16,32,50 and stop at50 with an honest cap. The client validates record identity and both returned limits, passes AbortSignal and never invents beyond-cap pagination. Missing records use the typed not-found result with Search/Back recovery. Background refresh preserves the most recent valid selected form; parent refresh cannot unmount selection and late or mismatched request tuples cannot replace it.
+
+### App damage notation
+
+`atlas-record::project_record_surface_content` selects a private record-surface policy in the existing rich-content traversal. For Damage nodes it prefers authored labels, otherwise displays safe already-typed damage parts in authored order without appending a redundant damage suffix. Incomplete parts retain the default formula. App-service uses this entry point for owned and lifecycle content; resolved reference identities survive unchanged. The default `project_presentation_content`, plain/Markdown rendering, canonical document/hash, FTS and embedding inputs remain unchanged. The browser never parses roll notation.

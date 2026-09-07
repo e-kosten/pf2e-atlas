@@ -84,7 +84,6 @@ export function AppShell({
         <Menu
           aria-label="Atlas views"
           className="topbar__nav"
-          disabledOverflow
           items={navItems}
           mode="horizontal"
           onClick={onNavClick}

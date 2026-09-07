@@ -13,7 +13,6 @@ type AvailableReferenceSection = Extract<
   RecordSurfaceReferenceSection,
   { state: "available" }
 >;
-type RecordSurfaceReferenceEdge = AvailableReferenceSection["edges"][number];
 type RecordSurfaceReferenceRecord = AvailableReferenceSection["records"][number];
 
 export function RecordSurfaceIssues({
@@ -214,6 +213,14 @@ function ReferenceDirection({
       </section>
     );
   }
+  if (section.total_records === 0)
+    return (
+      <p className="record-surface-references__empty">
+        {direction === "backlinks"
+          ? "No records reference this record."
+          : "No outgoing references."}
+      </p>
+    );
   const shown = section.records.length;
   const summary = `Showing ${shown} of ${section.total_records} ${pluralize(section.total_records, "record")}`;
   const capped = section.truncated && section.next_limit === undefined;
@@ -265,15 +272,10 @@ function ReferenceDirection({
           This panel shows up to {section.requested_limit} linked records.
         </p>
       ) : null}
-      {direction === "backlinks" && section.records.length ? (
-        <p>Records that reference this record.</p>
-      ) : null}
       {section.records.length ? (
         <ul className="record-surface-references__list">
           {section.records.map((record) => (
             <ReferenceRecord
-              direction={direction}
-              edges={section.edges}
               key={record.record_key}
               onReference={onReference}
               record={record}
@@ -288,21 +290,12 @@ function ReferenceDirection({
 }
 
 function ReferenceRecord({
-  direction,
-  edges,
   onReference,
   record,
 }: {
-  direction: "backlinks" | "outgoing";
-  edges: RecordSurfaceReferenceEdge[];
   onReference: (recordKey: string) => void;
   record: RecordSurfaceReferenceRecord;
 }) {
-  const matchingEdges = edges.filter((edge) =>
-    direction === "outgoing"
-      ? edge.to_record_key === record.record_key
-      : edge.from_record_key === record.record_key,
-  );
   return (
     <li>
       <div className="record-surface-references__record">
@@ -311,13 +304,6 @@ function ReferenceRecord({
         </Button>
         <Tag>{formatSlug(record.kind)}</Tag>
       </div>
-      {matchingEdges.length ? (
-        <ul className="record-surface-references__evidence">
-          {matchingEdges.map((edge, index) => (
-            <li key={index}>{edge.display_text ?? edge.reference_text}</li>
-          ))}
-        </ul>
-      ) : null}
     </li>
   );
 }

@@ -239,7 +239,7 @@ describe("SpellRecordSurface", () => {
     expect(
       screen.getByRole("heading", { name: "Planar Displacement" }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Ritual requirements/ }));
+    expect(screen.getByLabelText("Spell casting")).toHaveTextContent("Primary check");
     expect(screen.getByText("Religion (master)")).toBeInTheDocument();
     expect(screen.getByText("Arcana or Occultism")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Effect" })).not.toBeInTheDocument();
@@ -327,6 +327,39 @@ describe("SpellRecordSurface", () => {
     expect(screen.getAllByText("Area details are unavailable.")).toHaveLength(1);
     expect(screen.queryByText("Details", { exact: true })).not.toBeInTheDocument();
     expect(screen.queryByText("Unsupported", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("retains a valid draft rank across forms and explains a required reset", async () => {
+    const surface = healForms();
+    if (surface.presentation.presentation_type !== "spell") throw new Error("fixture");
+    const forms = surface.presentation.body.forms;
+    const living = forms.find((form) => form.label === "Living creature")!;
+    living.minimum_cast_rank = 4;
+    const select = vi.fn();
+    render(
+      <RecordSurface
+        onReference={vi.fn()}
+        onSpellFormSelection={select}
+        surface={surface}
+      />,
+    );
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
+      target: { value: "5" },
+    });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Living creature" }));
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("5");
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(select).toHaveBeenLastCalledWith({ formId: living.id, castRank: 5 });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Undead creature" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
+      target: { value: "2" },
+    });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Living creature" }));
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("4");
+    expect(screen.getByRole("status")).toHaveTextContent("Cast rank reset to 4");
   });
 
   it("keeps Heal's compact backend form order without exposing authored patches", async () => {
