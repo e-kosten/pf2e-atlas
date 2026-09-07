@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type {
   RecordSurfaceView,
   SpellAreaView,
@@ -22,6 +22,29 @@ const missing = { state: "missing" as const };
 const known = <T,>(value: T) => ({ state: "known" as const, value });
 
 describe("SpellRecordSurface", () => {
+  it("omits an authored empty range from quick facts while preserving the area", () => {
+    const definition = plainSpellDefinition();
+    definition.targeting = known({
+      range: known({ authored_text: "" }),
+      area: known({
+        area_type: known("emanation"),
+        legacy_area_type: missing,
+        value: known(30),
+        details: missing,
+      }),
+      target: missing,
+    });
+    render(
+      <RecordSurface
+        onReference={vi.fn()}
+        surface={spellSurface("Heal", definition, [baseForm("base")])}
+      />,
+    );
+    const summary = screen.getByLabelText("Spell quick facts");
+    expect(within(summary).getByText(/30-foot emanation/)).toBeInTheDocument();
+    expect(summary).not.toHaveTextContent(/Range/);
+  });
+
   it("renders common outer issues and both reference directions without changing the effective spell", () => {
     const surface = rimeSelected(5, [5], "8d4", 30);
     surface.issues = [
