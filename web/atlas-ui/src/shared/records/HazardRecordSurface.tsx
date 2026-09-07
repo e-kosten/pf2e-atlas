@@ -322,7 +322,7 @@ function HazardDefensesPanel({
 }) {
   if (!defenses) return null;
   const hp = defenses.hit_points;
-  const stats = [
+  const structuralStats = [
     { key: "ac", label: "AC", value: defenses.armor_class },
     {
       key: "hp",
@@ -335,6 +335,9 @@ function HazardDefensesPanel({
     },
     { key: "hardness", label: "Hardness", value: defenses.hardness },
     { key: "broken-threshold", label: "BT", value: hp?.broken_threshold },
+  ];
+  const stats = [
+    ...(defenses.applicability.structure === "inapplicable" ? [] : structuralStats),
     {
       key: "fortitude",
       label: "Fort",

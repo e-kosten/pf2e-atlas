@@ -6,6 +6,7 @@ mod creature_content_placement;
 mod creature_entities;
 mod creature_projection;
 mod hazard;
+mod hazard_applicability;
 mod hazard_projection;
 #[cfg(test)]
 mod hazard_tests;
@@ -98,6 +99,10 @@ pub use hazard::{
     HazardUnsupportedOwner, HazardUnsupportedRule, HazardUnsupportedValue,
     InvalidHazardComponentId, InvalidHazardEntityId, InvalidHazardOccurrenceId,
     InvalidHazardRelationshipId, InvalidHazardSlug, InvalidHazardSourceId,
+};
+pub use hazard_applicability::{
+    HAZARD_APPLICABILITY_RULE_ID, HAZARD_APPLICABILITY_RULE_VERSION, HazardApplicabilityState,
+    HazardDefenseApplicability, project_hazard_defense_applicability,
 };
 pub use hazard_projection::{
     HAZARD_CONVENIENCE_RULE_ID, HAZARD_CONVENIENCE_RULE_VERSION, HazardAttackEffect,

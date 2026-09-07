@@ -180,6 +180,7 @@ pub(crate) fn hazard_surface(
                 },
             );
             HazardSurfaceDefensesView {
+                applicability: defense_applicability(defenses),
                 armor_class: (!encounter)
                     .then(|| {
                         typed_fact(
@@ -1321,6 +1322,29 @@ fn unsupported_field_name(field: &HazardUnsupportedField) -> &'static str {
     }
 }
 
+fn defense_applicability(
+    defenses: &atlas_record::HazardDefenses,
+) -> atlas_app_model::HazardSurfaceDefenseApplicabilityView {
+    let projection = atlas_record::project_hazard_defense_applicability(defenses);
+    let state = |value| match value {
+        atlas_record::HazardApplicabilityState::Applicable => {
+            atlas_app_model::HazardSurfaceApplicabilityStateView::Applicable
+        }
+        atlas_record::HazardApplicabilityState::Inapplicable => {
+            atlas_app_model::HazardSurfaceApplicabilityStateView::Inapplicable
+        }
+        atlas_record::HazardApplicabilityState::Unknown => {
+            atlas_app_model::HazardSurfaceApplicabilityStateView::Unknown
+        }
+    };
+    atlas_app_model::HazardSurfaceDefenseApplicabilityView {
+        health: state(projection.health),
+        structure: state(projection.structure),
+        rule_id: projection.rule_id.to_string(),
+        rule_version: projection.rule_version,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use atlas_domain::{Rarity, RecordKey, RecordKind};
@@ -1339,6 +1363,55 @@ mod tests {
     use atlas_search::RemasterLinksResult;
 
     use super::{RecordSurfaceProfileView, hazard_surface};
+
+    #[test]
+    fn unknown_health_inputs_do_not_hide_valid_zero_statistics() {
+        use atlas_app_model::HazardSurfaceApplicabilityStateView::{Applicable, Unknown};
+        for variant in 0..4 {
+            let mut hazard = source_metadata_fixture(false);
+            let owner = HazardUnsupportedOwner::Record(hazard.identity.record_key.clone());
+            let FactValue::Value(HazardSourceValue::Typed(defenses)) = &mut hazard.defenses.value
+            else {
+                panic!("defenses")
+            };
+            defenses.armor_class = typed(0, "/system/attributes/ac/value");
+            let FactValue::Value(HazardSourceValue::Typed(hp)) = &mut defenses.hit_points.value
+            else {
+                panic!("hp")
+            };
+            hp.maximum = match variant {
+                0 => missing("/system/attributes/hp/max"),
+                1 => HazardFact {
+                    value: FactValue::Null,
+                    ..missing("/system/attributes/hp/max")
+                },
+                2 => malformed("/system/attributes/hp/max", "\"bad\"", owner),
+                _ => typed(-1, "/system/attributes/hp/max"),
+            };
+            let projection = atlas_record::project_hazard_defense_applicability(defenses);
+            assert_eq!(
+                projection.health,
+                atlas_record::HazardApplicabilityState::Unknown
+            );
+            let view = hazard_surface(&hazard, RecordSurfaceProfileView::RecordDetail, None)
+                .defenses
+                .expect("view");
+            assert_eq!(view.applicability.structure, Unknown);
+            assert_eq!(view.armor_class, Some(0));
+        }
+        let mut hazard = source_metadata_fixture(false);
+        let FactValue::Value(HazardSourceValue::Typed(defenses)) = &mut hazard.defenses.value
+        else {
+            panic!("defenses")
+        };
+        defenses.armor_class = typed(0, "/system/attributes/ac/value");
+        defenses.hardness = typed(0, "/system/attributes/hardness");
+        let view = hazard_surface(&hazard, RecordSurfaceProfileView::RecordDetail, None)
+            .defenses
+            .expect("view");
+        assert_eq!(view.applicability.structure, Applicable);
+        assert_eq!((view.armor_class, view.hardness), (Some(0), Some(0)));
+    }
 
     #[test]
     fn hazard_effects_are_typed_deduplicated_and_unknowns_remain_issues() {

@@ -288,3 +288,6 @@ export type { UpdateEncounterRequest } from "../../../../crates/atlas-app-model/
 export type { UpdateSavedListRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListRequest";
 export type { RelationshipConstraint } from "../../../../crates/atlas-app-model/bindings/RelationshipConstraint";
 export type { ReferenceSearchDirection } from "../../../../crates/atlas-app-model/bindings/ReferenceSearchDirection";
+
+export type { HazardSurfaceDefenseApplicabilityView } from "../../../../crates/atlas-app-model/bindings/HazardSurfaceDefenseApplicabilityView";
+export type { HazardSurfaceApplicabilityStateView } from "../../../../crates/atlas-app-model/bindings/HazardSurfaceApplicabilityStateView";
