@@ -640,6 +640,7 @@ fn encounter_hazard_record_participant_uses_canonical_body_and_preserves_creatur
         Some(30)
     );
     assert_eq!(hazard_vitals.current_hp, Some(30));
+    assert!(hazard.record_view.references.is_none());
     let RecordSurfacePresentationView::Hazard { body } = &hazard.record_view.presentation else {
         panic!("hazard participant should expose its tagged canonical static body");
     };
@@ -1542,6 +1543,7 @@ fn reset_participant_restores_mechanics_and_reports_preserved_authored_domains()
             EncounterParticipantResetDomainView::VariantAdjustments,
             EncounterParticipantResetDomainView::ActionBudget,
             EncounterParticipantResetDomainView::SpellResources,
+            EncounterParticipantResetDomainView::HazardState,
         ]
     );
     assert_eq!(

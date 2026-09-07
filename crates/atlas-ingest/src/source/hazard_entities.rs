@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use atlas_domain::RecordKey;
+use atlas_domain::{Rarity, RecordKey};
 use atlas_record::{
     FactValue, HazardActionCapability, HazardActionCategory, HazardActionCount, HazardActionType,
     HazardActiveEffectLikeRule, HazardAuraRule, HazardCapability, HazardConditionCapability,
@@ -8,13 +8,13 @@ use atlas_record::{
     HazardEmbeddedEntities, HazardEntity, HazardEntityFamily, HazardEntityId,
     HazardEntityOccurrence, HazardEntitySourceIdentity, HazardExpectedShape, HazardFact,
     HazardFlatModifierRule, HazardFrequency, HazardFrequencyInterval, HazardImmunityRule,
-    HazardItemCommon, HazardNoteRule, HazardOccurrenceId, HazardOccurrenceIdentityStability,
-    HazardPublication, HazardRelationship, HazardRelationshipId, HazardRelationshipKind,
-    HazardRelationshipTarget, HazardRuleElement, HazardRuleMode, HazardRuleType, HazardSelfEffect,
-    HazardSourceId, HazardSourceShape, HazardSourceValue, HazardStrikeCapability,
-    HazardStrikeDamage, HazardTrait, HazardUnsupportedChildCapability, HazardUnsupportedFact,
-    HazardUnsupportedField, HazardUnsupportedOwner, HazardUnsupportedRule, HazardUnsupportedValue,
-    PublicationLicense,
+    HazardItemCommon, HazardItemLineage, HazardNoteRule, HazardOccurrenceId,
+    HazardOccurrenceIdentityStability, HazardPublication, HazardRelationship, HazardRelationshipId,
+    HazardRelationshipKind, HazardRelationshipTarget, HazardRuleElement, HazardRuleMode,
+    HazardRuleType, HazardSelfEffect, HazardSourceAttackMode, HazardSourceId, HazardSourceShape,
+    HazardSourceValue, HazardStrikeCapability, HazardStrikeDamage, HazardStrikeSourceMetadata,
+    HazardTrait, HazardUnsupportedChildCapability, HazardUnsupportedFact, HazardUnsupportedField,
+    HazardUnsupportedOwner, HazardUnsupportedRule, HazardUnsupportedValue, PublicationLicense,
 };
 use serde_json::{Map, Value};
 
@@ -30,7 +30,6 @@ use super::normalize::{LocalizationResolver, parse_foundry_content_with_localiza
 pub(crate) struct HazardEmbeddedConversion {
     pub(crate) embedded: HazardFact<HazardEmbeddedEntities>,
     pub(crate) relationships: Vec<HazardRelationship>,
-    pub(crate) diagnostics: Vec<HazardUnsupportedFact>,
     pub(crate) resolved_identities: Vec<HazardResolvedItemIdentity>,
 }
 
@@ -68,14 +67,13 @@ pub(crate) fn convert_hazard_embedded_entities(
                     "/items",
                 ),
                 relationships: Vec::new(),
-                diagnostics: Vec::new(),
                 resolved_identities: Vec::new(),
             });
         }
         SourcePresence::Value(DtoValue::Typed(items)) => items,
     };
 
-    let (resolved_identities, mut diagnostics) = resolve_identities(owner_record_key, items)?;
+    let resolved_identities = resolve_identities(owner_record_key, items)?;
     let mut ordered = items
         .iter()
         .map(|item| {
@@ -106,7 +104,7 @@ pub(crate) fn convert_hazard_embedded_entities(
         let entity_owner = HazardUnsupportedOwner::Entity(entity_id.clone());
         let label =
             typed_string(&item.name).unwrap_or_else(|| format!("Unnamed {}", family.as_str()));
-        let capability = capability(item, family, &entity_owner, localization, &mut diagnostics);
+        let capability = capability(item, family, &entity_owner, localization);
         entities.push(HazardEntity {
             id: entity_id.clone(),
             family,
@@ -174,7 +172,6 @@ pub(crate) fn convert_hazard_embedded_entities(
             "/items",
         ),
         relationships,
-        diagnostics,
         resolved_identities,
     })
 }
@@ -185,7 +182,6 @@ fn empty_conversion(
     HazardEmbeddedConversion {
         embedded: HazardFact::source(value, "/items"),
         relationships: Vec::new(),
-        diagnostics: Vec::new(),
         resolved_identities: Vec::new(),
     }
 }
@@ -210,7 +206,7 @@ fn sort_value(value: &HazardSourceField<i64>) -> (u8, i64) {
 fn resolve_identities(
     record_key: &RecordKey,
     items: &[HazardItemSource],
-) -> Result<(Vec<HazardResolvedItemIdentity>, Vec<HazardUnsupportedFact>), HazardConversionError> {
+) -> Result<Vec<HazardResolvedItemIdentity>, HazardConversionError> {
     let mut valid_counts = BTreeMap::<String, usize>::new();
     for item in items {
         if let Some((value, _, _, _)) = valid_source_id(&item.id) {
@@ -218,7 +214,6 @@ fn resolve_identities(
         }
     }
 
-    let mut diagnostics = Vec::new();
     let identities = items
         .iter()
         .map(|item| {
@@ -258,10 +253,6 @@ fn resolve_identities(
                 HazardDiagnosticCode::UnstableIdentity,
                 |value| json_string(value),
             );
-            diagnostics.push(HazardUnsupportedFact {
-                field: HazardUnsupportedField::UnsupportedChildField("_id".to_string()),
-                value: value.clone(),
-            });
             Ok(HazardResolvedItemIdentity {
                 source_ordinal: item.source_ordinal,
                 entity_id,
@@ -275,7 +266,7 @@ fn resolve_identities(
             })
         })
         .collect::<Result<Vec<_>, HazardConversionError>>()?;
-    Ok((identities, diagnostics))
+    Ok(identities)
 }
 
 fn valid_source_id(
@@ -293,7 +284,6 @@ fn capability(
     family: HazardEntityFamily,
     owner: &HazardUnsupportedOwner,
     localization: Option<&dyn LocalizationResolver>,
-    diagnostics: &mut Vec<HazardUnsupportedFact>,
 ) -> HazardCapability {
     let common = convert_common(item, owner, localization);
     let mut unsupported = item
@@ -301,7 +291,7 @@ fn capability(
         .iter()
         .map(|value| unsupported_unclaimed(value, family, owner.clone()))
         .collect::<Vec<_>>();
-    let capability = match family {
+    match family {
         HazardEntityFamily::Action => convert_action(item, common, owner, &unsupported),
         HazardEntityFamily::Strike => convert_strike(item, common, owner, &mut unsupported),
         HazardEntityFamily::Condition => {
@@ -322,9 +312,7 @@ fn capability(
                 unsupported_fields: unsupported.clone(),
             }))
         }
-    };
-    diagnostics.extend(unsupported);
-    capability
+    }
 }
 
 fn convert_common(
@@ -411,6 +399,33 @@ fn convert_common(
                     .collect()
             },
             |values| Value::Array(values.iter().cloned().map(Value::String).collect()).to_string(),
+        ),
+        rarity: fact_map(
+            &common.rarity,
+            &format!("/items/{ordinal}/system/traits/rarity"),
+            HazardExpectedShape::ClosedVocabulary,
+            owner.clone(),
+            |value| {
+                Rarity::from_canonical(value).ok_or(HazardDiagnosticCode::InvalidCanonicalValue)
+            },
+            |value| json_string(value),
+        ),
+        lineage: fact_map(
+            &common.lineage,
+            &format!("/items/{ordinal}/_stats"),
+            HazardExpectedShape::Object,
+            owner.clone(),
+            |value| {
+                Ok(HazardItemLineage {
+                    compendium_source: fact_clone(
+                        &value.compendium_source,
+                        &format!("/items/{ordinal}/_stats/compendiumSource"),
+                        HazardExpectedShape::String,
+                        owner.clone(),
+                    ),
+                })
+            },
+            |_| "{}".to_string(),
         ),
     }
 }
@@ -512,6 +527,30 @@ fn convert_strike(
             },
             |_| "{}".to_string(),
         ),
+        source_metadata: HazardStrikeSourceMetadata {
+            attack: fact_clone(
+                &source.attack,
+                &format!("/items/{ordinal}/system/attack/value"),
+                HazardExpectedShape::Integer,
+                owner.clone(),
+            ),
+            weapon_type: closed_fact(
+                &source.weapon_type,
+                &format!("/items/{ordinal}/system/weaponType/value"),
+                owner.clone(),
+                |value| match value {
+                    "melee" => Some(HazardSourceAttackMode::Melee),
+                    "ranged" => Some(HazardSourceAttackMode::Ranged),
+                    _ => None,
+                },
+            ),
+            attack_effects_custom: fact_clone(
+                &source.attack_effects_custom,
+                &format!("/items/{ordinal}/system/attackEffects/custom"),
+                HazardExpectedShape::String,
+                owner.clone(),
+            ),
+        },
         unsupported_fields: unsupported.clone(),
     }))
 }
@@ -955,20 +994,6 @@ fn unsupported_unclaimed(
         HazardEntityFamily::Action => {
             HazardUnsupportedField::ActionUnexpected(value.source_path.clone())
         }
-        HazardEntityFamily::Strike if value.source_path.ends_with("/system/attack/value") => {
-            HazardUnsupportedField::StrikeAttack
-        }
-        HazardEntityFamily::Strike if value.source_path.ends_with("/system/weaponType/value") => {
-            HazardUnsupportedField::StrikeWeaponType
-        }
-        HazardEntityFamily::Strike
-            if value.source_path.ends_with("/system/attackEffects/custom") =>
-        {
-            HazardUnsupportedField::StrikeAttackEffectsCustom
-        }
-        HazardEntityFamily::Strike if value.source_path.ends_with("/system/traits/rarity") => {
-            HazardUnsupportedField::StrikeTraitRarity
-        }
         HazardEntityFamily::Strike => {
             HazardUnsupportedField::StrikeUnexpected(value.source_path.clone())
         }
@@ -982,18 +1007,11 @@ fn unsupported_unclaimed(
             HazardUnsupportedField::UnsupportedChildField(value.source_path.clone())
         }
     };
-    let expected = match &field {
-        HazardUnsupportedField::StrikeAttack => HazardExpectedShape::Integer,
-        HazardUnsupportedField::StrikeWeaponType
-        | HazardUnsupportedField::StrikeAttackEffectsCustom => HazardExpectedShape::String,
-        HazardUnsupportedField::StrikeTraitRarity => HazardExpectedShape::ClosedVocabulary,
-        _ => HazardExpectedShape::Any,
-    };
     HazardUnsupportedFact {
         field,
         value: summary_value(
             value,
-            expected,
+            HazardExpectedShape::Any,
             owner,
             HazardDiagnosticCode::UnsupportedValue,
         ),

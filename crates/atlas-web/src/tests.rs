@@ -419,6 +419,17 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         hazard["provenance"]["publication_license"]["state"],
         "missing"
     );
+    assert_eq!(
+        hazard["provenance"]["source_metadata"][0],
+        serde_json::json!({
+            "field": "token_name",
+            "value": {
+                "state": "typed",
+                "source_path": "/prototypeToken/name",
+                "value": "Test Hazard"
+            }
+        })
+    );
     assert_no_empty_containers(surface);
 
     let editor_request = json!({
@@ -464,6 +475,37 @@ async fn record_route_transports_opaque_spell_form_and_cast_rank_selection() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["code"], "invalid_request");
+}
+
+#[tokio::test]
+async fn record_route_transports_reference_limits_and_rejects_invalid_values() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/spells-srd:test?reference_outgoing_limit=0&reference_backlink_limit=8",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["surface"]["metadata"]["title"],
+        "references:Some(0):Some(8)"
+    );
+
+    for query in [
+        "reference_outgoing_limit=invalid",
+        "reference_outgoing_limit=256",
+        "reference_backlink_limit=invalid",
+        "reference_backlink_limit=256",
+    ] {
+        let (status, body) = route_json(
+            Method::GET,
+            &format!("/api/records/spells-srd:test?{query}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "query: {query}");
+        assert_eq!(body["code"], "invalid_request", "query: {query}");
+    }
 }
 
 #[tokio::test]
@@ -1408,6 +1450,13 @@ impl AtlasWebService for MockService {
                 None,
             ),
         };
+        if request.reference_outgoing_limit.is_some() || request.reference_backlink_limit.is_some()
+        {
+            detail.surface.metadata.title = format!(
+                "references:{:?}:{:?}",
+                request.reference_outgoing_limit, request.reference_backlink_limit
+            );
+        }
         if let (Some(form_id), Some(cast_rank)) = (request.spell_form_id, request.spell_cast_rank) {
             detail.surface.metadata.title = format!("selected:{form_id}:{cast_rank}");
         }
@@ -1944,6 +1993,8 @@ fn activity_content_surface() -> RecordSurfaceView {
                 provenance: None,
             }),
         },
+        issues: None,
+        references: None,
         encounter: None,
     }
 }
@@ -2126,6 +2177,8 @@ fn typed_failure_surface() -> RecordSurfaceView {
                 }),
             }),
         },
+        issues: None,
+        references: None,
         encounter: None,
     }
 }
@@ -2385,6 +2438,7 @@ fn hazard_record_surface() -> RecordSurfaceView {
         child_type: None,
         traits: None,
         action_cost: None,
+        attack_mode: None,
         frequency: None,
         category: None,
         death_note: None,
@@ -2474,6 +2528,14 @@ fn hazard_record_surface() -> RecordSurfaceView {
                 convenience_rule_version: 1,
                 image: atlas_app_model::HazardSurfaceProvenanceTextView::Missing,
                 publication_license: atlas_app_model::HazardSurfaceProvenanceTextView::Missing,
+                source_metadata: vec![
+                    atlas_app_model::HazardSurfaceSourceMetadataFactView::TokenName {
+                        value: atlas_app_model::HazardSurfaceSourceFactView::Typed {
+                            source_path: "/prototypeToken/name".to_string(),
+                            value: "Test Hazard".to_string(),
+                        },
+                    },
+                ],
             },
         }),
     };
@@ -2516,6 +2578,8 @@ fn unavailable_surface(
                     .to_string(),
             },
         },
+        issues: None,
+        references: None,
         encounter,
     }
 }
@@ -2529,23 +2593,27 @@ fn runtime_mut(participant: &mut EncounterParticipantView) -> &mut EncounterRunt
 }
 
 fn assert_no_empty_containers(value: &Value) {
+    assert_no_empty_containers_at(value, "$");
+}
+
+fn assert_no_empty_containers_at(value: &Value, path: &str) {
     match value {
         Value::Object(object) => {
             assert!(
                 !object.is_empty(),
-                "transport JSON must not contain empty objects"
+                "transport JSON must not contain empty objects at {path}"
             );
-            for child in object.values() {
-                assert_no_empty_containers(child);
+            for (key, child) in object {
+                assert_no_empty_containers_at(child, &format!("{path}/{key}"));
             }
         }
         Value::Array(values) => {
             assert!(
                 !values.is_empty(),
-                "transport JSON must not contain empty arrays"
+                "transport JSON must not contain empty arrays at {path}"
             );
-            for child in values {
-                assert_no_empty_containers(child);
+            for (index, child) in values.iter().enumerate() {
+                assert_no_empty_containers_at(child, &format!("{path}/{index}"));
             }
         }
         _ => {}

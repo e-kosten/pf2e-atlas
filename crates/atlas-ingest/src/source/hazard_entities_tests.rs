@@ -1,11 +1,14 @@
 use std::path::PathBuf;
 
-use atlas_domain::PackName;
+use atlas_domain::{PackName, Rarity};
 use atlas_record::{
-    ContentOwner, FactValue, FoundryLinkBehavior, FoundryLinkMacroKind, HazardCapability,
-    HazardEntityFamily, HazardRuleElement, HazardUnsupportedField, RecordBody, RichLinkTarget,
+    ContentOwner, FactValue, FoundryLinkBehavior, FoundryLinkMacroKind, HazardActionCount,
+    HazardActionType, HazardAttackMode, HazardCapability, HazardEntityFamily, HazardRuleElement,
+    HazardSourceAttackMode, HazardUnsupportedField, HazardWeaponTypeConsistency,
+    PF2E_HAZARD_ATTACK_MODE_RULE_ID, PF2E_STRIKE_ACTION_COST_RULE_ID, RecordBody, RichLinkTarget,
     build_hazard_presentation_document, build_search_fts_projection, iter_foundry_links,
-    project_hazard_facts, render_plain_text,
+    project_hazard_attack_mode, project_hazard_facts, project_hazard_strike_action_cost,
+    project_hazard_weapon_type_consistency, render_plain_text,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -41,6 +44,16 @@ fn acid_spray_preserves_sorted_identity_and_ordered_strike_damage() {
         .iter()
         .find(|entity| entity.id.as_str() == "3EJeaEsJhTMJqDGi")
         .expect("acid spray strike");
+    let mode = project_hazard_attack_mode(strike).expect("trait-derived attack mode");
+    assert_eq!(mode.mode, HazardAttackMode::Melee);
+    assert_eq!(mode.rule_id, PF2E_HAZARD_ATTACK_MODE_RULE_ID);
+    assert_eq!(
+        project_hazard_weapon_type_consistency(strike),
+        Some(HazardWeaponTypeConsistency::Consistent)
+    );
+    let cost = project_hazard_strike_action_cost(strike).expect("typed Strike rule");
+    assert_eq!(cost.cost, HazardActionCount::One);
+    assert_eq!(cost.rule_id, PF2E_STRIKE_ACTION_COST_RULE_ID);
     let HazardCapability::Strike(strike) = &strike.capability else {
         panic!("strike capability")
     };
@@ -59,6 +72,239 @@ fn acid_spray_preserves_sorted_identity_and_ordered_strike_damage() {
     );
     assert_eq!(damage[0].damage.typed(), Some(&"2d10+8".to_string()));
     assert_eq!(damage[1].damage.typed(), Some(&"2d4".to_string()));
+    let FactValue::Value(atlas_record::HazardSourceValue::Unsupported(attack)) =
+        &strike.source_metadata.attack.value
+    else {
+        panic!("wrong-shaped residual attack")
+    };
+    assert_eq!(attack.exact_json, "\"\"");
+    assert_eq!(
+        attack.owner,
+        atlas_record::HazardUnsupportedOwner::Entity(
+            atlas_record::HazardEntityId::new("3EJeaEsJhTMJqDGi").expect("entity")
+        )
+    );
+}
+
+#[test]
+fn strike_source_metadata_retains_future_values_and_malformed_custom_evidence() {
+    let relative = "packs/pfs-season-1-bestiary/1-00/acid-spray-fountain.json";
+    let mut raw = read_fixture(relative);
+    let strike = raw["items"]
+        .as_array_mut()
+        .expect("items")
+        .iter_mut()
+        .find(|item| item["name"] == "Acid Spray")
+        .expect("Acid Spray");
+    strike["system"]["attack"]["value"] = Value::from(17);
+    strike["system"]["attackEffects"]["custom"] = Value::String("corrosive mist".to_string());
+    strike["system"]["weaponType"]["value"] = Value::String("future".to_string());
+
+    let loaded = normalize_raw("pfs-season-1-bestiary", "Actor", relative, raw.clone());
+    let RecordBody::Hazard(hazard) = loaded.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    let entity = hazard
+        .embedded_entities
+        .typed()
+        .expect("embedded")
+        .entities
+        .iter()
+        .find(|entity| entity.label == "Acid Spray")
+        .expect("Acid Spray");
+    let HazardCapability::Strike(strike) = &entity.capability else {
+        panic!("strike")
+    };
+    assert_eq!(strike.source_metadata.attack.typed(), Some(&17));
+    assert_eq!(
+        strike.source_metadata.attack_effects_custom.typed(),
+        Some(&"corrosive mist".to_string())
+    );
+    let FactValue::Value(atlas_record::HazardSourceValue::Unsupported(weapon_type)) =
+        &strike.source_metadata.weapon_type.value
+    else {
+        panic!("invalid weapon type")
+    };
+    assert_eq!(weapon_type.exact_json, "\"future\"");
+    assert_eq!(
+        project_hazard_attack_mode(entity).map(|projection| projection.mode),
+        Some(HazardAttackMode::Melee)
+    );
+    assert_eq!(project_hazard_weapon_type_consistency(entity), None);
+
+    let strike = raw["items"]
+        .as_array_mut()
+        .expect("items")
+        .iter_mut()
+        .find(|item| item["name"] == "Acid Spray")
+        .expect("Acid Spray");
+    strike["system"]["attackEffects"]["custom"] = Value::from(7);
+    let loaded = normalize_raw("pfs-season-1-bestiary", "Actor", relative, raw);
+    let RecordBody::Hazard(hazard) = loaded.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    let entity = hazard
+        .embedded_entities
+        .typed()
+        .expect("embedded")
+        .entities
+        .iter()
+        .find(|entity| entity.label == "Acid Spray")
+        .expect("Acid Spray");
+    let HazardCapability::Strike(strike) = &entity.capability else {
+        panic!("strike")
+    };
+    let FactValue::Value(atlas_record::HazardSourceValue::Unsupported(custom)) =
+        &strike.source_metadata.attack_effects_custom.value
+    else {
+        panic!("malformed custom effect")
+    };
+    assert_eq!(custom.exact_json, "7");
+    assert_eq!(custom.actual_shape, atlas_record::HazardSourceShape::Number);
+    assert_eq!(
+        custom.owner,
+        atlas_record::HazardUnsupportedOwner::Entity(entity.id.clone())
+    );
+}
+
+#[test]
+fn tree_of_dreadful_dreams_keeps_ordered_family_and_authored_action_semantics() {
+    let loaded = normalize_fixture(
+        "age-of-ashes-bestiary",
+        "Actor",
+        "packs/age-of-ashes-bestiary/book-3-tomorrow-must-burn/tree-of-dreadful-dreams.json",
+    );
+    let RecordBody::Hazard(hazard) = loaded.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    let embedded = hazard.embedded_entities.typed().expect("embedded");
+    let ordered = embedded
+        .occurrences
+        .iter()
+        .map(|occurrence| {
+            let entity = embedded
+                .entities
+                .iter()
+                .find(|entity| entity.id == occurrence.entity_id)
+                .expect("occurrence entity");
+            (entity.label.as_str(), entity.family)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ordered,
+        [
+            ("Independent Limbs", HazardEntityFamily::Action),
+            (
+                "Attack of Opportunity (Special)",
+                HazardEntityFamily::Action
+            ),
+            ("Branch", HazardEntityFamily::Strike),
+            ("Constrict", HazardEntityFamily::Action),
+            ("Terrifying Visions", HazardEntityFamily::Action),
+        ]
+    );
+    let actions = |label: &str| {
+        let entity = embedded
+            .entities
+            .iter()
+            .find(|entity| entity.label == label)
+            .expect("named entity");
+        let HazardCapability::Action(action) = &entity.capability else {
+            panic!("named action")
+        };
+        (
+            action.action_type.typed().copied(),
+            action.actions.typed().copied(),
+        )
+    };
+    assert_eq!(
+        actions("Independent Limbs"),
+        (Some(HazardActionType::Passive), None)
+    );
+    assert_eq!(
+        actions("Attack of Opportunity (Special)"),
+        (Some(HazardActionType::Reaction), None)
+    );
+    assert_eq!(
+        actions("Constrict"),
+        (Some(HazardActionType::Action), Some(HazardActionCount::One))
+    );
+    assert_eq!(
+        actions("Terrifying Visions"),
+        (Some(HazardActionType::Passive), None)
+    );
+    let constrict = embedded
+        .entities
+        .iter()
+        .find(|entity| entity.label == "Constrict")
+        .expect("Constrict");
+    let HazardCapability::Action(constrict) = &constrict.capability else {
+        panic!("Constrict action")
+    };
+    assert_eq!(
+        constrict
+            .common
+            .lineage
+            .typed()
+            .expect("lineage")
+            .compendium_source
+            .typed()
+            .map(String::as_str),
+        Some("Compendium.pf2e.bestiary-ability-glossary-srd.Item.g26YiEIfSHCpLocV")
+    );
+}
+
+#[test]
+fn embedded_lineage_rejects_a_wrong_shaped_compendium_source_at_its_entity_owner() {
+    let relative =
+        "packs/age-of-ashes-bestiary/book-3-tomorrow-must-burn/tree-of-dreadful-dreams.json";
+    let mut raw = read_fixture(relative);
+    let item = raw["items"]
+        .as_array_mut()
+        .expect("items")
+        .iter_mut()
+        .find(|item| item["name"] == "Constrict")
+        .expect("Constrict");
+    item["_stats"]["compendiumSource"] = Value::from(7);
+
+    let loaded = normalize_raw("age-of-ashes-bestiary", "Actor", relative, raw);
+    let RecordBody::Hazard(hazard) = loaded.facts.canonical_body.as_ref().expect("hazard") else {
+        panic!("hazard")
+    };
+    let entity = hazard
+        .embedded_entities
+        .typed()
+        .expect("embedded")
+        .entities
+        .iter()
+        .find(|entity| entity.label == "Constrict")
+        .expect("Constrict");
+    let HazardCapability::Action(action) = &entity.capability else {
+        panic!("Constrict action")
+    };
+    let FactValue::Value(atlas_record::HazardSourceValue::Unsupported(value)) = &action
+        .common
+        .lineage
+        .typed()
+        .expect("lineage")
+        .compendium_source
+        .value
+    else {
+        panic!("wrong-shaped lineage")
+    };
+    assert_eq!(value.exact_json, "7");
+    assert_eq!(
+        value.relative_source_path,
+        "/items/1/_stats/compendiumSource"
+    );
+    assert_eq!(
+        value.owner,
+        atlas_record::HazardUnsupportedOwner::Entity(entity.id.clone())
+    );
+    assert_eq!(
+        value.diagnostic_code,
+        atlas_record::HazardDiagnosticCode::UnexpectedShape
+    );
 }
 
 #[test]
@@ -84,15 +330,32 @@ fn false_door_sorts_consumable_first_and_retains_it_as_unsupported_child() {
             ("VeiaoxMMsn7EH0Ri", HazardEntityFamily::Action),
         ]
     );
-    let child = embedded
+    let child_entity = embedded
         .entities
         .iter()
         .find(|entity| entity.id.as_str() == "4XbK3Gnf0R1gkYPJ")
         .expect("consumable child");
-    let HazardCapability::UnsupportedChild(child) = &child.capability else {
+    let HazardCapability::UnsupportedChild(child) = &child_entity.capability else {
         panic!("unsupported child")
     };
     assert_eq!(child.child_type, "consumable");
+    assert_eq!(
+        child.unsupported_fields.len() + usize::from(child.common.rarity.typed().is_some()),
+        20,
+        "nineteen unsupported inventory/economy leaves plus typed rarity remain retained"
+    );
+    assert_eq!(child.common.rarity.typed(), Some(&Rarity::Common));
+    assert!(matches!(child.common.lineage.value, FactValue::Missing));
+    assert!(project_hazard_strike_action_cost(child_entity).is_none());
+    let unsupported = hazard.unsupported_facts();
+    let identities = unsupported
+        .iter()
+        .map(|fact| fact.value.source_fact_identity())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(identities.len(), unsupported.len());
+    assert!(child.unsupported_fields.iter().all(|fact| {
+        fact.value.owner == atlas_record::HazardUnsupportedOwner::Entity(child_entity.id.clone())
+    }));
     assert!(child.unsupported_fields.iter().any(|field| {
         matches!(&field.field, HazardUnsupportedField::UnsupportedChildField(path) if path.ends_with("/system/category"))
             && field.value.exact_json == "\"potion\""
@@ -181,7 +444,7 @@ fn dragon_content_uses_hazard_occurrence_owner_and_neutral_reference_resolution(
     assert_eq!(detect.source.macro_kind, FoundryLinkMacroKind::Uuid);
     assert_eq!(detect.behavior, FoundryLinkBehavior::Reference);
 
-    let strike = hazard
+    let strike_entity = hazard
         .embedded_entities
         .typed()
         .expect("embedded")
@@ -189,17 +452,27 @@ fn dragon_content_uses_hazard_occurrence_owner_and_neutral_reference_resolution(
         .iter()
         .find(|entity| entity.id.as_str() == "uapfpdQSjUz13nBn")
         .expect("eye beam strike");
-    let HazardCapability::Strike(strike) = &strike.capability else {
+    let mode = project_hazard_attack_mode(strike_entity).expect("range trait mode");
+    assert_eq!(mode.mode, HazardAttackMode::Ranged);
+    assert_eq!(
+        project_hazard_weapon_type_consistency(strike_entity),
+        Some(HazardWeaponTypeConsistency::Consistent)
+    );
+    let HazardCapability::Strike(strike) = &strike_entity.capability else {
         panic!("strike")
     };
-    assert!(strike.unsupported_fields.iter().any(|field| {
-        field.field == HazardUnsupportedField::StrikeAttackEffectsCustom
-            && field.value.exact_json == "\"\""
-    }));
-    assert!(strike.unsupported_fields.iter().any(|field| {
-        field.field == HazardUnsupportedField::StrikeTraitRarity
-            && field.value.exact_json == "\"common\""
-    }));
+    assert_eq!(
+        strike.source_metadata.attack_effects_custom.typed(),
+        Some(&String::new())
+    );
+    assert_eq!(
+        strike.common.rarity.typed(),
+        Some(&atlas_domain::Rarity::Common)
+    );
+    assert_eq!(
+        strike.source_metadata.weapon_type.typed(),
+        Some(&HazardSourceAttackMode::Ranged)
+    );
     let recognize_ally = hazard
         .embedded_entities
         .typed()
@@ -519,6 +792,27 @@ fn malformed_missing_and_duplicate_child_ids_share_fallback_content_ownership() 
             .iter()
             .all(|(_, document)| { iter_foundry_links(&document.document).count() == 1 })
     );
+    assert!(hazard.unsupported_facts().iter().all(|fact| {
+        !matches!(
+            &fact.field,
+            HazardUnsupportedField::UnsupportedChildField(path) if path == "_id"
+        )
+    }));
+    for entity in &embedded.entities {
+        let atlas_record::HazardEntitySourceIdentity::Fallback { diagnostic, .. } =
+            &entity.source_identity
+        else {
+            panic!("fallback identity")
+        };
+        assert_eq!(
+            diagnostic.owner,
+            atlas_record::HazardUnsupportedOwner::Entity(entity.id.clone())
+        );
+        assert_eq!(
+            diagnostic.diagnostic_code,
+            atlas_record::HazardDiagnosticCode::UnstableIdentity
+        );
+    }
 }
 
 #[test]

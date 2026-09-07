@@ -3,20 +3,16 @@ import { useState } from "react";
 import type React from "react";
 import type {
   RecordSurfaceMetadataView,
+  RecordSurfaceView,
   SpellAreaView,
   SpellCastingView,
-  SpellClassificationView,
-  SpellDamagePatchSetView,
-  SpellDamagePatchView,
   SpellDamageView,
   SpellDefenseView,
   SpellDurationView,
   SpellFactView,
+  SpellFixedHeighteningChangeView,
   SpellFormResultView,
-  SpellFormView,
-  SpellHeighteningPatchView,
   SpellHeighteningView,
-  SpellPatchView,
   SpellResolvedDefinitionView,
   SpellResolvedFieldView,
   SpellRitualView,
@@ -26,7 +22,6 @@ import type {
   SpellSourceValueView,
   SpellSurfaceView,
   SpellTargetingView,
-  SpellTextPatchSetView,
 } from "../../generated/atlas";
 import {
   NarrativeSection,
@@ -35,6 +30,10 @@ import {
 } from "./CreatureRecordSurface";
 import { narrativeContent, type ReferenceHandler } from "./RecordRichContent";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
+import {
+  RecordSurfaceIssues,
+  RecordSurfaceReferences,
+} from "./RecordSurfaceSupplement";
 import { formatRank, formatSlug } from "./recordFormatting";
 
 export type SpellFormSelection = {
@@ -45,29 +44,57 @@ export type SpellFormSelection = {
 type SpellDetailSurfaceProps = {
   body: SpellSurfaceView;
   catalog: SpellSurfaceView;
+  issues: NonNullable<RecordSurfaceView["issues"]> | undefined;
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
+  onReferencesOpen?: () => void;
   onSelectionChange?: (selection: SpellFormSelection) => void;
+  references: NonNullable<RecordSurfaceView["references"]> | undefined;
+  referencesLoading?: boolean;
   selection?: SpellFormSelection;
+  selectionError?: string;
   selectionLoading?: boolean;
+  selectionUnavailable?: boolean;
   showTitle: boolean;
 };
 
 export function SpellDetailSurface({
   body,
   catalog,
+  issues,
   metadata,
   onReference,
+  onReferencesOpen,
   onSelectionChange,
+  references,
+  referencesLoading,
   selection,
+  selectionError,
   selectionLoading = false,
+  selectionUnavailable = false,
   showTitle,
 }: SpellDetailSurfaceProps) {
   const content = narrativeContent(body.content);
+  const effective = body.effective_form;
+  const definition =
+    effective?.result.state === "available" ? effective.result.definition : undefined;
+  const classification =
+    definition?.classification.state === "available"
+      ? knownValue(definition.classification.value)
+      : undefined;
+  const rank = classification && knownValue(classification.rank);
+  const traits = classification && knownValue(classification.traits);
+  const headerMetadata = {
+    ...metadata,
+    kind_label: body.family === "ritual" ? "Ritual" : "Spell",
+    level: rank,
+    traits: traits ?? [],
+  };
   return (
     <article className="record-surface record-surface--record-detail spell-sheet">
       <RecordHeader
-        metadata={metadata}
+        levelLabel="Rank"
+        metadata={headerMetadata}
         onReference={onReference}
         showTitle={showTitle}
       />
@@ -77,24 +104,24 @@ export function SpellDetailSurface({
         onReference={onReference}
         title="Overview"
       />
-      <div className="spell-sheet__summary-grid">
-        <ClassificationSection value={body.definition.classification} />
-        <CastingSection value={body.definition.casting} />
-        <TargetingSection value={body.definition.targeting} />
-        <DefenseSection value={body.definition.defense} />
-        <DamageSection value={body.definition.damage} />
-        <DurationSection value={body.definition.duration} />
-      </div>
-      <HeighteningSection value={body.definition.heightening} />
       <FormsSection
+        key={`${metadata.record_key}:${body.effective_form.id}:${body.effective_form.cast_rank}`}
         body={body}
         catalog={catalog}
         loading={selectionLoading}
         onSelectionChange={onSelectionChange}
         selection={selection}
+        selectionError={selectionError}
+        selectionUnavailable={selectionUnavailable}
       />
-      <RitualSection value={body.definition.ritual} />
-      <RulesSection value={body.definition.rules} />
+      <FormResult result={effective.result} />
+      <RecordSurfaceIssues issues={issues} />
+      <RecordSurfaceReferences
+        loading={referencesLoading}
+        onDisclosureOpen={onReferencesOpen}
+        onReference={onReference}
+        references={references}
+      />
       <SpellSourceDisclosure metadata={metadata} />
     </article>
   );
@@ -107,7 +134,14 @@ export function SpellSearchCompactSurface({
   body: SpellSurfaceView;
   metadata: RecordSurfaceMetadataView;
 }) {
-  const classification = knownValue(body.definition.classification);
+  const definition =
+    body.effective_form.result.state === "available"
+      ? body.effective_form.result.definition
+      : undefined;
+  const classification =
+    definition?.classification.state === "available"
+      ? knownValue(definition.classification.value)
+      : undefined;
   const rank = classification && knownValue(classification.rank);
   const traditions = classification && knownValue(classification.traditions);
   return (
@@ -117,7 +151,7 @@ export function SpellSearchCompactSurface({
           <h2>{metadata.title}</h2>
         </div>
         <div className="creature-sheet__identity-meta creature-sheet__identity-meta--compact">
-          <span>{metadata.kind_label || formatSlug(metadata.kind)}</span>
+          <span>{body.family === "ritual" ? "Ritual" : "Spell"}</span>
           {rank !== undefined ? <span>{formatRank(rank)} rank</span> : null}
         </div>
         {traditions?.length ? (
@@ -141,103 +175,82 @@ export function SpellSearchCompactSurface({
   );
 }
 
-function ClassificationSection({
+function CastingSection({
+  traditions,
   value,
 }: {
-  value: SpellFactView<SpellClassificationView>;
+  traditions?: SpellFactView<string[]>;
+  value: SpellFactView<SpellCastingView>;
 }) {
-  return (
-    <SurfaceSection title="Classification">
-      <FactGroup
-        ariaLabel="Spell classification"
-        fact={value}
-        render={(classification) => [
-          item("rank", "Rank", factNode(classification.rank, formatRank)),
-          item("traits", "Traits", factNode(classification.traits, formatList)),
-          item(
-            "traditions",
-            "Traditions",
-            factNode(classification.traditions, formatList),
-          ),
-        ]}
-      />
-    </SurfaceSection>
-  );
-}
-
-function CastingSection({ value }: { value: SpellFactView<SpellCastingView> }) {
+  const casting = meaningfulKnown(value);
+  if (!casting) return null;
+  const items = [
+    factItem("time", "Cast", casting.time),
+    factItem("cost", "Cost", casting.cost),
+    factItem("requirements", "Requirements", casting.requirements),
+    factItem("counteraction", "Counteraction", casting.counteraction, formatBoolean),
+    traditions ? factItem("traditions", "Traditions", traditions, formatList) : null,
+  ].filter((entry): entry is RecordKeyValueItem => entry !== null);
+  if (!items.length) return null;
   return (
     <SurfaceSection title="Casting">
-      <FactGroup
-        ariaLabel="Spell casting"
-        fact={value}
-        render={(casting) => [
-          item("time", "Cast", factNode(casting.time)),
-          item("cost", "Cost", factNode(casting.cost)),
-          item("requirements", "Requirements", factNode(casting.requirements)),
-          item(
-            "counteraction",
-            "Counteraction",
-            factNode(casting.counteraction, formatBoolean),
-          ),
-        ]}
-      />
+      <RecordKeyValueList ariaLabel="Spell casting" items={items} />
     </SurfaceSection>
   );
 }
 
-function TargetingSection({ value }: { value: SpellFactView<SpellTargetingView> }) {
+function RangeAndTargetsSection({
+  defense,
+  duration,
+  targeting,
+}: {
+  defense: SpellFactView<SpellDefenseView>;
+  duration: SpellFactView<SpellDurationView>;
+  targeting: SpellFactView<SpellTargetingView>;
+}) {
+  const targetingValue = meaningfulKnown(targeting);
+  const defenseValue = meaningfulKnown(defense);
+  const durationValue = meaningfulKnown(duration);
+  const area = targetingValue && meaningfulKnown(targetingValue.area);
+  const range = targetingValue && meaningfulKnown(targetingValue.range);
+  const save = defenseValue && meaningfulKnown(defenseValue.save);
+  const saveStatistic = save && meaningfulKnown(save.statistic);
+  const basicSave = save && knownValue(save.basic);
+  const durationText = durationValue && meaningfulKnown(durationValue.value);
+  const sustained = durationValue && knownValue(durationValue.sustained);
+  const items = [
+    targetingValue ? factItem("target", "Targets", targetingValue.target) : null,
+    range?.authored_text.trim()
+      ? item("range", "Range", range.authored_text.trim())
+      : null,
+    areaText(area) ? item("area", "Area", areaText(area)) : null,
+    defenseValue ? factItem("passive", "Defense", defenseValue.passive) : null,
+    saveStatistic
+      ? item(
+          "save",
+          "Save",
+          `${basicSave === true ? "Basic " : ""}${formatSlug(saveStatistic)}`,
+        )
+      : null,
+    durationText ? item("duration", "Duration", durationText) : null,
+    durationText || sustained === true
+      ? item("sustained", "Sustained", formatBoolean(Boolean(sustained)))
+      : null,
+  ].filter((entry): entry is RecordKeyValueItem => entry !== null);
+  if (!items.length) return null;
   return (
-    <SurfaceSection title="Targeting">
-      <FactGroup
-        ariaLabel="Spell targeting"
-        fact={value}
-        render={(targeting) => [
-          item("target", "Targets", factNode(targeting.target)),
-          item(
-            "range",
-            "Range",
-            factNode(targeting.range, (range) => range.authored_text),
-          ),
-          item("area", "Area", factNode(targeting.area, renderArea)),
-        ]}
-      />
+    <SurfaceSection title="Range & targets">
+      <RecordKeyValueList ariaLabel="Spell range and targets" items={items} />
     </SurfaceSection>
   );
 }
 
-function DefenseSection({ value }: { value: SpellFactView<SpellDefenseView> }) {
+function EffectSection({ value }: { value: SpellFactView<SpellDamageView[]> }) {
+  const damage = meaningfulKnown(value);
+  if (!damage) return null;
   return (
-    <SurfaceSection title="Defense">
-      <FactGroup
-        ariaLabel="Spell defense"
-        fact={value}
-        render={(defense) => [
-          item("passive", "Passive", factNode(defense.passive)),
-          item(
-            "save-statistic",
-            "Save",
-            factNode(defense.save, (save) => factNode(save.statistic)),
-          ),
-          item(
-            "save-basic",
-            "Basic save",
-            factNode(defense.save, (save) => factNode(save.basic, formatBoolean)),
-          ),
-        ]}
-      />
-    </SurfaceSection>
-  );
-}
-
-function DamageSection({ value }: { value: SpellFactView<SpellDamageView[]> }) {
-  return (
-    <SurfaceSection className="spell-sheet__span" title="Damage">
-      <FactCollection
-        fact={value}
-        emptyLabel="No authored damage"
-        render={(damage) => <DamageList damage={damage} />}
-      />
+    <SurfaceSection title="Effect">
+      <DamageList damage={damage} />
     </SurfaceSection>
   );
 }
@@ -245,15 +258,15 @@ function DamageSection({ value }: { value: SpellFactView<SpellDamageView[]> }) {
 function DamageList({ damage }: { damage: SpellDamageView[] }) {
   return (
     <ol aria-label="Spell damage" className="spell-sheet__member-list">
-      {damage.map((member) => (
-        <li key={`${member.key}:${member.order}`}>
+      {damage.map((member, index) => (
+        <li key={`${member.label}:${index}`}>
           <div className="spell-sheet__member-heading">
-            <strong>Damage {member.order + 1}</strong>
-            <code>{member.key}</code>
+            <strong>{member.label}</strong>
+            <span>{damageSummary(member)}</span>
           </div>
           <RecordKeyValueList
-            items={damageItems(member)}
-            ariaLabel={`Damage ${member.order + 1}`}
+            ariaLabel={`${member.label} qualifiers`}
+            items={damageQualifiers(member)}
           />
         </li>
       ))}
@@ -261,75 +274,119 @@ function DamageList({ damage }: { damage: SpellDamageView[] }) {
   );
 }
 
-function damageItems(damage: SpellDamageView): RecordKeyValueItem[] {
+function damageSummary(damage: SpellDamageView) {
   return [
-    item("formula", "Formula", factNode(damage.formula)),
-    item("type", "Type", factNode(damage.damage_type, formatSlug)),
-    item("category", "Category", factNode(damage.category, formatSlug)),
-    item("kinds", "Kinds", factNode(damage.kinds, formatList)),
-    item("materials", "Materials", factNode(damage.materials, formatList)),
-    item(
-      "apply-modifier",
-      "Apply modifier",
-      factNode(damage.apply_modifier, formatBoolean),
-    ),
-  ];
+    meaningfulKnown(damage.formula),
+    meaningfulKnown(damage.damage_type) &&
+      formatSlug(meaningfulKnown(damage.damage_type)!),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
 }
 
-function DurationSection({ value }: { value: SpellFactView<SpellDurationView> }) {
-  return (
-    <SurfaceSection title="Duration">
-      <FactGroup
-        ariaLabel="Spell duration"
-        fact={value}
-        render={(duration) => [
-          item("value", "Duration", factNode(duration.value)),
-          item("sustained", "Sustained", factNode(duration.sustained, formatBoolean)),
-        ]}
-      />
-    </SurfaceSection>
-  );
+function damageQualifiers(damage: SpellDamageView): RecordKeyValueItem[] {
+  return [
+    factItem("category", "Category", damage.category, formatSlug),
+    factItem("kinds", "Kinds", damage.kinds, formatList),
+    factItem("materials", "Materials", damage.materials, formatList),
+    factItem("apply-modifier", "Apply modifier", damage.apply_modifier, formatBoolean),
+  ].filter((entry): entry is RecordKeyValueItem => entry !== null);
 }
 
-function HeighteningSection({ value }: { value: SpellFactView<SpellHeighteningView> }) {
+function HeighteningSection({
+  appliedFixedRanks,
+  value,
+}: {
+  appliedFixedRanks: number[];
+  value: SpellFactView<SpellHeighteningView>;
+}) {
+  const heightening = meaningfulKnown(value);
+  if (!heightening || !heighteningHasContent(heightening)) return null;
   return (
     <SurfaceSection title="Heightening">
-      <FactCollection
-        fact={value}
-        render={(heightening) => <Heightening value={heightening} />}
-      />
+      {appliedFixedRanks.length ? (
+        <p className="spell-sheet__applied-ranks">
+          Applied ranks {appliedFixedRanks.map(formatRank).join(", ")}
+        </p>
+      ) : null}
+      <Heightening value={heightening} />
     </SurfaceSection>
   );
 }
 
 function Heightening({ value }: { value: SpellHeighteningView }) {
   if (value.kind === "interval") {
+    const interval = meaningfulKnown(value.interval);
+    const area = meaningfulKnown(value.area);
+    const damage = meaningfulKnown(value.damage);
     return (
-      <RecordKeyValueList
-        ariaLabel="Interval heightening"
-        items={[
-          item("interval", "Interval", factNode(value.interval)),
-          item("area", "Area increase", factNode(value.area)),
-          item(
-            "damage",
-            "Damage increases",
-            factNode(value.damage, (members) => <KeyedValues values={members} />),
-          ),
-        ]}
-      />
+      <div className="spell-sheet__heightening-summary">
+        {interval !== undefined ? <strong>Heightened (+{interval})</strong> : null}
+        <ul className="spell-sheet__inline-list">
+          {area !== undefined ? <li>Area increases by {area} feet</li> : null}
+          {damage?.map((member, index) => (
+            <li key={`${member.label}:${index}`}>
+              {member.label} increases by {member.value}
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   }
   return (
-    <Collapse
-      ghost
-      items={value.layers.map((layer) => ({
-        key: `${layer.order}:${sourceValueText(layer.rank)}`,
-        label: `Rank ${sourceValueText(layer.rank)}`,
-        children: <SpellPatch patch={layer.patch} />,
-      }))}
-      size="small"
-    />
+    <ul className="spell-sheet__member-list">
+      {value.layers.flatMap((layer, index) => {
+        const rank = sourceKnown(layer.rank);
+        if (rank === undefined || !layer.changes.length) return [];
+        return [
+          <li key={`${rank}:${index}`}>
+            <div className="spell-sheet__member-heading">
+              <strong>At rank {rank}</strong>
+            </div>
+            <ul className="spell-sheet__inline-list">
+              {layer.changes.map((change, changeIndex) => (
+                <li key={changeIndex}>{fixedChangeSummary(change)}</li>
+              ))}
+            </ul>
+          </li>,
+        ];
+      })}
+    </ul>
   );
+}
+
+function heighteningHasContent(value: SpellHeighteningView) {
+  if (value.kind === "fixed") {
+    return value.layers.some(
+      (layer) => sourceKnown(layer.rank) !== undefined && layer.changes.length > 0,
+    );
+  }
+  return (
+    meaningfulKnown(value.interval) !== undefined ||
+    meaningfulKnown(value.area) !== undefined ||
+    meaningfulKnown(value.damage) !== undefined
+  );
+}
+
+function fixedChangeSummary(change: SpellFixedHeighteningChangeView) {
+  if (change.field !== "effect") return `${formatSlug(change.field)} changes`;
+  if (change.operation === "delete") return `${change.label} is removed`;
+  if (!change.value) return `${change.label} changes`;
+  const details = [
+    meaningfulKnown(change.value.formula),
+    meaningfulKnown(change.value.damage_type) &&
+      formatSlug(meaningfulKnown(change.value.damage_type)!),
+    meaningfulKnown(change.value.category) &&
+      formatSlug(meaningfulKnown(change.value.category)!),
+    meaningfulKnown(change.value.kinds)?.map(formatSlug).join(", "),
+    meaningfulKnown(change.value.materials)?.map(formatSlug).join(", "),
+    knownValue(change.value.apply_modifier) === undefined
+      ? undefined
+      : `apply modifier ${formatBoolean(knownValue(change.value.apply_modifier)!)}`,
+  ].filter((detail): detail is string => Boolean(detail));
+  return details.length
+    ? `${change.label}: ${details.join(" · ")}`
+    : `${change.label} changes`;
 }
 
 function FormsSection({
@@ -338,38 +395,45 @@ function FormsSection({
   loading,
   onSelectionChange,
   selection,
+  selectionError,
+  selectionUnavailable,
 }: {
   body: SpellSurfaceView;
   catalog: SpellSurfaceView;
   loading: boolean;
   onSelectionChange?: (selection: SpellFormSelection) => void;
   selection?: SpellFormSelection;
+  selectionError?: string;
+  selectionUnavailable: boolean;
 }) {
-  const [draftFormId, setDraftFormId] = useState<string>();
-  const [draftRank, setDraftRank] = useState<number | null>(null);
-
-  const selected = selectedFormFor(body, selection);
+  const initialForm = catalog.forms.find((form) => form.id === body.effective_form.id);
+  const [draftFormId, setDraftFormId] = useState<string | undefined>(initialForm?.id);
+  const [draftRank, setDraftRank] = useState<number | null>(
+    body.effective_form.cast_rank,
+  );
+  if (!onSelectionChange || !catalog.forms.length) return null;
+  const draftForm = catalog.forms.find((form) => form.id === draftFormId);
+  const displayed = selectionLabel(catalog, body.effective_form);
+  const requested = selection && selectionLabel(catalog, selection);
+  const matchesRequest =
+    !selection ||
+    (body.effective_form.id === selection.formId &&
+      body.effective_form.cast_rank === selection.castRank);
   return (
-    <SurfaceSection title="Spell forms">
-      {catalog.form_catalog_unavailable ? (
-        <Alert
-          message={`Form catalog unavailable: ${formatSlug(catalog.form_catalog_unavailable)}`}
-          showIcon
-          type="warning"
-        />
-      ) : null}
-      {onSelectionChange && catalog.forms.length ? (
-        <div
-          aria-busy={loading}
-          aria-label="Resolve spell form"
-          className="spell-sheet__form-controls"
-        >
+    <SurfaceSection className="spell-sheet__form-section" title="Form & rank">
+      <div
+        aria-busy={loading}
+        aria-label="Resolve spell form"
+        className="spell-sheet__form-controls"
+      >
+        <div className="spell-sheet__form-control">
+          <span>Form</span>
           <Select
             aria-label="Spell form"
             onChange={(formId) => {
               setDraftFormId(formId);
               const form = catalog.forms.find((candidate) => candidate.id === formId);
-              if (form) setDraftRank(form.cast_rank);
+              if (form) setDraftRank(form.minimum_cast_rank);
             }}
             options={catalog.forms.map((form) => ({
               label: form.label,
@@ -377,107 +441,74 @@ function FormsSection({
             }))}
             placeholder="Choose a form"
             value={draftFormId}
+            virtual={false}
           />
+        </div>
+        <div className="spell-sheet__form-control">
+          <span>Cast rank</span>
           <InputNumber
             aria-label="Cast rank"
+            max={255}
+            min={draftForm?.minimum_cast_rank ?? 0}
             onChange={(rank) => setDraftRank(rank)}
             placeholder="Rank"
             precision={0}
             value={draftRank}
           />
-          <Button
-            disabled={draftFormId === undefined || draftRank === null}
-            onClick={() => {
-              if (draftFormId !== undefined && draftRank !== null) {
-                onSelectionChange({ formId: draftFormId, castRank: draftRank });
-              }
-            }}
-            type="primary"
-          >
-            Resolve form
-          </Button>
-          {loading ? <span role="status">Resolving selected form…</span> : null}
         </div>
-      ) : null}
-      {selection && !loading && !selected ? (
+        <Button
+          disabled={draftFormId === undefined || draftRank === null}
+          onClick={() => {
+            if (draftFormId !== undefined && draftRank !== null) {
+              onSelectionChange({ formId: draftFormId, castRank: draftRank });
+            }
+          }}
+          type="primary"
+        >
+          Apply
+        </Button>
+      </div>
+      <p aria-live="polite" className="spell-sheet__selection-summary">
+        Showing {displayed}.
+      </p>
+      {loading && selection ? (
         <Alert
-          message="The selected form response did not match the current form and rank."
+          description={`Showing ${displayed} until the requested result is available.`}
+          message={`Resolving ${requested ?? "selected form"}.`}
+          showIcon
+          type="info"
+        />
+      ) : null}
+      {!loading && selectionError ? (
+        <Alert
+          description={`${selectionError} Showing ${displayed}.`}
+          message="Unable to resolve the selected form"
+          showIcon
+          type="error"
+        />
+      ) : null}
+      {!loading && !selectionError && selectionUnavailable ? (
+        <Alert
+          description={`Showing ${displayed}.`}
+          message={`${requested ?? "The selected form"} is unavailable.`}
           showIcon
           type="warning"
         />
       ) : null}
-      {selected ? (
-        <SelectedForm result={selected.result} selection={selection!} />
+      {!loading && !selectionError && !selectionUnavailable && !matchesRequest ? (
+        <Alert
+          description={`Showing ${displayed}.`}
+          message="The returned result did not match the requested form and rank."
+          showIcon
+          type="warning"
+        />
       ) : null}
-      <Collapse
-        className="record-surface__inline-disclosure"
-        ghost
-        items={catalog.forms.map((form) => ({
-          key: form.id,
-          label: form.label,
-          children: <CatalogForm form={form} />,
-        }))}
-        size="small"
-      />
     </SurfaceSection>
   );
 }
 
-function CatalogForm({ form }: { form: SpellFormView }) {
-  return (
-    <div className="spell-sheet__catalog-form">
-      <RecordKeyValueList
-        ariaLabel={`${form.label} identity`}
-        items={[
-          item("kind", "Kind", formatSlug(form.kind)),
-          item("rank", "Catalog rank", formatRank(form.cast_rank)),
-          item("order", "Order", form.order),
-        ]}
-      />
-      {form.authored_patch ? (
-        <div>
-          <h4>Authored patch</h4>
-          <SpellPatch patch={form.authored_patch} />
-        </div>
-      ) : null}
-      <div>
-        <h4>Catalog result</h4>
-        <FormResult result={form.result} />
-      </div>
-    </div>
-  );
-}
-
-function SelectedForm({
-  result,
-  selection,
-}: {
-  result: SpellFormResultView;
-  selection: SpellFormSelection;
-}) {
-  return (
-    <div aria-live="polite" className="spell-sheet__selected-form">
-      <h4>Selected form at {formatRank(selection.castRank)} rank</h4>
-      <FormResult result={result} />
-    </div>
-  );
-}
-
 function FormResult({ result }: { result: SpellFormResultView }) {
-  if (result.state === "unavailable") {
-    const detail =
-      result.reason.reason === "cast_rank_below_base"
-        ? `Base rank ${result.reason.base_rank}; selected rank ${result.reason.cast_rank}.`
-        : undefined;
-    return (
-      <Alert
-        description={detail}
-        message={`Form unavailable: ${formatSlug(result.reason.reason)}`}
-        showIcon
-        type="warning"
-      />
-    );
-  }
+  if (result.state === "unavailable") return null;
   return <ResolvedDefinition definition={result.definition} />;
 }
 
@@ -486,232 +517,87 @@ function ResolvedDefinition({
 }: {
   definition: SpellResolvedDefinitionView;
 }) {
+  const traditions =
+    definition.classification.state === "available"
+      ? meaningfulKnown(definition.classification.value)?.traditions
+      : undefined;
+  const casting = availableFact(definition.casting);
+  const targeting = availableFact(definition.targeting);
+  const defense = availableFact(definition.defense);
+  const damage = availableFact(definition.damage);
+  const duration = availableFact(definition.duration);
+  const heightening = availableFact(definition.heightening);
+  const rules = availableFact(definition.rules);
   return (
     <div className="spell-sheet__resolved-definition">
-      <RecordKeyValueList
-        ariaLabel="Resolved heightening"
-        items={[
-          item(
-            "applied-ranks",
-            "Applied fixed ranks",
-            definition.applied_fixed_ranks.length
-              ? definition.applied_fixed_ranks.map(formatRank).join(", ")
-              : "None",
-          ),
-        ]}
+      <CastingSection value={casting} traditions={traditions} />
+      <RangeAndTargetsSection
+        defense={defense}
+        duration={duration}
+        targeting={targeting}
       />
-      <ResolvedField
-        field="Classification"
-        value={definition.classification}
-        render={(fact) => <ClassificationSection value={fact} />}
+      <EffectSection value={damage} />
+      <HeighteningSection
+        appliedFixedRanks={definition.applied_fixed_ranks}
+        value={heightening}
       />
-      <ResolvedField
-        field="Casting"
-        value={definition.casting}
-        render={(fact) => <CastingSection value={fact} />}
-      />
-      <ResolvedField
-        field="Targeting"
-        value={definition.targeting}
-        render={(fact) => <TargetingSection value={fact} />}
-      />
-      <ResolvedField
-        field="Defense"
-        value={definition.defense}
-        render={(fact) => <DefenseSection value={fact} />}
-      />
-      <ResolvedField
-        field="Damage"
-        value={definition.damage}
-        render={(fact) => <DamageSection value={fact} />}
-      />
-      <ResolvedField
-        field="Duration"
-        value={definition.duration}
-        render={(fact) => <DurationSection value={fact} />}
-      />
-      <ResolvedField
-        field="Heightening"
-        value={definition.heightening}
-        render={(fact) => <HeighteningSection value={fact} />}
-      />
-      <ResolvedField
-        field="Rules"
-        value={definition.rules}
-        render={(fact) => <RulesSection value={fact} />}
-      />
+      <SecondaryMechanics ritual={definition.ritual} rules={rules} />
     </div>
   );
 }
 
-function ResolvedField<T>({
-  field,
-  render,
-  value,
+function availableFact<T>(value: SpellResolvedFieldView<T>): SpellFactView<T> {
+  return value.state === "available" ? value.value : { state: "missing" };
+}
+
+function SecondaryMechanics({
+  ritual,
+  rules,
 }: {
-  field: string;
-  render: (fact: SpellFactView<T>) => React.ReactNode;
-  value: SpellResolvedFieldView<T>;
+  ritual: SpellFactView<SpellRitualView>;
+  rules: SpellFactView<SpellRuleView[]>;
 }) {
-  if (value.state === "available") return render(value.value);
-  return (
-    <Alert
-      description={`${formatSlug(value.unavailable.source)} patch`}
-      message={`${field} unavailable: ${formatSlug(value.unavailable.reason)}`}
-      showIcon
-      type="warning"
-    />
-  );
-}
-
-function SpellPatch({ patch }: { patch: SpellPatchView }) {
-  return (
-    <div className="spell-sheet__patch">
-      <PatchFact label="Classification" value={patch.classification}>
-        {(value) => <ClassificationSection value={{ state: "known", value }} />}
-      </PatchFact>
-      <PatchFact label="Casting" value={patch.casting}>
-        {(value) => <CastingSection value={{ state: "known", value }} />}
-      </PatchFact>
-      <PatchFact label="Targeting" value={patch.targeting}>
-        {(value) => <TargetingSection value={{ state: "known", value }} />}
-      </PatchFact>
-      <PatchFact label="Defense" value={patch.defense}>
-        {(value) => <DefenseSection value={{ state: "known", value }} />}
-      </PatchFact>
-      <PatchFact label="Damage" value={patch.damage}>
-        {(value) => <DamagePatchSet value={value} />}
-      </PatchFact>
-      <PatchFact label="Duration" value={patch.duration}>
-        {(value) => <DurationSection value={{ state: "known", value }} />}
-      </PatchFact>
-      <PatchFact label="Heightening" value={patch.heightening}>
-        {(value) => <HeighteningPatch value={value} />}
-      </PatchFact>
-      <PatchFact label="Rules" value={patch.rules}>
-        {(value) => <RuleList rules={value} />}
-      </PatchFact>
-      {patch.unsupported_fields?.length ? (
-        <Alert
-          message={`Unavailable patch fields: ${patch.unsupported_fields.map(formatSlug).join(", ")}`}
-          showIcon
-          type="warning"
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function PatchFact<T>({
-  children,
-  label,
-  value,
-}: {
-  children: (value: T) => React.ReactNode;
-  label: string;
-  value: SpellFactView<T>;
-}) {
-  if (value.state === "missing") return null;
-  if (value.state !== "known") {
-    return (
-      <Alert
-        message={`${label} patch: ${factStateLabel(value)}`}
-        showIcon
-        type="warning"
-      />
-    );
-  }
-  return <div className="spell-sheet__patch-group">{children(value.value)}</div>;
-}
-
-function DamagePatchSet({ value }: { value: SpellDamagePatchSetView }) {
-  return (
-    <ol aria-label="Damage patch members" className="spell-sheet__member-list">
-      {value.members.map((member) => (
-        <li key={`${member.key}:${member.order}`}>
-          <div className="spell-sheet__member-heading">
-            <strong>{formatSlug(member.operation.operation)}</strong>
-            <code>{member.key}</code>
-          </div>
-          {member.operation.operation === "merge" ? (
-            <DamagePatch value={member.operation.value} />
-          ) : null}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function DamagePatch({ value }: { value: SpellDamagePatchView }) {
-  return (
-    <RecordKeyValueList
-      ariaLabel="Damage patch"
-      items={[
-        item("formula", "Formula", factNode(value.formula)),
-        item("type", "Type", factNode(value.damage_type, formatSlug)),
-        item("category", "Category", factNode(value.category, formatSlug)),
-        item("kinds", "Kinds", factNode(value.kinds, formatList)),
-        item("materials", "Materials", factNode(value.materials, formatList)),
-        item(
-          "apply-modifier",
-          "Apply modifier",
-          factNode(value.apply_modifier, formatBoolean),
-        ),
-      ]}
-    />
-  );
-}
-
-function HeighteningPatch({ value }: { value: SpellHeighteningPatchView }) {
-  return (
-    <RecordKeyValueList
-      ariaLabel="Heightening patch"
-      items={[
-        item("kind", "Kind", factNode(value.kind, formatSlug)),
-        item("interval", "Interval", factNode(value.interval)),
-        item("area", "Area increase", factNode(value.area)),
-        item("damage", "Damage", factNode(value.damage, renderTextPatchSet)),
-      ]}
-    />
-  );
-}
-
-function RitualSection({ value }: { value: SpellFactView<SpellRitualView> }) {
-  if (value.state === "missing") return null;
-  return (
-    <SurfaceSection title="Ritual">
-      <FactGroup
-        ariaLabel="Ritual checks"
-        fact={value}
-        render={(ritual) => [
-          item("primary", "Primary check", factNode(ritual.primary_check)),
-          item(
-            "secondary-casters",
-            "Secondary casters",
-            factNode(ritual.secondary_casters),
+  const ritualItems = ritualFactItems(ritual);
+  const ruleValues = meaningfulKnown(rules);
+  const items = [
+    ritualItems.length
+      ? {
+          key: "ritual",
+          label: "Ritual requirements",
+          children: (
+            <RecordKeyValueList ariaLabel="Ritual checks" items={ritualItems} />
           ),
-          item(
-            "secondary-checks",
-            "Secondary checks",
-            factNode(ritual.secondary_checks),
-          ),
-        ]}
+        }
+      : null,
+    ruleValues
+      ? {
+          key: "rules",
+          label: "Rule effects",
+          children: <RuleList rules={ruleValues} />,
+        }
+      : null,
+  ].filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  if (!items.length) return null;
+  return (
+    <SurfaceSection title="Additional mechanics">
+      <Collapse
+        className="record-surface__inline-disclosure"
+        ghost
+        items={items}
+        size="small"
       />
     </SurfaceSection>
   );
 }
 
-function RulesSection({ value }: { value: SpellFactView<SpellRuleView[]> }) {
-  if (value.state === "missing") return null;
-  return (
-    <SurfaceSection title="Rules">
-      <FactCollection
-        fact={value}
-        emptyLabel="No authored rules"
-        render={(rules) => <RuleList rules={rules} />}
-      />
-    </SurfaceSection>
-  );
+function ritualFactItems(value: SpellFactView<SpellRitualView>) {
+  const ritual = meaningfulKnown(value);
+  if (!ritual) return [];
+  return [
+    factItem("primary", "Primary check", ritual.primary_check),
+    factItem("secondary-casters", "Secondary casters", ritual.secondary_casters),
+    factItem("secondary-checks", "Secondary checks", ritual.secondary_checks),
+  ].filter((entry): entry is RecordKeyValueItem => entry !== null);
 }
 
 function RuleList({ rules }: { rules: SpellRuleView[] }) {
@@ -721,7 +607,6 @@ function RuleList({ rules }: { rules: SpellRuleView[] }) {
         <li key={`${rule.order}:${rule.rule.kind}`}>
           <div className="spell-sheet__member-heading">
             <strong>{formatSlug(rule.rule.kind)}</strong>
-            <span>Rule {rule.order + 1}</span>
           </div>
           <RuleDetails rule={rule.rule} />
         </li>
@@ -731,31 +616,32 @@ function RuleList({ rules }: { rules: SpellRuleView[] }) {
 }
 
 function RuleDetails({ rule }: { rule: SpellRuleDetailView }) {
-  if (rule.kind === "unsupported") {
-    return <Alert message="Rule details unavailable" showIcon type="warning" />;
-  }
+  if (rule.kind === "unsupported") return null;
   switch (rule.kind) {
     case "damage_dice":
       return (
         <RuleFacts
           items={[
-            item("selector", "Selector", factNode(rule.value.selector)),
-            item(
+            factPresenceItem(
+              "selector",
+              "Scope",
+              rule.value.selector,
+              "Selected damage scope",
+            ),
+            factItem(
               "predicate",
-              "Predicate",
-              factNode(rule.value.predicate, predicatesNode),
+              "Conditions",
+              rule.value.predicate,
+              predicatesSummary,
             ),
-            item("dice", "Dice", factNode(rule.value.dice_number)),
-            item("die-size", "Die size", factNode(rule.value.die_size)),
-            item(
-              "damage-type",
-              "Damage type",
-              factNode(rule.value.damage_type, formatSlug),
-            ),
-            item(
+            factItem("dice", "Dice", rule.value.dice_number),
+            factItem("die-size", "Die size", rule.value.die_size),
+            factItem("damage-type", "Damage type", rule.value.damage_type, formatSlug),
+            factItem(
               "hide-disabled",
               "Hide if disabled",
-              factNode(rule.value.hide_if_disabled, formatBoolean),
+              rule.value.hide_if_disabled,
+              formatBoolean,
             ),
           ]}
         />
@@ -764,13 +650,19 @@ function RuleDetails({ rule }: { rule: SpellRuleDetailView }) {
       return (
         <RuleFacts
           items={[
-            item(
+            factItem(
               "predicate",
-              "Predicate",
-              factNode(rule.value.predicate, predicatesNode),
+              "Conditions",
+              rule.value.predicate,
+              predicatesSummary,
             ),
-            item("selectors", "Selectors", factNode(rule.value.selectors, formatList)),
-            item("uuid", "Effect", factNode(rule.value.uuid)),
+            factItem("selectors", "Scope", rule.value.selectors, scopeCountSummary),
+            factPresenceItem(
+              "uuid",
+              "Effect",
+              rule.value.uuid,
+              "Typed effect reference retained",
+            ),
           ]}
         />
       );
@@ -778,16 +670,22 @@ function RuleDetails({ rule }: { rule: SpellRuleDetailView }) {
       return (
         <RuleFacts
           items={[
-            item("mode", "Mode", factNode(rule.value.mode, formatSlug)),
-            item(
+            factItem("mode", "Mode", rule.value.mode, formatSlug),
+            factItem(
               "predicate",
-              "Predicate",
-              factNode(rule.value.predicate, predicatesNode),
+              "Conditions",
+              rule.value.predicate,
+              predicatesSummary,
             ),
-            item("property", "Property", factNode(rule.value.property)),
-            item("selectors", "Selectors", factNode(rule.value.selectors, formatList)),
-            item("slug", "Slug", factNode(rule.value.slug)),
-            item("value", "Value", factNode(rule.value.value)),
+            factItem("property", "Property", rule.value.property, formatSlug),
+            factItem("selectors", "Scope", rule.value.selectors, scopeCountSummary),
+            factPresenceItem(
+              "slug",
+              "Effect",
+              rule.value.slug,
+              "Typed effect identifier retained",
+            ),
+            factItem("value", "Adjustment", rule.value.value),
           ]}
         />
       );
@@ -795,33 +693,30 @@ function RuleDetails({ rule }: { rule: SpellRuleDetailView }) {
       return (
         <RuleFacts
           items={[
-            item("domain", "Domain", factNode(rule.value.domain)),
-            item("label", "Label", factNode(rule.value.label)),
-            item("option", "Option", factNode(rule.value.option)),
-            item("placement", "Placement", factNode(rule.value.placement)),
-            item(
+            factItem("domain", "Domain", rule.value.domain, formatSlug),
+            factItem("label", "Label", rule.value.label),
+            factItem("option", "Option", rule.value.option, formatSlug),
+            factItem("placement", "Placement", rule.value.placement, formatSlug),
+            factItem(
               "predicate",
-              "Predicate",
-              factNode(rule.value.predicate, predicatesNode),
+              "Conditions",
+              rule.value.predicate,
+              predicatesSummary,
             ),
-            item(
+            factItem(
               "suboptions",
               "Suboptions",
-              factNode(rule.value.suboptions, (suboptions) => (
+              rule.value.suboptions,
+              (suboptions) => (
                 <ul className="spell-sheet__inline-list">
-                  {suboptions.map((suboption, index) => (
-                    <li key={index}>
-                      {factNode(suboption.label)}: {factNode(suboption.value)}
-                    </li>
-                  ))}
+                  {suboptions.flatMap((suboption, index) => {
+                    const label = meaningfulKnown(suboption.label);
+                    return label ? [<li key={index}>{label}</li>] : [];
+                  })}
                 </ul>
-              )),
+              ),
             ),
-            item(
-              "toggleable",
-              "Toggleable",
-              factNode(rule.value.toggleable, formatBoolean),
-            ),
+            factItem("toggleable", "Toggleable", rule.value.toggleable, formatBoolean),
           ]}
         />
       );
@@ -829,41 +724,53 @@ function RuleDetails({ rule }: { rule: SpellRuleDetailView }) {
       return (
         <RuleFacts
           items={[
-            item("item", "Item", factNode(rule.value.item_id)),
-            item("mode", "Mode", factNode(rule.value.mode, formatSlug)),
-            item(
-              "predicate",
-              "Predicate",
-              factNode(rule.value.predicate, predicatesNode),
+            factPresenceItem(
+              "item",
+              "Item",
+              rule.value.item_id,
+              "Typed item reference retained",
             ),
-            item("property", "Property", factNode(rule.value.property)),
-            item("value", "Value", factNode(rule.value.value)),
+            factItem("mode", "Mode", rule.value.mode, formatSlug),
+            factItem(
+              "predicate",
+              "Conditions",
+              rule.value.predicate,
+              predicatesSummary,
+            ),
+            factItem("property", "Property", rule.value.property, formatSlug),
+            factItem("value", "Adjustment", rule.value.value),
           ]}
         />
       );
   }
 }
 
-function RuleFacts({ items }: { items: RecordKeyValueItem[] }) {
-  return <RecordKeyValueList ariaLabel="Rule details" items={items} />;
+function RuleFacts({ items }: { items: Array<RecordKeyValueItem | null> }) {
+  return (
+    <RecordKeyValueList
+      ariaLabel="Rule details"
+      items={items.filter((entry): entry is RecordKeyValueItem => entry !== null)}
+    />
+  );
 }
 
 function SpellSourceDisclosure({ metadata }: { metadata: RecordSurfaceMetadataView }) {
   const source = metadata.source;
   const facts = [
-    item("record", "Record ID", metadata.record_key ?? "Unavailable"),
-    item("publication", "Publication", source?.publication_title ?? "Unavailable"),
-    item("pack", "Source pack", source?.pack_label ?? "Unavailable"),
-    item("path", "Source path", source?.source_path ?? "Unavailable"),
-  ];
+    source?.publication_title
+      ? item("publication", "Publication", source.publication_title)
+      : null,
+    source?.pack_label ? item("pack", "Source pack", source.pack_label) : null,
+  ].filter((entry): entry is RecordKeyValueItem => entry !== null);
+  if (!facts.length) return null;
   return (
     <Collapse
       className="record-surface__secondary"
       ghost
       items={[
         {
-          key: "references-source",
-          label: "References & Source",
+          key: "source",
+          label: "Source & provenance",
           children: (
             <RecordKeyValueList
               ariaLabel="Spell source"
@@ -878,65 +785,38 @@ function SpellSourceDisclosure({ metadata }: { metadata: RecordSurfaceMetadataVi
   );
 }
 
-function FactGroup<T>({
-  ariaLabel,
-  fact,
-  render,
-}: {
-  ariaLabel: string;
-  fact: SpellFactView<T>;
-  render: (value: T) => RecordKeyValueItem[];
-}) {
-  if (fact.state !== "known") return <Availability fact={fact} />;
-  return <RecordKeyValueList ariaLabel={ariaLabel} items={render(fact.value)} />;
+function knownValue<T>(fact: SpellFactView<T>): T | undefined {
+  return fact.state === "known" ? fact.value : undefined;
 }
 
-function FactCollection<T>({
-  emptyLabel,
-  fact,
-  render,
-}: {
-  emptyLabel?: string;
-  fact: SpellFactView<T>;
-  render: (value: T) => React.ReactNode;
-}) {
-  if (fact.state !== "known") return <Availability fact={fact} />;
-  if (Array.isArray(fact.value) && fact.value.length === 0) {
-    return <span className="spell-sheet__availability">{emptyLabel ?? "None"}</span>;
-  }
-  return render(fact.value);
+function meaningfulKnown<T>(fact: SpellFactView<T>): T | undefined {
+  const value = knownValue(fact);
+  if (typeof value === "string" && !value.trim()) return undefined;
+  if (Array.isArray(value) && !value.length) return undefined;
+  return value;
 }
 
-function Availability<T>({ fact }: { fact: SpellFactView<T> }) {
-  return <span className="spell-sheet__availability">{factStateLabel(fact)}</span>;
+function sourceKnown<T>(value: SpellSourceValueView<T>): T | undefined {
+  return value.state === "known" ? value.value : undefined;
 }
 
-function factNode<T>(
+function factItem<T>(
+  key: React.Key,
+  label: React.ReactNode,
   fact: SpellFactView<T>,
   render: (value: T) => React.ReactNode = String,
 ) {
-  return fact.state === "known" ? render(fact.value) : factStateNode(fact);
+  const value = meaningfulKnown(fact);
+  return value === undefined ? null : item(key, label, render(value));
 }
 
-function factStateNode<T>(fact: SpellFactView<T>) {
-  return <span className="spell-sheet__availability">{factStateLabel(fact)}</span>;
-}
-
-function factStateLabel<T>(fact: SpellFactView<T>) {
-  switch (fact.state) {
-    case "missing":
-      return "Not authored";
-    case "null":
-      return "Authored null";
-    case "unsupported":
-      return "Unavailable";
-    case "known":
-      return "Available";
-  }
-}
-
-function knownValue<T>(fact: SpellFactView<T>): T | undefined {
-  return fact.state === "known" ? fact.value : undefined;
+function factPresenceItem<T>(
+  key: React.Key,
+  label: React.ReactNode,
+  fact: SpellFactView<T>,
+  text: string,
+) {
+  return meaningfulKnown(fact) === undefined ? null : item(key, label, text);
 }
 
 function item(key: React.Key, label: React.ReactNode, value: React.ReactNode) {
@@ -951,74 +831,44 @@ function formatBoolean(value: boolean) {
   return value ? "Yes" : "No";
 }
 
-function renderArea(area: SpellAreaView) {
-  return (
-    <RecordKeyValueList
-      ariaLabel="Spell area"
-      items={[
-        item("value", "Size", factNode(area.value)),
-        item("type", "Type", factNode(area.area_type, formatSlug)),
-        item("legacy-type", "Legacy type", factNode(area.legacy_area_type, formatSlug)),
-        item("details", "Details", factNode(area.details)),
-      ]}
-    />
+function areaText(area: SpellAreaView | false | undefined) {
+  if (!area) return undefined;
+  const size = meaningfulKnown(area.value);
+  const type = meaningfulKnown(area.area_type);
+  const details = meaningfulKnown(area.details);
+  const parts = [
+    size === undefined ? undefined : `${size}-foot`,
+    type ? formatSlug(type).toLowerCase() : undefined,
+  ].filter((part): part is string => Boolean(part));
+  const formattedArea = parts.length ? parts.join(" ") : undefined;
+  return formattedArea && details
+    ? `${formattedArea} — ${details}`
+    : (formattedArea ?? details);
+}
+
+function scopeCountSummary(scopes: string[]) {
+  return `${scopes.length} selected ${scopes.length === 1 ? "scope" : "scopes"}`;
+}
+
+function predicatesSummary(predicates: SpellRulePredicateView[]) {
+  const alternatives = predicates.reduce(
+    (count, predicate) =>
+      predicate.kind === "term"
+        ? count + 1
+        : predicate.kind === "or"
+          ? count + predicate.value.length
+          : count,
+    0,
   );
+  return `${alternatives} typed ${alternatives === 1 ? "condition" : "conditions"}`;
 }
 
-function sourceValueText(value: SpellSourceValueView<number>) {
-  return value.state === "known" ? value.value.toString() : "Unavailable";
-}
-
-function KeyedValues({
-  values,
-}: {
-  values: Array<{ key: string; order: number; value: string }>;
-}) {
-  return (
-    <ul className="spell-sheet__inline-list">
-      {values.map((value) => (
-        <li key={`${value.key}:${value.order}`}>
-          <code>{value.key}</code>: {value.value}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function renderTextPatchSet(set: SpellTextPatchSetView) {
-  return (
-    <ul className="spell-sheet__inline-list">
-      {set.members.map((member) => (
-        <li key={`${member.key}:${member.order}`}>
-          <code>{member.key}</code>: {formatSlug(member.operation.operation)}
-          {member.operation.operation === "merge"
-            ? ` (${factStateLabel(member.operation.value)}${member.operation.value.state === "known" ? `: ${member.operation.value.value}` : ""})`
-            : ""}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function predicatesNode(predicates: SpellRulePredicateView[]) {
-  return predicates.length
-    ? predicates
-        .map((predicate) => {
-          if (predicate.kind === "term") return predicate.value;
-          if (predicate.kind === "or") return `any of ${predicate.value.join(", ")}`;
-          return "Unavailable predicate";
-        })
-        .join("; ")
-    : "None";
-}
-
-function selectedFormFor(
-  body: SpellSurfaceView,
-  selection: SpellFormSelection | undefined,
+function selectionLabel(
+  catalog: SpellSurfaceView,
+  selection: SpellFormSelection | { id: string; cast_rank: number },
 ) {
-  if (!selection || !body.selected_form) return undefined;
-  return body.selected_form.id === selection.formId &&
-    body.selected_form.cast_rank === selection.castRank
-    ? body.selected_form
-    : undefined;
+  const id = "formId" in selection ? selection.formId : selection.id;
+  const rank = "castRank" in selection ? selection.castRank : selection.cast_rank;
+  const form = catalog.forms.find((candidate) => candidate.id === id);
+  return `${form?.label ?? "Selected form"} at rank ${rank}`;
 }

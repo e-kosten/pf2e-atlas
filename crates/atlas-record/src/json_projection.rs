@@ -34,13 +34,14 @@ pub use spell::{
     SpellDamageAlterationRuleJson, SpellDamageDiceRuleJson, SpellDamageJson, SpellDamagePatchJson,
     SpellDamagePatchMemberJson, SpellDamagePatchOperationJson, SpellDamagePatchSetJson,
     SpellDefenseJson, SpellDurationJson, SpellEphemeralEffectRuleJson, SpellFactJson,
-    SpellFixedHeighteningJson, SpellFormJson, SpellFormResultJson, SpellHeighteningDamageJson,
-    SpellHeighteningJson, SpellHeighteningPatchJson, SpellItemAlterationRuleJson, SpellJson,
-    SpellMemberProvenanceJson, SpellPatchJson, SpellProvenanceJson, SpellRangeJson,
-    SpellResolvedDefinitionJson, SpellResolvedFieldJson, SpellRitualJson, SpellRollOptionRuleJson,
-    SpellRuleDetailJson, SpellRuleJson, SpellRulePredicateJson, SpellRuleSuboptionJson,
-    SpellSaveJson, SpellTargetingJson, SpellTextPatchMemberJson, SpellTextPatchOperationJson,
-    SpellTextPatchSetJson, SpellUnsupportedFactJson, SpellUnsupportedValueJson,
+    SpellFixedHeighteningJson, SpellFormJson, SpellFormLabelKind, SpellFormResultJson,
+    SpellHeighteningDamageJson, SpellHeighteningJson, SpellHeighteningPatchJson,
+    SpellItemAlterationRuleJson, SpellJson, SpellMemberProvenanceJson, SpellPatchJson,
+    SpellProvenanceJson, SpellRangeJson, SpellResolvedDefinitionJson, SpellResolvedFieldJson,
+    SpellRitualJson, SpellRollOptionRuleJson, SpellRuleDetailJson, SpellRuleJson,
+    SpellRulePredicateJson, SpellRuleSuboptionJson, SpellSaveJson, SpellTargetingJson,
+    SpellTextPatchMemberJson, SpellTextPatchOperationJson, SpellTextPatchSetJson,
+    SpellUnsupportedFactJson, SpellUnsupportedValueJson,
 };
 
 use crate::{
@@ -51,6 +52,16 @@ use crate::{
 };
 
 const DESCRIPTION_PREVIEW_WORDS: usize = 50;
+
+pub(crate) fn spell_issue_presentation(spell: &crate::SpellRecord) -> SpellJson {
+    spell::spell_presentation(spell, DetailLevel::Standard, false)
+}
+
+pub(crate) fn resolved_spell_issue_presentation(
+    resolved: &crate::ResolvedSpellForm,
+) -> SpellResolvedDefinitionJson {
+    spell::resolved_definition_json(resolved.clone())
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RecordJsonOptions {
@@ -700,6 +711,31 @@ pub struct RecordFactJson {
     pub key: String,
     pub label: String,
     pub value: String,
+    #[serde(skip)]
+    pub terminal: Option<RecordFactTerminalPresentation>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordFactTerminalPresentation {
+    HazardDefense(HazardDefenseTerminalFact),
+    HazardStrike {
+        mode: Option<&'static str>,
+        action_cost: Option<u8>,
+    },
+    HazardDamage,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HazardDefenseTerminalFact {
+    ArmorClass(i64),
+    Hardness(i64),
+    HitPointsCurrent(i64),
+    HitPointsMaximum(i64),
+    HitPointsTemporary(i64),
+    BrokenThreshold(i64),
+    Fortitude(i64),
+    Reflex(i64),
+    Will(i64),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -762,7 +798,9 @@ pub fn record_json_with_context(
         }
         (RecordKind::Hazard, Some(RecordBody::Hazard(hazard))) => {
             let document = crate::build_hazard_presentation_document(hazard, |_| true);
-            let detailed_sections = sections_for_detail(record, &document.sections, options.detail);
+            let mut detailed_sections =
+                sections_for_detail(record, &document.sections, options.detail);
+            annotate_hazard_terminal_facts(hazard, &mut detailed_sections);
             (
                 RecordPresentationJson::Hazard {
                     sections: detailed_sections,
@@ -865,6 +903,163 @@ pub fn record_json_with_context(
         },
         presentation,
     })
+}
+
+fn annotate_hazard_terminal_facts(
+    hazard: &crate::HazardRecord,
+    sections: &mut [RecordSectionJson],
+) {
+    let mut annotations = BTreeMap::new();
+    if let Some(defenses) = hazard.defenses.typed() {
+        for (key, value) in [
+            (
+                "armor_class",
+                defenses
+                    .armor_class
+                    .typed()
+                    .copied()
+                    .map(HazardDefenseTerminalFact::ArmorClass),
+            ),
+            (
+                "hardness",
+                defenses
+                    .hardness
+                    .typed()
+                    .copied()
+                    .map(HazardDefenseTerminalFact::Hardness),
+            ),
+        ] {
+            if let Some(value) = value {
+                annotations.insert(
+                    key.to_string(),
+                    RecordFactTerminalPresentation::HazardDefense(value),
+                );
+            }
+        }
+        if let Some(hit_points) = defenses.hit_points.typed() {
+            let conveniences = crate::project_hazard_conveniences(hazard);
+            for (key, value) in [
+                (
+                    "hit_points.current",
+                    hit_points
+                        .current
+                        .typed()
+                        .copied()
+                        .map(HazardDefenseTerminalFact::HitPointsCurrent),
+                ),
+                (
+                    "hit_points.maximum",
+                    hit_points
+                        .maximum
+                        .typed()
+                        .copied()
+                        .map(HazardDefenseTerminalFact::HitPointsMaximum),
+                ),
+                (
+                    "hit_points.temporary",
+                    hit_points
+                        .temporary
+                        .typed()
+                        .copied()
+                        .map(HazardDefenseTerminalFact::HitPointsTemporary),
+                ),
+                (
+                    "hit_points.broken_threshold",
+                    conveniences
+                        .broken_threshold
+                        .map(HazardDefenseTerminalFact::BrokenThreshold),
+                ),
+            ] {
+                if let Some(value) = value {
+                    annotations.insert(
+                        key.to_string(),
+                        RecordFactTerminalPresentation::HazardDefense(value),
+                    );
+                }
+            }
+        }
+        if let Some(saves) = defenses.saves.typed() {
+            for (key, value) in [
+                (
+                    "save.fortitude",
+                    saves
+                        .fortitude
+                        .typed()
+                        .copied()
+                        .map(HazardDefenseTerminalFact::Fortitude),
+                ),
+                (
+                    "save.reflex",
+                    saves
+                        .reflex
+                        .typed()
+                        .copied()
+                        .map(HazardDefenseTerminalFact::Reflex),
+                ),
+                (
+                    "save.will",
+                    saves
+                        .will
+                        .typed()
+                        .copied()
+                        .map(HazardDefenseTerminalFact::Will),
+                ),
+            ] {
+                if let Some(value) = value {
+                    annotations.insert(
+                        key.to_string(),
+                        RecordFactTerminalPresentation::HazardDefense(value),
+                    );
+                }
+            }
+        }
+    }
+
+    if let Some(embedded) = hazard.embedded_entities.typed() {
+        for occurrence in &embedded.occurrences {
+            let Some(entity) = embedded
+                .entities
+                .iter()
+                .find(|entity| entity.id == occurrence.entity_id)
+            else {
+                continue;
+            };
+            let crate::HazardCapability::Strike(strike) = &entity.capability else {
+                continue;
+            };
+            let prefix = format!("activity.{}", occurrence.id.as_str());
+            let mode =
+                crate::project_hazard_attack_mode(entity).map(|projection| match projection.mode {
+                    crate::HazardAttackMode::Melee => "Melee",
+                    crate::HazardAttackMode::Ranged => "Ranged",
+                });
+            let action_cost =
+                crate::project_hazard_strike_action_cost(entity).map(|value| value.cost.value());
+            annotations.insert(
+                prefix.clone(),
+                RecordFactTerminalPresentation::HazardStrike { mode, action_cost },
+            );
+            if let Some(damage) = strike.damage_rolls.typed() {
+                for member in damage {
+                    annotations.insert(
+                        format!("{prefix}.damage.{}", member.source_key),
+                        RecordFactTerminalPresentation::HazardDamage,
+                    );
+                }
+            }
+        }
+    }
+
+    for section in sections {
+        for block in &mut section.blocks {
+            let RecordBlockJson::FactList { facts } = block else {
+                continue;
+            };
+            for fact in facts {
+                fact.terminal = annotations.get(&fact.key).copied();
+            }
+        }
+    }
 }
 
 fn source_json(
@@ -1092,6 +1287,7 @@ fn fact_json(fact: &PresentationFact) -> RecordFactJson {
         key: fact.key.clone(),
         label: fact.label.clone(),
         value: fact.value.clone(),
+        terminal: None,
     }
 }
 

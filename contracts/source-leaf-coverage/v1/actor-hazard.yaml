@@ -288,9 +288,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - system-saves-savedetail-actor-context
     fixtures:
@@ -304,15 +304,15 @@ leaves:
       - stage: source_dto
         destination: HazardSavesSource field ($.system.saves.*.saveDetail)
       - stage: canonical
-        destination: HazardRecord.defenses.saves field.unsupported_fields[$.system.saves.*.saveDetail]
+        destination: HazardSaves.source_metadata save-specific detail fact
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardRecord.defenses.saves field.unsupported_fields[$.system.saves.*.saveDetail]
+        destination: IndexBuildInput.canonical_bodies[].HazardRecord.defenses.saves.source_metadata
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.saves field.unsupported_fields[$.system.saves.*.saveDetail]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.saves.source_metadata
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists named typed save-detail source metadata
       search:
         disposition: not_applicable
         rationale: Exact empty source context is retained without gameplay or presentation semantics
@@ -328,9 +328,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact empty source context is retained without gameplay or presentation semantics
-    rationale: The selected fortitude/reflex/will saveDetail values are exact empty strings outside the hazard save schema; HazardSaves.unsupported_fields retains each value and save identity, visible as unsupported rather than fabricating save mechanics.
-    owner: atlas-ingest::source hazard B/C zero-context reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The selected fortitude/reflex/will saveDetail values are exact empty source-context strings. HazardSaves.source_metadata retains each value and save identity without fabricating save mechanics; future nonempty text remains an explicit modeling limitation.
+    owner: atlas-record::HazardSaveSourceMetadata
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.items[]._id
     leaf_kind: array_member
     expected_shapes:
@@ -408,9 +408,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - actor-items-stats-compendiumsource
     fixtures:
@@ -424,15 +424,15 @@ leaves:
       - stage: source_dto
         destination: HazardItemSource identity/context field ($.items[]._stats.compendiumSource)
       - stage: canonical
-        destination: HazardEntity/HazardEntityOccurrence field.unsupported_fields[$.items[]._stats.compendiumSource]
+        destination: HazardItemCommon.lineage.compendium_source
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardEntity/HazardEntityOccurrence field.unsupported_fields[$.items[]._stats.compendiumSource]
+        destination: IndexBuildInput.canonical_bodies[].HazardItemCommon.lineage.compendium_source
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardEntity/HazardEntityOccurrence field.unsupported_fields[$.items[]._stats.compendiumSource]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardItemCommon.lineage.compendium_source
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists typed child lineage provenance
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -448,9 +448,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The exact Compendium.pf2e.bestiary-ability-glossary-srd.Item.g26YiEIfSHCpLocV value is Foundry editor/source lineage, not authored hazard behavior; the owning capability unsupported_fields retains the exact JSON and item-relative path for diagnostics without adding a gameplay fact.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The exact Compendium.pf2e.bestiary-ability-glossary-srd.Item.g26YiEIfSHCpLocV value is Foundry editor/source lineage, not authored hazard behavior or a graph relationship; HazardItemCommon.lineage retains it as typed provenance.
+    owner: atlas-record::HazardItemLineage
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.items[].img
     leaf_kind: array_member
     expected_shapes:
@@ -2023,9 +2023,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - actor-items-system-traits-rarity
     fixtures:
@@ -2039,15 +2039,15 @@ leaves:
       - stage: source_dto
         destination: HazardItemSource typed system field ($.items[].system.traits.rarity)
       - stage: canonical
-        destination: HazardCapability typed or unsupported field.unsupported_fields[$.items[].system.traits.rarity]
+        destination: HazardItemCommon.rarity
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardCapability typed or unsupported field.unsupported_fields[$.items[].system.traits.rarity]
+        destination: IndexBuildInput.canonical_bodies[].HazardItemCommon.rarity
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardCapability typed or unsupported field.unsupported_fields[$.items[].system.traits.rarity]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardItemCommon.rarity
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists validated child rarity metadata
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -2063,9 +2063,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The selected embedded Strike carries legacy rarity common, but the pinned melee schema does not own a rarity field; HazardStrikeCapability.unsupported_fields retains the exact value/path and exposes the limitation rather than promoting it as a second hazard rarity.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The selected embedded child rarity common is validated item metadata, not a second record rarity or gameplay mechanic; HazardItemCommon.rarity retains it once for every child family.
+    owner: atlas-record::HazardItemCommon
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.items[].system.traits.value[]
     leaf_kind: array_member
     expected_shapes:
@@ -2263,9 +2263,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - actor-prototypetoken-name
     fixtures:
@@ -2279,15 +2279,15 @@ leaves:
       - stage: source_dto
         destination: HazardSource root field ($.prototypeToken.name)
       - stage: canonical
-        destination: HazardRecord identity/provenance field.unsupported_fields[$.prototypeToken.name]
+        destination: HazardRecord.provenance.token.name
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardRecord identity/provenance field.unsupported_fields[$.prototypeToken.name]
+        destination: IndexBuildInput.canonical_bodies[].HazardRecord.provenance.token.name
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardRecord identity/provenance field.unsupported_fields[$.prototypeToken.name]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardRecord.provenance.token.name
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists typed token editor provenance
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -2303,9 +2303,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The exact prototype token name Scythe Blades is Foundry token/editor context redundant with the Actor identity, not a second hazard label; HazardRecord.unsupported_fields retains its exact JSON/path and reports the unsupported context.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The exact prototype token name Scythe Blades is Foundry token/editor context, not a second hazard identity; HazardRecord.provenance.token.name retains it as typed provenance.
+    owner: atlas-record::HazardTokenSourceMetadata
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.system.attributes.ac.value
     leaf_kind: scalar
     expected_shapes:
@@ -2504,9 +2504,9 @@ leaves:
     fixture_prevalence:
       record_count: 1
       occurrence_count: 1
-    disposition: typed_unsupported
+    disposition: promoted
     reader:
-      reader_id: source::dto::HazardSource::exact_typed_unsupported_leaf
+      reader_id: source::dto::HazardSource::exact_promoted_leaf
       parity_case_ids:
         - actor-system-attributes-hashealth
     fixtures:
@@ -2520,15 +2520,15 @@ leaves:
       - stage: source_dto
         destination: HazardDetectionSource/HazardDefensesSource field ($.system.attributes.hasHealth)
       - stage: canonical
-        destination: HazardRecord detection/defenses field.unsupported_fields[$.system.attributes.hasHealth]
+        destination: HazardDefenses.source_metadata.has_health
       - stage: post_projection
-        destination: IndexBuildInput.canonical_bodies[].HazardRecord detection/defenses field.unsupported_fields[$.system.attributes.hasHealth]
+        destination: IndexBuildInput.canonical_bodies[].HazardRecord.defenses.source_metadata.has_health
       - stage: artifact_hydration
-        destination: RetrievedRecord.body.RecordBody::Hazard.HazardRecord detection/defenses field.unsupported_fields[$.system.attributes.hasHealth]
+        destination: RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.source_metadata.has_health
     surfaces:
       artifact:
-        disposition: deferred
-        rationale: H1-D persists exact typed-unsupported evidence
+        disposition: promoted
+        rationale: Artifact contract v7 persists typed health compatibility metadata
       search:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
@@ -2544,9 +2544,9 @@ leaves:
       runtime:
         disposition: not_applicable
         rationale: Exact unsupported source/editor drift is not promoted on this surface
-    rationale: The selected exact boolean true is Foundry UI/preparation state, while authored HP value/max/details own hazard durability; HazardDefenses.unsupported_fields retains true and its path without using it to override missing/null HP facts.
-    owner: atlas-ingest::source hazard B/C exact-leaf reconciliation
-    acceptance_checkpoint: H1-B/C independent review
+    rationale: The selected exact boolean true is Foundry compatibility state, while typed HP remains the durability owner; HazardDefenses.source_metadata retains it for the bounded hp.max comparison without overriding missing or null HP facts.
+    owner: atlas-record::HazardDefenseSourceMetadata
+    acceptance_checkpoint: record-presentation remediation Slice 0 approval
   - normalized_path: $.system.attributes.hp.details
     leaf_kind: scalar
     expected_shapes:
@@ -4187,22 +4187,22 @@ leaves:
       record_count: 1032
       occurrence_count: 174
     fixture_prevalence: {record_count: 1, occurrence_count: 1}
-    disposition: "typed_unsupported"
+    disposition: "promoted"
     reader: {reader_id: "source::dto::HazardHitPointsSource::temporary_maximum", parity_case_ids: ["hidden-pit-tempmax"]}
     fixtures:
       - {case_id: "hidden-pit-tempmax", record_key: "hazards:BHq5wpQU8hQEke8D", source_path: "packs/hazards/hidden-pit.json", source_file_digest: "sha256:645d9d31313903e6afa81eb7191a4e011cf5bd74c17304c4f190275a5e1359c3", excerpt_digest: "sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9", provenance: "pinned_source"}
     final_owners:
       - {stage: "source_dto", destination: "HazardHitPointsSource.temporary_maximum"}
-      - {stage: "canonical", destination: "HazardHitPoints.unsupported_fields[HitPointsTempMax]"}
-      - {stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].defenses.hit_points.unsupported_fields[HitPointsTempMax]"}
-      - {stage: "artifact_hydration", destination: "RetrievedRecord.body.RecordBody::Hazard.HazardRecord detection/defenses field.unsupported_fields[$.system.attributes.hp.tempmax]"}
+      - {stage: "canonical", destination: "HazardHitPoints.source_metadata.temporary_maximum"}
+      - {stage: "post_projection", destination: "IndexBuildInput.canonical_bodies[].defenses.hit_points.source_metadata.temporary_maximum"}
+      - {stage: "artifact_hydration", destination: "RetrievedRecord.body.RecordBody::Hazard.HazardRecord.defenses.hit_points.source_metadata.temporary_maximum"}
     surfaces:
-      artifact: {disposition: "deferred", rationale: "H1-D persists exact canonical typed-unsupported evidence"}
+      artifact: {disposition: "promoted", rationale: "Artifact contract v7 persists named typed source metadata"}
       search: {disposition: "not_applicable", rationale: "legacy tempmax is not promoted as a supported hazard mechanic"}
-      cli: {disposition: "not_applicable", rationale: "typed unsupported remains a visible limitation rather than a gameplay value"}
-      app: {disposition: "not_applicable", rationale: "typed unsupported remains a visible limitation rather than an app field"}
-      ui: {disposition: "not_applicable", rationale: "typed unsupported is not presented as supported temporary HP"}
+      cli: {disposition: "not_applicable", rationale: "source metadata is not presented as gameplay temporary HP"}
+      app: {disposition: "not_applicable", rationale: "source metadata is not a gameplay field"}
+      ui: {disposition: "not_applicable", rationale: "source metadata is not presented as supported temporary HP"}
       runtime: {disposition: "not_applicable", rationale: "legacy tempmax does not drive mutable hazard HP"}
-    rationale: "The exact numeric 0 is legacy Foundry HP editor state outside the hazard HP schema; HazardHitPoints.unsupported_fields retains it with LegacyField diagnostics and does not reinterpret it as current, maximum, temporary HP, or BT."
-    owner: "atlas-ingest::source::hazard_core"
-    acceptance_checkpoint: "H1-B/C independent review"
+    rationale: "The exact numeric 0 is deprecated Foundry HP editor state outside hazard gameplay semantics; HazardHitPoints.source_metadata retains zero and future well-formed numeric values without interpreting them as current, maximum, temporary HP, or BT."
+    owner: "atlas-record::HazardHitPointSourceMetadata"
+    acceptance_checkpoint: "record-presentation remediation Slice 0 approval"

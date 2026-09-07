@@ -3,8 +3,9 @@ use serde::Serialize;
 use crate::{
     ContentIdentityStability, ContentOwner, ContentRole, DuplicateContentStatus, FactValue,
     HazardCapability, HazardEntitySourceIdentity, HazardFact, HazardItemCommon,
-    HazardOccurrenceIdentityStability, HazardRecord, HazardRuleElement, HazardSourceValue,
-    HazardUnsupportedFact, HazardUnsupportedField, HazardUnsupportedValue,
+    HazardOccurrenceIdentityStability, HazardRecord, HazardRuleElement, HazardSourceMetadataFact,
+    HazardSourceMetadataField, HazardSourceValue, HazardUnsupportedFact, HazardUnsupportedField,
+    HazardUnsupportedValue, project_hazard_source_metadata,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -22,6 +23,10 @@ pub struct HazardAvailabilityJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub component_id: Option<String>,
     pub message: String,
+    #[serde(skip)]
+    pub human_label: &'static str,
+    #[serde(skip)]
+    pub human_message: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -68,6 +73,8 @@ pub struct HazardProvenanceJson {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<HazardContentProvenanceJson>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub source_metadata: Vec<HazardSourceMetadataFact>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub unsupported_fields: Vec<HazardUnsupportedFact>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub unsupported_rules: Vec<HazardUnsupportedValue>,
@@ -77,88 +84,142 @@ pub struct HazardProvenanceJson {
 
 pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson> {
     let mut values = Vec::new();
-    for (field, state) in [
-        ("level", fact_state(&hazard.level)),
-        ("rarity", fact_state(&hazard.rarity)),
-        ("traits", fact_state(&hazard.traits)),
-        ("size", fact_state(&hazard.size)),
-        ("publication", fact_state(&hazard.publication)),
-        ("complexity", fact_state(&hazard.complexity)),
-        ("detection", fact_state(&hazard.detection)),
-        ("defenses", fact_state(&hazard.defenses)),
-        ("lifecycle", fact_state(&hazard.lifecycle)),
-        ("emits_sound", fact_state(&hazard.emits_sound)),
-        ("embedded_entities", fact_state(&hazard.embedded_entities)),
+    for (field, human_label, state) in [
+        ("level", "Level", fact_state(&hazard.level)),
+        ("rarity", "Rarity", fact_state(&hazard.rarity)),
+        ("traits", "Traits", fact_state(&hazard.traits)),
+        ("size", "Size", fact_state(&hazard.size)),
+        (
+            "publication",
+            "Publication",
+            fact_state(&hazard.publication),
+        ),
+        ("complexity", "Complexity", fact_state(&hazard.complexity)),
+        ("detection", "Detection", fact_state(&hazard.detection)),
+        ("defenses", "Defenses", fact_state(&hazard.defenses)),
+        ("lifecycle", "Lifecycle", fact_state(&hazard.lifecycle)),
+        ("emits_sound", "Sound", fact_state(&hazard.emits_sound)),
+        (
+            "embedded_entities",
+            "Activities",
+            fact_state(&hazard.embedded_entities),
+        ),
     ] {
-        push_availability(&mut values, field, None, state);
+        push_availability(&mut values, field, human_label, None, state);
     }
 
     if let Some(detection) = hazard.detection.typed() {
         push_availability(
             &mut values,
             "detection.stealth_modifier",
+            "Stealth",
             None,
             fact_state(&detection.stealth_modifier),
         );
         push_availability(
             &mut values,
             "detection.details",
+            "Detection details",
             None,
             fact_state(&detection.details),
         );
     }
     if let Some(defenses) = hazard.defenses.typed() {
-        for (field, state) in [
-            ("defenses.armor_class", fact_state(&defenses.armor_class)),
-            ("defenses.hardness", fact_state(&defenses.hardness)),
-            ("defenses.hit_points", fact_state(&defenses.hit_points)),
-            ("defenses.saves", fact_state(&defenses.saves)),
-            ("defenses.immunities", fact_state(&defenses.immunities)),
-            ("defenses.weaknesses", fact_state(&defenses.weaknesses)),
-            ("defenses.resistances", fact_state(&defenses.resistances)),
+        for (field, human_label, state) in [
+            (
+                "defenses.armor_class",
+                "Armor Class",
+                fact_state(&defenses.armor_class),
+            ),
+            (
+                "defenses.hardness",
+                "Hardness",
+                fact_state(&defenses.hardness),
+            ),
+            (
+                "defenses.hit_points",
+                "Hit Points",
+                fact_state(&defenses.hit_points),
+            ),
+            ("defenses.saves", "Saves", fact_state(&defenses.saves)),
+            (
+                "defenses.immunities",
+                "Immunities",
+                fact_state(&defenses.immunities),
+            ),
+            (
+                "defenses.weaknesses",
+                "Weaknesses",
+                fact_state(&defenses.weaknesses),
+            ),
+            (
+                "defenses.resistances",
+                "Resistances",
+                fact_state(&defenses.resistances),
+            ),
         ] {
-            push_availability(&mut values, field, None, state);
+            push_availability(&mut values, field, human_label, None, state);
         }
         if let Some(hit_points) = defenses.hit_points.typed() {
-            for (field, state) in [
+            for (field, human_label, state) in [
                 (
                     "defenses.hit_points.current",
+                    "Current Hit Points",
                     fact_state(&hit_points.current),
                 ),
                 (
                     "defenses.hit_points.maximum",
+                    "Maximum Hit Points",
                     fact_state(&hit_points.maximum),
                 ),
                 (
                     "defenses.hit_points.temporary",
+                    "Temporary Hit Points",
                     fact_state(&hit_points.temporary),
                 ),
                 (
                     "defenses.hit_points.details",
+                    "Hit Point details",
                     fact_state(&hit_points.details),
                 ),
             ] {
-                push_availability(&mut values, field, None, state);
+                push_availability(&mut values, field, human_label, None, state);
             }
         }
         if let Some(saves) = defenses.saves.typed() {
-            for (field, state) in [
-                ("defenses.saves.fortitude", fact_state(&saves.fortitude)),
-                ("defenses.saves.reflex", fact_state(&saves.reflex)),
-                ("defenses.saves.will", fact_state(&saves.will)),
+            for (field, human_label, state) in [
+                (
+                    "defenses.saves.fortitude",
+                    "Fortitude",
+                    fact_state(&saves.fortitude),
+                ),
+                ("defenses.saves.reflex", "Reflex", fact_state(&saves.reflex)),
+                ("defenses.saves.will", "Will", fact_state(&saves.will)),
             ] {
-                push_availability(&mut values, field, None, state);
+                push_availability(&mut values, field, human_label, None, state);
             }
         }
     }
     if let Some(lifecycle) = hazard.lifecycle.typed() {
-        for (field, state) in [
-            ("lifecycle.description", fact_state(&lifecycle.description)),
-            ("lifecycle.disable", fact_state(&lifecycle.disable)),
-            ("lifecycle.routine", fact_state(&lifecycle.routine)),
-            ("lifecycle.reset", fact_state(&lifecycle.reset)),
+        for (field, human_label, state) in [
+            (
+                "lifecycle.description",
+                "Description",
+                fact_state(&lifecycle.description),
+            ),
+            (
+                "lifecycle.disable",
+                "Disable",
+                fact_state(&lifecycle.disable),
+            ),
+            (
+                "lifecycle.routine",
+                "Routine",
+                fact_state(&lifecycle.routine),
+            ),
+            ("lifecycle.reset", "Reset", fact_state(&lifecycle.reset)),
         ] {
-            push_availability(&mut values, field, None, state);
+            push_availability(&mut values, field, human_label, None, state);
         }
     }
     if let Some(embedded) = hazard.embedded_entities.typed() {
@@ -167,18 +228,21 @@ pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson>
             push_availability(
                 &mut values,
                 "occurrence.source_sort",
+                "Activity order",
                 component_id.clone(),
                 fact_state(&occurrence.source_sort),
             );
             push_availability(
                 &mut values,
                 "occurrence.source_folder",
+                "Activity folder",
                 component_id.clone(),
                 fact_state(&occurrence.source_folder),
             );
             push_availability(
                 &mut values,
                 "occurrence.contextual_label",
+                "Activity label",
                 component_id,
                 fact_state(&occurrence.contextual_label),
             );
@@ -192,23 +256,45 @@ pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson>
                 push_availability(
                     &mut values,
                     "entity.source_identity",
+                    "Activity identity",
                     Some(component_id.to_string()),
                     Some(HazardAvailabilityStateJson::Unsupported),
                 );
             }
             let (common, unsupported) = match &entity.capability {
                 HazardCapability::Action(value) => {
-                    for (field, state) in [
-                        ("action.action_type", fact_state(&value.action_type)),
-                        ("action.actions", fact_state(&value.actions)),
-                        ("action.category", fact_state(&value.category)),
-                        ("action.death_note", fact_state(&value.death_note)),
-                        ("action.frequency", fact_state(&value.frequency)),
-                        ("action.self_effect", fact_state(&value.self_effect)),
+                    for (field, human_label, state) in [
+                        (
+                            "action.action_type",
+                            "Action type",
+                            fact_state(&value.action_type),
+                        ),
+                        ("action.actions", "Action cost", fact_state(&value.actions)),
+                        (
+                            "action.category",
+                            "Action category",
+                            fact_state(&value.category),
+                        ),
+                        (
+                            "action.death_note",
+                            "Death note",
+                            fact_state(&value.death_note),
+                        ),
+                        (
+                            "action.frequency",
+                            "Frequency",
+                            fact_state(&value.frequency),
+                        ),
+                        (
+                            "action.self_effect",
+                            "Self effect",
+                            fact_state(&value.self_effect),
+                        ),
                     ] {
                         push_availability(
                             &mut values,
                             field,
+                            human_label,
                             Some(component_id.to_string()),
                             state,
                         );
@@ -216,14 +302,23 @@ pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson>
                     (&value.common, &value.unsupported_fields)
                 }
                 HazardCapability::Strike(value) => {
-                    for (field, state) in [
-                        ("strike.bonus", fact_state(&value.bonus)),
-                        ("strike.attack_effects", fact_state(&value.attack_effects)),
-                        ("strike.damage_rolls", fact_state(&value.damage_rolls)),
+                    for (field, human_label, state) in [
+                        ("strike.bonus", "Strike bonus", fact_state(&value.bonus)),
+                        (
+                            "strike.attack_effects",
+                            "Attack effects",
+                            fact_state(&value.attack_effects),
+                        ),
+                        (
+                            "strike.damage_rolls",
+                            "Strike damage",
+                            fact_state(&value.damage_rolls),
+                        ),
                     ] {
                         push_availability(
                             &mut values,
                             field,
+                            human_label,
                             Some(component_id.to_string()),
                             state,
                         );
@@ -244,6 +339,7 @@ pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson>
                         "entity.unsupported.{}",
                         unsupported_field_name(&unsupported.field)
                     ),
+                    unsupported_field_label(&unsupported.field),
                     Some(component_id.to_string()),
                     Some(HazardAvailabilityStateJson::Unsupported),
                 );
@@ -256,6 +352,7 @@ pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson>
                 push_availability(
                     &mut values,
                     "entity.rule",
+                    "Activity rule",
                     Some(component_id.to_string()),
                     Some(HazardAvailabilityStateJson::Unsupported),
                 );
@@ -269,14 +366,27 @@ pub(super) fn availability(hazard: &HazardRecord) -> Vec<HazardAvailabilityJson>
                 "hazard.unsupported.{}",
                 unsupported_field_name(&unsupported.field)
             ),
+            unsupported_field_label(&unsupported.field),
             None,
             Some(HazardAvailabilityStateJson::Unsupported),
+        );
+    }
+    for issue in project_hazard_source_metadata(hazard).issues {
+        push_availability_message(
+            &mut values,
+            issue.field_key(),
+            source_metadata_label(issue.field),
+            issue.component_id().map(str::to_string),
+            HazardAvailabilityStateJson::Unsupported,
+            issue.message(),
+            issue.message(),
         );
     }
     values
 }
 
 pub(super) fn provenance(hazard: &HazardRecord) -> HazardProvenanceJson {
+    let source_metadata = project_hazard_source_metadata(hazard).facts;
     let occurrences = hazard
         .embedded_entities
         .typed()
@@ -323,30 +433,22 @@ pub(super) fn provenance(hazard: &HazardRecord) -> HazardProvenanceJson {
             },
         })
         .collect();
-    let mut unsupported_fields = hazard.unsupported_fields.clone();
+    let unsupported_fields = hazard
+        .unsupported_facts()
+        .into_iter()
+        .cloned()
+        .collect::<Vec<_>>();
     let mut unsupported_rules = Vec::new();
     let mut identity_diagnostics = Vec::new();
-    if let Some(defenses) = hazard.defenses.typed() {
-        unsupported_fields.extend(defenses.unsupported_fields.iter().cloned());
-        if let Some(hit_points) = defenses.hit_points.typed() {
-            unsupported_fields.extend(hit_points.unsupported_fields.iter().cloned());
-        }
-        if let Some(saves) = defenses.saves.typed() {
-            unsupported_fields.extend(saves.unsupported_fields.iter().cloned());
-        }
-    }
     if let Some(embedded) = hazard.embedded_entities.typed() {
         for entity in &embedded.entities {
-            let (common, unsupported) = match &entity.capability {
-                HazardCapability::Action(value) => (&value.common, &value.unsupported_fields),
-                HazardCapability::Strike(value) => (&value.common, &value.unsupported_fields),
-                HazardCapability::Condition(value) => (&value.common, &value.unsupported_fields),
-                HazardCapability::Effect(value) => (&value.common, &value.unsupported_fields),
-                HazardCapability::UnsupportedChild(value) => {
-                    (&value.common, &value.unsupported_fields)
-                }
+            let common = match &entity.capability {
+                HazardCapability::Action(value) => &value.common,
+                HazardCapability::Strike(value) => &value.common,
+                HazardCapability::Condition(value) => &value.common,
+                HazardCapability::Effect(value) => &value.common,
+                HazardCapability::UnsupportedChild(value) => &value.common,
             };
-            unsupported_fields.extend(unsupported.iter().cloned());
             unsupported_rules.extend(common.rules.typed().into_iter().flatten().filter_map(
                 |rule| match rule {
                     HazardRuleElement::Unsupported(value) => Some(value.source.clone()),
@@ -374,6 +476,7 @@ pub(super) fn provenance(hazard: &HazardRecord) -> HazardProvenanceJson {
             .map(|license| license.as_str().to_string()),
         occurrences,
         content,
+        source_metadata,
         unsupported_fields,
         unsupported_rules,
         identity_diagnostics,
@@ -385,14 +488,32 @@ fn collect_common_availability(
     component_id: &str,
     common: &HazardItemCommon,
 ) {
-    for (field, state) in [
-        ("entity.description", fact_state(&common.description)),
-        ("entity.publication", fact_state(&common.publication)),
-        ("entity.rules", fact_state(&common.rules)),
-        ("entity.slug", fact_state(&common.slug)),
-        ("entity.traits", fact_state(&common.traits)),
+    for (field, human_label, state) in [
+        (
+            "entity.description",
+            "Activity description",
+            fact_state(&common.description),
+        ),
+        (
+            "entity.publication",
+            "Activity publication",
+            fact_state(&common.publication),
+        ),
+        ("entity.rules", "Activity rules", fact_state(&common.rules)),
+        ("entity.slug", "Activity slug", fact_state(&common.slug)),
+        (
+            "entity.traits",
+            "Activity traits",
+            fact_state(&common.traits),
+        ),
     ] {
-        push_availability(values, field, Some(component_id.to_string()), state);
+        push_availability(
+            values,
+            field,
+            human_label,
+            Some(component_id.to_string()),
+            state,
+        );
     }
 }
 
@@ -410,6 +531,7 @@ fn fact_state<T>(fact: &HazardFact<T>) -> Option<HazardAvailabilityStateJson> {
 fn push_availability(
     values: &mut Vec<HazardAvailabilityJson>,
     field: &str,
+    human_label: &'static str,
     component_id: Option<String>,
     state: Option<HazardAvailabilityStateJson>,
 ) {
@@ -421,12 +543,37 @@ fn push_availability(
         HazardAvailabilityStateJson::Null => "null",
         HazardAvailabilityStateJson::Unsupported => "unsupported",
     };
-    values.push(HazardAvailabilityJson {
-        message: format!("{field} data is {state_label}."),
+    push_availability_message(
+        values,
+        field,
+        human_label,
+        component_id,
+        state,
+        &format!("{field} data is {state_label}."),
+        &format!("{human_label} is {state_label}."),
+    );
+}
+
+fn push_availability_message(
+    values: &mut Vec<HazardAvailabilityJson>,
+    field: &str,
+    human_label: &'static str,
+    component_id: Option<String>,
+    state: HazardAvailabilityStateJson,
+    message: &str,
+    human_message: &str,
+) {
+    let value = HazardAvailabilityJson {
+        message: message.to_string(),
         state,
         field: field.to_string(),
         component_id,
-    });
+        human_label,
+        human_message: human_message.to_string(),
+    };
+    if !values.contains(&value) {
+        values.push(value);
+    }
 }
 
 fn content_owner(owner: &ContentOwner) -> String {
@@ -455,17 +602,8 @@ const fn content_role(role: ContentRole) -> &'static str {
 fn unsupported_field_name(field: &HazardUnsupportedField) -> String {
     match field {
         HazardUnsupportedField::HazardUnexpected(name) => format!("unexpected.{name}"),
-        HazardUnsupportedField::DefensesHasHealth => "defenses.has_health".to_string(),
-        HazardUnsupportedField::HitPointsTempMax => "hit_points.temp_max".to_string(),
-        HazardUnsupportedField::SaveDetail(kind) => format!("save.{kind:?}.detail").to_lowercase(),
         HazardUnsupportedField::ActionUnexpected(name) => format!("action.unexpected.{name}"),
         HazardUnsupportedField::StrikeUnexpected(name) => format!("strike.unexpected.{name}"),
-        HazardUnsupportedField::StrikeAttack => "strike.attack".to_string(),
-        HazardUnsupportedField::StrikeWeaponType => "strike.weapon_type".to_string(),
-        HazardUnsupportedField::StrikeAttackEffectsCustom => {
-            "strike.attack_effects_custom".to_string()
-        }
-        HazardUnsupportedField::StrikeTraitRarity => "strike.trait_rarity".to_string(),
         HazardUnsupportedField::ConditionUnexpected(name) => {
             format!("condition.unexpected.{name}")
         }
@@ -473,5 +611,30 @@ fn unsupported_field_name(field: &HazardUnsupportedField) -> String {
         HazardUnsupportedField::UnsupportedChildField(name) => {
             format!("unsupported_child.{name}")
         }
+    }
+}
+
+const fn unsupported_field_label(field: &HazardUnsupportedField) -> &'static str {
+    match field {
+        HazardUnsupportedField::HazardUnexpected(_) => "Hazard source fact",
+        HazardUnsupportedField::ActionUnexpected(_) => "Action source fact",
+        HazardUnsupportedField::StrikeUnexpected(_) => "Strike source fact",
+        HazardUnsupportedField::ConditionUnexpected(_) => "Condition source fact",
+        HazardUnsupportedField::EffectUnexpected(_) => "Effect source fact",
+        HazardUnsupportedField::UnsupportedChildField(_) => "Embedded source fact",
+    }
+}
+
+const fn source_metadata_label(field: HazardSourceMetadataField) -> &'static str {
+    match field {
+        HazardSourceMetadataField::TokenName => "Token metadata",
+        HazardSourceMetadataField::HasHealth => "Hit Point metadata",
+        HazardSourceMetadataField::TemporaryMaximum => "Temporary Hit Point metadata",
+        HazardSourceMetadataField::SaveDetail(_) => "Save metadata",
+        HazardSourceMetadataField::ItemRarity => "Activity rarity metadata",
+        HazardSourceMetadataField::ItemLineage => "Activity lineage metadata",
+        HazardSourceMetadataField::StrikeAttack => "Strike attack metadata",
+        HazardSourceMetadataField::StrikeWeaponType => "Strike mode metadata",
+        HazardSourceMetadataField::StrikeAttackEffectsCustom => "Strike effect metadata",
     }
 }

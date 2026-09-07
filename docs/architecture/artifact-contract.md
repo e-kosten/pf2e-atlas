@@ -26,7 +26,9 @@ side facts are already one-way projections from `CreatureRecord`, and current di
 consume those same projections; C1 persists them without reinterpreting raw source. D1 remains
 responsible for later search projection and duplicate-ranking policy.
 
-The v6 contract writer publishes a v3 manifest only after the completed temporary SQLite artifact passes cheap compatibility checks and produces its transfer digest. Deep validation remains explicit supplementary tooling. `atlas-index::read` decodes canonical typed bodies and consumable children and exposes canonical-body and combined hydrated-record reads; no other crate owns complete hydration. Old artifacts receive explicit rebuild guidance and are never upgraded in place.
+The v7 contract writer publishes a v3 manifest only after the completed temporary SQLite artifact passes cheap compatibility checks and produces its transfer digest. Deep validation remains explicit supplementary tooling. `atlas-index::read` decodes canonical typed bodies and consumable children and exposes canonical-body and combined hydrated-record reads; no other crate owns complete hydration. Old artifacts receive explicit rebuild guidance and are never upgraded in place.
+
+Hazard canonical bodies persist named typed source metadata separately from gameplay projections. Health compatibility, deprecated temporary maximum HP, save detail, child rarity and lineage, token naming, and residual Strike fields round-trip through canonical JSON with their presence and unsupported states intact. Trait-derived attack mode, the two bounded compatibility comparisons, and the Strike-family action-cost rule are recomputed nonpersistently and do not add SQLite columns or manifest fields.
 
 Typed visibility/provenance and product retrieval disposition are separate. `records.visibility_state` and `records.visibility_reason` are written from `AtlasRecord.visibility` and are the only inputs to hydrated `RecordVisibility`. The separately stored role/disposition/rationale tuple owns product routing, and `is_default_visible` is only its checked projection; neither contract reconstructs the other. Atlas has no authentication boundary, but the pinned base still uses `is_default_visible` and public-only content/reference predicates across FTS, embeddings, graph, discovery/metrics, and validation, so it is not GM-complete. Checkpoint A's target makes useful authored information eligible regardless of classification. Classification makes no current privacy/security claim. Every retained excluded record, content unit, reference, FTS row, or embedding unit needs a non-auth product rationale, owner, fixture, validation, and audit checkpoint.
 
@@ -35,7 +37,7 @@ Typed visibility/provenance and product retrieval disposition are separate. `rec
 The supported contract version is:
 
 ```text
-pf2e-atlas-artifact/v6
+pf2e-atlas-artifact/v7
 ```
 
 The SQLite schema version for this active development artifact family is:
@@ -63,7 +65,7 @@ Required keys:
 
 | Key | Required value or rule |
 | --- | --- |
-| `artifact_contract_version` | `pf2e-atlas-artifact/v6` |
+| `artifact_contract_version` | `pf2e-atlas-artifact/v7` |
 | `schema_version` | `4` |
 | `source_kind` | `foundry-pf2e` |
 | `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |

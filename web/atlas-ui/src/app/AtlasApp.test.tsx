@@ -98,13 +98,21 @@ describe("AtlasApp routing", () => {
     });
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:heal"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "spell:heal",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:heal");
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+      "spell:heal",
+      undefined,
+      expect.any(AbortSignal),
+    );
 
     vi.clearAllMocks();
     await act(async () => {
@@ -113,7 +121,11 @@ describe("AtlasApp routing", () => {
     });
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:linked"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "spell:linked",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();

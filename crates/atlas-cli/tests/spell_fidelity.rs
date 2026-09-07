@@ -125,17 +125,47 @@ fn heal_rime_and_qi_expose_keyed_spell_json_terminal_and_provenance()
         layers[0]["patch"]["damage"]["value"]["members"][0]["value"]["formula"]["value"],
         "4d4"
     );
+    assert_eq!(
+        layers[0]["patch"]["damage"]["value"]["members"][0]["value"]["kinds"]["state"],
+        "missing"
+    );
+    assert_eq!(
+        layers[0]["patch"]["damage"]["value"]["members"][0]["value"]["apply_modifier"]["value"],
+        false
+    );
     assert_eq!(layers[1]["key"], "8");
     assert_eq!(
         layers[1]["patch"]["damage"]["value"]["members"][0]["value"]["formula"]["value"],
         "6d4"
     );
     let rime_text = record_text("spells-srd:Popa5umI3H33levx", &artifact.0)?;
-    assert!(rime_text.contains("Area: 20 burst"));
-    assert!(rime_text.contains("Damage 0: 4d4 cold"));
-    assert!(rime_text.contains("Damage 0 apply modifier: false"));
-    assert!(rime_text.contains("Area: 30 burst"));
-    assert!(rime_text.contains("Damage 0: 6d4 cold"));
+    for expected in [
+        "Area: 10-foot burst",
+        "Damage: 2d4 cold",
+        "Heightened (5th)",
+        "Area: 20-foot burst",
+        "Damage: 4d4 cold",
+        "Heightened (8th)",
+        "Area: 30-foot burst",
+        "Damage: 6d4 cold",
+        "Forms\n  - Base",
+    ] {
+        assert!(
+            rime_text.contains(expected),
+            "missing semantic Rime field {expected:?}:\n{rime_text}"
+        );
+    }
+    for hidden in [
+        "Damage 0",
+        "Modifier: false",
+        "apply modifier: false",
+        "Authored null",
+    ] {
+        assert!(
+            !rime_text.contains(hidden),
+            "leaked machine-only Rime field {hidden:?}:\n{rime_text}"
+        );
+    }
     assert_unsupported_provenance(
         "spells-srd:Popa5umI3H33levx",
         &artifact.0,
@@ -162,14 +192,18 @@ fn heal_rime_and_qi_expose_keyed_spell_json_terminal_and_provenance()
         true
     );
     let qi_text = record_text("spells-srd:oo7YcRC2gcez81PV", &artifact.0)?;
-    assert!(
-        qi_text.contains("electricity"),
-        "missing typed Qi suboption from:\n{qi_text}"
+    assert_eq!(
+        qi_text
+            .matches("Roll option suboption label: Roll option suboption label is not supported")
+            .count(),
+        1,
+        "missing localized Qi suboption limitation from:\n{qi_text}"
     );
-    assert!(
-        qi_text.contains("Toggleable: true"),
-        "missing typed Qi toggleable state from:\n{qi_text}"
-    );
+    assert!(!qi_text.contains("= electricity"));
+    assert!(qi_text.contains("Toggleable: yes"));
+    assert!(!qi_text.contains("Toggleable: true"));
+    assert!(qi_text.contains("Scope: not available for presentation"));
+    assert!(!qi_text.contains("{item|id}-damage"));
     let qi_provenance = command_output(&[
         "record",
         "provenance",

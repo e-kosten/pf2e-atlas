@@ -419,6 +419,8 @@ fn export_e3_record_surface_final_samples() {
                     .to_string(),
             },
         },
+        issues: None,
+        references: None,
         encounter: None,
     };
     let concept_mock = json!({
@@ -2064,6 +2066,7 @@ fn rebind_e3_record_view_final_samples() {
 fn assert_compact_surface(surface: &RecordSurfaceView) {
     assert_eq!(surface.profile, RecordSurfaceProfileView::SearchCompact);
     assert!(surface.encounter.is_none());
+    assert!(surface.references.is_none());
     let RecordSurfacePresentationView::Creature { body } = &surface.presentation else {
         panic!("real creature compact surface should be typed")
     };

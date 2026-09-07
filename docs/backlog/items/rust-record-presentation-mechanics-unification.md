@@ -1,11 +1,11 @@
 # Rust Record Presentation Mechanics Unification
 
-Status: proposed
-Priority: later
+Status: in_progress
+Priority: now
 Owner: unassigned
-Last reviewed: 2026-06-27
+Last reviewed: 2026-09-06
 
-A7 candidate disposition: **superseded** by E1-E3/F1-F3/G1. The prior v1 adjusted sidecar plus retained creature fallback is replaced by shared canonical facts and profile projections, with fallback removal only after Checkpoint E. Checkpoint B is not yet approved.
+Canonical hazard source metadata, exact-once unsupported ownership, nonpersisted attack-mode and compatibility projections, typed-family Strike action cost, shared creature/hazard/spell issue policy, the outer graph-backed record-reference contract, terminal presentation, and backend-resolved effective-spell app composition are now implemented. Remaining work is the separately scoped frontend visual record-surface refinement and final integrated validation; those later slices must continue to preserve the existing machine contract and typed ownership boundaries.
 
 ## Problem
 

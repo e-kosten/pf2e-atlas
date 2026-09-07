@@ -33,16 +33,20 @@ new_fixture() {
     crates/atlas-index/migrations/0001_fixture/up.sql \
     crates/atlas-record/src/content/search_projection.rs \
     crates/atlas-record/src/creature.rs \
+    crates/atlas-record/src/hazard.rs \
     crates/atlas-record/src/mechanics/projection.rs \
     crates/atlas-record/src/metrics/model.rs \
     crates/atlas-record/src/reference_policy.rs \
     crates/atlas-record/src/retrieved_record.rs \
     crates/atlas-ingest/src/source/dto/npc.rs \
+    crates/atlas-ingest/src/source/dto/hazard.rs \
     crates/atlas-ingest/src/source/loader.rs \
     crates/atlas-ingest/src/source/normalize.rs \
     crates/atlas-ingest/src/source/normalize/content.rs \
     crates/atlas-ingest/src/source/npc_core.rs \
     crates/atlas-ingest/src/source/npc_entities.rs \
+    crates/atlas-ingest/src/source/hazard_core.rs \
+    crates/atlas-ingest/src/source/hazard_entities.rs \
     crates/atlas-ingest/src/source/owned_content.rs \
     crates/atlas-ingest/src/build.rs \
     crates/atlas-ingest/src/diagnostics.rs \
@@ -121,16 +125,20 @@ for owner in \
   crates/atlas-index/src/write/sqlite/records.rs \
   crates/atlas-record/src/content/search_projection.rs \
   crates/atlas-record/src/creature.rs \
+  crates/atlas-record/src/hazard.rs \
   crates/atlas-record/src/mechanics/projection.rs \
   crates/atlas-record/src/metrics/model.rs \
   crates/atlas-record/src/reference_policy.rs \
   crates/atlas-record/src/retrieved_record.rs \
   crates/atlas-ingest/src/source/dto/npc.rs \
+  crates/atlas-ingest/src/source/dto/hazard.rs \
   crates/atlas-ingest/src/source/loader.rs \
   crates/atlas-ingest/src/source/normalize.rs \
   crates/atlas-ingest/src/source/normalize/content.rs \
   crates/atlas-ingest/src/source/npc_core.rs \
   crates/atlas-ingest/src/source/npc_entities.rs \
+  crates/atlas-ingest/src/source/hazard_core.rs \
+  crates/atlas-ingest/src/source/hazard_entities.rs \
   crates/atlas-ingest/src/source/owned_content.rs \
   crates/atlas-ingest/src/diagnostics.rs \
   crates/atlas-ingest/src/embeddings.rs \

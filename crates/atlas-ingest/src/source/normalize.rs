@@ -455,21 +455,20 @@ pub(crate) fn normalize_record_from_source(
         variant: None,
         visibility: RecordVisibility::default(),
     };
-    let (mut canonical_body, npc_core_diagnostics, hazard_diagnostics) =
+    let (mut canonical_body, npc_core_diagnostics) =
         if let Some(NpcCoreConversion {
             body, diagnostics, ..
         }) = npc_conversion
         {
-            (Some(body), diagnostics, Vec::new())
+            (Some(body), diagnostics)
         } else if let Some(HazardCoreConversion {
             body,
-            diagnostics,
             embedded_identities: _,
         }) = hazard_conversion
         {
-            (Some(body), Vec::new(), diagnostics)
+            (Some(body), Vec::new())
         } else {
-            (None, Vec::new(), Vec::new())
+            (None, Vec::new())
         };
     if let Some(SpellDocumentSource::Standalone(source)) = spell_source.clone() {
         canonical_body = Some(
@@ -496,7 +495,6 @@ pub(crate) fn normalize_record_from_source(
         npc_core_diagnostics,
         npc_embedded_candidates,
         npc_embedded_diagnostics: Vec::new(),
-        hazard_diagnostics,
         generated_affliction_role: None,
     };
 

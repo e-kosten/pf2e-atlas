@@ -29,6 +29,14 @@ Batch exact keys in one process:
 atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --detail standard --json
 ```
 
+Without `--json`, canonical hazards and spells use a scan-first terminal view.
+Hazard defenses are grouped as AC, HP, nonzero temporary HP, Hardness, BT, and
+saves; Strike mode and action cost appear only from their typed projections.
+Spell rank and traits appear once, and damage, heightening, and unnamed forms
+use semantic labels rather than authored map keys or opaque form IDs. Optional
+missing, null, and known-empty sections are omitted. Use `record provenance`
+when exact component identities, source paths, or authored keys are required.
+
 ## Handle An Ambiguous Name
 
 Ask for alternatives, inspect their keys and context, then fetch the chosen
@@ -204,6 +212,16 @@ Rich prose and relationships live under
 mechanics. A non-creature `presentation_type: "unmigrated"` payload names its
 temporary H-family registry assignment in `migration` and retains generic fact
 `sections` until that family contract lands.
+
+Use `atlas record provenance <hazard-key> --json` for exact hazard source
+metadata. Its command envelope exposes tagged facts at
+`data.hazard_provenance.source_metadata[]`; the corresponding hazard
+`RecordJson` field is `provenance.source_metadata[]`. Each fact preserves its
+presence state, typed or unsupported support state, exact value, stable entity
+identity and order when applicable, and `provenance.relativeSourcePath`.
+Malformed facts can also produce one localized availability issue, but are not
+duplicated in `unsupported_fields`. Ordinary record JSON omits this explicit
+provenance, and valid, consistent, zero, or empty source-only values stay quiet.
 
 Detail-dependent fields are absent when that detail level does not hydrate
 them. In particular, `summary` and `description` omit the creature mechanics

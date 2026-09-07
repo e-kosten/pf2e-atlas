@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "name": "spells-srd",
+      "label": "Spells",
+      "type": "Item",
+      "path": "packs/spells"
+    }
+  ]
+}

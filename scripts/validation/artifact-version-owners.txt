@@ -68,6 +68,7 @@ contract|crates/atlas-record/src/content/traversal.rs
 contract|crates/atlas-record/src/creature.rs
 contract|crates/atlas-record/src/creature_entities.rs
 contract|crates/atlas-record/src/creature_projection.rs
+contract|crates/atlas-record/src/hazard.rs
 contract|crates/atlas-record/src/mechanics/facets.rs
 contract|crates/atlas-record/src/mechanics/projection.rs
 contract|crates/atlas-record/src/mechanics/target.rs
@@ -86,6 +87,7 @@ contract|crates/atlas-record/src/spell.rs
 contract|crates/atlas-ingest/src/source/dto/creature_core.rs
 contract|crates/atlas-ingest/src/source/dto/diagnostic.rs
 contract|crates/atlas-ingest/src/source/dto/embedded.rs
+contract|crates/atlas-ingest/src/source/dto/hazard.rs
 contract|crates/atlas-ingest/src/source/dto/item.rs
 contract|crates/atlas-ingest/src/source/dto/npc.rs
 contract|crates/atlas-ingest/src/source/dto/presence.rs
@@ -110,6 +112,8 @@ contract|crates/atlas-ingest/src/source/normalize/text.rs
 contract|crates/atlas-ingest/src/source/normalize/time.rs
 contract|crates/atlas-ingest/src/source/npc_core.rs
 contract|crates/atlas-ingest/src/source/npc_entities.rs
+contract|crates/atlas-ingest/src/source/hazard_core.rs
+contract|crates/atlas-ingest/src/source/hazard_entities.rs
 contract|crates/atlas-ingest/src/source/owned_content.rs
 contract|crates/atlas-ingest/src/source/spells.rs
 

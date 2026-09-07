@@ -843,15 +843,15 @@ describe("RecordSurface", () => {
       equipment: { causes: [] },
     };
     surface.presentation.body.unmodeled_skills = [];
+    surface.issues = [];
 
     render(<RecordSurface onReference={onReference} surface={surface} />);
 
-    expect(
-      screen.queryByRole("button", { name: "Data availability" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Data availability")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Data issues" })).toBeNull();
   });
 
-  it("renders only legitimate availability causes with exact hostile skill copy", () => {
+  it("uses only common outer issues and references without exposing creature owner IDs", () => {
     const hostileKey = '<img src=x onerror="alert(1)">\n+20';
     const surface = detailedSurfaceFixture();
     if (surface.presentation.presentation_type !== "creature") {
@@ -901,32 +901,80 @@ describe("RecordSurface", () => {
         ],
       },
     };
+    surface.presentation.body.relationships = [
+      {
+        kind: "linked_weapon",
+        source_occurrence_id: "internal-occurrence",
+        target: {
+          target_type: "occurrence",
+          occurrence_id: "internal-target-occurrence",
+        },
+        provenance_only: true,
+      },
+    ];
+    surface.issues = [
+      {
+        code: "unsupported",
+        placement: "defenses",
+        message: "Shield hardness is not supported for this record.",
+      },
+    ];
+    surface.references = {
+      outgoing: {
+        state: "available",
+        requested_limit: 8,
+        records: [
+          { record_key: "spells:dream-message", title: "Dream Message", kind: "spell" },
+        ],
+        edges: [
+          {
+            from_record_key: "concept:f1-record",
+            to_record_key: "spells:dream-message",
+            display_text: "Dream Message",
+            reference_text: "Dream Message",
+            source: {
+              kind: "rich_content",
+              visibility: "public",
+              relation_kind: "references",
+            },
+          },
+        ],
+        total_records: 1,
+        total_edges: 1,
+        truncated: false,
+      },
+      backlinks: { state: "not_requested" },
+    };
+    const onReferencesOpen = vi.fn();
 
     const { container } = render(
-      <RecordSurface onReference={onReference} surface={surface} />,
+      <RecordSurface
+        onReference={onReference}
+        onReferencesOpen={onReferencesOpen}
+        surface={surface}
+      />,
     );
-    const control = screen.getByRole("button", { name: "Data availability" });
-    expect(control).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(control);
-
-    expect(screen.getByText("Missing")).toBeInTheDocument();
-    expect(screen.getByText("Null")).toBeInTheDocument();
-    expect(screen.getByText("Unsupported")).toBeInTheDocument();
-    expect(screen.getByText("Shield hardness is unavailable.")).toBeInTheDocument();
-    expect(screen.getByText("Spell slot maximum is unavailable.")).toBeInTheDocument();
-    expect(screen.getByText("Unmodeled skill entry")).toBeInTheDocument();
-    const authoredKey = container.querySelector(".creature-sheet__authored-value code");
-    expect(authoredKey).toBeInTheDocument();
-    expect(authoredKey?.textContent).toBe(hostileKey);
     expect(
-      screen.getAllByText("The source supplied an unrecognized skill key.", {
-        exact: true,
-      }),
+      screen.getAllByText("Shield hardness is not supported for this record."),
     ).toHaveLength(1);
+    fireEvent.click(screen.getByText("References", { exact: true }));
+    expect(onReferencesOpen).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("1 record · 1 reference")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dream Message" }));
+    expect(onReference).toHaveBeenLastCalledWith("spells:dream-message");
+
+    expect(screen.queryByText("Data availability")).not.toBeInTheDocument();
+    expect(screen.queryByText("Shield hardness is unavailable.")).toBeNull();
+    expect(screen.queryByText("Spell slot maximum is unavailable.")).toBeNull();
+    expect(screen.queryByText("Unmodeled skill entry")).toBeNull();
+    expect(screen.queryByText(hostileKey)).toBeNull();
     expect(container.querySelector("img")).not.toBeInTheDocument();
     expect(screen.queryByText("opaque:skill:internal")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/internal-(relationship|occurrence|target-occurrence)/),
+    ).toBeNull();
+    expect(screen.queryByText("Linked Weapon")).toBeNull();
     expect(screen.queryByText(/meaning was inferred/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/not modeled/i)).not.toBeInTheDocument();
   });
 
   it("renders compact teaser and all six B3 scan facts in a responsive semantic grid", () => {
@@ -1023,7 +1071,7 @@ describe("RecordSurface", () => {
     expect(screen.queryByText("concept:f1-record")).not.toBeInTheDocument();
     expect(screen.queryByText("Skill source keys")).not.toBeInTheDocument();
     expect(screen.queryByText("occultism")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("References & Source"));
+    fireEvent.click(screen.getByText("Source & provenance"));
     expect(screen.getByText("Record ID")).toBeInTheDocument();
     expect(screen.getByText("concept:f1-record")).toBeInTheDocument();
     expect(screen.getByText("Skill source keys")).toBeInTheDocument();
@@ -1035,7 +1083,7 @@ describe("RecordSurface", () => {
   it("uses aligned key-value grids for natural definition groups", () => {
     const { container } = renderSurface();
 
-    fireEvent.click(screen.getByText("References & Source"));
+    fireEvent.click(screen.getByText("Source & provenance"));
     for (const label of [
       "Immunities",
       "Weaknesses",

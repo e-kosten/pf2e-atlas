@@ -3,12 +3,14 @@ use std::path::Path;
 
 use atlas_domain::{Rarity, RecordKey};
 use atlas_record::{
-    FactValue, HazardComplexity, HazardDefenses, HazardDetection, HazardDiagnosticCode,
-    HazardEmitsSound, HazardExpectedShape, HazardFact, HazardHitPoints, HazardIdentity, HazardIwr,
-    HazardLifecycle, HazardProvenance, HazardProvenanceValue, HazardPublication, HazardRecord,
-    HazardSaveKind, HazardSaves, HazardSize, HazardSourceId, HazardSourceShape, HazardSourceValue,
-    HazardTrait, HazardUnsupportedFact, HazardUnsupportedField, HazardUnsupportedOwner,
-    HazardUnsupportedValue, PublicationLicense, RecordBody,
+    FactValue, HazardComplexity, HazardDefenseSourceMetadata, HazardDefenses, HazardDetection,
+    HazardDiagnosticCode, HazardEmitsSound, HazardExpectedShape, HazardFact,
+    HazardHitPointSourceMetadata, HazardHitPoints, HazardIdentity, HazardIwr, HazardLifecycle,
+    HazardProvenance, HazardProvenanceValue, HazardPublication, HazardRecord,
+    HazardSaveSourceMetadata, HazardSaves, HazardSize, HazardSourceId, HazardSourceShape,
+    HazardSourceValue, HazardTokenSourceMetadata, HazardTrait, HazardUnsupportedFact,
+    HazardUnsupportedField, HazardUnsupportedOwner, HazardUnsupportedValue, PublicationLicense,
+    RecordBody,
 };
 use serde_json::Value;
 
@@ -23,7 +25,6 @@ use super::normalize::{LocalizationResolver, parse_foundry_content_with_localiza
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HazardCoreConversion {
     pub(crate) body: RecordBody,
-    pub(crate) diagnostics: Vec<HazardUnsupportedFact>,
     pub(crate) embedded_identities: Vec<super::hazard_entities::HazardResolvedItemIdentity>,
 }
 
@@ -59,7 +60,7 @@ pub(crate) fn convert_hazard_core(
     }
     debug_assert_eq!(source.source.actor_type, "hazard");
     let owner = HazardUnsupportedOwner::Record(record_key.clone());
-    let mut diagnostics = source
+    let mut unsupported_fields = source
         .source
         .unclaimed
         .iter()
@@ -119,7 +120,7 @@ pub(crate) fn convert_hazard_core(
                 value,
                 &owner,
                 localization,
-                &mut diagnostics,
+                &mut unsupported_fields,
             ))
         },
         |_| "{}".to_string(),
@@ -248,13 +249,29 @@ pub(crate) fn convert_hazard_core(
         HazardExpectedShape::String,
         owner,
     );
+    let token = source_fact_map(
+        &source.source.prototype_token,
+        "/prototypeToken",
+        HazardExpectedShape::Object,
+        HazardUnsupportedOwner::Record(record_key.clone()),
+        |value| {
+            Ok(HazardTokenSourceMetadata {
+                name: source_fact_clone(
+                    &value.name,
+                    "/prototypeToken/name",
+                    HazardExpectedShape::String,
+                    HazardUnsupportedOwner::Record(record_key.clone()),
+                ),
+            })
+        },
+        |_| "{}".to_string(),
+    );
 
     let embedded = super::hazard_entities::convert_hazard_embedded_entities(
         &record_key,
         source,
         localization,
     )?;
-    diagnostics.extend(embedded.diagnostics.clone());
     let hazard = HazardRecord {
         identity: HazardIdentity {
             record_key,
@@ -275,7 +292,7 @@ pub(crate) fn convert_hazard_core(
         embedded_entities: embedded.embedded,
         content: atlas_record::OwnedRichContent::default(),
         relationships: embedded.relationships,
-        unsupported_fields: diagnostics.clone(),
+        unsupported_fields,
         provenance: HazardProvenance {
             source_path: source_path.to_string(),
             source_contract_version: source.version.contract_version().to_string(),
@@ -286,11 +303,11 @@ pub(crate) fn convert_hazard_core(
             source_creature_type,
             source_status_effects,
             actor_effects,
+            token,
         },
     };
     Ok(HazardCoreConversion {
         body: RecordBody::Hazard(hazard),
-        diagnostics,
         embedded_identities: embedded.resolved_identities,
     })
 }
@@ -353,22 +370,6 @@ fn convert_defenses(
     localization: Option<&dyn LocalizationResolver>,
     diagnostics: &mut Vec<HazardUnsupportedFact>,
 ) -> HazardDefenses {
-    let mut unsupported_fields = Vec::new();
-    if !matches!(value.has_health, SourcePresence::Missing) {
-        let fact = unsupported_from_field(
-            HazardUnsupportedField::DefensesHasHealth,
-            &value.has_health,
-            "/system/attributes/hasHealth",
-            HazardExpectedShape::Boolean,
-            owner.clone(),
-            HazardDiagnosticCode::LegacyField,
-            |value| value.to_string(),
-        );
-        if let Some(fact) = fact {
-            unsupported_fields.push(fact.clone());
-            diagnostics.push(fact);
-        }
-    }
     HazardDefenses {
         armor_class: source_fact_clone(
             &value.armor_class,
@@ -387,7 +388,7 @@ fn convert_defenses(
             "/system/attributes/hp",
             HazardExpectedShape::Object,
             owner.clone(),
-            |value| Ok(convert_hit_points(value, owner, localization, diagnostics)),
+            |value| Ok(convert_hit_points(value, owner, localization)),
             |_| "{}".to_string(),
         ),
         saves: source_fact_map(
@@ -395,7 +396,7 @@ fn convert_defenses(
             "/system/saves",
             HazardExpectedShape::Object,
             owner.clone(),
-            |value| Ok(convert_saves(value, owner, diagnostics)),
+            |value| Ok(convert_saves(value, owner)),
             |_| "{}".to_string(),
         ),
         immunities: convert_iwr(
@@ -416,7 +417,14 @@ fn convert_defenses(
             owner,
             diagnostics,
         ),
-        unsupported_fields,
+        source_metadata: HazardDefenseSourceMetadata {
+            has_health: source_fact_clone(
+                &value.has_health,
+                "/system/attributes/hasHealth",
+                HazardExpectedShape::Boolean,
+                owner.clone(),
+            ),
+        },
     }
 }
 
@@ -424,21 +432,7 @@ fn convert_hit_points(
     value: &HazardHitPointsSource,
     owner: &HazardUnsupportedOwner,
     localization: Option<&dyn LocalizationResolver>,
-    diagnostics: &mut Vec<HazardUnsupportedFact>,
 ) -> HazardHitPoints {
-    let mut unsupported_fields = Vec::new();
-    if let Some(fact) = unsupported_from_field(
-        HazardUnsupportedField::HitPointsTempMax,
-        &value.temporary_maximum,
-        "/system/attributes/hp/tempmax",
-        HazardExpectedShape::Integer,
-        owner.clone(),
-        HazardDiagnosticCode::LegacyField,
-        |value| value.to_string(),
-    ) {
-        unsupported_fields.push(fact.clone());
-        diagnostics.push(fact);
-    }
     HazardHitPoints {
         current: source_fact_clone(
             &value.current,
@@ -464,40 +458,41 @@ fn convert_hit_points(
             owner.clone(),
             localization,
         ),
-        unsupported_fields,
+        source_metadata: HazardHitPointSourceMetadata {
+            temporary_maximum: source_fact_clone(
+                &value.temporary_maximum,
+                "/system/attributes/hp/tempmax",
+                HazardExpectedShape::Integer,
+                owner.clone(),
+            ),
+        },
     }
 }
 
-fn convert_saves(
-    value: &HazardSavesSource,
-    owner: &HazardUnsupportedOwner,
-    diagnostics: &mut Vec<HazardUnsupportedFact>,
-) -> HazardSaves {
-    let mut unsupported_fields = Vec::new();
-    for (kind, save, slug) in [
-        (HazardSaveKind::Fortitude, &value.fortitude, "fortitude"),
-        (HazardSaveKind::Reflex, &value.reflex, "reflex"),
-        (HazardSaveKind::Will, &value.will, "will"),
-    ] {
-        if let Some(fact) = unsupported_from_field(
-            HazardUnsupportedField::SaveDetail(kind),
-            &save.detail,
-            &format!("/system/saves/{slug}/saveDetail"),
-            HazardExpectedShape::String,
-            owner.clone(),
-            HazardDiagnosticCode::LegacyField,
-            |value| json_string(value),
-        ) {
-            unsupported_fields.push(fact.clone());
-            diagnostics.push(fact);
-        }
-    }
+fn convert_saves(value: &HazardSavesSource, owner: &HazardUnsupportedOwner) -> HazardSaves {
     HazardSaves {
         fortitude: save_value(&value.fortitude, "fortitude", owner),
         reflex: save_value(&value.reflex, "reflex", owner),
         will: save_value(&value.will, "will", owner),
-        unsupported_fields,
+        source_metadata: HazardSaveSourceMetadata {
+            fortitude_detail: save_detail(&value.fortitude, "fortitude", owner),
+            reflex_detail: save_detail(&value.reflex, "reflex", owner),
+            will_detail: save_detail(&value.will, "will", owner),
+        },
     }
+}
+
+fn save_detail(
+    value: &HazardSaveSource,
+    slug: &str,
+    owner: &HazardUnsupportedOwner,
+) -> HazardFact<String> {
+    source_fact_clone(
+        &value.detail,
+        &format!("/system/saves/{slug}/saveDetail"),
+        HazardExpectedShape::String,
+        owner.clone(),
+    )
 }
 
 fn save_value(
@@ -700,47 +695,6 @@ fn source_fact_map<T, U>(
         },
     };
     HazardFact::source(value, path)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn unsupported_from_field<T>(
-    field: HazardUnsupportedField,
-    value: &HazardSourceField<T>,
-    path: &str,
-    expected: HazardExpectedShape,
-    owner: HazardUnsupportedOwner,
-    code: HazardDiagnosticCode,
-    typed_json: impl FnOnce(&T) -> String,
-) -> Option<HazardUnsupportedFact> {
-    match value {
-        SourcePresence::Missing => None,
-        SourcePresence::Null => Some(HazardUnsupportedFact {
-            field,
-            value: HazardUnsupportedValue {
-                exact_json: "null".to_string(),
-                expected_shape: expected,
-                actual_shape: HazardSourceShape::Null,
-                relative_source_path: path.to_string(),
-                owner,
-                diagnostic_code: code,
-            },
-        }),
-        SourcePresence::Value(DtoValue::Typed(value)) => Some(HazardUnsupportedFact {
-            field,
-            value: HazardUnsupportedValue {
-                exact_json: typed_json(value),
-                expected_shape: expected,
-                actual_shape: shape_for_expected(expected),
-                relative_source_path: path.to_string(),
-                owner,
-                diagnostic_code: code,
-            },
-        }),
-        SourcePresence::Value(DtoValue::Unsupported(value)) => Some(HazardUnsupportedFact {
-            field,
-            value: unsupported_value(value, expected, owner, code),
-        }),
-    }
 }
 
 fn unsupported_fact(

@@ -212,6 +212,18 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
         )?)?;
         match assertion {
             "fixed" => {
+                assert_eq!(
+                    value["spell"]["targeting"]["value"]["area"]["value"]["value"]["value"],
+                    15
+                );
+                assert_eq!(
+                    value["spell"]["damage"]["value"][0]["formula"]["value"],
+                    "2d4"
+                );
+                assert_eq!(
+                    value["spell"]["defense"]["value"]["save"]["value"]["basic"]["value"],
+                    true
+                );
                 assert_eq!(value["spell"]["heightening"]["value"]["kind"], "fixed");
                 let layers = value["spell"]["heightening"]["value"]["layers"]
                     .as_array()
@@ -219,7 +231,7 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
                 assert_eq!(layers[0]["key"], "5");
                 assert_eq!(
                     layers[0]["patch"]["targeting"]["value"]["area"]["value"]["value"]["value"],
-                    20
+                    30
                 );
                 assert_eq!(
                     layers[0]["patch"]["damage"]["value"]["members"][0]["key"],
@@ -227,16 +239,16 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
                 );
                 assert_eq!(
                     layers[0]["patch"]["damage"]["value"]["members"][0]["value"]["formula"]["value"],
-                    "4d4"
+                    "8d4"
                 );
                 assert_eq!(layers[1]["key"], "8");
                 assert_eq!(
                     layers[1]["patch"]["targeting"]["value"]["area"]["value"]["value"]["value"],
-                    30
+                    60
                 );
                 assert_eq!(
                     layers[1]["patch"]["damage"]["value"]["members"][0]["value"]["formula"]["value"],
-                    "6d4"
+                    "14d4"
                 );
             }
             "defense" => {
@@ -324,7 +336,7 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
         20,
         0,
     )?;
-    assert_eq!(filtered.record_keys, vec![rime_key.clone()]);
+    assert!(filtered.record_keys.is_empty());
 
     let fts = reader.query_weighted_fts_index(
         &FtsQuery::from_tokens(vec!["precious".to_string(), "chalk".to_string()])

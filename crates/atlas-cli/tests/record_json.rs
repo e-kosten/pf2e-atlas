@@ -51,6 +51,7 @@ fn hazard_record_uses_typed_json_text_search_filters_and_provenance()
     assert_eq!(record["rarity"], "common");
     assert_eq!(record["source"]["publication_title"], "Pathfinder GM Core");
     assert_eq!(record["source"]["publication_remaster"], true);
+    assert!(record.get("provenance").is_none());
     assert!(record.get("migration").is_none());
     let rendered = serde_json::to_string(record)?;
     for expected in [
@@ -78,11 +79,12 @@ fn hazard_record_uses_typed_json_text_search_filters_and_provenance()
             .iter()
             .any(|row| { row["field"] == "action.actions" && row["state"] == "null" })
     );
-    assert!(availability.iter().any(|row| {
-        row["field"]
-            .as_str()
-            .is_some_and(|field| field.starts_with("entity.unsupported."))
-            && row["state"] == "unsupported"
+    assert!(availability.iter().all(|row| {
+        !row["field"].as_str().is_some_and(|field| {
+            field.contains("source_metadata")
+                || field == "provenance.token.name"
+                || field == "entity.unsupported.action.unexpected.traits.rarity"
+        })
     }));
 
     let text_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -98,11 +100,24 @@ fn hazard_record_uses_typed_json_text_search_filters_and_provenance()
         .output()?;
     assert!(text_output.status.success());
     let text = String::from_utf8(text_output.stdout)?;
-    assert!(text.contains("Detection DC: 18"));
-    assert!(text.contains("Broken Threshold: 6"));
-    assert!(text.contains("Will: +0"));
-    assert!(text.contains("Trigger"));
-    assert!(text.contains("Effect"));
+    for expected in [
+        "Detection DC: 18",
+        "AC: 10",
+        "HP: 12",
+        "Hardness: 3",
+        "BT: 6",
+        "Fort: +1",
+        "Ref: +1",
+        "Will: +0",
+        "Pitfall: Reaction",
+        "Trigger",
+        "Effect",
+    ] {
+        assert!(text.contains(expected), "missing {expected:?}:\n{text}");
+    }
+    for hidden in ["Damage 0", "Occurrence ", "Entity ", "Temporary HP: 0"] {
+        assert!(!text.contains(hidden), "leaked {hidden:?}:\n{text}");
+    }
 
     let search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -161,6 +176,41 @@ fn hazard_record_uses_typed_json_text_search_filters_and_provenance()
         provenance["hazard_provenance"]["content"]
             .as_array()
             .is_some_and(|rows| !rows.is_empty())
+    );
+    let source_metadata = provenance["hazard_provenance"]["source_metadata"]
+        .as_array()
+        .expect("hazard source metadata");
+    assert_eq!(
+        source_metadata
+            .iter()
+            .map(|fact| fact["field"].as_str().expect("source metadata field"))
+            .collect::<Vec<_>>(),
+        vec![
+            "token_name",
+            "has_health",
+            "temporary_maximum",
+            "save_detail",
+            "save_detail",
+            "save_detail",
+            "item_rarity",
+            "item_lineage",
+        ]
+    );
+    let has_health = &source_metadata[1];
+    assert_eq!(has_health["value"]["value"]["state"], "value");
+    assert_eq!(has_health["value"]["value"]["value"]["support"], "typed");
+    assert_eq!(has_health["value"]["value"]["value"]["value"], true);
+    assert_eq!(
+        has_health["value"]["provenance"]["relativeSourcePath"],
+        "/system/attributes/hasHealth"
+    );
+    assert_eq!(source_metadata[2]["value"]["value"]["value"]["value"], 0);
+    assert_eq!(source_metadata[3]["save"], "fortitude");
+    assert_eq!(source_metadata[3]["value"]["value"]["value"]["value"], "");
+    assert_eq!(source_metadata[6]["entity_id"], "lY83oUjx0DLxDByK");
+    assert_eq!(
+        source_metadata[6]["value"]["value"]["value"]["value"],
+        "common"
     );
     assert_eq!(provenance["references"]["lookup_performed"], true);
     assert!(

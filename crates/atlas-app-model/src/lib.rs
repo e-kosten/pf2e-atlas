@@ -178,6 +178,30 @@ mod tests {
         ] {
             assert!(hazard.contains(field), "missing hazard binding `{field}`");
         }
+        let hazard_activity = actual
+            .get("HazardSurfaceActivityView.ts")
+            .expect("hazard activity binding should exist");
+        for field in [
+            "attack_mode?: HazardSurfaceAttackModeView",
+            "action_cost?: CreatureSurfaceActionCostView",
+        ] {
+            assert!(
+                hazard_activity.contains(field),
+                "missing hazard activity binding `{field}`"
+            );
+        }
+        let hazard_provenance = actual
+            .get("HazardSurfaceProvenanceView.ts")
+            .expect("hazard provenance binding should exist");
+        assert!(
+            hazard_provenance
+                .contains("source_metadata: Array<HazardSurfaceSourceMetadataFactView>")
+        );
+        let hazard_source_metadata = actual
+            .get("HazardSurfaceSourceMetadataFactView.ts")
+            .expect("hazard source-metadata binding should exist");
+        assert!(hazard_source_metadata.contains("HazardSurfaceSourceFactView<number>"));
+        assert!(!hazard_source_metadata.contains("bigint"));
         let hazard_runtime = actual
             .get("EncounterRuntimeHazardView.ts")
             .expect("hazard runtime binding should exist");
@@ -198,14 +222,16 @@ mod tests {
             .get("SpellSurfaceView.ts")
             .expect("SpellSurfaceView binding should exist");
         for field in [
-            "definition: SpellDefinitionSurfaceView",
+            "family: SpellFamilyView",
             "forms: Array<SpellFormView>",
-            "selected_form?: SpellSelectedFormView",
+            "effective_form: SpellEffectiveFormView",
             "form_catalog_unavailable?: SpellFormCatalogUnavailableReasonView",
             "content?: Array<CreatureSurfaceContentView>",
         ] {
             assert!(spell_surface.contains(field), "missing `{field}`");
         }
+        assert!(!spell_surface.contains("definition:"));
+        assert!(!spell_surface.contains("selected_form"));
         let spell_form = actual
             .get("SpellFormView.ts")
             .expect("SpellFormView binding should exist");
@@ -213,30 +239,48 @@ mod tests {
             "id: string",
             "label: string",
             "order: number",
-            "cast_rank: number",
-            "authored_patch?: SpellPatchView",
-            "result: SpellFormResultView",
+            "minimum_cast_rank: number",
         ] {
             assert!(spell_form.contains(field), "missing `{field}`");
+        }
+        assert!(!spell_form.contains("authored_patch"));
+        assert!(!spell_form.contains("result:"));
+        for removed in [
+            "SpellDamagePatchView.ts",
+            "SpellDefinitionSurfaceView.ts",
+            "SpellPatchView.ts",
+            "SpellSelectedFormView.ts",
+        ] {
+            assert!(!actual.contains_key(removed), "stale binding `{removed}`");
         }
         let detail_request = actual
             .get("RecordDetailRequest.ts")
             .expect("record-detail request binding should exist");
         assert!(detail_request.contains("spell_form_id?: string"));
         assert!(detail_request.contains("spell_cast_rank?: number"));
-        let selected_form = actual
-            .get("SpellSelectedFormView.ts")
-            .expect("selected spell-form binding should exist");
+        let effective_form = actual
+            .get("SpellEffectiveFormView.ts")
+            .expect("effective spell-form binding should exist");
         for field in [
             "id: string",
             "cast_rank: number",
             "result: SpellFormResultView",
         ] {
-            assert!(selected_form.contains(field), "missing `{field}`");
+            assert!(effective_form.contains(field), "missing `{field}`");
         }
+        let damage = actual
+            .get("SpellDamageView.ts")
+            .expect("spell damage binding should exist");
+        assert!(damage.contains("label: string"));
+        assert!(!damage.contains("key: string"));
+        assert!(!damage.contains("order: number"));
+        let fixed = actual
+            .get("SpellFixedHeighteningView.ts")
+            .expect("fixed heightening binding should exist");
+        assert!(fixed.contains("changes: Array<SpellFixedHeighteningChangeView>"));
+        assert!(!fixed.contains("patch:"));
         for binding in [
             "SpellSurfaceView.ts",
-            "SpellDefinitionSurfaceView.ts",
             "SpellFormView.ts",
             "SpellRuleView.ts",
         ] {
@@ -570,6 +614,8 @@ mod tests {
                         .to_string(),
                 },
             },
+            issues: None,
+            references: None,
             encounter: None,
         };
 
@@ -584,6 +630,54 @@ mod tests {
         assert!(serialized["presentation"].get("body").is_none());
         assert!(serialized.get(["sec", "tions"].concat()).is_none());
         assert!(serialized.get(["section", "order"].join("_")).is_none());
+    }
+
+    #[test]
+    fn record_reference_not_requested_has_no_invented_totals() {
+        let references = RecordSurfaceReferencesView {
+            outgoing: RecordSurfaceReferenceSectionView::Available {
+                requested_limit: 8,
+                records: Vec::new(),
+                edges: Vec::new(),
+                total_records: 0,
+                total_edges: 0,
+                truncated: false,
+            },
+            backlinks: RecordSurfaceReferenceSectionView::NotRequested,
+        };
+
+        let serialized = serde_json::to_value(references).expect("references should serialize");
+        assert_eq!(serialized["outgoing"]["state"], "available");
+        assert_eq!(serialized["backlinks"]["state"], "not_requested");
+        assert!(serialized["backlinks"].get("total_records").is_none());
+        assert!(serialized["backlinks"].get("total_edges").is_none());
+        assert!(serialized["backlinks"].get("truncated").is_none());
+    }
+
+    #[test]
+    fn record_detail_request_preserves_old_shape_and_typed_reference_limits() {
+        let old_request: RecordDetailRequest = serde_json::from_value(serde_json::json!({
+            "spell_form_id": "spell-form:test",
+            "spell_cast_rank": 5
+        }))
+        .expect("the pre-reference request shape should remain valid");
+        assert_eq!(
+            old_request.spell_form_id.as_deref(),
+            Some("spell-form:test")
+        );
+        assert_eq!(old_request.spell_cast_rank, Some(5));
+        assert_eq!(old_request.reference_outgoing_limit, None);
+        assert_eq!(old_request.reference_backlink_limit, None);
+
+        let explicit_limits: RecordDetailRequest = serde_json::from_value(serde_json::json!({
+            "reference_outgoing_limit": 0,
+            "reference_backlink_limit": 8
+        }))
+        .expect("typed reference limits should deserialize");
+        assert_eq!(explicit_limits.spell_form_id, None);
+        assert_eq!(explicit_limits.spell_cast_rank, None);
+        assert_eq!(explicit_limits.reference_outgoing_limit, Some(0));
+        assert_eq!(explicit_limits.reference_backlink_limit, Some(8));
     }
 
     #[test]
@@ -634,9 +728,12 @@ mod tests {
                             value: "systems/pf2e/icons/test.webp".to_string(),
                         },
                         publication_license: HazardSurfaceProvenanceTextView::Unsupported,
+                        source_metadata: Vec::new(),
                     },
                 }),
             },
+            issues: None,
+            references: None,
             encounter: None,
         };
 
@@ -773,6 +870,8 @@ mod tests {
                     provenance: None,
                 }),
             },
+            issues: None,
+            references: None,
             encounter: None,
         };
 
@@ -1312,6 +1411,8 @@ mod tests {
                     message: "Fixture presentation unavailable.".to_string(),
                 },
             },
+            issues: None,
+            references: None,
             encounter: Some(EncounterRuntimeView {
                 hazard: None,
                 level: Some(RuntimeNumberView {

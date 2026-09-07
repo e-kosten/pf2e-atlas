@@ -14,11 +14,14 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Source-Faithful Contract State
 
-The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. Later record families remain separate owned work and are not implied by these cutovers; the combined final production and visual gate remains outstanding.
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. Later record families remain separate owned work and are not implied by these cutovers; in particular, [standalone and embedded consumables](./items/rust-consumable-record-family.md) remain one deferred family implementation. The combined final production and visual gate remains outstanding.
 
 The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
 
 ## Now
+
+- [Rust record presentation mechanics unification](./items/rust-record-presentation-mechanics-unification.md)
+  The approved hazard source-model remediation is in progress through bounded canonical/model slices; app, CLI, and web presentation changes remain later gates. Status: in_progress.
 
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
   Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.
@@ -68,6 +71,9 @@ The contract preserves all 313 exact type-registry assignments, keeps non-creatu
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
+
+- [Rust standalone and embedded consumable record family](./items/rust-consumable-record-family.md)
+  Reconcile consumables under one source-faithful family contract while preserving identity, order, typed inventory/economy/use facts, safe content/references, and the False Door exact-20 minimum regression. Status: deferred.
 
 - [Rust derived-tag runtime and editorial redesign](./items/rust-derived-tag-redesign.md)
   Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.

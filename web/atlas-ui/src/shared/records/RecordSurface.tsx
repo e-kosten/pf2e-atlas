@@ -26,25 +26,35 @@ import {
 
 type RecordSurfaceProps = {
   onReference: (recordKey: string) => void;
+  onReferencesOpen?: () => void;
   onSpellFormSelection?: (selection: SpellFormSelection) => void;
   onSpellCast?: (request: EncounterSpellCastRequest) => void;
   showTitle?: boolean;
   spellCatalog?: RecordSurfaceView;
   spellFormSelection?: SpellFormSelection;
+  spellFormSelectionError?: string;
   spellFormSelectionLoading?: boolean;
+  spellFormSelectionUnavailable?: boolean;
   surface: RecordSurfaceView;
+  referenceLoading?: boolean;
+  references?: NonNullable<RecordSurfaceView["references"]>;
   slots?: EncounterRecordSurfaceSlots;
 };
 
 export const RecordSurface = memo(function RecordSurface({
   onReference,
+  onReferencesOpen,
   onSpellFormSelection,
   onSpellCast,
   showTitle = true,
   spellCatalog,
   spellFormSelection,
+  spellFormSelectionError,
   spellFormSelectionLoading,
+  spellFormSelectionUnavailable,
   surface,
+  referenceLoading,
+  references,
   slots = {},
 }: RecordSurfaceProps) {
   if (surface.presentation.presentation_type === "unavailable") {
@@ -70,6 +80,7 @@ export const RecordSurface = memo(function RecordSurface({
       return (
         <HazardEncounterSurface
           body={body}
+          issues={surface.issues}
           metadata={surface.metadata}
           onReference={onReference}
           runtime={surface.encounter}
@@ -80,8 +91,12 @@ export const RecordSurface = memo(function RecordSurface({
     return (
       <HazardDetailSurface
         body={body}
+        issues={surface.issues}
         metadata={surface.metadata}
         onReference={onReference}
+        onReferencesOpen={onReferencesOpen}
+        references={references ?? surface.references}
+        referencesLoading={referenceLoading}
         showTitle={showTitle}
       />
     );
@@ -100,11 +115,17 @@ export const RecordSurface = memo(function RecordSurface({
       <SpellDetailSurface
         body={body}
         catalog={catalog}
+        issues={surface.issues}
         metadata={surface.metadata}
         onReference={onReference}
+        onReferencesOpen={onReferencesOpen}
         onSelectionChange={onSpellFormSelection}
+        references={references ?? surface.references}
+        referencesLoading={referenceLoading}
         selection={spellFormSelection}
+        selectionError={spellFormSelectionError}
         selectionLoading={spellFormSelectionLoading}
+        selectionUnavailable={spellFormSelectionUnavailable}
         showTitle={showTitle}
       />
     );
@@ -131,8 +152,12 @@ export const RecordSurface = memo(function RecordSurface({
   return (
     <CreatureDetailSurface
       body={body}
+      issues={surface.issues}
       metadata={surface.metadata}
       onReference={onReference}
+      onReferencesOpen={onReferencesOpen}
+      references={references ?? surface.references}
+      referencesLoading={referenceLoading}
       showTitle={showTitle}
     />
   );

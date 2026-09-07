@@ -25,8 +25,8 @@ import type {
   RuntimeRollView,
 } from "../../generated/atlas";
 import {
+  CreatureSourceContent,
   NarrativeSection,
-  ReferenceAndSourceContent,
   SurfaceSection,
   TraitRow,
 } from "./CreatureRecordSurface";
@@ -139,14 +139,8 @@ export function EncounterParticipantSurface({
         items={[
           {
             key: "source",
-            label: "References & Source",
-            children: (
-              <ReferenceAndSourceContent
-                body={body}
-                metadata={metadata}
-                onReference={onReference}
-              />
-            ),
+            label: "Source & provenance",
+            children: <CreatureSourceContent body={body} metadata={metadata} />,
           },
         ]}
         size="small"

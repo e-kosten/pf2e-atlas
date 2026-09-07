@@ -16,11 +16,10 @@ use atlas_app_model::{
     CreatureSurfaceIntegerPresenceView, CreatureSurfaceIwrView, CreatureSurfaceLoreView,
     CreatureSurfaceMovementView, CreatureSurfaceOccurrenceIdentityStabilityView,
     CreatureSurfaceOccurrenceProvenanceView, CreatureSurfaceProvenanceView,
-    CreatureSurfaceRelationshipKindView, CreatureSurfaceRelationshipTargetView,
-    CreatureSurfaceRelationshipView, CreatureSurfaceResourceView, CreatureSurfaceRitualsView,
-    CreatureSurfaceRollView, CreatureSurfaceSaveView, CreatureSurfaceSavesView,
-    CreatureSurfaceSelfEffectView, CreatureSurfaceSenseView, CreatureSurfaceShieldView,
-    CreatureSurfaceSizeValueView, CreatureSurfaceSizeView, CreatureSurfaceSkillPredicateView,
+    CreatureSurfaceResourceView, CreatureSurfaceRitualsView, CreatureSurfaceRollView,
+    CreatureSurfaceSaveView, CreatureSurfaceSavesView, CreatureSurfaceSelfEffectView,
+    CreatureSurfaceSenseView, CreatureSurfaceShieldView, CreatureSurfaceSizeValueView,
+    CreatureSurfaceSizeView, CreatureSurfaceSkillPredicateView,
     CreatureSurfaceSkillSourceEntryView, CreatureSurfaceSkillVariantView, CreatureSurfaceSkillView,
     CreatureSurfaceSourceFieldView, CreatureSurfaceSourceLocatorView,
     CreatureSurfaceSpellOccurrenceContextView, CreatureSurfaceSpellSlotView,
@@ -41,13 +40,13 @@ use atlas_app_model::{
 use atlas_record::{
     ContentRole, CreatureActionCost, CreatureAdjustment, CreatureCapability,
     CreatureContentPlacement, CreatureDamage, CreatureDefenses, CreatureEmbeddedEntities,
-    CreatureEntityOccurrence, CreatureEntityRelationshipKind, CreatureEntityTarget, CreatureIwr,
-    CreatureMovementMode, CreatureOccurrenceParent, CreaturePredicate, CreatureRecord,
-    CreatureRelationshipTarget, CreatureResourceAmount, CreatureRoll, CreatureRollKind,
-    CreatureSize, CreatureSourceScalar, CreatureSpellPreparation, CreatureUnmodeledSkillReason,
-    CreatureUseLimit, FactValue, PresentationContent, PresentationContentBlock, PresentationInline,
-    RecordBody, RetrievedRecord, SenseAcuity, format_creature_frequency,
-    place_creature_content_for_families, project_presentation_content, render_plain_text,
+    CreatureEntityOccurrence, CreatureEntityTarget, CreatureIwr, CreatureMovementMode,
+    CreatureOccurrenceParent, CreaturePredicate, CreatureRecord, CreatureResourceAmount,
+    CreatureRoll, CreatureRollKind, CreatureSize, CreatureSourceScalar, CreatureSpellPreparation,
+    CreatureUnmodeledSkillReason, CreatureUseLimit, FactValue, PresentationContent,
+    PresentationContentBlock, PresentationInline, RecordBody, RetrievedRecord, SenseAcuity,
+    format_creature_frequency, place_creature_content_for_families, project_presentation_content,
+    render_plain_text,
 };
 
 const SEARCH_TEASER_WORDS: usize = 50;
@@ -60,6 +59,7 @@ pub(crate) fn record_surface(
     remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceView {
     let metadata = record_metadata(retrieved, remaster_lookup);
+    let mut selected_spell_issues = Vec::new();
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
         (atlas_domain::RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
             let content_placement = activity_content_placement(creature);
@@ -99,8 +99,10 @@ pub(crate) fn record_surface(
             "Canonical hazard data is unavailable, so the surface fails closed.",
         ),
         (atlas_domain::RecordKind::Spell, Some(RecordBody::Spell(spell))) => {
+            let (body, issues) = spell_surface(spell, spell_selection);
+            selected_spell_issues = issues;
             RecordSurfacePresentationView::Spell {
-                body: Box::new(spell_surface(spell, spell_selection)),
+                body: Box::new(body),
             }
         }
         (atlas_domain::RecordKind::Spell, _) => unavailable_presentation(
@@ -114,10 +116,17 @@ pub(crate) fn record_surface(
             "This record family does not yet have an approved typed app surface.",
         ),
     };
+    let issues = crate::record_policy::record_surface_issues(
+        retrieved,
+        &presentation,
+        &selected_spell_issues,
+    );
     RecordSurfaceView {
         metadata,
         profile,
         presentation,
+        issues,
+        references: None,
         encounter,
     }
 }
@@ -149,6 +158,13 @@ pub(crate) fn unavailable_participant_surface(
             reason,
             "No canonical record body is available for this participant.",
         ),
+        issues: Some(vec![atlas_app_model::RecordSurfaceIssueView {
+            code: atlas_app_model::RecordSurfaceIssueCodeView::Unavailable,
+            placement: atlas_app_model::RecordSurfaceIssuePlacementView::Record,
+            message: "This participant does not have an available typed record presentation."
+                .to_string(),
+        }]),
+        references: None,
         encounter: Some(encounter),
     }
 }
@@ -191,6 +207,8 @@ fn record_metadata(
     remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceMetadataView {
     let record = &retrieved.record;
+    let spell_classification_owned_by_body =
+        record.classification.kind == atlas_domain::RecordKind::Spell;
     let canonical_source_versions = retrieved.body.as_ref().map(|body| match body {
         RecordBody::Creature(creature) => (
             &creature.provenance.source_contract_version,
@@ -213,12 +231,18 @@ fn record_metadata(
         title: record.identity.name.clone(),
         kind: record.classification.kind.as_str().to_string(),
         kind_label: kind_label(record.classification.kind.as_str()),
-        level: record.classification.level,
+        level: (!spell_classification_owned_by_body)
+            .then_some(record.classification.level)
+            .flatten(),
         rarity: record
             .classification
             .rarity
             .map(|rarity| rarity.as_str().to_string()),
-        traits: record.classification.traits.clone(),
+        traits: if spell_classification_owned_by_body {
+            Vec::new()
+        } else {
+            record.classification.traits.clone()
+        },
         edition: Some(record_edition(retrieved, remaster_lookup)),
         source: Some(RecordSurfaceSourceView {
             publication_title: record.publication.title.clone(),
@@ -300,10 +324,20 @@ fn verified_edition_counterpart(
 fn spell_surface(
     spell: &atlas_record::SpellRecord,
     selection: Option<(atlas_record::SpellFormId, u8)>,
-) -> atlas_app_model::SpellSurfaceView {
-    let (forms, form_catalog_unavailable) = spell_forms(spell);
-    let selected_form =
-        selection.map(|(form_id, cast_rank)| spell_selected_form(spell, form_id, cast_rank));
+) -> (
+    atlas_app_model::SpellSurfaceView,
+    Vec<atlas_record::SpellPresentationIssue>,
+) {
+    let (forms, form_catalog_unavailable, mut issues) = spell_forms(spell);
+    let base_rank = spell_base_rank(spell).unwrap_or(0);
+    let (form_id, cast_rank) = selection.unwrap_or_else(|| {
+        (
+            atlas_record::SpellFormId::base(&spell.identity.record_key),
+            base_rank,
+        )
+    });
+    let (effective_form, effective_issues) = spell_effective_form(spell, form_id, cast_rank);
+    issues.extend(effective_issues);
     let mut content = spell
         .definition
         .content
@@ -312,31 +346,20 @@ fn spell_surface(
         .filter_map(content_view)
         .collect::<Vec<_>>();
     content.sort_by_key(|document| document.authored_order);
-    atlas_app_model::SpellSurfaceView {
-        definition: spell_definition(&spell.definition),
-        forms,
-        selected_form,
-        form_catalog_unavailable,
-        content,
-    }
-}
-
-fn spell_definition(
-    definition: &atlas_record::SpellDefinition,
-) -> atlas_app_model::SpellDefinitionSurfaceView {
-    atlas_app_model::SpellDefinitionSurfaceView {
-        classification: spell_fact(&definition.classification, spell_classification),
-        casting: spell_fact(&definition.casting, spell_casting),
-        targeting: spell_fact(&definition.targeting, spell_targeting),
-        defense: spell_fact(&definition.defense, spell_defense),
-        damage: spell_fact(&definition.damage, |members| {
-            members.iter().map(spell_damage).collect()
-        }),
-        duration: spell_fact(&definition.duration, spell_duration),
-        heightening: spell_fact(&definition.heightening, spell_heightening),
-        ritual: spell_fact(&definition.ritual, spell_ritual),
-        rules: spell_fact(&definition.rules, |values| spell_rules(values)),
-    }
+    (
+        atlas_app_model::SpellSurfaceView {
+            family: if spell_known(&spell.definition.ritual).is_some() {
+                atlas_app_model::SpellFamilyView::Ritual
+            } else {
+                atlas_app_model::SpellFamilyView::Spell
+            },
+            forms,
+            effective_form,
+            form_catalog_unavailable,
+            content,
+        },
+        issues,
+    )
 }
 
 fn spell_fact<T, U>(
@@ -389,38 +412,7 @@ fn spell_classification(
     }
 }
 
-fn spell_classification_patch(
-    value: &atlas_record::SpellClassificationPatch,
-) -> atlas_app_model::SpellClassificationView {
-    atlas_app_model::SpellClassificationView {
-        rank: spell_fact(&value.rank, |value| *value),
-        traits: spell_fact(&value.traits, |values| {
-            values
-                .iter()
-                .map(|value| value.as_str().to_string())
-                .collect()
-        }),
-        traditions: spell_fact(&value.traditions, |values| {
-            values
-                .iter()
-                .map(|value| value.as_str().to_string())
-                .collect()
-        }),
-    }
-}
-
 fn spell_casting(value: &atlas_record::SpellCasting) -> atlas_app_model::SpellCastingView {
-    atlas_app_model::SpellCastingView {
-        time: spell_fact(&value.time, Clone::clone),
-        cost: spell_fact(&value.cost, Clone::clone),
-        requirements: spell_fact(&value.requirements, Clone::clone),
-        counteraction: spell_fact(&value.counteraction, |value| *value),
-    }
-}
-
-fn spell_casting_patch(
-    value: &atlas_record::SpellCastingPatch,
-) -> atlas_app_model::SpellCastingView {
     atlas_app_model::SpellCastingView {
         time: spell_fact(&value.time, Clone::clone),
         cost: spell_fact(&value.cost, Clone::clone),
@@ -434,16 +426,6 @@ fn spell_targeting(value: &atlas_record::SpellTargeting) -> atlas_app_model::Spe
         target: spell_fact(&value.target, Clone::clone),
         range: spell_fact(&value.range, spell_range),
         area: spell_fact(&value.area, spell_area),
-    }
-}
-
-fn spell_targeting_patch(
-    value: &atlas_record::SpellTargetingPatch,
-) -> atlas_app_model::SpellTargetingView {
-    atlas_app_model::SpellTargetingView {
-        target: spell_fact(&value.target, Clone::clone),
-        range: spell_fact(&value.range, spell_range),
-        area: spell_fact(&value.area, spell_area_patch),
     }
 }
 
@@ -464,17 +446,6 @@ fn spell_area(value: &atlas_record::SpellAreaValue) -> atlas_app_model::SpellAre
     }
 }
 
-fn spell_area_patch(value: &atlas_record::SpellAreaPatch) -> atlas_app_model::SpellAreaView {
-    atlas_app_model::SpellAreaView {
-        value: spell_fact(&value.value, |value| *value),
-        area_type: spell_fact(&value.area_type, |value| value.as_str().to_string()),
-        legacy_area_type: spell_fact(&value.legacy_area_type, |value| {
-            value.value.as_str().to_string()
-        }),
-        details: spell_fact(&value.details, Clone::clone),
-    }
-}
-
 fn spell_defense(value: &atlas_record::SpellDefenseValue) -> atlas_app_model::SpellDefenseView {
     atlas_app_model::SpellDefenseView {
         passive: spell_fact(&value.passive, |value| value.as_str().to_string()),
@@ -482,23 +453,7 @@ fn spell_defense(value: &atlas_record::SpellDefenseValue) -> atlas_app_model::Sp
     }
 }
 
-fn spell_defense_patch(
-    value: &atlas_record::SpellDefensePatch,
-) -> atlas_app_model::SpellDefenseView {
-    atlas_app_model::SpellDefenseView {
-        passive: spell_fact(&value.passive, |value| value.as_str().to_string()),
-        save: spell_fact(&value.save, spell_save_patch),
-    }
-}
-
 fn spell_save(value: &atlas_record::SpellSave) -> atlas_app_model::SpellSaveView {
-    atlas_app_model::SpellSaveView {
-        statistic: spell_fact(&value.statistic, |value| value.as_str().to_string()),
-        basic: spell_fact(&value.basic, |value| *value),
-    }
-}
-
-fn spell_save_patch(value: &atlas_record::SpellSavePatch) -> atlas_app_model::SpellSaveView {
     atlas_app_model::SpellSaveView {
         statistic: spell_fact(&value.statistic, |value| value.as_str().to_string()),
         basic: spell_fact(&value.basic, |value| *value),
@@ -510,8 +465,7 @@ fn spell_damage(
 ) -> atlas_app_model::SpellDamageView {
     let value = &member.value;
     atlas_app_model::SpellDamageView {
-        key: member.key.clone(),
-        order: member.authored_order,
+        label: spell_damage_label(value),
         formula: spell_fact(&value.formula, Clone::clone),
         damage_type: spell_fact(&value.damage_type, Clone::clone),
         category: spell_fact(&value.category, Clone::clone),
@@ -528,17 +482,9 @@ fn spell_duration(value: &atlas_record::SpellDuration) -> atlas_app_model::Spell
     }
 }
 
-fn spell_duration_patch(
-    value: &atlas_record::SpellDurationPatch,
-) -> atlas_app_model::SpellDurationView {
-    atlas_app_model::SpellDurationView {
-        value: spell_fact(&value.value, Clone::clone),
-        sustained: spell_fact(&value.sustained, |value| *value),
-    }
-}
-
 fn spell_heightening(
     value: &atlas_record::SpellHeightening,
+    base_damage: Option<&[atlas_record::SpellOrderedMember<atlas_record::SpellDamage>]>,
 ) -> atlas_app_model::SpellHeighteningView {
     match value {
         atlas_record::SpellHeightening::Interval(value) => {
@@ -549,8 +495,9 @@ fn spell_heightening(
                     members
                         .iter()
                         .map(|member| atlas_app_model::SpellHeighteningDamageView {
-                            key: member.key.clone(),
-                            order: member.authored_order,
+                            label: unique_spell_damage_member(base_damage, &member.key)
+                                .map(|member| spell_damage_label(&member.value))
+                                .unwrap_or_else(|| "Effect".to_string()),
                             value: member.value.clone(),
                         })
                         .collect()
@@ -562,9 +509,8 @@ fn spell_heightening(
                 layers: layers
                     .iter()
                     .map(|layer| atlas_app_model::SpellFixedHeighteningView {
-                        order: layer.authored_order,
                         rank: spell_source_value(&layer.rank, |value| *value),
-                        patch: spell_patch(&layer.patch),
+                        changes: spell_fixed_heightening_changes(&layer.patch, base_damage),
                     })
                     .collect(),
             }
@@ -572,99 +518,128 @@ fn spell_heightening(
     }
 }
 
-fn spell_patch(patch: &atlas_record::SpellPatch) -> atlas_app_model::SpellPatchView {
-    let unsupported_fields = patch
-        .unsupported
-        .iter()
-        .map(|unsupported| spell_form_field(unsupported.field))
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
-    atlas_app_model::SpellPatchView {
-        classification: spell_fact(&patch.classification, spell_classification_patch),
-        casting: spell_fact(&patch.casting, spell_casting_patch),
-        targeting: spell_fact(&patch.targeting, spell_targeting_patch),
-        defense: spell_fact(&patch.defense, spell_defense_patch),
-        damage: spell_fact(&patch.damage, |patch| {
-            atlas_app_model::SpellDamagePatchSetView {
-                members: patch
-                    .members
-                    .iter()
-                    .map(|member| atlas_app_model::SpellDamagePatchMemberView {
-                        key: member.key.clone(),
-                        order: member.authored_order,
-                        operation: match &member.operation {
-                            atlas_record::SpellKeyedPatchOperation::Merge(value) => {
-                                atlas_app_model::SpellDamagePatchOperationView::Merge(
-                                    spell_damage_patch(value),
-                                )
-                            }
-                            atlas_record::SpellKeyedPatchOperation::Delete => {
-                                atlas_app_model::SpellDamagePatchOperationView::Delete
-                            }
-                            atlas_record::SpellKeyedPatchOperation::Unsupported(_) => {
-                                atlas_app_model::SpellDamagePatchOperationView::Unsupported
-                            }
-                        },
-                    })
-                    .collect(),
-            }
-        }),
-        duration: spell_fact(&patch.duration, spell_duration_patch),
-        heightening: spell_fact(&patch.heightening, spell_heightening_patch),
-        rules: spell_fact(&patch.rules, |values| spell_rules(values)),
-        unsupported_fields,
+fn spell_fixed_heightening_changes(
+    patch: &atlas_record::SpellPatch,
+    base_damage: Option<&[atlas_record::SpellOrderedMember<atlas_record::SpellDamage>]>,
+) -> Vec<atlas_app_model::SpellFixedHeighteningChangeView> {
+    use atlas_app_model::SpellFixedHeighteningChangeView as Change;
+
+    let mut changes = Vec::new();
+    for (present, change) in [
+        (
+            spell_known(&patch.classification).is_some(),
+            Change::Classification,
+        ),
+        (spell_known(&patch.casting).is_some(), Change::Casting),
+        (spell_known(&patch.targeting).is_some(), Change::Targeting),
+        (spell_known(&patch.defense).is_some(), Change::Defense),
+        (spell_known(&patch.duration).is_some(), Change::Duration),
+        (
+            spell_known(&patch.heightening).is_some(),
+            Change::Heightening,
+        ),
+        (spell_known(&patch.rules).is_some(), Change::Rules),
+    ] {
+        if present {
+            changes.push(change);
+        }
     }
+    if let Some(damage) = spell_known(&patch.damage) {
+        changes.extend(damage.members.iter().map(|member| {
+            let base = unique_spell_damage_member(base_damage, &member.key);
+            match &member.operation {
+                atlas_record::SpellKeyedPatchOperation::Merge(value) => Change::Effect {
+                    operation: atlas_app_model::SpellEffectChangeOperationView::Merge,
+                    label: spell_damage_patch_label(value, base.map(|member| &member.value)),
+                    value: Some(spell_effect_change(value)),
+                },
+                atlas_record::SpellKeyedPatchOperation::Delete => Change::Effect {
+                    operation: atlas_app_model::SpellEffectChangeOperationView::Delete,
+                    label: base
+                        .map(|member| spell_damage_label(&member.value))
+                        .unwrap_or_else(|| "Effect".to_string()),
+                    value: None,
+                },
+                atlas_record::SpellKeyedPatchOperation::Unsupported(_) => Change::Effect {
+                    operation: atlas_app_model::SpellEffectChangeOperationView::Unsupported,
+                    label: "Effect".to_string(),
+                    value: None,
+                },
+            }
+        }));
+    }
+    changes
 }
 
-fn spell_damage_patch(
+fn unique_spell_damage_member<'a>(
+    damage: Option<&'a [atlas_record::SpellOrderedMember<atlas_record::SpellDamage>]>,
+    key: &str,
+) -> Option<&'a atlas_record::SpellOrderedMember<atlas_record::SpellDamage>> {
+    let mut matches = damage?.iter().filter(|member| member.key == key);
+    let member = matches.next()?;
+    matches.next().is_none().then_some(member)
+}
+
+fn spell_damage_patch_label(
+    patch: &atlas_record::SpellDamagePatch,
+    base: Option<&atlas_record::SpellDamage>,
+) -> String {
+    if spell_known(&patch.category).is_some_and(|value| !value.trim().is_empty())
+        || spell_known(&patch.kinds).is_some_and(|values| !values.is_empty())
+    {
+        return spell_damage_semantic_label(&patch.category, &patch.kinds);
+    }
+    if matches!(
+        patch.category,
+        FactValue::Value(atlas_record::SpellSourceValue::Unsupported(_))
+    ) || matches!(
+        patch.kinds,
+        FactValue::Value(atlas_record::SpellSourceValue::Unsupported(_))
+    ) {
+        return "Effect".to_string();
+    }
+    base.map(spell_damage_label)
+        .unwrap_or_else(|| "Effect".to_string())
+}
+
+fn spell_damage_label(value: &atlas_record::SpellDamage) -> String {
+    spell_damage_semantic_label(&value.category, &value.kinds)
+}
+
+fn spell_damage_semantic_label(
+    category: &atlas_record::SpellFact<String>,
+    kinds: &atlas_record::SpellFact<Vec<String>>,
+) -> String {
+    if let Some(category) = spell_known(category).filter(|value| !value.trim().is_empty()) {
+        let mut label = category.clone();
+        if let Some(first) = label.get_mut(0..1) {
+            first.make_ascii_uppercase();
+        }
+        return format!("{label} damage");
+    }
+    let kinds = spell_known(kinds).map(Vec::as_slice).unwrap_or_default();
+    match (
+        kinds.iter().any(|kind| kind == "damage"),
+        kinds.iter().any(|kind| kind == "healing"),
+    ) {
+        (true, true) => "Damage or healing",
+        (false, true) => "Healing",
+        (true, false) => "Damage",
+        (false, false) => "Effect",
+    }
+    .to_string()
+}
+
+fn spell_effect_change(
     value: &atlas_record::SpellDamagePatch,
-) -> atlas_app_model::SpellDamagePatchView {
-    atlas_app_model::SpellDamagePatchView {
+) -> atlas_app_model::SpellEffectChangeView {
+    atlas_app_model::SpellEffectChangeView {
         formula: spell_fact(&value.formula, Clone::clone),
         damage_type: spell_fact(&value.damage_type, Clone::clone),
         category: spell_fact(&value.category, Clone::clone),
         kinds: spell_fact(&value.kinds, Clone::clone),
         materials: spell_fact(&value.materials, Clone::clone),
         apply_modifier: spell_fact(&value.apply_mod, |value| *value),
-    }
-}
-
-fn spell_heightening_patch(
-    value: &atlas_record::SpellHeighteningPatch,
-) -> atlas_app_model::SpellHeighteningPatchView {
-    atlas_app_model::SpellHeighteningPatchView {
-        kind: spell_fact(&value.kind, |_| {
-            atlas_app_model::SpellHeighteningTypeView::Interval
-        }),
-        interval: spell_fact(&value.interval, |value| *value),
-        area: spell_fact(&value.area, |value| *value),
-        damage: spell_fact(&value.interval_damage, |patch| {
-            atlas_app_model::SpellTextPatchSetView {
-                members: patch
-                    .members
-                    .iter()
-                    .map(|member| atlas_app_model::SpellTextPatchMemberView {
-                        key: member.key.clone(),
-                        order: member.authored_order,
-                        operation: match &member.operation {
-                            atlas_record::SpellKeyedPatchOperation::Merge(value) => {
-                                atlas_app_model::SpellTextPatchOperationView::Merge(spell_fact(
-                                    &value.value,
-                                    Clone::clone,
-                                ))
-                            }
-                            atlas_record::SpellKeyedPatchOperation::Delete => {
-                                atlas_app_model::SpellTextPatchOperationView::Delete
-                            }
-                            atlas_record::SpellKeyedPatchOperation::Unsupported(_) => {
-                                atlas_app_model::SpellTextPatchOperationView::Unsupported
-                            }
-                        },
-                    })
-                    .collect(),
-            }
-        }),
     }
 }
 
@@ -781,30 +756,43 @@ fn spell_forms(
 ) -> (
     Vec<atlas_app_model::SpellFormView>,
     Option<atlas_app_model::SpellFormCatalogUnavailableReasonView>,
+    Vec<atlas_record::SpellPresentationIssue>,
 ) {
     let cast_rank = spell_base_rank(spell).unwrap_or(0);
     let base_id = atlas_record::SpellFormId::base(&spell.identity.record_key);
-    let mut forms = vec![spell_form(
-        spell,
-        base_id,
-        "Base".to_string(),
-        0,
-        cast_rank,
-        None,
-    )];
+    let mut forms = vec![spell_form(base_id, "Base".to_string(), 0, cast_rank, false)];
+    let mut issues = Vec::new();
     match spell.ordered_overlays() {
         Ok(overlays) => {
-            forms.extend(overlays.into_iter().enumerate().map(|(index, overlay)| {
-                spell_form(
-                    spell,
-                    overlay.form_id(&spell.identity.record_key),
-                    spell_overlay_label(overlay, index),
-                    u32::try_from(index + 1).unwrap_or(u32::MAX),
+            for (index, overlay) in overlays.into_iter().enumerate() {
+                let form_id = overlay.form_id(&spell.identity.record_key);
+                let context = atlas_record::SpellFormContext {
                     cast_rank,
-                    Some(overlay),
-                )
-            }));
-            (forms, None)
+                    overlay_id: Some(overlay.overlay_id.clone()),
+                };
+                let resolved = spell.resolve_form(form_id.clone(), context);
+                let label = resolved.as_ref().ok().and_then(|resolved| {
+                    spell_known(&overlay.name)
+                        .filter(|name| !name.trim().is_empty())
+                        .cloned()
+                        .or_else(|| atlas_record::project_resolved_spell_form_label(resolved))
+                });
+                if let Some(label) = label {
+                    forms.push(spell_form(
+                        form_id,
+                        label,
+                        u32::try_from(index + 1).unwrap_or(u32::MAX),
+                        cast_rank,
+                        true,
+                    ));
+                } else {
+                    issues.push(atlas_record::SpellPresentationIssue {
+                        field: atlas_record::SpellPresentationIssueField::FormCatalog,
+                        kind: atlas_record::FactIssueKind::Unavailable,
+                    });
+                }
+            }
+            (forms, None, issues)
         }
         Err(error) => (
             forms,
@@ -816,6 +804,7 @@ fn spell_forms(
                     atlas_app_model::SpellFormCatalogUnavailableReasonView::UnavailableOverlaySort
                 }
             }),
+            issues,
         ),
     }
 }
@@ -834,46 +823,34 @@ fn spell_known<T>(fact: &atlas_record::SpellFact<T>) -> Option<&T> {
     }
 }
 
-fn spell_overlay_label(overlay: &atlas_record::SpellOverlay, index: usize) -> String {
-    spell_known(&overlay.name)
-        .filter(|name| !name.trim().is_empty())
-        .cloned()
-        .unwrap_or_else(|| format!("Overlay {}", index + 1))
-}
-
 fn spell_form(
-    spell: &atlas_record::SpellRecord,
     form_id: atlas_record::SpellFormId,
     label: String,
     order: u32,
     cast_rank: u8,
-    overlay: Option<&atlas_record::SpellOverlay>,
+    overlay: bool,
 ) -> atlas_app_model::SpellFormView {
-    let context = atlas_record::SpellFormContext {
-        cast_rank,
-        overlay_id: overlay.map(|overlay| overlay.overlay_id.clone()),
-    };
-    let result = spell_form_result(spell, form_id.clone(), context);
     atlas_app_model::SpellFormView {
         id: form_id.as_str().to_string(),
         label,
         order,
-        cast_rank,
-        kind: if overlay.is_some() {
+        minimum_cast_rank: cast_rank,
+        kind: if overlay {
             atlas_app_model::SpellFormKindView::Overlay
         } else {
             atlas_app_model::SpellFormKindView::Base
         },
-        authored_patch: overlay.map(|overlay| spell_patch(&overlay.patch)),
-        result,
     }
 }
 
-fn spell_selected_form(
+fn spell_effective_form(
     spell: &atlas_record::SpellRecord,
     form_id: atlas_record::SpellFormId,
     cast_rank: u8,
-) -> atlas_app_model::SpellSelectedFormView {
+) -> (
+    atlas_app_model::SpellEffectiveFormView,
+    Vec<atlas_record::SpellPresentationIssue>,
+) {
     let base_id = atlas_record::SpellFormId::base(&spell.identity.record_key);
     let overlay_id = (form_id != base_id)
         .then(|| {
@@ -885,29 +862,34 @@ fn spell_selected_form(
                 .map(|overlay| overlay.overlay_id.clone())
         })
         .flatten();
-    let result = spell_form_result(
-        spell,
+    let result = spell.resolve_form(
         form_id.clone(),
         atlas_record::SpellFormContext {
             cast_rank,
             overlay_id,
         },
     );
-    atlas_app_model::SpellSelectedFormView {
-        id: form_id.as_str().to_string(),
-        cast_rank,
-        result,
-    }
+    let issues = atlas_record::project_spell_form_result_presentation_issues(&result);
+    let base_damage = spell_known(&spell.definition.damage).map(Vec::as_slice);
+    let result = spell_form_result_view(result, &spell.definition.ritual, base_damage);
+    (
+        atlas_app_model::SpellEffectiveFormView {
+            id: form_id.as_str().to_string(),
+            cast_rank,
+            result,
+        },
+        issues,
+    )
 }
 
-fn spell_form_result(
-    spell: &atlas_record::SpellRecord,
-    form_id: atlas_record::SpellFormId,
-    context: atlas_record::SpellFormContext,
+fn spell_form_result_view(
+    result: Result<atlas_record::ResolvedSpellForm, atlas_record::SpellFormSelectionError>,
+    ritual: &atlas_record::SpellFact<atlas_record::SpellRitual>,
+    base_damage: Option<&[atlas_record::SpellOrderedMember<atlas_record::SpellDamage>]>,
 ) -> atlas_app_model::SpellFormResultView {
-    match spell.resolve_form(form_id, context) {
+    match result {
         Ok(definition) => atlas_app_model::SpellFormResultView::Available {
-            definition: Box::new(spell_resolved_definition(definition)),
+            definition: Box::new(spell_resolved_definition(definition, ritual, base_damage)),
         },
         Err(error) => atlas_app_model::SpellFormResultView::Unavailable {
             reason: spell_selection_unavailable(error),
@@ -917,7 +899,12 @@ fn spell_form_result(
 
 fn spell_resolved_definition(
     value: atlas_record::ResolvedSpellForm,
+    ritual: &atlas_record::SpellFact<atlas_record::SpellRitual>,
+    base_damage: Option<&[atlas_record::SpellOrderedMember<atlas_record::SpellDamage>]>,
 ) -> atlas_app_model::SpellResolvedDefinitionView {
+    let heightening = spell_resolved_field(value.heightening, |heightening| {
+        spell_heightening(heightening, base_damage)
+    });
     atlas_app_model::SpellResolvedDefinitionView {
         applied_fixed_ranks: value.applied_fixed_ranks,
         classification: spell_resolved_field(value.classification, spell_classification),
@@ -928,7 +915,8 @@ fn spell_resolved_definition(
             members.iter().map(spell_damage).collect()
         }),
         duration: spell_resolved_field(value.duration, spell_duration),
-        heightening: spell_resolved_field(value.heightening, spell_heightening),
+        heightening,
+        ritual: spell_fact(ritual, spell_ritual),
         rules: spell_resolved_field(value.rules, |values| spell_rules(values)),
     }
 }
@@ -1134,10 +1122,6 @@ fn creature_surface_with_placement(
         }
         None
     };
-    let relationships = (detail || encounter)
-        .then(|| relationships(creature, &mut unavailable))
-        .flatten();
-
     CreatureSurfaceView {
         teaser,
         size: detail.then(|| size(creature, &mut unavailable)).flatten(),
@@ -1165,7 +1149,7 @@ fn creature_surface_with_placement(
         content: (detail || encounter)
             .then(|| content(creature, activity_content))
             .flatten(),
-        relationships,
+        relationships: None,
         unavailable_domains: unavailable.into_view(),
         provenance: Some(CreatureSurfaceProvenanceView {
             source_path: creature.provenance.source_path.clone(),
@@ -1192,7 +1176,6 @@ enum SurfaceDomain {
     Lore,
     Spellcasting,
     Activities,
-    Relationships,
 }
 
 #[derive(Default)]
@@ -1322,7 +1305,7 @@ impl SurfaceUnavailableDomains {
             lore: take(SurfaceDomain::Lore),
             spellcasting: take(SurfaceDomain::Spellcasting),
             activities: take(SurfaceDomain::Activities),
-            relationships: take(SurfaceDomain::Relationships),
+            relationships: None,
         })
     }
 }
@@ -3443,57 +3426,6 @@ fn content_role(role: ContentRole) -> CreatureSurfaceContentRoleView {
     }
 }
 
-fn relationships(
-    creature: &CreatureRecord,
-    unavailable: &mut SurfaceUnavailableDomains,
-) -> Option<Vec<CreatureSurfaceRelationshipView>> {
-    let embedded = required_fact(
-        &creature.embedded_entities.value,
-        unavailable,
-        SurfaceDomain::Relationships,
-        CreatureSurfaceUnavailableFieldView::Relationships,
-        CreatureSurfaceSourceFieldView::EmbeddedEntities,
-        None,
-    )?;
-    non_empty(
-        embedded
-            .relationships
-            .iter()
-            .map(|relationship| CreatureSurfaceRelationshipView {
-                source_occurrence_id: relationship.source.as_str().to_string(),
-                kind: match relationship.kind {
-                    CreatureEntityRelationshipKind::GrantedBy => {
-                        CreatureSurfaceRelationshipKindView::GrantedBy
-                    }
-                    CreatureEntityRelationshipKind::ItemGrant => {
-                        CreatureSurfaceRelationshipKindView::ItemGrant
-                    }
-                    CreatureEntityRelationshipKind::LinkedWeapon => {
-                        CreatureSurfaceRelationshipKindView::LinkedWeapon
-                    }
-                    CreatureEntityRelationshipKind::PreparedSpell => {
-                        CreatureSurfaceRelationshipKindView::PreparedSpell
-                    }
-                },
-                target: match &relationship.target {
-                    CreatureRelationshipTarget::Occurrence(id) => {
-                        CreatureSurfaceRelationshipTargetView::Occurrence {
-                            occurrence_id: id.as_str().to_string(),
-                        }
-                    }
-                    CreatureRelationshipTarget::UnresolvedNestedSourceId(id) => {
-                        CreatureSurfaceRelationshipTargetView::UnresolvedSource {
-                            source_id: id.as_str().to_string(),
-                        }
-                    }
-                },
-                contextual_label: text(&relationship.contextual_label),
-                provenance_only: true,
-            })
-            .collect(),
-    )
-}
-
 fn occurrence_label(
     occurrence: &CreatureEntityOccurrence,
     embedded: &CreatureEmbeddedEntities,
@@ -3750,6 +3682,266 @@ mod tests {
         }
     }
 
+    fn known_spell<T>(value: T) -> atlas_record::SpellFact<T> {
+        FactValue::Value(atlas_record::SpellSourceValue::Known(value))
+    }
+
+    fn spell_rule_element(
+        authored_order: u32,
+        rule: atlas_record::SpellRule,
+    ) -> atlas_record::SpellRuleElement {
+        atlas_record::SpellRuleElement {
+            authored_order,
+            source_path: format!("/system/rules/{authored_order}"),
+            authored_key: "fixture-rule".to_string(),
+            authored_object_json: "{}".to_string(),
+            rule,
+        }
+    }
+
+    #[test]
+    fn spell_surface_heightening_uses_semantic_unique_member_associations() {
+        let damage = atlas_record::SpellOrderedMember {
+            key: "damage-member".to_string(),
+            authored_order: 0,
+            value: atlas_record::SpellDamage {
+                formula: known_spell("2d4".to_string()),
+                damage_type: known_spell("cold".to_string()),
+                kinds: known_spell(vec!["damage".to_string()]),
+                ..atlas_record::SpellDamage::default()
+            },
+        };
+        let healing = atlas_record::SpellOrderedMember {
+            key: "healing-member".to_string(),
+            authored_order: 1,
+            value: atlas_record::SpellDamage {
+                formula: known_spell("2d8".to_string()),
+                kinds: known_spell(vec!["healing".to_string()]),
+                ..atlas_record::SpellDamage::default()
+            },
+        };
+        let duplicate = atlas_record::SpellOrderedMember {
+            key: "duplicate".to_string(),
+            authored_order: 2,
+            value: damage.value.clone(),
+        };
+        let base = vec![damage, healing, duplicate.clone(), duplicate];
+
+        let interval =
+            atlas_record::SpellHeightening::Interval(atlas_record::SpellIntervalHeightening {
+                interval: known_spell(1),
+                area: FactValue::Missing,
+                damage: known_spell(vec![atlas_record::SpellOrderedMember {
+                    key: "damage-member".to_string(),
+                    authored_order: 0,
+                    value: "2d4".to_string(),
+                }]),
+            });
+        let interval = serde_json::to_value(super::spell_heightening(&interval, Some(&base)))
+            .expect("interval heightening should serialize");
+        assert_eq!(interval["damage"]["value"][0]["label"], "Damage");
+        assert_eq!(interval["damage"]["value"][0]["value"], "2d4");
+
+        let fixed =
+            atlas_record::SpellHeightening::Fixed(vec![atlas_record::SpellFixedHeighteningLayer {
+                key: "5".to_string(),
+                authored_order: 0,
+                rank: atlas_record::SpellSourceValue::Known(5),
+                patch: atlas_record::SpellPatch {
+                    damage: known_spell(atlas_record::SpellKeyedPatch {
+                        members: vec![
+                            atlas_record::SpellKeyedPatchMember {
+                                key: "damage-member".to_string(),
+                                authored_order: 0,
+                                operation: atlas_record::SpellKeyedPatchOperation::Merge(
+                                    atlas_record::SpellDamagePatch {
+                                        formula: known_spell("8d4".to_string()),
+                                        ..atlas_record::SpellDamagePatch::default()
+                                    },
+                                ),
+                            },
+                            atlas_record::SpellKeyedPatchMember {
+                                key: "healing-member".to_string(),
+                                authored_order: 1,
+                                operation: atlas_record::SpellKeyedPatchOperation::Delete,
+                            },
+                            atlas_record::SpellKeyedPatchMember {
+                                key: "duplicate".to_string(),
+                                authored_order: 2,
+                                operation: atlas_record::SpellKeyedPatchOperation::Delete,
+                            },
+                        ],
+                    }),
+                    ..atlas_record::SpellPatch::default()
+                },
+            }]);
+        let fixed = serde_json::to_value(super::spell_heightening(&fixed, Some(&base)))
+            .expect("fixed heightening should serialize");
+        let changes = fixed["layers"][0]["changes"]
+            .as_array()
+            .expect("fixed changes");
+        assert_eq!(changes[0]["label"], "Damage");
+        assert_eq!(changes[0]["value"]["formula"]["value"], "8d4");
+        assert_eq!(changes[1]["label"], "Healing");
+        assert_eq!(changes[2]["label"], "Effect");
+        assert!(!fixed.to_string().contains("damage-member"));
+        assert!(!fixed.to_string().contains("healing-member"));
+        assert!(!fixed.to_string().contains("duplicate"));
+    }
+
+    #[test]
+    fn spell_surface_maps_all_supported_rule_variants_without_raw_owner_fields() {
+        use atlas_record::SpellRule;
+
+        let rules = vec![
+            spell_rule_element(
+                0,
+                SpellRule::DamageDice(atlas_record::SpellDamageDiceRule {
+                    selector: known_spell("damage".to_string()),
+                    hide_if_disabled: known_spell(false),
+                    ..atlas_record::SpellDamageDiceRule::default()
+                }),
+            ),
+            spell_rule_element(
+                1,
+                SpellRule::EphemeralEffect(atlas_record::SpellEphemeralEffectRule {
+                    selectors: known_spell(vec!["target".to_string()]),
+                    ..atlas_record::SpellEphemeralEffectRule::default()
+                }),
+            ),
+            spell_rule_element(
+                2,
+                SpellRule::DamageAlteration(atlas_record::SpellDamageAlterationRule {
+                    mode: known_spell("override".to_string()),
+                    ..atlas_record::SpellDamageAlterationRule::default()
+                }),
+            ),
+            spell_rule_element(
+                3,
+                SpellRule::RollOption(atlas_record::SpellRollOptionRule {
+                    toggleable: known_spell(false),
+                    ..atlas_record::SpellRollOptionRule::default()
+                }),
+            ),
+            spell_rule_element(
+                4,
+                SpellRule::ItemAlteration(atlas_record::SpellItemAlterationRule {
+                    property: known_spell("badge-value".to_string()),
+                    ..atlas_record::SpellItemAlterationRule::default()
+                }),
+            ),
+        ];
+        let projected = serde_json::to_value(super::spell_rules(&rules))
+            .expect("supported rules should serialize");
+        assert_eq!(
+            projected
+                .as_array()
+                .expect("rules")
+                .iter()
+                .map(|rule| rule["rule"]["kind"].as_str().expect("rule kind"))
+                .collect::<Vec<_>>(),
+            vec![
+                "damage_dice",
+                "ephemeral_effect",
+                "damage_alteration",
+                "roll_option",
+                "item_alteration",
+            ]
+        );
+        assert_eq!(
+            projected[0]["rule"]["value"]["hide_if_disabled"]["value"],
+            false
+        );
+        assert_eq!(projected[3]["rule"]["value"]["toggleable"]["value"], false);
+        for forbidden in ["source_path", "authored_key", "authored_object_json"] {
+            assert!(!projected.to_string().contains(forbidden));
+        }
+    }
+
+    #[test]
+    fn source_backed_fireball_key_zero_is_internal_to_semantic_app_association()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // This one-record fixture is copied from the exact pinned source path so the authored
+        // member key and its semantic app projection are exercised without a corpus build.
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../atlas-ingest/tests/fixtures/foundry-source/fireball-source-contract");
+        let artifact = TemporarySpellSurfaceArtifact::new()?;
+        build_artifact(BuildArtifactOptions {
+            source_root,
+            output_path: artifact.artifact.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: true,
+            embedding_batch_size: 8,
+        })?;
+        let retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+            SqliteIndexReader::open_read_only(&artifact.artifact)?,
+        );
+        let fireball = retrieve_spell(&retrieval, "spells-srd:sxQZ6yqTn0czJxVd")?;
+        let Some(RecordBody::Spell(spell)) = fireball.body.as_ref() else {
+            panic!("Fireball should hydrate as a spell");
+        };
+        assert_eq!(
+            spell.definition.provenance.source_path,
+            "packs/spells/3rd-rank/fireball.json"
+        );
+        let FactValue::Value(atlas_record::SpellSourceValue::Known(damage)) =
+            &spell.definition.damage
+        else {
+            panic!("Fireball damage should be known");
+        };
+        assert_eq!(damage.len(), 1);
+        assert_eq!(damage[0].key, "0");
+        assert_eq!(damage[0].value.formula, known_spell("6d6".to_string()));
+        let FactValue::Value(atlas_record::SpellSourceValue::Known(
+            atlas_record::SpellHeightening::Interval(heightening),
+        )) = &spell.definition.heightening
+        else {
+            panic!("Fireball interval heightening should be known");
+        };
+        let FactValue::Value(atlas_record::SpellSourceValue::Known(heightening_damage)) =
+            &heightening.damage
+        else {
+            panic!("Fireball heightening damage should be known");
+        };
+        assert_eq!(heightening_damage.len(), 1);
+        assert_eq!(heightening_damage[0].key, "0");
+        assert_eq!(heightening_damage[0].value, "2d6");
+
+        let surface = spell_surface_json(&fireball);
+        assert!(surface["metadata"].get("level").is_none());
+        assert!(surface["metadata"].get("traits").is_none());
+        assert_eq!(surface["presentation"]["body"]["family"], "spell");
+        assert_eq!(
+            surface.pointer(
+                "/presentation/body/effective_form/result/definition/classification/value/value/rank/value"
+            ),
+            Some(&serde_json::json!(3))
+        );
+        assert_eq!(
+            surface.pointer(
+                "/presentation/body/effective_form/result/definition/classification/value/value/traits/value"
+            ),
+            Some(&serde_json::json!(["concentrate", "fire", "manipulate"]))
+        );
+        let damage = surface
+            .pointer("/presentation/body/effective_form/result/definition/damage/value/value/0")
+            .expect("Fireball app damage");
+        assert_eq!(damage["label"], "Damage");
+        assert_eq!(damage["formula"]["value"], "6d6");
+        assert_eq!(damage["damage_type"]["value"], "fire");
+        assert!(damage.get("key").is_none());
+        let increment = surface
+            .pointer("/presentation/body/effective_form/result/definition/heightening/value/value/damage/value/0")
+            .expect("Fireball app heightening damage");
+        assert_eq!(increment["label"], "Damage");
+        assert_eq!(increment["value"], "2d6");
+        assert!(increment.get("key").is_none());
+
+        Ok(())
+    }
+
     #[test]
     fn real_heal_rime_deity_and_planar_records_expose_typed_spell_api_surfaces_and_unsafe_form_state()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -3784,11 +3976,13 @@ mod tests {
         let heal_surface = spell_surface_json(&heal);
         assert_eq!(
             heal_surface
-                .pointer("/presentation/body/definition/targeting/value/range/value/authored_text"),
+                .pointer("/presentation/body/effective_form/result/definition/targeting/value/value/range/value/authored_text"),
             Some(&serde_json::json!("varies"))
         );
         assert_eq!(
-            heal_surface.pointer("/presentation/body/definition/heightening/value/kind"),
+            heal_surface.pointer(
+                "/presentation/body/effective_form/result/definition/heightening/value/value/kind"
+            ),
             Some(&serde_json::json!("interval"))
         );
         let heal_forms = heal_surface["presentation"]["body"]["forms"]
@@ -3801,10 +3995,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![
                 "Base",
-                "Overlay 1",
+                "1 action — touch",
                 "Heal (vs. Living)",
                 "Heal (vs. Undead)",
-                "Overlay 4",
+                "3 actions — 30-foot emanation",
             ]
         );
         for (order, form) in heal_forms.iter().enumerate() {
@@ -3814,77 +4008,207 @@ mod tests {
                     .as_str()
                     .is_some_and(|id| id.starts_with("spell-form:"))
             );
-            assert_eq!(form["result"]["state"], "available");
+            assert_eq!(form["minimum_cast_rank"], 1);
+            assert!(form.get("authored_patch").is_none());
+            assert!(form.get("result").is_none());
         }
-        assert_eq!(
-            heal_forms[2].pointer("/authored_patch/targeting/value/range/value/authored_text"),
-            Some(&serde_json::json!("30 feet"))
+        assert!(
+            heal_surface["presentation"]["body"]
+                .get("definition")
+                .is_none()
         );
-        assert_eq!(
-            heal_forms[2]
-                .pointer("/result/definition/targeting/value/value/range/value/authored_text"),
-            Some(&serde_json::json!("30 feet"))
+        assert!(
+            heal_surface["presentation"]["body"]
+                .get("selected_form")
+                .is_none()
         );
+
+        for (label, time, range, target, area) in [
+            (
+                "1 action — touch",
+                "1",
+                Some("touch"),
+                Some("1 willing living creature or 1 undead"),
+                None,
+            ),
+            (
+                "Heal (vs. Living)",
+                "2",
+                Some("30 feet"),
+                Some("1 willing living creature or 1 undead"),
+                None,
+            ),
+            (
+                "Heal (vs. Undead)",
+                "2",
+                Some("30 feet"),
+                Some("1 undead"),
+                None,
+            ),
+            (
+                "3 actions — 30-foot emanation",
+                "3",
+                Some(""),
+                Some("all living and undead creatures"),
+                Some((30, "emanation")),
+            ),
+        ] {
+            let form = heal_forms
+                .iter()
+                .find(|form| form["label"] == label)
+                .expect("semantic Heal form");
+            let selected = service.worker.record_detail(
+                "spells-srd:rfZpqmj0AIIdkVIs",
+                RecordDetailRequest {
+                    spell_form_id: Some(form["id"].as_str().expect("form id").to_string()),
+                    spell_cast_rank: Some(1),
+                    ..RecordDetailRequest::default()
+                },
+            )?;
+            let selected = serde_json::to_value(selected.surface)?;
+            let definition = selected
+                .pointer("/presentation/body/effective_form/result/definition")
+                .expect("selected Heal definition");
+            assert_eq!(
+                definition.pointer("/casting/value/value/time/value"),
+                Some(&serde_json::json!(time)),
+                "{label} casting time"
+            );
+            assert_eq!(
+                definition
+                    .pointer("/targeting/value/value/range/value/authored_text")
+                    .and_then(serde_json::Value::as_str),
+                range,
+                "{label} range"
+            );
+            assert_eq!(
+                definition
+                    .pointer("/targeting/value/value/target/value")
+                    .and_then(serde_json::Value::as_str),
+                target,
+                "{label} target"
+            );
+            assert_eq!(
+                definition
+                    .pointer("/targeting/value/value/area/value")
+                    .map(|area| {
+                        (
+                            area["value"]["value"].as_u64().expect("area value") as u32,
+                            area["area_type"]["value"].as_str().expect("area type"),
+                        )
+                    }),
+                area,
+                "{label} area"
+            );
+        }
 
         let mut rime_record = retrieve_spell(&retrieval, "spells-srd:Popa5umI3H33levx")?;
         let rime = spell_surface_json(&rime_record);
+        let rime_forms = rime["presentation"]["body"]["forms"]
+            .as_array()
+            .expect("Rime form catalog");
+        assert_eq!(rime_forms.len(), 1);
+        assert_eq!(rime_forms[0]["label"], "Base");
+        assert_eq!(rime_forms[0]["kind"], "base");
+        assert_eq!(
+            rime.pointer(
+                "/presentation/body/effective_form/result/definition/classification/value/value/rank/value"
+            ),
+            Some(&serde_json::json!(2))
+        );
+        assert_eq!(
+            rime.pointer(
+                "/presentation/body/effective_form/result/definition/targeting/value/value/area/value/value/value"
+            ),
+            Some(&serde_json::json!(15))
+        );
+        assert_eq!(
+            rime.pointer(
+                "/presentation/body/effective_form/result/definition/damage/value/value/0/formula/value"
+            ),
+            Some(&serde_json::json!("2d4"))
+        );
+        assert_eq!(
+            rime.pointer("/presentation/body/effective_form/result/definition/applied_fixed_ranks"),
+            Some(&serde_json::json!([]))
+        );
         let rime_layers = rime
-            .pointer("/presentation/body/definition/heightening/value/layers")
+            .pointer("/presentation/body/effective_form/result/definition/heightening/value/value/layers")
             .and_then(serde_json::Value::as_array)
             .expect("Rime fixed heightening layers");
         assert_eq!(rime_layers[0]["rank"]["value"], 5);
         assert_eq!(
-            rime_layers[0]["patch"]["damage"]["value"]["members"][0]["operation"]["value"]["formula"]
-                ["value"],
-            "4d4"
+            rime_layers[0]["changes"][1]["value"]["formula"]["value"],
+            "8d4"
+        );
+        assert_eq!(rime_layers[0]["changes"][1]["label"], "Damage");
+        assert!(
+            serde_json::to_string(&rime_layers)?
+                .find("\"key\"")
+                .is_none()
         );
         assert_eq!(rime_layers[1]["rank"]["value"], 8);
         assert_eq!(
-            rime_layers[1]["patch"]["damage"]["value"]["members"][0]["operation"]["value"]["formula"]
-                ["value"],
-            "6d4"
+            rime_layers[1]["changes"][1]["value"]["formula"]["value"],
+            "14d4"
         );
         let base_form_id = rime
             .pointer("/presentation/body/forms/0/id")
             .and_then(serde_json::Value::as_str)
             .expect("Rime base form id")
             .to_string();
-        assert!(rime["presentation"]["body"].get("selected_form").is_none());
-        for (cast_rank, applied_ranks, formula) in [
-            (5, serde_json::json!([5]), "4d4"),
-            (8, serde_json::json!([5, 8]), "6d4"),
+        assert_eq!(
+            rime.pointer("/presentation/body/effective_form/cast_rank"),
+            Some(&serde_json::json!(2))
+        );
+        for (cast_rank, applied_ranks, area, formula) in [
+            (5, serde_json::json!([5]), 30, "8d4"),
+            (8, serde_json::json!([5, 8]), 60, "14d4"),
         ] {
             let selected = service.worker.record_detail(
                 "spells-srd:Popa5umI3H33levx",
                 RecordDetailRequest {
                     spell_form_id: Some(base_form_id.clone()),
                     spell_cast_rank: Some(cast_rank),
+                    ..RecordDetailRequest::default()
                 },
             )?;
             let selected = serde_json::to_value(selected.surface)?;
             assert_eq!(
-                selected.pointer("/presentation/body/selected_form/id"),
+                selected.pointer("/presentation/body/effective_form/id"),
                 Some(&serde_json::json!(base_form_id))
             );
             assert_eq!(
-                selected.pointer("/presentation/body/selected_form/cast_rank"),
+                selected.pointer("/presentation/body/effective_form/cast_rank"),
                 Some(&serde_json::json!(cast_rank))
             );
             assert_eq!(
-                selected.pointer("/presentation/body/forms/0/cast_rank"),
+                selected.pointer("/presentation/body/forms/0/minimum_cast_rank"),
                 Some(&serde_json::json!(2))
             );
             assert_eq!(
                 selected.pointer(
-                    "/presentation/body/selected_form/result/definition/applied_fixed_ranks"
+                    "/presentation/body/effective_form/result/definition/applied_fixed_ranks"
                 ),
                 Some(&applied_ranks)
             );
             assert_eq!(
                 selected.pointer(
-                    "/presentation/body/selected_form/result/definition/damage/value/value/0/formula/value"
+                    "/presentation/body/effective_form/result/definition/damage/value/value/0/formula/value"
                 ),
                 Some(&serde_json::json!(formula))
+            );
+            assert_eq!(
+                selected.pointer(
+                    "/presentation/body/effective_form/result/definition/targeting/value/value/area/value/value/value"
+                ),
+                Some(&serde_json::json!(area))
+            );
+            assert_eq!(
+                selected.pointer(
+                    "/presentation/body/effective_form/result/definition/damage/value/value/0/label"
+                ),
+                Some(&serde_json::json!("Damage"))
             );
         }
         let below_base = service.worker.record_detail(
@@ -3892,11 +4216,12 @@ mod tests {
             RecordDetailRequest {
                 spell_form_id: Some(base_form_id.clone()),
                 spell_cast_rank: Some(1),
+                ..RecordDetailRequest::default()
             },
         )?;
         let below_base = serde_json::to_value(below_base.surface)?;
         assert_eq!(
-            below_base.pointer("/presentation/body/selected_form/result/reason"),
+            below_base.pointer("/presentation/body/effective_form/result/reason"),
             Some(&serde_json::json!({
                 "reason": "cast_rank_below_base",
                 "base_rank": 2,
@@ -3924,11 +4249,11 @@ mod tests {
             )),
         );
         assert_eq!(
-            localized.pointer("/presentation/body/selected_form/result/state"),
+            localized.pointer("/presentation/body/effective_form/result/state"),
             Some(&serde_json::json!("available"))
         );
         assert_eq!(
-            localized.pointer("/presentation/body/selected_form/result/definition/damage"),
+            localized.pointer("/presentation/body/effective_form/result/definition/damage"),
             Some(&serde_json::json!({
                 "state": "unavailable",
                 "unavailable": {
@@ -3941,33 +4266,35 @@ mod tests {
 
         let deity = spell_surface_json(&retrieve_spell(&retrieval, "spells-srd:x9RIFhquazom4p02")?);
         assert_eq!(
-            deity.pointer("/presentation/body/definition/defense/value/passive/value"),
+            deity.pointer("/presentation/body/effective_form/result/definition/defense/value/value/passive/value"),
             Some(&serde_json::json!("ac"))
         );
         assert_eq!(
-            deity.pointer("/presentation/body/definition/defense/value/save/value/statistic/value"),
+            deity.pointer("/presentation/body/effective_form/result/definition/defense/value/value/save/value/statistic/value"),
             Some(&serde_json::json!("reflex"))
         );
         assert_eq!(
-            deity.pointer("/presentation/body/definition/defense/value/save/value/basic/value"),
+            deity.pointer("/presentation/body/effective_form/result/definition/defense/value/value/save/value/basic/value"),
             Some(&serde_json::json!(true))
         );
 
         let planar =
             spell_surface_json(&retrieve_spell(&retrieval, "spells-srd:HmKajQS0DP23bipp")?);
+        assert_eq!(planar["metadata"]["kind_label"], "Spell");
+        assert_eq!(planar["presentation"]["body"]["family"], "ritual");
         assert_eq!(
-            planar.pointer("/presentation/body/definition/ritual/value/primary_check/value"),
+            planar.pointer("/presentation/body/effective_form/result/definition/ritual/value/primary_check/value"),
             Some(&serde_json::json!(
                 "Arcana (master), Nature (master), Occultism (master), or Religion (master)"
             ))
         );
         assert_eq!(
-            planar.pointer("/presentation/body/definition/ritual/value/secondary_casters/value"),
+            planar.pointer("/presentation/body/effective_form/result/definition/ritual/value/secondary_casters/value"),
             Some(&serde_json::json!(2))
         );
         assert_eq!(
             planar
-                .pointer("/presentation/body/definition/targeting/value/range/value/authored_text"),
+                .pointer("/presentation/body/effective_form/result/definition/targeting/value/value/range/value/authored_text"),
             Some(&serde_json::json!("20 feet"))
         );
 
@@ -4004,14 +4331,16 @@ mod tests {
         let unsafe_forms = unsafe_surface["presentation"]["body"]["forms"]
             .as_array()
             .expect("unsafe Heal forms");
-        let unavailable = unsafe_forms
-            .iter()
-            .filter(|form| form["result"]["state"] == "unavailable")
-            .collect::<Vec<_>>();
-        assert_eq!(unavailable.len(), 1);
+        assert_eq!(unsafe_forms.len(), 4);
+        assert!(unsafe_forms.iter().all(|form| form.get("result").is_none()));
         assert_eq!(
-            unavailable[0]["result"]["reason"]["reason"],
-            "overlay_identity_mismatch"
+            unsafe_surface["issues"]
+                .as_array()
+                .expect("catalog issue")
+                .iter()
+                .filter(|issue| issue["placement"] == "forms")
+                .count(),
+            1
         );
 
         Ok(())
@@ -4379,6 +4708,7 @@ mod tests {
             None,
             &remaster_lookup,
         );
+        assert!(surface.references.is_none());
         let atlas_app_model::RecordSurfacePresentationView::Creature { body } =
             surface.presentation
         else {
@@ -6046,16 +6376,57 @@ mod tests {
                     CreatureSurfaceSourceFieldView::EmbeddedEntities,
                 )],
             );
-            assert_causes(
-                &unavailable.relationships,
-                vec![cause(
-                    state,
-                    CreatureSurfaceUnavailableFieldView::Relationships,
-                    None,
-                    CreatureSurfaceSourceFieldView::EmbeddedEntities,
-                )],
+            assert!(unavailable.relationships.is_none());
+            assert!(surface.relationships.is_none());
+
+            let outer = record_surface_for_creature(creature);
+            let issues = outer.issues.expect("required creature issues");
+            assert_eq!(
+                issues
+                    .iter()
+                    .filter(|issue| {
+                        issue.placement
+                            == atlas_app_model::RecordSurfaceIssuePlacementView::Defenses
+                            && issue.message == "A value is required here."
+                    })
+                    .count(),
+                1,
+                "the shared owner must collapse one defenses fact reused by three domains"
             );
+            assert!(issues.iter().all(|issue| {
+                !issue.message.contains("surface-fixture") && !issue.message.contains('/')
+            }));
         }
+    }
+
+    fn record_surface_for_creature(
+        creature: atlas_record::CreatureRecord,
+    ) -> atlas_app_model::RecordSurfaceView {
+        let fixture = crate::test_support::encounter_fixture_worker();
+        let mut record = fixture
+            .worker
+            .get_records(vec![
+                RecordKey::parse("actions:testAction1").expect("fixture key"),
+            ])
+            .expect("fixture record should load")
+            .pop()
+            .expect("fixture record should exist");
+        record.record.identity.key = creature.identity.record_key.clone();
+        record.record.identity.name = creature.identity.name.clone();
+        record.record.classification.kind = RecordKind::Creature;
+        record.body = Some(RecordBody::Creature(creature));
+        let remaster_lookup =
+            crate::retrieval::VerifiedRemasterLookup::from_test_result(RemasterLinksResult {
+                seed: record.clone(),
+                links: Vec::new(),
+            });
+        super::record_surface(
+            &record,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+            None,
+            &remaster_lookup,
+        )
     }
 
     #[test]

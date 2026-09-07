@@ -600,6 +600,22 @@ mod tests {
         };
         assert_eq!(hazard.identity.source_id.as_str(), "BHq5wpQU8hQEke8D");
         assert_eq!(hazard.identity.name, "Hidden Pit");
+        let defenses = hazard.defenses.typed().expect("defenses");
+        assert_eq!(defenses.source_metadata.has_health.typed(), Some(&true));
+        let hit_points = defenses.hit_points.typed().expect("hit points");
+        assert_eq!(hit_points.temporary.typed(), Some(&0));
+        assert_eq!(
+            hit_points.source_metadata.temporary_maximum.typed(),
+            Some(&0)
+        );
+        let saves = defenses.saves.typed().expect("saves");
+        for detail in [
+            &saves.source_metadata.fortitude_detail,
+            &saves.source_metadata.reflex_detail,
+            &saves.source_metadata.will_detail,
+        ] {
+            assert_eq!(detail.typed(), Some(&String::new()));
+        }
         assert_eq!(
             hazard
                 .embedded_entities
@@ -611,6 +627,31 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["lY83oUjx0DLxDByK"]
         );
+        let action = hazard
+            .embedded_entities
+            .typed()
+            .expect("embedded")
+            .entities
+            .first()
+            .expect("action");
+        let atlas_record::HazardCapability::Action(action) = &action.capability else {
+            panic!("action")
+        };
+        assert_eq!(
+            action.common.rarity.typed(),
+            Some(&atlas_domain::Rarity::Common)
+        );
+        assert!(hazard.unsupported_facts().iter().all(|value| {
+            !matches!(
+                value.value.relative_source_path.as_str(),
+                "/system/attributes/hasHealth"
+                    | "/system/attributes/hp/tempmax"
+                    | "/system/saves/fortitude/saveDetail"
+                    | "/system/saves/reflex/saveDetail"
+                    | "/system/saves/will/saveDetail"
+                    | "/items/0/system/traits/rarity"
+            )
+        }));
         let all = reader.load_hydrated_records()?;
         assert!(
             all.iter()

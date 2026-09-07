@@ -23,6 +23,23 @@ pub struct HazardRecord {
     pub provenance: HazardProvenance,
 }
 
+impl HazardRecord {
+    /// Returns each authored unsupported fact from its authoritative semantic owner.
+    ///
+    /// Root facts remain record-owned while embedded facts remain entity-owned. This
+    /// traversal is an aggregate view only; it does not persist or clone another
+    /// diagnostic collection onto the record.
+    pub fn unsupported_facts(&self) -> Vec<&HazardUnsupportedFact> {
+        let mut facts = self.unsupported_fields.iter().collect::<Vec<_>>();
+        if let Some(embedded) = self.embedded_entities.typed() {
+            for entity in &embedded.entities {
+                facts.extend(entity.capability.unsupported_facts());
+            }
+        }
+        facts
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HazardIdentity {
@@ -83,6 +100,13 @@ pub struct HazardProvenance {
     pub source_creature_type: HazardFact<String>,
     pub source_status_effects: HazardFact<Vec<String>>,
     pub actor_effects: HazardFact<Vec<HazardProvenanceValue>>,
+    pub token: HazardFact<HazardTokenSourceMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HazardTokenSourceMetadata {
+    pub name: HazardFact<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,6 +175,21 @@ pub struct HazardUnsupportedValue {
     pub diagnostic_code: HazardDiagnosticCode,
 }
 
+impl HazardUnsupportedValue {
+    pub fn source_fact_identity(&self) -> HazardSourceFactIdentity {
+        HazardSourceFactIdentity {
+            owner: self.owner.clone(),
+            relative_source_path: self.relative_source_path.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HazardSourceFactIdentity {
+    pub owner: HazardUnsupportedOwner,
+    pub relative_source_path: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HazardExpectedShape {
@@ -178,7 +217,7 @@ pub enum HazardSourceShape {
     Object,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum HazardUnsupportedOwner {
     Record(RecordKey),
@@ -291,7 +330,13 @@ pub struct HazardDefenses {
     pub immunities: HazardFact<Vec<HazardIwr>>,
     pub weaknesses: HazardFact<Vec<HazardIwr>>,
     pub resistances: HazardFact<Vec<HazardIwr>>,
-    pub unsupported_fields: Vec<HazardUnsupportedFact>,
+    pub source_metadata: HazardDefenseSourceMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HazardDefenseSourceMetadata {
+    pub has_health: HazardFact<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -301,7 +346,13 @@ pub struct HazardHitPoints {
     pub maximum: HazardFact<i64>,
     pub temporary: HazardFact<i64>,
     pub details: HazardFact<RichDocument>,
-    pub unsupported_fields: Vec<HazardUnsupportedFact>,
+    pub source_metadata: HazardHitPointSourceMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HazardHitPointSourceMetadata {
+    pub temporary_maximum: HazardFact<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -310,7 +361,15 @@ pub struct HazardSaves {
     pub fortitude: HazardFact<i64>,
     pub reflex: HazardFact<i64>,
     pub will: HazardFact<i64>,
-    pub unsupported_fields: Vec<HazardUnsupportedFact>,
+    pub source_metadata: HazardSaveSourceMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HazardSaveSourceMetadata {
+    pub fortitude_detail: HazardFact<String>,
+    pub reflex_detail: HazardFact<String>,
+    pub will_detail: HazardFact<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -390,6 +449,18 @@ impl HazardEntityFamily {
     }
 }
 
+impl HazardCapability {
+    pub fn unsupported_facts(&self) -> impl Iterator<Item = &HazardUnsupportedFact> {
+        match self {
+            Self::Action(value) => value.unsupported_fields.iter(),
+            Self::Strike(value) => value.unsupported_fields.iter(),
+            Self::Condition(value) => value.unsupported_fields.iter(),
+            Self::Effect(value) => value.unsupported_fields.iter(),
+            Self::UnsupportedChild(value) => value.unsupported_fields.iter(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum HazardEntitySourceIdentity {
@@ -442,6 +513,14 @@ pub struct HazardItemCommon {
     pub rules: HazardFact<Vec<HazardRuleElement>>,
     pub slug: HazardFact<String>,
     pub traits: HazardFact<Vec<HazardTrait>>,
+    pub rarity: HazardFact<Rarity>,
+    pub lineage: HazardFact<HazardItemLineage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HazardItemLineage {
+    pub compendium_source: HazardFact<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -631,7 +710,23 @@ pub struct HazardStrikeCapability {
     pub bonus: HazardFact<i64>,
     pub attack_effects: HazardFact<Vec<String>>,
     pub damage_rolls: HazardFact<Vec<HazardStrikeDamage>>,
+    pub source_metadata: HazardStrikeSourceMetadata,
     pub unsupported_fields: Vec<HazardUnsupportedFact>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HazardStrikeSourceMetadata {
+    pub attack: HazardFact<i64>,
+    pub weapon_type: HazardFact<HazardSourceAttackMode>,
+    pub attack_effects_custom: HazardFact<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HazardSourceAttackMode {
+    Melee,
+    Ranged,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -685,15 +780,8 @@ pub struct HazardUnsupportedFact {
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum HazardUnsupportedField {
     HazardUnexpected(String),
-    DefensesHasHealth,
-    HitPointsTempMax,
-    SaveDetail(HazardSaveKind),
     ActionUnexpected(String),
     StrikeUnexpected(String),
-    StrikeAttack,
-    StrikeWeaponType,
-    StrikeAttackEffectsCustom,
-    StrikeTraitRarity,
     ConditionUnexpected(String),
     EffectUnexpected(String),
     UnsupportedChildField(String),

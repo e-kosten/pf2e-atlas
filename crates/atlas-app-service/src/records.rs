@@ -1,8 +1,9 @@
 use atlas_app_model::{AppErrorCode, RecordDetailRequest, RecordDetailView};
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_search::{
-    GetRecordRequest, GetRecordsRequest, RecordRefResolutionResult, RecordResolutionResult,
-    RecordRetrieval, ResolveRecordRefRequest, ResolveRecordRequest,
+    GetRecordRequest, GetRecordsRequest, GraphContextRequest, GraphRetrieval,
+    RecordRefResolutionResult, RecordResolutionResult, RecordRetrieval, ResolveRecordRefRequest,
+    ResolveRecordRequest,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -56,7 +57,13 @@ impl AtlasAppService {
         let record_key = RecordKey::parse(record_key).map_err(|error| {
             AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
         })?;
-        let spell_selection = match (request.spell_form_id, request.spell_cast_rank) {
+        let RecordDetailRequest {
+            spell_form_id,
+            spell_cast_rank,
+            reference_outgoing_limit,
+            reference_backlink_limit,
+        } = request;
+        let spell_selection = match (spell_form_id, spell_cast_rank) {
             (None, None) => None,
             (Some(form_id), Some(cast_rank)) => Some((
                 atlas_record::SpellFormId::new(form_id).map_err(|_| {
@@ -72,6 +79,8 @@ impl AtlasAppService {
                 ));
             }
         };
+        let outgoing_limit = reference_outgoing_limit.unwrap_or(8);
+        let backlink_limit = reference_backlink_limit.unwrap_or(0);
         self.submit_retrieval(move |retrieval| {
             let record = retrieval
                 .get_record(GetRecordRequest {
@@ -91,7 +100,32 @@ impl AtlasAppService {
                 ));
             }
             let remaster_lookup = verified_remaster_lookup(retrieval, &record)?;
-            record_detail(&record, spell_selection, &remaster_lookup)
+            let mut detail = record_detail(&record, spell_selection, &remaster_lookup)?;
+            detail.surface.references = Some(if outgoing_limit == 0 && backlink_limit == 0 {
+                crate::record_references::not_requested_record_references()
+            } else {
+                match retrieval.graph_context(
+                    GraphContextRequest::new(record_key)
+                        .with_outgoing_limit(usize::from(outgoing_limit))
+                        .with_backlink_limit(usize::from(backlink_limit)),
+                ) {
+                    Ok(Some(result)) => crate::record_references::project_record_references(
+                        result,
+                        outgoing_limit,
+                        backlink_limit,
+                    ),
+                    Ok(None) => crate::record_references::missing_record_references(
+                        outgoing_limit,
+                        backlink_limit,
+                    ),
+                    Err(error) => crate::record_references::unavailable_record_references(
+                        outgoing_limit,
+                        backlink_limit,
+                        &error,
+                    ),
+                }
+            });
+            Ok(detail)
         })
     }
 }
@@ -101,7 +135,7 @@ mod tests {
     use atlas_app_model::{
         AppErrorCode, HazardSurfaceProvenanceTextView, HazardSurfaceRuleView, RecordDetailRequest,
         RecordSurfaceEditionStatusView, RecordSurfacePresentationView, RecordSurfaceProfileView,
-        SurfaceUnavailableReasonView,
+        RecordSurfaceReferenceSectionView, SurfaceUnavailableReasonView,
     };
 
     use crate::test_support::encounter_fixture_worker;
@@ -136,6 +170,102 @@ mod tests {
             RecordSurfacePresentationView::Unavailable { unavailable }
                 if unavailable.reason == SurfaceUnavailableReasonView::RecordFamilyNotMigrated
         ));
+        let references = detail
+            .surface
+            .references
+            .expect("record detail should own reference state");
+        assert!(matches!(
+            references.outgoing,
+            RecordSurfaceReferenceSectionView::Available {
+                requested_limit: 8,
+                total_records: 0,
+                total_edges: 0,
+                truncated: false,
+                ..
+            }
+        ));
+        assert_eq!(
+            references.backlinks,
+            RecordSurfaceReferenceSectionView::NotRequested
+        );
+
+        let no_references = worker
+            .record_detail(
+                "actions:testAction1",
+                RecordDetailRequest {
+                    reference_outgoing_limit: Some(0),
+                    reference_backlink_limit: Some(0),
+                    ..RecordDetailRequest::default()
+                },
+            )
+            .expect("explicit zero limits should remain a valid detail request");
+        let references = no_references
+            .surface
+            .references
+            .expect("record detail should retain explicit not-requested states");
+        assert_eq!(
+            references.outgoing,
+            RecordSurfaceReferenceSectionView::NotRequested
+        );
+        assert_eq!(
+            references.backlinks,
+            RecordSurfaceReferenceSectionView::NotRequested
+        );
+
+        let explicit_backlinks = worker
+            .record_detail(
+                "actions:testAction1",
+                RecordDetailRequest {
+                    reference_outgoing_limit: Some(0),
+                    reference_backlink_limit: Some(8),
+                    ..RecordDetailRequest::default()
+                },
+            )
+            .expect("explicit backlink request should remain a record-detail concern");
+        let references = explicit_backlinks
+            .surface
+            .references
+            .expect("record detail should own reference state");
+        assert_eq!(
+            references.outgoing,
+            RecordSurfaceReferenceSectionView::NotRequested
+        );
+        assert!(matches!(
+            references.backlinks,
+            RecordSurfaceReferenceSectionView::Available {
+                requested_limit: 8,
+                total_records: 0,
+                total_edges: 0,
+                truncated: false,
+                ..
+            }
+        ));
+
+        let unavailable_references = worker
+            .record_detail(
+                "actions:testAction1",
+                RecordDetailRequest {
+                    reference_outgoing_limit: Some(51),
+                    ..RecordDetailRequest::default()
+                },
+            )
+            .expect("reference failure must not discard record detail");
+        let references = unavailable_references
+            .surface
+            .references
+            .expect("record detail should retain typed reference failure");
+        assert!(matches!(
+            references.outgoing,
+            RecordSurfaceReferenceSectionView::Unavailable {
+                requested_limit: 51,
+                code: AppErrorCode::InvalidRequest,
+                ..
+            }
+        ));
+        assert_eq!(
+            references.backlinks,
+            RecordSurfaceReferenceSectionView::NotRequested
+        );
 
         let hazard = worker
             .record_detail("hazards:testHazard", RecordDetailRequest::default())
@@ -200,10 +330,12 @@ mod tests {
             RecordDetailRequest {
                 spell_form_id: Some("spell-form:test".to_string()),
                 spell_cast_rank: None,
+                ..RecordDetailRequest::default()
             },
             RecordDetailRequest {
                 spell_form_id: None,
                 spell_cast_rank: Some(5),
+                ..RecordDetailRequest::default()
             },
         ] {
             let error = worker
@@ -219,6 +351,7 @@ mod tests {
                 RecordDetailRequest {
                     spell_form_id: Some("spell-form:test".to_string()),
                     spell_cast_rank: Some(5),
+                    ..RecordDetailRequest::default()
                 },
             )
             .expect_err("spell selection should be rejected for non-spell records")

@@ -4,8 +4,6 @@ import type React from "react";
 import type {
   CreatureSurfaceActivityView,
   CreatureSurfaceContentView,
-  CreatureSurfaceIwrView,
-  CreatureSurfaceRelationshipView,
   CreatureSurfaceShieldView,
   CreatureSurfaceSkillPredicateView,
   CreatureSurfaceSpellView,
@@ -13,24 +11,37 @@ import type {
   CreatureSurfaceView,
   RecordSurfaceEditionCounterpartView,
   RecordSurfaceMetadataView,
+  RecordSurfaceView,
   RuntimeNumberView,
 } from "../../generated/atlas";
 import { ActionGlyph, actionCostLabel } from "./ActionGlyph";
-import { DataAvailabilityDisclosure } from "./CreatureDataAvailability";
+import { DefenseIwrList, DefenseNote, DefenseStats } from "./RecordDefensePrimitives";
 import { contentLabel, RichContent, type ReferenceHandler } from "./RecordRichContent";
 import { RecordKeyValueList, type RecordKeyValueItem } from "./RecordKeyValueList";
+import {
+  RecordSurfaceIssues,
+  RecordSurfaceReferences,
+} from "./RecordSurfaceSupplement";
 import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
 import { SpellOccurrencePreviewPopover } from "./SpellOccurrencePreviewPopover";
 
 export function CreatureDetailSurface({
   body,
+  issues,
   metadata,
   onReference,
+  onReferencesOpen,
+  references,
+  referencesLoading,
   showTitle,
 }: {
   body: CreatureSurfaceView;
+  issues: NonNullable<RecordSurfaceView["issues"]> | undefined;
   metadata: RecordSurfaceMetadataView;
   onReference: ReferenceHandler;
+  onReferencesOpen?: () => void;
+  references: NonNullable<RecordSurfaceView["references"]> | undefined;
+  referencesLoading?: boolean;
   showTitle: boolean;
 }) {
   const overview = overviewContent(body.content);
@@ -70,12 +81,14 @@ export function CreatureDetailSurface({
           <ResourcesSection resources={body.resources} />
         </aside>
       </div>
-      <DataAvailabilityDisclosure unavailable={body.unavailable_domains} />
-      <ReferenceAndSourceDisclosure
-        body={body}
-        metadata={metadata}
+      <RecordSurfaceIssues issues={issues} />
+      <RecordSurfaceReferences
+        loading={referencesLoading}
+        onDisclosureOpen={onReferencesOpen}
         onReference={onReference}
+        references={references}
       />
+      <CreatureSourceDisclosure body={body} metadata={metadata} />
     </article>
   );
 }
@@ -162,10 +175,12 @@ function counterpartActionLabel(counterpart: RecordSurfaceEditionCounterpartView
 }
 
 export function RecordHeader({
+  levelLabel = "Level",
   metadata,
   onReference,
   showTitle = true,
 }: {
+  levelLabel?: "Level" | "Rank";
   metadata: RecordSurfaceMetadataView;
   onReference?: ReferenceHandler;
   showTitle?: boolean;
@@ -174,7 +189,7 @@ export function RecordHeader({
     <header className="creature-sheet__header">
       <div className="creature-sheet__identity">
         {showTitle ? <h2>{metadata.title}</h2> : null}
-        <IdentityMetadata metadata={metadata} />
+        <IdentityMetadata levelLabel={levelLabel} metadata={metadata} />
         <TraitRow metadata={metadata} />
         {onReference ? (
           <RelatedEditionMetadata metadata={metadata} onReference={onReference} />
@@ -219,9 +234,11 @@ function RelatedEditionMetadata({
 
 export function IdentityMetadata({
   compact = false,
+  levelLabel = "Level",
   metadata,
 }: {
   compact?: boolean;
+  levelLabel?: "Level" | "Rank";
   metadata: RecordSurfaceMetadataView;
 }) {
   return (
@@ -237,7 +254,9 @@ export function IdentityMetadata({
         {metadata.kind_label || formatSlug(metadata.kind)}
       </span>
       {metadata.level !== undefined && (
-        <span className="creature-sheet__level">Level {metadata.level}</span>
+        <span className="creature-sheet__level">
+          {levelLabel} {metadata.level}
+        </span>
       )}
     </div>
   );
@@ -347,18 +366,23 @@ function CompactCreatureFacts({ body }: { body: CreatureSurfaceView }) {
 function DefensePanel({ body }: { body: CreatureSurfaceView }) {
   const { defenses, saves, vitals } = body;
   const stats = [
-    compactFact("AC", defenses?.armor_class),
-    compactFact("HP", vitals?.hit_points),
-    compactFact("Hardness", defenses?.hardness),
-    compactFact("Fortitude", saves?.fortitude?.modifier, true),
-    compactFact("Reflex", saves?.reflex?.modifier, true),
-    compactFact("Will", saves?.will?.modifier, true),
-  ].filter(isCompactFact);
-  const iwr = [
-    iwrKeyValue("immunities", "Immunities", defenses?.immunities),
-    iwrKeyValue("weaknesses", "Weaknesses", defenses?.weaknesses),
-    iwrKeyValue("resistances", "Resistances", defenses?.resistances),
-  ].filter(isRecordKeyValueItem);
+    { key: "ac", label: "AC", value: defenses?.armor_class },
+    { key: "hp", label: "HP", value: vitals?.hit_points },
+    { key: "hardness", label: "Hardness", value: defenses?.hardness },
+    {
+      key: "fortitude",
+      label: "Fortitude",
+      signed: true,
+      value: saves?.fortitude?.modifier,
+    },
+    {
+      key: "reflex",
+      label: "Reflex",
+      signed: true,
+      value: saves?.reflex?.modifier,
+    },
+    { key: "will", label: "Will", signed: true, value: saves?.will?.modifier },
+  ];
   const hasDetails = Boolean(
     defenses?.armor_class_details ||
     vitals?.details ||
@@ -368,33 +392,28 @@ function DefensePanel({ body }: { body: CreatureSurfaceView }) {
     saves?.will?.details ||
     defenses?.shield,
   );
-  if (!stats.length && !iwr.length && !hasDetails) return null;
+  const hasStats = stats.some((stat) => stat.value !== undefined);
+  const hasIwr = Boolean(
+    defenses?.immunities?.length ||
+    defenses?.weaknesses?.length ||
+    defenses?.resistances?.length,
+  );
+  if (!hasStats && !hasIwr && !hasDetails) return null;
   return (
     <SurfaceSection
       className="creature-sheet__panel--defenses"
       title="Defenses & Vitals"
     >
-      {stats.length ? (
-        <dl aria-label="Defense statistics" className="creature-sheet__defense-stats">
-          {stats.map(({ label, value }) => (
-            <Fact key={label} label={label} value={value} />
-          ))}
-        </dl>
-      ) : null}
-      {defenses?.armor_class_details && (
-        <p className="creature-sheet__detail-note">{defenses.armor_class_details}</p>
-      )}
-      {vitals?.details && (
-        <p className="creature-sheet__detail-note">{vitals.details}</p>
-      )}
-      {saves?.all_saves_note && (
-        <p className="creature-sheet__detail-note">{saves.all_saves_note}</p>
-      )}
+      <DefenseStats ariaLabel="Defense statistics" values={stats} />
+      <DefenseNote>{defenses?.armor_class_details}</DefenseNote>
+      <DefenseNote>{vitals?.details}</DefenseNote>
+      <DefenseNote>{saves?.all_saves_note}</DefenseNote>
       <SaveDetails saves={saves} />
       <ShieldDetails shield={defenses?.shield} />
-      <RecordKeyValueList
-        ariaLabel="Immunities, weaknesses, and resistances"
-        items={iwr}
+      <DefenseIwrList
+        immunities={defenses?.immunities}
+        resistances={defenses?.resistances}
+        weaknesses={defenses?.weaknesses}
       />
     </SurfaceSection>
   );
@@ -1079,14 +1098,12 @@ function ResourcesSection({
   );
 }
 
-export function ReferenceAndSourceDisclosure({
+export function CreatureSourceDisclosure({
   body,
   metadata,
-  onReference,
 }: {
   body: CreatureSurfaceView;
   metadata: RecordSurfaceMetadataView;
-  onReference: ReferenceHandler;
 }) {
   return (
     <Collapse
@@ -1095,15 +1112,9 @@ export function ReferenceAndSourceDisclosure({
       ghost
       items={[
         {
-          key: "references-source",
-          label: "References & Source",
-          children: (
-            <ReferenceAndSourceContent
-              body={body}
-              metadata={metadata}
-              onReference={onReference}
-            />
-          ),
+          key: "source",
+          label: "Source & provenance",
+          children: <CreatureSourceContent body={body} metadata={metadata} />,
         },
       ]}
       size="small"
@@ -1111,48 +1122,17 @@ export function ReferenceAndSourceDisclosure({
   );
 }
 
-export function ReferenceAndSourceContent({
+export function CreatureSourceContent({
   body,
   metadata,
 }: {
   body: CreatureSurfaceView;
   metadata: RecordSurfaceMetadataView;
-  onReference: ReferenceHandler;
 }) {
   return (
     <div className="creature-sheet__reference-source">
-      {body.relationships?.length ? (
-        <section>
-          <h4>References</h4>
-          <ul className="creature-sheet__reference-list">
-            {body.relationships.map((relationship) => (
-              <RelationshipRow
-                key={`${relationship.source_occurrence_id}:${relationship.kind}`}
-                relationship={relationship}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
       <SourceDetails body={body} metadata={metadata} />
     </div>
-  );
-}
-
-function RelationshipRow({
-  relationship,
-}: {
-  relationship: CreatureSurfaceRelationshipView;
-}) {
-  const target = relationship.target;
-  const label =
-    relationship.contextual_label ??
-    (target.target_type === "occurrence" ? target.occurrence_id : target.source_id);
-  return (
-    <li>
-      <span>{formatSlug(relationship.kind)}</span>
-      <code>{label}</code>
-    </li>
   );
 }
 
@@ -1303,28 +1283,10 @@ function recordKeyValue(
     : { key, label, value };
 }
 
-function iwrKeyValue(
-  key: React.Key,
-  label: string,
-  values: CreatureSurfaceIwrView[] | undefined,
-): RecordKeyValueItem | null {
-  return recordKeyValue(key, label, values?.map(formatIwr).join(", "));
-}
-
 function isRecordKeyValueItem(
   value: RecordKeyValueItem | null,
 ): value is RecordKeyValueItem {
   return value !== null;
-}
-
-function formatIwr(value: CreatureSurfaceIwrView) {
-  const exceptions = value.exceptions?.length
-    ? ` (except ${value.exceptions.join(", ")})`
-    : "";
-  const doubled = value.double_vs?.length
-    ? `; double vs. ${value.double_vs.join(", ")}`
-    : "";
-  return `${formatSlug(value.kind)}${value.amount === undefined ? "" : ` ${value.amount}`}${exceptions}${doubled}`;
 }
 
 function sourceLabel(metadata: RecordSurfaceMetadataView) {
