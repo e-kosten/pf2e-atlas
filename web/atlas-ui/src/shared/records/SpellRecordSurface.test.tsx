@@ -22,6 +22,66 @@ const missing = { state: "missing" as const };
 const known = <T,>(value: T) => ({ state: "known" as const, value });
 
 describe("SpellRecordSurface", () => {
+  it("puts authored description before one set of mechanics and one action label", () => {
+    const surface = fireball();
+    if (surface.presentation.presentation_type !== "spell")
+      throw new Error("spell fixture");
+    const result = surface.presentation.body.effective_form.result;
+    if (
+      result.state !== "available" ||
+      result.definition.casting.state !== "available" ||
+      result.definition.casting.value.state !== "known"
+    )
+      throw new Error("casting fixture");
+    result.definition.casting.value.value.action_cost = {
+      cost_type: "actions",
+      count: 2,
+    };
+    render(<RecordSurface surface={surface} onReference={vi.fn()} />);
+    const description = screen.getByRole("heading", { name: "Description" });
+    const mechanics = screen.getByRole("region", { name: "Spell mechanics" });
+    expect(
+      description.compareDocumentPosition(mechanics) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getAllByText("Two actions")).toHaveLength(1);
+    expect(screen.getAllByText("500 feet")).toHaveLength(1);
+    expect(screen.getAllByText("6d6 Fire")).toHaveLength(1);
+    expect(screen.queryByLabelText("Spell quick facts")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Casting" })).not.toBeInTheDocument();
+  });
+
+  it("resets a modified returned tuple to the typed base without changing authored rank", () => {
+    const surface = rimeSelected(8, [5, 8], "14d4", 60);
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <RecordSurface
+        surface={surface}
+        spellCatalog={surface}
+        onReference={vi.fn()}
+        onSpellFormSelection={onSelect}
+      />,
+    );
+    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    expect(screen.getByText("Modified from default")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(onSelect).toHaveBeenCalledWith({ formId: "opaque:rime:base", castRank: 2 });
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("2");
+    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    const base = rimeSelected(2, [], "2d4", 15);
+    rerender(
+      <RecordSurface
+        surface={base}
+        spellCatalog={base}
+        onReference={vi.fn()}
+        onSpellFormSelection={onSelect}
+      />,
+    );
+    expect(screen.getByText("Applied rank 2")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Showing Base/)).not.toBeInTheDocument();
+    expect(screen.getByText("Modified from default")).not.toBeVisible();
+  });
+
   it("shows typed gameplay qualifiers without an Effect details disclosure", () => {
     const definition = plainSpellDefinition();
     definition.damage = known([
@@ -49,7 +109,7 @@ describe("SpellRecordSurface", () => {
     expect(screen.queryByText("Effect details")).not.toBeInTheDocument();
   });
 
-  it("omits an authored empty range from quick facts while preserving the area", () => {
+  it("omits an authored empty range while preserving the area once", () => {
     const definition = plainSpellDefinition();
     definition.targeting = known({
       range: known({ authored_text: "" }),
@@ -67,7 +127,7 @@ describe("SpellRecordSurface", () => {
         surface={spellSurface("Heal", definition, [baseForm("base")])}
       />,
     );
-    const summary = screen.getByLabelText("Spell quick facts");
+    const summary = screen.getByLabelText("Spell range and targets");
     expect(within(summary).getByText(/30-foot emanation/)).toBeInTheDocument();
     expect(summary).not.toHaveTextContent(/Range/);
   });
@@ -510,13 +570,11 @@ describe("SpellRecordSurface", () => {
     expect(screen.getAllByText("Damage is unavailable.")).toHaveLength(1);
     expect(screen.queryByText(/Fixed Rank Key Mismatch/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Fixed Heightening patch/)).not.toBeInTheDocument();
-    expect(
-      screen.getAllByRole("heading", { name: "Range & targets" }).length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText("Spell range and targets")).toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "Spell form" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Showing Base spell at rank 8.")).toBeInTheDocument();
+    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
 
     const unknown = rimeSelected(5, [5], "8d4", 30);
     if (unknown.presentation.presentation_type !== "spell") {
@@ -539,7 +597,7 @@ describe("SpellRecordSurface", () => {
         surface={unknown}
       />,
     );
-    expect(screen.getByText("Showing Selected form at rank 5.")).toBeInTheDocument();
+    expect(screen.getByText("Applied rank 5")).toBeInTheDocument();
     expect(screen.getAllByText("Spell form label is unavailable.")).toHaveLength(1);
     expect(screen.queryByText("opaque:unknown-form")).not.toBeInTheDocument();
   });

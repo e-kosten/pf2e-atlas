@@ -235,31 +235,35 @@ function ReferenceDirection({
               View more
             </Button>
           ) : null}
+          {recordKey && section.total_records > 0 ? (
+            <Button
+              type="link"
+              size="small"
+              aria-label={
+                direction === "backlinks"
+                  ? "See all referencing records"
+                  : "See all referenced records"
+              }
+              onClick={() =>
+                navigateToAtlasRoute({
+                  kind: "search",
+                  selectedRecordKey: null,
+                  relationship: {
+                    direction: direction === "backlinks" ? "incoming" : "outgoing",
+                    record_key: recordKey,
+                  },
+                })
+              }
+            >
+              Search all
+            </Button>
+          ) : null}
         </Space>
       </div>
       {capped ? (
         <p className="record-surface-references__cap">
           This panel shows up to {section.requested_limit} linked records.
         </p>
-      ) : null}
-      {recordKey && section.total_records > 0 ? (
-        <Button
-          type="link"
-          onClick={() =>
-            navigateToAtlasRoute({
-              kind: "search",
-              selectedRecordKey: null,
-              relationship: {
-                direction: direction === "backlinks" ? "incoming" : "outgoing",
-                record_key: recordKey,
-              },
-            })
-          }
-        >
-          {direction === "backlinks"
-            ? "See all referencing records"
-            : "See all referenced records"}
-        </Button>
       ) : null}
       {direction === "backlinks" && section.records.length ? (
         <p>Records that reference this record.</p>

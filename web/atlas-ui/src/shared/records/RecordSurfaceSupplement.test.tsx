@@ -149,6 +149,14 @@ it.each(["backlinks", "outgoing"] as const)(
             : "See all referenced records",
       }),
     );
+    const action = screen.getByRole("button", {
+      name:
+        direction === "backlinks"
+          ? "See all referencing records"
+          : "See all referenced records",
+    });
+    expect(action).toHaveTextContent("Search all");
+    expect(action.closest(".record-surface-references__heading")).not.toBeNull();
     const params = new URLSearchParams(location.search);
     expect(location.pathname).toBe("/search");
     expect(params.get("reference-record")).toBe("spells:seed");
