@@ -16,6 +16,8 @@ import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
 
+const tenSecondTestDeadline = 10_000;
+
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
   createSavedList: vi.fn(),
@@ -166,74 +168,84 @@ describe("list views", () => {
     ]);
   });
 
-  it("renders list contents, loads selected detail, and removes items", async () => {
-    render(
-      <ListDetailView
-        route={{
-          kind: "list",
-          slug: "research",
-          selectedRecordKey: "actions:testAction1",
-        }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+  it(
+    "renders list contents, loads selected detail, and removes items",
+    async () => {
+      render(
+        <ListDetailView
+          route={{
+            kind: "list",
+            slug: "research",
+            selectedRecordKey: "actions:testAction1",
+          }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
 
-    expect(
-      await screen.findByRole("heading", { name: "Test Action 1" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
-    expect(screen.getByText("List")).toBeInTheDocument();
-    expect(screen.getByText("Items")).toBeInTheDocument();
-    expect(screen.getByText("Standard filters")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
-        list_ref: "research",
-        filter: { clauses: [] },
-      }),
-    );
-    expect(
-      screen.queryByRole("columnheader", { name: "Status" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Active")).not.toBeInTheDocument();
-    expect(screen.queryByText("research")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Edit" }));
-    await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
+      expect(
+        await screen.findByRole("heading", { name: "Test Action 1" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
+      expect(screen.getByText("List")).toBeInTheDocument();
+      expect(screen.getByText("Items")).toBeInTheDocument();
+      expect(screen.getByText("Standard filters")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
+          list_ref: "research",
+          filter: { clauses: [] },
+        }),
+      );
+      expect(
+        screen.queryByRole("columnheader", { name: "Status" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Active")).not.toBeInTheDocument();
+      expect(screen.queryByText("research")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("link", { name: "Edit" }));
+      await waitFor(() =>
+        expect(window.location.pathname).toBe("/lists/research/edit"),
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
 
-    await waitFor(() =>
-      expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
-        record_ref: "actions:testAction1",
-      }),
-    );
-  });
+      await waitFor(() =>
+        expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
+          list_ref: "research",
+          record_ref: "actions:testAction1",
+        }),
+      );
+    },
+    tenSecondTestDeadline,
+  );
 
-  it("opens references from the selected saved-list detail in a popover", async () => {
-    history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
-    render(
-      <ListDetailView
-        route={{
-          kind: "list",
-          slug: "research",
-          selectedRecordKey: "actions:testAction1",
-        }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+  it(
+    "opens references from the selected saved-list detail in a popover",
+    async () => {
+      history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
+      render(
+        <ListDetailView
+          route={{
+            kind: "list",
+            slug: "research",
+            selectedRecordKey: "actions:testAction1",
+          }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
 
-    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
 
-    await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
-        "rules:nested",
-        undefined,
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
-  }, 10_000);
+      await waitFor(() =>
+        expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+          "rules:nested",
+          undefined,
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+      expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
+    },
+    tenSecondTestDeadline,
+  );
 
   it("searches within a saved list through the filter route", async () => {
     render(

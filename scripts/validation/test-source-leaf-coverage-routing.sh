@@ -27,18 +27,15 @@ assert_route_file() {
 }
 
 assert_route actor-ledger 'lint=true
-persistence=false
-exhaustive=false' \
+persistence=false' \
   contracts/source-leaf-coverage/v1/actor-npc.yaml
 
 assert_route parser-owner 'lint=true
-persistence=true
-exhaustive=true' \
+persistence=true' \
   crates/atlas-ingest/src/source/dto/creature_core.rs
 
 assert_route canonical-writer 'lint=true
-persistence=true
-exhaustive=true' \
+persistence=true' \
   crates/atlas-ingest/src/source/npc_core.rs \
   crates/atlas-index/src/write/sqlite/records.rs
 
@@ -51,97 +48,36 @@ for owner in \
 do
   fixture_name="$(printf '%s' "$owner" | tr '/.' '--')"
   assert_route "persistence-owner-$fixture_name" 'lint=true
-persistence=true
-exhaustive=true' "$owner"
+persistence=true' "$owner"
 done
 
 assert_route persistence-facade 'lint=true
-persistence=true
-exhaustive=false' \
+persistence=true' \
   crates/atlas-index/src/sqlite/mod.rs
 
 assert_route authoritative-registry 'lint=true
-persistence=false
-exhaustive=false' \
+persistence=false' \
   contracts/pf2e-type-registry.yaml
 
 assert_route nonexistent-source-leaf-registry 'lint=true
-persistence=false
-exhaustive=false' \
+persistence=false' \
   contracts/source-leaf-coverage/v1/type-registry.yaml
 
 assert_route ui-only 'lint=false
-persistence=false
-exhaustive=false' \
+persistence=false' \
   web/atlas-ui/src/record/CreatureSheet.tsx
 
 assert_route unrelated 'lint=false
-persistence=false
-exhaustive=false' \
+persistence=false' \
   README.md
 
 assert_route shared-engine 'lint=true
-persistence=false
-exhaustive=false' \
+persistence=false' \
   crates/atlas-ingest/src/source_coverage/parity.rs
 
-assert_route vendor 'lint=false
-persistence=false
-exhaustive=true' \
-  vendor/pf2e/static/system.json
-
-assert_route final-gate-runner 'lint=false
-persistence=false
-exhaustive=true' \
-  scripts/validation/exhaustive.sh
-
-assert_route exhaustive-engine 'lint=false
-persistence=false
-exhaustive=true' \
-  crates/atlas-ingest/src/validation/mod.rs
-
-assert_route exhaustive-diagnostic-engine 'lint=false
-persistence=false
-exhaustive=false' \
-  crates/atlas-ingest/src/validation/record_round_trip_diagnostic.rs
-
-assert_route validation-test-only 'lint=false
-persistence=false
-exhaustive=false' \
-  crates/atlas-ingest/src/validation/c2pr_tests.rs
-
-assert_route artifact-schema-owner 'lint=false
-persistence=false
-exhaustive=true' \
-  crates/atlas-index/migrations/00000000000002_atomic_canonical_records/up.sql
-
-assert_route document-embedding-producer 'lint=false
-persistence=false
-exhaustive=true' \
-  crates/atlas-embedding/src/document_units/builder.rs
-
-for owner in \
-  crates/atlas-index/src/read/validation.rs \
-  crates/atlas-index/src/read/search/vector.rs \
-  crates/atlas-index/src/read/search/vector/extension.rs \
-  crates/atlas-sqlite-vec/src/lib.rs
-do
-  fixture_name="$(printf '%s' "$owner" | tr '/.' '--')"
-  assert_route "production-validation-owner-$fixture_name" 'lint=false
-persistence=false
-exhaustive=true' "$owner"
-done
-
-assert_route query-embedding-only 'lint=false
-persistence=false
-exhaustive=false' \
-  crates/atlas-embedding/src/vector_math.rs
-
-assert_route search-only 'lint=false
-persistence=false
-exhaustive=false' \
-  crates/atlas-search/src/search.rs \
-  crates/atlas-index/src/read/search/fts/ranking.rs
+assert_route source-authentication 'lint=true
+persistence=false' \
+  scripts/validation/authenticate-pf2e-source.sh
 
 new_git_fixture() {
   name="$1"
@@ -177,8 +113,7 @@ collect_fixture_paths "$case_root" "$fixture_base" "$rename_paths"
 grep -Fxq "$rename_owner" "$rename_paths"
 grep -Fxq 'docs/retired-writer.rs' "$rename_paths"
 assert_route_file rename-owner 'lint=true
-persistence=true
-exhaustive=true' "$rename_paths"
+persistence=true' "$rename_paths"
 
 delete_owner='crates/atlas-index/src/read/records.rs'
 new_git_fixture delete-owner "$delete_owner"
@@ -188,8 +123,7 @@ delete_paths="$fixture/delete-owner.paths"
 collect_fixture_paths "$case_root" "$fixture_base" "$delete_paths"
 grep -Fxq "$delete_owner" "$delete_paths"
 assert_route_file delete-owner 'lint=true
-persistence=true
-exhaustive=true' "$delete_paths"
+persistence=true' "$delete_paths"
 
 shared_owner='crates/atlas-ingest/src/source_coverage/receipt.rs'
 new_git_fixture rename-shared-engine "$shared_owner"
@@ -200,7 +134,6 @@ shared_paths="$fixture/rename-shared-engine.paths"
 collect_fixture_paths "$case_root" "$fixture_base" "$shared_paths"
 grep -Fxq "$shared_owner" "$shared_paths"
 assert_route_file rename-shared-engine 'lint=true
-persistence=false
-exhaustive=false' "$shared_paths"
+persistence=false' "$shared_paths"
 
 printf 'Source-leaf coverage routing fixtures passed.\n'

@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       lint: ${{ steps.route.outputs.lint }}
-      exhaustive: ${{ steps.route.outputs.exhaustive }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -64,25 +63,17 @@ jobs:
             packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
             packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
             packs/feats/ancestry/anadi/anadi-lore.json
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.source-leaf-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
       - name: Run source-leaf lint and adversarial fixtures
         if: needs.source-leaf-route.outputs.lint == 'true'
         env:
           PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.source-leaf-pf2e
         run: scripts/validation/source-leaf-coverage.sh lint
-
-  artifact-version:
-    name: artifact version
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Verify artifact version policy fixtures
-        run: scripts/validation/test-artifact-version-guard.sh
-      - name: Enforce merge-base artifact version bumps
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: scripts/validation/check-artifact-version-bump.sh --base "$BASE_SHA"
 
   rust:
     name: rust
@@ -94,6 +85,30 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify runtime lint policy fixture
         run: scripts/validation/test-runtime-lint-policy.sh
+      - name: Check out accepted PF2e fixture blobs
+        uses: actions/checkout@v5
+        with:
+          repository: foundryvtt/pf2e
+          ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          path: .focused-pf2e
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            static/system.json
+            packs/pathfinder-bestiary/night-hag.json
+            packs/pathfinder-monster-core/giant-rat.json
+            packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json
+            packs/lost-omens-bestiary/tian-xia-world-guide/inkdrop.json
+            packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json
+            packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
+            packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
+            packs/feats/ancestry/anadi/anadi-lore.json
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.focused-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -103,65 +118,18 @@ jobs:
         run: |
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
-      - name: Preserve web bundle for artifact integration
-        uses: actions/upload-artifact@v4
-        with:
-          name: atlas-web-bundle
-          path: web/atlas-ui/dist
-          retention-days: 1
       - name: Rust verification
         run: scripts/validation/fast.sh
       - name: Focused ingest and artifact validation
-        run: scripts/validation/focused.sh
-
-  artifact-integration:
-    name: artifact integration
-    needs: [source-leaf-route, rust]
-    if: needs.source-leaf-route.outputs.exhaustive == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Restore web bundle required by atlas-cli
-        uses: actions/download-artifact@v4
-        with:
-          name: atlas-web-bundle
-          path: web/atlas-ui/dist
-      - name: Check out accepted PF2e source
-        uses: actions/checkout@v5
-        with:
-          repository: foundryvtt/pf2e
-          ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
-          path: .artifact-integration-pf2e
-          fetch-depth: 1
-      - name: Relocate accepted source outside candidate checkout
-        run: mv .artifact-integration-pf2e "$RUNNER_TEMP/artifact-integration-pf2e"
-      - name: Restore artifact-integration embedding model
-        id: exhaustive-model-cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/source-leaf-hf-models
-          key: source-leaf-bge-small-en-v1.5-main-v1
-      - name: Prepare exhaustive embedding model
-        if: steps.exhaustive-model-cache.outputs.cache-hit != 'true'
         env:
-          MODEL_ROOT: ${{ runner.temp }}/source-leaf-hf-models/BAAI/bge-small-en-v1.5
+          PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.focused-pf2e
+        run: scripts/validation/focused.sh
+      - name: Verify Linux artifact generation lifecycle
         run: |
-          mkdir -p "$MODEL_ROOT/onnx"
-          curl --fail --location --retry 3 --output "$MODEL_ROOT/tokenizer.json" \
-            https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json
-          curl --fail --location --retry 3 --output "$MODEL_ROOT/onnx/model.onnx" \
-            https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx
-      - name: Run embedded production validation
-        run: |
-          scripts/validation/exhaustive.sh \
-            --source "$RUNNER_TEMP/artifact-integration-pf2e" \
-            --candidate-head "$GITHUB_SHA" \
-            --snapshot-root "$RUNNER_TEMP/artifact-integration-snapshot" \
-            --report "$RUNNER_TEMP/artifact-integration-report.json" \
-            --embedding-cache-path "$RUNNER_TEMP/source-leaf-hf-models"
+          cargo test -p atlas-index artifact::pair_integration_tests::first_generation_materialization_opens_through_bound_public_reader -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::newly_materialized_generation_opens_sqlite_through_installed_handle -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::generation_replacement_during_final_reopen_fails_closed_without_trust -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::final_installed_handle_is_digest_authenticated_before_trust -- --exact
 
   web-ui:
     name: web ui

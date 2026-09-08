@@ -8,12 +8,11 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::artifact::metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_MANIFEST_VERSION, ARTIFACT_SCHEMA_VERSION,
-};
+use crate::artifact::pair_manifest::{ArtifactSha256, read_manifest};
 use crate::{IndexValidationError, IndexWriteError, ValidationStatus};
 
-pub(crate) const ADJACENT_MANIFEST_FILE_NAME: &str = "manifest.json";
+pub(crate) use super::pair_manifest::adjacent_manifest_path;
+
 pub(crate) const PUBLICATION_LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(10);
 const GENERATION_DIRECTORY_SUFFIX: &str = ".atlas-generations";
@@ -32,43 +31,6 @@ struct FileState {
     bytes: u64,
     modified: u128,
     changed: u128,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(try_from = "String")]
-pub(crate) struct ArtifactSha256(String);
-
-impl ArtifactSha256 {
-    fn parse(value: String) -> Result<Self, String> {
-        if value.len() != 64
-            || !value
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
-            return Err(
-                "artifact_sha256 must be exactly 64 lowercase hexadecimal characters".to_string(),
-            );
-        }
-        Ok(Self(value))
-    }
-
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for ArtifactSha256 {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(self.as_str())
-    }
-}
-
-impl TryFrom<String> for ArtifactSha256 {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::parse(value)
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -634,7 +596,7 @@ fn receipt_invalidated(message: impl Into<String>) -> IndexWriteError {
     IndexWriteError::ReceiptInvalidated(message.into())
 }
 
-fn write_error(error: std::io::Error) -> IndexWriteError {
+pub(super) fn write_error(error: std::io::Error) -> IndexWriteError {
     IndexWriteError::WriteFailed(error.to_string())
 }
 
@@ -781,7 +743,7 @@ pub(crate) fn prepare_generation_file(
     target_artifact: &Path,
 ) -> Result<(PathBuf, GenerationMaterialization), IndexWriteError> {
     receipt.assert_staged_current()?;
-    let sha256 = ArtifactSha256::parse(receipt.artifact_sha256().to_string())
+    let sha256 = ArtifactSha256::try_from(receipt.artifact_sha256().to_string())
         .map_err(IndexWriteError::ReceiptInvalidated)?;
     let (generation, materialization) =
         ensure_generation_file(receipt.retained_file()?, target_artifact, &sha256).map_err(
@@ -811,7 +773,7 @@ pub(crate) fn cleanup_generation_files(
     keep_sha256: Option<&str>,
 ) -> Result<(), IndexWriteError> {
     let keep_sha256 = keep_sha256
-        .map(|value| ArtifactSha256::parse(value.to_string()))
+        .map(|value| ArtifactSha256::try_from(value.to_string()))
         .transpose()
         .map_err(IndexWriteError::WriteFailed)?;
     let directory = generation_directory(target_artifact);
@@ -853,6 +815,15 @@ fn ensure_generation_file(
     source: &File,
     target_artifact: &Path,
     sha256: &ArtifactSha256,
+) -> Result<(VerifiedGenerationFile, GenerationMaterialization), std::io::Error> {
+    ensure_generation_file_with_reopen_hook(source, target_artifact, sha256, |_| Ok(()))
+}
+
+fn ensure_generation_file_with_reopen_hook(
+    source: &File,
+    target_artifact: &Path,
+    sha256: &ArtifactSha256,
+    mut before_reopen: impl FnMut(&Path) -> Result<(), std::io::Error>,
 ) -> Result<(VerifiedGenerationFile, GenerationMaterialization), std::io::Error> {
     let directory = generation_directory(target_artifact);
     std::fs::create_dir_all(&directory)?;
@@ -925,26 +896,64 @@ fn ensure_generation_file(
                         return Err(error);
                     }
                 };
-                materialization.distinct_identity_check_count += 1;
-                if state.identity == source_identity {
-                    drop(file);
-                    let _ = std::fs::remove_file(&temporary);
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "artifact generation snapshot aliases the visible or staged artifact",
-                    ));
-                }
                 materialization.copied_bytes = state.bytes;
                 match std::fs::hard_link(&temporary, &path) {
                     Ok(()) => {
                         std::fs::remove_file(&temporary)?;
                         sync_directory(&directory)?;
-                        let trust_state = write_generation_trust(&trust_path, sha256, &state)?;
+                        let installed_state = FileState::from_file_io(&file)?;
+                        before_reopen(&path)?;
+                        // Reopen the installed name rather than retaining the
+                        // now-unlinked temporary name. On Linux, /dev/fd for
+                        // the temporary handle resolves through its deleted
+                        // pathname, which SQLite cannot reopen.
+                        let (installed_file, reopened_state) = open_regular_file(&path)?;
+                        if reopened_state != installed_state {
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "artifact generation changed while reopening its installed name",
+                            ));
+                        }
+                        materialization.verify_sha_pass_count += 1;
+                        let reopened_state = authenticate_installed_generation(
+                            &installed_file,
+                            &path,
+                            &reopened_state,
+                            sha256,
+                        )?;
+                        drop(file);
+                        materialization.distinct_identity_check_count += 1;
+                        if reopened_state.identity == source_identity {
+                            drop(installed_file);
+                            remove_generation_if_state_matches(
+                                &path,
+                                &reopened_state,
+                                &trust_path,
+                            )?;
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "artifact generation snapshot aliases the visible or staged artifact",
+                            ));
+                        }
+                        if !installed_file.metadata()?.permissions().readonly() {
+                            drop(installed_file);
+                            remove_generation_if_state_matches(
+                                &path,
+                                &reopened_state,
+                                &trust_path,
+                            )?;
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "installed artifact generation is not sealed read-only",
+                            ));
+                        }
+                        let trust_state =
+                            write_generation_trust(&trust_path, sha256, &reopened_state)?;
                         return Ok((
                             VerifiedGenerationFile {
-                                file,
+                                file: installed_file,
                                 path,
-                                state,
+                                state: reopened_state,
                                 trust_path,
                                 trust_state,
                             },
@@ -965,6 +974,55 @@ fn ensure_generation_file(
             Err(error) => return Err(error),
         }
     }
+}
+
+fn authenticate_installed_generation(
+    file: &File,
+    path: &Path,
+    expected_state: &FileState,
+    expected_sha256: &ArtifactSha256,
+) -> Result<FileState, std::io::Error> {
+    let state_before_digest = FileState::from_file_io(file)?;
+    if &state_before_digest != expected_state {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "artifact generation changed before authenticating its installed handle",
+        ));
+    }
+    let actual_sha256 = sha256_file(file)?;
+    let authenticated_state = FileState::from_file_io(file)?;
+    if authenticated_state != state_before_digest {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "artifact generation changed while authenticating its installed handle",
+        ));
+    }
+    let path_metadata = std::fs::symlink_metadata(path)?;
+    if is_alias_metadata(&path_metadata) || !path_metadata.file_type().is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "artifact generation entry {} must remain a direct regular file while authenticating",
+                path.display()
+            ),
+        ));
+    }
+    let path_state = FileState::from_metadata_io(&path_metadata)?;
+    if path_state != authenticated_state {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "artifact generation changed after reopening its installed handle",
+        ));
+    }
+    if actual_sha256 != expected_sha256.as_str() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "installed artifact generation has digest {actual_sha256}, expected {expected_sha256}"
+            ),
+        ));
+    }
+    Ok(authenticated_state)
 }
 
 fn copy_and_seal_generation(
@@ -1004,7 +1062,7 @@ fn direct_generation_path(directory: &Path, sha256: &ArtifactSha256) -> PathBuf 
 #[cfg(test)]
 pub(crate) fn generation_path(target_artifact: &Path, sha256: &str) -> PathBuf {
     let directory = generation_directory(target_artifact);
-    let sha256 = ArtifactSha256::parse(sha256.to_string())
+    let sha256 = ArtifactSha256::try_from(sha256.to_string())
         .expect("test generation digests must be canonical SHA-256 values");
     direct_generation_path(&directory, &sha256)
 }
@@ -1012,7 +1070,7 @@ pub(crate) fn generation_path(target_artifact: &Path, sha256: &str) -> PathBuf {
 #[cfg(test)]
 pub(crate) fn generation_trust_path_for_test(target_artifact: &Path, sha256: &str) -> PathBuf {
     let directory = generation_directory(target_artifact);
-    let sha256 = ArtifactSha256::parse(sha256.to_string())
+    let sha256 = ArtifactSha256::try_from(sha256.to_string())
         .expect("test generation digests must be canonical SHA-256 values");
     generation_trust_path(&directory, &sha256)
 }
@@ -1052,7 +1110,7 @@ fn owned_generation_cache_file(path: &Path) -> bool {
     let digest = name
         .strip_suffix(".sqlite")
         .or_else(|| name.strip_suffix(".sqlite.trusted"));
-    digest.is_some_and(|digest| ArtifactSha256::parse(digest.to_string()).is_ok())
+    digest.is_some_and(|digest| ArtifactSha256::try_from(digest.to_string()).is_ok())
 }
 
 fn validated_generation_directory(path: &Path) -> Result<PathBuf, std::io::Error> {
@@ -1253,93 +1311,7 @@ fn is_alias_metadata(metadata: &Metadata) -> bool {
     metadata.file_type().is_symlink()
 }
 
-#[derive(Deserialize)]
-struct PairManifest {
-    manifest_version: String,
-    artifact_contract_version: String,
-    schema_version: String,
-    build: PairManifestBuild,
-}
-
-#[derive(Deserialize)]
-struct PairManifestBuild {
-    artifact_sha256: ArtifactSha256,
-}
-
-pub(crate) fn adjacent_manifest_path(artifact_path: &Path) -> PathBuf {
-    artifact_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join(ADJACENT_MANIFEST_FILE_NAME)
-}
-
-pub(crate) fn verify_pair_files(
-    artifact_path: &Path,
-    manifest_path: &Path,
-) -> Result<String, IndexWriteError> {
-    let manifest = read_manifest(manifest_path)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let file = File::open(artifact_path).map_err(write_error)?;
-    let sha256 = sha256_file(&file).map_err(write_error)?;
-    if sha256 != manifest.build.artifact_sha256.as_str() {
-        return Err(IndexWriteError::WriteFailed(pair_mismatch().to_string()));
-    }
-    Ok(sha256)
-}
-
-pub(crate) fn verify_manifest_digest(
-    manifest_path: &Path,
-    expected_sha256: &str,
-) -> Result<(), IndexWriteError> {
-    let manifest = read_manifest(manifest_path)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    if manifest.build.artifact_sha256.as_str() != expected_sha256 {
-        return Err(IndexWriteError::ReceiptInvalidated(
-            "adjacent manifest digest does not match the artifact publication receipt".to_string(),
-        ));
-    }
-    Ok(())
-}
-
-fn read_manifest(path: &Path) -> Result<PairManifest, IndexValidationError> {
-    let bytes = std::fs::read(path).map_err(|error| {
-        let message = if error.kind() == std::io::ErrorKind::NotFound {
-            format!(
-                "required adjacent manifest is missing at {}; rebuild the artifact and manifest together with `atlas index build`",
-                path.display()
-            )
-        } else {
-            format!("unable to read adjacent manifest {}: {error}", path.display())
-        };
-        IndexValidationError::Unavailable(message)
-    })?;
-    let manifest: PairManifest = serde_json::from_slice(&bytes).map_err(|error| {
-        IndexValidationError::Unavailable(format!(
-            "adjacent manifest is not a supported pair manifest: {error}; rebuild the artifact and manifest together"
-        ))
-    })?;
-    if manifest.manifest_version != ARTIFACT_MANIFEST_VERSION {
-        return Err(IndexValidationError::Unavailable(format!(
-            "adjacent manifest contract `{}` is unsupported; rebuild the artifact and manifest together",
-            manifest.manifest_version
-        )));
-    }
-    if manifest.artifact_contract_version != ARTIFACT_CONTRACT_VERSION {
-        return Err(IndexValidationError::Unavailable(format!(
-            "adjacent manifest artifact contract `{}` is unsupported; rebuild the artifact and manifest together",
-            manifest.artifact_contract_version
-        )));
-    }
-    if manifest.schema_version != ARTIFACT_SCHEMA_VERSION {
-        return Err(IndexValidationError::Unavailable(format!(
-            "adjacent manifest schema `{}` is unsupported; rebuild the artifact and manifest together",
-            manifest.schema_version
-        )));
-    }
-    Ok(manifest)
-}
-
-fn sha256_file(file: &File) -> Result<String, std::io::Error> {
+pub(super) fn sha256_file(file: &File) -> Result<String, std::io::Error> {
     let mut file = file.try_clone()?;
     file.seek(SeekFrom::Start(0))?;
     let mut hasher = Sha256::new();
@@ -1352,12 +1324,6 @@ fn sha256_file(file: &File) -> Result<String, std::io::Error> {
         hasher.update(&buffer[..read]);
     }
     Ok(format!("{:x}", hasher.finalize()))
-}
-
-fn pair_mismatch() -> IndexValidationError {
-    IndexValidationError::Unavailable(
-        "SQLite artifact and adjacent manifest are not a matching published pair; rebuild them together with `atlas index build`".to_string(),
-    )
 }
 
 fn open_lock_file(manifest_path: &Path) -> Result<File, std::io::Error> {
@@ -1379,6 +1345,94 @@ pub(crate) fn lock_path(manifest_path: &Path) -> PathBuf {
 mod receipt_tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn newly_materialized_generation_opens_sqlite_through_installed_handle() {
+        let root = temp_root("installed-generation-handle");
+        let source_path = root.join("source.sqlite");
+        let target = root.join("index.sqlite");
+        let connection = rusqlite::Connection::open(&source_path).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE probe (value TEXT NOT NULL); INSERT INTO probe VALUES ('installed');",
+            )
+            .unwrap();
+        drop(connection);
+        let source = File::open(&source_path).unwrap();
+        let digest = ArtifactSha256::try_from(sha256_file(&source).unwrap()).unwrap();
+
+        let (generation, _) = ensure_generation_file(&source, &target, &digest).unwrap();
+        let connection = open_sqlite_from_retained_file(&generation.file, &generation.path)
+            .expect("SQLite must reopen the installed generation through the retained handle");
+        let value: String = connection
+            .query_row("SELECT value FROM probe", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(value, "installed");
+
+        drop((connection, generation));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn generation_replacement_during_final_reopen_fails_closed_without_trust() {
+        let root = temp_root("generation-reopen-replacement");
+        let source_path = root.join("source.sqlite");
+        let target = root.join("index.sqlite");
+        std::fs::write(&source_path, b"verified generation bytes").unwrap();
+        let source = File::open(&source_path).unwrap();
+        let digest = ArtifactSha256::try_from(sha256_file(&source).unwrap()).unwrap();
+        let generation_path = generation_path(&target, digest.as_str());
+        let trust_path = generation_trust_path_for_test(&target, digest.as_str());
+
+        let result =
+            ensure_generation_file_with_reopen_hook(&source, &target, &digest, |installed_path| {
+                std::fs::remove_file(installed_path)?;
+                std::fs::write(installed_path, b"replacement generation!!")?;
+                let replacement = File::open(installed_path)?;
+                seal_file_read_only(&replacement)
+            });
+        let error = match result {
+            Ok(_) => panic!("a replacement generation must fail closed"),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("changed while reopening"));
+        assert_eq!(
+            std::fs::read(generation_path).unwrap(),
+            b"replacement generation!!"
+        );
+        assert!(!trust_path.exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn final_installed_handle_is_digest_authenticated_before_trust() {
+        let root = temp_root("generation-reopen-digest");
+        std::fs::create_dir_all(&root).unwrap();
+        let installed_path = root.join("generation.sqlite");
+        std::fs::write(&installed_path, b"verified generation bytes").unwrap();
+        let installed_file = File::open(&installed_path).unwrap();
+        let digest = ArtifactSha256::try_from(sha256_file(&installed_file).unwrap()).unwrap();
+        std::fs::write(&installed_path, b"untrusted generation byte").unwrap();
+        seal_file_read_only(&installed_file).unwrap();
+        let opened_state = FileState::from_file_io(&installed_file).unwrap();
+
+        let error = authenticate_installed_generation(
+            &installed_file,
+            &installed_path,
+            &opened_state,
+            &digest,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("has digest"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn unchanged_retained_file_issues_one_live_receipt_and_one_digest() {

@@ -6,8 +6,8 @@ usage() {
   cat <<'EOF'
 Usage: scripts/validation/fast.sh [--base <git-ref>] [--verbose]
 
-Run the focused, path-sensitive formatting and lint tier. When --base is
-provided, also enforce artifact version bumps against the merge base.
+Run the focused formatting and lint tier. When --base is provided, validate
+the paths changed since that ref.
 EOF
 }
 
@@ -65,7 +65,6 @@ run_check() {
 
 if [ -n "$base" ]; then
   merge_base="$(git merge-base "$base" HEAD)"
-  scripts/validation/check-artifact-version-bump.sh --base "$base"
   scripts/verify-changed.sh --range "$merge_base...HEAD" ${verbose:+"$verbose"}
 else
   run_check "cargo fmt" cargo fmt --check

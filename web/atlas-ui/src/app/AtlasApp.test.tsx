@@ -19,6 +19,8 @@ import {
 } from "../test/recordFixtures";
 import { AtlasApp } from "./AtlasApp";
 
+const tenSecondTestDeadline = 10_000;
+
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
   discoverFilterEditor: vi.fn(),
@@ -134,49 +136,72 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
-  it("opens the search side-detail record as a full-page record route", async () => {
-    history.replaceState(null, "", "/search?q=heal&mode=text");
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
-    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+  it(
+    "opens the search side-detail record as a full-page record route",
+    async () => {
+      history.replaceState(null, "", "/search?q=heal&mode=text");
+      apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /heal/i });
-    fireEvent.click(resultRow);
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      const resultRow = await screen.findByRole("button", { name: /heal/i });
+      fireEvent.click(resultRow);
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
-    vi.clearAllMocks();
-    fireEvent.click(await screen.findByRole("link", { name: "Open full page" }));
+      vi.clearAllMocks();
+      fireEvent.click(await screen.findByRole("link", { name: "Open full page" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/records/spell%3Aheal"));
-    expect(window.location.search).toBe("");
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
-    expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
-    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-  }, 10_000);
+      await waitFor(() =>
+        expect(window.location.pathname).toBe("/records/spell%3Aheal"),
+      );
+      expect(window.location.search).toBe("");
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+      expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
+      expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    },
+    tenSecondTestDeadline,
+  );
 
-  it("adds the search side-detail record to a saved list", async () => {
-    history.replaceState(null, "", "/search?q=heal&mode=text");
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
-    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+  it(
+    "adds the search side-detail record to a saved list",
+    async () => {
+      history.replaceState(null, "", "/search?q=heal&mode=text");
+      apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /heal/i });
-    fireEvent.click(resultRow);
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      const resultRow = await waitFor(() => {
+        const row = document.querySelector<HTMLElement>(".result-row");
+        expect(row).not.toBeNull();
+        return row!;
+      });
+      fireEvent.click(resultRow);
+      expect(
+        await screen.findByText("heal", { selector: "h1,h2,h3,h4,h5,h6" }),
+      ).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add to saved list" }));
-    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
-    const selector = within(dialog).getByRole("combobox");
-    fireEvent.mouseDown(selector);
-    fireEvent.click(await screen.findByText("Research"));
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+      const addToList = await waitFor(() => {
+        const button = document.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add to saved list"]',
+        );
+        expect(button).not.toBeNull();
+        return button!;
+      });
+      fireEvent.click(addToList);
+      const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+      const selector = within(dialog).getByRole("combobox");
+      fireEvent.mouseDown(selector);
+      fireEvent.click(await screen.findByText("Research"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
-    await waitFor(() =>
-      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
-        record_ref: "spell:heal",
-      }),
-    );
-  }, 10_000);
+      await waitFor(() =>
+        expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+          list_ref: "research",
+          record_ref: "spell:heal",
+        }),
+      );
+    },
+    tenSecondTestDeadline,
+  );
 });
 
 function installLocalStorage() {
