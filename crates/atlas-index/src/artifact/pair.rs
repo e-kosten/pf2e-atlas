@@ -925,20 +925,34 @@ fn ensure_generation_file(
                         return Err(error);
                     }
                 };
-                materialization.distinct_identity_check_count += 1;
-                if state.identity == source_identity {
-                    drop(file);
-                    let _ = std::fs::remove_file(&temporary);
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "artifact generation snapshot aliases the visible or staged artifact",
-                    ));
-                }
                 materialization.copied_bytes = state.bytes;
                 match std::fs::hard_link(&temporary, &path) {
                     Ok(()) => {
                         std::fs::remove_file(&temporary)?;
                         sync_directory(&directory)?;
+                        // Reopen the installed name rather than retaining the
+                        // now-unlinked temporary name. On Linux, /dev/fd for
+                        // the temporary handle resolves through its deleted
+                        // pathname, which SQLite cannot reopen.
+                        drop(file);
+                        let (file, state) = open_regular_file(&path)?;
+                        materialization.distinct_identity_check_count += 1;
+                        if state.identity == source_identity {
+                            drop(file);
+                            remove_generation_if_state_matches(&path, &state, &trust_path)?;
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "artifact generation snapshot aliases the visible or staged artifact",
+                            ));
+                        }
+                        if !file.metadata()?.permissions().readonly() {
+                            drop(file);
+                            remove_generation_if_state_matches(&path, &state, &trust_path)?;
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "installed artifact generation is not sealed read-only",
+                            ));
+                        }
                         let trust_state = write_generation_trust(&trust_path, sha256, &state)?;
                         return Ok((
                             VerifiedGenerationFile {
@@ -1379,6 +1393,32 @@ pub(crate) fn lock_path(manifest_path: &Path) -> PathBuf {
 mod receipt_tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn newly_materialized_generation_retains_an_installed_file_handle() {
+        use std::os::fd::AsRawFd;
+
+        let root = temp_root("installed-generation-handle");
+        let source_path = root.join("source.sqlite");
+        let target = root.join("index.sqlite");
+        std::fs::write(&source_path, b"generation bytes").unwrap();
+        let source = File::open(&source_path).unwrap();
+        let digest = ArtifactSha256::parse(sha256_file(&source).unwrap()).unwrap();
+
+        let (generation, _) = ensure_generation_file(&source, &target, &digest).unwrap();
+        let descriptor_path =
+            PathBuf::from(format!("/proc/self/fd/{}", generation.file.as_raw_fd()));
+        let reopened = File::open(&descriptor_path)
+            .expect("the retained generation descriptor must reopen its installed name");
+        assert_eq!(
+            portable_identity_io(&reopened.metadata().unwrap()).unwrap(),
+            portable_identity_io(&std::fs::metadata(&generation.path).unwrap()).unwrap(),
+        );
+
+        drop((reopened, generation));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn unchanged_retained_file_issues_one_live_receipt_and_one_digest() {
