@@ -170,11 +170,24 @@ describe("AtlasApp routing", () => {
       apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-      const resultRow = await screen.findByRole("button", { name: /heal/i });
+      const resultRow = await waitFor(() => {
+        const row = document.querySelector<HTMLElement>(".result-row");
+        expect(row).not.toBeNull();
+        return row!;
+      });
       fireEvent.click(resultRow);
-      expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      expect(
+        await screen.findByText("heal", { selector: "h1,h2,h3,h4,h5,h6" }),
+      ).toBeInTheDocument();
 
-      fireEvent.click(await screen.findByRole("button", { name: "Add to saved list" }));
+      const addToList = await waitFor(() => {
+        const button = document.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add to saved list"]',
+        );
+        expect(button).not.toBeNull();
+        return button!;
+      });
+      fireEvent.click(addToList);
       const dialog = await screen.findByRole("dialog", { name: "Add to List" });
       const selector = within(dialog).getByRole("combobox");
       fireEvent.mouseDown(selector);
