@@ -2345,7 +2345,13 @@ mod tests {
         };
         let embedding = resolve_validation_embedding_identity("bge-small-en-v1.5")
             .expect("fixture embedding identity");
-        let repository_root = current_repo_root().expect("repository root");
+        // Cargo runs this test from the crate, while Git hooks may export
+        // repository-local Git variables. The identity fixture needs the
+        // workspace inputs, not the caller's Git discovery context.
+        let repository_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("workspace fixture root");
         let cache_identity = format!(
             "{};required_files_sha256={}",
             canonical_string(&cache_root).expect("canonical cache root"),

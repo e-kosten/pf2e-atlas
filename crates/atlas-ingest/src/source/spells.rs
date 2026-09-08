@@ -307,7 +307,7 @@ mod tests {
         );
         assert_eq!(
             render_plain_text(&content.document),
-            "Embedded Heal wording with emanation."
+            "Embedded Heal wording with 30-foot emanation."
         );
 
         assert_eq!(records[1].record.content.documents.len(), 1);

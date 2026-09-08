@@ -81,7 +81,17 @@ fn preserves_template_macros_and_reports_unknown_tags() {
 
     assert_eq!(parsed.diagnostics.unsupported_tags, vec!["aside"]);
     assert!(parsed.diagnostics.dropped_macros.is_empty());
-    assert_eq!(render_plain_text(&parsed.document), "burst");
+    assert_eq!(render_plain_text(&parsed.document), "10-foot burst");
+    let RichNode::HtmlElement { children, .. } = &parsed.document.nodes[0] else {
+        panic!("retained aside element");
+    };
+    assert!(matches!(
+        &children[0],
+        RichNode::Foundry { node: FoundryNode::Template { shape, options, label } }
+            if shape.as_deref() == Some("burst")
+                && options.get("distance").map(String::as_str) == Some("10")
+                && label.is_none()
+    ));
 }
 
 #[test]
