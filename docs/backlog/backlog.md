@@ -105,6 +105,9 @@ The contract preserves all 313 exact type-registry assignments, keeps non-creatu
 - [Rust artifact JSON content model review](./items/rust-artifact-json-content-model-review.md)
   Decide whether rich content JSON, content rows, and reference occurrence provenance should be refactored into a stronger artifact model. Status: proposed.
 
+- [Rust release tooling and changelog evaluation](./items/rust-release-tooling-changelog-evaluation.md)
+  Evaluate Knope and existing release tooling for human-reviewed compatibility notes, changelogs, application versions, and release packaging without conflating generated-index or local-state versions. Status: proposed.
+
 - [Rust optional PF2e art ingest](./items/rust-optional-pf2e-art-ingest.md)
   Track optional local ingestion of PF2e system icons and module-provided creature portrait/token art for future web presentation. Status: proposed.
 
