@@ -96,8 +96,11 @@ case "${1:-}" in
       echo "PF2E_SOURCE_REPOSITORY must name the accepted pinned Git checkout" >&2
       exit 2
     fi
+    # These source-faithful receipts each publish and hydrate isolated SQLite
+    # artifacts. Keep their runner lifecycles serial while retaining the full
+    # suite and every assertion.
     PF2E_SOURCE_REPOSITORY="$source_repository" \
-      cargo test -p atlas-ingest --test source_leaf_coverage
+      cargo test -p atlas-ingest --test source_leaf_coverage -- --test-threads=1
     PF2E_SOURCE_REPOSITORY="$source_repository" \
       cargo test -p atlas-ingest --lib \
         source_coverage::receipt::tests::actor_adversaries_keep_exact_authored_null_identity_distinct_from_optional_null \
