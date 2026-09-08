@@ -14,14 +14,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Source-Faithful Contract State
 
-The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. Later record families remain separate owned work and are not implied by these cutovers; in particular, [standalone and embedded consumables](./items/rust-consumable-record-family.md) remain one deferred family implementation. The combined final production and visual gate remains outstanding.
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. The integrated record-presentation implementation, product review, and validation are complete on the integration branch. Main promotion and any later release/runtime cutover remain separate human decisions. Later record families remain separate owned work and are not implied by these cutovers; in particular, [standalone and embedded consumables](./items/rust-consumable-record-family.md) remain one deferred family implementation.
 
 The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
 
 ## Now
-
-- [Rust record presentation mechanics unification](./items/rust-record-presentation-mechanics-unification.md)
-  The approved hazard source-model remediation is in progress through bounded canonical/model slices; app, CLI, and web presentation changes remain later gates. Status: in_progress.
 
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
   Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.

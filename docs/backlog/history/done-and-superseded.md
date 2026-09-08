@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Rust record presentation mechanics unification](./items/rust-record-presentation-mechanics-unification.md)
+  Creature, hazard, and spell records now share typed app-service presentation, source-faithful rich content, encounter composition, reference navigation, and responsive web surfaces. The integrated implementation passed product review and CI on the integration branch. Status: done.
+
 - [Rust web UI frontend architecture cleanup](./items/rust-web-ui-frontend-architecture-cleanup.md)
   The React frontend now uses `app`, `features`, and `shared` module ownership with shared filter discovery, record/detail primitives, and feature-local route modules. Status: done.
 

@@ -61,7 +61,7 @@ The future cutover must prove that all 20 remain represented exactly once across
 ## Related
 
 - [Source-Faithful Contract State](../backlog.md#source-faithful-contract-state)
-- [Rust record presentation mechanics unification](./rust-record-presentation-mechanics-unification.md)
+- [Rust record presentation mechanics unification](../history/items/rust-record-presentation-mechanics-unification.md)
 - [Canonical entities, occurrences, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
 - [Atomic canonical artifact](../../architecture/decisions/0035-atomic-canonical-artifact.md)
 - [Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
