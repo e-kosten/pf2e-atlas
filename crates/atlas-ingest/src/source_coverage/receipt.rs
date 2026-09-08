@@ -10242,9 +10242,7 @@ impl ResolvedFixture {
 }
 
 fn git_success(repository: &Path, args: &[&str]) -> Result<(), CoverageContractError> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repository)
+    let output = git_for_repository(repository)
         .args(args)
         .output()
         .map_err(|message| error(CoverageFailureCode::ReceiptProvenanceInvalid, message))?;
@@ -10259,9 +10257,7 @@ fn git_success(repository: &Path, args: &[&str]) -> Result<(), CoverageContractE
 }
 
 fn git_output(repository: &Path, args: &[&str]) -> Result<Vec<u8>, CoverageContractError> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repository)
+    let output = git_for_repository(repository)
         .args(args)
         .output()
         .map_err(|message| error(CoverageFailureCode::ReceiptProvenanceInvalid, message))?;
@@ -10273,6 +10269,30 @@ fn git_output(repository: &Path, args: &[&str]) -> Result<Vec<u8>, CoverageContr
             String::from_utf8_lossy(&output.stderr).trim(),
         ))
     }
+}
+
+fn git_for_repository(repository: &Path) -> Command {
+    let mut command = Command::new("git");
+    // Git exports repository-local variables to hooks. Those variables take
+    // precedence over `-C` and would otherwise make receipt authentication
+    // inspect the caller's object database instead of the PF2E source repo.
+    for variable in [
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_GRAFT_FILE",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_SHALLOW_FILE",
+        "GIT_WORK_TREE",
+    ] {
+        command.env_remove(variable);
+    }
+    command.arg("-C").arg(repository);
+    command
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -10657,15 +10677,14 @@ mod tests {
                 )
         };
         let accepted_commit = format!("{PF2E_SOURCE_PINNED_COMMIT}^{{commit}}");
-        let output = Command::new("git")
-            .args(["-C"])
-            .arg(&repository)
+        let output = git_for_repository(&repository)
             .args(["cat-file", "-e", &accepted_commit])
             .output()
             .expect("TEST PREREQUISITE: git must inspect the PF2E source repository");
         assert!(
             output.status.success(),
-            "TEST PREREQUISITE: PF2E_SOURCE_REPOSITORY must contain accepted commit {PF2E_SOURCE_PINNED_COMMIT}: {}",
+            "TEST PREREQUISITE: PF2E_SOURCE_REPOSITORY {} must contain accepted commit {PF2E_SOURCE_PINNED_COMMIT}: {}",
+            repository.display(),
             String::from_utf8_lossy(&output.stderr)
         );
         repository
