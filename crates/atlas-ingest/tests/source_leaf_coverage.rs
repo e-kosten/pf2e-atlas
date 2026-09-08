@@ -87,24 +87,21 @@ fn require_pinned_repository() -> PathBuf {
         .map(PathBuf::from)
         .expect("TEST PREREQUISITE: set PF2E_SOURCE_REPOSITORY to the accepted PF2E checkout");
     let accepted_commit = "4cbdaa37d6c33e9519561bae2c59a23e0288cbce^{commit}";
-    let output = Command::new("git")
-        .args(["-C"])
-        .arg(&repository)
+    let output = git_for_repository(&repository)
         .args(["cat-file", "-e", accepted_commit])
         .output()
         .expect("TEST PREREQUISITE: git must inspect PF2E_SOURCE_REPOSITORY");
     assert!(
         output.status.success(),
-        "TEST PREREQUISITE: repository must contain {accepted_commit}: {}",
+        "TEST PREREQUISITE: repository {} must contain {accepted_commit}: {}",
+        repository.display(),
         String::from_utf8_lossy(&output.stderr)
     );
     repository
 }
 
 fn git_show(repository: &Path, path: &str) -> Vec<u8> {
-    let output = Command::new("git")
-        .args(["-C"])
-        .arg(repository)
+    let output = git_for_repository(repository)
         .args(["show", &format!("{PF2E_SOURCE_PINNED_COMMIT}:{path}")])
         .output()
         .expect("git must read the accepted pinned source tree");
@@ -117,9 +114,7 @@ fn git_show(repository: &Path, path: &str) -> Vec<u8> {
 }
 
 fn git_grep_paths(repository: &Path, pattern: &str) -> BTreeSet<String> {
-    let output = Command::new("git")
-        .args(["-C"])
-        .arg(repository)
+    let output = git_for_repository(repository)
         .args([
             "grep",
             "-l",
@@ -145,6 +140,27 @@ fn git_grep_paths(repository: &Path, pattern: &str) -> BTreeSet<String> {
                 .to_string()
         })
         .collect()
+}
+
+fn git_for_repository(repository: &Path) -> Command {
+    let mut command = Command::new("git");
+    for variable in [
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_GRAFT_FILE",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_SHALLOW_FILE",
+        "GIT_WORK_TREE",
+    ] {
+        command.env_remove(variable);
+    }
+    command.arg("-C").arg(repository);
+    command
 }
 
 fn required_pinned_value(source: &Value, pointer: &str, case_id: &str) -> Result<Value, String> {
