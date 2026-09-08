@@ -239,13 +239,14 @@
 
 .spell-sheet__form-section {
   min-width: 0;
-  width: min(100%, 720px);
+  width: max-content;
+  max-width: 100%;
   margin-inline-start: auto;
 }
 
 .spell-sheet__form-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
+  grid-template-columns: minmax(0, max-content) 240px;
   gap: 8px;
   align-items: end;
 }
@@ -1131,8 +1132,7 @@
   min-width: 0;
 }
 .spell-sheet__form-section {
-  flex: 1 1 620px;
-  max-width: 720px;
+  flex: 0 1 auto;
 }
 .spell-sheet__selection-summary {
   display: grid;
@@ -1224,6 +1224,31 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+.spell-sheet__form-select-size {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+.spell-sheet__form-select-size > * {
+  grid-area: 1 / 1;
+}
+/* Browser text metrics size the control to the whole typed catalog, so changing
+   selection does not move the adjacent rank/actions. No character estimates. */
+.spell-sheet__form-label-measure {
+  display: grid;
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+  padding-inline: 12px 32px;
+  border-inline: 1px solid transparent;
+  font-weight: 400;
+}
+.spell-sheet__form-label-measure > span {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
 .spell-sheet__form-select {
   height: auto;
   min-height: 32px;
@@ -1248,9 +1273,6 @@
   gap: 18px;
 }
 @container (max-width: 650px) {
-  .spell-sheet__form-section {
-    max-width: none;
-  }
   .spell-sheet__form-controls {
     grid-template-columns: minmax(0, 1fr);
   }
