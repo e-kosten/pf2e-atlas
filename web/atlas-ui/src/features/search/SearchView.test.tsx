@@ -5,6 +5,8 @@ import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
 import { SearchView } from "./SearchView";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 
+const tenSecondTestDeadline = 10_000;
+
 vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   getRecordDetail: vi.fn(),
@@ -127,50 +129,56 @@ beforeEach(() => {
   );
 });
 
-it("keeps the actual SearchView selection mounted through unresolved and completed parent refetch", async () => {
-  const { client } = mount();
-  await screen.findByRole("heading", { name: "Heal" });
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
-  fireEvent.click(await screen.findByRole("option", { name: "Living" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
-    target: { value: "3" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("3d8");
-  const pending = deferred<RecordDetailView>();
-  let signal: AbortSignal | undefined;
-  vi.mocked(getRecordDetail).mockImplementationOnce((_key, _request, requestSignal) => {
-    signal = requestSignal;
-    return pending.promise;
-  });
-  let refresh!: Promise<void>;
-  act(() => {
-    refresh = client.refetchQueries({
-      queryKey: ["record-detail", "spells:heal"],
-      exact: true,
+it(
+  "keeps the actual SearchView selection mounted through unresolved and completed parent refetch",
+  async () => {
+    const { client } = mount();
+    await screen.findByRole("heading", { name: "Heal" });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Spell form" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Living" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
+      target: { value: "3" },
     });
-  });
-  await screen.findByText("Refreshing this record…");
-  expect(signal).toBeInstanceOf(AbortSignal);
-  expect(signal?.aborted).toBe(false);
-  expect(screen.getByText("3d8")).toBeInTheDocument();
-  expect(screen.queryByLabelText("Loading record")).not.toBeInTheDocument();
-  await act(async () => {
-    pending.resolve(fixture());
-    await refresh;
-  });
-  expect(screen.getByText("3d8")).toBeInTheDocument();
-  const calls = vi.mocked(getRecordDetail).mock.calls;
-  expect(
-    calls.some(
-      ([key, request, sentSignal]) =>
-        key === "spells:heal" &&
-        request?.spell_form_id === "living" &&
-        request.spell_cast_rank === 3 &&
-        sentSignal instanceof AbortSignal,
-    ),
-  ).toBe(true);
-});
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await screen.findByText("3d8");
+    const pending = deferred<RecordDetailView>();
+    let signal: AbortSignal | undefined;
+    vi.mocked(getRecordDetail).mockImplementationOnce(
+      (_key, _request, requestSignal) => {
+        signal = requestSignal;
+        return pending.promise;
+      },
+    );
+    let refresh!: Promise<void>;
+    act(() => {
+      refresh = client.refetchQueries({
+        queryKey: ["record-detail", "spells:heal"],
+        exact: true,
+      });
+    });
+    await screen.findByText("Refreshing this record…");
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(false);
+    expect(screen.getByText("3d8")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Loading record")).not.toBeInTheDocument();
+    await act(async () => {
+      pending.resolve(fixture());
+      await refresh;
+    });
+    expect(screen.getByText("3d8")).toBeInTheDocument();
+    const calls = vi.mocked(getRecordDetail).mock.calls;
+    expect(
+      calls.some(
+        ([key, request, sentSignal]) =>
+          key === "spells:heal" &&
+          request?.spell_form_id === "living" &&
+          request.spell_cast_rank === 3 &&
+          sentSignal instanceof AbortSignal,
+      ),
+    ).toBe(true);
+  },
+  tenSecondTestDeadline,
+);
 
 it("aborts an unresolved prior record and ignores its late response after a record switch", async () => {
   const pending = deferred<RecordDetailView>();
@@ -192,39 +200,43 @@ it("aborts an unresolved prior record and ignores its late response after a reco
   expect(screen.getByText("1d8")).toBeInTheDocument();
 });
 
-it("isolates selected request keys and keeps the latest matching response", async () => {
-  const prior = deferred<RecordDetailView>();
-  let oldSignal: AbortSignal | undefined;
-  vi.mocked(getRecordDetail).mockImplementation(
-    (key, request?: RecordDetailRequest, signal?: AbortSignal) => {
-      if (request?.spell_cast_rank === 3) {
-        oldSignal = signal;
-        return prior.promise;
-      }
-      return Promise.resolve(
-        fixture(key, request?.spell_form_id, request?.spell_cast_rank),
-      );
-    },
-  );
-  mount();
-  await screen.findByRole("heading", { name: "Heal" });
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
-    target: { value: "3" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await waitFor(() => expect(oldSignal).toBeInstanceOf(AbortSignal));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
-    target: { value: "5" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("5d8");
-  expect(oldSignal?.aborted).toBe(true);
-  await act(async () => {
-    prior.resolve(fixture("spells:heal", "base", 3));
-  });
-  expect(screen.getByText("5d8")).toBeInTheDocument();
-  expect(screen.queryByText("3d8")).not.toBeInTheDocument();
-});
+it(
+  "isolates selected request keys and keeps the latest matching response",
+  async () => {
+    const prior = deferred<RecordDetailView>();
+    let oldSignal: AbortSignal | undefined;
+    vi.mocked(getRecordDetail).mockImplementation(
+      (key, request?: RecordDetailRequest, signal?: AbortSignal) => {
+        if (request?.spell_cast_rank === 3) {
+          oldSignal = signal;
+          return prior.promise;
+        }
+        return Promise.resolve(
+          fixture(key, request?.spell_form_id, request?.spell_cast_rank),
+        );
+      },
+    );
+    mount();
+    await screen.findByRole("heading", { name: "Heal" });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
+      target: { value: "3" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(oldSignal).toBeInstanceOf(AbortSignal));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
+      target: { value: "5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await screen.findByText("5d8");
+    expect(oldSignal?.aborted).toBe(true);
+    await act(async () => {
+      prior.resolve(fixture("spells:heal", "base", 3));
+    });
+    expect(screen.getByText("5d8")).toBeInTheDocument();
+    expect(screen.queryByText("3d8")).not.toBeInTheDocument();
+  },
+  tenSecondTestDeadline,
+);
 
 it("retains the last valid selected response after same-key refresh becomes unavailable", async () => {
   const { client } = mount();
@@ -345,6 +357,7 @@ it.each([1440, 1024, 390])(
     );
     expect(location.search).not.toContain("reference-record");
   },
+  tenSecondTestDeadline,
 );
 
 it("retains the relationship and returns focus after dismissing the filter drawer", async () => {

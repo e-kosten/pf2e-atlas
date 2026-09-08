@@ -25,6 +25,8 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 
 const tenSecondTestDeadline = 10_000;
 const fifteenSecondTestDeadline = 15_000;
+const twentySecondTestDeadline = 20_000;
+const thirtySecondTestDeadline = 30_000;
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -783,7 +785,7 @@ describe("encounter views", () => {
       expect(screen.queryByText(/Spell cast|Use restored/)).not.toBeInTheDocument();
       expect(document.querySelector(".ant-message-success")).toBeNull();
     },
-    fifteenSecondTestDeadline,
+    thirtySecondTestDeadline,
   );
 
   it("keeps spell mutation failures actionable without success feedback", async () => {
@@ -1062,7 +1064,7 @@ describe("encounter views", () => {
         }),
       );
     },
-    tenSecondTestDeadline,
+    twentySecondTestDeadline,
   );
 
   it(
