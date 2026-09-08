@@ -62,6 +62,29 @@ describe("SpellRecordSurface", () => {
     }
   });
 
+  it("uses a true-only modifier note in fixed-heightening component summaries", () => {
+    const definition = rimeDefinition();
+    if (
+      definition.heightening.state !== "known" ||
+      definition.heightening.value.kind !== "fixed"
+    )
+      throw new Error("fixed fixture");
+    const change = definition.heightening.value.layers[0].changes.find(
+      (change) => change.field === "effect",
+    );
+    if (!change || change.field !== "effect" || !change.value)
+      throw new Error("effect fixture");
+    change.value.apply_modifier = known(true);
+    render(
+      <RecordSurface
+        surface={spellSurface("Rime", definition, [baseForm("opaque:rime:base")])}
+        onReference={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText(/your spellcasting ability modifier/)).toHaveLength(1);
+    expect(screen.queryByText(/apply modifier (Yes|No)/)).not.toBeInTheDocument();
+  });
+
   it("puts authored description before one set of mechanics and one action label", () => {
     const surface = fireball();
     if (surface.presentation.presentation_type !== "spell")

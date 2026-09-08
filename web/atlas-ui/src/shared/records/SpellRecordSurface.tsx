@@ -419,9 +419,9 @@ function fixedChangeSummary(change: SpellFixedHeighteningChangeView) {
       formatSlug(meaningfulKnown(change.value.category)!),
     meaningfulKnown(change.value.kinds)?.map(formatSlug).join(", "),
     meaningfulKnown(change.value.materials)?.map(formatSlug).join(", "),
-    knownValue(change.value.apply_modifier) === undefined
-      ? undefined
-      : `apply modifier ${formatBoolean(knownValue(change.value.apply_modifier)!)}`,
+    knownValue(change.value.apply_modifier) === true
+      ? "+ your spellcasting ability modifier"
+      : undefined,
   ].filter((detail): detail is string => Boolean(detail));
   return details.length
     ? `${change.label}: ${details.join(" · ")}`

@@ -1283,7 +1283,7 @@
   max-width: 100%;
 }
 .spell-sheet__form-section--static .spell-sheet__form-controls {
-  grid-template-columns: 240px;
+  grid-template-columns: minmax(0, max-content);
 }
 .spell-sheet__primary-fact dd {
   font-size: 1.1rem;
