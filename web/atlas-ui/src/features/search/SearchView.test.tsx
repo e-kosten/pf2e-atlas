@@ -333,14 +333,6 @@ it.each([1440, 1024, 390])(
     expect(chip).toBeVisible();
     expect(chip.closest(".filter-panel")).not.toBeNull();
     expect(chip.closest(".search-workspace__toolbar")).toBeNull();
-    if (width <= 1100) {
-      const drawer = screen.getByRole("dialog").closest(".ant-drawer")!;
-      fireEvent.keyDown(drawer, { key: "Escape", keyCode: 27 });
-      const launcher = screen.getByRole("button", { name: "Filters (1)" });
-      await waitFor(() => expect(launcher).toHaveFocus());
-      expect(location.search).toContain("reference-record");
-      fireEvent.click(launcher);
-    }
     const remove = screen.getByRole("button", {
       name: "Remove relationship filter for Heal",
     });
@@ -354,3 +346,25 @@ it.each([1440, 1024, 390])(
     expect(location.search).not.toContain("reference-record");
   },
 );
+
+it("retains the relationship and returns focus after dismissing the filter drawer", async () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+  history.replaceState(
+    null,
+    "",
+    "/search?reference-direction=incoming&reference-record=spells%3Aheal",
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  const launcher = screen.getByRole("button", { name: "Filters (1)" });
+  fireEvent.click(launcher);
+  await screen.findByText("Records that reference: Heal");
+  const drawer = screen.getByRole("dialog").closest(".ant-drawer")!;
+  fireEvent.keyDown(drawer, { key: "Escape", keyCode: 27 });
+  await waitFor(() => expect(launcher).toHaveFocus());
+  expect(location.search).toContain("reference-record");
+});
