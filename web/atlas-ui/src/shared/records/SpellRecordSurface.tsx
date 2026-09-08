@@ -324,9 +324,13 @@ function damageSummary(damage: SpellDamageView) {
 }
 
 function damageQualifiers(damage: SpellDamageView): RecordKeyValueItem[] {
+  // The server-owned heading conveys damage for an exact damage-only kind.
+  // Healing, mixed and unknown kinds retain their independent qualifier.
+  const kinds = meaningfulKnown(damage.kinds);
+  const damageOnly = kinds?.length === 1 && kinds[0] === "damage";
   return [
     factItem("category", "Damage category", damage.category, formatSlug),
-    factItem("kinds", "Effect type", damage.kinds, formatList),
+    damageOnly ? null : factItem("kinds", "Effect type", damage.kinds, formatList),
     factItem("materials", "Damage materials", damage.materials, formatList),
   ].filter((entry): entry is RecordKeyValueItem => entry !== null);
 }

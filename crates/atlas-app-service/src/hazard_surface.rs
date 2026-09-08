@@ -1257,6 +1257,7 @@ fn push_unavailable_message(
     message: &str,
 ) {
     let value = HazardSurfaceUnavailableView {
+        consequence: None,
         fact_id: None,
         state,
         field: field.to_string(),
@@ -1277,10 +1278,11 @@ fn push_unsupported_fields(
         let field = unsupported_field_name(&unsupported.field);
         // Preserve each source-owned fact even when several share a presentation category.
         unavailable.push(HazardSurfaceUnavailableView {
+            consequence: Some("These facts are not modeled as gameplay on this surface. Authored content remains readable; exact values and source locations are retained in Source & provenance.".to_string()),
             fact_id: Some(format!("unsupported:{}:{ordinal}", component_id.unwrap_or("record"))),
             state: HazardSurfaceUnavailableStateView::Unsupported,
             field: field.to_string(), component_id: component_id.map(str::to_string),
-            message: format!("{} {} contains {} that is not modeled as gameplay on this surface. Its authored content remains readable; the exact value and source location are retained in provenance.",
+            message: format!("{} {} contains {}.",
                 if matches!(unsupported.field, HazardUnsupportedField::UnsupportedChildField(_)) { "Content-only component fact" } else { "Additional authored fact" },
                 ordinal + 1,
                 crate::record_policy::hazard_source_shape_label(unsupported.value.actual_shape)),

@@ -33,6 +33,7 @@ pub(crate) fn record_surface_issues(
         }
         (RecordSurfacePresentationView::Unavailable { .. }, _) => {
             issues.push(RecordSurfaceIssueView {
+                consequence: None,
                 fact_id: None,
                 code: RecordSurfaceIssueCodeView::Unavailable,
                 placement: RecordSurfaceIssuePlacementView::Record,
@@ -175,6 +176,7 @@ fn hazard_issues(
     for issue in metadata.issues {
         metadata_issue_keys.insert((issue.field_key(), issue.component_id().map(str::to_string)));
         issues.push(RecordSurfaceIssueView {
+            consequence: None,
             fact_id: None,
             code: match issue.kind {
                 HazardSourceMetadataIssueKind::Malformed => RecordSurfaceIssueCodeView::Malformed,
@@ -244,6 +246,7 @@ fn hazard_issues(
                 .and_then(|component_id| hazard_issue_subject(hazard, component_id)),
             fact_label: hazard_unavailable_fact_label(&unavailable.field).map(str::to_string),
             message: unavailable.message.clone(),
+            consequence: unavailable.consequence.clone(),
         });
     }
 }
@@ -258,6 +261,7 @@ fn spell_issues(
         merge_spell_presentation_issues(projected, selected.iter().copied())
             .into_iter()
             .map(|issue| RecordSurfaceIssueView {
+                consequence: None,
                 fact_id: None,
                 code: issue_code(issue.kind),
                 placement: spell_issue_placement(issue.placement()),
@@ -304,6 +308,7 @@ fn push_policy_issue(
         return;
     };
     issues.push(RecordSurfaceIssueView {
+        consequence: None,
         fact_id: None,
         code: issue_code(kind),
         placement,

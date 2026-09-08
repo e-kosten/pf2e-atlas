@@ -714,6 +714,7 @@ mod tests {
                     content: None,
                     relationships: None,
                     unavailable_fields: Some(vec![HazardSurfaceUnavailableView {
+                        consequence: None,
                         fact_id: None,
                         state: HazardSurfaceUnavailableStateView::Null,
                         field: "defenses.hit_points.current".to_string(),

@@ -72,3 +72,14 @@ exact approved grammar is admitted.
 App-service retains content/inline identity for these issues. No requested-rank
 or authored-base fallback supplies context. This policy does not alter default
 presentation, canonical hydration, FTS, embedding inputs, or artifact compatibility.
+
+
+### Shared diagnostic consequences
+
+App diagnostic facts may carry an explicit optional consequence separately from
+fact-specific ordinal and typed-shape text. Hazard presentation supplies it; the
+common issue projection preserves it with each opaque fact identity and subject.
+The browser displays identical consequence fields once within the existing
+subject group (or record placement group), while retaining every distinct fact.
+It does not split message prose, infer names, merge identities, or remove source
+provenance. This is app presentation only, not canonical or artifact content.

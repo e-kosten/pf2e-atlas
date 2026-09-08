@@ -23,6 +23,31 @@ const missing = { state: "missing" as const };
 const known = <T,>(value: T) => ({ state: "known" as const, value });
 
 describe("SpellRecordSurface", () => {
+  it.each([["damage"], ["healing"], ["damage", "healing"]])(
+    "omits only the damage-only kind already in the heading: %j",
+    (...kinds) => {
+      const definition = plainSpellDefinition();
+      definition.damage = known([
+        {
+          label: kinds.includes("healing") ? "Healing" : "Damage",
+          formula: known("1d8"),
+          damage_type: known("vitality"),
+          category: missing,
+          kinds: known(kinds),
+          materials: missing,
+          apply_modifier: known(false),
+        },
+      ]);
+      const surface = spellSurface("Test", definition, [baseForm("base")]);
+      const before = JSON.stringify(surface);
+      render(<RecordSurface surface={surface} onReference={vi.fn()} />);
+      if (kinds.length === 1 && kinds[0] === "damage")
+        expect(screen.queryByText("Effect type")).not.toBeInTheDocument();
+      else expect(screen.getByText("Effect type")).toBeVisible();
+      expect(JSON.stringify(surface)).toBe(before);
+    },
+  );
+
   it.each<SpellFactView<boolean>>([
     known(true),
     known(false),
@@ -242,7 +267,7 @@ describe("SpellRecordSurface", () => {
     );
     const qualifiers = screen.getByLabelText("Damage qualifiers");
     expect(qualifiers).toHaveTextContent("Damage categoryPersistent");
-    expect(qualifiers).toHaveTextContent("Effect typeDamage");
+    expect(qualifiers).not.toHaveTextContent("Effect type");
     expect(qualifiers).toHaveTextContent("Damage materialsSilver");
     expect(qualifiers).not.toHaveTextContent("Spellcasting ability modifier");
     expect(

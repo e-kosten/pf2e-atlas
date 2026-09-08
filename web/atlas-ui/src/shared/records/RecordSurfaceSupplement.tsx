@@ -23,7 +23,11 @@ export function RecordSurfaceIssues({
   if (!issues?.length) return null;
   const groups = new Map<string, RecordSurfaceIssue[]>();
   issues.forEach((issue, index) => {
-    const key = issue.subject ? JSON.stringify(issue.subject) : `issue:${index}`;
+    const key = issue.subject
+      ? JSON.stringify(issue.subject)
+      : issue.consequence
+        ? JSON.stringify({ placement: issue.placement, consequence: issue.consequence })
+        : `issue:${index}`;
     groups.set(key, [...(groups.get(key) ?? []), issue]);
   });
   return (
@@ -33,24 +37,39 @@ export function RecordSurfaceIssues({
         {Array.from(groups, ([key, facts]) => (
           <Alert
             key={key}
-            message={facts.length === 1 ? facts[0].message : facts[0].subject?.label}
+            message={
+              facts.length === 1
+                ? facts[0].message
+                : (facts[0].subject?.label ?? issuePlacementLabel(facts[0].placement))
+            }
             description={
-              facts.length > 3 ? (
-                <Collapse
-                  expandIcon={disclosureExpandIcon}
-                  ghost
-                  size="small"
-                  items={[
-                    {
-                      key: "facts",
-                      label: `${facts.length} affected facts`,
-                      children: <IssueFacts facts={facts} />,
-                    },
-                  ]}
-                />
-              ) : (
-                <IssueFacts facts={facts} />
-              )
+              <>
+                {Array.from(
+                  new Set(
+                    facts.flatMap((issue) =>
+                      issue.consequence ? [issue.consequence] : [],
+                    ),
+                  ),
+                ).map((consequence) => (
+                  <p key={consequence}>{consequence}</p>
+                ))}
+                {facts.length > 3 ? (
+                  <Collapse
+                    expandIcon={disclosureExpandIcon}
+                    ghost
+                    size="small"
+                    items={[
+                      {
+                        key: "facts",
+                        label: `${facts.length} affected facts`,
+                        children: <IssueFacts facts={facts} />,
+                      },
+                    ]}
+                  />
+                ) : (
+                  <IssueFacts facts={facts} />
+                )}
+              </>
             }
             showIcon
             type="warning"
@@ -222,7 +241,10 @@ function ReferenceDirection({
       </p>
     );
   const shown = section.records.length;
-  const summary = `Showing ${shown} of ${section.total_records} ${pluralize(section.total_records, "record")}`;
+  const summary =
+    !section.truncated && shown === section.total_records
+      ? `${section.total_records} ${pluralize(section.total_records, "record")}`
+      : `Showing ${shown} of ${section.total_records} ${pluralize(section.total_records, "record")}`;
   const capped = section.truncated && section.next_limit === undefined;
   return (
     <section aria-label={title}>
@@ -230,9 +252,11 @@ function ReferenceDirection({
         <h4>{title}</h4>
         <Space size="small" wrap>
           <span>{summary}</span>
-          <span>
-            {section.total_edges} {pluralize(section.total_edges, "reference")}
-          </span>
+          {section.total_edges !== section.total_records ? (
+            <span>
+              {section.total_edges} {pluralize(section.total_edges, "reference")}
+            </span>
+          ) : null}
           {section.next_limit !== undefined && onRequestLimit ? (
             <Button
               onClick={() => onRequestLimit(direction, section.next_limit as number)}
