@@ -114,6 +114,24 @@ expect_guard_success() {
   fi
 }
 
+expect_guard_failure_head() {
+  message="$1"
+  candidate_head="$2"
+  if (cd "$case_dir" && scripts/validation/check-artifact-version-bump.sh --base "$case_base" --head "$candidate_head") >/dev/null 2>&1; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
+expect_guard_success_head() {
+  message="$1"
+  candidate_head="$2"
+  if ! (cd "$case_dir" && scripts/validation/check-artifact-version-bump.sh --base "$case_base" --head "$candidate_head") >/dev/null 2>&1; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
 # Keep one positive fixture for each compatibility-owner family. The seven paths
 # called out by the independent review are included literally in this inventory.
 for owner in \
@@ -223,6 +241,55 @@ printf 'changed records\n' >>"$case_dir/crates/atlas-index/src/write/sqlite/reco
 replace_version 'fixture-contract/v1' 'fixture-contract/v2'
 commit_case "test: bump contract version"
 expect_guard_success "guard rejected the exact next contract version"
+
+new_fixture sequential-history
+printf 'first owner change\n' >>"$case_dir/crates/atlas-index/src/write/sqlite/records.rs"
+commit_case "test: change first contract owner"
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+commit_case "test: advance contract to version two"
+printf 'second owner change\n' >>"$case_dir/crates/atlas-index/src/write/sqlite/records.rs"
+commit_case "test: change second contract owner"
+replace_version 'fixture-contract/v2' 'fixture-contract/v3'
+commit_case "test: advance contract to version three"
+expect_guard_success "guard rejected sequential accumulated contract history"
+
+new_fixture sequential-skip
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+commit_case "test: advance contract to version two"
+replace_version 'fixture-contract/v2' 'fixture-contract/v4'
+commit_case "test: skip contract version three"
+expect_guard_failure "guard accepted a skipped transition inside accumulated history"
+
+new_fixture sequential-regression
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+commit_case "test: advance contract to version two"
+replace_version 'fixture-contract/v2' 'fixture-contract/v1'
+commit_case "test: regress contract to version one"
+expect_guard_failure "guard accepted a regression inside accumulated history"
+
+new_fixture malformed-version
+replace_version 'fixture-contract/v1' 'fixture-contract/vx'
+commit_case "test: make contract declaration malformed"
+expect_guard_failure "guard accepted a malformed version declaration"
+
+new_fixture missing-version
+sed -i.bak '/ARTIFACT_CONTRACT_VERSION/d' "$case_dir/crates/atlas-index/src/artifact/metadata.rs"
+rm "$case_dir/crates/atlas-index/src/artifact/metadata.rs.bak"
+commit_case "test: remove contract declaration"
+expect_guard_failure "guard accepted a missing version declaration"
+
+new_fixture explicit-candidate-head
+printf 'candidate owner change\n' >>"$case_dir/crates/atlas-index/src/write/sqlite/records.rs"
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+commit_case "test: advance candidate contract"
+candidate_head="$(git -C "$case_dir" rev-parse HEAD)"
+git -C "$case_dir" switch -qc synthetic-merge "$case_base"
+printf 'synthetic side\n' >>"$case_dir/README.md"
+commit_case "test: add synthetic side commit"
+git -C "$case_dir" merge -q --no-ff -m "test: synthetic pull request merge" "$candidate_head"
+synthetic_head="$(git -C "$case_dir" rev-parse HEAD)"
+expect_guard_success_head "synthetic checkout changed explicit candidate evaluation" "$candidate_head"
+expect_guard_failure_head "guard silently linearized a nonlinear synthetic head" "$synthetic_head"
 
 new_fixture multi-version
 printf 'changed pair\n' >>"$case_dir/crates/atlas-index/src/artifact/pair.rs"
