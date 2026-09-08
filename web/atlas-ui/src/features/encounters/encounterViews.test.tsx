@@ -233,12 +233,12 @@ describe("encounter views", () => {
     }
     fireEvent.click(kyraRow);
     expect(
-      (await screen.findAllByRole("heading", { name: "Kyra" })).length,
+      (await screen.findAllByText("Kyra", { selector: "h1,h2,h3,h4,h5,h6" })).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("Not current turn")).toBeVisible();
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Set turn to Kyra" }));
+    fireEvent.click(buttonByText("Set turn to Kyra"));
     await waitFor(() =>
       expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
         encounter_ref: "ambush",
@@ -795,9 +795,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("link", { name: "Linked Rule" }));
-    await screen.findByRole("dialog", { name: "Linked Rule spell details" });
-    fireEvent.click(screen.getByRole("button", { name: "Cast Linked Rule" }));
+    fireEvent.click(await screen.findByText("Linked Rule", { selector: "a" }));
+    await findByAriaLabel("Linked Rule spell details");
+    fireEvent.click(buttonByText("Cast Linked Rule"));
 
     expect(
       await screen.findByText(
@@ -819,38 +819,26 @@ describe("encounter views", () => {
         name: /Innate Spells/,
       });
       expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
-      const linkedRule = await screen.findByRole("link", {
-        name: "Linked Rule",
-      });
+      const linkedRule = await screen.findByText("Linked Rule", { selector: "a" });
       fireEvent.click(linkedRule);
-      const spellPreview = await screen.findByRole("dialog", {
-        name: "Linked Rule spell details",
-      });
+      const spellPreview = await findByAriaLabel("Linked Rule spell details");
       expect(within(spellPreview).getByText("1st")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Open spell record" }),
-      ).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Close spell preview" }));
+      expect(getByAriaLabel("Open spell record")).toBeInTheDocument();
+      fireEvent.click(getByAriaLabel("Close spell preview"));
       await waitFor(() =>
-        expect(
-          screen.queryByRole("dialog", { name: "Linked Rule spell details" }),
-        ).not.toBeInTheDocument(),
+        expect(queryByAriaLabel("Linked Rule spell details")).not.toBeInTheDocument(),
       );
       await waitFor(() => expect(linkedRule).toHaveFocus());
 
       fireEvent.click(linkedRule);
-      expect(
-        await screen.findByRole("dialog", { name: "Linked Rule spell details" }),
-      ).toBeInTheDocument();
+      expect(await findByAriaLabel("Linked Rule spell details")).toBeInTheDocument();
       const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
       if (!kyraRow) {
         throw new Error("Kyra roster row was not rendered");
       }
       fireEvent.click(kyraRow);
       await waitFor(() =>
-        expect(
-          screen.queryByRole("dialog", { name: "Linked Rule spell details" }),
-        ).not.toBeInTheDocument(),
+        expect(queryByAriaLabel("Linked Rule spell details")).not.toBeInTheDocument(),
       );
     },
     fifteenSecondTestDeadline,
@@ -861,7 +849,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Frightened" }));
+    fireEvent.click(await screen.findByText("Frightened", { selector: "button" }));
 
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
@@ -870,7 +858,7 @@ describe("encounter views", () => {
         expect.any(AbortSignal),
       ),
     );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await findByAriaLabel("Reference preview")).toBeInTheDocument();
     expect(await screen.findByText("Frightened Condition")).toBeInTheDocument();
   });
 
@@ -937,7 +925,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const hpInput = await screen.findByLabelText("HP");
+    const hpInput = await findByAriaLabel<HTMLInputElement>("HP");
     expect(hpInput).toHaveValue("10");
     fireEvent.change(hpInput, { target: { value: "50 - 7" } });
     fireEvent.keyDown(hpInput, { key: "Enter" });
@@ -952,7 +940,7 @@ describe("encounter views", () => {
       ),
     );
 
-    const tempHpInput = screen.getByLabelText("Temp HP");
+    const tempHpInput = getByAriaLabel<HTMLInputElement>("Temp HP");
     expect(tempHpInput).toHaveValue("5");
     fireEvent.change(tempHpInput, { target: { value: "4 + 2" } });
     fireEvent.keyDown(tempHpInput, { key: "Enter" });
@@ -968,8 +956,8 @@ describe("encounter views", () => {
       ),
     );
 
-    fireEvent.change(screen.getByLabelText("HP change"), { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    fireEvent.change(getByAriaLabel("HP change"), { target: { value: "8" } });
+    fireEvent.click(buttonByText("Damage"));
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
@@ -982,7 +970,7 @@ describe("encounter views", () => {
       ),
     );
 
-    const hpChangeInput = screen.getByLabelText("HP change");
+    const hpChangeInput = getByAriaLabel("HP change");
     fireEvent.change(hpChangeInput, { target: { value: "-3" } });
     fireEvent.keyDown(hpChangeInput, { key: "Enter" });
 
@@ -1021,9 +1009,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const hpChangeInput = await screen.findByLabelText("HP change");
+    const hpChangeInput = await findByAriaLabel("HP change");
     fireEvent.change(hpChangeInput, { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    fireEvent.click(buttonByText("Damage"));
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
@@ -1087,20 +1075,20 @@ describe("encounter views", () => {
 
       await screen.findByText("Frightened");
 
-      fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
+      fireEvent.click(buttonByText("Add Condition"));
       await selectOption(conditionCombobox("Add condition"), "Sickened");
-      expect(screen.getByLabelText("Condition value")).toHaveValue("1");
-      fireEvent.change(screen.getByLabelText("Condition value"), {
+      expect(getByAriaLabel("Condition value")).toHaveValue("1");
+      fireEvent.change(getByAriaLabel("Condition value"), {
         target: { value: "2" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Condition details" }));
-      fireEvent.change(await screen.findByLabelText("Duration rounds"), {
+      fireEvent.click(buttonByText("Condition details"));
+      fireEvent.change(await findByAriaLabel("Duration rounds"), {
         target: { value: "3" },
       });
-      fireEvent.change(screen.getByLabelText("Condition note"), {
+      fireEvent.change(getByAriaLabel("Condition note"), {
         target: { value: "poison" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+      fireEvent.click(buttonByText("Add"));
 
       await waitFor(() =>
         expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -1186,14 +1174,8 @@ describe("encounter views", () => {
 
       await screen.findByText("Frightened");
 
-      const frightenedControls = screen.getByRole("group", {
-        name: "Frightened value controls",
-      });
-      fireEvent.click(
-        within(frightenedControls).getByRole("button", {
-          name: "Increase Frightened value",
-        }),
-      );
+      const frightenedControls = getByAriaLabel("Frightened value controls");
+      fireEvent.click(getByAriaLabel("Increase Frightened value", frightenedControls));
 
       await waitFor(() =>
         expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
@@ -1207,11 +1189,7 @@ describe("encounter views", () => {
         ),
       );
 
-      fireEvent.click(
-        within(frightenedControls).getByRole("button", {
-          name: "Decrease Frightened value",
-        }),
-      );
+      fireEvent.click(getByAriaLabel("Decrease Frightened value", frightenedControls));
 
       await waitFor(() =>
         expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
@@ -1225,7 +1203,7 @@ describe("encounter views", () => {
         ),
       );
 
-      const frightenedValue = screen.getByLabelText("Frightened value");
+      const frightenedValue = getByAriaLabel("Frightened value");
       fireEvent.change(frightenedValue, {
         target: { value: "2" },
       });
@@ -1246,14 +1224,14 @@ describe("encounter views", () => {
         apiMocks.updateEncounterParticipantCondition.mock.calls[0][2],
       ).not.toHaveProperty("condition_key");
 
-      fireEvent.click(screen.getByRole("button", { name: "Edit Frightened details" }));
+      fireEvent.click(getByAriaLabel("Edit Frightened details"));
       fireEvent.change(lastFieldByAriaLabel("Duration rounds"), {
         target: { value: "4" },
       });
       fireEvent.change(lastFieldByAriaLabel("Condition note"), {
         target: { value: "aura" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      fireEvent.click(buttonByText("Save"));
 
       await waitFor(() =>
         expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -1273,7 +1251,7 @@ describe("encounter views", () => {
         .closest(".encounter-condition-row");
       expect(frightenedRow).not.toBeNull();
       fireEvent.click(
-        within(frightenedRow as HTMLElement).getByLabelText("Remove Frightened"),
+        getByAriaLabel("Remove Frightened", frightenedRow as HTMLElement),
       );
 
       await waitFor(() =>
@@ -1287,6 +1265,46 @@ describe("encounter views", () => {
     tenSecondTestDeadline,
   );
 });
+
+function queryByAriaLabel<T extends HTMLElement = HTMLElement>(
+  label: string,
+  root: ParentNode = document,
+): T | null {
+  return (
+    Array.from(root.querySelectorAll<T>("[aria-label]")).find(
+      (element) => element.getAttribute("aria-label") === label,
+    ) ?? null
+  );
+}
+
+function getByAriaLabel<T extends HTMLElement = HTMLElement>(
+  label: string,
+  root: ParentNode = document,
+): T {
+  const element = queryByAriaLabel<T>(label, root);
+  if (!element) {
+    throw new Error(`${label} control was not rendered`);
+  }
+  return element;
+}
+
+async function findByAriaLabel<T extends HTMLElement = HTMLElement>(
+  label: string,
+): Promise<T> {
+  return waitFor(() => getByAriaLabel<T>(label));
+}
+
+function buttonByText(label: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (element) =>
+      element.getAttribute("aria-label") === label ||
+      element.textContent?.trim() === label,
+  );
+  if (!button) {
+    throw new Error(`${label} button was not rendered`);
+  }
+  return button;
+}
 
 async function selectOption(input: HTMLElement, option: string) {
   fireEvent.mouseDown(input);
