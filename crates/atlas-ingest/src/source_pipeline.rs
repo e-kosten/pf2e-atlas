@@ -255,7 +255,26 @@ mod tests {
     fn production_loader_preserves_order_duplicates_and_selected_spell_shapes() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_ROOT);
         let source = load_foundry_source(&root, None).expect("portable spell fixture source");
-        assert_eq!(source.records.len(), 8);
+        let mut record_ids = source
+            .records
+            .iter()
+            .map(|loaded| loaded.record.identity.key.id().as_str())
+            .collect::<Vec<_>>();
+        record_ids.sort_unstable();
+        assert_eq!(
+            record_ids,
+            [
+                "5gophZ4AOKW4VW27",
+                "HmKajQS0DP23bipp",
+                "NacrNSvfODxpZena",
+                "Popa5umI3H33levx",
+                "eOtQtVRLeGH39dNx",
+                "nonlexicalSpellMaps",
+                "oo7YcRC2gcez81PV",
+                "rfZpqmj0AIIdkVIs",
+                "x9RIFhquazom4p02",
+            ]
+        );
 
         let spell = |id: &str| {
             source

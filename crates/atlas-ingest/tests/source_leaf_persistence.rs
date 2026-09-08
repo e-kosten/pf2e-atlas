@@ -66,7 +66,7 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
         reuse_embeddings: true,
         embedding_batch_size: 8,
     })?;
-    assert_eq!(report.source_record_count, 8);
+    assert_eq!(report.source_record_count, 9);
 
     let heal_key = RecordKey::parse("spells-srd:rfZpqmj0AIIdkVIs")?;
     let rime_key = RecordKey::parse("spells-srd:Popa5umI3H33levx")?;
@@ -75,6 +75,11 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
     let qi_key = RecordKey::parse("spells-srd:oo7YcRC2gcez81PV")?;
     let wand_key = RecordKey::parse("equipment-srd:eOtQtVRLeGH39dNx")?;
     let reader = SqliteIndexReader::open_read_only(&output_path)?;
+    let blazing_key = RecordKey::parse("spells-srd:NacrNSvfODxpZena")?;
+    let blazing = reader.load_hydrated_records_by_key(std::slice::from_ref(&blazing_key))?;
+    assert_eq!(blazing.len(), 1);
+    assert_eq!(blazing[0].record.identity.key, blazing_key);
+    assert!(matches!(blazing[0].body, Some(RecordBody::Spell(_))));
     let hydrated = reader.load_hydrated_records_by_key(&[
         heal_key.clone(),
         rime_key.clone(),
@@ -419,7 +424,7 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
         [],
         |row| row.get(0),
     )?;
-    assert_eq!(stored_spell_bodies, 7);
+    assert_eq!(stored_spell_bodies, 8);
     assert_eq!(stored_children, 1);
     let legacy_spell_item_rows: i64 = connection.query_row(
         "SELECT COUNT(*)
