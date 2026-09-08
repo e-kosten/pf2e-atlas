@@ -186,8 +186,9 @@ pub use presentation::{
     PresentationSectionKind, PresentationTableRow, PresentationText, RecordPresentationDocument,
 };
 pub use presentation_content::{
-    project_presentation_content, project_record_surface_content,
-    render_presentation_content_plain_text,
+    RecordSurfaceContentContext, RecordSurfaceContentIssue, RecordSurfaceContentIssueKind,
+    RecordSurfaceContentProjection, project_presentation_content, project_record_surface_content,
+    project_record_surface_content_with_context, render_presentation_content_plain_text,
 };
 pub use presentation_format::{CreatureFrequencyPeriod, format_creature_frequency, format_size};
 pub use presentation_policy::{

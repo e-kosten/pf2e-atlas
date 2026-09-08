@@ -3,6 +3,7 @@ import type {
   RecordSurfaceView,
   SpellAreaView,
   SpellFormView,
+  SpellFactView,
   SpellFormResultView,
   SpellResolvedDefinitionView,
   SpellRuleView,
@@ -22,6 +23,45 @@ const missing = { state: "missing" as const };
 const known = <T,>(value: T) => ({ state: "known" as const, value });
 
 describe("SpellRecordSurface", () => {
+  it("updates only returned Blazing description damage and heading rank in place", () => {
+    const selected = (rank: number, dice: string) => {
+      const surface = fireball();
+      if (surface.presentation.presentation_type !== "spell") throw new Error("spell");
+      surface.metadata.title = "Blazing Blade";
+      surface.presentation.body.effective_form.cast_rank = rank;
+      const description = surface.presentation.body.content?.[0];
+      if (!description) throw new Error("description fixture");
+      description.blocks = [
+        {
+          block_type: "paragraph",
+          spans: [
+            { span_type: "text", text: "The target takes " },
+            { span_type: "text", text: `${dice} persistent spirit` },
+            { span_type: "text", text: " damage." },
+          ],
+        },
+      ];
+      return surface;
+    };
+    const { rerender } = render(
+      <RecordSurface surface={selected(2, "1d6")} onReference={vi.fn()} />,
+    );
+    const description = screen.getByRole("heading", { name: "Description" });
+    for (const [rank, dice] of [
+      [4, "1d6"],
+      [6, "2d6"],
+      [8, "3d6"],
+    ] as const) {
+      rerender(<RecordSurface surface={selected(rank, dice)} onReference={vi.fn()} />);
+      expect(
+        screen.getByText(`The target takes ${dice} persistent spirit damage.`),
+      ).toBeVisible();
+      expect(screen.getByText(`Rank ${rank}`)).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Description" })).toBe(description);
+      expect(screen.queryByText(/ternary|@item.level/)).not.toBeInTheDocument();
+    }
+  });
+
   it("puts authored description before one set of mechanics and one action label", () => {
     const surface = fireball();
     if (surface.presentation.presentation_type !== "spell")
@@ -61,12 +101,13 @@ describe("SpellRecordSurface", () => {
         onSpellFormSelection={onSelect}
       />,
     );
-    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    expect(screen.queryByText(/^Applied rank \d+$/)).not.toBeInTheDocument();
     expect(screen.getByText("Modified from default")).toBeVisible();
+    expect(screen.getByText("Rank 8")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect(onSelect).toHaveBeenCalledWith({ formId: "opaque:rime:base", castRank: 2 });
     expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("2");
-    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    expect(screen.queryByText(/^Applied rank \d+$/)).not.toBeInTheDocument();
     const base = rimeSelected(2, [], "2d4", 15);
     rerender(
       <RecordSurface
@@ -76,10 +117,10 @@ describe("SpellRecordSurface", () => {
         onSpellFormSelection={onSelect}
       />,
     );
-    expect(screen.getByText("Applied rank 2")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("2");
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Showing Base/)).not.toBeInTheDocument();
-    expect(screen.getByText("Modified from default")).not.toBeVisible();
+    expect(screen.queryByText("Modified from default")).not.toBeInTheDocument();
   });
 
   it("shows typed gameplay qualifiers without an Effect details disclosure", () => {
@@ -105,8 +146,83 @@ describe("SpellRecordSurface", () => {
     expect(qualifiers).toHaveTextContent("Damage categoryPersistent");
     expect(qualifiers).toHaveTextContent("Effect typeDamage");
     expect(qualifiers).toHaveTextContent("Damage materialsSilver");
-    expect(qualifiers).toHaveTextContent("Spellcasting ability modifierNo");
+    expect(qualifiers).not.toHaveTextContent("Spellcasting ability modifier");
+    expect(
+      screen.queryByText("+ your spellcasting ability modifier"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Effect details")).not.toBeInTheDocument();
+  });
+
+  it.each<SpellFactView<boolean>>([
+    known(true),
+    known(false),
+    missing,
+    { state: "null" },
+    { state: "unsupported" },
+  ])("shows a modifier note only for known true: %j", (applyModifier) => {
+    const definition = plainSpellDefinition();
+    definition.damage = known([
+      {
+        label: "Damage",
+        formula: known("2d6"),
+        damage_type: known("fire"),
+        category: missing,
+        kinds: known(["damage"]),
+        materials: missing,
+        apply_modifier: applyModifier,
+      },
+    ]);
+    render(
+      <RecordSurface
+        onReference={vi.fn()}
+        surface={spellSurface("Test", definition, [baseForm("base")])}
+      />,
+    );
+    const note = screen.queryByText("+ your spellcasting ability modifier");
+    if (applyModifier.state === "known" && applyModifier.value)
+      expect(note).toBeVisible();
+    else expect(note).not.toBeInTheDocument();
+    expect(screen.getByText("2d6 Fire")).toBeVisible();
+  });
+
+  it("omits sole-form and idle helper text while keeping controls through pending/error", () => {
+    const surface = fireball();
+    const { rerender } = render(
+      <RecordSurface
+        surface={surface}
+        onReference={vi.fn()}
+        onSpellFormSelection={vi.fn()}
+      />,
+    );
+    const controls = screen.getByLabelText("Resolve spell form");
+    const rank = screen.getByRole("spinbutton", { name: "Cast rank" });
+    expect(within(controls).queryByText("Form")).not.toBeInTheDocument();
+    expect(within(controls).queryByText("Base")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.queryByText(/^Applied rank \d+$/)).not.toBeInTheDocument();
+    rerender(
+      <RecordSurface
+        surface={surface}
+        onReference={vi.fn()}
+        onSpellFormSelection={vi.fn()}
+        spellFormSelection={{ formId: "opaque:fireball:base", castRank: 5 }}
+        spellFormSelectionLoading
+      />,
+    );
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toBe(rank);
+    expect(screen.getByRole("status")).toHaveTextContent("Resolving");
+    rerender(
+      <RecordSurface
+        surface={surface}
+        onReference={vi.fn()}
+        onSpellFormSelection={vi.fn()}
+        spellFormSelectionError="Try again."
+      />,
+    );
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toBe(rank);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Unable to resolve the selected form. Try again.",
+    );
   });
 
   it("omits an authored empty range while preserving the area once", () => {
@@ -607,7 +723,7 @@ describe("SpellRecordSurface", () => {
     expect(
       screen.queryByRole("combobox", { name: "Spell form" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    expect(screen.queryByText(/^Applied rank \d+$/)).not.toBeInTheDocument();
 
     const unknown = rimeSelected(5, [5], "8d4", 30);
     if (unknown.presentation.presentation_type !== "spell") {
@@ -630,7 +746,8 @@ describe("SpellRecordSurface", () => {
         surface={unknown}
       />,
     );
-    expect(screen.getByText("Applied rank 5")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toBeVisible();
+    expect(screen.queryByText(/^Applied rank \d+$/)).not.toBeInTheDocument();
     expect(screen.getAllByText("Spell form label is unavailable.")).toHaveLength(1);
     expect(screen.queryByText("opaque:unknown-form")).not.toBeInTheDocument();
   });

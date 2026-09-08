@@ -60,6 +60,7 @@ pub(crate) fn record_surface(
 ) -> RecordSurfaceView {
     let metadata = record_metadata(retrieved, remaster_lookup);
     let mut selected_spell_issues = Vec::new();
+    let mut content_issues = Vec::new();
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
         (atlas_domain::RecordKind::Creature, Some(RecordBody::Creature(creature))) => {
             let content_placement = activity_content_placement(creature);
@@ -99,7 +100,8 @@ pub(crate) fn record_surface(
             "Canonical hazard data is unavailable, so the surface fails closed.",
         ),
         (atlas_domain::RecordKind::Spell, Some(RecordBody::Spell(spell))) => {
-            let (body, issues) = spell_surface(spell, spell_selection);
+            let (body, issues, projected_content_issues) = spell_surface(spell, spell_selection);
+            content_issues = projected_content_issues;
             selected_spell_issues = issues;
             RecordSurfacePresentationView::Spell {
                 body: Box::new(body),
@@ -116,11 +118,14 @@ pub(crate) fn record_surface(
             "This record family does not yet have an approved typed app surface.",
         ),
     };
-    let issues = crate::record_policy::record_surface_issues(
+    let mut issues = crate::record_policy::record_surface_issues(
         retrieved,
         &presentation,
         &selected_spell_issues,
     );
+    if !content_issues.is_empty() {
+        issues.get_or_insert_with(Vec::new).extend(content_issues);
+    }
     RecordSurfaceView {
         metadata,
         profile,
@@ -330,6 +335,7 @@ fn spell_surface(
 ) -> (
     atlas_app_model::SpellSurfaceView,
     Vec<atlas_record::SpellPresentationIssue>,
+    Vec<atlas_app_model::RecordSurfaceIssueView>,
 ) {
     let (forms, form_catalog_unavailable, mut issues) = spell_forms(spell);
     let base_rank = spell_base_rank(spell).unwrap_or(0);
@@ -339,14 +345,28 @@ fn spell_surface(
             base_rank,
         )
     });
-    let (effective_form, effective_issues) = spell_effective_form(spell, form_id, cast_rank);
+    let (effective_form, effective_issues, content_context) =
+        spell_effective_form(spell, form_id, cast_rank);
     issues.extend(effective_issues);
+    let mut content_issues = Vec::new();
     let mut content = spell
         .definition
         .content
         .documents
         .iter()
-        .filter_map(content_view)
+        .filter_map(|document| {
+            let projection = atlas_record::project_record_surface_content_with_context(
+                &document.document,
+                content_context.as_ref(),
+            );
+            content_issues.extend(
+                projection
+                    .issues
+                    .into_iter()
+                    .map(|issue| spell_content_issue(document, issue)),
+            );
+            content_view_from_projection(document, projection.content)
+        })
         .collect::<Vec<_>>();
     content.sort_by_key(|document| document.authored_order);
     (
@@ -362,7 +382,39 @@ fn spell_surface(
             content,
         },
         issues,
+        content_issues,
     )
+}
+
+fn spell_content_issue(
+    document: &atlas_record::OwnedRichContentDocument,
+    issue: atlas_record::RecordSurfaceContentIssue,
+) -> atlas_app_model::RecordSurfaceIssueView {
+    use atlas_app_model::{
+        RecordSurfaceIssueCodeView as Code, RecordSurfaceIssuePlacementView as Placement,
+    };
+    let (code, message) = match issue.kind {
+        atlas_record::RecordSurfaceContentIssueKind::MissingContext => (
+            Code::Unavailable,
+            "This description damage needs an available spell form and cast rank.",
+        ),
+        atlas_record::RecordSurfaceContentIssueKind::UnsupportedDamage => (
+            Code::Unsupported,
+            "This description damage formula cannot be displayed for the selected cast rank.",
+        ),
+    };
+    atlas_app_model::RecordSurfaceIssueView {
+        fact_id: Some(format!(
+            "{}:damage:{}",
+            document.id.content_key.as_str(),
+            issue.inline_index
+        )),
+        code,
+        placement: Placement::Record,
+        subject: None,
+        fact_label: Some("Description damage".to_string()),
+        message: message.to_string(),
+    }
 }
 
 fn spell_fact<T, U>(
@@ -863,6 +915,7 @@ fn spell_effective_form(
 ) -> (
     atlas_app_model::SpellEffectiveFormView,
     Vec<atlas_record::SpellPresentationIssue>,
+    Option<atlas_record::RecordSurfaceContentContext>,
 ) {
     let base_id = atlas_record::SpellFormId::base(&spell.identity.record_key);
     let overlay_id = (form_id != base_id)
@@ -882,6 +935,19 @@ fn spell_effective_form(
             overlay_id,
         },
     );
+    let content_context =
+        result.as_ref().ok().map(
+            |resolved| atlas_record::RecordSurfaceContentContext::Spell {
+                form_id: resolved.form_id.clone(),
+                cast_rank: resolved.context.cast_rank,
+            },
+        );
+    let (form_id, cast_rank) = match &content_context {
+        Some(atlas_record::RecordSurfaceContentContext::Spell { form_id, cast_rank }) => {
+            (form_id.clone(), *cast_rank)
+        }
+        None => (form_id, cast_rank),
+    };
     let issues = atlas_record::project_spell_form_result_presentation_issues(&result);
     let base_damage = spell_known(&spell.definition.damage).map(Vec::as_slice);
     let result = spell_form_result_view(result, &spell.definition.ritual, base_damage);
@@ -892,6 +958,7 @@ fn spell_effective_form(
             result,
         },
         issues,
+        content_context,
     )
 }
 
@@ -3345,7 +3412,14 @@ fn content(
 pub(crate) fn content_view(
     document: &atlas_record::OwnedRichContentDocument,
 ) -> Option<CreatureSurfaceContentView> {
-    let blocks = project_content(project_record_surface_content(&document.document));
+    content_view_from_projection(document, project_record_surface_content(&document.document))
+}
+
+fn content_view_from_projection(
+    document: &atlas_record::OwnedRichContentDocument,
+    content: PresentationContent,
+) -> Option<CreatureSurfaceContentView> {
+    let blocks = project_content(content);
     (!blocks.is_empty()).then(|| CreatureSurfaceContentView {
         content_key: document.id.content_key.as_str().to_string(),
         role: content_role(document.role),
@@ -3967,6 +4041,165 @@ mod tests {
         assert_eq!(increment["value"], "2d6");
         assert!(increment.get("key").is_none());
 
+        Ok(())
+    }
+
+    #[test]
+    fn blazing_content_uses_only_resolved_selection_and_preserves_source()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Exact 4cbdaa37 packs/spells/2nd-rank/blazing-blade.json, unchanged.
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../atlas-ingest/tests/fixtures/foundry-source/spell-source-contract");
+        let artifact = TemporarySpellSurfaceArtifact::new()?;
+        build_artifact(BuildArtifactOptions {
+            source_root,
+            output_path: artifact.artifact.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: true,
+            embedding_batch_size: 8,
+        })?;
+        let retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+            SqliteIndexReader::open_read_only(&artifact.artifact)?,
+        );
+        let record = retrieve_spell(&retrieval, "spells-srd:NacrNSvfODxpZena")?;
+        let Some(RecordBody::Spell(spell)) = record.body.as_ref() else {
+            panic!("spell");
+        };
+        let before = spell.clone();
+        let defaults = || {
+            spell
+                .definition
+                .content
+                .documents
+                .iter()
+                .map(|document| {
+                    (
+                        atlas_record::ContentHash::for_document(&document.document),
+                        atlas_record::render_plain_text(&document.document),
+                        atlas_record::render_markdown_like(&document.document),
+                        atlas_record::project_presentation_content(&document.document),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let default_before = defaults();
+        let semantic_inputs = || {
+            let fts = atlas_record::build_search_fts_projection(
+                &record.record,
+                &[],
+                record.body.as_ref(),
+            );
+            let search = atlas_record::build_search_presentation_document_with_content_filter(
+                &record.record,
+                record.body.as_ref(),
+                |_| false,
+            );
+            let embedding = atlas_embedding::render_presentation_document_for_embedding(&search);
+            let hash = atlas_embedding::hash_document_embedding_input(&embedding);
+            (fts, search, embedding, hash)
+        };
+        let semantic_before = semantic_inputs();
+        fn find_damage(nodes: &[atlas_record::RichNode]) -> Option<&atlas_record::FoundryNode> {
+            nodes.iter().find_map(|node| match node {
+                atlas_record::RichNode::Foundry {
+                    node: node @ atlas_record::FoundryNode::Damage { .. },
+                } => Some(node),
+                atlas_record::RichNode::HtmlElement { children, .. } => find_damage(children),
+                _ => None,
+            })
+        }
+        let damage = spell
+            .definition
+            .content
+            .documents
+            .iter()
+            .find_map(|doc| find_damage(&doc.document.nodes))
+            .expect("authored damage");
+        let atlas_record::FoundryNode::Damage {
+            formula,
+            damage_parts,
+            ..
+        } = damage
+        else {
+            panic!("damage");
+        };
+        assert_eq!(
+            formula,
+            "(ternary(gte(@item.level,8),3,ternary(gte(@item.level,6),2,1)))d6[persistent,spirit]"
+        );
+        assert_eq!(
+            damage_parts
+                .iter()
+                .map(|part| part.formula.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "(ternary(gte(@item.level",
+                "8)",
+                "3",
+                "ternary(gte(@item.level",
+                "6)",
+                "2",
+                "1)))d6"
+            ]
+        );
+
+        let id = atlas_record::SpellFormId::base(&spell.identity.record_key);
+        for (rank, expected) in [
+            (2, "1d6 persistent spirit"),
+            (4, "1d6 persistent spirit"),
+            (6, "2d6 persistent spirit"),
+            (8, "3d6 persistent spirit"),
+        ] {
+            let surface = spell_surface_json_with_selection(&record, Some((id.clone(), rank)));
+            assert_eq!(
+                surface["presentation"]["body"]["effective_form"]["id"],
+                id.as_str()
+            );
+            assert_eq!(
+                surface["presentation"]["body"]["effective_form"]["cast_rank"],
+                rank
+            );
+            let content = surface["presentation"]["body"]["content"].to_string();
+            assert!(content.contains(expected), "{rank}: {content}");
+            assert!(!content.contains("ternary") && !content.contains("@item.level"));
+        }
+        for (form, rank) in [
+            (id.clone(), 1),
+            (
+                atlas_record::SpellFormId::base(&atlas_domain::RecordKey::parse(
+                    "spells-srd:wrong",
+                )?),
+                8,
+            ),
+        ] {
+            let surface = spell_surface_json_with_selection(&record, Some((form, rank)));
+            assert_eq!(
+                surface["presentation"]["body"]["effective_form"]["result"]["state"],
+                "unavailable"
+            );
+            let content = surface["presentation"]["body"]["content"].to_string();
+            assert!(content.contains("Damage unavailable"));
+            assert!(!content.contains("ternary") && !content.contains("@item.level"));
+            assert!(
+                !content.contains("\"text\":\"3d6 persistent spirit\"")
+                    && !content.contains("\"text\":\"1d6 persistent spirit\"")
+            );
+            let issues = surface["issues"].as_array().expect("issues");
+            assert_eq!(
+                issues
+                    .iter()
+                    .filter(|issue| issue["fact_label"] == "Description damage")
+                    .count(),
+                1
+            );
+        }
+        assert_eq!(&before, spell);
+        assert_eq!(default_before, defaults());
+        assert_eq!(semantic_before, semantic_inputs());
+        let hydrated = retrieve_spell(&retrieval, "spells-srd:NacrNSvfODxpZena")?;
+        assert_eq!(record.body, hydrated.body);
         Ok(())
     }
 
