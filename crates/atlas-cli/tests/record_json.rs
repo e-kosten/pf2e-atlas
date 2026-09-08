@@ -334,7 +334,13 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .arg(&index_path)
         .arg("--json")
         .output()?;
-    assert!(preview_get_output.status.success());
+    assert!(
+        preview_get_output.status.success(),
+        "preview command failed: status={}; stdout={}; stderr={}",
+        preview_get_output.status,
+        String::from_utf8_lossy(&preview_get_output.stdout),
+        String::from_utf8_lossy(&preview_get_output.stderr)
+    );
     let preview_get_json: Value = serde_json::from_slice(&preview_get_output.stdout)?;
     let preview_get_data = ok_data(&preview_get_json);
     assert_eq!(preview_get_data["detail"], "preview");

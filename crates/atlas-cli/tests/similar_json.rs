@@ -226,8 +226,17 @@ fn similar_filters_seed_name_resolution_and_candidates() -> Result<(), Box<dyn s
     )?;
     connection.execute(
         "UPDATE records
-         SET name = 'Shared Action', normalized_name = 'shared action', record_kind = 'spell'
+         SET name = 'Shared Action', normalized_name = 'shared action'
          WHERE record_key = 'actions:testAction2'",
+        [],
+    )?;
+    // These tests exercise kind scoping, not canonical spell hydration. Use
+    // coherent noncanonical feat fixtures instead of relabeling an action as
+    // a spell without the mandatory canonical spell body/query projection.
+    connection.execute(
+        "UPDATE records SET record_kind = 'feat',
+         raw_json = json_set(raw_json, '$.type', 'feat')
+         WHERE record_key IN ('actions:testAction2', 'actions:testAction3')",
         [],
     )?;
     drop(connection);
@@ -236,20 +245,26 @@ fn similar_filters_seed_name_resolution_and_candidates() -> Result<(), Box<dyn s
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "Shared Action", "--index"])
         .arg(&path)
-        .args(["--kind", "spell", "--json"])
+        .args(["--kind", "feat", "--json"])
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["key"], "actions:testAction2");
     assert_eq!(data["filter"]["kind"], "record_kind");
+    assert_eq!(data["results"].as_array().expect("result array").len(), 1);
+    assert_eq!(data["results"][0]["record"]["key"], "actions:testAction3");
     assert!(
         data["results"]
             .as_array()
             .expect("results should be an array")
             .iter()
-            .all(|result| result["record"]["kind"] == "spell")
+            .all(|result| result["record"]["kind"] == "feat")
     );
 
     fs::remove_file(path)?;
@@ -262,8 +277,13 @@ fn similar_canonical_seed_key_is_not_rejected_by_candidate_filter()
     let path = temp_db_path("cli-similar-key-filter");
     create_similar_database(&path)?;
     let connection = Connection::open(&path)?;
+    // These tests exercise kind scoping, not canonical spell hydration. Use
+    // coherent noncanonical feat fixtures instead of relabeling an action as
+    // a spell without the mandatory canonical spell body/query projection.
     connection.execute(
-        "UPDATE records SET record_kind = 'spell' WHERE record_key = 'actions:testAction2'",
+        "UPDATE records SET record_kind = 'feat',
+         raw_json = json_set(raw_json, '$.type', 'feat')
+         WHERE record_key IN ('actions:testAction2', 'actions:testAction3')",
         [],
     )?;
     drop(connection);
@@ -272,19 +292,28 @@ fn similar_canonical_seed_key_is_not_rejected_by_candidate_filter()
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "actions:testAction1", "--index"])
         .arg(&path)
-        .args(["--kind", "spell", "--json"])
+        .args(["--kind", "feat", "--json"])
         .output()?;
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
     let json: Value = serde_json::from_slice(&output.stdout)?;
     let data = ok_data(&json);
     assert_eq!(data["seed"]["key"], "actions:testAction1");
+    let results = data["results"].as_array().expect("result array");
+    assert_eq!(results.len(), 2);
+    for key in ["actions:testAction2", "actions:testAction3"] {
+        assert!(results.iter().any(|result| result["record"]["key"] == key));
+    }
     assert!(
         data["results"]
             .as_array()
             .expect("results should be an array")
             .iter()
-            .all(|result| result["record"]["kind"] == "spell")
+            .all(|result| result["record"]["kind"] == "feat")
     );
 
     fs::remove_file(path)?;
