@@ -66,6 +66,12 @@ jobs:
             packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
             packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
             packs/feats/ancestry/anadi/anadi-lore.json
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.source-leaf-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
       - name: Run source-leaf lint and adversarial fixtures
         if: needs.source-leaf-route.outputs.lint == 'true'
         env:
@@ -85,10 +91,20 @@ jobs:
           cargo test -p atlas-index
           artifact::pair_integration_tests::first_generation_materialization_opens_through_bound_public_reader
           -- --exact
+      - name: Verify installed generation survives temporary-file removal
+        run: >-
+          cargo test -p atlas-index
+          artifact::pair::receipt_tests::newly_materialized_generation_opens_sqlite_through_installed_handle
+          -- --exact
       - name: Verify generation replacement fails closed before trust
         run: >-
           cargo test -p atlas-index
           artifact::pair::receipt_tests::generation_replacement_during_final_reopen_fails_closed_without_trust
+          -- --exact
+      - name: Verify installed generation handle is authenticated
+        run: >-
+          cargo test -p atlas-index
+          artifact::pair::receipt_tests::final_installed_handle_is_digest_authenticated_before_trust
           -- --exact
 
   artifact-version:
@@ -134,6 +150,12 @@ jobs:
             packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
             packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
             packs/feats/ancestry/anadi/anadi-lore.json
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.focused-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
       - uses: actions/setup-node@v6
         with:
           node-version: 22

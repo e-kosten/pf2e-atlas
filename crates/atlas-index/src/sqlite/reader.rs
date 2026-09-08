@@ -569,7 +569,7 @@ mod tests {
         let reader = SqliteIndexReader::open_read_only(&artifact).unwrap();
         assert_reader_generation(&reader, "Primary", &digest);
         let evidence = reader.verified_generation_evidence().unwrap();
-        assert_eq!(evidence["reader_generation_sha_pass_count"], 2);
+        assert_eq!(evidence["reader_generation_sha_pass_count"], 3);
         drop(reader);
         assert_eq!(generation_name(&generation), "Primary 1");
         std::fs::remove_dir_all(root).unwrap();

@@ -91,11 +91,10 @@ The full workspace test gate runs test binaries with one harness thread because
 multiple artifact-owning CLI fixtures can otherwise make retained SQLite reader
 acquisition fail under local verification resource pressure. This still runs
 every test and preserves concurrency exercised inside individual tests.
-The web gate likewise runs every Vitest file with one worker. GitHub-hosted CI
-and the automated full pre-push verifier use twice the direct local per-test
-execution deadline to account for their measured end-to-end load; direct local
-deadlines and every assertion remain unchanged, and the gate does not retry
-timed-out tests.
+The web gate discovers the complete Vitest file inventory, verifies that each
+file is scheduled exactly once, and runs four isolated shards in sequence with
+one worker each. The shards retain the normal test and async-query deadlines,
+all assertions, and ordinary failure propagation without retries.
 
 Validation has three explicit tiers:
 

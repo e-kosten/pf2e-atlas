@@ -2,13 +2,8 @@ import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-const testDeadlineScale = process.env.CI === "true" ? 2 : 1;
-
 export default defineConfig({
   plugins: [react()],
-  define: {
-    __ATLAS_TEST_DEADLINE_SCALE__: JSON.stringify(testDeadlineScale),
-  },
   server: {
     port: 5173,
     strictPort: false,
@@ -26,6 +21,5 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
-    testTimeout: 5_000 * testDeadlineScale,
   },
 });

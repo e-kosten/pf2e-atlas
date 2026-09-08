@@ -95,6 +95,12 @@ pair_integration=false
 exhaustive=false' \
   crates/atlas-ingest/src/source_coverage/parity.rs
 
+assert_route source-authentication 'lint=true
+persistence=false
+pair_integration=false
+exhaustive=false' \
+  scripts/validation/authenticate-pf2e-source.sh
+
 assert_route vendor 'lint=false
 persistence=false
 pair_integration=false

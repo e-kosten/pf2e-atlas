@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(telemetry.publication_sha_bytes, 0);
         assert_eq!(telemetry.generation_copy_count, 1);
         assert_eq!(telemetry.generation_copy_bytes, bytes);
-        assert_eq!(telemetry.generation_copy_verify_sha_pass_count, 1);
+        assert_eq!(telemetry.generation_copy_verify_sha_pass_count, 2);
         assert_eq!(telemetry.generation_distinct_identity_check_count, 1);
         assert_eq!(telemetry.receipt_reuse_count, 1);
         assert_eq!(telemetry.unclassified_sha_pass_count, 0);
@@ -846,7 +846,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(telemetry.generation_copy_count, 1);
-        assert_eq!(telemetry.generation_copy_verify_sha_pass_count, 1);
+        assert_eq!(telemetry.generation_copy_verify_sha_pass_count, 2);
         verify_pair_files(&fixture.artifact, &fixture.manifest).unwrap();
         assert_eq!(sha256(&corrupted_generation), new_sha256);
         assert_eq!(fixture.marker(), "new");
