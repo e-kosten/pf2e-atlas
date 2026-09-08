@@ -8,8 +8,6 @@ import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const vitest = path.join(packageRoot, "node_modules", ".bin", "vitest");
-const shardCount = 4;
-
 const inventoryResult = spawnSync(vitest, ["list", "--filesOnly"], {
   cwd: packageRoot,
   encoding: "utf8",
@@ -33,26 +31,25 @@ if (new Set(inventory).size !== inventory.length) {
   process.exit(1);
 }
 
-const actualShardCount = Math.min(shardCount, inventory.length);
 const reportRoot = mkdtempSync(path.join(tmpdir(), "atlas-vitest-shards-"));
 const executedFiles = [];
 let executedTests = 0;
 try {
-  console.log(
-    `Running ${inventory.length} Vitest files once across ${actualShardCount} isolated shards`,
-  );
-  for (let index = 1; index <= actualShardCount; index += 1) {
-    const reportPath = path.join(reportRoot, `shard-${index}.json`);
-    console.log(`Vitest shard ${index}/${actualShardCount}`);
+  console.log(`Running ${inventory.length} Vitest files in isolated processes`);
+  for (const [index, testFile] of inventory.entries()) {
+    const reportPath = path.join(reportRoot, `shard-${index + 1}.json`);
+    console.log(
+      `Vitest file ${index + 1}/${inventory.length}: ${path.relative(packageRoot, testFile)}`,
+    );
     const result = spawnSync(
       vitest,
       [
         "run",
         "--maxWorkers=1",
-        `--shard=${index}/${actualShardCount}`,
         "--reporter=default",
         "--reporter=json",
         `--outputFile.json=${reportPath}`,
+        testFile,
       ],
       { cwd: packageRoot, stdio: "inherit" },
     );
@@ -61,10 +58,18 @@ try {
       break;
     }
     const report = JSON.parse(readFileSync(reportPath, "utf8"));
-    executedTests += report.numTotalTests;
-    executedFiles.push(
-      ...report.testResults.map((testResult) => path.resolve(testResult.name)),
+    const reportedFiles = report.testResults.map((testResult) =>
+      path.resolve(testResult.name),
     );
+    if (reportedFiles.length !== 1 || reportedFiles[0] !== testFile) {
+      console.error(
+        `Vitest file filter did not isolate ${path.relative(packageRoot, testFile)}`,
+      );
+      process.exitCode = 1;
+      break;
+    }
+    executedTests += report.numTotalTests;
+    executedFiles.push(...reportedFiles);
   }
 
   if (process.exitCode === undefined) {

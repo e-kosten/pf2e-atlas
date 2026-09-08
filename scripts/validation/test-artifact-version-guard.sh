@@ -30,6 +30,7 @@ new_fixture() {
     crates/atlas-index/src/artifact/pair_manifest.rs \
     crates/atlas-index/src/artifact/publication.rs \
     crates/atlas-index/src/artifact/storage.rs \
+    crates/atlas-index/src/sqlite/reader.rs \
     crates/atlas-index/src/read/records/canonical.rs \
     crates/atlas-index/src/write/input.rs \
     crates/atlas-index/src/write/sqlite/records.rs \
@@ -67,7 +68,12 @@ new_fixture() {
     crates/atlas-ingest/src/artifact_manifest.rs
   do
     mkdir -p "$case_dir/$(dirname "$path")"
-    printf 'base\n' >"$case_dir/$path"
+    if [ "$path" = crates/atlas-index/src/sqlite/reader.rs ]; then
+      printf 'fn persisted_reader() {}\n\n#[cfg(test)]\nmod tests {\n    fn fixture() {}\n}\n' \
+        >"$case_dir/$path"
+    else
+      printf 'base\n' >"$case_dir/$path"
+    fi
   done
   for path in \
     crates/atlas-index/src/artifact/validation/canonical.rs \
@@ -338,6 +344,26 @@ printf 'changed generation lifecycle\n' >>"$case_dir/crates/atlas-index/src/arti
 printf 'changed publication lifecycle\n' >>"$case_dir/crates/atlas-index/src/artifact/publication.rs"
 commit_case "test: change version-neutral artifact lifecycle"
 expect_guard_success "guard treated internal artifact lifecycle as a persisted contract"
+
+new_fixture owner-test-tail
+sed -i.bak 's/fn fixture() {}/fn fixture() { assert!(true); }/' \
+  "$case_dir/crates/atlas-index/src/sqlite/reader.rs"
+rm "$case_dir/crates/atlas-index/src/sqlite/reader.rs.bak"
+commit_case "test: change declared owner test tail"
+expect_guard_success "guard treated a declared test-tail change as a persisted contract"
+
+new_fixture owner-before-test-tail
+sed -i.bak 's/fn persisted_reader() {}/fn persisted_reader() { changed(); }/' \
+  "$case_dir/crates/atlas-index/src/sqlite/reader.rs"
+rm "$case_dir/crates/atlas-index/src/sqlite/reader.rs.bak"
+commit_case "test: change owner before declared test tail"
+expect_guard_failure "guard ignored a persisted owner change before its test tail"
+
+new_fixture owner-missing-test-tail-marker
+sed -i.bak '/^#\[cfg(test)\]$/d' "$case_dir/crates/atlas-index/src/sqlite/reader.rs"
+rm "$case_dir/crates/atlas-index/src/sqlite/reader.rs.bak"
+commit_case "test: remove declared test-tail marker"
+expect_guard_failure "guard ignored a declared test tail with no marker"
 
 new_fixture build-contract-and-manifest-owner
 printf 'changed final build projection\n' >>"$case_dir/crates/atlas-ingest/src/build.rs"
