@@ -179,7 +179,7 @@ fi
 
 if [ "$web_touched" -eq 1 ]; then
   if [ "$full" -eq 1 ]; then
-    run_check "web UI verify" npm --prefix web/atlas-ui run verify
+    run_check "web UI verify" env CI=true npm --prefix web/atlas-ui run verify
   else
     run_check "web UI format" npm --prefix web/atlas-ui run format:check
     run_check "web UI lint" npm --prefix web/atlas-ui run lint

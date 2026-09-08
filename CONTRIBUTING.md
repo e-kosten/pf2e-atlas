@@ -92,9 +92,10 @@ multiple artifact-owning CLI fixtures can otherwise make retained SQLite reader
 acquisition fail under local verification resource pressure. This still runs
 every test and preserves concurrency exercised inside individual tests.
 The web gate likewise runs every Vitest file with one worker. GitHub-hosted CI
-uses twice the local per-test execution deadline to account for its measured
-runner speed; local deadlines and every assertion remain unchanged, and CI does
-not retry timed-out tests.
+and the automated full pre-push verifier use twice the direct local per-test
+execution deadline to account for their measured end-to-end load; direct local
+deadlines and every assertion remain unchanged, and the gate does not retry
+timed-out tests.
 
 Validation has three explicit tiers:
 
