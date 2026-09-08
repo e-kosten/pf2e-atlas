@@ -272,11 +272,34 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
     let sample_json: Value = serde_json::from_slice(&sample_values.stdout)?;
     let sample_data = ok_data(&sample_json);
     assert_eq!(sample_data["sample"]["sample_limit"], 50);
-    assert_eq!(
-        sample_data["sample"]["examples"][0]["text"],
-        "1 willing creature"
-    );
+    // Target discovery preserves the authored scalar, so its sample can be
+    // reused by --spell-target's exact-text filter without HTML normalization.
+    let authored_target = "<p>1 willing creature</p>";
+    let source_spell: Value =
+        serde_json::from_slice(&fs::read(root.join("packs/spells/heal.json"))?)?;
+    assert_eq!(source_spell["system"]["target"]["value"], authored_target);
+    let sampled_target = sample_data["sample"]["examples"][0]["text"]
+        .as_str()
+        .expect("target sample must be text");
+    assert_eq!(sampled_target, authored_target);
     assert_eq!(sample_data["field_stats"]["null_count"], 0);
+    for (target, expected_total) in [(sampled_target, 1), ("1 willing creature", 0)] {
+        let filtered = atlas(&[
+            "search",
+            "--kind",
+            "spell",
+            "--spell-target",
+            target,
+            "--index",
+            index_path.to_str().unwrap(),
+        ])?;
+        assert!(filtered.status.success());
+        let filtered_json: Value = serde_json::from_slice(&filtered.stdout)?;
+        assert_eq!(
+            ok_data(&filtered_json)["pagination"]["total"],
+            expected_total
+        );
+    }
 
     let sample_values_with_limit_alias = atlas(&[
         "filters",
