@@ -32,7 +32,9 @@ contract|crates/atlas-index/src/read/records/metrics.rs
 contract|crates/atlas-index/src/read/records/parse.rs
 contract|crates/atlas-index/src/read/records/relationships.rs
 contract|crates/atlas-index/src/read/records/rows.rs
-contract|crates/atlas-index/src/sqlite/reader.rs
+# This file keeps its cfg(test) module as the final top-level item. Changes
+# confined to that declared test tail do not alter its persisted read codecs.
+contract|crates/atlas-index/src/sqlite/reader.rs|test-tail
 contract|crates/atlas-index/src/spell_query.rs
 contract|crates/atlas-index/src/write.rs
 contract|crates/atlas-index/src/write/input.rs

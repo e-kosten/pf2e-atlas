@@ -44,6 +44,7 @@ owner_change_requires_bump() {
   owner_path="$2"
   owner_before="$3"
   owner_after="$4"
+  owner_scope="$5"
   if ! git cat-file -e "$owner_before:$owner_path" 2>/dev/null \
     && git cat-file -e "$owner_after:$owner_path" 2>/dev/null \
     && transfer_source="$(git show "$owner_after:scripts/validation/artifact-owner-transfers.txt" 2>/dev/null \
@@ -58,6 +59,23 @@ owner_change_requires_bump() {
       --after "$owner_after"
   then
     return 1
+  fi
+  if [ "$owner_scope" = test-tail ]; then
+    before_source="$tmp_dir/owner-before"
+    after_source="$tmp_dir/owner-after"
+    before_production="$tmp_dir/owner-before-production"
+    after_production="$tmp_dir/owner-after-production"
+    git show "$owner_before:$owner_path" >"$before_source"
+    git show "$owner_after:$owner_path" >"$after_source"
+    before_markers="$(grep -c '^#\[cfg(test)\]$' "$before_source" || true)"
+    after_markers="$(grep -c '^#\[cfg(test)\]$' "$after_source" || true)"
+    if [ "$before_markers" = 1 ] && [ "$after_markers" = 1 ]; then
+      sed '/^#\[cfg(test)\]$/,$d' "$before_source" >"$before_production"
+      sed '/^#\[cfg(test)\]$/,$d' "$after_source" >"$after_production"
+      if cmp -s "$before_production" "$after_production"; then
+        return 1
+      fi
+    fi
   fi
   if [ "$owner_class" = contract ] && [ "$owner_path" = crates/atlas-index/src/artifact/metadata.rs ]; then
     git diff --unified=0 "$owner_before" "$owner_after" -- "$owner_path" \
@@ -75,7 +93,7 @@ commit_changes_class() {
   change_after="$3"
   git diff --name-only --no-renames --diff-filter=ACDMRTUXB "$change_before" "$change_after" \
     | LC_ALL=C sort -u >"$tmp_dir/paths"
-  while IFS='|' read -r policy_class policy_pattern; do
+  while IFS='|' read -r policy_class policy_pattern policy_scope; do
     case "$policy_class" in ''|'#'*) continue ;; esac
     [ "$policy_class" = "$wanted_class" ] || continue
     while IFS= read -r changed_path; do
@@ -83,7 +101,7 @@ commit_changes_class() {
       # shellcheck disable=SC2254
       case "$changed_path" in
         $policy_pattern)
-          if owner_change_requires_bump "$policy_class" "$changed_path" "$change_before" "$change_after"; then
+          if owner_change_requires_bump "$policy_class" "$changed_path" "$change_before" "$change_after" "$policy_scope"; then
             return 0
           fi
           ;;
