@@ -85,6 +85,44 @@ describe("SpellRecordSurface", () => {
     expect(screen.queryByText(/apply modifier (Yes|No)/)).not.toBeInTheDocument();
   });
 
+  it("enables Apply only for a valid changed tuple and permits a newer pending tuple", () => {
+    const surface = fireball();
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <RecordSurface
+        surface={surface}
+        onReference={vi.fn()}
+        onSpellFormSelection={onSelect}
+      />,
+    );
+    const apply = screen.getByRole("button", { name: "Apply" });
+    const input = screen.getByRole("spinbutton", { name: "Cast rank" });
+    expect(apply).toBeDisabled();
+    fireEvent.change(input, { target: { value: "" } });
+    expect(apply).toBeDisabled();
+    fireEvent.change(input, { target: { value: "4" } });
+    expect(apply).toBeEnabled();
+    fireEvent.click(apply);
+    expect(onSelect).toHaveBeenLastCalledWith({
+      formId: "opaque:fireball:base",
+      castRank: 4,
+    });
+    rerender(
+      <RecordSurface
+        surface={surface}
+        onReference={vi.fn()}
+        onSpellFormSelection={onSelect}
+        spellFormSelection={{ formId: "opaque:fireball:base", castRank: 4 }}
+        spellFormSelectionLoading
+      />,
+    );
+    expect(apply).toBeDisabled();
+    fireEvent.change(input, { target: { value: "3" } });
+    expect(apply).toBeEnabled();
+    fireEvent.change(input, { target: { value: "5" } });
+    expect(apply).toBeEnabled();
+  });
+
   it("puts authored description before one set of mechanics and one action label", () => {
     const surface = fireball();
     if (surface.presentation.presentation_type !== "spell")
