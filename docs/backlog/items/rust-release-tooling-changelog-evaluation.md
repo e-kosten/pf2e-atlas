@@ -25,9 +25,7 @@ Evaluate Knope alongside the repository's existing release and validation toolin
 
 ## Constraints
 
-- This is a deferred evaluation. Recording it during PR8 cleanup does not start
-  release-tooling work, change current CI stabilization, redesign databases, or
-  alter integration rollout acceptance.
+- This is a deferred evaluation, not part of PR8 cleanup, current CI stabilization, database redesign, or integration rollout acceptance.
 - Tool choice remains undecided. Compare Knope with the existing workflow only when this item is scheduled; do not install tooling or start a release-automation project beforehand.
 - Do not weaken runtime format rejection, artifact integrity checks, derived-index rebuild guidance, or local-state migration and preservation guarantees.
 - Avoid a blanket note requirement for changes that are explicitly reviewed as having no release impact.
