@@ -217,7 +217,7 @@ function CastingSection({
   return (
     <div className="spell-sheet__mechanics-group">
       <RecordKeyValueList ariaLabel="Spell casting" items={items} />
-      {usesCounteract && <p>Uses a counteract check</p>}
+      {usesCounteract && <div>Uses a counteract check</div>}
     </div>
   );
 }
