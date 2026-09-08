@@ -22,7 +22,7 @@ The completed implementation:
 - renders responsive, accessible record and search surfaces with stable loading, error, selection, and keyboard behavior; and
 - preserves the generated artifact and durable local-state databases as separate lifecycles.
 
-The integrated implementation passed focused Rust and frontend validation, Linux artifact lifecycle checks, independent backend and frontend review, and human product/visual review. Promotion to `main` and any release/runtime cutover remain separate decisions rather than unfinished work in this item.
+The Creature, Hazard, and standalone Spell presentation implementation passed focused Rust and frontend validation, Linux artifact lifecycle checks, independent backend and frontend review, and human product/visual review. PR 7 remains draft through the required modeling or explicit human disposition of every other registry family. Simplification and main-promotion planning follow that broader modeling milestone rather than this item's closure.
 
 ## Preserved Constraints
 
@@ -30,7 +30,7 @@ The integrated implementation passed focused Rust and frontend validation, Linux
 - Authored rich prose and source/provenance evidence remain available.
 - Canonical entities, occurrences, and runtime instances retain separate ownership.
 - Generated indexes remain rebuildable source-derived data; user-authored saved lists and encounters remain in separately versioned local state.
-- Later record families, including consumables, require their own typed owners and are not implied by this completed work.
+- Later record families, including consumables, remain required modeling portfolios with their own typed owners and are not implied by this completed three-family presentation work.
 
 ## Related
 
