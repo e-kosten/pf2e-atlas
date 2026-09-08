@@ -1,4 +1,6 @@
+use self::rank_damage::selected_damage_text;
 use crate::content::foundry_node_display_text;
+mod rank_damage;
 use crate::{
     FoundryLink, FoundryLinkBehavior, FoundryNode, PresentationContent, PresentationContentBlock,
     PresentationInline, PresentationListItem, PresentationTableRow, RichDocument, RichLinkTarget,
@@ -6,22 +8,65 @@ use crate::{
 };
 
 pub fn project_presentation_content(document: &RichDocument) -> PresentationContent {
-    PresentationContent::new(project_blocks(&document.nodes, DisplayPolicy::Default))
+    PresentationContent::new(project_blocks(&document.nodes, &mut DisplayPolicy::Default))
 }
 
 /// App record surfaces may display structured damage parts without changing
 /// canonical text, search presentation, or embedding inputs.
 pub fn project_record_surface_content(document: &RichDocument) -> PresentationContent {
-    PresentationContent::new(project_blocks(
-        &document.nodes,
-        DisplayPolicy::RecordSurface,
-    ))
+    project_record_surface_content_with_context(document, None).content
 }
 
-#[derive(Clone, Copy)]
-enum DisplayPolicy {
+/// Context is supplied only by the successful selected-form resolver result.
+#[derive(Debug, Clone)]
+pub enum RecordSurfaceContentContext {
+    Spell {
+        form_id: crate::SpellFormId,
+        cast_rank: u8,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordSurfaceContentIssueKind {
+    MissingContext,
+    UnsupportedDamage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordSurfaceContentIssue {
+    pub inline_index: usize,
+    pub kind: RecordSurfaceContentIssueKind,
+}
+
+pub struct RecordSurfaceContentProjection {
+    pub content: PresentationContent,
+    pub issues: Vec<RecordSurfaceContentIssue>,
+}
+
+pub fn project_record_surface_content_with_context(
+    document: &RichDocument,
+    context: Option<&RecordSurfaceContentContext>,
+) -> RecordSurfaceContentProjection {
+    let mut policy = DisplayPolicy::RecordSurface {
+        context,
+        issues: Vec::new(),
+        inline_index: 0,
+    };
+    let content = PresentationContent::new(project_blocks(&document.nodes, &mut policy));
+    let issues = match policy {
+        DisplayPolicy::RecordSurface { issues, .. } => issues,
+        DisplayPolicy::Default => Vec::new(),
+    };
+    RecordSurfaceContentProjection { content, issues }
+}
+
+enum DisplayPolicy<'a> {
     Default,
-    RecordSurface,
+    RecordSurface {
+        context: Option<&'a RecordSurfaceContentContext>,
+        issues: Vec<RecordSurfaceContentIssue>,
+        inline_index: usize,
+    },
 }
 
 pub fn render_presentation_content_plain_text(content: &PresentationContent) -> String {
@@ -102,7 +147,10 @@ fn render_spans_plain_text(spans: &[PresentationInline]) -> String {
     output
 }
 
-fn project_blocks(nodes: &[RichNode], policy: DisplayPolicy) -> Vec<PresentationContentBlock> {
+fn project_blocks(
+    nodes: &[RichNode],
+    policy: &mut DisplayPolicy<'_>,
+) -> Vec<PresentationContentBlock> {
     let mut blocks = Vec::new();
     for node in nodes {
         project_node_blocks(node, &mut blocks, policy);
@@ -113,7 +161,7 @@ fn project_blocks(nodes: &[RichNode], policy: DisplayPolicy) -> Vec<Presentation
 fn project_node_blocks(
     node: &RichNode,
     blocks: &mut Vec<PresentationContentBlock>,
-    policy: DisplayPolicy,
+    policy: &mut DisplayPolicy<'_>,
 ) {
     match node {
         RichNode::Text { text } => {
@@ -184,7 +232,7 @@ fn project_node_blocks(
 fn push_paragraph(
     children: &[RichNode],
     blocks: &mut Vec<PresentationContentBlock>,
-    policy: DisplayPolicy,
+    policy: &mut DisplayPolicy<'_>,
 ) {
     let spans = project_inline(children, policy);
     if !spans_are_empty(&spans) {
@@ -192,7 +240,7 @@ fn push_paragraph(
     }
 }
 
-fn list_item(node: &RichNode, policy: DisplayPolicy) -> Option<PresentationListItem> {
+fn list_item(node: &RichNode, policy: &mut DisplayPolicy<'_>) -> Option<PresentationListItem> {
     let RichNode::HtmlElement { tag, children, .. } = node else {
         return None;
     };
@@ -214,7 +262,7 @@ fn list_item(node: &RichNode, policy: DisplayPolicy) -> Option<PresentationListI
 
 fn table_content(
     children: &[RichNode],
-    policy: DisplayPolicy,
+    policy: &mut DisplayPolicy<'_>,
 ) -> Option<(Option<String>, Vec<PresentationTableRow>)> {
     let mut rows = Vec::new();
     let mut caption = None;
@@ -226,7 +274,7 @@ fn collect_table_content(
     nodes: &[RichNode],
     caption: &mut Option<String>,
     rows: &mut Vec<PresentationTableRow>,
-    policy: DisplayPolicy,
+    policy: &mut DisplayPolicy<'_>,
 ) {
     for node in nodes {
         let RichNode::HtmlElement { tag, children, .. } = node else {
@@ -260,7 +308,7 @@ fn collect_table_content(
     }
 }
 
-fn project_inline(nodes: &[RichNode], policy: DisplayPolicy) -> Vec<PresentationInline> {
+fn project_inline(nodes: &[RichNode], policy: &mut DisplayPolicy<'_>) -> Vec<PresentationInline> {
     let mut spans = Vec::new();
     for node in nodes {
         project_node_inline(node, &mut spans, policy);
@@ -271,7 +319,7 @@ fn project_inline(nodes: &[RichNode], policy: DisplayPolicy) -> Vec<Presentation
 fn project_node_inline(
     node: &RichNode,
     spans: &mut Vec<PresentationInline>,
-    policy: DisplayPolicy,
+    policy: &mut DisplayPolicy<'_>,
 ) {
     match node {
         RichNode::Text { text } => {
@@ -319,10 +367,31 @@ fn project_node_inline(
     }
 }
 
-fn foundry_inline(node: &FoundryNode, policy: DisplayPolicy) -> Option<PresentationInline> {
+fn foundry_inline(
+    node: &FoundryNode,
+    policy: &mut DisplayPolicy<'_>,
+) -> Option<PresentationInline> {
     let display = match policy {
         DisplayPolicy::Default => foundry_node_display_text(node),
-        DisplayPolicy::RecordSurface => record_surface_foundry_text(node),
+        DisplayPolicy::RecordSurface {
+            context,
+            issues,
+            inline_index,
+        } => {
+            let index = *inline_index;
+            *inline_index += 1;
+            match selected_damage_text(node, *context) {
+                Ok(Some(text)) => text,
+                Ok(None) => record_surface_foundry_text(node),
+                Err(kind) => {
+                    issues.push(RecordSurfaceContentIssue {
+                        inline_index: index,
+                        kind,
+                    });
+                    "Damage unavailable".to_string()
+                }
+            }
+        }
     };
     if display.is_empty() {
         return None;
@@ -339,12 +408,14 @@ fn foundry_inline(node: &FoundryNode, policy: DisplayPolicy) -> Option<Presentat
     }
 }
 
-fn render_nodes_text(nodes: &[RichNode], policy: DisplayPolicy) -> String {
+fn render_nodes_text(nodes: &[RichNode], policy: &mut DisplayPolicy<'_>) -> String {
     match policy {
         DisplayPolicy::Default => render_nodes_plain_text(nodes),
-        DisplayPolicy::RecordSurface => render_spans_plain_text(&project_inline(nodes, policy))
-            .trim()
-            .to_string(),
+        DisplayPolicy::RecordSurface { .. } => {
+            render_spans_plain_text(&project_inline(nodes, policy))
+                .trim()
+                .to_string()
+        }
     }
 }
 

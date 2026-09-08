@@ -94,7 +94,7 @@ export function SpellDetailSurface({
     definition?.classification.state === "available"
       ? knownValue(definition.classification.value)
       : undefined;
-  const rank = classification && knownValue(classification.rank);
+  const rank = definition ? effective.cast_rank : undefined;
   const traits = classification && knownValue(classification.traits);
   const headerMetadata = {
     ...metadata,
@@ -297,6 +297,11 @@ function DamageList({ damage }: { damage: SpellDamageView[] }) {
               <span>{damageSummary(member)}</span> {member.label.toLowerCase()}
             </strong>
           </div>
+          {meaningfulKnown(member.apply_modifier) === true ? (
+            <p className="spell-sheet__modifier-note">
+              + your spellcasting ability modifier
+            </p>
+          ) : null}
           {damageQualifiers(member).length ? (
             <RecordKeyValueList
               ariaLabel={`${member.label} qualifiers`}
@@ -324,12 +329,6 @@ function damageQualifiers(damage: SpellDamageView): RecordKeyValueItem[] {
     factItem("category", "Damage category", damage.category, formatSlug),
     factItem("kinds", "Effect type", damage.kinds, formatList),
     factItem("materials", "Damage materials", damage.materials, formatList),
-    factItem(
-      "apply-modifier",
-      "Spellcasting ability modifier",
-      damage.apply_modifier,
-      formatBoolean,
-    ),
   ].filter((entry): entry is RecordKeyValueItem => entry !== null);
 }
 
@@ -492,6 +491,16 @@ function FormsSection({
     !selection ||
     (body.effective_form.id === selection.formId &&
       body.effective_form.cast_rank === selection.castRank);
+  const selectionStatus =
+    loading && selection
+      ? `Resolving ${requested ?? "selected form"}.`
+      : selectionError
+        ? `Unable to resolve the selected form. ${selectionError}`
+        : selectionUnavailable
+          ? `${requested ?? "The selected form"} is unavailable.`
+          : !matchesRequest
+            ? "The returned result did not match the requested form and rank."
+            : rankNotice;
   return (
     <section
       className={`spell-sheet__form-section${catalog.forms.length === 1 ? " spell-sheet__form-section--static" : ""}`}
@@ -502,11 +511,9 @@ function FormsSection({
         aria-label="Resolve spell form"
         className="spell-sheet__form-controls"
       >
-        <div className="spell-sheet__form-control spell-sheet__form-choice">
-          <span>Form</span>
-          {catalog.forms.length === 1 ? (
-            <strong>{catalog.forms[0].label}</strong>
-          ) : (
+        {catalog.forms.length > 1 ? (
+          <div className="spell-sheet__form-control spell-sheet__form-choice">
+            <span>Form</span>
             <div className="spell-sheet__form-select-size">
               <span
                 className="spell-sheet__form-label-measure"
@@ -552,8 +559,8 @@ function FormsSection({
                 virtual={false}
               />
             </div>
-          )}
-        </div>
+          </div>
+        ) : null}
         <div className="spell-sheet__rank-actions">
           <div className="spell-sheet__form-control">
             <span>Cast rank</span>
@@ -606,26 +613,15 @@ function FormsSection({
         aria-atomic="true"
         className="spell-sheet__selection-summary"
       >
-        <div className="spell-sheet__applied-selection">
-          <span>Applied rank {body.effective_form.cast_rank}</span>
-          <Tag style={{ visibility: appliedModified ? "visible" : "hidden" }}>
-            Modified from default
-          </Tag>
-        </div>
-        <Typography.Text
-          type={!loading && selectionError ? "danger" : "secondary"}
-          className="spell-sheet__selection-status"
-        >
-          {loading && selection
-            ? `Resolving ${requested ?? "selected form"}.`
-            : selectionError
-              ? `Unable to resolve the selected form. ${selectionError}`
-              : selectionUnavailable
-                ? `${requested ?? "The selected form"} is unavailable.`
-                : !matchesRequest
-                  ? "The returned result did not match the requested form and rank."
-                  : rankNotice || null}
-        </Typography.Text>
+        {appliedModified ? <Tag>Modified from default</Tag> : null}
+        {selectionStatus ? (
+          <Typography.Text
+            type={!loading && selectionError ? "danger" : "secondary"}
+            className="spell-sheet__selection-status"
+          >
+            {selectionStatus}
+          </Typography.Text>
+        ) : null}
       </div>
     </section>
   );

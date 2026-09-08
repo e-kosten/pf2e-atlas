@@ -277,7 +277,7 @@
 }
 
 .spell-sheet__resolved-definition {
-  gap: 22px;
+  gap: 7px;
 }
 
 .creature-sheet__facts-column {
@@ -1136,11 +1136,12 @@
 }
 .spell-sheet__selection-summary {
   display: grid;
+  justify-items: start;
+}
+.spell-sheet__selection-summary:not(:empty) {
   margin-top: 6px;
 }
 .spell-sheet__selection-status {
-  height: 3.75em;
-  overflow: auto;
   line-height: 1.25;
   font-size: 12px;
 }
@@ -1152,6 +1153,7 @@
   font-size: 1.1rem;
 }
 .spell-sheet {
+  gap: 12px;
   container-type: inline-size;
 }
 
@@ -1261,16 +1263,10 @@
   line-height: 1.4;
   align-content: center;
 }
-.spell-sheet__applied-selection {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-}
+
 .spell-sheet__resolved-definition {
   border-block-start: 1px solid var(--line);
   padding-block-start: 18px;
-  gap: 18px;
 }
 @container (max-width: 650px) {
   .spell-sheet__form-controls {
@@ -1287,7 +1283,7 @@
   max-width: 100%;
 }
 .spell-sheet__form-section--static .spell-sheet__form-controls {
-  grid-template-columns: max-content 240px;
+  grid-template-columns: 240px;
 }
 .spell-sheet__primary-fact dd {
   font-size: 1.1rem;
@@ -1304,9 +1300,6 @@
   .spell-sheet__heading {
     gap: 8px;
   }
-  .spell-sheet__resolved-definition {
-    gap: 14px;
-  }
   .spell-sheet__form-section--static {
     flex-basis: auto;
   }
@@ -1318,4 +1311,9 @@
 }
 .filter-panel .ant-tag {
   white-space: normal;
+}
+
+.spell-sheet__modifier-note {
+  margin: 0;
+  font-size: 0.85rem;
 }

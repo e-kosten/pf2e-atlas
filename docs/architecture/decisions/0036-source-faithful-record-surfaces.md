@@ -50,3 +50,17 @@ Common reference responses carry server-owned next limits8,16,32,50 and stop at5
 ### App damage notation
 
 `atlas-record::project_record_surface_content` selects a private record-surface policy in the existing rich-content traversal. For Damage nodes it prefers authored labels, otherwise displays safe already-typed damage parts in authored order without appending a redundant damage suffix. Incomplete parts retain the default formula. App-service uses this entry point for owned and lifecycle content; resolved reference identities survive unchanged. The default `project_presentation_content`, plain/Markdown rendering, canonical document/hash, FTS and embedding inputs remain unchanged. The browser never parses roll notation.
+
+### Selected spell description damage
+
+The record-surface content policy accepts optional spell context from the same
+successful resolver result returned as the effective form. Its bounded private,
+nonpersisted dice-count AST supports parenthesized positive counts and descending
+`ternary(gte(@item.level, rank), count, else)` thresholds over the intact canonical Damage aggregate formula with an exact
+`[persistent,type]` suffix and empty options. Existing DamagePart fragments are
+neither evaluated nor reconstructed; their persisted representation is unchanged. It neither evaluates arbitrary expressions nor changes interval
+heightening grammar. Invalid or absent context yields one contextual issue per
+affected inline and an unavailable value; siblings and authored labels survive.
+App-service retains content/inline identity for these issues. No requested-rank
+or authored-base fallback supplies context. This policy does not alter default
+presentation, canonical hydration, FTS, embedding inputs, or artifact compatibility.

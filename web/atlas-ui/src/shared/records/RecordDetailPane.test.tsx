@@ -113,7 +113,6 @@ describe("RecordDetailPane", () => {
 
     expect(screen.getByText("3d4 Cold")).toBeInTheDocument();
     expect(screen.getByText("20-foot burst")).toBeInTheDocument();
-    expect(screen.getByText("Applied rank 3")).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("3");
     expect(screen.queryByText("2d4 Cold")).not.toBeInTheDocument();
     expect(screen.queryByText("15-foot burst")).not.toBeInTheDocument();
@@ -207,7 +206,7 @@ describe("RecordDetailPane", () => {
       await screen.findByRole("button", { name: "Backlink Caster" }),
     ).toBeInTheDocument();
     expect(screen.getByText("8d4 Cold")).toBeInTheDocument();
-    expect(screen.getByText("Applied rank 5")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toHaveValue("5");
     expect(getRecordDetail).toHaveBeenCalledWith(
       "spells-srd:rime-slick",
       {
@@ -340,13 +339,13 @@ describe("RecordDetailPane", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     await waitFor(() => expect(pending.has(2)).toBe(true));
     expect(pending.get(10)?.signal.aborted).toBe(true);
-    expect(screen.getByText("Applied rank 8")).toBeInTheDocument();
+    expect(screen.getByText("14d4 Cold")).toBeInTheDocument();
     pending.get(2)!.resolve(rimeDetail(2));
-    expect(await screen.findByText("Applied rank 2")).toBeInTheDocument();
+    expect(await screen.findByText("2d4 Cold")).toBeInTheDocument();
     expect(screen.getByText("2d4 Cold")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
     pending.get(10)!.resolve(rimeDetail(10, "20d4", [5, 8], 90));
-    await waitFor(() => expect(screen.getByText("Applied rank 2")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("2d4 Cold")).toBeInTheDocument());
     expect(screen.queryByText("20d4 Cold")).not.toBeInTheDocument();
   });
 
@@ -408,7 +407,7 @@ describe("RecordDetailPane", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Selected rank could not be resolved",
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Applied rank 5");
+    expect(screen.getByRole("status")).not.toHaveTextContent("Applied rank");
     expect(screen.getByRole("spinbutton", { name: "Cast rank" })).toBe(rankInput);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByText("8d4 Cold")).toBeInTheDocument();

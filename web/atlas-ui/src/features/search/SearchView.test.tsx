@@ -71,7 +71,23 @@ function fixture(key = "spells:heal", id = "base", rank = 1): RecordDetailView {
                 casting: absent,
                 targeting: absent,
                 defense: absent,
-                damage: absent,
+                damage: {
+                  state: "available",
+                  value: {
+                    state: "known",
+                    value: [
+                      {
+                        label: "Healing",
+                        formula: { state: "known", value: `${rank}d8` },
+                        damage_type: missing,
+                        category: missing,
+                        kinds: missing,
+                        materials: missing,
+                        apply_modifier: missing,
+                      },
+                    ],
+                  },
+                },
                 duration: absent,
                 heightening: absent,
                 rules: absent,
@@ -120,7 +136,7 @@ it("keeps the actual SearchView selection mounted through unresolved and complet
     target: { value: "3" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("Applied rank 3");
+  await screen.findByText("3d8");
   const pending = deferred<RecordDetailView>();
   let signal: AbortSignal | undefined;
   vi.mocked(getRecordDetail).mockImplementationOnce((_key, _request, requestSignal) => {
@@ -137,13 +153,13 @@ it("keeps the actual SearchView selection mounted through unresolved and complet
   await screen.findByText("Refreshing this record…");
   expect(signal).toBeInstanceOf(AbortSignal);
   expect(signal?.aborted).toBe(false);
-  expect(screen.getByText("Applied rank 3")).toBeInTheDocument();
+  expect(screen.getByText("3d8")).toBeInTheDocument();
   expect(screen.queryByLabelText("Loading record")).not.toBeInTheDocument();
   await act(async () => {
     pending.resolve(fixture());
     await refresh;
   });
-  expect(screen.getByText("Applied rank 3")).toBeInTheDocument();
+  expect(screen.getByText("3d8")).toBeInTheDocument();
   const calls = vi.mocked(getRecordDetail).mock.calls;
   expect(
     calls.some(
@@ -173,7 +189,7 @@ it("aborts an unresolved prior record and ignores its late response after a reco
     pending.resolve(fixture());
   });
   expect(screen.queryByRole("heading", { name: "Heal" })).not.toBeInTheDocument();
-  expect(screen.getByText("Applied rank 1")).toBeInTheDocument();
+  expect(screen.getByText("1d8")).toBeInTheDocument();
 });
 
 it("isolates selected request keys and keeps the latest matching response", async () => {
@@ -201,13 +217,13 @@ it("isolates selected request keys and keeps the latest matching response", asyn
     target: { value: "5" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("Applied rank 5");
+  await screen.findByText("5d8");
   expect(oldSignal?.aborted).toBe(true);
   await act(async () => {
     prior.resolve(fixture("spells:heal", "base", 3));
   });
-  expect(screen.getByText("Applied rank 5")).toBeInTheDocument();
-  expect(screen.queryByText("Applied rank 3")).not.toBeInTheDocument();
+  expect(screen.getByText("5d8")).toBeInTheDocument();
+  expect(screen.queryByText("3d8")).not.toBeInTheDocument();
 });
 
 it("retains the last valid selected response after same-key refresh becomes unavailable", async () => {
@@ -217,7 +233,7 @@ it("retains the last valid selected response after same-key refresh becomes unav
     target: { value: "3" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("Applied rank 3");
+  await screen.findByText("3d8");
   const queryKey = ["record-detail", "spells:heal", "base", 3, null, null];
   const updated = fixture("spells:heal", "base", 3);
   if (
@@ -262,7 +278,7 @@ it("retains the last valid selected response after same-key refresh becomes unav
     await client.refetchQueries({ queryKey, exact: true });
   });
   expect(await screen.findByText("3d8+24")).toBeInTheDocument();
-  expect(screen.getByText("Applied rank 3")).toBeInTheDocument();
+  expect(screen.queryByText("3d8")).not.toBeInTheDocument();
   vi.mocked(getRecordDetail).mockRejectedValueOnce(new Error("Refresh failed"));
   await act(async () => {
     await client.refetchQueries({ queryKey, exact: true });
