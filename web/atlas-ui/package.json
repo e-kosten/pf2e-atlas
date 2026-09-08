@@ -11,7 +11,7 @@
     "format:check": "prettier . --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node scripts/run-test-shards.mjs",
+    "test": "vitest run --maxWorkers=1",
     "typecheck": "tsc -b --noEmit",
     "verify": "npm run format:check && npm run lint && npm run check:styles && npm run typecheck && npm run test && npm run build",
     "preview": "vite preview --host 127.0.0.1"
