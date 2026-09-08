@@ -18,6 +18,8 @@ EOF
 
 repo_root="${SOURCE_LEAF_GIT_REPOSITORY:-$(git rev-parse --show-toplevel)}"
 cd "$repo_root"
+route_tmp_dir=
+trap '[ -z "$route_tmp_dir" ] || rm -rf "$route_tmp_dir"' EXIT
 
 matches() {
   pattern="$1"
@@ -27,12 +29,19 @@ matches() {
 matches_artifact_owner() {
   policy="$repo_root/scripts/validation/artifact-version-owners.txt"
   while IFS= read -r path; do
-    while IFS='|' read -r class pattern; do
+    while IFS='|' read -r class pattern scope; do
       case "$class" in ''|'#'*) continue ;; esac
       # The policy intentionally supplies shell globs such as migrations/*.
       # shellcheck disable=SC2254
       case "$path" in
         $pattern)
+          if [ "$scope" = test-tail ] \
+            && [ -n "$route_base" ] \
+            && [ -n "$route_head" ] \
+            && test_tail_production_unchanged "$path" "$route_base" "$route_head"
+          then
+            continue
+          fi
           if [ -n "$route_base" ] \
             && [ -n "$route_head" ] \
             && ! git cat-file -e "$route_base:$path" 2>/dev/null \
@@ -56,6 +65,27 @@ matches_artifact_owner() {
     done <"$policy"
   done <"$paths_file"
   return 1
+}
+
+test_tail_production_unchanged() {
+  path="$1"
+  before="$2"
+  after="$3"
+  if [ -z "$route_tmp_dir" ]; then
+    route_tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/atlas-source-leaf-route.XXXXXX")"
+  fi
+  before_source="$route_tmp_dir/owner-before"
+  after_source="$route_tmp_dir/owner-after"
+  before_production="$route_tmp_dir/owner-before-production"
+  after_production="$route_tmp_dir/owner-after-production"
+  git show "$before:$path" >"$before_source" 2>/dev/null || return 1
+  git show "$after:$path" >"$after_source" 2>/dev/null || return 1
+  before_markers="$(grep -c '^#\[cfg(test)\]$' "$before_source" || true)"
+  after_markers="$(grep -c '^#\[cfg(test)\]$' "$after_source" || true)"
+  [ "$before_markers" = 1 ] && [ "$after_markers" = 1 ] || return 1
+  sed '/^#\[cfg(test)\]$/,$d' "$before_source" >"$before_production"
+  sed '/^#\[cfg(test)\]$/,$d' "$after_source" >"$after_production"
+  cmp -s "$before_production" "$after_production"
 }
 
 matches_pair_integration_owner() {
