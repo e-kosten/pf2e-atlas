@@ -23,6 +23,11 @@ import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 
+const tenSecondTestDeadline = 10_000;
+const fifteenSecondTestDeadline = 15_000;
+const twentySecondTestDeadline = 20_000;
+const thirtySecondTestDeadline = 30_000;
+
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
   addEncounterParticipantCondition: vi.fn(),
@@ -166,30 +171,34 @@ describe("encounter views", () => {
     );
   });
 
-  it("keeps the existing encounter delete action behind shared confirmation", async () => {
-    render(<EncounterIndexView route={{ kind: "encounters" }} />, {
-      wrapper: queryClientWrapper(),
-    });
-    await screen.findByText("Ambush");
+  it(
+    "keeps the existing encounter delete action behind shared confirmation",
+    async () => {
+      render(<EncounterIndexView route={{ kind: "encounters" }} />, {
+        wrapper: queryClientWrapper(),
+      });
+      await screen.findByText("Ambush");
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Ambush" }));
-    expect(apiMocks.deleteEncounter).not.toHaveBeenCalled();
-    const confirmation = await screen.findByRole("dialog");
-    expect(confirmation).toHaveTextContent("Delete Ambush?");
-    expect(confirmation).toHaveTextContent("This permanently deletes the encounter.");
-    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(confirmation).not.toBeInTheDocument());
-    expect(apiMocks.deleteEncounter).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Delete Ambush" }));
+      expect(apiMocks.deleteEncounter).not.toHaveBeenCalled();
+      const confirmation = await screen.findByRole("dialog");
+      expect(confirmation).toHaveTextContent("Delete Ambush?");
+      expect(confirmation).toHaveTextContent("This permanently deletes the encounter.");
+      fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(confirmation).not.toBeInTheDocument());
+      expect(apiMocks.deleteEncounter).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Ambush" }));
-    fireEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Delete",
-      }),
-    );
-    await waitFor(() => expect(apiMocks.deleteEncounter).toHaveBeenCalled());
-    expect(apiMocks.deleteEncounter.mock.calls[0][0]).toBe("ambush");
-  }, 10_000);
+      fireEvent.click(screen.getByRole("button", { name: "Delete Ambush" }));
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: "Delete",
+        }),
+      );
+      await waitFor(() => expect(apiMocks.deleteEncounter).toHaveBeenCalled());
+      expect(apiMocks.deleteEncounter.mock.calls[0][0]).toBe("ambush");
+    },
+    tenSecondTestDeadline,
+  );
 
   it("edits encounter metadata without exposing slug", async () => {
     render(<EncounterEditView route={{ kind: "encounterEdit", slug: "ambush" }} />, {
@@ -225,12 +234,12 @@ describe("encounter views", () => {
     }
     fireEvent.click(kyraRow);
     expect(
-      (await screen.findAllByRole("heading", { name: "Kyra" })).length,
+      (await screen.findAllByText("Kyra", { selector: "h1,h2,h3,h4,h5,h6" })).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("Not current turn")).toBeVisible();
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Set turn to Kyra" }));
+    fireEvent.click(buttonByText("Set turn to Kyra"));
     await waitFor(() =>
       expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
         encounter_ref: "ambush",
@@ -367,94 +376,98 @@ describe("encounter views", () => {
     expect(within(activitiesSection).getByText("1d6+2 slashing")).toBeInTheDocument();
   });
 
-  it("explains adjusted runtime facts and preserves canonical context", async () => {
-    const surface = recordSurfaceFixture({
-      actions: 2,
-      actionBase: 3,
-      actionAdjustment: -1,
-      speed: 15,
-      speedBase: 25,
-      speedAdjustment: -10,
-    });
-    if (surface.presentation.presentation_type !== "creature" || !surface.encounter) {
-      throw new Error("Expected an encounter creature fixture");
-    }
-    surface.presentation.body.defenses = {
-      ...surface.presentation.body.defenses!,
-      armor_class_details: "+1 circumstance bonus against traps",
-      hardness: 5,
-      resistances: [
-        {
-          component_id: "resistance-fire",
-          authored_order: 0,
-          kind: "fire",
-          amount: 5,
-        },
-      ],
-    };
-    surface.encounter.level = {
-      label: "Level",
-      base_value: 1,
-      adjusted_value: 2,
-      modifiers: [
-        {
-          provenance: {
-            source: { source_type: "participant_variant", variant: "elite" },
+  it(
+    "explains adjusted runtime facts and preserves canonical context",
+    async () => {
+      const surface = recordSurfaceFixture({
+        actions: 2,
+        actionBase: 3,
+        actionAdjustment: -1,
+        speed: 15,
+        speedBase: 25,
+        speedAdjustment: -10,
+      });
+      if (surface.presentation.presentation_type !== "creature" || !surface.encounter) {
+        throw new Error("Expected an encounter creature fixture");
+      }
+      surface.presentation.body.defenses = {
+        ...surface.presentation.body.defenses!,
+        armor_class_details: "+1 circumstance bonus against traps",
+        hardness: 5,
+        resistances: [
+          {
+            component_id: "resistance-fire",
+            authored_order: 0,
+            kind: "fire",
+            amount: 5,
           },
-          label: "Elite level adjustment",
-          modifier_type: "adjustment",
-          value: 1,
+        ],
+      };
+      surface.encounter.level = {
+        label: "Level",
+        base_value: 1,
+        adjusted_value: 2,
+        modifiers: [
+          {
+            provenance: {
+              source: { source_type: "participant_variant", variant: "elite" },
+            },
+            label: "Elite level adjustment",
+            modifier_type: "adjustment",
+            value: 1,
+          },
+        ],
+        provenance: runtimeProvenance,
+      };
+      surface.encounter.automation_limitations = [
+        {
+          code: "condition_damage_adjustment_partial",
+          target: { target_type: "activity", activity_id: "claw" },
+          message: "Damage adjustments for this action require adjudication.",
         },
-      ],
-      provenance: runtimeProvenance,
-    };
-    surface.encounter.automation_limitations = [
-      {
-        code: "condition_damage_adjustment_partial",
-        target: { target_type: "activity", activity_id: "claw" },
-        message: "Damage adjustments for this action require adjudication.",
-      },
-    ];
-    apiMocks.getEncounter.mockResolvedValue(
-      encounterDetailFixture("participant_a", {
-        note: "Keep the bridge blocked.",
-        record_view: surface,
-      }),
-    );
+      ];
+      apiMocks.getEncounter.mockResolvedValue(
+        encounterDetailFixture("participant_a", {
+          note: "Keep the bridge blocked.",
+          record_view: surface,
+        }),
+      );
 
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    expect(await screen.findByText("Current turn")).toBeInTheDocument();
-    expect(screen.getByLabelText("Participant note")).toHaveValue(
-      "Keep the bridge blocked.",
-    );
-    expect(screen.getByText("+1 circumstance bonus against traps")).toBeVisible();
-    expect(screen.getByText(/fire 5/i)).toBeVisible();
-    expect(screen.getByText("Common")).toBeVisible();
-    expect(
-      screen.getByText("Damage adjustments for this action require adjudication."),
-    ).toBeVisible();
-    expect(screen.getByText("Action or ability")).toBeVisible();
+      expect(await screen.findByText("Current turn")).toBeInTheDocument();
+      expect(screen.getByLabelText("Participant note")).toHaveValue(
+        "Keep the bridge blocked.",
+      );
+      expect(screen.getByText("+1 circumstance bonus against traps")).toBeVisible();
+      expect(screen.getByText(/fire 5/i)).toBeVisible();
+      expect(screen.getByText("Common")).toBeVisible();
+      expect(
+        screen.getByText("Damage adjustments for this action require adjudication."),
+      ).toBeVisible();
+      expect(screen.getByText("Action or ability")).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Level adjustment details" }));
-    expect(await screen.findByText("Level details")).toBeInTheDocument();
-    expect(screen.getByText("Elite level adjustment +1")).toBeInTheDocument();
-    expect(screen.getByText("Elite variant")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Level adjustment details" }));
+      expect(await screen.findByText("Level details")).toBeInTheDocument();
+      expect(screen.getByText("Elite level adjustment +1")).toBeInTheDocument();
+      expect(screen.getByText("Elite variant")).toBeInTheDocument();
 
-    fireEvent.mouseDown(document.body);
-    expect(
-      screen.queryByRole("button", { name: "Actions adjustment details" }),
-    ).not.toBeInTheDocument();
-    const turnEconomy = screen
-      .getByRole("heading", { name: "Turn Economy" })
-      .closest(".creature-sheet__panel");
-    if (!(turnEconomy instanceof HTMLElement)) {
-      throw new Error("Turn economy panel was not rendered");
-    }
-    expect(within(turnEconomy).getByText("2")).toBeInTheDocument();
-  }, 15_000);
+      fireEvent.mouseDown(document.body);
+      expect(
+        screen.queryByRole("button", { name: "Actions adjustment details" }),
+      ).not.toBeInTheDocument();
+      const turnEconomy = screen
+        .getByRole("heading", { name: "Turn Economy" })
+        .closest(".creature-sheet__panel");
+      if (!(turnEconomy instanceof HTMLElement)) {
+        throw new Error("Turn economy panel was not rendered");
+      }
+      expect(within(turnEconomy).getByText("2")).toBeInTheDocument();
+    },
+    fifteenSecondTestDeadline,
+  );
 
   it("commits participant notes from the visible semantic note section", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -542,61 +555,67 @@ describe("encounter views", () => {
     );
   });
 
-  it("confirms before invoking the prepared creature reset handler", async () => {
-    const detail = encounterDetailFixture();
-    const participant = detail.participants[0];
-    const onResetParticipant = vi.fn();
-    render(
-      <EncounterInspectorPane
-        conditionDefinitions={conditionDefinitionsFixture().conditions}
-        currentTurnParticipantKey={detail.current_turn_participant_key ?? null}
-        onAddCondition={vi.fn()}
-        onOpenRecordFullPage={vi.fn()}
-        onRemoveCondition={vi.fn()}
-        onResetParticipant={onResetParticipant}
-        onSpellCast={vi.fn()}
-        onUpdate={vi.fn()}
-        onUpdateCondition={vi.fn()}
-        participant={participant}
-        participants={detail.participants}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+  it(
+    "confirms before invoking the prepared creature reset handler",
+    async () => {
+      const detail = encounterDetailFixture();
+      const participant = detail.participants[0];
+      const onResetParticipant = vi.fn();
+      render(
+        <EncounterInspectorPane
+          conditionDefinitions={conditionDefinitionsFixture().conditions}
+          currentTurnParticipantKey={detail.current_turn_participant_key ?? null}
+          onAddCondition={vi.fn()}
+          onOpenRecordFullPage={vi.fn()}
+          onRemoveCondition={vi.fn()}
+          onResetParticipant={onResetParticipant}
+          onSpellCast={vi.fn()}
+          onUpdate={vi.fn()}
+          onUpdateCondition={vi.fn()}
+          participant={participant}
+          participants={detail.participants}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: `Reset ${participant.display_name}` }),
-    );
-    expect(onResetParticipant).not.toHaveBeenCalled();
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: `Reset ${participant.display_name}`,
+        }),
+      );
+      expect(onResetParticipant).not.toHaveBeenCalled();
 
-    const confirmation = await screen.findByRole("dialog");
-    expect(confirmation).toHaveTextContent(`Reset ${participant.display_name}?`);
-    expect(confirmation).toHaveTextContent("mechanical encounter state");
-    expect(confirmation).toHaveTextContent("creation baseline");
-    expect(confirmation).toHaveTextContent(
-      "Custom name, notes, and visibility are preserved.",
-    );
-    expect(confirmation).toHaveTextContent("This cannot be undone.");
-    const confirmButton = within(confirmation).getByRole("button", {
-      name: "Reset creature",
-    });
-    expect(confirmButton).toHaveClass("ant-btn-dangerous");
-    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(confirmation).not.toBeInTheDocument());
-    expect(onResetParticipant).not.toHaveBeenCalled();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: `Reset ${participant.display_name}` }),
-    );
-    fireEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
+      const confirmation = await screen.findByRole("dialog");
+      expect(confirmation).toHaveTextContent(`Reset ${participant.display_name}?`);
+      expect(confirmation).toHaveTextContent("mechanical encounter state");
+      expect(confirmation).toHaveTextContent("creation baseline");
+      expect(confirmation).toHaveTextContent(
+        "Custom name, notes, and visibility are preserved.",
+      );
+      expect(confirmation).toHaveTextContent("This cannot be undone.");
+      const confirmButton = within(confirmation).getByRole("button", {
         name: "Reset creature",
-      }),
-    );
+      });
+      expect(confirmButton).toHaveClass("ant-btn-dangerous");
+      fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(confirmation).not.toBeInTheDocument());
+      expect(onResetParticipant).not.toHaveBeenCalled();
 
-    await waitFor(() =>
-      expect(onResetParticipant).toHaveBeenCalledWith(participant.participant_key),
-    );
-  }, 10_000);
+      fireEvent.click(
+        screen.getByRole("button", { name: `Reset ${participant.display_name}` }),
+      );
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: "Reset creature",
+        }),
+      );
+
+      await waitFor(() =>
+        expect(onResetParticipant).toHaveBeenCalledWith(participant.participant_key),
+      );
+    },
+    tenSecondTestDeadline,
+  );
 
   it("updates typed hazard state without hiding the current participant or its reset", async () => {
     const detail = encounterDetailFixture();
@@ -674,88 +693,100 @@ describe("encounter views", () => {
     expect(screen.queryByText(/creation baseline available/i)).not.toBeInTheDocument();
   });
 
-  it("invokes typed reset and reports returned domains in a transient message", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+  it(
+    "invokes typed reset and reports returned domains in a transient message",
+    async () => {
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Reset Goblin" }));
-    const confirmation = await screen.findByRole("dialog");
-    fireEvent.click(
-      within(confirmation).getByRole("button", { name: "Reset creature" }),
-    );
+      fireEvent.click(await screen.findByRole("button", { name: "Reset Goblin" }));
+      const confirmation = await screen.findByRole("dialog");
+      fireEvent.click(
+        within(confirmation).getByRole("button", { name: "Reset creature" }),
+      );
 
-    await waitFor(() =>
-      expect(apiMocks.resetEncounterParticipant).toHaveBeenCalledWith(
-        "ambush",
-        "participant_a",
-        { confirmation: "reset_participant" },
-      ),
-    );
-    const resetMessage = await screen.findByText(
-      "Creature reset. Restored HP, defeated state, conditions, turn state, variant, actions, spell resources; preserved name, notes, visibility, side.",
-    );
-    expect(resetMessage).toBeVisible();
-    expect(resetMessage.closest(".ant-message-notice")).not.toBeNull();
-    expect(document.querySelector(".encounter-participant-reset-result")).toBeNull();
-  }, 15_000);
+      await waitFor(() =>
+        expect(apiMocks.resetEncounterParticipant).toHaveBeenCalledWith(
+          "ambush",
+          "participant_a",
+          { confirmation: "reset_participant" },
+        ),
+      );
+      const resetMessage = await screen.findByText(
+        "Creature reset. Restored HP, defeated state, conditions, turn state, variant, actions, spell resources; preserved name, notes, visibility, side.",
+      );
+      expect(resetMessage).toBeVisible();
+      expect(resetMessage.closest(".ant-message-notice")).not.toBeNull();
+      expect(document.querySelector(".encounter-participant-reset-result")).toBeNull();
+    },
+    fifteenSecondTestDeadline,
+  );
 
-  it("keeps reset failures actionable", async () => {
-    apiMocks.resetEncounterParticipant.mockRejectedValueOnce(
-      new Error("The participant no longer has a creation baseline."),
-    );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+  it(
+    "keeps reset failures actionable",
+    async () => {
+      apiMocks.resetEncounterParticipant.mockRejectedValueOnce(
+        new Error("The participant no longer has a creation baseline."),
+      );
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Reset Goblin" }));
-    fireEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Reset creature",
-      }),
-    );
+      fireEvent.click(await screen.findByRole("button", { name: "Reset Goblin" }));
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: "Reset creature",
+        }),
+      );
 
-    await waitFor(() =>
-      expect(apiMocks.resetEncounterParticipant).toHaveBeenCalledTimes(1),
-    );
-    expect(
-      await screen.findByText(
-        "Creature reset failed: The participant no longer has a creation baseline.",
-      ),
-    ).toBeVisible();
-  }, 15_000);
+      await waitFor(() =>
+        expect(apiMocks.resetEncounterParticipant).toHaveBeenCalledTimes(1),
+      );
+      expect(
+        await screen.findByText(
+          "Creature reset failed: The participant no longer has a creation baseline.",
+        ),
+      ).toBeVisible();
+    },
+    fifteenSecondTestDeadline,
+  );
 
-  it("casts an encounter spell through its typed occurrence and target", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+  it(
+    "casts an encounter spell through its typed occurrence and target",
+    async () => {
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    const spellcastingDisclosure = await screen.findByRole("button", {
-      name: /Innate Spells/,
-    });
-    expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(await screen.findByRole("link", { name: "Linked Rule" }));
-    const preview = await screen.findByRole("dialog", {
-      name: "Linked Rule spell details",
-    });
-    expect(within(preview).getByText("1st")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Cast Linked Rule" }));
+      const spellcastingDisclosure = await screen.findByRole("button", {
+        name: /Innate Spells/,
+      });
+      expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(await screen.findByRole("link", { name: "Linked Rule" }));
+      const preview = await screen.findByRole("dialog", {
+        name: "Linked Rule spell details",
+      });
+      expect(within(preview).getByText("1st")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Cast Linked Rule" }));
 
-    await waitFor(() =>
-      expect(apiMocks.mutateEncounterSpellCast).toHaveBeenCalledWith(
-        "ambush",
-        "participant_a",
-        {
-          spell_occurrence_id: "linked-spell",
-          spend_target: { target_type: "at_will" },
-          operation: "cast_one",
-        },
-      ),
-    );
-    expect(screen.getAllByText("At will")).not.toHaveLength(0);
-    expect(screen.queryByText(/Spell cast|Use restored/)).not.toBeInTheDocument();
-    expect(document.querySelector(".ant-message-success")).toBeNull();
-  }, 15_000);
+      await waitFor(() =>
+        expect(apiMocks.mutateEncounterSpellCast).toHaveBeenCalledWith(
+          "ambush",
+          "participant_a",
+          {
+            spell_occurrence_id: "linked-spell",
+            spend_target: { target_type: "at_will" },
+            operation: "cast_one",
+          },
+        ),
+      );
+      expect(screen.getAllByText("At will")).not.toHaveLength(0);
+      expect(screen.queryByText(/Spell cast|Use restored/)).not.toBeInTheDocument();
+      expect(document.querySelector(".ant-message-success")).toBeNull();
+    },
+    thirtySecondTestDeadline,
+  );
 
   it("keeps spell mutation failures actionable without success feedback", async () => {
     apiMocks.mutateEncounterSpellCast.mockRejectedValueOnce(
@@ -765,9 +796,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("link", { name: "Linked Rule" }));
-    await screen.findByRole("dialog", { name: "Linked Rule spell details" });
-    fireEvent.click(screen.getByRole("button", { name: "Cast Linked Rule" }));
+    fireEvent.click(await screen.findByText("Linked Rule", { selector: "a" }));
+    await findByAriaLabel("Linked Rule spell details");
+    fireEvent.click(buttonByText("Cast Linked Rule"));
 
     expect(
       await screen.findByText(
@@ -778,56 +809,48 @@ describe("encounter views", () => {
     expect(document.querySelector(".ant-message-success")).toBeNull();
   });
 
-  it("opens and dismisses the accepted spell preview inside the encounter pane", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+  it(
+    "opens and dismisses the accepted spell preview inside the encounter pane",
+    async () => {
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    const spellcastingDisclosure = await screen.findByRole("button", {
-      name: /Innate Spells/,
-    });
-    expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
-    const linkedRule = await screen.findByRole("link", {
-      name: "Linked Rule",
-    });
-    fireEvent.click(linkedRule);
-    const spellPreview = await screen.findByRole("dialog", {
-      name: "Linked Rule spell details",
-    });
-    expect(within(spellPreview).getByText("1st")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Open spell record" }),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close spell preview" }));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("dialog", { name: "Linked Rule spell details" }),
-      ).not.toBeInTheDocument(),
-    );
-    await waitFor(() => expect(linkedRule).toHaveFocus());
+      const spellcastingDisclosure = await screen.findByRole("button", {
+        name: /Innate Spells/,
+      });
+      expect(spellcastingDisclosure).toHaveAttribute("aria-expanded", "true");
+      const linkedRule = await screen.findByText("Linked Rule", { selector: "a" });
+      fireEvent.click(linkedRule);
+      const spellPreview = await findByAriaLabel("Linked Rule spell details");
+      expect(within(spellPreview).getByText("1st")).toBeInTheDocument();
+      expect(getByAriaLabel("Open spell record")).toBeInTheDocument();
+      fireEvent.click(getByAriaLabel("Close spell preview"));
+      await waitFor(() =>
+        expect(queryByAriaLabel("Linked Rule spell details")).not.toBeInTheDocument(),
+      );
+      await waitFor(() => expect(linkedRule).toHaveFocus());
 
-    fireEvent.click(linkedRule);
-    expect(
-      await screen.findByRole("dialog", { name: "Linked Rule spell details" }),
-    ).toBeInTheDocument();
-    const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
-    if (!kyraRow) {
-      throw new Error("Kyra roster row was not rendered");
-    }
-    fireEvent.click(kyraRow);
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("dialog", { name: "Linked Rule spell details" }),
-      ).not.toBeInTheDocument(),
-    );
-  }, 15_000);
+      fireEvent.click(linkedRule);
+      expect(await findByAriaLabel("Linked Rule spell details")).toBeInTheDocument();
+      const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
+      if (!kyraRow) {
+        throw new Error("Kyra roster row was not rendered");
+      }
+      fireEvent.click(kyraRow);
+      await waitFor(() =>
+        expect(queryByAriaLabel("Linked Rule spell details")).not.toBeInTheDocument(),
+      );
+    },
+    fifteenSecondTestDeadline,
+  );
 
   it("opens condition reference previews from canonical condition rows", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Frightened" }));
+    fireEvent.click(await screen.findByText("Frightened", { selector: "button" }));
 
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
@@ -836,7 +859,7 @@ describe("encounter views", () => {
         expect.any(AbortSignal),
       ),
     );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await findByAriaLabel("Reference preview")).toBeInTheDocument();
     expect(await screen.findByText("Frightened Condition")).toBeInTheDocument();
   });
 
@@ -903,7 +926,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const hpInput = await screen.findByLabelText("HP");
+    const hpInput = await findByAriaLabel<HTMLInputElement>("HP");
     expect(hpInput).toHaveValue("10");
     fireEvent.change(hpInput, { target: { value: "50 - 7" } });
     fireEvent.keyDown(hpInput, { key: "Enter" });
@@ -918,7 +941,7 @@ describe("encounter views", () => {
       ),
     );
 
-    const tempHpInput = screen.getByLabelText("Temp HP");
+    const tempHpInput = getByAriaLabel<HTMLInputElement>("Temp HP");
     expect(tempHpInput).toHaveValue("5");
     fireEvent.change(tempHpInput, { target: { value: "4 + 2" } });
     fireEvent.keyDown(tempHpInput, { key: "Enter" });
@@ -934,8 +957,8 @@ describe("encounter views", () => {
       ),
     );
 
-    fireEvent.change(screen.getByLabelText("HP change"), { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    fireEvent.change(getByAriaLabel("HP change"), { target: { value: "8" } });
+    fireEvent.click(buttonByText("Damage"));
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
@@ -948,7 +971,7 @@ describe("encounter views", () => {
       ),
     );
 
-    const hpChangeInput = screen.getByLabelText("HP change");
+    const hpChangeInput = getByAriaLabel("HP change");
     fireEvent.change(hpChangeInput, { target: { value: "-3" } });
     fireEvent.keyDown(hpChangeInput, { key: "Enter" });
 
@@ -987,9 +1010,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const hpChangeInput = await screen.findByLabelText("HP change");
+    const hpChangeInput = await findByAriaLabel("HP change");
     fireEvent.change(hpChangeInput, { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    fireEvent.click(buttonByText("Damage"));
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
@@ -1003,81 +1026,89 @@ describe("encounter views", () => {
     );
   });
 
-  it("searches before adding a record-backed participant", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+  it(
+    "searches before adding a record-backed participant",
+    async () => {
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add Creature" }));
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByRole("button", { name: "Add Creature" }));
+      expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
 
-    const dialog = await screen.findByRole("dialog", {
-      name: "Add creature or hazard",
-    });
-    fireEvent.change(within(dialog).getByLabelText("Search"), {
-      target: { value: "goblin" },
-    });
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+      const dialog = await screen.findByRole("dialog", {
+        name: "Add creature or hazard",
+      });
+      fireEvent.change(within(dialog).getByLabelText("Search"), {
+        target: { value: "goblin" },
+      });
+      await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
 
-    const goblinOption = await within(dialog).findByText("Goblin Warrior");
-    fireEvent.click(goblinOption.closest('[role="button"]') ?? goblinOption);
-    await screen.findByText("Selected: Goblin Warrior");
-    fireEvent.change(within(dialog).getByLabelText("Quantity"), {
-      target: { value: "2" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
-      target: { value: "18" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+      const goblinOption = await within(dialog).findByText("Goblin Warrior");
+      fireEvent.click(goblinOption.closest('[role="button"]') ?? goblinOption);
+      await screen.findByText("Selected: Goblin Warrior");
+      fireEvent.change(within(dialog).getByLabelText("Quantity"), {
+        target: { value: "2" },
+      });
+      fireEvent.change(within(dialog).getByLabelText("Initiative"), {
+        target: { value: "18" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "OK" }));
 
-    await waitFor(() =>
-      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith({
-        encounter_ref: "ambush",
-        record_ref: "actors:goblin",
-        quantity: 2,
-        initiative: 18,
-      }),
-    );
-  }, 10_000);
-
-  it("adds conditions with compact fields and details", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
-
-    await screen.findByText("Frightened");
-
-    fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
-    await selectOption(conditionCombobox("Add condition"), "Sickened");
-    expect(screen.getByLabelText("Condition value")).toHaveValue("1");
-    fireEvent.change(screen.getByLabelText("Condition value"), {
-      target: { value: "2" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Condition details" }));
-    fireEvent.change(await screen.findByLabelText("Duration rounds"), {
-      target: { value: "3" },
-    });
-    fireEvent.change(screen.getByLabelText("Condition note"), {
-      target: { value: "poison" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-
-    await waitFor(() =>
-      expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
-        "ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          condition_ref: "conditionitems:fesd1n5eVhpCSS18",
-          value: 2,
-          duration_rounds: 3,
-          note: "poison",
+      await waitFor(() =>
+        expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith({
+          encounter_ref: "ambush",
+          record_ref: "actors:goblin",
+          quantity: 2,
+          initiative: 18,
         }),
-      ),
-    );
-    expect(
-      apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
-    ).not.toHaveProperty("name");
-  }, 15_000);
+      );
+    },
+    twentySecondTestDeadline,
+  );
+
+  it(
+    "adds conditions with compact fields and details",
+    async () => {
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
+
+      await screen.findByText("Frightened");
+
+      fireEvent.click(buttonByText("Add Condition"));
+      await selectOption(conditionCombobox("Add condition"), "Sickened");
+      expect(getByAriaLabel("Condition value")).toHaveValue("1");
+      fireEvent.change(getByAriaLabel("Condition value"), {
+        target: { value: "2" },
+      });
+      fireEvent.click(buttonByText("Condition details"));
+      fireEvent.change(await findByAriaLabel("Duration rounds"), {
+        target: { value: "3" },
+      });
+      fireEvent.change(getByAriaLabel("Condition note"), {
+        target: { value: "poison" },
+      });
+      fireEvent.click(buttonByText("Add"));
+
+      await waitFor(() =>
+        expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
+          "ambush",
+          expect.objectContaining({
+            participant_key: "participant_a",
+            condition_ref: "conditionitems:fesd1n5eVhpCSS18",
+            value: 2,
+            duration_rounds: 3,
+            note: "poison",
+          }),
+        ),
+      );
+      expect(
+        apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
+      ).not.toHaveProperty("name");
+    },
+    fifteenSecondTestDeadline,
+  );
 
   it.each([390, 430])(
     "keeps long condition content in semantic wrapping groups at %ipx",
@@ -1132,115 +1163,149 @@ describe("encounter views", () => {
         window.dispatchEvent(new Event("resize"));
       }
     },
-    15_000,
+    fifteenSecondTestDeadline,
   );
 
-  it("edits and removes conditions for the current participant", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
+  it(
+    "edits and removes conditions for the current participant",
+    async () => {
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
 
-    await screen.findByText("Frightened");
+      await screen.findByText("Frightened");
 
-    const frightenedControls = screen.getByRole("group", {
-      name: "Frightened value controls",
-    });
-    fireEvent.click(
-      within(frightenedControls).getByRole("button", {
-        name: "Increase Frightened value",
-      }),
-    );
+      const frightenedControls = getByAriaLabel("Frightened value controls");
+      fireEvent.click(getByAriaLabel("Increase Frightened value", frightenedControls));
 
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
-        "ambush",
-        "participant_a",
-        expect.objectContaining({
-          condition_id: 7,
-          name: "Frightened",
-          value: 2,
-        }),
-      ),
-    );
+      await waitFor(() =>
+        expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
+          "ambush",
+          "participant_a",
+          expect.objectContaining({
+            condition_id: 7,
+            name: "Frightened",
+            value: 2,
+          }),
+        ),
+      );
 
-    fireEvent.click(
-      within(frightenedControls).getByRole("button", {
-        name: "Decrease Frightened value",
-      }),
-    );
+      fireEvent.click(getByAriaLabel("Decrease Frightened value", frightenedControls));
 
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
-        "ambush",
-        "participant_a",
-        expect.objectContaining({
-          condition_id: 7,
-          name: "Frightened",
-          value: 0,
-        }),
-      ),
-    );
+      await waitFor(() =>
+        expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
+          "ambush",
+          "participant_a",
+          expect.objectContaining({
+            condition_id: 7,
+            name: "Frightened",
+            value: 0,
+          }),
+        ),
+      );
 
-    const frightenedValue = screen.getByLabelText("Frightened value");
-    fireEvent.change(frightenedValue, {
-      target: { value: "2" },
-    });
-    fireEvent.blur(frightenedValue);
+      const frightenedValue = getByAriaLabel("Frightened value");
+      fireEvent.change(frightenedValue, {
+        target: { value: "2" },
+      });
+      fireEvent.blur(frightenedValue);
 
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
-        "ambush",
-        "participant_a",
-        expect.objectContaining({
-          condition_id: 7,
-          name: "Frightened",
-          value: 2,
-        }),
-      ),
-    );
-    expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[0][2],
-    ).not.toHaveProperty("condition_key");
+      await waitFor(() =>
+        expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
+          "ambush",
+          "participant_a",
+          expect.objectContaining({
+            condition_id: 7,
+            name: "Frightened",
+            value: 2,
+          }),
+        ),
+      );
+      expect(
+        apiMocks.updateEncounterParticipantCondition.mock.calls[0][2],
+      ).not.toHaveProperty("condition_key");
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Frightened details" }));
-    fireEvent.change(lastFieldByAriaLabel("Duration rounds"), {
-      target: { value: "4" },
-    });
-    fireEvent.change(lastFieldByAriaLabel("Condition note"), {
-      target: { value: "aura" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      fireEvent.click(getByAriaLabel("Edit Frightened details"));
+      fireEvent.change(lastFieldByAriaLabel("Duration rounds"), {
+        target: { value: "4" },
+      });
+      fireEvent.change(lastFieldByAriaLabel("Condition note"), {
+        target: { value: "aura" },
+      });
+      fireEvent.click(buttonByText("Save"));
 
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
-        "ambush",
-        "participant_a",
-        expect.objectContaining({
-          condition_id: 7,
-          name: "Frightened",
-          duration_rounds: 4,
-          note: "aura",
-        }),
-      ),
-    );
+      await waitFor(() =>
+        expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
+          "ambush",
+          "participant_a",
+          expect.objectContaining({
+            condition_id: 7,
+            name: "Frightened",
+            duration_rounds: 4,
+            note: "aura",
+          }),
+        ),
+      );
 
-    const frightenedRow = screen
-      .getByText("Frightened")
-      .closest(".encounter-condition-row");
-    expect(frightenedRow).not.toBeNull();
-    fireEvent.click(
-      within(frightenedRow as HTMLElement).getByLabelText("Remove Frightened"),
-    );
+      const frightenedRow = screen
+        .getByText("Frightened")
+        .closest(".encounter-condition-row");
+      expect(frightenedRow).not.toBeNull();
+      fireEvent.click(
+        getByAriaLabel("Remove Frightened", frightenedRow as HTMLElement),
+      );
 
-    await waitFor(() =>
-      expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
-        "ambush",
-        "participant_a",
-        7,
-      ),
-    );
-  }, 10_000);
+      await waitFor(() =>
+        expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
+          "ambush",
+          "participant_a",
+          7,
+        ),
+      );
+    },
+    tenSecondTestDeadline,
+  );
 });
+
+function queryByAriaLabel<T extends HTMLElement = HTMLElement>(
+  label: string,
+  root: ParentNode = document,
+): T | null {
+  return (
+    Array.from(root.querySelectorAll<T>("[aria-label]")).find(
+      (element) => element.getAttribute("aria-label") === label,
+    ) ?? null
+  );
+}
+
+function getByAriaLabel<T extends HTMLElement = HTMLElement>(
+  label: string,
+  root: ParentNode = document,
+): T {
+  const element = queryByAriaLabel<T>(label, root);
+  if (!element) {
+    throw new Error(`${label} control was not rendered`);
+  }
+  return element;
+}
+
+async function findByAriaLabel<T extends HTMLElement = HTMLElement>(
+  label: string,
+): Promise<T> {
+  return waitFor(() => getByAriaLabel<T>(label));
+}
+
+function buttonByText(label: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (element) =>
+      element.getAttribute("aria-label") === label ||
+      element.textContent?.trim() === label,
+  );
+  if (!button) {
+    throw new Error(`${label} button was not rendered`);
+  }
+  return button;
+}
 
 async function selectOption(input: HTMLElement, option: string) {
   fireEvent.mouseDown(input);

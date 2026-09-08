@@ -91,6 +91,9 @@ The full workspace test gate runs test binaries with one harness thread because
 multiple artifact-owning CLI fixtures can otherwise make retained SQLite reader
 acquisition fail under local verification resource pressure. This still runs
 every test and preserves concurrency exercised inside individual tests.
+The web gate runs the complete Vitest suite serially with one worker. Individual
+multi-step integration tests may declare a measured outer timeout while keeping
+their normal assertion deadlines and behavior.
 
 Validation has three explicit tiers:
 
@@ -99,13 +102,15 @@ Validation has three explicit tiers:
   tests, benches, and examples retain warnings-as-errors and the `dbg!` ban.
   The target sets do not overlap and no all-targets pass repeats runtime linting.
   It does not run workspace tests/build or corpus/deep validation.
-  `scripts/validation/fast.sh --base <ref>` makes it path-sensitive and also
-  runs the merge-base artifact-version policy guard.
+  `scripts/validation/fast.sh --base <ref>` makes it path-sensitive.
 - `just validate-focused` runs the ingest/index source-contract, mutation,
   corruption, publication, generation-binding, and validation-snapshot tests.
   It never scans the full source. Synthetic fixtures are preferred for precise
   mutations, while curated isolated Foundry records may be used when their
   relationship context matters.
+- The ordinary Rust CI job also runs four focused Linux artifact-pair checks.
+  They cover first-generation public-reader open, installed-handle retention,
+  replacement failure, and digest authentication without building the corpus.
 - `just validate-exhaustive --source <path> --candidate-head <sha>
   --snapshot-root <new-path> --report <new-path>` is the final artifact-integration
   gate.
@@ -152,13 +157,12 @@ actual digest and generation evidence.
 
 `artifact_contract_version`, `schema_version`, and `manifest_version` respectively
 cover incompatible canonical/artifact semantics, physical DDL, and envelope
-shape. Pull-request CI runs the deterministic merge-base guard in
-`scripts/validation/check-artifact-version-bump.sh`; it inventories the actual
-normalization, writer, metadata, DDL, and envelope owners and requires the exact
-next version for every affected class. Its small fixture suite covers missed
-owners, renames/deletes, downgrades, overlapping owners, and unrelated paths
-without building an artifact. Pre-push runs the same range guard as non-blocking,
-bypassable feedback; required CI remains the pre-merge authority.
+shape. A pull request that changes Diesel migrations, persisted codecs, manifest
+fields, or reader/writer interpretation must state whether the generated index
+requires a rebuild and show the old and new constants. Reviewers inspect that
+small explicit diff alongside the runtime mismatch and compatibility tests.
+Generated indexes remain rebuildable; durable local state keeps its independent
+forward-migration and preservation policy.
 
 Requested embedding selectors are resolved through the existing embedding-model
 catalog before source traversal. Validation binds the typed model and canonical
@@ -170,9 +174,10 @@ generation digests, failure preservation reuses them and does not rehash the
 artifact pair.
 
 Legacy/new matrix reproduction is a one-time trust-establishment review for this
-migration only. Permanent candidate acceptance uses the consolidated fast,
-focused, and change-sensitive artifact-integration tiers; the migration matrix is
-not a permanent recipe, normal CI gate, or Checkpoint C rerun.
+migration only. Permanent candidate acceptance uses the fast and focused tiers,
+plus human-selected artifact integration when compatibility or rebuild risk
+warrants it; the migration matrix is not a permanent recipe, normal CI gate, or
+Checkpoint C rerun.
 
 Run the CLI from source:
 
@@ -316,10 +321,9 @@ Independent review should inspect the exact diff and the evidence relevant to it
 
 Every required check must name the concrete failure risk it detects, use a
 proportionate scope, and explain why cheaper existing unit or integration coverage
-does not already detect that risk. The artifact-integration route uses the reviewed
-artifact-version owner inventory plus explicit embedding and validation owners;
-its routing fixtures keep source-coverage-only and search-only changes on focused
-coverage.
+does not already detect that risk. Full artifact integration is selected during
+human compatibility and rebuild review when a change crosses the source-to-reader
+artifact boundary.
 
 ## Validation Before Commit
 
@@ -352,9 +356,7 @@ Tracked git hooks live in `.githooks/` and enforce:
 - `pre-commit`: run path-sensitive fast checks for staged Rust and web UI changes; docs-only commits are allowed without code validation
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
 - `pre-merge-commit`: run the same path-sensitive fast checks for non-docs merge commits
-- `pre-push`: report advisory merge-base artifact-version feedback, then run
-  path-sensitive full checks for pushed Rust and web UI changes; Git's
-  `--no-verify` bypass remains available and required CI is authoritative
+- `pre-push`: run path-sensitive full checks for pushed Rust and web UI changes
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 

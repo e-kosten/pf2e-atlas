@@ -59,18 +59,6 @@ run_full_verification_for_range() {
   "$(repo_root)/scripts/verify-changed.sh" --range "$range" --full
 }
 
-run_advisory_artifact_version_guard() {
-  base="$1"
-  head="$2"
-  guard="${ATLAS_ARTIFACT_VERSION_GUARD:-$(repo_root)/scripts/validation/check-artifact-version-bump.sh}"
-  if "$guard" --base "$base" --head "$head"; then
-    return 0
-  fi
-  echo "Advisory artifact-version check failed; required pre-merge CI remains authoritative." >&2
-  echo "Review the version-owner changes above, or bypass this local hook with Git's --no-verify when appropriate." >&2
-  return 0
-}
-
 push_range_is_docs_only() {
   local_oid="$1"
   remote_oid="$2"

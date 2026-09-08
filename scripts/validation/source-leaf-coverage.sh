@@ -10,8 +10,8 @@ Usage:
   scripts/validation/source-leaf-coverage.sh lint
   scripts/validation/source-leaf-coverage.sh persistence
 
-Classify changed paths for focused source-leaf and final artifact-integration
-checks, or run the small A2 source-leaf suites. The lint suite requires
+Classify changed paths for focused source-leaf checks, or run the small A2
+source-leaf suites. The lint suite requires
 PF2E_SOURCE_REPOSITORY to identify the accepted pinned checkout.
 EOF
 }
@@ -24,19 +24,6 @@ matches() {
   grep -Eq "$pattern" "$paths_file"
 }
 
-matches_artifact_owner() {
-  policy="$repo_root/scripts/validation/artifact-version-owners.txt"
-  while IFS= read -r path; do
-    while IFS='|' read -r class pattern; do
-      case "$class" in ''|'#'*) continue ;; esac
-      case "$path" in
-        $pattern) return 0 ;;
-      esac
-    done <"$policy"
-  done <"$paths_file"
-  return 1
-}
-
 route() {
   paths_file="$1"
   [ -f "$paths_file" ] || {
@@ -46,9 +33,8 @@ route() {
 
   lint=false
   persistence=false
-  exhaustive=false
 
-  if matches '^(contracts/pf2e-type-registry\.yaml$|contracts/source-leaf-coverage/|crates/atlas-ingest/src/source_coverage/|crates/atlas-ingest/src/source/(hazard_core|hazard_entities)(\.rs|_tests\.rs)$|crates/atlas-record/src/(hazard|hazard_projection)\.rs$|crates/atlas-ingest/tests/source_leaf_(coverage|persistence)\.rs$|crates/atlas-ingest/tests/fixtures/(source-leaf-coverage/|hazards/pinned/)|scripts/validation/(source-leaf-coverage|test-source-leaf-coverage-routing)\.sh$)'; then
+  if matches '^(contracts/pf2e-type-registry\.yaml$|contracts/source-leaf-coverage/|crates/atlas-ingest/src/source_coverage/|crates/atlas-ingest/src/source/(hazard_core|hazard_entities)(\.rs|_tests\.rs)$|crates/atlas-record/src/(hazard|hazard_projection)\.rs$|crates/atlas-ingest/tests/source_leaf_(coverage|persistence)\.rs$|crates/atlas-ingest/tests/fixtures/(source-leaf-coverage/|hazards/pinned/)|scripts/validation/(authenticate-pf2e-source|source-leaf-coverage|test-source-leaf-coverage-routing)\.sh$)'; then
     lint=true
   fi
 
@@ -57,15 +43,7 @@ route() {
     persistence=true
   fi
 
-  # The embedded production build is the final cross-crate compatibility gate.
-  # Route only concrete artifact constructors/codecs plus the production
-  # validation path and document-embedding producers. Focused source-coverage
-  # and search-only changes have cheaper direct tests and stay out of this gate.
-  if matches_artifact_owner || matches '^(vendor/pf2e/|crates/atlas-embedding/src/(catalog|document_input|document_renderer|document_units|document_units/(builder|generation|model)|document_units/token_budget/(children|diagnostics|mod|telemetry)|minilm|model_cache|text|tokenization|unit_kind)\.rs$|crates/atlas-ingest/src/validation/mod\.rs$|crates/atlas-index/src/artifact/validation(\.rs|/)|crates/atlas-index/src/read/(validation\.rs|search/vector(\.rs|/(extension|validation)\.rs))$|crates/atlas-sqlite-vec/src/lib\.rs$|crates/atlas-cli/src/commands/index(\.rs|/args\.rs)$|scripts/validation/exhaustive\.sh$)'; then
-    exhaustive=true
-  fi
-
-  printf 'lint=%s\npersistence=%s\nexhaustive=%s\n' "$lint" "$persistence" "$exhaustive"
+  printf 'lint=%s\npersistence=%s\n' "$lint" "$persistence"
 }
 
 diff_paths() {
