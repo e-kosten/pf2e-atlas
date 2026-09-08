@@ -207,6 +207,67 @@ collect_fixture_paths() {
     >"$output"
 }
 
+assert_git_route() {
+  name="$1"
+  expected="$2"
+  case_root="$3"
+  base="$4"
+  head="$5"
+  paths="$fixture/$name.paths"
+  SOURCE_LEAF_GIT_REPOSITORY="$case_root" \
+    "$repo_root/scripts/validation/source-leaf-coverage.sh" diff-paths "$base" "$head" \
+    >"$paths"
+  actual="$(SOURCE_LEAF_GIT_REPOSITORY="$case_root" \
+    "$repo_root/scripts/validation/source-leaf-coverage.sh" \
+      route "$paths" "$base" "$head")"
+  [ "$actual" = "$expected" ] || {
+    printf '%s route mismatch\nexpected:\n%s\nactual:\n%s\n' \
+      "$name" "$expected" "$actual" >&2
+    exit 1
+  }
+}
+
+test_tail_root="$fixture/test-tail-owner"
+test_tail_owner='crates/atlas-index/src/sqlite/reader.rs'
+mkdir -p "$test_tail_root/scripts/validation" \
+  "$test_tail_root/$(dirname "$test_tail_owner")"
+git -C "$test_tail_root" init -q
+git -C "$test_tail_root" config user.name "Atlas Routing Fixture"
+git -C "$test_tail_root" config user.email "atlas-routing@example.invalid"
+cp "$repo_root/scripts/validation/source-leaf-coverage.sh" \
+  "$test_tail_root/scripts/validation/source-leaf-coverage.sh"
+cp "$repo_root/scripts/validation/verify-artifact-owner-transfer.py" \
+  "$test_tail_root/scripts/validation/verify-artifact-owner-transfer.py"
+printf 'contract|%s|test-tail\n' "$test_tail_owner" \
+  >"$test_tail_root/scripts/validation/artifact-version-owners.txt"
+printf 'fn persisted_reader() {}\n\n#[cfg(test)]\nmod tests {\n    fn fixture() {}\n}\n' \
+  >"$test_tail_root/$test_tail_owner"
+git -C "$test_tail_root" add .
+git -C "$test_tail_root" commit -qm "test: establish test-tail route fixture"
+test_tail_base="$(git -C "$test_tail_root" rev-parse HEAD)"
+sed -i.bak 's/fn fixture() {}/fn fixture() { assert!(true); }/' \
+  "$test_tail_root/$test_tail_owner"
+rm "$test_tail_root/$test_tail_owner.bak"
+git -C "$test_tail_root" add .
+git -C "$test_tail_root" commit -qm "test: change declared test tail"
+test_tail_head="$(git -C "$test_tail_root" rev-parse HEAD)"
+assert_git_route test-tail-only 'lint=false
+persistence=false
+pair_integration=true
+exhaustive=false' \
+  "$test_tail_root" "$test_tail_base" "$test_tail_head"
+sed -i.bak 's/fn persisted_reader() {}/fn persisted_reader() { changed(); }/' \
+  "$test_tail_root/$test_tail_owner"
+rm "$test_tail_root/$test_tail_owner.bak"
+git -C "$test_tail_root" add .
+git -C "$test_tail_root" commit -qm "test: change production before test tail"
+test_tail_production_head="$(git -C "$test_tail_root" rev-parse HEAD)"
+assert_git_route test-tail-production 'lint=false
+persistence=false
+pair_integration=true
+exhaustive=true' \
+  "$test_tail_root" "$test_tail_head" "$test_tail_production_head"
+
 rename_owner='crates/atlas-index/src/write/sqlite.rs'
 new_git_fixture rename-owner "$rename_owner"
 mkdir -p "$case_root/docs"
