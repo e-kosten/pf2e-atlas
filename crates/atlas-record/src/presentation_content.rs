@@ -14,12 +14,17 @@ pub fn project_presentation_content(document: &RichDocument) -> PresentationCont
 /// App record surfaces may display structured damage parts without changing
 /// canonical text, search presentation, or embedding inputs.
 pub fn project_record_surface_content(document: &RichDocument) -> PresentationContent {
-    project_record_surface_content_with_context(document, None).content
+    PresentationContent::new(project_blocks(
+        &document.nodes,
+        &mut DisplayPolicy::RecordSurface,
+    ))
 }
 
-/// Context is supplied only by the successful selected-form resolver result.
+/// Selected spell presentation explicitly distinguishes unavailable resolution.
+/// Available context comes only from the successful selected-form resolver result.
 #[derive(Debug, Clone)]
 pub enum RecordSurfaceContentContext {
+    UnavailableSpellSelection,
     Spell {
         form_id: crate::SpellFormId,
         cast_rank: u8,
@@ -45,25 +50,26 @@ pub struct RecordSurfaceContentProjection {
 
 pub fn project_record_surface_content_with_context(
     document: &RichDocument,
-    context: Option<&RecordSurfaceContentContext>,
+    context: &RecordSurfaceContentContext,
 ) -> RecordSurfaceContentProjection {
-    let mut policy = DisplayPolicy::RecordSurface {
+    let mut policy = DisplayPolicy::SelectedSpell {
         context,
         issues: Vec::new(),
         inline_index: 0,
     };
     let content = PresentationContent::new(project_blocks(&document.nodes, &mut policy));
     let issues = match policy {
-        DisplayPolicy::RecordSurface { issues, .. } => issues,
-        DisplayPolicy::Default => Vec::new(),
+        DisplayPolicy::SelectedSpell { issues, .. } => issues,
+        DisplayPolicy::Default | DisplayPolicy::RecordSurface => Vec::new(),
     };
     RecordSurfaceContentProjection { content, issues }
 }
 
 enum DisplayPolicy<'a> {
     Default,
-    RecordSurface {
-        context: Option<&'a RecordSurfaceContentContext>,
+    RecordSurface,
+    SelectedSpell {
+        context: &'a RecordSurfaceContentContext,
         issues: Vec<RecordSurfaceContentIssue>,
         inline_index: usize,
     },
@@ -373,14 +379,15 @@ fn foundry_inline(
 ) -> Option<PresentationInline> {
     let display = match policy {
         DisplayPolicy::Default => foundry_node_display_text(node),
-        DisplayPolicy::RecordSurface {
+        DisplayPolicy::RecordSurface => record_surface_foundry_text(node),
+        DisplayPolicy::SelectedSpell {
             context,
             issues,
             inline_index,
         } => {
             let index = *inline_index;
             *inline_index += 1;
-            match selected_damage_text(node, *context) {
+            match selected_damage_text(node, context) {
                 Ok(Some(text)) => text,
                 Ok(None) => record_surface_foundry_text(node),
                 Err(kind) => {
@@ -411,7 +418,7 @@ fn foundry_inline(
 fn render_nodes_text(nodes: &[RichNode], policy: &mut DisplayPolicy<'_>) -> String {
     match policy {
         DisplayPolicy::Default => render_nodes_plain_text(nodes),
-        DisplayPolicy::RecordSurface { .. } => {
+        DisplayPolicy::RecordSurface | DisplayPolicy::SelectedSpell { .. } => {
             render_spans_plain_text(&project_inline(nodes, policy))
                 .trim()
                 .to_string()

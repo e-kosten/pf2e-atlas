@@ -5,7 +5,7 @@ use crate::FoundryNode;
 
 pub(super) fn selected_damage_text(
     node: &FoundryNode,
-    context: Option<&RecordSurfaceContentContext>,
+    context: &RecordSurfaceContentContext,
 ) -> Result<Option<String>, RecordSurfaceContentIssueKind> {
     let FoundryNode::Damage {
         formula,
@@ -25,7 +25,7 @@ pub(super) fn selected_damage_text(
     }
     // The aggregate is canonical typed evidence. Fragmented damage_parts are
     // deliberately neither read nor joined by this selected-content policy.
-    if !formula.contains('@') && !formula.contains(")d") && !formula.contains("ternary") {
+    if !formula.contains('@') && !formula.contains("ternary") {
         return Ok(None);
     }
     let unsupported = RecordSurfaceContentIssueKind::UnsupportedDamage;
@@ -33,7 +33,7 @@ pub(super) fn selected_damage_text(
         return Err(unsupported);
     }
     let dice = Dice::parse(formula).ok_or(unsupported)?;
-    let Some(RecordSurfaceContentContext::Spell { cast_rank, .. }) = context else {
+    let RecordSurfaceContentContext::Spell { cast_rank, .. } = context else {
         return Err(RecordSurfaceContentIssueKind::MissingContext);
     };
     if !(1..=10).contains(cast_rank) {
@@ -129,12 +129,6 @@ impl Parser<'_> {
         if depth >= 16 {
             return None;
         }
-        if self.remaining.starts_with('(') {
-            self.take("(")?;
-            let value = self.count(ceiling, depth.checked_add(1)?)?;
-            self.take(")")?;
-            return Some(value);
-        }
         if self.remaining.starts_with("ternary(") {
             self.take("ternary(gte(@item.level,")?;
             let rank = u8::try_from(self.positive()?)
@@ -205,8 +199,7 @@ mod tests {
         let plain = crate::render_plain_text(&document);
         let markdown = crate::render_markdown_like(&document);
         for (rank, dice) in [(2, "1d6"), (4, "1d6"), (6, "2d6"), (8, "3d6")] {
-            let projected =
-                project_record_surface_content_with_context(&document, Some(&context(rank)));
+            let projected = project_record_surface_content_with_context(&document, &context(rank));
             assert!(projected.issues.is_empty());
             let text = render_presentation_content_plain_text(&projected.content);
             assert!(text.contains(&format!("{dice} persistent spirit")));
@@ -223,19 +216,31 @@ mod tests {
     #[test]
     fn invalid_damage_is_localized_once_and_keeps_siblings() {
         for formula in [
-            "(ternary(gte(@actor.level,8),3,1))d6",
-            "(ternary(gte(@item.level,6),2,ternary(gte(@item.level,8),3,1)))d6",
+            "((1))d6",
             "(0)d6",
             "(65536)d6",
-            "(65535)d65535",
             "(1)d0",
             "(1)d6 trailing",
             "( 1)d6",
             "(+1)d6",
+        ] {
+            assert!(
+                Dice::parse(&format!("{formula}[persistent,spirit]")).is_none(),
+                "{formula}"
+            );
+        }
+        for formula in [
+            "(ternary(gte(@actor.level,8),3,1))d6",
+            "(ternary(gte(@item.level,6),2,ternary(gte(@item.level,8),3,1)))d6",
+            "(ternary(gte(@item.level,8),3,(1)))d6",
             "(ternary(gte(@item.level,11),3,1))d6",
+            "(ternary(gte(@item.level,8),65535,1))d65535",
+            "(ternary(gte(@item.level,8),3,1))d6 trailing",
+            "(ternary(gte(@item.level,8), 3,1))d6",
+            "((ternary(gte(@item.level,8),3,1)))d6",
         ] {
             let projected =
-                project_record_surface_content_with_context(&document(formula), Some(&context(8)));
+                project_record_surface_content_with_context(&document(formula), &context(8));
             assert_eq!(projected.issues.len(), 1, "{formula}");
             let text = render_presentation_content_plain_text(&projected.content);
             assert!(
@@ -245,7 +250,10 @@ mod tests {
             );
             assert!(!text.contains("ternary") && !text.contains("@"));
         }
-        let projected = project_record_surface_content_with_context(&document(FORMULA), None);
+        let projected = project_record_surface_content_with_context(
+            &document(FORMULA),
+            &RecordSurfaceContentContext::UnavailableSpellSelection,
+        );
         assert_eq!(projected.issues.len(), 1);
         assert_eq!(
             projected.issues[0].kind,
@@ -258,7 +266,7 @@ mod tests {
         {
             damage_parts.clear();
         }
-        let projected = project_record_surface_content_with_context(&missing, Some(&context(8)));
+        let projected = project_record_surface_content_with_context(&missing, &context(8));
         assert!(projected.issues.is_empty());
         assert!(
             render_presentation_content_plain_text(&projected.content)
@@ -268,7 +276,7 @@ mod tests {
     #[test]
     fn aggregate_is_sole_evidence_and_rejects_options_and_suffixes() {
         let original = document(FORMULA);
-        let expected = project_record_surface_content_with_context(&original, Some(&context(8)));
+        let expected = project_record_surface_content_with_context(&original, &context(8));
         let mut changed = original.clone();
         if let RichNode::Foundry {
             node: FoundryNode::Damage { damage_parts, .. },
@@ -281,7 +289,7 @@ mod tests {
         }
         assert_eq!(
             expected.content,
-            project_record_surface_content_with_context(&changed, Some(&context(8))).content
+            project_record_surface_content_with_context(&changed, &context(8)).content
         );
         for suffix in [
             "[spirit,persistent]",
@@ -301,7 +309,7 @@ mod tests {
                 *formula = format!("{FORMULA}{suffix}");
             }
             assert_eq!(
-                project_record_surface_content_with_context(&invalid, Some(&context(8)))
+                project_record_surface_content_with_context(&invalid, &context(8))
                     .issues
                     .len(),
                 1,
@@ -315,10 +323,46 @@ mod tests {
             options.insert("foo".into(), "bar".into());
         }
         assert_eq!(
-            project_record_surface_content_with_context(&changed, Some(&context(8)))
+            project_record_surface_content_with_context(&changed, &context(8))
                 .issues
                 .len(),
             1
+        );
+    }
+
+    #[test]
+    fn ordinary_damage_never_enters_selected_evaluator() {
+        let mut document = document("(1)d6");
+        if let RichNode::Foundry {
+            node:
+                FoundryNode::Damage {
+                    formula,
+                    damage_parts,
+                    ..
+                },
+        } = &mut document.nodes[1]
+        {
+            *formula = "(1)d6[fire]".into();
+            damage_parts[0].damage_type = Some("fire".into());
+        }
+        let ordinary = crate::project_record_surface_content(&document);
+        assert!(render_presentation_content_plain_text(&ordinary).contains("(1)d6 fire"));
+        for context in [
+            context(8),
+            RecordSurfaceContentContext::UnavailableSpellSelection,
+        ] {
+            let selected = project_record_surface_content_with_context(&document, &context);
+            assert!(selected.issues.is_empty());
+            assert_eq!(ordinary, selected.content);
+        }
+        // Generic surfaces use their ordinary policy even for a dynamic node;
+        // they do not invoke an evaluator and then discard its issues.
+        let dynamic = self::document(FORMULA);
+        assert!(
+            !render_presentation_content_plain_text(&crate::project_record_surface_content(
+                &dynamic
+            ))
+            .contains("Damage unavailable")
         );
     }
 
@@ -333,7 +377,10 @@ mod tests {
                 text: "Authored label".into(),
             }]);
         }
-        let projected = project_record_surface_content_with_context(&document, None);
+        let projected = project_record_surface_content_with_context(
+            &document,
+            &RecordSurfaceContentContext::UnavailableSpellSelection,
+        );
         assert!(projected.issues.is_empty());
         assert!(
             render_presentation_content_plain_text(&projected.content).contains("Authored label")

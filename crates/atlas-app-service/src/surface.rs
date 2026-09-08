@@ -357,7 +357,7 @@ fn spell_surface(
         .filter_map(|document| {
             let projection = atlas_record::project_record_surface_content_with_context(
                 &document.document,
-                content_context.as_ref(),
+                &content_context,
             );
             content_issues.extend(
                 projection
@@ -915,7 +915,7 @@ fn spell_effective_form(
 ) -> (
     atlas_app_model::SpellEffectiveFormView,
     Vec<atlas_record::SpellPresentationIssue>,
-    Option<atlas_record::RecordSurfaceContentContext>,
+    atlas_record::RecordSurfaceContentContext,
 ) {
     let base_id = atlas_record::SpellFormId::base(&spell.identity.record_key);
     let overlay_id = (form_id != base_id)
@@ -935,18 +935,20 @@ fn spell_effective_form(
             overlay_id,
         },
     );
-    let content_context =
-        result.as_ref().ok().map(
-            |resolved| atlas_record::RecordSurfaceContentContext::Spell {
-                form_id: resolved.form_id.clone(),
-                cast_rank: resolved.context.cast_rank,
-            },
-        );
+    let content_context = result.as_ref().map_or(
+        atlas_record::RecordSurfaceContentContext::UnavailableSpellSelection,
+        |resolved| atlas_record::RecordSurfaceContentContext::Spell {
+            form_id: resolved.form_id.clone(),
+            cast_rank: resolved.context.cast_rank,
+        },
+    );
     let (form_id, cast_rank) = match &content_context {
-        Some(atlas_record::RecordSurfaceContentContext::Spell { form_id, cast_rank }) => {
+        atlas_record::RecordSurfaceContentContext::Spell { form_id, cast_rank } => {
             (form_id.clone(), *cast_rank)
         }
-        None => (form_id, cast_rank),
+        atlas_record::RecordSurfaceContentContext::UnavailableSpellSelection => {
+            (form_id, cast_rank)
+        }
     };
     let issues = atlas_record::project_spell_form_result_presentation_issues(&result);
     let base_damage = spell_known(&spell.definition.damage).map(Vec::as_slice);
@@ -4195,6 +4197,57 @@ mod tests {
                 1
             );
         }
+        // Ordinary Damage remains ordinary in selected spell, creature and hazard
+        // surface owners, including an unavailable spell selection.
+        let mut ordinary_record = record.clone();
+        let Some(RecordBody::Spell(ordinary_spell)) = ordinary_record.body.as_mut() else {
+            panic!("spell")
+        };
+        let document = ordinary_spell
+            .definition
+            .content
+            .documents
+            .first_mut()
+            .expect("document");
+        document.document.nodes = vec![atlas_record::RichNode::Foundry {
+            node: atlas_record::FoundryNode::Damage {
+                formula: "(1)d6[fire]".into(),
+                options: Default::default(),
+                label: None,
+                damage_parts: vec![atlas_record::DamagePart {
+                    formula: "(1)d6".into(),
+                    damage_type: Some("fire".into()),
+                }],
+            },
+        }];
+        document.content_hash = atlas_record::ContentHash::for_document(&document.document);
+        let ordinary_document = document.clone();
+        for rank in [1, 2, 8] {
+            let surface =
+                spell_surface_json_with_selection(&ordinary_record, Some((id.clone(), rank)));
+            let content = surface["presentation"]["body"]["content"].to_string();
+            assert!(content.contains("(1)d6 fire"));
+            assert!(!content.contains("Damage unavailable"));
+            assert!(!surface["issues"].as_array().is_some_and(|issues| {
+                issues
+                    .iter()
+                    .any(|issue| issue["fact_label"] == "Description damage")
+            }));
+        }
+        let mut creature = known_empty_creature();
+        let owner = creature.identity.record_key.clone();
+        creature.content.documents.push(content_document(
+            &owner,
+            "public-notes",
+            ContentOwner::Record(owner.clone()),
+            0,
+            "Public Notes",
+            ordinary_document.document.nodes,
+        ));
+        let surface = record_surface_for_creature(creature);
+        let content = serde_json::to_string(&surface)?;
+        assert!(content.contains("(1)d6 fire"));
+
         assert_eq!(&before, spell);
         assert_eq!(default_before, defaults());
         assert_eq!(semantic_before, semantic_inputs());
@@ -4784,6 +4837,31 @@ mod tests {
             let serialized = serde_json::to_string(&view)?;
             assert!(serialized.contains(natural), "{key}: missing {natural}");
             assert!(!serialized.contains("damage damage"));
+            let mut ordinary_hazard = hazard.clone();
+            let document = ordinary_hazard
+                .content
+                .documents
+                .first_mut()
+                .expect("hazard content");
+            document.document.nodes = vec![atlas_record::RichNode::Foundry {
+                node: atlas_record::FoundryNode::Damage {
+                    formula: "(1)d6[fire]".into(),
+                    options: Default::default(),
+                    label: None,
+                    damage_parts: vec![atlas_record::DamagePart {
+                        formula: "(1)d6".into(),
+                        damage_type: Some("fire".into()),
+                    }],
+                },
+            }];
+            document.content_hash = atlas_record::ContentHash::for_document(&document.document);
+            let ordinary = crate::hazard_surface::hazard_surface(
+                &ordinary_hazard,
+                RecordSurfaceProfileView::RecordDetail,
+                None,
+            );
+            let ordinary = serde_json::to_string(&ordinary)?;
+            assert!(ordinary.contains("(1)d6 fire"), "{key}: {ordinary}");
             assert_eq!(*hazard, before);
             let after = hazard
                 .content

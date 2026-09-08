@@ -23,6 +23,43 @@ const missing = { state: "missing" as const };
 const known = <T,>(value: T) => ({ state: "known" as const, value });
 
 describe("SpellRecordSurface", () => {
+  it.each<SpellFactView<boolean>>([
+    known(true),
+    known(false),
+    missing,
+    { state: "null" },
+    { state: "unsupported" },
+  ])(
+    "renders only a known-true counteract note, preserving optional states: %j",
+    (counteraction) => {
+      const definition = plainSpellDefinition();
+      definition.casting = known({
+        time: known("2"),
+        cost: missing,
+        requirements: missing,
+        counteraction,
+      });
+      const surface = spellSurface("Test", definition, [baseForm("base")]);
+      if (counteraction.state === "unsupported")
+        surface.issues = [
+          {
+            code: "unsupported",
+            placement: "rules",
+            message: "Counteract field unavailable",
+          },
+        ];
+      const before = JSON.stringify(surface);
+      render(<RecordSurface surface={surface} onReference={vi.fn()} />);
+      expect(screen.queryAllByText("Uses a counteract check")).toHaveLength(
+        counteraction.state === "known" && counteraction.value ? 1 : 0,
+      );
+      expect(screen.queryByText("Counteraction")).not.toBeInTheDocument();
+      if (counteraction.state === "unsupported")
+        expect(screen.getByText("Counteract field unavailable")).toBeVisible();
+      expect(JSON.stringify(surface)).toBe(before);
+    },
+  );
+
   it("updates only returned Blazing description damage and heading rank in place", () => {
     const selected = (rank: number, dice: string) => {
       const surface = fireball();
@@ -407,7 +444,8 @@ describe("SpellRecordSurface", () => {
     expect(screen.queryByText("120-foot query range")).not.toBeInTheDocument();
     expect(screen.getByText("Armor Class")).toBeInTheDocument();
     expect(screen.getByText("Reflex")).toBeInTheDocument();
-    expect(screen.getAllByText("No").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("No")).toHaveLength(1);
+    expect(screen.queryByText("Counteraction")).not.toBeInTheDocument();
     expect(screen.getByText("DC 30 Religion check")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Alarm" }));
     expect(onReference).toHaveBeenCalledWith("spells-srd:alarm");

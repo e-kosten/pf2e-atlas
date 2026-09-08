@@ -53,14 +53,22 @@ Common reference responses carry server-owned next limits8,16,32,50 and stop at5
 
 ### Selected spell description damage
 
-The record-surface content policy accepts optional spell context from the same
-successful resolver result returned as the effective form. Its bounded private,
-nonpersisted dice-count AST supports parenthesized positive counts and descending
+Ordinary record-surface projection never invokes the selected-spell evaluator.
+Selected-spell projection requires explicit successful context from the same
+resolver result returned as the effective form, or an explicit unavailable-selection
+state. Every evaluator caller retains localized issues; no issue-bearing result is
+discarded to obtain ordinary content. Its bounded private,
+nonpersisted dice-count AST supports one outer grouping around positive counts or descending
 `ternary(gte(@item.level, rank), count, else)` thresholds over the intact canonical Damage aggregate formula with an exact
 `[persistent,type]` suffix and empty options. Existing DamagePart fragments are
 neither evaluated nor reconstructed; their persisted representation is unchanged. It neither evaluates arbitrary expressions nor changes interval
 heightening grammar. Invalid or absent context yields one contextual issue per
 affected inline and an unavailable value; siblings and authored labels survive.
+Only selected spell content containing dynamic expression markers enters this
+evaluator; static damage parts keep the ordinary formatter.
+Ordinary `(1)d6[fire]` formatting remains outside that evaluator in both ordinary
+and selected spell content. Arbitrary extra count grouping is rejected; only the
+exact approved grammar is admitted.
 App-service retains content/inline identity for these issues. No requested-rank
 or authored-base fallback supplies context. This policy does not alter default
 presentation, canonical hydration, FTS, embedding inputs, or artifact compatibility.
