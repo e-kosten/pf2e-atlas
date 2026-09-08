@@ -1,4 +1,13 @@
-import { Button, Collapse, InputNumber, Select, Space, Tag, Typography } from "antd";
+import {
+  Button,
+  Collapse,
+  InputNumber,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  theme,
+} from "antd";
 import { useState } from "react";
 import type React from "react";
 import type {
@@ -437,6 +446,7 @@ function FormsSection({
   selectionError?: string;
   selectionUnavailable: boolean;
 }) {
+  const { token } = theme.useToken();
   const initialForm = catalog.forms.find((form) => form.id === body.effective_form.id);
   const [draftFormId, setDraftFormId] = useState<string | undefined>(initialForm?.id);
   const [rankNotice, setRankNotice] = useState("");
@@ -497,38 +507,51 @@ function FormsSection({
           {catalog.forms.length === 1 ? (
             <strong>{catalog.forms[0].label}</strong>
           ) : (
-            <Select
-              aria-label="Spell form"
-              className="spell-sheet__form-select"
-              optionRender={(option) => (
-                <span className="spell-sheet__form-option">{option.label}</span>
-              )}
-              labelRender={(option) => (
-                <span className="spell-sheet__form-option">{option.label}</span>
-              )}
-              onChange={(formId) => {
-                setDraftFormId(formId);
-                const form = catalog.forms.find((candidate) => candidate.id === formId);
-                if (
-                  form &&
-                  (draftRank === null ||
-                    draftRank < form.minimum_cast_rank ||
-                    draftRank > 255)
-                ) {
-                  setDraftRank(form.minimum_cast_rank);
-                  setRankNotice(
-                    `Cast rank reset to ${form.minimum_cast_rank}, the minimum for this form.`,
+            <div className="spell-sheet__form-select-size">
+              <span
+                className="spell-sheet__form-label-measure"
+                aria-hidden="true"
+                style={{ fontSize: token.fontSize, fontFamily: token.fontFamily }}
+              >
+                {catalog.forms.map((form) => (
+                  <span key={form.id}>{form.label}</span>
+                ))}
+              </span>
+              <Select
+                aria-label="Spell form"
+                className="spell-sheet__form-select"
+                optionRender={(option) => (
+                  <span className="spell-sheet__form-option">{option.label}</span>
+                )}
+                labelRender={(option) => (
+                  <span className="spell-sheet__form-option">{option.label}</span>
+                )}
+                onChange={(formId) => {
+                  setDraftFormId(formId);
+                  const form = catalog.forms.find(
+                    (candidate) => candidate.id === formId,
                   );
-                } else setRankNotice("");
-              }}
-              options={catalog.forms.map((form) => ({
-                label: form.label,
-                value: form.id,
-              }))}
-              placeholder="Choose a form"
-              value={draftFormId}
-              virtual={false}
-            />
+                  if (
+                    form &&
+                    (draftRank === null ||
+                      draftRank < form.minimum_cast_rank ||
+                      draftRank > 255)
+                  ) {
+                    setDraftRank(form.minimum_cast_rank);
+                    setRankNotice(
+                      `Cast rank reset to ${form.minimum_cast_rank}, the minimum for this form.`,
+                    );
+                  } else setRankNotice("");
+                }}
+                options={catalog.forms.map((form) => ({
+                  label: form.label,
+                  value: form.id,
+                }))}
+                placeholder="Choose a form"
+                value={draftFormId}
+                virtual={false}
+              />
+            </div>
           )}
         </div>
         <div className="spell-sheet__rank-actions">
