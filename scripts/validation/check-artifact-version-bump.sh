@@ -44,6 +44,21 @@ owner_change_requires_bump() {
   owner_path="$2"
   owner_before="$3"
   owner_after="$4"
+  if ! git cat-file -e "$owner_before:$owner_path" 2>/dev/null \
+    && git cat-file -e "$owner_after:$owner_path" 2>/dev/null \
+    && transfer_source="$(git show "$owner_after:scripts/validation/artifact-owner-transfers.txt" 2>/dev/null \
+      | awk -F '|' -v class="$owner_class" -v target="$owner_path" \
+        '$1 == class && $3 == target { print $2 }')" \
+    && [ -n "$transfer_source" ] \
+    && "$repo_root/scripts/validation/verify-artifact-owner-transfer.py" \
+      --class "$owner_class" \
+      --source "$transfer_source" \
+      --target "$owner_path" \
+      --before "$owner_before" \
+      --after "$owner_after"
+  then
+    return 1
+  fi
   if [ "$owner_class" = contract ] && [ "$owner_path" = crates/atlas-index/src/artifact/metadata.rs ]; then
     git diff --unified=0 "$owner_before" "$owner_after" -- "$owner_path" \
       | sed -n '/^[+-][^+-]/p' \
@@ -132,12 +147,11 @@ validate_history() {
     echo "unable to parse $history_class version from $history_constant=$before_version at $before_revision" >&2
     return 1
   fi
-  owner_change_seen=0
-  version_bump_seen=0
+  uncovered_owner_change=0
 
   while IFS= read -r revision; do
     if commit_changes_class "$history_class" "$before_revision" "$revision"; then
-      owner_change_seen=1
+      uncovered_owner_change=1
     fi
     if ! current_version="$(read_constant "$revision" "$history_constant")"; then
       return 1
@@ -156,13 +170,13 @@ validate_history() {
         return 1
       fi
       echo "$history_class version bump at $revision: $before_version -> $current_version" >&2
-      version_bump_seen=1
+      uncovered_owner_change=0
     fi
     before_revision="$revision"
     before_version="$current_version"
   done <"$tmp_dir/commits"
 
-  if [ "$owner_change_seen" -ne 0 ] && [ "$version_bump_seen" -eq 0 ]; then
+  if [ "$uncovered_owner_change" -ne 0 ]; then
     echo "$history_class owners changed without a qualifying $history_constant bump (head $head remains $before_version)" >&2
     return 1
   fi

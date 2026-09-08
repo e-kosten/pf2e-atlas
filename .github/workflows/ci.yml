@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       lint: ${{ steps.route.outputs.lint }}
+      pair_integration: ${{ steps.route.outputs.pair_integration }}
       exhaustive: ${{ steps.route.outputs.exhaustive }}
     steps:
       - uses: actions/checkout@v5
@@ -33,9 +34,10 @@ jobs:
         id: route
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          scripts/validation/source-leaf-coverage.sh diff-paths "$BASE_SHA" HEAD > "$RUNNER_TEMP/source-leaf-paths"
-          scripts/validation/source-leaf-coverage.sh route "$RUNNER_TEMP/source-leaf-paths" >> "$GITHUB_OUTPUT"
+          scripts/validation/source-leaf-coverage.sh diff-paths "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/source-leaf-paths"
+          scripts/validation/source-leaf-coverage.sh route "$RUNNER_TEMP/source-leaf-paths" "$BASE_SHA" "$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
   source-leaf:
     name: source leaf focused
@@ -69,6 +71,25 @@ jobs:
         env:
           PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.source-leaf-pf2e
         run: scripts/validation/source-leaf-coverage.sh lint
+
+  artifact-pair-integration:
+    name: artifact pair linux
+    needs: source-leaf-route
+    if: needs.source-leaf-route.outputs.pair_integration == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify first generation opens through the bound public reader
+        run: >-
+          cargo test -p atlas-index
+          artifact::pair_integration_tests::first_generation_materialization_opens_through_bound_public_reader
+          -- --exact
+      - name: Verify generation replacement fails closed before trust
+        run: >-
+          cargo test -p atlas-index
+          artifact::pair::receipt_tests::generation_replacement_during_final_reopen_fails_closed_without_trust
+          -- --exact
 
   artifact-version:
     name: artifact version

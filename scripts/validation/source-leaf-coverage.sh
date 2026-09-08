@@ -5,7 +5,7 @@ set -eu
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/validation/source-leaf-coverage.sh route PATHS_FILE
+  scripts/validation/source-leaf-coverage.sh route PATHS_FILE [BASE HEAD]
   scripts/validation/source-leaf-coverage.sh diff-paths BASE HEAD
   scripts/validation/source-leaf-coverage.sh lint
   scripts/validation/source-leaf-coverage.sh persistence
@@ -29,16 +29,43 @@ matches_artifact_owner() {
   while IFS= read -r path; do
     while IFS='|' read -r class pattern; do
       case "$class" in ''|'#'*) continue ;; esac
+      # The policy intentionally supplies shell globs such as migrations/*.
+      # shellcheck disable=SC2254
       case "$path" in
-        $pattern) return 0 ;;
+        $pattern)
+          if [ -n "$route_base" ] \
+            && [ -n "$route_head" ] \
+            && ! git cat-file -e "$route_base:$path" 2>/dev/null \
+            && git cat-file -e "$route_head:$path" 2>/dev/null \
+            && transfer_source="$(git show "$route_head:scripts/validation/artifact-owner-transfers.txt" 2>/dev/null \
+              | awk -F '|' -v class="$class" -v target="$path" \
+                '$1 == class && $3 == target { print $2 }')" \
+            && [ -n "$transfer_source" ] \
+            && "$repo_root/scripts/validation/verify-artifact-owner-transfer.py" \
+              --class "$class" \
+              --source "$transfer_source" \
+              --target "$path" \
+              --before "$route_base" \
+              --after "$route_head" >/dev/null 2>&1
+          then
+            continue
+          fi
+          return 0
+          ;;
       esac
     done <"$policy"
   done <"$paths_file"
   return 1
 }
 
+matches_pair_integration_owner() {
+  matches '^(crates/atlas-index/src/artifact/(pair|pair_integration_tests|publication)\.rs$|crates/atlas-index/src/sqlite/reader\.rs$)'
+}
+
 route() {
   paths_file="$1"
+  route_base="${2:-}"
+  route_head="${3:-}"
   [ -f "$paths_file" ] || {
     echo "route requires a readable changed-path file" >&2
     exit 2
@@ -46,6 +73,7 @@ route() {
 
   lint=false
   persistence=false
+  pair_integration=false
   exhaustive=false
 
   if matches '^(contracts/pf2e-type-registry\.yaml$|contracts/source-leaf-coverage/|crates/atlas-ingest/src/source_coverage/|crates/atlas-ingest/src/source/(hazard_core|hazard_entities)(\.rs|_tests\.rs)$|crates/atlas-record/src/(hazard|hazard_projection)\.rs$|crates/atlas-ingest/tests/source_leaf_(coverage|persistence)\.rs$|crates/atlas-ingest/tests/fixtures/(source-leaf-coverage/|hazards/pinned/)|scripts/validation/(source-leaf-coverage|test-source-leaf-coverage-routing)\.sh$)'; then
@@ -57,6 +85,10 @@ route() {
     persistence=true
   fi
 
+  if matches_pair_integration_owner; then
+    pair_integration=true
+  fi
+
   # The embedded production build is the final cross-crate compatibility gate.
   # Route only concrete artifact constructors/codecs plus the production
   # validation path and document-embedding producers. Focused source-coverage
@@ -65,7 +97,8 @@ route() {
     exhaustive=true
   fi
 
-  printf 'lint=%s\npersistence=%s\nexhaustive=%s\n' "$lint" "$persistence" "$exhaustive"
+  printf 'lint=%s\npersistence=%s\npair_integration=%s\nexhaustive=%s\n' \
+    "$lint" "$persistence" "$pair_integration" "$exhaustive"
 }
 
 diff_paths() {
@@ -78,8 +111,8 @@ diff_paths() {
 
 case "${1:-}" in
   route)
-    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
-    route "$2"
+    { [ "$#" -eq 2 ] || [ "$#" -eq 4 ]; } || { usage >&2; exit 2; }
+    route "$2" "${3:-}" "${4:-}"
     ;;
   diff-paths)
     [ "$#" -eq 3 ] || { usage >&2; exit 2; }

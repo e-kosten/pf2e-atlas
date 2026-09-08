@@ -10,11 +10,14 @@ import {
   recordDetailFixture as typedRecordDetailFixture,
   recordSummaryFixture,
 } from "../../test/recordFixtures";
+import { testDeadline } from "../../test/testDeadline";
 import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
+
+const tenSecondTestDeadline = testDeadline(10_000);
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -209,31 +212,35 @@ describe("list views", () => {
     );
   });
 
-  it("opens references from the selected saved-list detail in a popover", async () => {
-    history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
-    render(
-      <ListDetailView
-        route={{
-          kind: "list",
-          slug: "research",
-          selectedRecordKey: "actions:testAction1",
-        }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+  it(
+    "opens references from the selected saved-list detail in a popover",
+    async () => {
+      history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
+      render(
+        <ListDetailView
+          route={{
+            kind: "list",
+            slug: "research",
+            selectedRecordKey: "actions:testAction1",
+          }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
 
-    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
 
-    await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
-        "rules:nested",
-        undefined,
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
-  }, 10_000);
+      await waitFor(() =>
+        expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+          "rules:nested",
+          undefined,
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+      expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
+    },
+    tenSecondTestDeadline,
+  );
 
   it("searches within a saved list through the filter route", async () => {
     render(
