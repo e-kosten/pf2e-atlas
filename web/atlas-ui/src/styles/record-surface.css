@@ -1135,6 +1135,7 @@
   flex: 0 1 auto;
 }
 .spell-sheet__selection-summary {
+  contain: inline-size;
   display: grid;
   justify-items: start;
 }
