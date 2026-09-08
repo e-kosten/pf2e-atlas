@@ -5,6 +5,17 @@ import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 describe("ResultPaneHeader", () => {
+  it.each([
+    [0n, "0 records"],
+    [1n, "1 record"],
+    [42n, "42 records"],
+  ] as const)("labels a total of %s correctly", (total, label) => {
+    const resultPage = resultWindowPage();
+    resultPage.page.total = total;
+    render(<ResultPaneHeader workspace={workspace({ resultPage })} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
   it("lets users jump directly to a page", () => {
     const setPageNumber = vi.fn();
     render(<ResultPaneHeader workspace={workspace({ setPageNumber })} />);

@@ -21,7 +21,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         {workspace.resultsRefreshing
           ? "Updating results"
           : page
-            ? `${page.total.toLocaleString()} records`
+            ? `${page.total.toLocaleString()} ${page.total === 1n ? "record" : "records"}`
             : "No result window yet"}
       </span>
       <div className="pager pager--compact">
