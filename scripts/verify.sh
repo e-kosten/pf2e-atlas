@@ -68,5 +68,5 @@ run_check "runtime clippy" cargo clippy --workspace --lib --bins -- \
   -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
 run_check "test clippy" cargo clippy --workspace --tests --benches --examples -- \
   -D warnings -D clippy::dbg_macro
-run_check "workspace tests" cargo test --workspace
+run_check "workspace tests" cargo test --workspace -- --test-threads=1
 run_check "workspace build" cargo build --workspace

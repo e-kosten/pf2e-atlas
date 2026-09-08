@@ -141,8 +141,8 @@ case "$verbose_output" in
     ;;
 esac
 
-grep -q 'cargo test --workspace' "$log" || {
-  echo "full changed-path verification did not run cargo tests" >&2
+grep -q 'cargo test --workspace -- --test-threads=1' "$log" || {
+  echo "full changed-path verification did not run serialized cargo tests" >&2
   exit 1
 }
 grep -q 'cargo build --workspace' "$log" || {

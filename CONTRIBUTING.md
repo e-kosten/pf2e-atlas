@@ -87,6 +87,10 @@ just verify
 Validation is quiet by default: successful gates print summary lines, and detailed
 Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` when you want the full command stream.
+The full workspace test gate runs test binaries with one harness thread because
+multiple artifact-owning CLI fixtures can otherwise make retained SQLite reader
+acquisition fail under local verification resource pressure. This still runs
+every test and preserves concurrency exercised inside individual tests.
 
 Validation has three explicit tiers:
 
